@@ -1,0 +1,24 @@
+# Build output
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# Executables
+lizard_viewer
+run_demo
+run_tests
+demos/demo_ager_3d
+demos/demo_lizard_console
+
+# Documentation output
+doc/
+doc/html/
+doc/latex/
+
+# IDE / System
+.DS_Store
+.vscode/
+.idea/
