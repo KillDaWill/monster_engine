@@ -1,6 +1,6 @@
 /**
  * @file SDFMesher.h
- * @brief Orquestador de triangulación de campos SDF a mallas poligonales usando Marching Cubes.
+ * @brief Orquestador de triangulación de campos SDF a mallas poligonales usando Marching Cubes con caché de aristas.
  * @author Monster Engine Team
  * @date 2026
  */
@@ -9,7 +9,7 @@
 #define MONSTER_SDF_MESHER_H
 
 #include "Mesh.h"
-#include "MonsterQueries.h"
+#include "AABB.h"
 #include "SDFSampling.h"
 #include <stdbool.h>
 
@@ -25,10 +25,13 @@ typedef struct SDFMesherConfig {
     int resolutionX;   /**< Resolución de rejilla en el eje X (ej. 32) */
     int resolutionY;   /**< Resolución de rejilla en el eje Y (ej. 32) */
     int resolutionZ;   /**< Resolución de rejilla en el eje Z (ej. 32) */
+    float voxelSize;   /**< Tamaño objetivo de vóxel (si es > 0, anula resolución fija) */
+    int maxResolution; /**< Límite superior por dimensión (por defecto 128) */
+    size_t maxCells;   /**< Límite superior de celdas totales (por defecto 500,000) */
     float isolevel;    /**< Valor de la isosuperficie (defecto 0.0f) */
     float normalEps;   /**< Paso épsilon para gradiente numérico de normales */
     AABB3D bounds;     /**< Bounding Box 3D para el volumen de muestreo */
-    bool useAutoBounds;/**< Si es true, recalcula las fronteras automáticamente */
+    bool useAutoBounds;/**< Si es true, recalcula las fronteras usando field->getBounds */
 } SDFMesherConfig;
 
 /**
@@ -50,17 +53,15 @@ SDFMesherConfig SDFMesher_DefaultConfig(void);
 SDFMesher SDFMesher_Create(SDFMesherConfig config);
 
 /**
- * @brief Genera una malla 3D evaluando el campo SDF dado sobre la rejilla regular.
+ * @brief Genera una malla 3D evaluando el campo SDF dado sobre la rejilla regular con caché de aristas.
  * @param mesher Instancia de SDFMesher.
- * @param evalFn Función evaluadora del campo SDF.
- * @param context Contexto a pasar a evalFn (ej. const MonsterSDF*).
+ * @param field Puntero a la estructura de campo SDF (evaluador + bounds + contexto).
  * @param outMesh Malla de salida a rellenar con vértices e índices.
- * @return true si la generación se completó exitosamente.
+ * @return true si la generación se completó exitosamente, false si ocurrió error de parámetros o de memoria.
  */
 bool SDFMesher_GenerateMesh(
     SDFMesher* mesher,
-    SDFEvaluateFn evalFn,
-    const void* context,
+    const SDFField* field,
     Mesh* outMesh
 );
 

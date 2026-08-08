@@ -10,6 +10,7 @@
 
 #include "Vector.h"
 #include "SDFOperations.h"
+#include "AABB.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,11 +22,17 @@ extern "C" {
 typedef SDFSample (*SDFEvaluateFn)(const void* context, Vector3 point);
 
 /**
+ * @brief Firma de función opcional para calcular o retornar los bounds de un campo SDF.
+ */
+typedef AABB3D (*SDFBoundsFn)(const void* context);
+
+/**
  * @struct SDFField
- * @brief Abstracción de un campo escalar/vectorial SDF con su contexto asociado.
+ * @brief Abstracción de un campo escalar/vectorial SDF con su contexto asociado y delimitación.
  */
 typedef struct SDFField {
     SDFEvaluateFn evaluate; /**< Puntero a función de evaluación del campo */
+    SDFBoundsFn getBounds;  /**< Puntero a función opcional de límites */
     const void* context;    /**< Contexto o estructura de datos del campo (ej. MonsterSDF*) */
 } SDFField;
 

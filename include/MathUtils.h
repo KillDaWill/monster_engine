@@ -9,6 +9,8 @@
 #define MONSTER_MATH_UTILS_H
 
 #include <math.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,6 +54,11 @@ float Math_Min(float a, float b);
  * @brief Retorna el valor máximo entre dos flotantes.
  */
 float Math_Max(float a, float b);
+
+/**
+ * @brief Calcula una nueva capacidad para arreglos dinámicos validando desbordamiento de memoria.
+ */
+bool Math_GrowCapacity(size_t currentCapacity, size_t minimumRequired, size_t elementSize, size_t* outNewCapacity);
 
 #ifdef __cplusplus
 }

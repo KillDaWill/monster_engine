@@ -42,14 +42,21 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
 void MonsterAger_SetPerc(MonsterAger* ager, float perc);
 
 /**
+ * @brief Obtiene un puntero mutable al monstruo mezclado resultante.
+ * @param ager Puntero al ager.
+ * @return Puntero a la estructura Monster mezclada.
+ */
+Monster* MonsterAger_GetResult(MonsterAger* ager);
+
+/**
  * @brief Obtiene un puntero constante al monstruo mezclado resultante.
  * @param ager Puntero constante al ager.
  * @return Puntero a la estructura Monster mezclada.
  */
-const Monster* MonsterAger_GetResult(const MonsterAger* ager);
+const Monster* MonsterAger_GetResultConst(const MonsterAger* ager);
 
 /**
- * @brief Libera los recursos asignados internamente por MonsterAger (copias de los monstruos).
+ * @brief Libera los recursos asignados internamente por MonsterAger.
  * @param ager Puntero al ager.
  */
 void MonsterAger_Free(MonsterAger* ager);
@@ -61,14 +68,14 @@ void MonsterAger_Free(MonsterAger* ager);
  * @param perc Factor de interpolación.
  * @param dst Monstruo destino donde almacenar la mezcla.
  */
-void MonsterAger_MixMonster(const Monster* monster1, const Monster* monster2, float perc, Monster* dst);
+void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, float perc, Monster* dst);
 
 /**
- * @brief Iguala el número de partes del cuerpo, tamaño de paleta de colores y traits entre dos monstruos.
+ * @brief Normaliza y sincroniza el número de partes del cuerpo, tamaño de paleta de colores y rasgos entre dos monstruos.
  * @param monster1 Puntero al primer monstruo.
  * @param monster2 Puntero al segundo monstruo.
  */
-void MonsterAger_EqualizeTraits(Monster* monster1, Monster* monster2);
+void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2);
 
 #ifdef __cplusplus
 }

@@ -4,7 +4,7 @@
 #include <string.h>
 #include <math.h>
 
-void MonsterAger_EqualizeTraits(Monster* monster1, Monster* monster2) {
+void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
     if (!monster1 || !monster2) return;
 
     size_t size1 = monster1->bodyPartCount;
@@ -15,10 +15,17 @@ void MonsterAger_EqualizeTraits(Monster* monster1, Monster* monster2) {
         BodyPart lastPart2 = monster2->bodyParts[size2 - 1];
         for (size_t i = 0; i < size1 - size2; ++i) {
             BodyPart part = monster1->bodyParts[size2 + i];
+            part.position = lastPart2.position;
+            part.oldPosition = lastPart2.oldPosition;
+            part.positionRender = lastPart2.positionRender;
             part.width = 0.0f;
             part.height = 0.0f;
             part.length = 0.0f;
+            part.widthRender = 0.0f;
+            part.heightRender = 0.0f;
+            part.lengthRender = 0.0f;
             part.groundOffset = lastPart2.groundOffset;
+            part.groundOffsetRender = lastPart2.groundOffsetRender;
             part.traits = NULL;
             part.traitCount = 0;
             part.traitCapacity = 0;
@@ -29,10 +36,17 @@ void MonsterAger_EqualizeTraits(Monster* monster1, Monster* monster2) {
         BodyPart lastPart1 = monster1->bodyParts[size1 - 1];
         for (size_t i = 0; i < size2 - size1; ++i) {
             BodyPart part = monster2->bodyParts[size1 + i];
+            part.position = lastPart1.position;
+            part.oldPosition = lastPart1.oldPosition;
+            part.positionRender = lastPart1.positionRender;
             part.width = 0.0f;
             part.height = 0.0f;
             part.length = 0.0f;
+            part.widthRender = 0.0f;
+            part.heightRender = 0.0f;
+            part.lengthRender = 0.0f;
             part.groundOffset = lastPart1.groundOffset;
+            part.groundOffsetRender = lastPart1.groundOffsetRender;
             part.traits = NULL;
             part.traitCount = 0;
             part.traitCapacity = 0;
@@ -47,13 +61,13 @@ void MonsterAger_EqualizeTraits(Monster* monster1, Monster* monster2) {
     if (eyes1 > eyes2) {
         for (size_t i = 0; i < eyes1 - eyes2; ++i) {
             Eye eye = monster1->eyes[eyes2 + i];
-            eye.scale = Vec3_Zero(); // Escala 0 para que crezca progresivamente
+            eye.scale = Vec3_Zero(); /* Escala 0 para que crezca progresivamente */
             Monster_AddEye(monster2, eye);
         }
     } else if (eyes2 > eyes1) {
         for (size_t i = 0; i < eyes2 - eyes1; ++i) {
             Eye eye = monster2->eyes[eyes1 + i];
-            eye.scale = Vec3_Zero(); // Escala 0 para que crezca progresivamente
+            eye.scale = Vec3_Zero(); /* Escala 0 para que crezca progresivamente */
             Monster_AddEye(monster1, eye);
         }
     }
@@ -92,7 +106,7 @@ void MonsterAger_EqualizeTraits(Monster* monster1, Monster* monster2) {
     }
 }
 
-void MonsterAger_MixMonster(const Monster* monster1, const Monster* monster2, float perc, Monster* dst) {
+void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, float perc, Monster* dst) {
     if (!monster1 || !monster2 || !dst) return;
 
     /* 1. Sincronizar y mezclar la paleta de colores */
@@ -173,10 +187,10 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
     ager.monster2 = Monster_Clone(second);
     ager.perc = Math_Clamp01(perc);
 
-    MonsterAger_EqualizeTraits(&ager.monster1, &ager.monster2);
+    MonsterAger_NormalizeEndpoints(&ager.monster1, &ager.monster2);
 
     ager.result = Monster_Clone(&ager.monster1);
-    MonsterAger_MixMonster(&ager.monster1, &ager.monster2, ager.perc, &ager.result);
+    MonsterAger_Interpolate(&ager.monster1, &ager.monster2, ager.perc, &ager.result);
 
     return ager;
 }
@@ -184,10 +198,14 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
 void MonsterAger_SetPerc(MonsterAger* ager, float perc) {
     if (!ager) return;
     ager->perc = Math_Clamp01(perc);
-    MonsterAger_MixMonster(&ager->monster1, &ager->monster2, ager->perc, &ager->result);
+    MonsterAger_Interpolate(&ager->monster1, &ager->monster2, ager->perc, &ager->result);
 }
 
-const Monster* MonsterAger_GetResult(const MonsterAger* ager) {
+Monster* MonsterAger_GetResult(MonsterAger* ager) {
+    return ager ? &ager->result : NULL;
+}
+
+const Monster* MonsterAger_GetResultConst(const MonsterAger* ager) {
     return ager ? &ager->result : NULL;
 }
 

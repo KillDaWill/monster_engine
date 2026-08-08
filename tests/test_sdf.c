@@ -3,6 +3,7 @@
 #include "SDFMesher.h"
 #include "SDFPrimitives.h"
 #include "SDFOperations.h"
+#include "MonsterVisual.h"
 #include "Mesh.h"
 #include "Monster.h"
 #include <math.h>
@@ -28,7 +29,9 @@ void test_monster_sdf_evaluation(void) {
     Monster monster = Monster_Create();
     Monster_Init(&monster);
 
-    MonsterSDF sdf = MonsterSDF_Create(&monster);
+    MonsterSDF sdf = MonsterSDF_Create();
+    bool built = MonsterSDF_Build(&sdf, &monster, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(built, "MonsterSDF_Build failed");
 
     /* Evaluación en origen del monstruo */
     Vector3 origin = Vec3_Create(0.0f, 0.0f, 0.0f);
@@ -42,6 +45,7 @@ void test_monster_sdf_evaluation(void) {
     SDFSample farSample = MonsterSDF_Evaluate(&sdf, farPoint);
     TEST_ASSERT(farSample.distance > 50.0f, "MonsterSDF_Evaluate far point failed");
 
+    MonsterSDF_Free(&sdf);
     Monster_Free(&monster);
     printf("[PASS] test_monster_sdf_evaluation\n");
 }
@@ -50,7 +54,8 @@ void test_sdf_mesher(void) {
     Monster monster = Monster_Create();
     Monster_Init(&monster);
 
-    MonsterSDF sdf = MonsterSDF_Create(&monster);
+    MonsterSDF sdf = MonsterSDF_Create();
+    MonsterSDF_Build(&sdf, &monster, MonsterSDF_DefaultConfig());
 
     SDFMesherConfig cfg = SDFMesher_DefaultConfig();
     cfg.resolutionX = 16;
@@ -60,18 +65,42 @@ void test_sdf_mesher(void) {
     SDFMesher mesher = SDFMesher_Create(cfg);
     Mesh mesh = Mesh_Create();
 
-    bool success = SDFMesher_GenerateMesh(&mesher, MonsterSDF_EvaluateWrapper, &sdf, &mesh);
+    SDFField field = MonsterSDF_GetField(&sdf);
+    bool success = SDFMesher_GenerateMesh(&mesher, &field, &mesh);
     TEST_ASSERT(success, "SDFMesher_GenerateMesh returned false");
     TEST_ASSERT(mesh.vertexCount > 0, "SDFMesher generated 0 vertices");
     TEST_ASSERT(mesh.indexCount > 0, "SDFMesher generated 0 indices");
 
     Mesh_Free(&mesh);
+    MonsterSDF_Free(&sdf);
     Monster_Free(&monster);
     printf("[PASS] test_sdf_mesher\n");
+}
+
+void test_monster_visual(void) {
+    Monster monster = Monster_Create();
+    Monster_Init(&monster);
+
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.resolutionX = 16;
+    cfg.resolutionY = 16;
+    cfg.resolutionZ = 16;
+
+    MonsterVisual visual = MonsterVisual_Create(cfg);
+    bool updated = MonsterVisual_Update(&visual, &monster, 0.1f, 0.0f, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(updated, "MonsterVisual_Update failed to build mesh");
+
+    const Mesh* mesh = MonsterVisual_GetMesh(&visual);
+    TEST_ASSERT(mesh != NULL && mesh->vertexCount > 0, "MonsterVisual mesh invalid");
+
+    MonsterVisual_Free(&visual);
+    Monster_Free(&monster);
+    printf("[PASS] test_monster_visual\n");
 }
 
 void run_sdf_tests(void) {
     test_sdf_primitives_and_ops();
     test_monster_sdf_evaluation();
     test_sdf_mesher();
+    test_monster_visual();
 }

@@ -1,23 +1,8 @@
 #include "Monster.h"
+#include "MathUtils.h"
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-
-/* Definiciones de tipos o estructuras mock / interfaz según sea necesario */
-
-typedef struct World {
-    float (*getWalkingHeight)(struct World* self, float x, float z);
-} World;
-
-typedef struct MonsterBehavior {
-    void (*init)(struct MonsterBehavior* self, Monster* monster);
-    void (*update)(struct MonsterBehavior* self, Monster* monster, double diff);
-} MonsterBehavior;
-
-typedef struct VisualTrait {
-    VisualTraitType type;
-    void (*renderUpdate)(struct VisualTrait* self, Monster* monster, double diff, double renderPercent);
-} VisualTrait;
 
 /* Implementación del Módulo Monster */
 
@@ -112,7 +97,8 @@ bool Monster_AddEye(Monster* monster, Eye eye) {
     if (!monster) return false;
 
     if (monster->eyeCount >= monster->eyeCapacity) {
-        size_t newCap = (monster->eyeCapacity == 0) ? 4 : monster->eyeCapacity * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(monster->eyeCapacity, monster->eyeCount + 1, sizeof(Eye), &newCap)) return false;
         Eye* newArr = (Eye*)realloc(monster->eyes, newCap * sizeof(Eye));
         if (!newArr) return false;
         monster->eyes = newArr;
@@ -142,7 +128,8 @@ bool Monster_AddMouth(Monster* monster, Mouth mouth) {
     if (!monster) return false;
 
     if (monster->mouthCount >= monster->mouthCapacity) {
-        size_t newCap = (monster->mouthCapacity == 0) ? 4 : monster->mouthCapacity * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(monster->mouthCapacity, monster->mouthCount + 1, sizeof(Mouth), &newCap)) return false;
         Mouth* newArr = (Mouth*)realloc(monster->mouths, newCap * sizeof(Mouth));
         if (!newArr) return false;
         monster->mouths = newArr;
@@ -208,61 +195,12 @@ void Monster_RenderUpdate(Monster* monster, double diff, double renderPercent) {
     }
 }
 
-void Monster_Render(Monster* monster, struct MonsterRenderer* renderer, struct ICamera* camera, double diff, Pass pass) {
-    if (!monster || !renderer) return;
-
-    /* Renderizar las partes del cuerpo directamente */
-    if (renderer->renderBodyParts && monster->bodyParts && monster->bodyPartCount > 0) {
-        renderer->renderBodyParts(renderer, monster, monster->bodyParts, monster->bodyPartCount);
-    }
-
-    /* Renderizar todos los ojos anclados a sus partes del cuerpo */
-    if (renderer->renderEye && monster->eyes && monster->eyeCount > 0) {
-        for (size_t i = 0; i < monster->eyeCount; ++i) {
-            Eye* eye = &monster->eyes[i];
-            Vector3 worldPos = eye->offset;
-
-            if (eye->bodyPartIndex < monster->bodyPartCount) {
-                Vector3 partPos = monster->bodyParts[eye->bodyPartIndex].positionRender;
-                worldPos = Vec3_Add(partPos, eye->offset);
-            }
-
-            renderer->renderEye(renderer, worldPos, eye->rotation, eye->scale, eye->scleraColor, eye->pupilColor, eye->pupilScale);
-        }
-    }
-
-    /* Renderizar todas las bocas ancladas a sus partes del cuerpo */
-    if (renderer->renderMouth && monster->mouths && monster->mouthCount > 0) {
-        for (size_t i = 0; i < monster->mouthCount; ++i) {
-            Mouth* mouth = &monster->mouths[i];
-            Vector3 worldPos = mouth->offset;
-
-            if (mouth->bodyPartIndex < monster->bodyPartCount) {
-                Vector3 partPos = monster->bodyParts[mouth->bodyPartIndex].positionRender;
-                worldPos = Vec3_Add(partPos, mouth->offset);
-            }
-
-            renderer->renderMouth(renderer, worldPos, mouth->rotation, mouth->scale, mouth->insideColor, mouth->lipColor, mouth->openFactor);
-        }
-    }
-
-    for (size_t i = 0; i < monster->bodyPartCount; ++i) {
-        BodyPart_Render(&monster->bodyParts[i], monster, (int)i, renderer, camera, diff, pass);
-    }
-
-    for (size_t i = 0; i < monster->traitCount; ++i) {
-        struct Trait* trait = monster->traits[i];
-        if (trait && trait->render) {
-            trait->render(trait, monster, (int)i, renderer, camera, diff, pass);
-        }
-    }
-}
-
 bool Monster_AddBodyPart(Monster* monster, BodyPart bodyPart) {
     if (!monster) return false;
 
     if (monster->bodyPartCount >= monster->bodyPartCapacity) {
-        size_t newCap = (monster->bodyPartCapacity == 0) ? 4 : monster->bodyPartCapacity * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(monster->bodyPartCapacity, monster->bodyPartCount + 1, sizeof(BodyPart), &newCap)) return false;
         BodyPart* newArray = (BodyPart*)realloc(monster->bodyParts, newCap * sizeof(BodyPart));
         if (!newArray) return false;
 
@@ -304,7 +242,8 @@ static bool AddTraitToList(struct Trait*** list, size_t* count, size_t* capacity
     if (!list || !count || !capacity || !trait) return false;
 
     if (*count >= *capacity) {
-        size_t newCap = (*capacity == 0) ? 4 : (*capacity) * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(*capacity, *count + 1, sizeof(struct Trait*), &newCap)) return false;
         struct Trait** newArray = (struct Trait**)realloc(*list, newCap * sizeof(struct Trait*));
         if (!newArray) return false;
         *list = newArray;
@@ -338,8 +277,6 @@ struct Trait* Monster_GetCombatTrait(const Monster* monster, TraitType type) {
     return NULL;
 }
 
-
-
 void Monster_SetId(Monster* monster, int id) {
     if (monster) monster->id = id;
 }
@@ -360,7 +297,8 @@ static bool AddVisualTraitToList(struct VisualTrait*** list, size_t* count, size
     if (!list || !count || !capacity || !trait) return false;
 
     if (*count >= *capacity) {
-        size_t newCap = (*capacity == 0) ? 4 : (*capacity) * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(*capacity, *count + 1, sizeof(struct VisualTrait*), &newCap)) return false;
         struct VisualTrait** newArray = (struct VisualTrait**)realloc(*list, newCap * sizeof(struct VisualTrait*));
         if (!newArray) return false;
         *list = newArray;

@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include "MathUtils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,6 +37,8 @@ bool Mesh_ReserveVertices(Mesh* mesh, size_t capacity) {
     if (!mesh) return false;
     if (capacity <= mesh->vertexCapacity) return true;
 
+    if (capacity > 0xFFFFFFFFu / sizeof(MeshVertex)) return false;
+
     MeshVertex* newVerts = (MeshVertex*)realloc(mesh->vertices, capacity * sizeof(MeshVertex));
     if (!newVerts) return false;
 
@@ -48,6 +51,8 @@ bool Mesh_ReserveIndices(Mesh* mesh, size_t capacity) {
     if (!mesh) return false;
     if (capacity <= mesh->indexCapacity) return true;
 
+    if (capacity > 0xFFFFFFFFu / sizeof(unsigned int)) return false;
+
     unsigned int* newInds = (unsigned int*)realloc(mesh->indices, capacity * sizeof(unsigned int));
     if (!newInds) return false;
 
@@ -56,24 +61,27 @@ bool Mesh_ReserveIndices(Mesh* mesh, size_t capacity) {
     return true;
 }
 
-size_t Mesh_AddVertex(Mesh* mesh, MeshVertex vertex) {
-    if (!mesh) return 0;
+bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex) {
+    if (!mesh) return false;
 
     if (mesh->vertexCount >= mesh->vertexCapacity) {
-        size_t newCap = (mesh->vertexCapacity == 0) ? 64 : mesh->vertexCapacity * 2;
-        if (!Mesh_ReserveVertices(mesh, newCap)) return 0;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(mesh->vertexCapacity, mesh->vertexCount + 1, sizeof(MeshVertex), &newCap)) return false;
+        if (!Mesh_ReserveVertices(mesh, newCap)) return false;
     }
 
     size_t index = mesh->vertexCount;
     mesh->vertices[mesh->vertexCount++] = vertex;
-    return index;
+    if (outIndex) *outIndex = (unsigned int)index;
+    return true;
 }
 
 bool Mesh_AddTriangle(Mesh* mesh, unsigned int a, unsigned int b, unsigned int c) {
     if (!mesh) return false;
 
     if (mesh->indexCount + 3 > mesh->indexCapacity) {
-        size_t newCap = (mesh->indexCapacity == 0) ? 128 : mesh->indexCapacity * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(mesh->indexCapacity, mesh->indexCount + 3, sizeof(unsigned int), &newCap)) return false;
         if (!Mesh_ReserveIndices(mesh, newCap)) return false;
     }
 

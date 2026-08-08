@@ -28,7 +28,7 @@ void test_monster_ager(void) {
 
     /* 3. Crear MonsterAger al 50% de envejecimiento */
     MonsterAger ager = MonsterAger_Create(&young, &adult, 0.5f);
-    const Monster* result = MonsterAger_GetResult(&ager);
+    const Monster* result = MonsterAger_GetResultConst(&ager);
 
     TEST_ASSERT(result != NULL, "MonsterAger result should not be NULL");
     TEST_ASSERT(result->bodyPartCount == 2, "MonsterAger should equalize body parts to 2");
@@ -42,7 +42,7 @@ void test_monster_ager(void) {
 
     /* 4. Cambiar porcentaje al 100% (Adulto) */
     MonsterAger_SetPerc(&ager, 1.0f);
-    result = MonsterAger_GetResult(&ager);
+    result = MonsterAger_GetResultConst(&ager);
     TEST_ASSERT(FLOAT_NEAR(result->bodyParts[0].width, 3.0f), "Width interpolation at 100% failed");
 
     MonsterAger_Free(&ager);

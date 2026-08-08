@@ -10,21 +10,13 @@
 
 #include "Vector.h"
 #include "BodyPart.h"
+#include "AABB.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct Monster;
-
-/**
- * @struct AABB3D
- * @brief Bounding Box alineado a los ejes para colisión y frustum culling.
- */
-typedef struct AABB3D {
-    Vector3 start; /**< Esquina inferior/mínima */
-    Vector3 end;   /**< Esquina superior/máxima */
-} AABB3D;
 
 /**
  * @brief Consulta la altura del terreno en las coordenadas especificadas del mundo.

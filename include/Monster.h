@@ -14,7 +14,10 @@
 #include "Eye.h"
 #include "Mouth.h"
 #include "MonsterQueries.h"
-#include "RenderInterfaces.h"
+#include "Trait.h"
+#include "VisualTrait.h"
+#include "WorldInterface.h"
+#include "MonsterBehavior.h"
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -23,15 +26,7 @@ extern "C" {
 #endif
 
 /* Forward declarations */
-struct World;
-struct MonsterBehavior;
 struct MonsterMeta;
-struct MonsterRenderer;
-struct ICamera;
-struct VisualTrait;
-
-/** Tipo de identificador para Visual Traits */
-typedef int VisualTraitType;
 
 
 
@@ -114,16 +109,6 @@ void Monster_Update(Monster* monster, double diff);
  * @param renderPercent Porcentaje entre ticks [0.0 - 1.0].
  */
 void Monster_RenderUpdate(Monster* monster, double diff, double renderPercent);
-
-/**
- * @brief Dibuja el monstruo a través del MonsterRenderer agnóstico.
- * @param monster Puntero al monstruo.
- * @param renderer Puntero al renderizador.
- * @param camera Puntero a la cámara activa.
- * @param diff Delta de tiempo.
- * @param pass Fase de renderizado.
- */
-void Monster_Render(Monster* monster, struct MonsterRenderer* renderer, struct ICamera* camera, double diff, Pass pass);
 
 /**
  * @brief Consulta la altura del terreno en las coordenadas especificadas del mundo.

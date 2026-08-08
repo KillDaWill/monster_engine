@@ -1,6 +1,6 @@
 /**
  * @file main_lizard_viewer.c
- * @brief Aplicación de renderizado 3D en tiempo real con SDL2 + OpenGL para visualizar al monstruo Lagarto.
+ * @brief Aplicación de renderizado 3D en tiempo real con SDL2 + OpenGL (SDF Mesh Pipeline) para visualizar al monstruo Lagarto.
  * @author Monster Engine Team
  * @date 2026
  */
@@ -16,12 +16,13 @@
 #include "Vector.h"
 #include "RenderInterfaces.h"
 #include "OpenGLRenderer.h"
+#include "MonsterVisual.h"
 
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
 
     printf("========================================================\n");
-    printf("     MONSTER ENGINE 3D: Visualizador de Lagarto (OpenGL)\n");
+    printf("     MONSTER ENGINE 3D: Visualizador SDF Lagarto (OpenGL)\n");
     printf("========================================================\n");
 
     /* 1. Inicializar SDL2 con soporte de Video OpenGL */
@@ -30,16 +31,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    /* Atributos de contexto OpenGL Double Buffer y Stencil Buffer */
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     int windowWidth = 1024;
     int windowHeight = 768;
 
     SDL_Window* window = SDL_CreateWindow(
-        "Monster Engine - Lagarto 3D (OpenGL)",
+        "Monster Engine - Lagarto SDF 3D (OpenGL)",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         windowWidth, windowHeight,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
@@ -63,8 +62,8 @@ int main(int argc, char* argv[]) {
 
     /* 2. Configurar la cámara agnóstica 3D */
     ICamera camera;
-    camera.position = Vec3_Create(8.0f, 6.0f, 12.0f); // Vista 3D desde ángulo superior derecho
-    camera.target = Vec3_Create(0.0f, 0.0f, -4.5f);   // Apuntando al centro del lagarto
+    camera.position = Vec3_Create(8.0f, 6.0f, 12.0f);
+    camera.target = Vec3_Create(0.0f, 0.0f, -4.5f);
     camera.up = Vec3_Create(0.0f, 1.0f, 0.0f);
     camera.fov = 45.0f;
     camera.nearPlane = 0.1f;
@@ -78,12 +77,10 @@ int main(int argc, char* argv[]) {
     Monster lizard = Monster_Create();
     Monster_Init(&lizard);
 
-    /* Paleta de Colores de Escamas (Verde Esmeralda a Amarillo) */
     Color emeraldGreen = Color_FromRGB(16, 180, 75);
     Color reptileYellow = Color_FromRGB(235, 195, 45);
     lizard.colorPalette = ColorPalette_CreateGradient(emeraldGreen, reptileYellow, 5);
 
-    /* Modificar Cabeza */
     BodyPart* head = Monster_GetHead(&lizard);
     if (head) {
         head->width = 1.8f;
@@ -92,7 +89,6 @@ int main(int argc, char* argv[]) {
         head->color.index = 0;
     }
 
-    /* Añadir Pecho, Abdomen y Cola */
     BodyPart chest = BodyPart_Create(0.0f, 0.0f, -2.2f, 2.2f, 2.5f, 1.5f, 0.0f);
     chest.color.index = 1;
 
@@ -110,45 +106,34 @@ int main(int argc, char* argv[]) {
     Monster_AddBodyPart(&lizard, tail1);
     Monster_AddBodyPart(&lizard, tail2);
 
-    /* Añadir Ojos Reptilianos a la Cabeza (Índice de BodyPart = 0) */
-    Color yellowSclera = Color_FromRGB(240, 220, 50);
-    Color blackPupil   = Color_FromRGB(10, 10, 10);
-    Vector3 eyeScale   = Vec3_Create(0.45f, 0.45f, 0.45f);
-
-    /* Ojo Izquierdo */
-    Eye leftEye = Eye_Create(0, Vec3_Create(-0.85f, 0.4f, 0.6f), eyeScale, yellowSclera, blackPupil);
-    leftEye.rotation = Vec3_Create(0.0f, -25.0f, 0.0f);
-    leftEye.pupilScale = 0.4f;
-
-    /* Ojo Derecho */
-    Eye rightEye = Eye_Create(0, Vec3_Create(0.85f, 0.4f, 0.6f), eyeScale, yellowSclera, blackPupil);
-    rightEye.rotation = Vec3_Create(0.0f, 25.0f, 0.0f);
-    rightEye.pupilScale = 0.4f;
-
-    Monster_AddEye(&lizard, leftEye);
-    Monster_AddEye(&lizard, rightEye);
-
-    /* Añadir Boca rasa y cavidad oscura en el frontal de la Cabeza */
     Color darkRedInside = Color_FromRGB(80, 0, 10);
-    Color transparentLips = COLOR_TRANSPARENT; // Transparente para boca excavada rasa
-    Mouth lizardMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.2f, 0.82f), Vec3_Create(1.0f, 0.5f, 0.8f), darkRedInside, transparentLips);
+    Color lipColor = Color_FromRGB(180, 40, 40);
+    Mouth lizardMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.2f, 0.82f), Vec3_Create(1.0f, 0.5f, 0.8f), darkRedInside, lipColor);
     lizardMouth.openFactor = 0.7f;
     Monster_AddMouth(&lizard, lizardMouth);
 
-    /* 5. Bucle Principal de Renderizado */
+    /* 5. Configurar el Orquestador Visual SDF */
+    SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
+    mesherCfg.resolutionX = 32;
+    mesherCfg.resolutionY = 32;
+    mesherCfg.resolutionZ = 32;
+
+    MonsterVisual visual = MonsterVisual_Create(mesherCfg);
+    MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig());
+
+    /* 6. Bucle Principal */
     bool running = true;
     SDL_Event event;
     Uint32 lastTime = SDL_GetTicks();
     float rotationAngle = 0.0f;
 
-    printf("[INFO] Ventana renderizada correctamente. Rotando cámara alrededor del Lagarto...\n");
+    printf("[INFO] Ventana renderizada correctamente con malla SDF. Rotando cámara...\n");
 
     while (running) {
         Uint32 currentTime = SDL_GetTicks();
         float deltaTime = (currentTime - lastTime) / 1000.0f;
         lastTime = currentTime;
 
-        /* Manejar eventos de la ventana */
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
@@ -161,32 +146,28 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        /* Animar suavemente la cámara orbitando al lagarto */
         rotationAngle += deltaTime * 0.5f;
         float radius = 14.0f;
         camera.position.x = sinf(rotationAngle) * radius;
         camera.position.z = cosf(rotationAngle) * radius - 4.5f;
 
-        /* Actualizar lógica e interpolación del monstruo */
         Monster_Update(&lizard, deltaTime);
         Monster_RenderUpdate(&lizard, deltaTime, 1.0);
+        MonsterVisual_Update(&visual, &lizard, deltaTime, 0.0f, MonsterSDF_DefaultConfig());
 
-        /* Renderizado usando la arquitectura agnóstica */
         renderer.beginFrame(&renderer);
-
-        /* Actualizar matrices de vista/cámara */
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-        /* Invocar la rutina de dibujado agnóstica del monstruo */
-        Monster_Render(&lizard, &renderer, &camera, deltaTime, 0);
+        if (renderer.renderMesh) {
+            renderer.renderMesh(&renderer, MonsterVisual_GetMesh(&visual));
+        }
 
         renderer.endFrame(&renderer);
-
-        /* Intercambiar buffers de SDL2 */
         SDL_GL_SwapWindow(window);
     }
 
-    /* 6. Limpieza */
+    /* 7. Limpieza */
+    MonsterVisual_Free(&visual);
     Monster_Free(&lizard);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);

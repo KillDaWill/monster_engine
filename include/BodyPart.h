@@ -10,6 +10,7 @@
 
 #include "Vector.h"
 #include "Color.h"
+#include "Trait.h"
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -22,22 +23,8 @@ struct Monster;
 struct MonsterRenderer;
 struct ICamera;
 
-/** Tipo de identificador o enum para los diferentes tipos de Traits */
-typedef int TraitType;
-
 /** Alias para el paso de renderizado */
 typedef int Pass;
-
-/**
- * @struct Trait
- * @brief Estructura base polimórfica para los rasgos aplicables a monstruos o partes del cuerpo.
- */
-typedef struct Trait {
-    TraitType type; /**< Identificador numérico del tipo de Trait */
-    void (*update)(struct Trait* self, struct Monster* monster, int index, double diff);
-    void (*renderUpdate)(struct Trait* self, struct Monster* monster, int index, double diff, double renderPercent);
-    void (*render)(struct Trait* self, struct Monster* monster, int index, struct MonsterRenderer* renderer, struct ICamera* camera, double diff, Pass pass);
-} Trait;
 
 /**
  * @struct ColorIndex

@@ -2,7 +2,7 @@
 #include "BodyPart.h"
 
 void test_body_part(void) {
-    BodyPart part = BodyPart_Create(0.0f, 0.0f, 0.0f, 2.0f, 1.0f, 1.0f, 0.5f);
+    BodyPart part = BodyPart_Create(0.0f, 0.5f, 0.0f, 2.0f, 1.0f, 1.0f, 0.5f);
 
     TEST_ASSERT(FLOAT_NEAR(part.position.x, 0.0f) && FLOAT_NEAR(part.position.y, 0.5f), "BodyPart initialization failed");
 

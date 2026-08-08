@@ -1,15 +1,15 @@
 #include "BodyPart.h"
+#include "MathUtils.h"
+#include "Monster.h"
 #include <stdlib.h>
 #include <string.h>
-
-#include "Monster.h"
 
 /* Implementación de BodyPart */
 
 BodyPart BodyPart_Create(float x, float y, float z, float width, float length, float height, float groundOffset) {
     BodyPart part;
 
-    part.position = Vec3_Create(x, groundOffset, z);
+    part.position = Vec3_Create(x, y, z);
     part.oldPosition = part.position;
     part.positionRender = part.position;
 
@@ -98,7 +98,8 @@ bool BodyPart_AddTrait(BodyPart* part, Trait* trait) {
     if (!part || !trait) return false;
 
     if (part->traitCount >= part->traitCapacity) {
-        size_t newCap = (part->traitCapacity == 0) ? 4 : part->traitCapacity * 2;
+        size_t newCap = 0;
+        if (!Math_GrowCapacity(part->traitCapacity, part->traitCount + 1, sizeof(Trait*), &newCap)) return false;
         Trait** newArray = (Trait**)realloc(part->traits, newCap * sizeof(Trait*));
         if (!newArray) return false;
 

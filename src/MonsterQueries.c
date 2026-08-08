@@ -2,10 +2,6 @@
 #include "Monster.h"
 #include <math.h>
 
-typedef struct World {
-    float (*getWalkingHeight)(struct World* self, float x, float z);
-} World;
-
 /* Implementaciones de funciones de consulta sobre Monster */
 
 float Monster_GetWorldHeight(Monster* monster, float worldX, float worldZ) {
@@ -126,6 +122,7 @@ Vector3 Monster_GetPosition(const Monster* monster, double percent) {
         BodyPart first = monster->bodyParts[0];
         BodyPart second = monster->bodyParts[1];
         float segLen = first.lengthRender;
+        if (segLen < 1e-6f) return first.positionRender;
         float factor = (float)(percent * totalLength / segLen);
         Vector3 dir = Vec3_Normalize(Vec3_Sub(first.positionRender, second.positionRender));
         return Vec3_Add(first.positionRender, Vec3_Scale(dir, -factor * segLen));
@@ -135,6 +132,7 @@ Vector3 Monster_GetPosition(const Monster* monster, double percent) {
         BodyPart last = monster->bodyParts[monster->bodyPartCount - 1];
         BodyPart secondLast = monster->bodyParts[monster->bodyPartCount - 2];
         float segLen = last.lengthRender;
+        if (segLen < 1e-6f) return last.positionRender;
         float factor = (float)((percent - 1.0) * totalLength / segLen);
         Vector3 dir = Vec3_Normalize(Vec3_Sub(last.positionRender, secondLast.positionRender));
         return Vec3_Add(last.positionRender, Vec3_Scale(dir, factor * segLen));
@@ -152,6 +150,7 @@ Vector3 Monster_GetPosition(const Monster* monster, double percent) {
         if (accumulated >= targetLength) {
             float overshoot = accumulated - targetLength;
             float segLen = cur.lengthRender;
+            if (segLen < 1e-6f) return cur.positionRender;
             float factor = (segLen - overshoot) / segLen;
             return Vec3_Lerp(cur.positionRender, next.positionRender, factor);
         }

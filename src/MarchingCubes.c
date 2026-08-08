@@ -79,9 +79,10 @@ void MarchingCubes_PolygonizeCell(
         int e1 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i + 1];
         int e2 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i + 2];
 
-        unsigned int idx0 = (unsigned int)Mesh_AddVertex(mesh, edgeVertices[e0]);
-        unsigned int idx1 = (unsigned int)Mesh_AddVertex(mesh, edgeVertices[e1]);
-        unsigned int idx2 = (unsigned int)Mesh_AddVertex(mesh, edgeVertices[e2]);
+        unsigned int idx0 = 0, idx1 = 0, idx2 = 0;
+        if (!Mesh_AddVertex(mesh, edgeVertices[e0], &idx0)) return;
+        if (!Mesh_AddVertex(mesh, edgeVertices[e1], &idx1)) return;
+        if (!Mesh_AddVertex(mesh, edgeVertices[e2], &idx2)) return;
 
         Mesh_AddTriangle(mesh, idx0, idx1, idx2);
     }

@@ -22,7 +22,10 @@ float SDF_Ellipsoid(Vector3 p, Vector3 r) {
     Vector3 scaledP2 = Vec3_Create(p.x * invR2.x, p.y * invR2.y, p.z * invR2.z);
     float k1 = Vec3_Length(scaledP2);
 
-    if (k1 < 1e-6f) return 0.0f;
+    if (k0 < 1e-6f || k1 < 1e-6f) {
+        float minR = Math_Min(rx, Math_Min(ry, rz));
+        return -minR;
+    }
     return k0 * (k0 - 1.0f) / k1;
 }
 

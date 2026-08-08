@@ -67,9 +67,10 @@ bool Mesh_ReserveVertices(Mesh* mesh, size_t capacity);
 bool Mesh_ReserveIndices(Mesh* mesh, size_t capacity);
 
 /**
- * @brief Añade un vértice a la malla y retorna su índice.
+ * @brief Añade un vértice a la malla y retorna su índice mediante outIndex.
+ * @return true si se añadió correctamente, false en caso de error/fallo de memoria.
  */
-size_t Mesh_AddVertex(Mesh* mesh, MeshVertex vertex);
+bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex);
 
 /**
  * @brief Añade un triángulo a la malla dado un trío de índices de vértices.

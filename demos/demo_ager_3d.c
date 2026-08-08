@@ -1,6 +1,6 @@
 /**
  * @file demo_ager_3d.c
- * @brief Demo visual 3D interactiva en OpenGL con SDL2 para mostrar la transición de envejecimiento/evolución (MonsterAger) de un Lagarto.
+ * @brief Demo visual 3D interactiva en OpenGL (SDF Mesh Pipeline) para mostrar la transición de envejecimiento/evolución (MonsterAger) de un Lagarto.
  * @author Monster Engine Team
  * @date 2026
  */
@@ -18,12 +18,13 @@
 #include "Vector.h"
 #include "RenderInterfaces.h"
 #include "OpenGLRenderer.h"
+#include "MonsterVisual.h"
 
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
 
     printf("========================================================\n");
-    printf("   MONSTER ENGINE 3D: Demo de Transición (MonsterAger)  \n");
+    printf("   MONSTER ENGINE 3D: Demo SDF Transición (MonsterAger) \n");
     printf("========================================================\n");
     printf(" Controles:\n");
     printf("  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)\n");
@@ -39,13 +40,12 @@ int main(int argc, char* argv[]) {
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     int windowWidth = 1024;
     int windowHeight = 768;
 
     SDL_Window* window = SDL_CreateWindow(
-        "Monster Engine - Demo Transición/Envejecimiento (MonsterAger)",
+        "Monster Engine - Demo SDF Transición/Envejecimiento",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         windowWidth, windowHeight,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     MonsterRenderer renderer = OpenGLRenderer_Create(&camera);
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-    /* 3. Crear FASE 1: Lagarto Joven (Pequeño, Verde Esmeralda, 3 secciones) */
+    /* 3. Crear FASE 1: Lagarto Joven */
     Monster youngLizard = Monster_Create();
     Monster_Init(&youngLizard);
     youngLizard.colorPalette = ColorPalette_CreateGradient(Color_FromRGB(40, 200, 80), Color_FromRGB(100, 230, 120), 4);
@@ -90,15 +90,14 @@ int main(int argc, char* argv[]) {
     }
     BodyPart chestY = BodyPart_Create(0.0f, 0.0f, -1.3f, 1.2f, 1.4f, 0.9f, 0.0f);
     BodyPart tailY  = BodyPart_Create(0.0f, 0.0f, -2.8f, 0.6f, 1.5f, 0.5f, 0.0f);
-    /* Añadir 2 Ojos al Lagarto Joven */
-    Eye youngEyeL = Eye_Create(0, Vec3_Create(-0.55f, 0.3f, 0.4f), Vec3_Create(0.35f, 0.35f, 0.35f), COLOR_WHITE, COLOR_BLUE);
-    Eye youngEyeR = Eye_Create(0, Vec3_Create(0.55f, 0.3f, 0.4f), Vec3_Create(0.35f, 0.35f, 0.35f), COLOR_WHITE, COLOR_BLUE);
-    /* Añadir Boca rasa al Lagarto Joven */
-    Mouth youngMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.15f, 0.48f), Vec3_Create(0.6f, 0.3f, 0.5f), Color_FromRGB(100, 10, 10), COLOR_TRANSPARENT);
+    Monster_AddBodyPart(&youngLizard, chestY);
+    Monster_AddBodyPart(&youngLizard, tailY);
+
+    Mouth youngMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.15f, 0.48f), Vec3_Create(0.6f, 0.3f, 0.5f), Color_FromRGB(100, 10, 10), Color_FromRGB(150, 40, 40));
     youngMouth.openFactor = 0.3f;
     Monster_AddMouth(&youngLizard, youngMouth);
 
-    /* 4. Crear FASE 2: Lagarto Alfa/Adulto (Gigante, Carmesí/Dorado, 5 secciones) */
+    /* 4. Crear FASE 2: Lagarto Alfa */
     Monster adultLizard = Monster_Create();
     Monster_Init(&adultLizard);
     adultLizard.colorPalette = ColorPalette_CreateGradient(Color_FromRGB(220, 40, 40), Color_FromRGB(240, 180, 30), 4);
@@ -117,28 +116,22 @@ int main(int argc, char* argv[]) {
     Monster_AddBodyPart(&adultLizard, tail1A);
     Monster_AddBodyPart(&adultLizard, tail2A);
 
-    /* Añadir 3 Ojos al Lagarto Alfa (Incluyendo Tercer Ojo Místico Rojo en la Frente) */
-    Eye adultEyeL = Eye_Create(0, Vec3_Create(-1.2f, 0.6f, 0.8f), Vec3_Create(0.7f, 0.7f, 0.7f), Color_FromRGB(255, 230, 100), Color_FromRGB(200, 0, 0));
-    Eye adultEyeR = Eye_Create(0, Vec3_Create(1.2f, 0.6f, 0.8f), Vec3_Create(0.7f, 0.7f, 0.7f), Color_FromRGB(255, 230, 100), Color_FromRGB(200, 0, 0));
-    Eye adultEyeC = Eye_Create(0, Vec3_Create(0.0f, 1.2f, 0.2f), Vec3_Create(0.9f, 0.9f, 0.9f), Color_FromRGB(30, 30, 30), Color_FromRGB(255, 50, 0));
-
-    Monster_AddEye(&adultLizard, adultEyeL);
-    Monster_AddEye(&adultLizard, adultEyeR);
-    Monster_AddEye(&adultLizard, adultEyeC);
-
-    /* Añadir Boca Enorme Feroz rasa al Lagarto Alfa */
-    Mouth adultMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.3f, 1.2f), Vec3_Create(1.6f, 0.9f, 1.2f), Color_FromRGB(60, 0, 0), COLOR_TRANSPARENT);
-    adultMouth.openFactor = 0.95f; // Mandíbula rugiendo totalmente abierta
-    Monster_AddMouth(&adultLizard, adultMouth);
-    adultMouth.openFactor = 0.95f; // Mandíbula rugiendo totalmente abierta
-    Monster_AddMouth(&adultLizard, adultMouth);
-    adultMouth.openFactor = 0.95f; // Mandíbula rugiendo totalmente abierta
+    Mouth adultMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.3f, 1.2f), Vec3_Create(1.6f, 0.9f, 1.2f), Color_FromRGB(60, 0, 0), Color_FromRGB(200, 30, 30));
+    adultMouth.openFactor = 0.95f;
     Monster_AddMouth(&adultLizard, adultMouth);
 
-    /* 5. Inicializar MonsterAger con las dos fases */
+    /* 5. Inicializar MonsterAger y MonsterVisual */
     float ageFactor = 0.0f;
     bool autoAnimate = true;
     MonsterAger ager = MonsterAger_Create(&youngLizard, &adultLizard, ageFactor);
+
+    SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
+    mesherCfg.resolutionX = 32;
+    mesherCfg.resolutionY = 32;
+    mesherCfg.resolutionZ = 32;
+
+    MonsterVisual visual = MonsterVisual_Create(mesherCfg);
+    MonsterVisual_RebuildNow(&visual, MonsterAger_GetResultConst(&ager), MonsterSDF_DefaultConfig());
 
     /* 6. Bucle de Renderizado 3D */
     bool running = true;
@@ -162,6 +155,7 @@ int main(int argc, char* argv[]) {
                         ageFactor += 0.05f;
                         if (ageFactor > 1.0f) ageFactor = 1.0f;
                         MonsterAger_SetPerc(&ager, ageFactor);
+                        MonsterVisual_MarkDirty(&visual);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_LEFT:
@@ -170,6 +164,7 @@ int main(int argc, char* argv[]) {
                         ageFactor -= 0.05f;
                         if (ageFactor < 0.0f) ageFactor = 0.0f;
                         MonsterAger_SetPerc(&ager, ageFactor);
+                        MonsterVisual_MarkDirty(&visual);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_SPACE:
@@ -186,35 +181,38 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        /* Si la animación automática está activa, oscilar senoidalmente entre 0% y 100% */
         if (autoAnimate) {
             static float timeAcc = 0.0f;
             timeAcc += deltaTime * 0.8f;
-            ageFactor = (sinf(timeAcc) + 1.0f) * 0.5f; // Oscilar entre 0.0 y 1.0
-            MonsterAger_SetPerc(&ager, ageFactor);
+            float newFactor = (sinf(timeAcc) + 1.0f) * 0.5f;
+            if (fabsf(newFactor - ageFactor) > 0.01f) {
+                ageFactor = newFactor;
+                MonsterAger_SetPerc(&ager, ageFactor);
+                MonsterVisual_MarkDirty(&visual);
+            }
         }
 
-        /* Animar cámara orbital */
         cameraAngle += deltaTime * 0.4f;
         float camRadius = 18.0f;
         camera.position.x = sinf(cameraAngle) * camRadius;
         camera.position.z = cosf(cameraAngle) * camRadius - 6.0f;
 
-        /* Obtener el monstruo mezclado resultante y actualizarlo */
-        Monster* currentMonster = (Monster*)MonsterAger_GetResult(&ager);
-        Monster_Update(currentMonster, deltaTime);
-        Monster_RenderUpdate(currentMonster, deltaTime, 1.0);
+        const Monster* currentMonster = MonsterAger_GetResultConst(&ager);
+        MonsterVisual_Update(&visual, currentMonster, deltaTime, 0.0f, MonsterSDF_DefaultConfig());
 
-        /* Renderizar escena 3D */
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
-        Monster_Render(currentMonster, &renderer, &camera, deltaTime, 0);
-        renderer.endFrame(&renderer);
 
+        if (renderer.renderMesh) {
+            renderer.renderMesh(&renderer, MonsterVisual_GetMesh(&visual));
+        }
+
+        renderer.endFrame(&renderer);
         SDL_GL_SwapWindow(window);
     }
 
     /* Limpieza */
+    MonsterVisual_Free(&visual);
     MonsterAger_Free(&ager);
     Monster_Free(&youngLizard);
     Monster_Free(&adultLizard);

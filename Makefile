@@ -20,6 +20,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/Vector.c \
             $(SRC_DIR)/MathUtils.c \
             $(SRC_DIR)/Transform3D.c \
+            $(SRC_DIR)/AABB.c \
             $(SRC_DIR)/Mesh.c \
             $(SRC_DIR)/SDFPrimitives.c \
             $(SRC_DIR)/SDFOperations.c \
@@ -28,6 +29,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/MarchingCubesTables.c \
             $(SRC_DIR)/MarchingCubes.c \
             $(SRC_DIR)/SDFMesher.c \
+            $(SRC_DIR)/MonsterVisual.c \
             $(SRC_DIR)/BodyPart.c \
             $(SRC_DIR)/Eye.c \
             $(SRC_DIR)/Mouth.c \

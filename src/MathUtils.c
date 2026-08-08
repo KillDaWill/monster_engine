@@ -29,3 +29,15 @@ float Math_Min(float a, float b) {
 float Math_Max(float a, float b) {
     return (a > b) ? a : b;
 }
+
+bool Math_GrowCapacity(size_t currentCapacity, size_t minimumRequired, size_t elementSize, size_t* outNewCapacity) {
+    if (!outNewCapacity || elementSize == 0) return false;
+    if (minimumRequired > 0xFFFFFFFFu / elementSize) return false;
+
+    size_t newCap = (currentCapacity == 0) ? 4 : currentCapacity * 2;
+    if (newCap < minimumRequired) newCap = minimumRequired;
+    if (newCap > 0xFFFFFFFFu / elementSize) return false;
+
+    *outNewCapacity = newCap;
+    return true;
+}
