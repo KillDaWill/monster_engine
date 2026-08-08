@@ -72,16 +72,21 @@ typedef struct MonsterSDFMouth {
 /**
  * @struct MonsterSDF
  * @brief Estructura de geometría SDF compilada (desacoplada e independiente tras Build).
+ * @note No es segura para hilos: no invocar MonsterSDF_Build mientras otra hebra
+ *       lee la misma instancia (Build reutiliza los buffers internos en sitio).
  */
 typedef struct MonsterSDF {
     MonsterSDFBodyPart* bodyParts;
     size_t bodyPartCount;
+    size_t bodyPartCapacity; /**< Capacidad reservada del buffer bodyParts */
 
     MonsterSDFConnector* connectors;
     size_t connectorCount;
+    size_t connectorCapacity; /**< Capacidad reservada del buffer connectors */
 
     MonsterSDFMouth* mouths;
     size_t mouthCount;
+    size_t mouthCapacity; /**< Capacidad reservada del buffer mouths */
 
     MonsterSDFConfig config;
     AABB3D bounds;
@@ -99,6 +104,10 @@ MonsterSDF MonsterSDF_Create(void);
 
 /**
  * @brief Compila/Snapshot la geometría de un Monster en un objeto MonsterSDF.
+ *
+ * Reutiliza los buffers internos de builds previos (crecimiento únicamente),
+ * por lo que puede invocarse repetidamente sobre la misma instancia sin
+ * fragmentar memoria. En caso de fallo de asignación la instancia queda vacía.
  * @return true si se construyó exitosamente, false si ocurrió fallo de asignación.
  */
 bool MonsterSDF_Build(MonsterSDF* sdf, const struct Monster* monster, MonsterSDFConfig config);

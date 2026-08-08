@@ -22,6 +22,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/Transform3D.c \
             $(SRC_DIR)/AABB.c \
             $(SRC_DIR)/Mesh.c \
+            $(SRC_DIR)/PrimitiveMesh.c \
             $(SRC_DIR)/SDFPrimitives.c \
             $(SRC_DIR)/SDFOperations.c \
             $(SRC_DIR)/SDFSampling.c \
@@ -50,7 +51,10 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_body_part.c \
             $(TEST_DIR)/test_monster.c \
             $(TEST_DIR)/test_ager.c \
-            $(TEST_DIR)/test_sdf.c
+            $(TEST_DIR)/test_sdf.c \
+            $(TEST_DIR)/test_marching_cubes.c \
+            $(TEST_DIR)/test_mesh.c \
+            $(TEST_DIR)/test_primitive_mesh.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 

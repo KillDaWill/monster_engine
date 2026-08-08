@@ -1,16 +1,11 @@
 #include "SDFMesher.h"
-#include "MarchingCubesTables.h"
+#include "MarchingCubes.h"
 #include "MathUtils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <math.h>
-
-static const int EDGE_CONNECTIONS[12][2] = {
-    {0, 1}, {1, 2}, {2, 3}, {3, 0},
-    {4, 5}, {5, 6}, {6, 7}, {7, 4},
-    {0, 4}, {1, 5}, {2, 6}, {3, 7}
-};
 
 static const Vector3 CORNER_OFFSETS[8] = {
     {0.0f, 0.0f, 0.0f}, /* 0 */
@@ -99,6 +94,13 @@ bool SDFMesher_GenerateMesh(
         size.y / (float)resY,
         size.z / (float)resZ
     );
+
+    /* normalEps automático: proporcional al paso de vóxel mínimo */
+    float normalEps = cfg.normalEps;
+    if (normalEps <= 0.0f) {
+        float minStep = Math_Min(Math_Min(step.x, step.y), step.z);
+        normalEps = Math_Clamp(minStep * 0.25f, 1e-5f, 1.0f);
+    }
 
     int numGridX = resX + 1;
     int numGridY = resY + 1;
@@ -193,11 +195,17 @@ bool SDFMesher_GenerateMesh(
                     }
                 }
 
-                int edgeFlags = MARCHING_CUBES_EDGE_TABLE[cubeIndex];
+                uint16_t edgeFlags = MarchingCubes_GetEdgeMask(cubeIndex);
                 if (edgeFlags == 0) continue;
 
-                /* Obtener o crear los vértices de las 12 aristas cortadas */
-                uint32_t edgeVertIndices[12];
+                /* Obtener o crear los vértices de las 12 aristas cortadas.
+                   Todo índice no generado permanece en UINT32_MAX: una referencia
+                   inválida a estas aristas en la fila de triángulos es un error
+                   duro de topología. */
+                uint32_t edgeVertIndices[MARCHING_CUBES_EDGE_COUNT];
+                for (int e = 0; e < MARCHING_CUBES_EDGE_COUNT; ++e) {
+                    edgeVertIndices[e] = UINT32_MAX;
+                }
 
                 for (int e = 0; e < 12; ++e) {
                     if (!(edgeFlags & (1 << e))) continue;
@@ -226,8 +234,12 @@ bool SDFMesher_GenerateMesh(
                         edgeVertIndices[e] = *cachePtr;
                     } else {
                         /* Interpolar y crear nuevo vértice */
-                        int c1 = EDGE_CONNECTIONS[e][0];
-                        int c2 = EDGE_CONNECTIONS[e][1];
+                        int c1 = 0, c2 = 0;
+                        if (!MarchingCubes_GetEdgeEndpoints(e, &c1, &c2)) {
+                            fprintf(stderr, "SDFMesher: índice de arista inválido %d\n", e);
+                            success = false;
+                            break;
+                        }
 
                         Vector3 p1 = corners[c1];
                         Vector3 p2 = corners[c2];
@@ -245,7 +257,7 @@ bool SDFMesher_GenerateMesh(
 
                         Vector3 pos = Vec3_Lerp(p1, p2, t);
                         Color col = Color_Lerp(col1, col2, t);
-                        Vector3 norm = SDF_EstimateNormal(field->evaluate, field->context, pos, cfg.normalEps);
+                        Vector3 norm = SDF_EstimateNormal(field->evaluate, field->context, pos, normalEps);
 
                         MeshVertex vert = {
                             .position = pos,
@@ -266,11 +278,33 @@ bool SDFMesher_GenerateMesh(
 
                 if (!success) break;
 
-                /* Emitir triángulos */
-                for (int i = 0; MARCHING_CUBES_TRI_TABLE[cubeIndex][i] != -1; i += 3) {
-                    int e0 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i];
-                    int e1 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i + 1];
-                    int e2 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i + 2];
+                /* Emitir triángulos desde la fila canónica con validación dura:
+                   cualquier arista no generada (topología inválida) aborta la
+                   generación con diagnóstico. */
+                const int* triRow = MarchingCubes_GetTriangleRow(cubeIndex);
+                if (!triRow) {
+                    fprintf(stderr, "SDFMesher: índice de celda inválido %d\n", cubeIndex);
+                    success = false;
+                    break;
+                }
+
+                for (int i = 0; triRow[i] != -1; i += 3) {
+                    int e0 = triRow[i];
+                    int e1 = triRow[i + 1];
+                    int e2 = triRow[i + 2];
+
+                    if (e0 < 0 || e0 >= MARCHING_CUBES_EDGE_COUNT ||
+                        e1 < 0 || e1 >= MARCHING_CUBES_EDGE_COUNT ||
+                        e2 < 0 || e2 >= MARCHING_CUBES_EDGE_COUNT ||
+                        edgeVertIndices[e0] == UINT32_MAX ||
+                        edgeVertIndices[e1] == UINT32_MAX ||
+                        edgeVertIndices[e2] == UINT32_MAX) {
+                        fprintf(stderr,
+                            "SDFMesher: fila de triángulos inválida (cubeIndex=%d, offset=%d, edges=%d,%d,%d)\n",
+                            cubeIndex, i, e0, e1, e2);
+                        success = false;
+                        break;
+                    }
 
                     if (!Mesh_AddTriangle(outMesh, edgeVertIndices[e0], edgeVertIndices[e1], edgeVertIndices[e2])) {
                         success = false;

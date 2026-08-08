@@ -41,17 +41,38 @@ void MonsterSDF_Free(MonsterSDF* sdf) {
     }
 
     sdf->bodyPartCount = 0;
+    sdf->bodyPartCapacity = 0;
     sdf->connectorCount = 0;
+    sdf->connectorCapacity = 0;
     sdf->mouthCount = 0;
+    sdf->mouthCapacity = 0;
     sdf->bounds = AABB_Empty();
+}
+
+static bool MonsterSDF_EnsureCapacity(void** buffer, size_t elementSize, size_t* capacity, size_t needed) {
+    if (needed <= *capacity) return true;
+
+    size_t newCapacity = (*capacity > 0) ? *capacity : needed;
+    while (newCapacity < needed) {
+        newCapacity *= 2;
+    }
+
+    void* grown = realloc(*buffer, newCapacity * elementSize);
+    if (!grown) return false;
+
+    *buffer = grown;
+    *capacity = newCapacity;
+    return true;
 }
 
 bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig config) {
     if (!sdf) return false;
-    MonsterSDF_Free(sdf);
 
     sdf->config = config;
     sdf->bounds = AABB_Empty();
+    sdf->bodyPartCount = 0;
+    sdf->connectorCount = 0;
+    sdf->mouthCount = 0;
 
     if (!monster || monster->bodyPartCount == 0) {
         sdf->bounds = AABB_FromMinMax(Vec3_Create(-1.0f, -1.0f, -1.0f), Vec3_Create(1.0f, 1.0f, 1.0f));
@@ -60,8 +81,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
 
     /* 1. Construir partes del cuerpo */
     sdf->bodyPartCount = monster->bodyPartCount;
-    sdf->bodyParts = (MonsterSDFBodyPart*)calloc(sdf->bodyPartCount, sizeof(MonsterSDFBodyPart));
-    if (!sdf->bodyParts) {
+    if (!MonsterSDF_EnsureCapacity((void**)&sdf->bodyParts, sizeof(MonsterSDFBodyPart), &sdf->bodyPartCapacity, sdf->bodyPartCount)) {
         MonsterSDF_Free(sdf);
         return false;
     }
@@ -82,8 +102,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
     /* 2. Construir conectores */
     if (monster->bodyPartCount > 1) {
         sdf->connectorCount = monster->bodyPartCount - 1;
-        sdf->connectors = (MonsterSDFConnector*)calloc(sdf->connectorCount, sizeof(MonsterSDFConnector));
-        if (!sdf->connectors) {
+        if (!MonsterSDF_EnsureCapacity((void**)&sdf->connectors, sizeof(MonsterSDFConnector), &sdf->connectorCapacity, sdf->connectorCount)) {
             MonsterSDF_Free(sdf);
             return false;
         }
@@ -113,8 +132,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
     /* 3. Construir cavidades bucales */
     if (monster->mouthCount > 0) {
         sdf->mouthCount = monster->mouthCount;
-        sdf->mouths = (MonsterSDFMouth*)calloc(sdf->mouthCount, sizeof(MonsterSDFMouth));
-        if (!sdf->mouths) {
+        if (!MonsterSDF_EnsureCapacity((void**)&sdf->mouths, sizeof(MonsterSDFMouth), &sdf->mouthCapacity, sdf->mouthCount)) {
             MonsterSDF_Free(sdf);
             return false;
         }
@@ -184,7 +202,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
         const MonsterSDFConnector* conn = &sdf->connectors[i];
         if (conn->r1 < 0.0001f && conn->r2 < 0.0001f) continue;
 
-        float dist = SDF_RoundCone(point, conn->a, conn->b, conn->r1, conn->r2);
+        float dist = SDF_TaperedCapsuleApprox(point, conn->a, conn->b, conn->r1, conn->r2);
         SDFSample connSample = SDFSample_Create(dist, conn->color, SDF_MATERIAL_SKIN);
 
         if (!hasInitialSample) {

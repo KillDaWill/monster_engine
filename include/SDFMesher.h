@@ -29,7 +29,7 @@ typedef struct SDFMesherConfig {
     int maxResolution; /**< Límite superior por dimensión (por defecto 128) */
     size_t maxCells;   /**< Límite superior de celdas totales (por defecto 500,000) */
     float isolevel;    /**< Valor de la isosuperficie (defecto 0.0f) */
-    float normalEps;   /**< Paso épsilon para gradiente numérico de normales */
+    float normalEps;   /**< Paso épsilon para gradiente numérico de normales (si <= 0, auto: min(step)*0.25) */
     AABB3D bounds;     /**< Bounding Box 3D para el volumen de muestreo */
     bool useAutoBounds;/**< Si es true, recalcula las fronteras usando field->getBounds */
 } SDFMesherConfig;

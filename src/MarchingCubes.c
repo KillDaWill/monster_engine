@@ -1,89 +1,43 @@
 #include "MarchingCubes.h"
-#include "MarchingCubesTables.h"
-#include "MathUtils.h"
-#include <math.h>
+#include <stddef.h>
 
-static const int EDGE_CONNECTIONS[12][2] = {
-    {0, 1}, {1, 2}, {2, 3}, {3, 0},
-    {4, 5}, {5, 6}, {6, 7}, {7, 4},
-    {0, 4}, {1, 5}, {2, 6}, {3, 7}
-};
+uint16_t MarchingCubes_GetEdgeMask(int cubeIndex) {
+    if (cubeIndex < 0 || cubeIndex > 255) return 0;
 
-static MeshVertex InterpolateEdgeVertex(
-    Vector3 p1, float d1, Color c1,
-    Vector3 p2, float d2, Color c2,
-    float isolevel,
-    SDFEvaluateFn evalFn,
-    const void* context,
-    float normalEps
-) {
-    float t = 0.5f;
-    float denom = d2 - d1;
-    if (fabsf(denom) > 1e-6f) {
-        t = (isolevel - d1) / denom;
+    uint16_t mask = 0;
+    for (int edge = 0; edge < MARCHING_CUBES_EDGE_COUNT; ++edge) {
+        int c1 = MARCHING_CUBES_EDGE_ENDPOINTS[edge][0];
+        int c2 = MARCHING_CUBES_EDGE_ENDPOINTS[edge][1];
+        int inside1 = (cubeIndex >> c1) & 1;
+        int inside2 = (cubeIndex >> c2) & 1;
+        if (inside1 != inside2) {
+            mask |= (uint16_t)(1u << edge);
+        }
     }
-    t = Math_Clamp01(t);
-
-    Vector3 pos = Vec3_Lerp(p1, p2, t);
-    Color col = Color_Lerp(c1, c2, t);
-    Vector3 norm = SDF_EstimateNormal(evalFn, context, pos, normalEps);
-
-    return (MeshVertex){
-        .position = pos,
-        .normal = norm,
-        .color = col
-    };
+    return mask;
 }
 
-void MarchingCubes_PolygonizeCell(
-    const MarchingCubesCell* cell,
-    float isolevel,
-    Mesh* mesh,
-    SDFEvaluateFn evalFn,
-    const void* context,
-    float normalEps
-) {
-    if (!cell || !mesh) return;
+const int* MarchingCubes_GetTriangleRow(int cubeIndex) {
+    if (cubeIndex < 0 || cubeIndex > 255) return NULL;
+    return MARCHING_CUBES_TRI_TABLE[cubeIndex];
+}
 
-    /* 1. Calcular el índice de configuración de la celda */
-    int cubeIndex = 0;
-    for (int i = 0; i < 8; ++i) {
-        if (cell->samples[i].distance < isolevel) {
-            cubeIndex |= (1 << i);
-        }
+int MarchingCubes_GetTriangleCount(int cubeIndex) {
+    const int* row = MarchingCubes_GetTriangleRow(cubeIndex);
+    if (!row) return -1;
+
+    int count = 0;
+    for (int i = 0; row[i] != -1; ++i) {
+        ++count;
     }
+    return count / 3;
+}
 
-    /* 2. Si está completamente dentro o completamente fuera, no hay intersección */
-    int edgeFlags = MARCHING_CUBES_EDGE_TABLE[cubeIndex];
-    if (edgeFlags == 0) return;
+bool MarchingCubes_GetEdgeEndpoints(int edgeIndex, int* outCornerA, int* outCornerB) {
+    if (edgeIndex < 0 || edgeIndex >= MARCHING_CUBES_EDGE_COUNT) return false;
+    if (!outCornerA || !outCornerB) return false;
 
-    /* 3. Calcular vértices interpolados para cada arista cortada */
-    MeshVertex edgeVertices[12];
-
-    for (int i = 0; i < 12; ++i) {
-        if (edgeFlags & (1 << i)) {
-            int c1 = EDGE_CONNECTIONS[i][0];
-            int c2 = EDGE_CONNECTIONS[i][1];
-
-            edgeVertices[i] = InterpolateEdgeVertex(
-                cell->corners[c1], cell->samples[c1].distance, cell->samples[c1].color,
-                cell->corners[c2], cell->samples[c2].distance, cell->samples[c2].color,
-                isolevel, evalFn, context, normalEps
-            );
-        }
-    }
-
-    /* 4. Emitir triángulos según triTable */
-    for (int i = 0; MARCHING_CUBES_TRI_TABLE[cubeIndex][i] != -1; i += 3) {
-        int e0 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i];
-        int e1 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i + 1];
-        int e2 = MARCHING_CUBES_TRI_TABLE[cubeIndex][i + 2];
-
-        unsigned int idx0 = 0, idx1 = 0, idx2 = 0;
-        if (!Mesh_AddVertex(mesh, edgeVertices[e0], &idx0)) return;
-        if (!Mesh_AddVertex(mesh, edgeVertices[e1], &idx1)) return;
-        if (!Mesh_AddVertex(mesh, edgeVertices[e2], &idx2)) return;
-
-        Mesh_AddTriangle(mesh, idx0, idx1, idx2);
-    }
+    *outCornerA = MARCHING_CUBES_EDGE_ENDPOINTS[edgeIndex][0];
+    *outCornerB = MARCHING_CUBES_EDGE_ENDPOINTS[edgeIndex][1];
+    return true;
 }

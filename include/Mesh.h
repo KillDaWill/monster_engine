@@ -42,6 +42,18 @@ typedef struct Mesh {
 } Mesh;
 
 /**
+ * @struct MeshValidationResult
+ * @brief Resultado de la auditoría de integridad de una malla (Mesh_Validate).
+ */
+typedef struct MeshValidationResult {
+    bool valid;                    /**< true si la malla no presenta ningún problema detectado */
+    size_t invalidIndexCount;      /**< Índices fuera de rango o restantes (indexCount % 3) */
+    size_t degenerateTriangleCount; /**< Triángulos con índices repetidos (área nula garantizada) */
+    size_t nonFiniteVertexCount;   /**< Vértices con posición no finita */
+    size_t nonFiniteNormalCount;   /**< Vértices con normal no finita */
+} MeshValidationResult;
+
+/**
  * @brief Crea e inicializa una estructura Mesh vacía.
  */
 Mesh Mesh_Create(void);
@@ -74,8 +86,21 @@ bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex);
 
 /**
  * @brief Añade un triángulo a la malla dado un trío de índices de vértices.
+ *
+ * Rechaza (sin escribir nada) índices fuera de rango (>= vertexCount) o
+ * repetidos (a == b || b == c || a == c), que garantizan un triángulo
+ * degenerado.
+ * @return true si se añadió correctamente, false si los índices son inválidos o falló la memoria.
  */
 bool Mesh_AddTriangle(Mesh* mesh, unsigned int a, unsigned int b, unsigned int c);
+
+/**
+ * @brief Audita la integridad de una malla: rango de índices, triángulos
+ * degenerados y valores no finitos en posición/normal.
+ * @param mesh Malla a validar (NULL se considera inválida).
+ * @return Resultado estructurado de la auditoría.
+ */
+MeshValidationResult Mesh_Validate(const Mesh* mesh);
 
 #ifdef __cplusplus
 }

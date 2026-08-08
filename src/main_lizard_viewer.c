@@ -112,11 +112,18 @@ int main(int argc, char* argv[]) {
     lizardMouth.openFactor = 0.7f;
     Monster_AddMouth(&lizard, lizardMouth);
 
+    Eye leftEye = Eye_Create(0, Vec3_Create(-0.55f, 0.25f, 0.85f), Vec3_Create(0.3f, 0.28f, 0.18f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    leftEye.pupilScale = 0.45f;
+    Monster_AddEye(&lizard, leftEye);
+
+    Eye rightEye = Eye_Create(0, Vec3_Create(0.55f, 0.25f, 0.85f), Vec3_Create(0.3f, 0.28f, 0.18f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    rightEye.pupilScale = 0.45f;
+    Monster_AddEye(&lizard, rightEye);
+
     /* 5. Configurar el Orquestador Visual SDF */
     SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
-    mesherCfg.resolutionX = 32;
-    mesherCfg.resolutionY = 32;
-    mesherCfg.resolutionZ = 32;
+    mesherCfg.voxelSize = 0.13f;
+    mesherCfg.maxResolution = 128;
 
     MonsterVisual visual = MonsterVisual_Create(mesherCfg);
     MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig());
@@ -158,9 +165,7 @@ int main(int argc, char* argv[]) {
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-        if (renderer.renderMesh) {
-            renderer.renderMesh(&renderer, MonsterVisual_GetMesh(&visual));
-        }
+        MonsterVisual_Render(&visual, &renderer);
 
         renderer.endFrame(&renderer);
         SDL_GL_SwapWindow(window);

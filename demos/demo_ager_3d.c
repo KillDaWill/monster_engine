@@ -97,6 +97,14 @@ int main(int argc, char* argv[]) {
     youngMouth.openFactor = 0.3f;
     Monster_AddMouth(&youngLizard, youngMouth);
 
+    Eye youngLeftEye = Eye_Create(0, Vec3_Create(-0.28f, 0.12f, 0.45f), Vec3_Create(0.16f, 0.15f, 0.10f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    youngLeftEye.pupilScale = 0.4f;
+    Monster_AddEye(&youngLizard, youngLeftEye);
+
+    Eye youngRightEye = Eye_Create(0, Vec3_Create(0.28f, 0.12f, 0.45f), Vec3_Create(0.16f, 0.15f, 0.10f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    youngRightEye.pupilScale = 0.4f;
+    Monster_AddEye(&youngLizard, youngRightEye);
+
     /* 4. Crear FASE 2: Lagarto Alfa */
     Monster adultLizard = Monster_Create();
     Monster_Init(&adultLizard);
@@ -120,15 +128,22 @@ int main(int argc, char* argv[]) {
     adultMouth.openFactor = 0.95f;
     Monster_AddMouth(&adultLizard, adultMouth);
 
+    Eye adultLeftEye = Eye_Create(0, Vec3_Create(-0.75f, 0.35f, 1.1f), Vec3_Create(0.42f, 0.4f, 0.25f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    adultLeftEye.pupilScale = 0.45f;
+    Monster_AddEye(&adultLizard, adultLeftEye);
+
+    Eye adultRightEye = Eye_Create(0, Vec3_Create(0.75f, 0.35f, 1.1f), Vec3_Create(0.42f, 0.4f, 0.25f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    adultRightEye.pupilScale = 0.45f;
+    Monster_AddEye(&adultLizard, adultRightEye);
+
     /* 5. Inicializar MonsterAger y MonsterVisual */
     float ageFactor = 0.0f;
     bool autoAnimate = true;
     MonsterAger ager = MonsterAger_Create(&youngLizard, &adultLizard, ageFactor);
 
     SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
-    mesherCfg.resolutionX = 32;
-    mesherCfg.resolutionY = 32;
-    mesherCfg.resolutionZ = 32;
+    mesherCfg.voxelSize = 0.13f;
+    mesherCfg.maxResolution = 128;
 
     MonsterVisual visual = MonsterVisual_Create(mesherCfg);
     MonsterVisual_RebuildNow(&visual, MonsterAger_GetResultConst(&ager), MonsterSDF_DefaultConfig());
@@ -203,9 +218,7 @@ int main(int argc, char* argv[]) {
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-        if (renderer.renderMesh) {
-            renderer.renderMesh(&renderer, MonsterVisual_GetMesh(&visual));
-        }
+        MonsterVisual_Render(&visual, &renderer);
 
         renderer.endFrame(&renderer);
         SDL_GL_SwapWindow(window);

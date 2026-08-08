@@ -30,9 +30,9 @@ float SDF_Ellipsoid(Vector3 point, Vector3 radii);
 float SDF_Capsule(Vector3 point, Vector3 a, Vector3 b, float radius);
 
 /**
- * @brief SDF de un cono redondeado / cápsula cónica entre los puntos a y b con radios r1 y r2.
+ * @brief SDF aproximado de una cápsula cónica (cono redondeado) entre los puntos a y b con radios r1 y r2.
  */
-float SDF_RoundCone(Vector3 point, Vector3 a, Vector3 b, float r1, float r2);
+float SDF_TaperedCapsuleApprox(Vector3 point, Vector3 a, Vector3 b, float r1, float r2);
 
 /**
  * @brief SDF de una caja 3D orientada a los ejes centrada en el origen con mitades de dimensión b.

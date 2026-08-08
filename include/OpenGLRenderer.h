@@ -36,6 +36,15 @@ void OpenGLRenderer_SetupCamera(ICamera* camera, int width, int height);
  */
 void OpenGLRenderer_RenderMesh(const Mesh* mesh);
 
+/**
+ * @brief Activa/desactiva el modo wireframe (contornos de triángulos).
+ *
+ * El cambio se aplica solo durante el renderizado de mallas y se restaura el
+ * modo de polígono previo (sin fuga de estado OpenGL).
+ * @param enabled true para wireframe, false para relleno.
+ */
+void OpenGLRenderer_SetWireframe(bool enabled);
+
 #ifdef __cplusplus
 }
 #endif

@@ -44,7 +44,7 @@ float SDF_Capsule(Vector3 p, Vector3 a, Vector3 b, float radius) {
     return Vec3_Length(projection) - r;
 }
 
-float SDF_RoundCone(Vector3 p, Vector3 a, Vector3 b, float r1, float r2) {
+float SDF_TaperedCapsuleApprox(Vector3 p, Vector3 a, Vector3 b, float r1, float r2) {
     r1 = Math_Max(r1, 0.0001f);
     r2 = Math_Max(r2, 0.0001f);
 

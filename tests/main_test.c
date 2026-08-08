@@ -6,6 +6,9 @@ void run_body_part_tests(void);
 void run_monster_tests(void);
 void run_ager_tests(void);
 void run_sdf_tests(void);
+void run_marching_cubes_tests(void);
+void run_mesh_tests(void);
+void run_primitive_mesh_tests(void);
 
 int main(void) {
     printf("======================================\n");
@@ -26,6 +29,15 @@ int main(void) {
 
     printf("\n--- Módulo MonsterAger ---\n");
     run_ager_tests();
+
+    printf("\n--- Módulo Marching Cubes (tablas) ---\n");
+    run_marching_cubes_tests();
+
+    printf("\n--- Módulo Mesh ---\n");
+    run_mesh_tests();
+
+    printf("\n--- Módulo PrimitiveMesh ---\n");
+    run_primitive_mesh_tests();
 
     printf("\n--- Módulo SDF Engine & Mesher ---\n");
     run_sdf_tests();

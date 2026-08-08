@@ -1,7 +1,18 @@
 #include "OpenGLRenderer.h"
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <stdio.h>
 #include <math.h>
+
+/* ============================================================
+ * RENDER STATE
+ * ============================================================ */
+
+static bool g_wireframe = false;
+
+void OpenGLRenderer_SetWireframe(bool enabled) {
+    g_wireframe = enabled;
+}
 
 /* ============================================================
  * FRAME LIFECYCLE
@@ -26,17 +37,57 @@ static void OpenGL_EndFrame(MonsterRenderer* self) {
 void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
     if (!mesh || mesh->vertexCount == 0 || mesh->indexCount == 0) return;
 
+    /* Modo wireframe sin fuga de estado: guardar y restaurar el modo de polígono */
+    GLint previousPolygonMode[2] = {GL_FILL, GL_FILL};
+    if (g_wireframe) {
+        glGetIntegerv(GL_POLYGON_MODE, previousPolygonMode);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+
+    size_t triangleCount = mesh->indexCount / 3;
+    size_t skippedTriangles = 0;
+
     glBegin(GL_TRIANGLES);
-    for (size_t i = 0; i < mesh->indexCount; ++i) {
-        unsigned int idx = mesh->indices[i];
-        if (idx < mesh->vertexCount) {
-            MeshVertex v = mesh->vertices[idx];
-            glColor4ub(v.color.r, v.color.g, v.color.b, v.color.a);
-            glNormal3f(v.normal.x, v.normal.y, v.normal.z);
-            glVertex3f(v.position.x, v.position.y, v.position.z);
+    for (size_t t = 0; t < triangleCount; ++t) {
+        unsigned int a = mesh->indices[t * 3 + 0];
+        unsigned int b = mesh->indices[t * 3 + 1];
+        unsigned int c = mesh->indices[t * 3 + 2];
+
+        /* Validar los 3 índices ANTES de emitir: emitir un triángulo incompleto
+           desplazaría el agrupamiento de GL_TRIANGLES y corrompería el resto
+           de la malla. Un triángulo con índice inválido se omite completo. */
+        if (a >= mesh->vertexCount || b >= mesh->vertexCount || c >= mesh->vertexCount) {
+            ++skippedTriangles;
+            continue;
         }
+
+        MeshVertex va = mesh->vertices[a];
+        MeshVertex vb = mesh->vertices[b];
+        MeshVertex vc = mesh->vertices[c];
+
+        glColor4ub(va.color.r, va.color.g, va.color.b, va.color.a);
+        glNormal3f(va.normal.x, va.normal.y, va.normal.z);
+        glVertex3f(va.position.x, va.position.y, va.position.z);
+
+        glColor4ub(vb.color.r, vb.color.g, vb.color.b, vb.color.a);
+        glNormal3f(vb.normal.x, vb.normal.y, vb.normal.z);
+        glVertex3f(vb.position.x, vb.position.y, vb.position.z);
+
+        glColor4ub(vc.color.r, vc.color.g, vc.color.b, vc.color.a);
+        glNormal3f(vc.normal.x, vc.normal.y, vc.normal.z);
+        glVertex3f(vc.position.x, vc.position.y, vc.position.z);
     }
     glEnd();
+
+    if (skippedTriangles > 0) {
+        fprintf(stderr,
+            "OpenGLRenderer: %zu triángulo(s) omitido(s) por índice inválido (mesh de %zu vértices)\n",
+            skippedTriangles, mesh->vertexCount);
+    }
+
+    if (g_wireframe) {
+        glPolygonMode(GL_FRONT_AND_BACK, previousPolygonMode[1]);
+    }
 }
 
 static void OpenGL_RenderMeshCallback(MonsterRenderer* self, const Mesh* mesh) {
