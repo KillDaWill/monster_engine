@@ -61,6 +61,11 @@ float Math_Max(float a, float b);
  */
 bool Math_GrowCapacity(size_t currentCapacity, size_t minimumRequired, size_t elementSize, size_t* outNewCapacity);
 
+/**
+ * @brief Multiplica dos valores size_t de forma segura detectando desbordamiento de memoria.
+ */
+bool Math_MulSize(size_t a, size_t b, size_t* out);
+
 #ifdef __cplusplus
 }
 #endif

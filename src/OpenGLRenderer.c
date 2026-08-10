@@ -36,50 +36,50 @@ static void OpenGL_EndFrame(Renderer3D* self) {
     (void)self;
 }
 
+#include <stddef.h>
+#include <limits.h>
+
+_Static_assert(sizeof(MeshIndex) == sizeof(GLuint), "MeshIndex must match GLuint size for glDrawElements");
+
 /* ============================================================
  * MESH RENDERER
  * ============================================================ */
 
 void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
-    if (!mesh || mesh->vertexCount == 0 || mesh->indexCount == 0) return;
+    if (!mesh || mesh->vertexCount == 0 || mesh->indexCount < 3 || !mesh->vertices || !mesh->indices) return;
 
-    size_t triangleCount = mesh->indexCount / 3;
-    size_t skippedTriangles = 0;
+    const unsigned char* base = (const unsigned char*)mesh->vertices;
 
-    glBegin(GL_TRIANGLES);
-    for (size_t t = 0; t < triangleCount; ++t) {
-        MeshIndex a = mesh->indices[t * 3 + 0];
-        MeshIndex b = mesh->indices[t * 3 + 1];
-        MeshIndex c = mesh->indices[t * 3 + 2];
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_NORMAL_ARRAY);
+    glEnableClientState(GL_COLOR_ARRAY);
 
-        if (a >= mesh->vertexCount || b >= mesh->vertexCount || c >= mesh->vertexCount) {
-            ++skippedTriangles;
-            continue;
+    glVertexPointer(3, GL_FLOAT, sizeof(MeshVertex), base + offsetof(MeshVertex, position));
+    glNormalPointer(GL_FLOAT, sizeof(MeshVertex), base + offsetof(MeshVertex, normal));
+    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(MeshVertex), base + offsetof(MeshVertex, color));
+
+    const size_t MAX_CHUNK_INDICES = (size_t)INT32_MAX - ((size_t)INT32_MAX % 3);
+    size_t indexOffset = 0;
+
+    while (indexOffset < mesh->indexCount) {
+        size_t count = mesh->indexCount - indexOffset;
+        if (count > MAX_CHUNK_INDICES) {
+            count = MAX_CHUNK_INDICES;
         }
 
-        MeshVertex va = mesh->vertices[a];
-        MeshVertex vb = mesh->vertices[b];
-        MeshVertex vc = mesh->vertices[c];
+        glDrawElements(
+            GL_TRIANGLES,
+            (GLsizei)count,
+            GL_UNSIGNED_INT,
+            &mesh->indices[indexOffset]
+        );
 
-        glColor4ub(va.color.r, va.color.g, va.color.b, va.color.a);
-        glNormal3f(va.normal.x, va.normal.y, va.normal.z);
-        glVertex3f(va.position.x, va.position.y, va.position.z);
-
-        glColor4ub(vb.color.r, vb.color.g, vb.color.b, vb.color.a);
-        glNormal3f(vb.normal.x, vb.normal.y, vb.normal.z);
-        glVertex3f(vb.position.x, vb.position.y, vb.position.z);
-
-        glColor4ub(vc.color.r, vc.color.g, vc.color.b, vc.color.a);
-        glNormal3f(vc.normal.x, vc.normal.y, vc.normal.z);
-        glVertex3f(vc.position.x, vc.position.y, vc.position.z);
+        indexOffset += count;
     }
-    glEnd();
 
-    if (skippedTriangles > 0) {
-        fprintf(stderr,
-            "OpenGLRenderer: %zu triángulo(s) omitido(s) por índice inválido (mesh de %zu vértices)\n",
-            skippedTriangles, (size_t)mesh->vertexCount);
-    }
+    glDisableClientState(GL_COLOR_ARRAY);
+    glDisableClientState(GL_NORMAL_ARRAY);
+    glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {

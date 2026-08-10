@@ -191,6 +191,44 @@ static Monster BuildLizard(void) {
     return lizard;
 }
 
+static Monster BuildAdultLizard(float scaleFactor) {
+    Monster lizard = Monster_Create();
+    Monster_Init(&lizard);
+    lizard.colorPalette = ColorPalette_CreateGradient(Color_FromRGB(220, 40, 40), Color_FromRGB(240, 180, 30), 4);
+
+    BodyPart* head = Monster_GetHead(&lizard);
+    if (head) {
+        head->width = 2.5f * scaleFactor;
+        head->height = 1.8f * scaleFactor;
+        head->length = 2.8f * scaleFactor;
+        head->position = Vec3_Scale(head->position, scaleFactor);
+        head->positionRender = Vec3_Scale(head->positionRender, scaleFactor);
+    }
+    BodyPart chest   = BodyPart_Create(0.0f, 0.0f, -3.0f * scaleFactor, 3.2f * scaleFactor, 3.5f * scaleFactor, 2.2f * scaleFactor, 0.0f);
+    BodyPart abdomen = BodyPart_Create(0.0f, 0.0f, -6.6f * scaleFactor, 2.8f * scaleFactor, 3.2f * scaleFactor, 1.9f * scaleFactor, 0.0f);
+    BodyPart tail1   = BodyPart_Create(0.0f, 0.0f, -10.0f * scaleFactor, 1.8f * scaleFactor, 3.0f * scaleFactor, 1.4f * scaleFactor, 0.0f);
+    BodyPart tail2   = BodyPart_Create(0.0f, 0.0f, -13.1f * scaleFactor, 0.9f * scaleFactor, 2.5f * scaleFactor, 0.8f * scaleFactor, 0.0f);
+
+    Monster_AddBodyPart(&lizard, chest);
+    Monster_AddBodyPart(&lizard, abdomen);
+    Monster_AddBodyPart(&lizard, tail1);
+    Monster_AddBodyPart(&lizard, tail2);
+
+    Mouth mouth = Mouth_Create(0, Vec3_Create(0.0f, -0.3f * scaleFactor, 1.2f * scaleFactor), Vec3_Create(1.6f * scaleFactor, 0.9f * scaleFactor, 1.2f * scaleFactor), Color_FromRGB(60, 0, 0), Color_FromRGB(200, 30, 30));
+    mouth.openFactor = 0.95f;
+    Monster_AddMouth(&lizard, mouth);
+
+    Eye leftEye = Eye_Create(0, Vec3_Create(-0.75f * scaleFactor, 0.35f * scaleFactor, 1.1f * scaleFactor), Vec3_Create(0.42f * scaleFactor, 0.4f * scaleFactor, 0.25f * scaleFactor), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    leftEye.pupilScale = 0.45f;
+    Monster_AddEye(&lizard, leftEye);
+
+    Eye rightEye = Eye_Create(0, Vec3_Create(0.75f * scaleFactor, 0.35f * scaleFactor, 1.1f * scaleFactor), Vec3_Create(0.42f * scaleFactor, 0.4f * scaleFactor, 0.25f * scaleFactor), COLOR_WHITE, Color_FromRGB(20, 20, 20));
+    rightEye.pupilScale = 0.45f;
+    Monster_AddEye(&lizard, rightEye);
+
+    return lizard;
+}
+
 static float CellDiagonal(const AABB3D* bounds, float voxelSize) {
     Vector3 size = Vec3_Sub(bounds->end, bounds->start);
     size.x = Math_Max(size.x, 0.001f);
@@ -581,6 +619,167 @@ void test_monster_visual_complete_fingerprint(void) {
     printf("[PASS] test_monster_visual_complete_fingerprint\n");
 }
 
+typedef struct SphereFieldContext {
+    float radius;
+} SphereFieldContext;
+
+static SDFSample EvaluateSphereField(const void* context, Vector3 p) {
+    const SphereFieldContext* sphereCtx = (const SphereFieldContext*)context;
+    float dist = Vec3_Length(p) - sphereCtx->radius;
+    return (SDFSample){
+        .distance = dist,
+        .color = Color_FromRGB(200, 200, 200)
+    };
+}
+
+void test_adaptive_resolution_and_budget(void) {
+    SDFMesherConfig cfgSmall = SDFMesher_DefaultConfig();
+    cfgSmall.voxelSize = 0.5f;
+    cfgSmall.maxCells = 1000;
+    cfgSmall.bounds = (AABB3D){ .start = Vec3_Create(-1.0f, -1.0f, -1.0f), .end = Vec3_Create(1.0f, 1.0f, 1.0f) };
+    cfgSmall.useAutoBounds = false;
+
+    SphereFieldContext ctxSmall = { .radius = 0.8f };
+    SDFField sphereFieldSmall = {
+        .evaluate = EvaluateSphereField,
+        .getBounds = NULL,
+        .context = &ctxSmall
+    };
+
+    SDFMesher mesherSmall = SDFMesher_Create(cfgSmall);
+    Mesh meshSmall = Mesh_Create();
+
+    TEST_ASSERT(SDFMesher_GenerateMesh(&mesherSmall, &sphereFieldSmall, &meshSmall), "Generación de malla pequeña falló");
+    const SDFMesherStats* statsSmall = SDFMesher_GetLastStats(&mesherSmall);
+    TEST_ASSERT(!statsSmall->cellBudgetAdjusted, "Malla dentro de presupuesto no debe ser ajustada");
+    TEST_ASSERT(FLOAT_NEAR(statsSmall->effectiveVoxelSize, 0.5f), "Vóxel efectivo debe ser igual al solicitado");
+
+    SDFMesherConfig cfgLarge = SDFMesher_DefaultConfig();
+    cfgLarge.voxelSize = 0.1f;
+    cfgLarge.maxCells = 500;
+    cfgLarge.bounds = (AABB3D){ .start = Vec3_Create(-5.0f, -5.0f, -5.0f), .end = Vec3_Create(5.0f, 5.0f, 5.0f) };
+    cfgLarge.useAutoBounds = false;
+
+    SphereFieldContext ctxLarge = { .radius = 3.0f };
+    SDFField sphereFieldLarge = {
+        .evaluate = EvaluateSphereField,
+        .getBounds = NULL,
+        .context = &ctxLarge
+    };
+
+    SDFMesher mesherLarge = SDFMesher_Create(cfgLarge);
+    Mesh meshLarge = Mesh_Create();
+
+    TEST_ASSERT(SDFMesher_GenerateMesh(&mesherLarge, &sphereFieldLarge, &meshLarge), "Generación de malla con presupuesto ajustado falló");
+    const SDFMesherStats* statsLarge = SDFMesher_GetLastStats(&mesherLarge);
+    TEST_ASSERT(statsLarge->cellBudgetAdjusted, "Malla que excede presupuesto debe ser ajustada");
+    TEST_ASSERT(statsLarge->cellCount <= 500, "Cantidad de celdas debe estar dentro del límite maxCells");
+    TEST_ASSERT(statsLarge->effectiveVoxelSize > 0.1f, "Vóxel efectivo debe haber aumentado");
+    TEST_ASSERT(Mesh_Validate(&meshLarge).valid, "Malla ajustada debe ser válida");
+
+    Mesh_Free(&meshSmall);
+    Mesh_Free(&meshLarge);
+    SDFMesher_Free(&mesherSmall);
+    SDFMesher_Free(&mesherLarge);
+
+    printf("[PASS] test_adaptive_resolution_and_budget\n");
+}
+
+void test_cached_normal_quality_and_eval_count(void) {
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.resolutionX = 16;
+    cfg.resolutionY = 16;
+    cfg.resolutionZ = 16;
+    cfg.bounds = (AABB3D){ .start = Vec3_Create(-1.5f, -1.5f, -1.5f), .end = Vec3_Create(1.5f, 1.5f, 1.5f) };
+    cfg.useAutoBounds = false;
+
+    SphereFieldContext ctx = { .radius = 1.0f };
+    SDFField sphereField = {
+        .evaluate = EvaluateSphereField,
+        .getBounds = NULL,
+        .context = &ctx
+    };
+
+    SDFMesher mesher = SDFMesher_Create(cfg);
+    Mesh mesh = Mesh_Create();
+
+    TEST_ASSERT(SDFMesher_GenerateMesh(&mesher, &sphereField, &mesh), "Poligonización de esfera falló");
+    const SDFMesherStats* stats = SDFMesher_GetLastStats(&mesher);
+
+    TEST_ASSERT(stats->fieldEvaluationCount <= stats->gridPointCount + 10, "Evaluaciones de campo deben coincidir con grid points (+ tolerancia)");
+
+    for (size_t i = 0; i < mesh.vertexCount; ++i) {
+        Vector3 posNorm = Vec3_Normalize(mesh.vertices[i].position);
+        Vector3 normal = mesh.vertices[i].normal;
+
+        float lenSq = Vec3_Dot(normal, normal);
+        TEST_ASSERT(FLOAT_NEAR(lenSq, 1.0f), "Longitud de normal debe ser unitaria");
+
+        float dot = Vec3_Dot(posNorm, normal);
+        TEST_ASSERT(dot > 0.95f, "Normal de esfera debe apuntar hacia afuera");
+    }
+
+    TEST_ASSERT(Mesh_Validate(&mesh).valid, "Malla de esfera con normales cacheadas debe ser válida");
+
+    Mesh_Free(&mesh);
+    SDFMesher_Free(&mesher);
+
+    printf("[PASS] test_cached_normal_quality_and_eval_count\n");
+}
+
+void test_large_monster_regression(void) {
+    Monster lizard = BuildAdultLizard(2.0f);
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.voxelSize = 0.13f;
+    cfg.maxCells = 250000;
+
+    MonsterVisual visual = MonsterVisual_Create(cfg);
+    TEST_ASSERT(MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig()), "Reconstrucción de monstruo grande falló");
+
+    const Mesh* mesh = MonsterVisual_GetMesh(&visual);
+    TEST_ASSERT(mesh != NULL && mesh->vertexCount > 0, "Malla de monstruo grande no debe estar vacía");
+
+    const SDFMesherStats* stats = SDFMesher_GetLastStats(&visual.mesher);
+    TEST_ASSERT(stats->cellBudgetAdjusted, "Monstruo grande 2x debe activar ajuste de presupuesto");
+    TEST_ASSERT(stats->cellCount <= 250000, "Celdas de monstruo grande deben respetar maxCells");
+    TEST_ASSERT(Mesh_Validate(mesh).valid, "Malla de monstruo grande debe ser válida");
+
+    MonsterVisual_Free(&visual);
+    Monster_Free(&lizard);
+
+    printf("[PASS] test_large_monster_regression\n");
+}
+
+void test_monster_visual_throttling(void) {
+    Monster lizard = BuildLizard();
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.resolutionX = 16; cfg.resolutionY = 16; cfg.resolutionZ = 16;
+
+    MonsterVisual visual = MonsterVisual_Create(cfg);
+    TEST_ASSERT(MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig()), "RebuildNow inicial falló");
+
+    uint64_t initialGen = MonsterVisual_GetGeneration(&visual);
+    float minInterval = 0.10f;
+
+    bool updated = MonsterVisual_Update(&visual, &lizard, 0.02f, minInterval, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(!updated, "Update sin cambio geométrico no debe reconstruir");
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == initialGen, "Generación no debe cambiar sin necesidad");
+
+    MonsterVisual_MarkDirty(&visual);
+    updated = MonsterVisual_Update(&visual, &lizard, 0.02f, minInterval, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(!updated, "Update con dirty pero antes de minRebuildInterval debe ser pospuesto");
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == initialGen, "Generación debe mantenerse durante posposición");
+
+    updated = MonsterVisual_Update(&visual, &lizard, 0.09f, minInterval, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(updated, "Update tras superar minRebuildInterval debe reconstruir");
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == initialGen + 1, "Generación debe incrementar tras reconstrucción");
+
+    MonsterVisual_Free(&visual);
+    Monster_Free(&lizard);
+
+    printf("[PASS] test_monster_visual_throttling\n");
+}
+
 void run_sdf_tests(void) {
     test_sdf_primitives_and_ops();
     test_sdf_primitives_extended();
@@ -595,4 +794,8 @@ void run_sdf_tests(void) {
     test_lizard_mesh_stats();
     test_ager_meshes();
     test_monster_sdf_buffer_reuse();
+    test_adaptive_resolution_and_budget();
+    test_cached_normal_quality_and_eval_count();
+    test_large_monster_regression();
+    test_monster_visual_throttling();
 }

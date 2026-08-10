@@ -61,11 +61,12 @@ TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
 # Ejecutables
 TEST_BIN = run_tests
+BENCHMARK_BIN = benchmarks/benchmark_sdf
 DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
 LIZARD_VIEWER_BIN = lizard_viewer
 
-.PHONY: all clean test docs demos
+.PHONY: all clean test benchmark docs demos
 
 all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
 
@@ -82,6 +83,13 @@ $(BUILD_DIR)/%.o: $(TEST_DIR)/%.c
 # Ejecutable de la Suite de Pruebas Unitarias (Puro C sin librerías gráficas)
 $(TEST_BIN): $(CORE_OBJS) $(TEST_OBJS)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+# Ejecutable de Benchmark de Rendimiento (Puro C sin librerías gráficas)
+$(BENCHMARK_BIN): $(CORE_OBJS) benchmarks/benchmark_sdf.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+benchmark: $(BENCHMARK_BIN)
+	./$(BENCHMARK_BIN)
 
 # Ejecutable del visor 3D principal
 $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.c
@@ -106,4 +114,4 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(BUILD_DIR) $(TEST_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) doc/html doc/latex
+	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) doc/html doc/latex

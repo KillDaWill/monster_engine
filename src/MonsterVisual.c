@@ -137,6 +137,7 @@ void MonsterVisual_Free(MonsterVisual* visual) {
     if (!visual) return;
     MonsterSDF_Free(&visual->sdf);
     MonsterSDF_Free(&visual->stagingSdf);
+    SDFMesher_Free(&visual->mesher);
     Mesh_Free(&visual->mesh);
     Mesh_Free(&visual->stagingMesh);
     for (size_t i = 0; i < visual->eyeCount; ++i) {
@@ -271,22 +272,27 @@ bool MonsterVisual_Update(
     MonsterVisual* visual,
     const Monster* monster,
     float deltaTime,
-    float rebuildInterval,
+    float minRebuildInterval,
     MonsterSDFConfig sdfConfig
 ) {
     if (!visual || !monster) return false;
 
     visual->updateTimer += deltaTime;
 
-    bool timeTriggered = (rebuildInterval > 0.0f) && (visual->updateTimer >= rebuildInterval);
     bool geometryChanged = !visual->hasFingerprint ||
                            (visual->geometryFingerprint != MonsterVisual_ComputeFingerprint(visual, monster, sdfConfig));
 
-    if (visual->isDirty || timeTriggered || geometryChanged || visual->mesh.vertexCount == 0) {
-        return MonsterVisual_RebuildNow(visual, monster, sdfConfig);
+    bool needsRebuild = visual->isDirty || geometryChanged || visual->mesh.vertexCount == 0;
+
+    if (!needsRebuild) {
+        return false;
     }
 
-    return false;
+    if (minRebuildInterval > 0.0f && visual->mesh.vertexCount > 0 && visual->updateTimer < minRebuildInterval) {
+        return false;
+    }
+
+    return MonsterVisual_RebuildNow(visual, monster, sdfConfig);
 }
 
 const Mesh* MonsterVisual_GetMesh(const MonsterVisual* visual) {

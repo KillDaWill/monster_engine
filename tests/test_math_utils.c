@@ -32,6 +32,21 @@ void test_math_grow_capacity(void) {
     printf("[PASS] test_math_grow_capacity\n");
 }
 
+void test_math_mul_size(void) {
+    size_t res = 0;
+
+    TEST_ASSERT(!Math_MulSize(10, 10, NULL), "out NULL debe retornar false");
+    TEST_ASSERT(Math_MulSize(0, 500, &res) && res == 0, "Multiplicación por 0 debe ser 0");
+    TEST_ASSERT(Math_MulSize(500, 0, &res) && res == 0, "Multiplicación por 0 debe ser 0");
+    TEST_ASSERT(Math_MulSize(123, 456, &res) && res == 123 * 456, "Multiplicación normal falló");
+    TEST_ASSERT(!Math_MulSize(SIZE_MAX, 2, &res), "Desbordamiento debe retornar false");
+    TEST_ASSERT(!Math_MulSize(SIZE_MAX / 2 + 1, 2, &res), "Desbordamiento limite debe retornar false");
+    TEST_ASSERT(Math_MulSize(SIZE_MAX / 2, 2, &res) && res == (SIZE_MAX / 2) * 2, "Multiplicación limite aceptable falló");
+
+    printf("[PASS] test_math_mul_size\n");
+}
+
 void run_math_utils_tests(void) {
     test_math_grow_capacity();
+    test_math_mul_size();
 }

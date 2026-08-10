@@ -80,12 +80,13 @@ bool MonsterVisual_RebuildNow(
 );
 
 /**
- * @brief Actualiza el temporizador y reconstruye la malla periódicamente, si está
- * marcada como dirty o si la huella geométrica del monstruo cambió (fingerprint).
+ * @brief Actualiza el temporizador y reconstruye la malla periódicamente si es necesario,
+ * respetando el tiempo mínimo entre reconstrucciones (minRebuildInterval) cuando la
+ * geometría o estado sucio lo requieran.
  * @param visual Puntero al coordinador visual.
  * @param monster Instancia de Monster de la que extraer la geometría.
  * @param deltaTime Delta de tiempo en segundos.
- * @param rebuildInterval Intervalo mínimo de reconstrucción en segundos (si <= 0, solo cuando isDirty o fingerprint).
+ * @param minRebuildInterval Tiempo mínimo entre reconstrucciones automáticas en segundos (si <= 0, reconstrucción inmediata).
  * @param sdfConfig Parámetros de mezcla SDF.
  * @return true si la malla se regeneró en este frame.
  */
@@ -93,7 +94,7 @@ bool MonsterVisual_Update(
     MonsterVisual* visual,
     const Monster* monster,
     float deltaTime,
-    float rebuildInterval,
+    float minRebuildInterval,
     MonsterSDFConfig sdfConfig
 );
 

@@ -229,6 +229,7 @@ static void test_sphere_field_pipeline(void) {
     }
 
     Mesh_Free(&mesh);
+    SDFMesher_Free(&mesher);
     printf("[PASS] test_sphere_field_pipeline\n");
 }
 
@@ -258,6 +259,7 @@ static void test_edge_cache_sharing(void) {
                 "Caché de aristas no está compartiendo vértices entre celdas");
 
     Mesh_Free(&mesh);
+    SDFMesher_Free(&mesher);
     printf("[PASS] test_edge_cache_sharing\n");
 }
 

@@ -12,6 +12,7 @@
 #include "AABB.h"
 #include "SDFSampling.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,11 +36,47 @@ typedef struct SDFMesherConfig {
 } SDFMesherConfig;
 
 /**
+ * @struct SDFMesherStats
+ * @brief Estadísticas del último proceso de generación de malla en SDFMesher.
+ */
+typedef struct SDFMesherStats {
+    int resolutionX;             /**< Resolución efectiva X utilizada */
+    int resolutionY;             /**< Resolución efectiva Y utilizada */
+    int resolutionZ;             /**< Resolución efectiva Z utilizada */
+    Vector3 voxelStep;           /**< Tamaño real del vóxel en cada eje */
+    size_t cellCount;            /**< Cantidad total de celdas en la rejilla */
+    size_t gridPointCount;       /**< Cantidad total de puntos muestreados en la rejilla */
+    size_t fieldEvaluationCount; /**< Cantidad de evaluaciones directas a field->evaluate */
+    size_t generatedVertexCount; /**< Cantidad de vértices añadidos a la malla */
+    size_t generatedTriangleCount; /**< Cantidad de triángulos añadidos a la malla */
+    float requestedVoxelSize;    /**< Tamaño de vóxel solicitado originalmente */
+    float effectiveVoxelSize;    /**< Tamaño de vóxel efectivo tras presupuesto */
+    bool cellBudgetAdjusted;     /**< true si la resolución fue ajustada por presupuesto maxCells */
+} SDFMesherStats;
+
+/**
  * @struct SDFMesher
- * @brief Estructura del orquestador SDFMesher.
+ * @brief Estructura del orquestador SDFMesher con buffers scratch reutilizables.
  */
 typedef struct SDFMesher {
-    SDFMesherConfig config; /**< Configuración activa del mesher */
+    SDFMesherConfig config;      /**< Configuración activa del mesher */
+
+    SDFSample* gridSamples;      /**< Buffer reutilizable de muestras de distancia/color */
+    size_t gridSampleCapacity;   /**< Capacidad reservada de gridSamples */
+
+    Vector3* gridGradients;      /**< Buffer reutilizable de gradientes precortados */
+    size_t gridGradientCapacity; /**< Capacidad reservada de gridGradients */
+
+    MeshIndex* xEdges;           /**< Caché reutilizable de vértices en aristas X */
+    size_t xEdgeCapacity;        /**< Capacidad reservada de xEdges */
+
+    MeshIndex* yEdges;           /**< Caché reutilizable de vértices en aristas Y */
+    size_t yEdgeCapacity;        /**< Capacidad reservada de yEdges */
+
+    MeshIndex* zEdges;           /**< Caché reutilizable de vértices en aristas Z */
+    size_t zEdgeCapacity;        /**< Capacidad reservada de zEdges */
+
+    SDFMesherStats lastStats;    /**< Métricas de la última ejecución */
 } SDFMesher;
 
 /**
@@ -51,6 +88,16 @@ SDFMesherConfig SDFMesher_DefaultConfig(void);
  * @brief Crea una instancia de SDFMesher con la configuración dada.
  */
 SDFMesher SDFMesher_Create(SDFMesherConfig config);
+
+/**
+ * @brief Libera los buffers scratch reutilizables poseídos por SDFMesher.
+ */
+void SDFMesher_Free(SDFMesher* mesher);
+
+/**
+ * @brief Retorna un puntero a las métricas de la última ejecución de SDFMesher.
+ */
+const SDFMesherStats* SDFMesher_GetLastStats(const SDFMesher* mesher);
 
 /**
  * @brief Genera una malla 3D evaluando el campo SDF dado sobre la rejilla regular con caché de aristas.

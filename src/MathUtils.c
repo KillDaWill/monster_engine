@@ -55,3 +55,16 @@ bool Math_GrowCapacity(size_t currentCapacity, size_t minimumRequired, size_t el
     *outNewCapacity = newCapacity;
     return true;
 }
+
+bool Math_MulSize(size_t a, size_t b, size_t* out) {
+    if (!out) return false;
+    if (a == 0 || b == 0) {
+        *out = 0;
+        return true;
+    }
+    if (a > SIZE_MAX / b) {
+        return false;
+    }
+    *out = a * b;
+    return true;
+}

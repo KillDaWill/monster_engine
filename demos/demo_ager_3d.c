@@ -144,6 +144,9 @@ int main(int argc, char* argv[]) {
     SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
     mesherCfg.voxelSize = 0.13f;
     mesherCfg.maxResolution = 128;
+    mesherCfg.maxCells = 250000;
+
+    const float SDF_REBUILD_INTERVAL = 1.0f / 15.0f;
 
     MonsterVisual visual = MonsterVisual_Create(mesherCfg);
     MonsterVisual_RebuildNow(&visual, MonsterAger_GetResultConst(&ager), MonsterSDF_DefaultConfig());
@@ -213,7 +216,7 @@ int main(int argc, char* argv[]) {
         camera.position.z = cosf(cameraAngle) * camRadius - 6.0f;
 
         const Monster* currentMonster = MonsterAger_GetResultConst(&ager);
-        MonsterVisual_Update(&visual, currentMonster, deltaTime, 0.0f, MonsterSDF_DefaultConfig());
+        MonsterVisual_Update(&visual, currentMonster, deltaTime, SDF_REBUILD_INTERVAL, MonsterSDF_DefaultConfig());
 
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
