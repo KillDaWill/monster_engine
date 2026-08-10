@@ -62,8 +62,32 @@ static void test_uv_sphere_invalid_params(void) {
     printf("[PASS] test_uv_sphere_invalid_params\n");
 }
 
+static void test_ellipsoid_transform(void) {
+    Mesh mesh = Mesh_Create();
+    Transform3D t = Transform3D_Create(
+        Vec3_Create(2.0f, -1.0f, 5.0f),
+        Vec3_Create(0.0f, 90.0f, 0.0f), /* Rotación 90 deg en Y */
+        Vec3_Create(2.0f, 1.0f, 0.5f)   /* Escala no uniforme */
+    );
+
+    TEST_ASSERT(PrimitiveMesh_GenerateEllipsoid(&mesh, t, 16, 12, COLOR_WHITE), "GenerateEllipsoid falló");
+
+    MeshValidationResult res = Mesh_Validate(&mesh);
+    TEST_ASSERT(res.valid, "Malla de elipsoide generada es inválida");
+
+    /* Verificar que las normales son unitarias y están adecuadamente transformadas */
+    for (size_t i = 0; i < mesh.vertexCount; ++i) {
+        float normLen = Vec3_Length(mesh.vertices[i].normal);
+        TEST_ASSERT(fabsf(normLen - 1.0f) < 1e-3f, "Normal de elipsoide no es unitaria");
+    }
+
+    Mesh_Free(&mesh);
+    printf("[PASS] test_ellipsoid_transform\n");
+}
+
 void run_primitive_mesh_tests(void) {
     test_uv_sphere_valid();
     test_uv_sphere_winding();
     test_uv_sphere_invalid_params();
+    test_ellipsoid_transform();
 }

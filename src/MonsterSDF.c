@@ -12,7 +12,7 @@ MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
         .connectionSmoothness = 0.4f,
         .mouthSmoothness = 0.25f,
         .connectionRadiusFactor = 0.85f,
-        .boundsPadding = 1.5f
+        .boundsPadding = 0.7f
     };
 }
 
@@ -52,10 +52,8 @@ void MonsterSDF_Free(MonsterSDF* sdf) {
 static bool MonsterSDF_EnsureCapacity(void** buffer, size_t elementSize, size_t* capacity, size_t needed) {
     if (needed <= *capacity) return true;
 
-    size_t newCapacity = (*capacity > 0) ? *capacity : needed;
-    while (newCapacity < needed) {
-        newCapacity *= 2;
-    }
+    size_t newCapacity = 0;
+    if (!Math_GrowCapacity(*capacity, needed, elementSize, &newCapacity)) return false;
 
     void* grown = realloc(*buffer, newCapacity * elementSize);
     if (!grown) return false;
@@ -159,7 +157,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             sdf->mouths[m].lipColor = mouth->lipColor;
             sdf->mouths[m].openFactor = openF;
 
-            AABB_ExpandRadius(&sdf->bounds, mouthWorldPos, sdf->mouths[m].radii);
+            /* Nota: Las bocas son cavidades sustractivas y NO expanden los límites exteriores del monstruo */
         }
     }
 

@@ -63,6 +63,7 @@ void BodyPart_Update(BodyPart* part, Monster* monster, int index, double diff) {
 }
 
 void BodyPart_RenderUpdate(BodyPart* part, Monster* monster, int index, double diff, double renderPercent) {
+    (void)monster; (void)index; (void)diff;
     if (!part) return;
 
     part->positionRender = Vec3_Lerp(part->oldPosition, part->position, (float)renderPercent);
@@ -79,17 +80,6 @@ void BodyPart_RenderUpdateTraits(BodyPart* part, Monster* monster, int index, do
         Trait* trait = part->traits[i];
         if (trait && trait->renderUpdate) {
             trait->renderUpdate(trait, monster, index, diff, renderPercent);
-        }
-    }
-}
-
-void BodyPart_Render(BodyPart* part, Monster* monster, int index, struct MonsterRenderer* renderer, struct ICamera* camera, double diff, Pass pass) {
-    if (!part) return;
-
-    for (size_t i = 0; i < part->traitCount; ++i) {
-        Trait* trait = part->traits[i];
-        if (trait && trait->render) {
-            trait->render(trait, monster, index, renderer, camera, diff, pass);
         }
     }
 }

@@ -127,10 +127,29 @@ static void test_invalid_cube_index(void) {
     printf("[PASS] test_invalid_cube_index\n");
 }
 
+static void test_edge_cache_info(void) {
+    for (int e = 0; e < 12; ++e) {
+        int axis = -1;
+        int localBase[3] = {-1, -1, -1};
+        TEST_ASSERT(MarchingCubes_GetEdgeCacheInfo(e, &axis, localBase), "GetEdgeCacheInfo falló para arista válida");
+        TEST_ASSERT(axis >= 0 && axis <= 2, "Eje fuera de rango [0,2]");
+        TEST_ASSERT(localBase[0] >= 0 && localBase[0] <= 1 &&
+                    localBase[1] >= 0 && localBase[1] <= 1 &&
+                    localBase[2] >= 0 && localBase[2] <= 1, "Base local fuera de rango");
+    }
+
+    int axis = 0;
+    int base[3] = {0};
+    TEST_ASSERT(!MarchingCubes_GetEdgeCacheInfo(-1, &axis, base), "GetEdgeCacheInfo aceptó arista negativa");
+    TEST_ASSERT(!MarchingCubes_GetEdgeCacheInfo(12, &axis, base), "GetEdgeCacheInfo aceptó arista 12");
+    printf("[PASS] test_edge_cache_info\n");
+}
+
 void run_marching_cubes_tests(void) {
     test_all_rows_structure();
     test_used_edges_equal_active_edges();
     test_case_32_explicit();
     test_edge_endpoints();
     test_invalid_cube_index();
+    test_edge_cache_info();
 }

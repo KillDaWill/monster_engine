@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
     camera.farPlane = 100.0f;
 
     /* 3. Crear el Renderizador OpenGL agnóstico */
-    MonsterRenderer renderer = OpenGLRenderer_Create(&camera);
+    Renderer3D renderer = OpenGLRenderer_Create(&camera);
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
     /* 4. Construir al Monstruo Lagarto */
@@ -174,6 +174,7 @@ int main(int argc, char* argv[]) {
     /* 7. Limpieza */
     MonsterVisual_Free(&visual);
     Monster_Free(&lizard);
+    if (renderer.user_data) free(renderer.user_data);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

@@ -7,17 +7,6 @@
 #include <stdio.h>
 #include <math.h>
 
-static const Vector3 CORNER_OFFSETS[8] = {
-    {0.0f, 0.0f, 0.0f}, /* 0 */
-    {1.0f, 0.0f, 0.0f}, /* 1 */
-    {1.0f, 0.0f, 1.0f}, /* 2 */
-    {0.0f, 0.0f, 1.0f}, /* 3 */
-    {0.0f, 1.0f, 0.0f}, /* 4 */
-    {1.0f, 1.0f, 0.0f}, /* 5 */
-    {1.0f, 1.0f, 1.0f}, /* 6 */
-    {0.0f, 1.0f, 1.0f}  /* 7 */
-};
-
 SDFMesherConfig SDFMesher_DefaultConfig(void) {
     return (SDFMesherConfig){
         .resolutionX = 32,
@@ -129,9 +118,9 @@ bool SDFMesher_GenerateMesh(
     size_t numYEdges = (size_t)numGridX * (size_t)resY * (size_t)numGridZ;
     size_t numZEdges = (size_t)numGridX * (size_t)numGridY * (size_t)resZ;
 
-    uint32_t* xEdges = (uint32_t*)malloc(numXEdges * sizeof(uint32_t));
-    uint32_t* yEdges = (uint32_t*)malloc(numYEdges * sizeof(uint32_t));
-    uint32_t* zEdges = (uint32_t*)malloc(numZEdges * sizeof(uint32_t));
+    MeshIndex* xEdges = (MeshIndex*)malloc(numXEdges * sizeof(MeshIndex));
+    MeshIndex* yEdges = (MeshIndex*)malloc(numYEdges * sizeof(MeshIndex));
+    MeshIndex* zEdges = (MeshIndex*)malloc(numZEdges * sizeof(MeshIndex));
 
     if (!xEdges || !yEdges || !zEdges) {
         if (gridSamples) free(gridSamples);
@@ -141,9 +130,9 @@ bool SDFMesher_GenerateMesh(
         return false;
     }
 
-    memset(xEdges, 0xFF, numXEdges * sizeof(uint32_t));
-    memset(yEdges, 0xFF, numYEdges * sizeof(uint32_t));
-    memset(zEdges, 0xFF, numZEdges * sizeof(uint32_t));
+    memset(xEdges, 0xFF, numXEdges * sizeof(MeshIndex));
+    memset(yEdges, 0xFF, numYEdges * sizeof(MeshIndex));
+    memset(zEdges, 0xFF, numZEdges * sizeof(MeshIndex));
 
     /* Reserva aproximada para la malla */
     Mesh_ReserveVertices(outMesh, totalGridPoints / 4);
@@ -161,30 +150,20 @@ bool SDFMesher_GenerateMesh(
             for (int iz = 0; iz < resZ && success; ++iz) {
                 float z0 = cfg.bounds.start.z + (float)iz * step.z;
 
-                /* Obtener las 8 esquinas de la celda */
+                /* Obtener las 8 esquinas de la celda desde Marching Cubes */
                 Vector3 corners[8];
                 SDFSample samples[8];
-                int cornerGridCoords[8][3] = {
-                    {ix,   iy,   iz},
-                    {ix+1, iy,   iz},
-                    {ix+1, iy,   iz+1},
-                    {ix,   iy,   iz+1},
-                    {ix,   iy+1, iz},
-                    {ix+1, iy+1, iz},
-                    {ix+1, iy+1, iz+1},
-                    {ix,   iy+1, iz+1}
-                };
 
                 int cubeIndex = 0;
                 for (int c = 0; c < 8; ++c) {
-                    int gX = cornerGridCoords[c][0];
-                    int gY = cornerGridCoords[c][1];
-                    int gZ = cornerGridCoords[c][2];
+                    int gX = ix + MARCHING_CUBES_CORNER_OFFSETS[c][0];
+                    int gY = iy + MARCHING_CUBES_CORNER_OFFSETS[c][1];
+                    int gZ = iz + MARCHING_CUBES_CORNER_OFFSETS[c][2];
 
                     corners[c] = Vec3_Create(
-                        x0 + CORNER_OFFSETS[c].x * step.x,
-                        y0 + CORNER_OFFSETS[c].y * step.y,
-                        z0 + CORNER_OFFSETS[c].z * step.z
+                        x0 + (float)MARCHING_CUBES_CORNER_OFFSETS[c][0] * step.x,
+                        y0 + (float)MARCHING_CUBES_CORNER_OFFSETS[c][1] * step.y,
+                        z0 + (float)MARCHING_CUBES_CORNER_OFFSETS[c][2] * step.z
                     );
 
                     size_t gIdx = GridIndex(gX, gY, gZ, numGridY, numGridZ);
@@ -202,7 +181,7 @@ bool SDFMesher_GenerateMesh(
                    Todo índice no generado permanece en UINT32_MAX: una referencia
                    inválida a estas aristas en la fila de triángulos es un error
                    duro de topología. */
-                uint32_t edgeVertIndices[MARCHING_CUBES_EDGE_COUNT];
+                MeshIndex edgeVertIndices[MARCHING_CUBES_EDGE_COUNT];
                 for (int e = 0; e < MARCHING_CUBES_EDGE_COUNT; ++e) {
                     edgeVertIndices[e] = UINT32_MAX;
                 }
@@ -210,27 +189,25 @@ bool SDFMesher_GenerateMesh(
                 for (int e = 0; e < 12; ++e) {
                     if (!(edgeFlags & (1 << e))) continue;
 
-                    /* Identificar puntero a caché de la arista */
-                    uint32_t* cachePtr = NULL;
+                    /* Identificar puntero a caché de la arista mediante topología canónica */
+                    MeshIndex* cachePtr = NULL;
+                    int axis = -1;
+                    int localBase[3] = {0, 0, 0};
+                    if (MarchingCubes_GetEdgeCacheInfo(e, &axis, localBase)) {
+                        int gX = ix + localBase[0];
+                        int gY = iy + localBase[1];
+                        int gZ = iz + localBase[2];
 
-                    switch (e) {
-                        case 0: cachePtr = &xEdges[GridIndex(ix, iy, iz, numGridY, numGridZ)]; break;
-                        case 1: cachePtr = &zEdges[GridIndex(ix + 1, iy, iz, numGridY, resZ)]; break;
-                        case 2: cachePtr = &xEdges[GridIndex(ix, iy, iz + 1, numGridY, numGridZ)]; break;
-                        case 3: cachePtr = &zEdges[GridIndex(ix, iy, iz, numGridY, resZ)]; break;
-
-                        case 4: cachePtr = &xEdges[GridIndex(ix, iy + 1, iz, numGridY, numGridZ)]; break;
-                        case 5: cachePtr = &zEdges[GridIndex(ix + 1, iy + 1, iz, numGridY, resZ)]; break;
-                        case 6: cachePtr = &xEdges[GridIndex(ix, iy + 1, iz + 1, numGridY, numGridZ)]; break;
-                        case 7: cachePtr = &zEdges[GridIndex(ix, iy + 1, iz, numGridY, resZ)]; break;
-
-                        case 8:  cachePtr = &yEdges[GridIndex(ix, iy, iz, resY, numGridZ)]; break;
-                        case 9:  cachePtr = &yEdges[GridIndex(ix + 1, iy, iz, resY, numGridZ)]; break;
-                        case 10: cachePtr = &yEdges[GridIndex(ix + 1, iy, iz + 1, resY, numGridZ)]; break;
-                        case 11: cachePtr = &yEdges[GridIndex(ix, iy, iz + 1, resY, numGridZ)]; break;
+                        if (axis == 0) {
+                            cachePtr = &xEdges[GridIndex(gX, gY, gZ, numGridY, numGridZ)];
+                        } else if (axis == 1) {
+                            cachePtr = &yEdges[GridIndex(gX, gY, gZ, resY, numGridZ)];
+                        } else if (axis == 2) {
+                            cachePtr = &zEdges[GridIndex(gX, gY, gZ, numGridY, resZ)];
+                        }
                     }
 
-                    if (cachePtr && *cachePtr != 0xFFFFFFFFu) {
+                    if (cachePtr && *cachePtr != UINT32_MAX) {
                         edgeVertIndices[e] = *cachePtr;
                     } else {
                         /* Interpolar y crear nuevo vértice */
@@ -265,7 +242,7 @@ bool SDFMesher_GenerateMesh(
                             .color = col
                         };
 
-                        uint32_t newIdx = 0;
+                        MeshIndex newIdx = 0;
                         if (!Mesh_AddVertex(outMesh, vert, &newIdx)) {
                             success = false;
                             break;

@@ -402,6 +402,62 @@ void test_monster_visual_eyes_fingerprint(void) {
     printf("[PASS] test_monster_visual_eyes_fingerprint\n");
 }
 
+static void test_monster_visual_generation_and_transactional(void) {
+    Monster lizard = BuildLizard();
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.resolutionX = 16;
+    cfg.resolutionY = 16;
+    cfg.resolutionZ = 16;
+
+    MonsterVisual visual = MonsterVisual_Create(cfg);
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == 0, "Generación inicial debe ser 0");
+
+    TEST_ASSERT(MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig()), "Primera reconstrucción falló");
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == 1, "Generación debe ser 1 tras reconstrucción");
+
+    /* Simular fallo pasando monster NULL -> RebuildNow debe retornar false y NO alterar la generación ni la malla previa */
+    const Mesh* meshBefore = MonsterVisual_GetMesh(&visual);
+    size_t vertsBefore = meshBefore->vertexCount;
+
+    bool failedBuild = MonsterVisual_RebuildNow(&visual, NULL, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(!failedBuild, "RebuildNow con NULL debe retornar false");
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == 1, "Generación no debe incrementar tras fallo");
+    TEST_ASSERT(MonsterVisual_GetMesh(&visual)->vertexCount == vertsBefore, "Malla no debe ser alterada tras fallo");
+
+    MonsterVisual_Free(&visual);
+    Monster_Free(&lizard);
+    printf("[PASS] test_monster_visual_generation_and_transactional\n");
+}
+
+static void test_mouth_bounds_isolation(void) {
+    Monster lizard = BuildLizard();
+
+    MonsterSDF sdfBase = MonsterSDF_Create();
+    MonsterSDF_Build(&sdfBase, &lizard, MonsterSDF_DefaultConfig());
+    AABB3D boundsBase = MonsterSDF_GetField(&sdfBase).getBounds(MonsterSDF_GetField(&sdfBase).context);
+
+    /* Añadir una boca gigante en la cabeza */
+    Mouth giantMouth = Mouth_Create(0, Vec3_Create(0.0f, 0.0f, 0.0f), Vec3_Create(100.0f, 100.0f, 100.0f), COLOR_BLACK, COLOR_WHITE);
+    Monster_AddMouth(&lizard, giantMouth);
+
+    MonsterSDF sdfMouth = MonsterSDF_Create();
+    MonsterSDF_Build(&sdfMouth, &lizard, MonsterSDF_DefaultConfig());
+    AABB3D boundsMouth = MonsterSDF_GetField(&sdfMouth).getBounds(MonsterSDF_GetField(&sdfMouth).context);
+
+    /* La boca sustrativa no debe expandir el AABB en absoluto */
+    TEST_ASSERT(FLOAT_NEAR(boundsBase.start.x, boundsMouth.start.x) &&
+                FLOAT_NEAR(boundsBase.end.x, boundsMouth.end.x), "Boca sustrativa alteró AABB en X");
+    TEST_ASSERT(FLOAT_NEAR(boundsBase.start.y, boundsMouth.start.y) &&
+                FLOAT_NEAR(boundsBase.end.y, boundsMouth.end.y), "Boca sustrativa alteró AABB en Y");
+    TEST_ASSERT(FLOAT_NEAR(boundsBase.start.z, boundsMouth.start.z) &&
+                FLOAT_NEAR(boundsBase.end.z, boundsMouth.end.z), "Boca sustrativa alteró AABB en Z");
+
+    MonsterSDF_Free(&sdfBase);
+    MonsterSDF_Free(&sdfMouth);
+    Monster_Free(&lizard);
+    printf("[PASS] test_mouth_bounds_isolation\n");
+}
+
 void run_sdf_tests(void) {
     test_sdf_primitives_and_ops();
     test_sdf_primitives_extended();
@@ -409,6 +465,8 @@ void run_sdf_tests(void) {
     test_sdf_mesher();
     test_monster_visual();
     test_monster_visual_eyes_fingerprint();
+    test_monster_visual_generation_and_transactional();
+    test_mouth_bounds_isolation();
     test_lizard_mesh_stats();
     test_ager_meshes();
     test_monster_sdf_buffer_reuse();

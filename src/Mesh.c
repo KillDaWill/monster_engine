@@ -38,7 +38,7 @@ bool Mesh_ReserveVertices(Mesh* mesh, size_t capacity) {
     if (!mesh) return false;
     if (capacity <= mesh->vertexCapacity) return true;
 
-    if (capacity > 0xFFFFFFFFu / sizeof(MeshVertex)) return false;
+    if (capacity > (size_t)UINT32_MAX || capacity > SIZE_MAX / sizeof(MeshVertex)) return false;
 
     MeshVertex* newVerts = (MeshVertex*)realloc(mesh->vertices, capacity * sizeof(MeshVertex));
     if (!newVerts) return false;
@@ -52,9 +52,9 @@ bool Mesh_ReserveIndices(Mesh* mesh, size_t capacity) {
     if (!mesh) return false;
     if (capacity <= mesh->indexCapacity) return true;
 
-    if (capacity > 0xFFFFFFFFu / sizeof(unsigned int)) return false;
+    if (capacity > SIZE_MAX / sizeof(MeshIndex)) return false;
 
-    unsigned int* newInds = (unsigned int*)realloc(mesh->indices, capacity * sizeof(unsigned int));
+    MeshIndex* newInds = (MeshIndex*)realloc(mesh->indices, capacity * sizeof(MeshIndex));
     if (!newInds) return false;
 
     mesh->indices = newInds;
@@ -62,8 +62,9 @@ bool Mesh_ReserveIndices(Mesh* mesh, size_t capacity) {
     return true;
 }
 
-bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex) {
+bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, MeshIndex* outIndex) {
     if (!mesh) return false;
+    if (mesh->vertexCount >= (size_t)UINT32_MAX) return false;
 
     if (mesh->vertexCount >= mesh->vertexCapacity) {
         size_t newCap = 0;
@@ -73,20 +74,20 @@ bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex) {
 
     size_t index = mesh->vertexCount;
     mesh->vertices[mesh->vertexCount++] = vertex;
-    if (outIndex) *outIndex = (unsigned int)index;
+    if (outIndex) *outIndex = (MeshIndex)index;
     return true;
 }
 
-bool Mesh_AddTriangle(Mesh* mesh, unsigned int a, unsigned int b, unsigned int c) {
+bool Mesh_AddTriangle(Mesh* mesh, MeshIndex a, MeshIndex b, MeshIndex c) {
     if (!mesh) return false;
 
     /* Rechazar índices fuera de rango y triángulos degenerados sin escribir nada */
-    if (a >= mesh->vertexCount || b >= mesh->vertexCount || c >= mesh->vertexCount) return false;
+    if ((size_t)a >= mesh->vertexCount || (size_t)b >= mesh->vertexCount || (size_t)c >= mesh->vertexCount) return false;
     if (a == b || b == c || a == c) return false;
 
     if (mesh->indexCount + 3 > mesh->indexCapacity) {
         size_t newCap = 0;
-        if (!Math_GrowCapacity(mesh->indexCapacity, mesh->indexCount + 3, sizeof(unsigned int), &newCap)) return false;
+        if (!Math_GrowCapacity(mesh->indexCapacity, mesh->indexCount + 3, sizeof(MeshIndex), &newCap)) return false;
         if (!Mesh_ReserveIndices(mesh, newCap)) return false;
     }
 
@@ -120,13 +121,13 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
     result.invalidIndexCount = mesh->indexCount % 3; /* índices restantes sin triángulo completo */
 
     for (size_t t = 0; t < fullTriangles; ++t) {
-        unsigned int a = mesh->indices[t * 3 + 0];
-        unsigned int b = mesh->indices[t * 3 + 1];
-        unsigned int c = mesh->indices[t * 3 + 2];
+        MeshIndex a = mesh->indices[t * 3 + 0];
+        MeshIndex b = mesh->indices[t * 3 + 1];
+        MeshIndex c = mesh->indices[t * 3 + 2];
 
-        if (a >= mesh->vertexCount) ++result.invalidIndexCount;
-        if (b >= mesh->vertexCount) ++result.invalidIndexCount;
-        if (c >= mesh->vertexCount) ++result.invalidIndexCount;
+        if ((size_t)a >= mesh->vertexCount) ++result.invalidIndexCount;
+        if ((size_t)b >= mesh->vertexCount) ++result.invalidIndexCount;
+        if ((size_t)c >= mesh->vertexCount) ++result.invalidIndexCount;
 
         if (a == b || b == c || a == c) ++result.degenerateTriangleCount;
     }

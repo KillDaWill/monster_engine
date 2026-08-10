@@ -41,6 +41,7 @@ typedef struct MonsterVisual {
     size_t eyeCount;    /**< Cantidad actual de ojos */
     size_t eyeCapacity; /**< Capacidad reservada de ojos */
     uint64_t geometryFingerprint; /**< FNV-1a-64 de la geometría que invalida la reconstrucción */
+    uint64_t rebuildGeneration;   /**< Contador incremental de reconstrucciones exitosas */
     bool hasFingerprint; /**< true si geometryFingerprint ya fue calculado */
     bool isDirty;       /**< Flag que marca si la malla requiere reconstrucción */
     float updateTimer;  /**< Acumulativo de tiempo para reconstrucción periódica */
@@ -57,9 +58,14 @@ MonsterVisual MonsterVisual_Create(SDFMesherConfig mesherConfig);
 void MonsterVisual_Free(MonsterVisual* visual);
 
 /**
- * @brief Marca el objeto visual como sujo/desactualizado para forzar la reconstrucción.
+ * @brief Marca el objeto visual como sucio/desactualizado para forzar la reconstrucción.
  */
 void MonsterVisual_MarkDirty(MonsterVisual* visual);
+
+/**
+ * @brief Obtiene el contador de generaciones de reconstrucción exitosas.
+ */
+uint64_t MonsterVisual_GetGeneration(const MonsterVisual* visual);
 
 /**
  * @brief Reconstruye inmediatamente la malla SDF del monstruo y sus ojos.
@@ -113,7 +119,7 @@ const Mesh* MonsterVisual_GetEyePupil(const MonsterVisual* visual, size_t index)
  * @brief Envía la malla del cuerpo y todas las mallas de ojos al renderizador agnóstico.
  * @return true si se envió al menos la malla del cuerpo correctamente.
  */
-bool MonsterVisual_Render(const MonsterVisual* visual, MonsterRenderer* renderer);
+bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer);
 
 #ifdef __cplusplus
 }

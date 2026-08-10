@@ -42,6 +42,11 @@ extern const int MARCHING_CUBES_TRI_TABLE[256][MARCHING_CUBES_MAX_ROW_ENTRIES];
  */
 extern const int MARCHING_CUBES_EDGE_ENDPOINTS[MARCHING_CUBES_EDGE_COUNT][2];
 
+/**
+ * @brief Coordenadas enteras locales (0 o 1) de las 8 esquinas de una celda cúbica.
+ */
+extern const int MARCHING_CUBES_CORNER_OFFSETS[8][3];
+
 #ifdef __cplusplus
 }
 #endif

@@ -11,6 +11,7 @@
 #include "Mesh.h"
 #include "Vector.h"
 #include "Color.h"
+#include "Transform3D.h"
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -37,6 +38,21 @@ extern "C" {
  * @return true si se generó la malla, false si los parámetros son inválidos o falló la memoria.
  */
 bool PrimitiveMesh_GenerateUVSphere(Mesh* out, Vector3 center, float radius, unsigned int segments, unsigned int rings, Color color);
+
+/**
+ * @brief Genera una malla de elipsoide 3D transformada (rotación Euler + escala no uniforme).
+ *
+ * Transforma posiciones y normales de forma matemáticamente exacta para escalas no uniformes
+ * (la normal se escala por el inverso de los radios antes de rotar).
+ *
+ * @param out Malla destino (no NULL).
+ * @param transform Posición, rotación (grados Euler) y radios/escala de la elipse.
+ * @param segments Segmentos ecuatoriales (mínimo 3).
+ * @param rings Bandas de latitud (mínimo 2).
+ * @param color Color RGBA.
+ * @return true si se generó exitosamente.
+ */
+bool PrimitiveMesh_GenerateEllipsoid(Mesh* out, Transform3D transform, unsigned int segments, unsigned int rings, Color color);
 
 #ifdef __cplusplus
 }

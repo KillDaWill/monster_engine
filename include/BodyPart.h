@@ -20,8 +20,6 @@ extern "C" {
 
 /* Forward declarations */
 struct Monster;
-struct MonsterRenderer;
-struct ICamera;
 
 /** Alias para el paso de renderizado */
 typedef int Pass;
@@ -115,18 +113,6 @@ void BodyPart_RenderUpdate(BodyPart* part, struct Monster* monster, int index, d
  * @param renderPercent Factor de interpolación.
  */
 void BodyPart_RenderUpdateTraits(BodyPart* part, struct Monster* monster, int index, double diff, double renderPercent);
-
-/**
- * @brief Invoca la rutina de dibujado de la parte del cuerpo y sus traits.
- * @param part Puntero a la parte del cuerpo.
- * @param monster Puntero al monstruo.
- * @param index Índice de la parte.
- * @param renderer Puntero al renderizador agnóstico.
- * @param camera Puntero a la cámara.
- * @param diff Delta de tiempo.
- * @param pass Fase o pase de renderizado (SOLID, SHADOW, etc.).
- */
-void BodyPart_Render(BodyPart* part, struct Monster* monster, int index, struct MonsterRenderer* renderer, struct ICamera* camera, double diff, Pass pass);
 
 /**
  * @brief Adjunta un Trait a la parte del cuerpo.

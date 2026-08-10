@@ -2,23 +2,29 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 /* ============================================================
- * RENDER STATE
+ * RENDER STATE DATA
  * ============================================================ */
 
-static bool g_wireframe = false;
+typedef struct OpenGLRendererData {
+    bool wireframe;
+} OpenGLRendererData;
 
-void OpenGLRenderer_SetWireframe(bool enabled) {
-    g_wireframe = enabled;
+void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled) {
+    if (renderer && renderer->user_data) {
+        OpenGLRendererData* data = (OpenGLRendererData*)renderer->user_data;
+        data->wireframe = enabled;
+    }
 }
 
 /* ============================================================
  * FRAME LIFECYCLE
  * ============================================================ */
 
-static void OpenGL_BeginFrame(MonsterRenderer* self) {
+static void OpenGL_BeginFrame(Renderer3D* self) {
     (void)self;
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -26,7 +32,7 @@ static void OpenGL_BeginFrame(MonsterRenderer* self) {
     glLoadIdentity();
 }
 
-static void OpenGL_EndFrame(MonsterRenderer* self) {
+static void OpenGL_EndFrame(Renderer3D* self) {
     (void)self;
 }
 
@@ -37,25 +43,15 @@ static void OpenGL_EndFrame(MonsterRenderer* self) {
 void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
     if (!mesh || mesh->vertexCount == 0 || mesh->indexCount == 0) return;
 
-    /* Modo wireframe sin fuga de estado: guardar y restaurar el modo de polígono */
-    GLint previousPolygonMode[2] = {GL_FILL, GL_FILL};
-    if (g_wireframe) {
-        glGetIntegerv(GL_POLYGON_MODE, previousPolygonMode);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    }
-
     size_t triangleCount = mesh->indexCount / 3;
     size_t skippedTriangles = 0;
 
     glBegin(GL_TRIANGLES);
     for (size_t t = 0; t < triangleCount; ++t) {
-        unsigned int a = mesh->indices[t * 3 + 0];
-        unsigned int b = mesh->indices[t * 3 + 1];
-        unsigned int c = mesh->indices[t * 3 + 2];
+        MeshIndex a = mesh->indices[t * 3 + 0];
+        MeshIndex b = mesh->indices[t * 3 + 1];
+        MeshIndex c = mesh->indices[t * 3 + 2];
 
-        /* Validar los 3 índices ANTES de emitir: emitir un triángulo incompleto
-           desplazaría el agrupamiento de GL_TRIANGLES y corrompería el resto
-           de la malla. Un triángulo con índice inválido se omite completo. */
         if (a >= mesh->vertexCount || b >= mesh->vertexCount || c >= mesh->vertexCount) {
             ++skippedTriangles;
             continue;
@@ -82,17 +78,28 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
     if (skippedTriangles > 0) {
         fprintf(stderr,
             "OpenGLRenderer: %zu triángulo(s) omitido(s) por índice inválido (mesh de %zu vértices)\n",
-            skippedTriangles, mesh->vertexCount);
-    }
-
-    if (g_wireframe) {
-        glPolygonMode(GL_FRONT_AND_BACK, previousPolygonMode[1]);
+            skippedTriangles, (size_t)mesh->vertexCount);
     }
 }
 
-static void OpenGL_RenderMeshCallback(MonsterRenderer* self, const Mesh* mesh) {
-    (void)self;
+static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
+    bool wireframe = false;
+    if (self && self->user_data) {
+        OpenGLRendererData* data = (OpenGLRendererData*)self->user_data;
+        wireframe = data->wireframe;
+    }
+
+    GLint previousPolygonMode[2] = {GL_FILL, GL_FILL};
+    if (wireframe) {
+        glGetIntegerv(GL_POLYGON_MODE, previousPolygonMode);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+
     OpenGLRenderer_RenderMesh(mesh);
+
+    if (wireframe) {
+        glPolygonMode(GL_FRONT_AND_BACK, previousPolygonMode[1]);
+    }
 }
 
 /* ============================================================
@@ -126,10 +133,12 @@ void OpenGLRenderer_SetupCamera(ICamera* camera, int width, int height) {
     }
 }
 
-MonsterRenderer OpenGLRenderer_Create(ICamera* camera) {
+Renderer3D OpenGLRenderer_Create(ICamera* camera) {
     (void)camera;
-    MonsterRenderer renderer;
-    renderer.user_data = NULL;
+    Renderer3D renderer;
+
+    OpenGLRendererData* data = (OpenGLRendererData*)calloc(1, sizeof(OpenGLRendererData));
+    renderer.user_data = data;
     renderer.beginFrame = OpenGL_BeginFrame;
     renderer.endFrame = OpenGL_EndFrame;
     renderer.renderMesh = OpenGL_RenderMeshCallback;

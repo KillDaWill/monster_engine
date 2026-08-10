@@ -12,10 +12,14 @@
 #include "Color.h"
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** Tipo de índice de vértice en mallas 3D */
+typedef uint32_t MeshIndex;
 
 /**
  * @struct MeshVertex
@@ -36,7 +40,7 @@ typedef struct Mesh {
     size_t vertexCount;    /**< Cantidad actual de vértices */
     size_t vertexCapacity; /**< Capacidad reservada de vértices */
 
-    unsigned int* indices; /**< Arreglo dinámico de índices de triángulos */
+    MeshIndex* indices;    /**< Arreglo dinámico de índices de triángulos */
     size_t indexCount;     /**< Cantidad actual de índices (3 por triángulo) */
     size_t indexCapacity;  /**< Capacidad reservada de índices */
 } Mesh;
@@ -82,7 +86,7 @@ bool Mesh_ReserveIndices(Mesh* mesh, size_t capacity);
  * @brief Añade un vértice a la malla y retorna su índice mediante outIndex.
  * @return true si se añadió correctamente, false en caso de error/fallo de memoria.
  */
-bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex);
+bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, MeshIndex* outIndex);
 
 /**
  * @brief Añade un triángulo a la malla dado un trío de índices de vértices.
@@ -92,7 +96,7 @@ bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, unsigned int* outIndex);
  * degenerado.
  * @return true si se añadió correctamente, false si los índices son inválidos o falló la memoria.
  */
-bool Mesh_AddTriangle(Mesh* mesh, unsigned int a, unsigned int b, unsigned int c);
+bool Mesh_AddTriangle(Mesh* mesh, MeshIndex a, MeshIndex b, MeshIndex c);
 
 /**
  * @brief Audita la integridad de una malla: rango de índices, triángulos

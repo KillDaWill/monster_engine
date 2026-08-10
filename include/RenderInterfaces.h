@@ -33,21 +33,23 @@ typedef struct ICamera {
 } ICamera;
 
 /**
- * @struct MonsterRenderer
- * @brief Interfaz agnóstica de renderizador (Patrón VTable).
+ * @struct Renderer3D
+ * @brief Interfaz agnóstica de renderizador 3D (Patrón VTable).
  */
-typedef struct MonsterRenderer {
+typedef struct Renderer3D {
     void* user_data; /**< Contexto gráfico nativo (ej. OpenGL, Vulkan) */
 
     /** Callback para iniciar el frame/limpiar buffer */
-    void (*beginFrame)(struct MonsterRenderer* self);
+    void (*beginFrame)(struct Renderer3D* self);
 
     /** Callback para finalizar el frame y presentar/swap buffers */
-    void (*endFrame)(struct MonsterRenderer* self);
+    void (*endFrame)(struct Renderer3D* self);
 
     /** Callback para renderizar una malla 3D (Mesh) */
-    void (*renderMesh)(struct MonsterRenderer* self, const Mesh* mesh);
-} MonsterRenderer;
+    void (*renderMesh)(struct Renderer3D* self, const Mesh* mesh);
+} Renderer3D;
+
+typedef struct Renderer3D MonsterRenderer;
 
 #ifdef __cplusplus
 }

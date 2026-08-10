@@ -16,11 +16,11 @@ extern "C" {
 #endif
 
 /**
- * @brief Crea e inicializa una instancia de MonsterRenderer respaldada por el pipeline de OpenGL.
+ * @brief Crea e inicializa una instancia de Renderer3D respaldada por el pipeline de OpenGL.
  * @param camera Puntero a la cámara 3D.
- * @return Estructura MonsterRenderer con sus callbacks apuntando a las funciones de OpenGL.
+ * @return Estructura Renderer3D con sus callbacks apuntando a las funciones de OpenGL.
  */
-MonsterRenderer OpenGLRenderer_Create(ICamera* camera);
+Renderer3D OpenGLRenderer_Create(ICamera* camera);
 
 /**
  * @brief Configura la matriz de perspectiva e iluminación en OpenGL.
@@ -41,9 +41,10 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh);
  *
  * El cambio se aplica solo durante el renderizado de mallas y se restaura el
  * modo de polígono previo (sin fuga de estado OpenGL).
+ * @param renderer Puntero al renderizador 3D.
  * @param enabled true para wireframe, false para relleno.
  */
-void OpenGLRenderer_SetWireframe(bool enabled);
+void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled);
 
 #ifdef __cplusplus
 }

@@ -41,3 +41,24 @@ bool MarchingCubes_GetEdgeEndpoints(int edgeIndex, int* outCornerA, int* outCorn
     *outCornerB = MARCHING_CUBES_EDGE_ENDPOINTS[edgeIndex][1];
     return true;
 }
+
+bool MarchingCubes_GetEdgeCacheInfo(int edgeIndex, int* outAxis, int outLocalBase[3]) {
+    int c1 = 0, c2 = 0;
+    if (!MarchingCubes_GetEdgeEndpoints(edgeIndex, &c1, &c2)) return false;
+    if (!outAxis || !outLocalBase) return false;
+
+    const int* coord1 = MARCHING_CUBES_CORNER_OFFSETS[c1];
+    const int* coord2 = MARCHING_CUBES_CORNER_OFFSETS[c2];
+
+    int axis = -1;
+    for (int k = 0; k < 3; ++k) {
+        if (coord1[k] != coord2[k]) {
+            axis = k;
+        }
+        outLocalBase[k] = (coord1[k] < coord2[k]) ? coord1[k] : coord2[k];
+    }
+
+    if (axis < 0) return false;
+    *outAxis = axis;
+    return true;
+}

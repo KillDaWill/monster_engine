@@ -82,8 +82,7 @@ int main(void) {
     Trait tailWiggle = {
         .type = TRAIT_WIGGLE_TAIL,
         .update = WiggleTail_Update,
-        .renderUpdate = WiggleTail_RenderUpdate,
-        .render = NULL
+        .renderUpdate = WiggleTail_RenderUpdate
     };
     Monster_AddBodyPart(&lizard, tail1); // Secciones adicionales si se desea
     BodyPart_AddTrait(&lizard.bodyParts[3], &tailWiggle);

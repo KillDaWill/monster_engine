@@ -15,8 +15,6 @@ extern "C" {
 #endif
 
 struct Monster;
-struct MonsterRenderer;
-struct ICamera;
 
 /** Tipo de identificador numérico de rasgo */
 typedef int TraitType;
@@ -33,9 +31,6 @@ typedef struct Trait {
 
     /** Callback de actualización de interpolación visual */
     void (*renderUpdate)(struct Trait* self, struct Monster* monster, int index, double diff, double renderPercent);
-
-    /** Callback opcional de dibujado/renderizado */
-    void (*render)(struct Trait* self, struct Monster* monster, int index, struct MonsterRenderer* renderer, struct ICamera* camera, double diff, int pass);
 } Trait;
 
 #ifdef __cplusplus

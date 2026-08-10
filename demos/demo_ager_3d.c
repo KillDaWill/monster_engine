@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
     camera.nearPlane = 0.1f;
     camera.farPlane = 100.0f;
 
-    MonsterRenderer renderer = OpenGLRenderer_Create(&camera);
+    Renderer3D renderer = OpenGLRenderer_Create(&camera);
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
     /* 3. Crear FASE 1: Lagarto Joven */
@@ -229,6 +229,7 @@ int main(int argc, char* argv[]) {
     MonsterAger_Free(&ager);
     Monster_Free(&youngLizard);
     Monster_Free(&adultLizard);
+    if (renderer.user_data) free(renderer.user_data);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

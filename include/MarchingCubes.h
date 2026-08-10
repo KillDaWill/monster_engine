@@ -51,6 +51,15 @@ int MarchingCubes_GetTriangleCount(int cubeIndex);
  */
 bool MarchingCubes_GetEdgeEndpoints(int edgeIndex, int* outCornerA, int* outCornerB);
 
+/**
+ * @brief Deriva la información de dirección (eje 0=X, 1=Y, 2=Z) y el punto base local entero de una arista.
+ * @param edgeIndex Índice de arista en [0, 11].
+ * @param outAxis Salida: eje principal a lo largo de la arista (0=X, 1=Y, 2=Z).
+ * @param outLocalBase Salida: arreglo de 3 int con la coordenada local mínima del segmento de arista.
+ * @return true si edgeIndex es válido, false en caso contrario.
+ */
+bool MarchingCubes_GetEdgeCacheInfo(int edgeIndex, int* outAxis, int outLocalBase[3]);
+
 #ifdef __cplusplus
 }
 #endif

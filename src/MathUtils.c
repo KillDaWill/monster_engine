@@ -1,4 +1,5 @@
 #include "MathUtils.h"
+#include <stdint.h>
 
 float Math_Clamp(float value, float minimum, float maximum) {
     if (value < minimum) return minimum;
@@ -32,11 +33,11 @@ float Math_Max(float a, float b) {
 
 bool Math_GrowCapacity(size_t currentCapacity, size_t minimumRequired, size_t elementSize, size_t* outNewCapacity) {
     if (!outNewCapacity || elementSize == 0) return false;
-    if (minimumRequired > 0xFFFFFFFFu / elementSize) return false;
+    if (minimumRequired > SIZE_MAX / elementSize) return false;
 
     size_t newCap = (currentCapacity == 0) ? 4 : currentCapacity * 2;
     if (newCap < minimumRequired) newCap = minimumRequired;
-    if (newCap > 0xFFFFFFFFu / elementSize) return false;
+    if (newCap > SIZE_MAX / elementSize) return false;
 
     *outNewCapacity = newCap;
     return true;

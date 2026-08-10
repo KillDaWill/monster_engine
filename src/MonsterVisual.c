@@ -13,98 +13,97 @@ static uint64_t Fnv1a64Bytes(const void* data, size_t size, uint64_t hash) {
     return hash;
 }
 
-static uint64_t MonsterVisual_ComputeFingerprint(const Monster* monster, MonsterSDFConfig sdfConfig) {
+static inline uint64_t HashFloat(float v, uint64_t hash) {
+    return Fnv1a64Bytes(&v, sizeof(float), hash);
+}
+
+static inline uint64_t HashVector3(Vector3 v, uint64_t hash) {
+    hash = HashFloat(v.x, hash);
+    hash = HashFloat(v.y, hash);
+    return HashFloat(v.z, hash);
+}
+
+static inline uint64_t HashColor(Color c, uint64_t hash) {
+    return Fnv1a64Bytes(&c, sizeof(Color), hash);
+}
+
+static inline uint64_t HashSizeT(size_t v, uint64_t hash) {
+    return Fnv1a64Bytes(&v, sizeof(size_t), hash);
+}
+
+static inline uint64_t HashInt(int v, uint64_t hash) {
+    return Fnv1a64Bytes(&v, sizeof(int), hash);
+}
+
+static uint64_t MonsterVisual_ComputeFingerprint(const MonsterVisual* visual, const Monster* monster, MonsterSDFConfig sdfConfig) {
     uint64_t hash = 0xcbf29ce484222325ULL;
 
-    hash = Fnv1a64Bytes(&sdfConfig, sizeof(sdfConfig), hash);
-    hash = Fnv1a64Bytes(&monster->bodyPartCount, sizeof(monster->bodyPartCount), hash);
+    /* Configuración SDF */
+    hash = HashFloat(sdfConfig.bodySmoothness, hash);
+    hash = HashFloat(sdfConfig.connectionSmoothness, hash);
+    hash = HashFloat(sdfConfig.mouthSmoothness, hash);
+    hash = HashFloat(sdfConfig.connectionRadiusFactor, hash);
+    hash = HashFloat(sdfConfig.boundsPadding, hash);
 
+    /* Configuración Mesher */
+    if (visual) {
+        SDFMesherConfig cfg = visual->mesher.config;
+        hash = HashInt(cfg.resolutionX, hash);
+        hash = HashInt(cfg.resolutionY, hash);
+        hash = HashInt(cfg.resolutionZ, hash);
+        hash = HashFloat(cfg.voxelSize, hash);
+        hash = HashInt(cfg.maxResolution, hash);
+        hash = HashSizeT(cfg.maxCells, hash);
+        hash = HashFloat(cfg.isolevel, hash);
+        hash = HashFloat(cfg.normalEps, hash);
+    }
+
+    if (!monster) return hash;
+
+    /* Partes del cuerpo */
+    hash = HashSizeT(monster->bodyPartCount, hash);
     for (size_t i = 0; i < monster->bodyPartCount; ++i) {
         const BodyPart* part = &monster->bodyParts[i];
-        hash = Fnv1a64Bytes(&part->positionRender, sizeof(part->positionRender), hash);
-        hash = Fnv1a64Bytes(&part->widthRender, sizeof(part->widthRender), hash);
-        hash = Fnv1a64Bytes(&part->heightRender, sizeof(part->heightRender), hash);
-        hash = Fnv1a64Bytes(&part->lengthRender, sizeof(part->lengthRender), hash);
-        hash = Fnv1a64Bytes(&part->color.index, sizeof(part->color.index), hash);
+        hash = HashVector3(part->positionRender, hash);
+        hash = HashFloat(part->widthRender, hash);
+        hash = HashFloat(part->heightRender, hash);
+        hash = HashFloat(part->lengthRender, hash);
+        hash = HashSizeT(part->color.index, hash);
     }
 
-    hash = Fnv1a64Bytes(&monster->mouthCount, sizeof(monster->mouthCount), hash);
+    /* Bocas */
+    hash = HashSizeT(monster->mouthCount, hash);
     for (size_t i = 0; i < monster->mouthCount; ++i) {
         const Mouth* mouth = &monster->mouths[i];
-        hash = Fnv1a64Bytes(&mouth->bodyPartIndex, sizeof(mouth->bodyPartIndex), hash);
-        hash = Fnv1a64Bytes(&mouth->offset, sizeof(mouth->offset), hash);
-        hash = Fnv1a64Bytes(&mouth->scale, sizeof(mouth->scale), hash);
-        hash = Fnv1a64Bytes(&mouth->openFactor, sizeof(mouth->openFactor), hash);
-        hash = Fnv1a64Bytes(&mouth->insideColor, sizeof(mouth->insideColor), hash);
-        hash = Fnv1a64Bytes(&mouth->lipColor, sizeof(mouth->lipColor), hash);
+        hash = HashSizeT(mouth->bodyPartIndex, hash);
+        hash = HashVector3(mouth->offset, hash);
+        hash = HashVector3(mouth->rotation, hash);
+        hash = HashVector3(mouth->scale, hash);
+        hash = HashFloat(mouth->openFactor, hash);
+        hash = HashColor(mouth->insideColor, hash);
+        hash = HashColor(mouth->lipColor, hash);
     }
 
-    hash = Fnv1a64Bytes(&monster->eyeCount, sizeof(monster->eyeCount), hash);
+    /* Ojos */
+    hash = HashSizeT(monster->eyeCount, hash);
     for (size_t i = 0; i < monster->eyeCount; ++i) {
         const Eye* eye = &monster->eyes[i];
-        hash = Fnv1a64Bytes(&eye->bodyPartIndex, sizeof(eye->bodyPartIndex), hash);
-        hash = Fnv1a64Bytes(&eye->offset, sizeof(eye->offset), hash);
-        hash = Fnv1a64Bytes(&eye->scale, sizeof(eye->scale), hash);
-        hash = Fnv1a64Bytes(&eye->pupilScale, sizeof(eye->pupilScale), hash);
-        hash = Fnv1a64Bytes(&eye->scleraColor, sizeof(eye->scleraColor), hash);
-        hash = Fnv1a64Bytes(&eye->pupilColor, sizeof(eye->pupilColor), hash);
+        hash = HashSizeT(eye->bodyPartIndex, hash);
+        hash = HashVector3(eye->offset, hash);
+        hash = HashVector3(eye->rotation, hash);
+        hash = HashVector3(eye->scale, hash);
+        hash = HashFloat(eye->pupilScale, hash);
+        hash = HashColor(eye->scleraColor, hash);
+        hash = HashColor(eye->pupilColor, hash);
+    }
+
+    /* Paleta de colores */
+    hash = HashSizeT(monster->colorPalette.count, hash);
+    for (size_t i = 0; i < monster->colorPalette.count; ++i) {
+        hash = HashColor(monster->colorPalette.colors[i], hash);
     }
 
     return hash;
-}
-
-static bool MonsterVisual_RebuildEyes(MonsterVisual* visual, const Monster* monster) {
-    for (size_t i = 0; i < visual->eyeCount; ++i) {
-        Mesh_Free(&visual->eyes[i].sclera);
-        Mesh_Free(&visual->eyes[i].pupil);
-    }
-    visual->eyeCount = 0;
-
-    if (!monster || monster->eyeCount == 0) {
-        return true;
-    }
-
-    if (monster->eyeCount > visual->eyeCapacity) {
-        size_t newCapacity = (visual->eyeCapacity > 0) ? visual->eyeCapacity : 1;
-        while (newCapacity < monster->eyeCount) {
-            newCapacity *= 2;
-        }
-        MonsterVisualEye* grown = (MonsterVisualEye*)realloc(visual->eyes, newCapacity * sizeof(MonsterVisualEye));
-        if (!grown) {
-            return false;
-        }
-        visual->eyes = grown;
-        visual->eyeCapacity = newCapacity;
-    }
-
-    for (size_t i = 0; i < monster->eyeCount; ++i) {
-        const Eye* eye = &monster->eyes[i];
-
-        Vector3 partPos = Vec3_Zero();
-        if (eye->bodyPartIndex < monster->bodyPartCount) {
-            partPos = monster->bodyParts[eye->bodyPartIndex].positionRender;
-        }
-        Vector3 eyeCenter = Vec3_Add(partPos, eye->offset);
-
-        float scleraRadius = 0.5f * Math_Max(eye->scale.x, Math_Max(eye->scale.y, 0.001f));
-        float pupilFactor = Math_Clamp01(eye->pupilScale);
-        float pupilRadius = scleraRadius * Math_Max(pupilFactor, 0.05f);
-        Vector3 pupilCenter = Vec3_Add(eyeCenter, Vec3_Create(0.0f, 0.0f, scleraRadius * (1.0f - 0.3f * pupilFactor)));
-
-        MonsterVisualEye* entry = &visual->eyes[i];
-        entry->sclera = Mesh_Create();
-        entry->pupil = Mesh_Create();
-
-        if (!PrimitiveMesh_GenerateUVSphere(&entry->sclera, eyeCenter, scleraRadius, 12, 8, eye->scleraColor)) {
-            return false;
-        }
-        if (!PrimitiveMesh_GenerateUVSphere(&entry->pupil, pupilCenter, pupilRadius, 12, 8, eye->pupilColor)) {
-            return false;
-        }
-        visual->eyeCount = i + 1;
-    }
-
-    return true;
 }
 
 MonsterVisual MonsterVisual_Create(SDFMesherConfig mesherConfig) {
@@ -115,6 +114,7 @@ MonsterVisual MonsterVisual_Create(SDFMesherConfig mesherConfig) {
     visual.mesh = Mesh_Create();
     visual.isDirty = true;
     visual.updateTimer = 0.0f;
+    visual.rebuildGeneration = 0;
     return visual;
 }
 
@@ -133,10 +133,15 @@ void MonsterVisual_Free(MonsterVisual* visual) {
     visual->hasFingerprint = false;
     visual->isDirty = false;
     visual->updateTimer = 0.0f;
+    visual->rebuildGeneration = 0;
 }
 
 void MonsterVisual_MarkDirty(MonsterVisual* visual) {
     if (visual) visual->isDirty = true;
+}
+
+uint64_t MonsterVisual_GetGeneration(const MonsterVisual* visual) {
+    return visual ? visual->rebuildGeneration : 0;
 }
 
 bool MonsterVisual_RebuildNow(
@@ -146,23 +151,99 @@ bool MonsterVisual_RebuildNow(
 ) {
     if (!visual || !monster) return false;
 
-    if (!MonsterSDF_Build(&visual->sdf, monster, sdfConfig)) {
+    /* Reconstrucción transaccional: construir en estructuras temporales para
+       prevenir corrupción si falla cualquier paso intermedio. */
+    MonsterSDF tempSDF = MonsterSDF_Create();
+    if (!MonsterSDF_Build(&tempSDF, monster, sdfConfig)) {
+        MonsterSDF_Free(&tempSDF);
         return false;
     }
 
-    SDFField field = MonsterSDF_GetField(&visual->sdf);
-    if (!SDFMesher_GenerateMesh(&visual->mesher, &field, &visual->mesh)) {
+    SDFField field = MonsterSDF_GetField(&tempSDF);
+    Mesh tempMesh = Mesh_Create();
+    if (!SDFMesher_GenerateMesh(&visual->mesher, &field, &tempMesh)) {
+        MonsterSDF_Free(&tempSDF);
+        Mesh_Free(&tempMesh);
         return false;
     }
 
-    if (!MonsterVisual_RebuildEyes(visual, monster)) {
-        return false;
+    MonsterVisualEye* tempEyes = NULL;
+    size_t tempEyeCount = monster->eyeCount;
+
+    if (tempEyeCount > 0) {
+        tempEyes = (MonsterVisualEye*)calloc(tempEyeCount, sizeof(MonsterVisualEye));
+        if (!tempEyes) {
+            MonsterSDF_Free(&tempSDF);
+            Mesh_Free(&tempMesh);
+            return false;
+        }
+
+        bool eyeSuccess = true;
+        for (size_t i = 0; i < tempEyeCount; ++i) {
+            const Eye* eye = &monster->eyes[i];
+
+            Vector3 partPos = Vec3_Zero();
+            if (eye->bodyPartIndex < monster->bodyPartCount) {
+                partPos = monster->bodyParts[eye->bodyPartIndex].positionRender;
+            }
+
+            Vector3 eyePos = Vec3_Add(partPos, eye->offset);
+            Vector3 eyeRadii = Vec3_Scale(eye->scale, 0.5f);
+
+            Transform3D scleraTrans = Transform3D_Create(eyePos, eye->rotation, eyeRadii);
+
+            /* Dirección frontal local rotada para ubicar la pupila sobre la superficie de la esclerótica */
+            Vector3 pupilForward = Transform3D_RotateVector(eye->rotation, Vec3_Create(0.0f, 0.0f, 1.0f));
+            float zOffset = eyeRadii.z * 0.90f;
+            Vector3 pupilCenter = Vec3_Add(eyePos, Vec3_Scale(pupilForward, zOffset));
+
+            float pupilRadius = Math_Min(eyeRadii.x, eyeRadii.y) * Math_Clamp01(eye->pupilScale) * 0.5f;
+            pupilRadius = Math_Max(pupilRadius, 0.01f);
+            Transform3D pupilTrans = Transform3D_Create(pupilCenter, eye->rotation, Vec3_Create(pupilRadius, pupilRadius, pupilRadius * 0.2f));
+
+            tempEyes[i].sclera = Mesh_Create();
+            tempEyes[i].pupil = Mesh_Create();
+
+            if (!PrimitiveMesh_GenerateEllipsoid(&tempEyes[i].sclera, scleraTrans, 16, 12, eye->scleraColor) ||
+                !PrimitiveMesh_GenerateEllipsoid(&tempEyes[i].pupil, pupilTrans, 12, 8, eye->pupilColor)) {
+                eyeSuccess = false;
+                break;
+            }
+        }
+
+        if (!eyeSuccess) {
+            for (size_t i = 0; i < tempEyeCount; ++i) {
+                Mesh_Free(&tempEyes[i].sclera);
+                Mesh_Free(&tempEyes[i].pupil);
+            }
+            free(tempEyes);
+            MonsterSDF_Free(&tempSDF);
+            Mesh_Free(&tempMesh);
+            return false;
+        }
     }
 
-    visual->geometryFingerprint = MonsterVisual_ComputeFingerprint(monster, sdfConfig);
+    /* ÉXITO TOTAL: Intercambiar atómicamente los recursos viejos por los nuevos */
+    MonsterSDF_Free(&visual->sdf);
+    Mesh_Free(&visual->mesh);
+    for (size_t i = 0; i < visual->eyeCount; ++i) {
+        Mesh_Free(&visual->eyes[i].sclera);
+        Mesh_Free(&visual->eyes[i].pupil);
+    }
+    if (visual->eyes) free(visual->eyes);
+
+    visual->sdf = tempSDF;
+    visual->mesh = tempMesh;
+    visual->eyes = tempEyes;
+    visual->eyeCount = tempEyeCount;
+    visual->eyeCapacity = tempEyeCount;
+
+    visual->geometryFingerprint = MonsterVisual_ComputeFingerprint(visual, monster, sdfConfig);
     visual->hasFingerprint = true;
     visual->isDirty = false;
     visual->updateTimer = 0.0f;
+    visual->rebuildGeneration++;
+
     return true;
 }
 
@@ -179,7 +260,7 @@ bool MonsterVisual_Update(
 
     bool timeTriggered = (rebuildInterval > 0.0f) && (visual->updateTimer >= rebuildInterval);
     bool geometryChanged = !visual->hasFingerprint ||
-                           (visual->geometryFingerprint != MonsterVisual_ComputeFingerprint(monster, sdfConfig));
+                           (visual->geometryFingerprint != MonsterVisual_ComputeFingerprint(visual, monster, sdfConfig));
 
     if (visual->isDirty || timeTriggered || geometryChanged || visual->mesh.vertexCount == 0) {
         return MonsterVisual_RebuildNow(visual, monster, sdfConfig);
@@ -206,7 +287,7 @@ const Mesh* MonsterVisual_GetEyePupil(const MonsterVisual* visual, size_t index)
     return &visual->eyes[index].pupil;
 }
 
-bool MonsterVisual_Render(const MonsterVisual* visual, MonsterRenderer* renderer) {
+bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer) {
     if (!visual || !renderer || !renderer->renderMesh) return false;
 
     renderer->renderMesh(renderer, &visual->mesh);
