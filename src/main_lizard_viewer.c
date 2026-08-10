@@ -174,7 +174,7 @@ int main(int argc, char* argv[]) {
     /* 7. Limpieza */
     MonsterVisual_Free(&visual);
     Monster_Free(&lizard);
-    if (renderer.user_data) free(renderer.user_data);
+    OpenGLRenderer_Destroy(&renderer);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

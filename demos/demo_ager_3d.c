@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
     MonsterAger_Free(&ager);
     Monster_Free(&youngLizard);
     Monster_Free(&adultLizard);
-    if (renderer.user_data) free(renderer.user_data);
+    OpenGLRenderer_Destroy(&renderer);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

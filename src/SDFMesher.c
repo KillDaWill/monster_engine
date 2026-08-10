@@ -283,7 +283,24 @@ bool SDFMesher_GenerateMesh(
                         break;
                     }
 
-                    if (!Mesh_AddTriangle(outMesh, edgeVertIndices[e0], edgeVertIndices[e1], edgeVertIndices[e2])) {
+                    MeshIndex idx0 = edgeVertIndices[e0];
+                    MeshIndex idx1 = edgeVertIndices[e1];
+                    MeshIndex idx2 = edgeVertIndices[e2];
+
+                    if (idx0 == idx1 || idx1 == idx2 || idx0 == idx2) continue;
+
+                    Vector3 pos0 = outMesh->vertices[idx0].position;
+                    Vector3 pos1 = outMesh->vertices[idx1].position;
+                    Vector3 pos2 = outMesh->vertices[idx2].position;
+
+                    Vector3 ab = Vec3_Sub(pos1, pos0);
+                    Vector3 ac = Vec3_Sub(pos2, pos0);
+                    Vector3 cross = Vec3_Cross(ab, ac);
+                    if (Vec3_Dot(cross, cross) <= 1e-16f) {
+                        continue;
+                    }
+
+                    if (!Mesh_AddTriangle(outMesh, idx0, idx1, idx2)) {
                         success = false;
                         break;
                     }

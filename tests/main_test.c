@@ -2,6 +2,7 @@
 
 void run_color_tests(void);
 void run_vector_tests(void);
+void run_math_utils_tests(void);
 void run_body_part_tests(void);
 void run_monster_tests(void);
 void run_ager_tests(void);
@@ -20,6 +21,9 @@ int main(void) {
 
     printf("\n--- Módulo Vector ---\n");
     run_vector_tests();
+
+    printf("\n--- Módulo MathUtils ---\n");
+    run_math_utils_tests();
 
     printf("\n--- Módulo BodyPart ---\n");
     run_body_part_tests();

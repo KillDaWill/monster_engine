@@ -160,8 +160,29 @@ void Monster_Update(Monster* monster, double diff) {
 
     diff *= monster->updateSpeed;
 
+    /* 1. Guardar la posición previa de cada parte ANTES de cualquier simulación */
+    for (size_t i = 0; i < monster->bodyPartCount; ++i) {
+        monster->bodyParts[i].oldPosition = monster->bodyParts[i].position;
+    }
+
+    /* 2. Ejecutar comportamiento del monstruo */
     if (monster->behavior && monster->behavior->update) {
         monster->behavior->update(monster->behavior, monster, diff);
+    }
+
+    /* 3. Ejecutar traits generales a nivel de monstruo */
+    for (size_t t = 0; t < monster->traitCount; ++t) {
+        struct Trait* trait = monster->traits[t];
+        if (trait && trait->update) {
+            for (size_t i = 0; i < monster->bodyPartCount; ++i) {
+                trait->update(trait, monster, (int)i, diff);
+            }
+        }
+    }
+
+    /* 4. Ejecutar actualización individual de cada parte del cuerpo */
+    for (size_t i = 0; i < monster->bodyPartCount; ++i) {
+        BodyPart_Update(&monster->bodyParts[i], monster, (int)i, diff);
     }
 }
 

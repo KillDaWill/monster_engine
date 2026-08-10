@@ -125,15 +125,27 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
         MeshIndex b = mesh->indices[t * 3 + 1];
         MeshIndex c = mesh->indices[t * 3 + 2];
 
-        if ((size_t)a >= mesh->vertexCount) ++result.invalidIndexCount;
-        if ((size_t)b >= mesh->vertexCount) ++result.invalidIndexCount;
-        if ((size_t)c >= mesh->vertexCount) ++result.invalidIndexCount;
+        if ((size_t)a >= mesh->vertexCount || (size_t)b >= mesh->vertexCount || (size_t)c >= mesh->vertexCount) {
+            ++result.invalidIndexCount;
+            continue;
+        }
 
-        if (a == b || b == c || a == c) ++result.degenerateTriangleCount;
+        if (a == b || b == c || a == c) {
+            ++result.degenerateTriangleCount;
+            continue;
+        }
+
+        Vector3 ab = Vec3_Sub(mesh->vertices[b].position, mesh->vertices[a].position);
+        Vector3 ac = Vec3_Sub(mesh->vertices[c].position, mesh->vertices[a].position);
+        Vector3 cross = Vec3_Cross(ab, ac);
+        if (Vec3_Dot(cross, cross) <= 1e-16f) {
+            ++result.zeroAreaTriangleCount;
+        }
     }
 
     result.valid = (result.invalidIndexCount == 0 &&
                     result.degenerateTriangleCount == 0 &&
+                    result.zeroAreaTriangleCount == 0 &&
                     result.nonFiniteVertexCount == 0 &&
                     result.nonFiniteNormalCount == 0);
     return result;

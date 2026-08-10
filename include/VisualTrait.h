@@ -19,6 +19,15 @@ typedef int VisualTraitType;
 /**
  * @struct VisualTrait
  * @brief Rasgo visual especializado.
+ *
+ * @note Regla de desacoplamiento de renderizado:
+ * VisualTrait NUNCA debe invocar llamadas directas a OpenGL o APIs de renderizado.
+ * En su lugar, los futuros VisualTraits contribuirán estado visual a través del coordinador MonsterVisual.
+ *
+ * Patron de diseño futuro esperado:
+ * - Anatomía positiva (ej. cuernos, alas): contribuir geometría de unión SDF.
+ * - Anatomía negativa (ej. fosas nasales, hendiduras): contribuir geometría de sustracción SDF.
+ * - Geometría visual desacoplada (ej. cabello, accesorios): contribuir geometría direct a Mesh.
  */
 typedef struct VisualTrait {
     VisualTraitType type;

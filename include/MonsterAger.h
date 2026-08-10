@@ -17,6 +17,16 @@ extern "C" {
 /**
  * @struct MonsterAger
  * @brief Estructura que gestiona la transición y mezcla progresiva entre dos estados/fases de un monstruo.
+ *
+ * @note Requisito de correspondencia por índice:
+ * MonsterAger empareja elementos anatómicos estrictamente por índice de arreglo.
+ * Los monstruos límite (endpoint monsters) deben preservar el orden semántico:
+ *   bodyParts[i] <-> bodyParts[i] correspondiente
+ *   eyes[i]      <-> eyes[i] correspondiente
+ *   mouths[i]    <-> mouths[i] correspondiente
+ *
+ * @todo Introducir identificadores estables AnatomyId antes de soportar reordenamiento anatómico
+ * arbitrario entre etapas de desarrollo.
  */
 typedef struct MonsterAger {
     Monster monster1; /**< Copia de la fase 1 (joven / inicial) */

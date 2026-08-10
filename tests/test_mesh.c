@@ -140,6 +140,28 @@ static void test_mesh_validate(void) {
     printf("[PASS] test_mesh_validate\n");
 }
 
+static void test_zero_area_collinear_validation(void) {
+    Mesh mesh = Mesh_Create();
+
+    /* 3 vértices colineales en el eje X */
+    MeshVertex v0 = {.position = Vec3_Create(0, 0, 0), .normal = Vec3_Create(0, 1, 0), .color = COLOR_WHITE};
+    MeshVertex v1 = {.position = Vec3_Create(1, 0, 0), .normal = Vec3_Create(0, 1, 0), .color = COLOR_WHITE};
+    MeshVertex v2 = {.position = Vec3_Create(2, 0, 0), .normal = Vec3_Create(0, 1, 0), .color = COLOR_WHITE};
+
+    MeshIndex a = 0, b = 0, c = 0;
+    Mesh_AddVertex(&mesh, v0, &a);
+    Mesh_AddVertex(&mesh, v1, &b);
+    Mesh_AddVertex(&mesh, v2, &c);
+    Mesh_AddTriangle(&mesh, a, b, c);
+
+    MeshValidationResult res = Mesh_Validate(&mesh);
+    TEST_ASSERT(!res.valid, "Mesh_Validate debe fallar para triángulos de área cero con vértices colineales");
+    TEST_ASSERT(res.zeroAreaTriangleCount == 1, "zeroAreaTriangleCount debe ser 1");
+
+    Mesh_Free(&mesh);
+    printf("[PASS] test_zero_area_collinear_validation\n");
+}
+
 /* ============================================================
  * Pipeline E2E: esfera genérica -> SDFMesher -> Mesh
  * ============================================================ */
@@ -242,6 +264,7 @@ static void test_edge_cache_sharing(void) {
 void run_mesh_tests(void) {
     test_add_triangle_guards();
     test_mesh_validate();
+    test_zero_area_collinear_validation();
     test_sphere_field_pipeline();
     test_edge_cache_sharing();
 }

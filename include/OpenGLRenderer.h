@@ -46,6 +46,12 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh);
  */
 void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled);
 
+/**
+ * @brief Libera los recursos del contexto del renderizador OpenGL y limpia sus callbacks.
+ * @param renderer Puntero al renderizador 3D.
+ */
+void OpenGLRenderer_Destroy(Renderer3D* renderer);
+
 #ifdef __cplusplus
 }
 #endif

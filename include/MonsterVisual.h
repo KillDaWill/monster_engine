@@ -34,12 +34,14 @@ typedef struct MonsterVisualEye {
  * @brief Estructura que gestiona el ciclo de vida del buffer de malla SDF y ojos para un monstruo.
  */
 typedef struct MonsterVisual {
-    MonsterSDF sdf;     /**< Snapshot SDF de la geometría */
-    SDFMesher mesher;   /**< Orquestador de poligonización */
-    Mesh mesh;          /**< Malla 3D poligonizada acumulada (cuerpo) */
+    MonsterSDF sdf;         /**< Snapshot SDF activo de la geometría */
+    MonsterSDF stagingSdf;  /**< Snapshot SDF de trabajo (reutilizable) */
+    SDFMesher mesher;       /**< Orquestador de poligonización */
+    Mesh mesh;              /**< Malla 3D poligonizada activa (cuerpo) */
+    Mesh stagingMesh;       /**< Malla 3D de trabajo (reutilizable) */
     MonsterVisualEye* eyes; /**< Arreglo dinámico de mallas de ojos */
-    size_t eyeCount;    /**< Cantidad actual de ojos */
-    size_t eyeCapacity; /**< Capacidad reservada de ojos */
+    size_t eyeCount;        /**< Cantidad actual de ojos */
+    size_t eyeCapacity;     /**< Capacidad reservada de ojos */
     uint64_t geometryFingerprint; /**< FNV-1a-64 de la geometría que invalida la reconstrucción */
     uint64_t rebuildGeneration;   /**< Contador incremental de reconstrucciones exitosas */
     bool hasFingerprint; /**< true si geometryFingerprint ya fue calculado */

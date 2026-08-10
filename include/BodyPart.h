@@ -21,9 +21,6 @@ extern "C" {
 /* Forward declarations */
 struct Monster;
 
-/** Alias para el paso de renderizado */
-typedef int Pass;
-
 /**
  * @struct ColorIndex
  * @brief Índice de referencia a la paleta de colores.

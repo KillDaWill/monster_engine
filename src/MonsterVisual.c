@@ -23,8 +23,16 @@ static inline uint64_t HashVector3(Vector3 v, uint64_t hash) {
     return HashFloat(v.z, hash);
 }
 
+static inline uint64_t HashBool(bool b, uint64_t hash) {
+    unsigned char v = b ? 1 : 0;
+    return Fnv1a64Bytes(&v, 1, hash);
+}
+
 static inline uint64_t HashColor(Color c, uint64_t hash) {
-    return Fnv1a64Bytes(&c, sizeof(Color), hash);
+    hash = Fnv1a64Bytes(&c.r, 1, hash);
+    hash = Fnv1a64Bytes(&c.g, 1, hash);
+    hash = Fnv1a64Bytes(&c.b, 1, hash);
+    return Fnv1a64Bytes(&c.a, 1, hash);
 }
 
 static inline uint64_t HashSizeT(size_t v, uint64_t hash) {
@@ -56,6 +64,11 @@ static uint64_t MonsterVisual_ComputeFingerprint(const MonsterVisual* visual, co
         hash = HashSizeT(cfg.maxCells, hash);
         hash = HashFloat(cfg.isolevel, hash);
         hash = HashFloat(cfg.normalEps, hash);
+        hash = HashBool(cfg.useAutoBounds, hash);
+        if (!cfg.useAutoBounds) {
+            hash = HashVector3(cfg.bounds.start, hash);
+            hash = HashVector3(cfg.bounds.end, hash);
+        }
     }
 
     if (!monster) return hash;
@@ -110,8 +123,10 @@ MonsterVisual MonsterVisual_Create(SDFMesherConfig mesherConfig) {
     MonsterVisual visual;
     memset(&visual, 0, sizeof(MonsterVisual));
     visual.sdf = MonsterSDF_Create();
+    visual.stagingSdf = MonsterSDF_Create();
     visual.mesher = SDFMesher_Create(mesherConfig);
     visual.mesh = Mesh_Create();
+    visual.stagingMesh = Mesh_Create();
     visual.isDirty = true;
     visual.updateTimer = 0.0f;
     visual.rebuildGeneration = 0;
@@ -121,7 +136,9 @@ MonsterVisual MonsterVisual_Create(SDFMesherConfig mesherConfig) {
 void MonsterVisual_Free(MonsterVisual* visual) {
     if (!visual) return;
     MonsterSDF_Free(&visual->sdf);
+    MonsterSDF_Free(&visual->stagingSdf);
     Mesh_Free(&visual->mesh);
+    Mesh_Free(&visual->stagingMesh);
     for (size_t i = 0; i < visual->eyeCount; ++i) {
         Mesh_Free(&visual->eyes[i].sclera);
         Mesh_Free(&visual->eyes[i].pupil);
@@ -151,19 +168,14 @@ bool MonsterVisual_RebuildNow(
 ) {
     if (!visual || !monster) return false;
 
-    /* Reconstrucción transaccional: construir en estructuras temporales para
-       prevenir corrupción si falla cualquier paso intermedio. */
-    MonsterSDF tempSDF = MonsterSDF_Create();
-    if (!MonsterSDF_Build(&tempSDF, monster, sdfConfig)) {
-        MonsterSDF_Free(&tempSDF);
+    /* Reconstrucción transaccional reutilizando buffers staging */
+    if (!MonsterSDF_Build(&visual->stagingSdf, monster, sdfConfig)) {
         return false;
     }
 
-    SDFField field = MonsterSDF_GetField(&tempSDF);
-    Mesh tempMesh = Mesh_Create();
-    if (!SDFMesher_GenerateMesh(&visual->mesher, &field, &tempMesh)) {
-        MonsterSDF_Free(&tempSDF);
-        Mesh_Free(&tempMesh);
+    SDFField field = MonsterSDF_GetField(&visual->stagingSdf);
+    Mesh_Clear(&visual->stagingMesh);
+    if (!SDFMesher_GenerateMesh(&visual->mesher, &field, &visual->stagingMesh)) {
         return false;
     }
 
@@ -173,14 +185,23 @@ bool MonsterVisual_RebuildNow(
     if (tempEyeCount > 0) {
         tempEyes = (MonsterVisualEye*)calloc(tempEyeCount, sizeof(MonsterVisualEye));
         if (!tempEyes) {
-            MonsterSDF_Free(&tempSDF);
-            Mesh_Free(&tempMesh);
             return false;
         }
 
+        const float EYE_VISIBILITY_EPS = 1e-4f;
         bool eyeSuccess = true;
         for (size_t i = 0; i < tempEyeCount; ++i) {
             const Eye* eye = &monster->eyes[i];
+
+            tempEyes[i].sclera = Mesh_Create();
+            tempEyes[i].pupil = Mesh_Create();
+
+            /* Ojo con escala cero o casi cero: mantener la ranura lógica con mallas vacías */
+            if (eye->scale.x <= EYE_VISIBILITY_EPS ||
+                eye->scale.y <= EYE_VISIBILITY_EPS ||
+                eye->scale.z <= EYE_VISIBILITY_EPS) {
+                continue;
+            }
 
             Vector3 partPos = Vec3_Zero();
             if (eye->bodyPartIndex < monster->bodyPartCount) {
@@ -201,9 +222,6 @@ bool MonsterVisual_RebuildNow(
             pupilRadius = Math_Max(pupilRadius, 0.01f);
             Transform3D pupilTrans = Transform3D_Create(pupilCenter, eye->rotation, Vec3_Create(pupilRadius, pupilRadius, pupilRadius * 0.2f));
 
-            tempEyes[i].sclera = Mesh_Create();
-            tempEyes[i].pupil = Mesh_Create();
-
             if (!PrimitiveMesh_GenerateEllipsoid(&tempEyes[i].sclera, scleraTrans, 16, 12, eye->scleraColor) ||
                 !PrimitiveMesh_GenerateEllipsoid(&tempEyes[i].pupil, pupilTrans, 12, 8, eye->pupilColor)) {
                 eyeSuccess = false;
@@ -217,23 +235,25 @@ bool MonsterVisual_RebuildNow(
                 Mesh_Free(&tempEyes[i].pupil);
             }
             free(tempEyes);
-            MonsterSDF_Free(&tempSDF);
-            Mesh_Free(&tempMesh);
             return false;
         }
     }
 
-    /* ÉXITO TOTAL: Intercambiar atómicamente los recursos viejos por los nuevos */
-    MonsterSDF_Free(&visual->sdf);
-    Mesh_Free(&visual->mesh);
+    /* ÉXITO TOTAL: Intercambiar atómicamente buffers activos y staging */
+    MonsterSDF tmpSDF = visual->sdf;
+    visual->sdf = visual->stagingSdf;
+    visual->stagingSdf = tmpSDF;
+
+    Mesh tmpMesh = visual->mesh;
+    visual->mesh = visual->stagingMesh;
+    visual->stagingMesh = tmpMesh;
+
     for (size_t i = 0; i < visual->eyeCount; ++i) {
         Mesh_Free(&visual->eyes[i].sclera);
         Mesh_Free(&visual->eyes[i].pupil);
     }
     if (visual->eyes) free(visual->eyes);
 
-    visual->sdf = tempSDF;
-    visual->mesh = tempMesh;
     visual->eyes = tempEyes;
     visual->eyeCount = tempEyeCount;
     visual->eyeCapacity = tempEyeCount;

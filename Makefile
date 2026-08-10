@@ -48,6 +48,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_color.c \
             $(TEST_DIR)/test_vector.c \
+            $(TEST_DIR)/test_math_utils.c \
             $(TEST_DIR)/test_body_part.c \
             $(TEST_DIR)/test_monster.c \
             $(TEST_DIR)/test_ager.c \

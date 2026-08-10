@@ -53,6 +53,7 @@ typedef struct MeshValidationResult {
     bool valid;                    /**< true si la malla no presenta ningún problema detectado */
     size_t invalidIndexCount;      /**< Índices fuera de rango o restantes (indexCount % 3) */
     size_t degenerateTriangleCount; /**< Triángulos con índices repetidos (área nula garantizada) */
+    size_t zeroAreaTriangleCount;   /**< Triángulos con área cero (vértices colineales) */
     size_t nonFiniteVertexCount;   /**< Vértices con posición no finita */
     size_t nonFiniteNormalCount;   /**< Vértices con normal no finita */
 } MeshValidationResult;

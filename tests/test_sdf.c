@@ -458,6 +458,129 @@ static void test_mouth_bounds_isolation(void) {
     printf("[PASS] test_mouth_bounds_isolation\n");
 }
 
+static void test_zero_scale_eye_ager_transition(void) {
+    /* Young: 0 ojos */
+    Monster young = BuildLizard();
+    Monster_ClearEyes(&young);
+
+    /* Adult: 1 ojo válido */
+    Monster adult = BuildLizard();
+    Eye adultEye = Eye_Create(0, Vec3_Create(0.5f, 0.5f, 0.5f), Vec3_Create(0.4f, 0.4f, 0.4f), COLOR_WHITE, COLOR_BLACK);
+    Monster_AddEye(&adult, adultEye);
+
+    MonsterAger ager = MonsterAger_Create(&young, &adult, 0.0f);
+
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.resolutionX = 16;
+    cfg.resolutionY = 16;
+    cfg.resolutionZ = 16;
+    MonsterVisual visual = MonsterVisual_Create(cfg);
+
+    /* Age 0.0 */
+    MonsterAger_SetPerc(&ager, 0.0f);
+    const Monster* current = MonsterAger_GetResultConst(&ager);
+    TEST_ASSERT(MonsterVisual_RebuildNow(&visual, current, MonsterSDF_DefaultConfig()), "Rebuild falló a edad 0.0");
+    TEST_ASSERT(MonsterVisual_GetEyeCount(&visual) == 1, "Conteo lógico de ojos debe ser 1 a edad 0.0");
+    const Mesh* sclera0 = MonsterVisual_GetEyeSclera(&visual, 0);
+    TEST_ASSERT(sclera0 != NULL && sclera0->vertexCount == 0, "Malla de ojo a edad 0.0 debe estar vacía");
+
+    /* Age 0.5 */
+    MonsterAger_SetPerc(&ager, 0.5f);
+    current = MonsterAger_GetResultConst(&ager);
+    TEST_ASSERT(MonsterVisual_RebuildNow(&visual, current, MonsterSDF_DefaultConfig()), "Rebuild falló a edad 0.5");
+    TEST_ASSERT(MonsterVisual_GetEyeCount(&visual) == 1, "Conteo lógico de ojos debe ser 1 a edad 0.5");
+    const Mesh* scleraHalf = MonsterVisual_GetEyeSclera(&visual, 0);
+    TEST_ASSERT(scleraHalf != NULL && scleraHalf->vertexCount > 0, "Malla de ojo a edad 0.5 debe ser no vacía");
+
+    /* Age 1.0 */
+    MonsterAger_SetPerc(&ager, 1.0f);
+    current = MonsterAger_GetResultConst(&ager);
+    TEST_ASSERT(MonsterVisual_RebuildNow(&visual, current, MonsterSDF_DefaultConfig()), "Rebuild falló a edad 1.0");
+    TEST_ASSERT(MonsterVisual_GetEyeCount(&visual) == 1, "Conteo lógico de ojos debe ser 1 a edad 1.0");
+    const Mesh* scleraFull = MonsterVisual_GetEyeSclera(&visual, 0);
+    const Mesh* pupilFull = MonsterVisual_GetEyePupil(&visual, 0);
+    TEST_ASSERT(scleraFull != NULL && scleraFull->vertexCount > 0, "Malla de ojo a edad 1.0 debe ser no vacía");
+    TEST_ASSERT(Mesh_Validate(scleraFull).valid, "Esclerótica a edad 1.0 debe ser válida");
+    TEST_ASSERT(Mesh_Validate(pupilFull).valid, "Pupila a edad 1.0 debe ser válida");
+
+    MonsterVisual_Free(&visual);
+    MonsterAger_Free(&ager);
+    Monster_Free(&young);
+    printf("[PASS] test_zero_scale_eye_ager_transition\n");
+}
+
+void test_monster_visual_complete_fingerprint(void) {
+    Monster lizard = BuildLizard();
+    Eye lizardEye = Eye_Create(0, Vec3_Create(0.5f, 0.5f, 0.5f), Vec3_Create(0.4f, 0.4f, 0.4f), COLOR_WHITE, COLOR_BLACK);
+    Monster_AddEye(&lizard, lizardEye);
+
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.resolutionX = 16;
+    cfg.resolutionY = 16;
+    cfg.resolutionZ = 16;
+
+    MonsterVisual visual = MonsterVisual_Create(cfg);
+    MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig());
+    uint64_t gen = MonsterVisual_GetGeneration(&visual);
+
+    /* Update sin cambios -> NO debe incrementar generación */
+    MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen, "Update sin cambios no debe incrementar generación");
+
+    /* 1. mouth.rotation */
+    Mouth* m = Monster_GetMouth(&lizard, 0);
+    if (m) {
+        m->rotation.x += 0.5f;
+        MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "mouth.rotation debe incrementar generación");
+        gen++;
+    }
+
+    /* 2. palette color */
+    if (lizard.colorPalette.count > 0) {
+        lizard.colorPalette.colors[0].r ^= 0xFF;
+        MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "palette color debe incrementar generación");
+        gen++;
+    }
+
+    /* 3. eye.rotation */
+    Eye* eye = Monster_GetEye(&lizard, 0);
+    if (eye) {
+        eye->rotation.y += 0.5f;
+        MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "eye.rotation debe incrementar generación");
+        gen++;
+
+        /* 4. eye.scale */
+        eye->scale.x += 0.2f;
+        MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "eye.scale debe incrementar generación");
+        gen++;
+
+        /* 5. eye.offset */
+        eye->offset.z += 0.1f;
+        MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "eye.offset debe incrementar generación");
+        gen++;
+
+        /* 6. eye.pupilScale */
+        eye->pupilScale *= 0.5f;
+        MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "eye.pupilScale debe incrementar generación");
+        gen++;
+    }
+
+    /* 7. SDF voxelSize */
+    visual.mesher.config.voxelSize = 0.25f;
+    MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
+    TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "voxelSize debe incrementar generación");
+
+    MonsterVisual_Free(&visual);
+    Monster_Free(&lizard);
+    printf("[PASS] test_monster_visual_complete_fingerprint\n");
+}
+
 void run_sdf_tests(void) {
     test_sdf_primitives_and_ops();
     test_sdf_primitives_extended();
@@ -467,6 +590,8 @@ void run_sdf_tests(void) {
     test_monster_visual_eyes_fingerprint();
     test_monster_visual_generation_and_transactional();
     test_mouth_bounds_isolation();
+    test_zero_scale_eye_ager_transition();
+    test_monster_visual_complete_fingerprint();
     test_lizard_mesh_stats();
     test_ager_meshes();
     test_monster_sdf_buffer_reuse();

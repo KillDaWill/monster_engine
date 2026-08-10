@@ -51,7 +51,7 @@ void BodyPart_Update(BodyPart* part, Monster* monster, int index, double diff) {
     if (!part) return;
 
     if (monster) {
-        part->position.y = part->groundOffsetRender + Monster_GetWorldHeight(monster, part->position.x, part->position.z);
+        part->position.y = part->groundOffset + Monster_GetWorldHeight(monster, part->position.x, part->position.z);
     }
 
     for (size_t i = 0; i < part->traitCount; ++i) {

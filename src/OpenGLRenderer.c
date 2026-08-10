@@ -98,8 +98,21 @@ static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
     OpenGLRenderer_RenderMesh(mesh);
 
     if (wireframe) {
-        glPolygonMode(GL_FRONT_AND_BACK, previousPolygonMode[1]);
+        glPolygonMode(GL_FRONT, previousPolygonMode[0]);
+        glPolygonMode(GL_BACK, previousPolygonMode[1]);
     }
+}
+
+void OpenGLRenderer_Destroy(Renderer3D* renderer) {
+    if (!renderer) return;
+
+    if (renderer->user_data) {
+        free(renderer->user_data);
+        renderer->user_data = NULL;
+    }
+    renderer->beginFrame = NULL;
+    renderer->endFrame = NULL;
+    renderer->renderMesh = NULL;
 }
 
 /* ============================================================

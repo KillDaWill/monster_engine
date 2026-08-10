@@ -16,8 +16,6 @@
 extern "C" {
 #endif
 
-struct Monster;
-
 /**
  * @struct ICamera
  * @brief Interfaz agnóstica de cámara 3D.
@@ -48,8 +46,6 @@ typedef struct Renderer3D {
     /** Callback para renderizar una malla 3D (Mesh) */
     void (*renderMesh)(struct Renderer3D* self, const Mesh* mesh);
 } Renderer3D;
-
-typedef struct Renderer3D MonsterRenderer;
 
 #ifdef __cplusplus
 }
