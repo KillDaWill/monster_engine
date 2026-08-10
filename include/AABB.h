@@ -54,6 +54,11 @@ void AABB_Pad(AABB3D* bounds, float padding);
  */
 Vector3 AABB_Size(AABB3D bounds);
 
+/**
+ * @brief Comprueba si una AABB3D contiene un punto 3D en el espacio.
+ */
+bool AABB_ContainsPoint(AABB3D bounds, Vector3 point);
+
 #ifdef __cplusplus
 }
 #endif

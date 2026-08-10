@@ -29,22 +29,27 @@ SDFMesher SDFMesher_Create(SDFMesherConfig config) {
     SDFMesher mesher;
     memset(&mesher, 0, sizeof(SDFMesher));
     mesher.config = config;
+    mesher.currentGradientGeneration = 1;
     return mesher;
 }
 
 void SDFMesher_Free(SDFMesher* mesher) {
     if (!mesher) return;
 
-    if (mesher->gridSamples) free(mesher->gridSamples);
+    if (mesher->gridDistances) free(mesher->gridDistances);
     if (mesher->gridGradients) free(mesher->gridGradients);
+    if (mesher->gradientStamp) free(mesher->gradientStamp);
     if (mesher->xEdges) free(mesher->xEdges);
     if (mesher->yEdges) free(mesher->yEdges);
     if (mesher->zEdges) free(mesher->zEdges);
 
-    mesher->gridSamples = NULL;
-    mesher->gridSampleCapacity = 0;
+    mesher->gridDistances = NULL;
+    mesher->gridDistanceCapacity = 0;
     mesher->gridGradients = NULL;
     mesher->gridGradientCapacity = 0;
+    mesher->gradientStamp = NULL;
+    mesher->gradientStampCapacity = 0;
+    mesher->currentGradientGeneration = 0;
     mesher->xEdges = NULL;
     mesher->xEdgeCapacity = 0;
     mesher->yEdges = NULL;
@@ -200,17 +205,86 @@ static bool EnsureBufferCapacity(void** buffer, size_t* currentCapacity, size_t 
     if (!buffer || !currentCapacity) return false;
     if (*currentCapacity >= requiredCapacity && *buffer != NULL) return true;
 
+    size_t oldCap = *currentCapacity;
     size_t newCap = 0;
-    if (!Math_GrowCapacity(*currentCapacity, requiredCapacity, elementSize, &newCap)) {
+    if (!Math_GrowCapacity(oldCap, requiredCapacity, elementSize, &newCap)) {
         return false;
     }
 
     void* newBuf = realloc(*buffer, newCap * elementSize);
     if (!newBuf) return false;
 
+    if (newCap > oldCap) {
+        memset((char*)newBuf + oldCap * elementSize, 0, (newCap - oldCap) * elementSize);
+    }
+
     *buffer = newBuf;
     *currentCapacity = newCap;
     return true;
+}
+
+static Vector3 SDFMesher_GetGridGradient(
+    SDFMesher* mesher,
+    const SDFResolvedGrid* grid,
+    int ix, int iy, int iz
+) {
+    size_t gIdx = GridIndex(ix, iy, iz, grid->numGridY, grid->numGridZ);
+    if (mesher->gradientStamp && mesher->gradientStamp[gIdx] == mesher->currentGradientGeneration) {
+        return mesher->gridGradients[gIdx];
+    }
+
+    Vector3 step = grid->step;
+    float dx = 0.0f, dy = 0.0f, dz = 0.0f;
+
+    if (ix > 0 && ix < grid->numGridX - 1) {
+        float dNext = mesher->gridDistances[GridIndex(ix + 1, iy, iz, grid->numGridY, grid->numGridZ)];
+        float dPrev = mesher->gridDistances[GridIndex(ix - 1, iy, iz, grid->numGridY, grid->numGridZ)];
+        dx = (dNext - dPrev) / (2.0f * step.x);
+    } else if (ix == 0) {
+        float dNext = mesher->gridDistances[GridIndex(1, iy, iz, grid->numGridY, grid->numGridZ)];
+        float dCurr = mesher->gridDistances[GridIndex(0, iy, iz, grid->numGridY, grid->numGridZ)];
+        dx = (dNext - dCurr) / step.x;
+    } else {
+        float dCurr = mesher->gridDistances[GridIndex(ix, iy, iz, grid->numGridY, grid->numGridZ)];
+        float dPrev = mesher->gridDistances[GridIndex(ix - 1, iy, iz, grid->numGridY, grid->numGridZ)];
+        dx = (dCurr - dPrev) / step.x;
+    }
+
+    if (iy > 0 && iy < grid->numGridY - 1) {
+        float dNext = mesher->gridDistances[GridIndex(ix, iy + 1, iz, grid->numGridY, grid->numGridZ)];
+        float dPrev = mesher->gridDistances[GridIndex(ix, iy - 1, iz, grid->numGridY, grid->numGridZ)];
+        dy = (dNext - dPrev) / (2.0f * step.y);
+    } else if (iy == 0) {
+        float dNext = mesher->gridDistances[GridIndex(ix, 1, iz, grid->numGridY, grid->numGridZ)];
+        float dCurr = mesher->gridDistances[GridIndex(ix, 0, iz, grid->numGridY, grid->numGridZ)];
+        dy = (dNext - dCurr) / step.y;
+    } else {
+        float dCurr = mesher->gridDistances[GridIndex(ix, iy, iz, grid->numGridY, grid->numGridZ)];
+        float dPrev = mesher->gridDistances[GridIndex(ix, iy - 1, iz, grid->numGridY, grid->numGridZ)];
+        dy = (dCurr - dPrev) / step.y;
+    }
+
+    if (iz > 0 && iz < grid->numGridZ - 1) {
+        float dNext = mesher->gridDistances[GridIndex(ix, iy, iz + 1, grid->numGridY, grid->numGridZ)];
+        float dPrev = mesher->gridDistances[GridIndex(ix, iy, iz - 1, grid->numGridY, grid->numGridZ)];
+        dz = (dNext - dPrev) / (2.0f * step.z);
+    } else if (iz == 0) {
+        float dNext = mesher->gridDistances[GridIndex(ix, iy, 1, grid->numGridY, grid->numGridZ)];
+        float dCurr = mesher->gridDistances[GridIndex(ix, iy, 0, grid->numGridY, grid->numGridZ)];
+        dz = (dNext - dCurr) / step.z;
+    } else {
+        float dCurr = mesher->gridDistances[GridIndex(ix, iy, iz, grid->numGridY, grid->numGridZ)];
+        float dPrev = mesher->gridDistances[GridIndex(ix, iy, iz - 1, grid->numGridY, grid->numGridZ)];
+        dz = (dCurr - dPrev) / step.z;
+    }
+
+    Vector3 grad = Vec3_Create(dx, dy, dz);
+    mesher->gridGradients[gIdx] = grad;
+    if (mesher->gradientStamp) {
+        mesher->gradientStamp[gIdx] = mesher->currentGradientGeneration;
+    }
+    mesher->lastStats.gradientEvaluationCount++;
+    return grad;
 }
 
 bool SDFMesher_GenerateMesh(
@@ -241,9 +315,19 @@ bool SDFMesher_GenerateMesh(
         normalEps = Math_Clamp(minStep * 0.25f, 1e-5f, 1.0f);
     }
 
+    /* Incrementar generación de gradiente para reuso de marcas */
+    mesher->currentGradientGeneration++;
+    if (mesher->currentGradientGeneration == 0) {
+        mesher->currentGradientGeneration = 1;
+        if (mesher->gradientStamp) {
+            memset(mesher->gradientStamp, 0, mesher->gradientStampCapacity * sizeof(uint32_t));
+        }
+    }
+
     /* Asegurar capacidad de workspace buffers */
-    if (!EnsureBufferCapacity((void**)&mesher->gridSamples, &mesher->gridSampleCapacity, grid.gridPointCount, sizeof(SDFSample)) ||
-        !EnsureBufferCapacity((void**)&mesher->gridGradients, &mesher->gridGradientCapacity, grid.gridPointCount, sizeof(Vector3))) {
+    if (!EnsureBufferCapacity((void**)&mesher->gridDistances, &mesher->gridDistanceCapacity, grid.gridPointCount, sizeof(float)) ||
+        !EnsureBufferCapacity((void**)&mesher->gridGradients, &mesher->gridGradientCapacity, grid.gridPointCount, sizeof(Vector3)) ||
+        !EnsureBufferCapacity((void**)&mesher->gradientStamp, &mesher->gradientStampCapacity, grid.gridPointCount, sizeof(uint32_t))) {
         return false;
     }
 
@@ -265,9 +349,12 @@ bool SDFMesher_GenerateMesh(
     memset(mesher->yEdges, 0xFF, numYEdges * sizeof(MeshIndex));
     memset(mesher->zEdges, 0xFF, numZEdges * sizeof(MeshIndex));
 
-    size_t fieldEvalCount = 0;
+    memset(&mesher->lastStats, 0, sizeof(SDFMesherStats));
 
-    /* 1. Evaluar el campo escalar en todos los nodos de la rejilla */
+    SDFDistanceFn distFn = field->evaluateDistance;
+    SDFEvaluateFn evalFn = field->evaluate;
+
+    /* 1. Muestreo de sólo distancia escalar en todos los nodos de la rejilla */
     for (int ix = 0; ix < grid.numGridX; ++ix) {
         float x = cfg.bounds.start.x + (float)ix * step.x;
         for (int iy = 0; iy < grid.numGridY; ++iy) {
@@ -275,73 +362,25 @@ bool SDFMesher_GenerateMesh(
             for (int iz = 0; iz < grid.numGridZ; ++iz) {
                 float z = cfg.bounds.start.z + (float)iz * step.z;
                 size_t gIdx = GridIndex(ix, iy, iz, grid.numGridY, grid.numGridZ);
-                mesher->gridSamples[gIdx] = field->evaluate(field->context, Vec3_Create(x, y, z));
-                fieldEvalCount++;
+
+                Vector3 p = Vec3_Create(x, y, z);
+                if (distFn) {
+                    mesher->gridDistances[gIdx] = distFn(field->context, p);
+                } else {
+                    mesher->gridDistances[gIdx] = evalFn(field->context, p).distance;
+                }
+                mesher->lastStats.distanceEvaluationCount++;
             }
         }
     }
-
-    /* 2. Calcular gradientes numéricos cacheados para la rejilla completa */
-    for (int ix = 0; ix < grid.numGridX; ++ix) {
-        for (int iy = 0; iy < grid.numGridY; ++iy) {
-            for (int iz = 0; iz < grid.numGridZ; ++iz) {
-                size_t gIdx = GridIndex(ix, iy, iz, grid.numGridY, grid.numGridZ);
-
-                float dx = 0.0f, dy = 0.0f, dz = 0.0f;
-
-                if (ix > 0 && ix < grid.numGridX - 1) {
-                    float dNext = mesher->gridSamples[GridIndex(ix + 1, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dPrev = mesher->gridSamples[GridIndex(ix - 1, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    dx = (dNext - dPrev) / (2.0f * step.x);
-                } else if (ix == 0) {
-                    float dNext = mesher->gridSamples[GridIndex(1, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dCurr = mesher->gridSamples[GridIndex(0, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    dx = (dNext - dCurr) / step.x;
-                } else {
-                    float dCurr = mesher->gridSamples[GridIndex(ix, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dPrev = mesher->gridSamples[GridIndex(ix - 1, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    dx = (dCurr - dPrev) / step.x;
-                }
-
-                if (iy > 0 && iy < grid.numGridY - 1) {
-                    float dNext = mesher->gridSamples[GridIndex(ix, iy + 1, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dPrev = mesher->gridSamples[GridIndex(ix, iy - 1, iz, grid.numGridY, grid.numGridZ)].distance;
-                    dy = (dNext - dPrev) / (2.0f * step.y);
-                } else if (iy == 0) {
-                    float dNext = mesher->gridSamples[GridIndex(ix, 1, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dCurr = mesher->gridSamples[GridIndex(ix, 0, iz, grid.numGridY, grid.numGridZ)].distance;
-                    dy = (dNext - dCurr) / step.y;
-                } else {
-                    float dCurr = mesher->gridSamples[GridIndex(ix, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dPrev = mesher->gridSamples[GridIndex(ix, iy - 1, iz, grid.numGridY, grid.numGridZ)].distance;
-                    dy = (dCurr - dPrev) / step.y;
-                }
-
-                if (iz > 0 && iz < grid.numGridZ - 1) {
-                    float dNext = mesher->gridSamples[GridIndex(ix, iy, iz + 1, grid.numGridY, grid.numGridZ)].distance;
-                    float dPrev = mesher->gridSamples[GridIndex(ix, iy, iz - 1, grid.numGridY, grid.numGridZ)].distance;
-                    dz = (dNext - dPrev) / (2.0f * step.z);
-                } else if (iz == 0) {
-                    float dNext = mesher->gridSamples[GridIndex(ix, iy, 1, grid.numGridY, grid.numGridZ)].distance;
-                    float dCurr = mesher->gridSamples[GridIndex(ix, iy, 0, grid.numGridY, grid.numGridZ)].distance;
-                    dz = (dNext - dCurr) / step.z;
-                } else {
-                    float dCurr = mesher->gridSamples[GridIndex(ix, iy, iz, grid.numGridY, grid.numGridZ)].distance;
-                    float dPrev = mesher->gridSamples[GridIndex(ix, iy, iz - 1, grid.numGridY, grid.numGridZ)].distance;
-                    dz = (dCurr - dPrev) / step.z;
-                }
-
-                mesher->gridGradients[gIdx] = Vec3_Create(dx, dy, dz);
-            }
-        }
-    }
+    mesher->lastStats.fieldEvaluationCount = mesher->lastStats.distanceEvaluationCount;
 
     Mesh_ReserveVertices(outMesh, grid.gridPointCount / 4);
     Mesh_ReserveIndices(outMesh, grid.gridPointCount / 2);
 
     bool success = true;
 
-    /* 3. Recorrer celdas y poligonizar */
+    /* 2. Recorrer celdas y poligonizar */
     for (int ix = 0; ix < grid.resX && success; ++ix) {
         float x0 = cfg.bounds.start.x + (float)ix * step.x;
 
@@ -352,10 +391,9 @@ bool SDFMesher_GenerateMesh(
                 float z0 = cfg.bounds.start.z + (float)iz * step.z;
 
                 Vector3 corners[8];
-                SDFSample samples[8];
-                size_t cornerIndices[8];
-
+                float cornerDistances[8];
                 int cubeIndex = 0;
+
                 for (int c = 0; c < 8; ++c) {
                     int gX = ix + MARCHING_CUBES_CORNER_OFFSETS[c][0];
                     int gY = iy + MARCHING_CUBES_CORNER_OFFSETS[c][1];
@@ -368,10 +406,9 @@ bool SDFMesher_GenerateMesh(
                     );
 
                     size_t gIdx = GridIndex(gX, gY, gZ, grid.numGridY, grid.numGridZ);
-                    cornerIndices[c] = gIdx;
-                    samples[c] = mesher->gridSamples[gIdx];
+                    cornerDistances[c] = mesher->gridDistances[gIdx];
 
-                    if (samples[c].distance < cfg.isolevel) {
+                    if (cornerDistances[c] < cfg.isolevel) {
                         cubeIndex |= (1 << c);
                     }
                 }
@@ -416,10 +453,8 @@ bool SDFMesher_GenerateMesh(
 
                         Vector3 p1 = corners[c1];
                         Vector3 p2 = corners[c2];
-                        float d1 = samples[c1].distance;
-                        float d2 = samples[c2].distance;
-                        Color col1 = samples[c1].color;
-                        Color col2 = samples[c2].color;
+                        float d1 = cornerDistances[c1];
+                        float d2 = cornerDistances[c2];
 
                         float t = 0.5f;
                         float denom = d2 - d1;
@@ -429,19 +464,32 @@ bool SDFMesher_GenerateMesh(
                         t = Math_Clamp01(t);
 
                         Vector3 pos = Vec3_Lerp(p1, p2, t);
-                        Color col = Color_Lerp(col1, col2, t);
 
-                        Vector3 grad1 = mesher->gridGradients[cornerIndices[c1]];
-                        Vector3 grad2 = mesher->gridGradients[cornerIndices[c2]];
+                        /* Muestreo de atributos completos (color) ONCE en el punto de superficie exacto */
+                        SDFSample surfaceSample = evalFn(field->context, pos);
+                        Color col = surfaceSample.color;
+                        mesher->lastStats.fullSampleEvaluationCount++;
+
+                        /* Obtención perezosa de gradientes en los extremos de la arista */
+                        int gX1 = ix + MARCHING_CUBES_CORNER_OFFSETS[c1][0];
+                        int gY1 = iy + MARCHING_CUBES_CORNER_OFFSETS[c1][1];
+                        int gZ1 = iz + MARCHING_CUBES_CORNER_OFFSETS[c1][2];
+                        Vector3 grad1 = SDFMesher_GetGridGradient(mesher, &grid, gX1, gY1, gZ1);
+
+                        int gX2 = ix + MARCHING_CUBES_CORNER_OFFSETS[c2][0];
+                        int gY2 = iy + MARCHING_CUBES_CORNER_OFFSETS[c2][1];
+                        int gZ2 = iz + MARCHING_CUBES_CORNER_OFFSETS[c2][2];
+                        Vector3 grad2 = SDFMesher_GetGridGradient(mesher, &grid, gX2, gY2, gZ2);
+
                         Vector3 interpGrad = Vec3_Lerp(grad1, grad2, t);
 
                         Vector3 norm;
                         float gradLenSq = Vec3_Dot(interpGrad, interpGrad);
-                        if (gradLenSq > 1e-12f) {
+                        if (gradLenSq > 1e-10f) {
                             norm = Vec3_Normalize(interpGrad);
                         } else {
-                            norm = SDF_EstimateNormal(field->evaluate, field->context, pos, normalEps);
-                            fieldEvalCount += 6;
+                            norm = SDF_EstimateNormal(evalFn, field->context, pos, normalEps);
+                            mesher->lastStats.normalFallbackCount++;
                         }
 
                         MeshVertex vert = {
@@ -525,7 +573,6 @@ bool SDFMesher_GenerateMesh(
     mesher->lastStats.voxelStep = grid.step;
     mesher->lastStats.cellCount = grid.cellCount;
     mesher->lastStats.gridPointCount = grid.gridPointCount;
-    mesher->lastStats.fieldEvaluationCount = fieldEvalCount;
     mesher->lastStats.generatedVertexCount = outMesh->vertexCount;
     mesher->lastStats.generatedTriangleCount = outMesh->indexCount / 3;
     mesher->lastStats.requestedVoxelSize = cfg.voxelSize;

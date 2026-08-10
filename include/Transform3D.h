@@ -15,6 +15,16 @@ extern "C" {
 #endif
 
 /**
+ * @struct RotationBasis3D
+ * @brief Matriz 3x3 representada por 3 filas para precálculo rápido de rotaciones sin trigonometría.
+ */
+typedef struct RotationBasis3D {
+    Vector3 row0;
+    Vector3 row1;
+    Vector3 row2;
+} RotationBasis3D;
+
+/**
  * @struct Transform3D
  * @brief Representa la posición, rotación en grados Euler (X, Y, Z) y escala en 3D.
  */
@@ -33,6 +43,16 @@ Transform3D Transform3D_Identity(void);
  * @brief Crea una estructura Transform3D con valores dados.
  */
 Transform3D Transform3D_Create(Vector3 position, Vector3 rotationDegrees, Vector3 scale);
+
+/**
+ * @brief Construye la base de rotación inversa 3D precalculando la matriz a partir de grados Euler.
+ */
+RotationBasis3D Transform3D_BuildInverseRotationBasis(Vector3 rotationDegrees);
+
+/**
+ * @brief Aplica una base de rotación precálculada a un vector usando productos punto (sin trigonometría).
+ */
+Vector3 Transform3D_ApplyRotationBasis(RotationBasis3D basis, Vector3 vector);
 
 /**
  * @brief Rota un vector 3D aplicando rotaciones Euler (orden X, luego Y, luego Z).

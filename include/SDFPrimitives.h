@@ -39,6 +39,15 @@ float SDF_TaperedCapsuleApprox(Vector3 point, Vector3 a, Vector3 b, float r1, fl
  */
 float SDF_Box(Vector3 point, Vector3 halfExtents);
 
+/**
+ * @brief SDF de una ranura o cápsula 2D extruida en Z (sección XY horizontal redondeada).
+ * @param point Punto a evaluar en espacio local.
+ * @param halfWidth Mitad del ancho total en X.
+ * @param halfHeight Mitad de la altura total en Y (define el radio de curvatura).
+ * @param halfDepth Mitad de la profundidad de extrusión en Z.
+ */
+float SDF_RoundedSlotExtruded(Vector3 point, float halfWidth, float halfHeight, float halfDepth);
+
 #ifdef __cplusplus
 }
 #endif

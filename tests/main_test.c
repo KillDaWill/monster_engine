@@ -3,6 +3,7 @@
 void run_color_tests(void);
 void run_vector_tests(void);
 void run_math_utils_tests(void);
+void run_transform_tests(void);
 void run_body_part_tests(void);
 void run_monster_tests(void);
 void run_ager_tests(void);
@@ -10,6 +11,7 @@ void run_sdf_tests(void);
 void run_marching_cubes_tests(void);
 void run_mesh_tests(void);
 void run_primitive_mesh_tests(void);
+void run_visual_async_tests(void);
 
 int main(void) {
     printf("======================================\n");
@@ -24,6 +26,9 @@ int main(void) {
 
     printf("\n--- Módulo MathUtils ---\n");
     run_math_utils_tests();
+
+    printf("\n--- Módulo Transform3D ---\n");
+    run_transform_tests();
 
     printf("\n--- Módulo BodyPart ---\n");
     run_body_part_tests();
@@ -45,6 +50,9 @@ int main(void) {
 
     printf("\n--- Módulo SDF Engine & Mesher ---\n");
     run_sdf_tests();
+
+    printf("\n--- Módulo MonsterVisualAsync ---\n");
+    run_visual_async_tests();
 
     printf("\n======================================\n");
     printf(" ¡TODAS LAS SUITES PASARON CON ÉXITO! \n");

@@ -85,9 +85,54 @@ static void test_ellipsoid_transform(void) {
     printf("[PASS] test_ellipsoid_transform\n");
 }
 
+static void test_bezier_tube(void) {
+    Mesh mesh = Mesh_Create();
+    Vector3 p0 = Vec3_Create(-1.0f, 0.0f, 0.0f);
+    Vector3 p1 = Vec3_Create(0.0f, 0.5f, 0.0f);
+    Vector3 p2 = Vec3_Create(1.0f, 0.0f, 0.0f);
+
+    TEST_ASSERT(PrimitiveMesh_GenerateQuadraticBezierTube(&mesh, p0, p1, p2, 0.1f, 16, 8, COLOR_WHITE), "GenerateQuadraticBezierTube falló");
+
+    TEST_ASSERT(mesh.vertexCount > 0, "vertexCount == 0");
+    TEST_ASSERT(mesh.indexCount > 0, "indexCount == 0");
+
+    MeshValidationResult res = Mesh_Validate(&mesh);
+    TEST_ASSERT(res.valid, "Malla de tubo Bézier es inválida");
+
+    for (size_t i = 0; i < mesh.vertexCount; ++i) {
+        float normLen = Vec3_Length(mesh.vertices[i].normal);
+        TEST_ASSERT(fabsf(normLen - 1.0f) < 1e-3f, "Normal de tubo Bézier no es unitaria");
+        TEST_ASSERT(isfinite(mesh.vertices[i].position.x) && isfinite(mesh.vertices[i].position.y) && isfinite(mesh.vertices[i].position.z), "Vértice pos no finito");
+    }
+
+    Mesh_Free(&mesh);
+    printf("[PASS] test_bezier_tube\n");
+}
+
+static void test_inward_ellipsoid(void) {
+    Mesh mesh = Mesh_Create();
+    Transform3D t = Transform3D_Create(Vec3_Zero(), Vec3_Zero(), Vec3_Create(1.0f, 0.5f, 0.5f));
+
+    TEST_ASSERT(PrimitiveMesh_GenerateEllipsoidEx(&mesh, t, 12, 8, COLOR_WHITE, true), "GenerateEllipsoidEx inward falló");
+
+    MeshValidationResult res = Mesh_Validate(&mesh);
+    TEST_ASSERT(res.valid, "Malla de elipsoide inward es inválida");
+
+    for (size_t i = 0; i < mesh.vertexCount; ++i) {
+        Vector3 pos = mesh.vertices[i].position;
+        Vector3 norm = mesh.vertices[i].normal;
+        TEST_ASSERT(Vec3_Dot(norm, pos) < 0.0f, "Normal inward no apunta hacia el interior");
+    }
+
+    Mesh_Free(&mesh);
+    printf("[PASS] test_inward_ellipsoid\n");
+}
+
 void run_primitive_mesh_tests(void) {
     test_uv_sphere_valid();
     test_uv_sphere_winding();
     test_uv_sphere_invalid_params();
     test_ellipsoid_transform();
+    test_bezier_tube();
+    test_inward_ellipsoid();
 }

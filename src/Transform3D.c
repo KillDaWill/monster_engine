@@ -18,6 +18,26 @@ Transform3D Transform3D_Create(Vector3 position, Vector3 rotationDegrees, Vector
     };
 }
 
+RotationBasis3D Transform3D_BuildInverseRotationBasis(Vector3 rotationDegrees) {
+    Vector3 c0 = Transform3D_InverseRotateVector(rotationDegrees, Vec3_Create(1.0f, 0.0f, 0.0f));
+    Vector3 c1 = Transform3D_InverseRotateVector(rotationDegrees, Vec3_Create(0.0f, 1.0f, 0.0f));
+    Vector3 c2 = Transform3D_InverseRotateVector(rotationDegrees, Vec3_Create(0.0f, 0.0f, 1.0f));
+
+    return (RotationBasis3D){
+        .row0 = Vec3_Create(c0.x, c1.x, c2.x),
+        .row1 = Vec3_Create(c0.y, c1.y, c2.y),
+        .row2 = Vec3_Create(c0.z, c1.z, c2.z)
+    };
+}
+
+Vector3 Transform3D_ApplyRotationBasis(RotationBasis3D basis, Vector3 v) {
+    return Vec3_Create(
+        basis.row0.x * v.x + basis.row0.y * v.y + basis.row0.z * v.z,
+        basis.row1.x * v.x + basis.row1.y * v.y + basis.row1.z * v.z,
+        basis.row2.x * v.x + basis.row2.y * v.y + basis.row2.z * v.z
+    );
+}
+
 Vector3 Transform3D_RotateVector(Vector3 rotDegrees, Vector3 v) {
     float radX = Math_DegToRad(rotDegrees.x);
     float radY = Math_DegToRad(rotDegrees.y);

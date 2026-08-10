@@ -18,7 +18,7 @@
 #include "Vector.h"
 #include "RenderInterfaces.h"
 #include "OpenGLRenderer.h"
-#include "MonsterVisual.h"
+#include "MonsterVisualAsync.h"
 
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     int windowHeight = 768;
 
     SDL_Window* window = SDL_CreateWindow(
-        "Monster Engine - Demo SDF Transición/Envejecimiento",
+        "Monster Engine - Demo SDF Transición/Envejecimiento (Asíncrono)",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         windowWidth, windowHeight,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
@@ -136,20 +136,13 @@ int main(int argc, char* argv[]) {
     adultRightEye.pupilScale = 0.45f;
     Monster_AddEye(&adultLizard, adultRightEye);
 
-    /* 5. Inicializar MonsterAger y MonsterVisual */
+    /* 5. Inicializar MonsterAger y MonsterVisualAsync */
     float ageFactor = 0.0f;
     bool autoAnimate = true;
     MonsterAger ager = MonsterAger_Create(&youngLizard, &adultLizard, ageFactor);
 
-    SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
-    mesherCfg.voxelSize = 0.13f;
-    mesherCfg.maxResolution = 128;
-    mesherCfg.maxCells = 250000;
-
-    const float SDF_REBUILD_INTERVAL = 1.0f / 15.0f;
-
-    MonsterVisual visual = MonsterVisual_Create(mesherCfg);
-    MonsterVisual_RebuildNow(&visual, MonsterAger_GetResultConst(&ager), MonsterSDF_DefaultConfig());
+    MonsterVisualAsyncConfig asyncCfg = MonsterVisualAsync_DefaultConfig();
+    MonsterVisualAsync* visual = MonsterVisualAsync_Create(asyncCfg);
 
     /* 6. Bucle de Renderizado 3D */
     bool running = true;
@@ -173,7 +166,6 @@ int main(int argc, char* argv[]) {
                         ageFactor += 0.05f;
                         if (ageFactor > 1.0f) ageFactor = 1.0f;
                         MonsterAger_SetPerc(&ager, ageFactor);
-                        MonsterVisual_MarkDirty(&visual);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_LEFT:
@@ -182,7 +174,6 @@ int main(int argc, char* argv[]) {
                         ageFactor -= 0.05f;
                         if (ageFactor < 0.0f) ageFactor = 0.0f;
                         MonsterAger_SetPerc(&ager, ageFactor);
-                        MonsterVisual_MarkDirty(&visual);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_SPACE:
@@ -206,7 +197,6 @@ int main(int argc, char* argv[]) {
             if (fabsf(newFactor - ageFactor) > 0.01f) {
                 ageFactor = newFactor;
                 MonsterAger_SetPerc(&ager, ageFactor);
-                MonsterVisual_MarkDirty(&visual);
             }
         }
 
@@ -216,19 +206,19 @@ int main(int argc, char* argv[]) {
         camera.position.z = cosf(cameraAngle) * camRadius - 6.0f;
 
         const Monster* currentMonster = MonsterAger_GetResultConst(&ager);
-        MonsterVisual_Update(&visual, currentMonster, deltaTime, SDF_REBUILD_INTERVAL, MonsterSDF_DefaultConfig());
+        MonsterVisualAsync_Update(visual, currentMonster, deltaTime);
 
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-        MonsterVisual_Render(&visual, &renderer);
+        MonsterVisualAsync_Render(visual, &renderer);
 
         renderer.endFrame(&renderer);
         SDL_GL_SwapWindow(window);
     }
 
     /* Limpieza */
-    MonsterVisual_Free(&visual);
+    MonsterVisualAsync_Free(visual);
     MonsterAger_Free(&ager);
     Monster_Free(&youngLizard);
     Monster_Free(&adultLizard);
@@ -237,5 +227,6 @@ int main(int argc, char* argv[]) {
     SDL_DestroyWindow(window);
     SDL_Quit();
 
+    printf("[INFO] Demo de envejecimiento finalizada limpiamente.\n");
     return 0;
 }

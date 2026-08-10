@@ -17,9 +17,14 @@ extern "C" {
 #endif
 
 /**
- * @brief Firma de función para evaluar un campo SDF en un punto 3D.
+ * @brief Firma de función para evaluar un campo SDF en un punto 3D (distancia, color, material).
  */
 typedef SDFSample (*SDFEvaluateFn)(const void* context, Vector3 point);
+
+/**
+ * @brief Firma de función opcional para evaluar solo la distancia signed escalar en un punto 3D.
+ */
+typedef float (*SDFDistanceFn)(const void* context, Vector3 point);
 
 /**
  * @brief Firma de función opcional para calcular o retornar los bounds de un campo SDF.
@@ -31,9 +36,10 @@ typedef AABB3D (*SDFBoundsFn)(const void* context);
  * @brief Abstracción de un campo escalar/vectorial SDF con su contexto asociado y delimitación.
  */
 typedef struct SDFField {
-    SDFEvaluateFn evaluate; /**< Puntero a función de evaluación del campo */
-    SDFBoundsFn getBounds;  /**< Puntero a función opcional de límites */
-    const void* context;    /**< Contexto o estructura de datos del campo (ej. MonsterSDF*) */
+    SDFEvaluateFn evaluate;         /**< Puntero a función de evaluación del campo completo */
+    SDFDistanceFn evaluateDistance; /**< Puntero opcional a función de sólo distancia escalar */
+    SDFBoundsFn getBounds;          /**< Puntero a función opcional de límites */
+    const void* context;            /**< Contexto o estructura de datos del campo (ej. MonsterSDF*) */
 } SDFField;
 
 /**

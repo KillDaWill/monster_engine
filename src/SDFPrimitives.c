@@ -80,3 +80,23 @@ float SDF_Box(Vector3 p, Vector3 b) {
 
     return outsideDistance + insideDistance;
 }
+
+float SDF_RoundedSlotExtruded(Vector3 p, float halfWidth, float halfHeight, float halfDepth) {
+    float hw = Math_Max(halfWidth, 0.0001f);
+    float hh = Math_Max(halfHeight, 0.0001f);
+    float hd = Math_Max(halfDepth, 0.0001f);
+
+    float radius = hh;
+    float straightHalf = Math_Max(hw - radius, 0.0f);
+
+    float qx = Math_Max(fabsf(p.x) - straightHalf, 0.0f);
+    float profileDist = sqrtf(qx * qx + p.y * p.y) - radius;
+    float depthDist = fabsf(p.z) - hd;
+
+    float maxP = Math_Max(profileDist, 0.0f);
+    float maxD = Math_Max(depthDist, 0.0f);
+    float outside = sqrtf(maxP * maxP + maxD * maxD);
+    float inside = Math_Min(Math_Max(profileDist, depthDist), 0.0f);
+
+    return outside + inside;
+}

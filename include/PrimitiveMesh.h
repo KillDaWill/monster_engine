@@ -54,6 +54,32 @@ bool PrimitiveMesh_GenerateUVSphere(Mesh* out, Vector3 center, float radius, uns
  */
 bool PrimitiveMesh_GenerateEllipsoid(Mesh* out, Transform3D transform, unsigned int segments, unsigned int rings, Color color);
 
+/**
+ * @brief Genera una malla de elipsoide 3D con opción de normales hacia el interior y bobinado invertido.
+ * @param out Malla destino.
+ * @param transform Posición, rotación y radios de la elipse.
+ * @param segments Segmentos ecuatoriales (mínimo 3).
+ * @param rings Bandas de latitud (mínimo 2).
+ * @param color Color RGBA.
+ * @param inwardFacing Si es true, las normales apuntan hacia el centro y los triángulos se orientan hacia adentro.
+ * @return true si se generó exitosamente.
+ */
+bool PrimitiveMesh_GenerateEllipsoidEx(Mesh* out, Transform3D transform, unsigned int segments, unsigned int rings, Color color, bool inwardFacing);
+
+/**
+ * @brief Genera un tubo circular 3D a lo largo de una curva Bézier cuadrática P(t) = (1-t)^2 P0 + 2(1-t)t P1 + t^2 P2.
+ * @param out Malla destino.
+ * @param p0 Punto inicial de la curva.
+ * @param p1 Punto de control de la curva.
+ * @param p2 Punto final de la curva.
+ * @param radius Radio del tubo circular.
+ * @param curveSegments Número de segmentos a lo largo de la curva (mínimo 2).
+ * @param radialSegments Número de segmentos alrededor de la sección transversal circular (mínimo 3).
+ * @param color Color RGBA.
+ * @return true si se generó exitosamente.
+ */
+bool PrimitiveMesh_GenerateQuadraticBezierTube(Mesh* out, Vector3 p0, Vector3 p1, Vector3 p2, float radius, int curveSegments, int radialSegments, Color color);
+
 #ifdef __cplusplus
 }
 #endif

@@ -174,6 +174,9 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         mDst->insideColor = Color_Lerp(m1->insideColor, m2->insideColor, perc);
         mDst->lipColor = Color_Lerp(m1->lipColor, m2->lipColor, perc);
         mDst->openFactor = m1->openFactor + perc * (m2->openFactor - m1->openFactor);
+        mDst->lipThickness = m1->lipThickness + perc * (m2->lipThickness - m1->lipThickness);
+        mDst->lipCurvature = m1->lipCurvature + perc * (m2->lipCurvature - m1->lipCurvature);
+        mDst->lipProtrusion = m1->lipProtrusion + perc * (m2->lipProtrusion - m1->lipProtrusion);
     }
 
     /* 5. Mezclar transformaciones globales */

@@ -37,36 +37,46 @@ typedef struct MonsterSDFConfig {
 
 /**
  * @struct MonsterSDFBodyPart
- * @brief Snapshot compilado de una parte del cuerpo.
+ * @brief Snapshot compilado de una parte del cuerpo con invariantes geométricas precálculadas.
  */
 typedef struct MonsterSDFBodyPart {
     Vector3 center;
     Vector3 radii;
+    Vector3 invRadii;
+    Vector3 invRadiiSquared;
+    float minRadius;
     Color color;
 } MonsterSDFBodyPart;
 
 /**
  * @struct MonsterSDFConnector
- * @brief Snapshot compilado de un conector entre partes.
+ * @brief Snapshot compilado de un conector entre partes con invariantes precálculadas.
  */
 typedef struct MonsterSDFConnector {
     Vector3 a;
     Vector3 b;
+    Vector3 ba;
+    float invBaLengthSquared;
     float r1;
     float r2;
+    float radiusDelta;
     Color color;
 } MonsterSDFConnector;
 
 /**
  * @struct MonsterSDFMouth
- * @brief Snapshot compilado de una cavidad bucal.
+ * @brief Snapshot compilado de una cavidad bucal con rotación matricial e invariantes precálculadas.
  */
 typedef struct MonsterSDFMouth {
-    Transform3D transform;
-    Vector3 radii;
+    Vector3 center;
+    RotationBasis3D inverseRotation;
+    Vector3 entranceCenterLocal;
+    Vector3 entranceHalfExtents;
+    Vector3 cavityCenterLocal;
+    Vector3 cavityRadii;
     Color insideColor;
-    Color lipColor;
-    float openFactor;
+    float entranceToCavitySmoothness;
+    AABB3D influenceBounds;
 } MonsterSDFMouth;
 
 /**
@@ -123,9 +133,19 @@ void MonsterSDF_Free(MonsterSDF* sdf);
 SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point);
 
 /**
- * @brief Wrapper de evaluación compatible con la firma SDFEvaluateFn.
+ * @brief Wrapper de evaluación completa compatible con la firma SDFEvaluateFn.
  */
 SDFSample MonsterSDF_EvaluateWrapper(const void* context, Vector3 point);
+
+/**
+ * @brief Evalúa única y exclusivamente la distancia escalar en cualquier punto 3D del espacio.
+ */
+float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point);
+
+/**
+ * @brief Wrapper de evaluación de sólo distancia escalar compatible con la firma SDFDistanceFn.
+ */
+float MonsterSDF_EvaluateDistanceWrapper(const void* context, Vector3 point);
 
 /**
  * @brief Retorna el Bounding Box (AABB3D) compilado.

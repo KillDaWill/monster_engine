@@ -4,8 +4,8 @@
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests
-LIBS = -lm
-GL_LIBS = -lSDL2 -lGL -lGLU -lm
+LIBS = -lm -pthread
+GL_LIBS = -lSDL2 -lGL -lGLU -lm -pthread
 
 # Directorios
 SRC_DIR = src
@@ -31,6 +31,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/MarchingCubes.c \
             $(SRC_DIR)/SDFMesher.c \
             $(SRC_DIR)/MonsterVisual.c \
+            $(SRC_DIR)/MonsterVisualAsync.c \
             $(SRC_DIR)/BodyPart.c \
             $(SRC_DIR)/Eye.c \
             $(SRC_DIR)/Mouth.c \
@@ -49,13 +50,15 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_color.c \
             $(TEST_DIR)/test_vector.c \
             $(TEST_DIR)/test_math_utils.c \
+            $(TEST_DIR)/test_transform.c \
             $(TEST_DIR)/test_body_part.c \
             $(TEST_DIR)/test_monster.c \
             $(TEST_DIR)/test_ager.c \
             $(TEST_DIR)/test_sdf.c \
             $(TEST_DIR)/test_marching_cubes.c \
             $(TEST_DIR)/test_mesh.c \
-            $(TEST_DIR)/test_primitive_mesh.c
+            $(TEST_DIR)/test_primitive_mesh.c \
+            $(TEST_DIR)/test_visual_async.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 

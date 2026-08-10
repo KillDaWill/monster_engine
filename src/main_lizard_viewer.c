@@ -16,7 +16,7 @@
 #include "Vector.h"
 #include "RenderInterfaces.h"
 #include "OpenGLRenderer.h"
-#include "MonsterVisual.h"
+#include "MonsterVisualAsync.h"
 
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
     int windowHeight = 768;
 
     SDL_Window* window = SDL_CreateWindow(
-        "Monster Engine - Lagarto SDF 3D (OpenGL)",
+        "Monster Engine - Lagarto SDF 3D (OpenGL Asíncrono)",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         windowWidth, windowHeight,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN
@@ -120,13 +120,9 @@ int main(int argc, char* argv[]) {
     rightEye.pupilScale = 0.45f;
     Monster_AddEye(&lizard, rightEye);
 
-    /* 5. Configurar el Orquestador Visual SDF */
-    SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
-    mesherCfg.voxelSize = 0.13f;
-    mesherCfg.maxResolution = 128;
-
-    MonsterVisual visual = MonsterVisual_Create(mesherCfg);
-    MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig());
+    /* 5. Configurar el Orquestador Visual SDF Asíncrono */
+    MonsterVisualAsyncConfig asyncCfg = MonsterVisualAsync_DefaultConfig();
+    MonsterVisualAsync* visual = MonsterVisualAsync_Create(asyncCfg);
 
     /* 6. Bucle Principal */
     bool running = true;
@@ -134,7 +130,7 @@ int main(int argc, char* argv[]) {
     Uint32 lastTime = SDL_GetTicks();
     float rotationAngle = 0.0f;
 
-    printf("[INFO] Ventana renderizada correctamente con malla SDF. Rotando cámara...\n");
+    printf("[INFO] Ventana renderizada correctamente con malla SDF asíncrona. Rotando cámara...\n");
 
     while (running) {
         Uint32 currentTime = SDL_GetTicks();
@@ -160,19 +156,19 @@ int main(int argc, char* argv[]) {
 
         Monster_Update(&lizard, deltaTime);
         Monster_RenderUpdate(&lizard, deltaTime, 1.0);
-        MonsterVisual_Update(&visual, &lizard, deltaTime, 0.0f, MonsterSDF_DefaultConfig());
+        MonsterVisualAsync_Update(visual, &lizard, deltaTime);
 
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-        MonsterVisual_Render(&visual, &renderer);
+        MonsterVisualAsync_Render(visual, &renderer);
 
         renderer.endFrame(&renderer);
         SDL_GL_SwapWindow(window);
     }
 
     /* 7. Limpieza */
-    MonsterVisual_Free(&visual);
+    MonsterVisualAsync_Free(visual);
     Monster_Free(&lizard);
     OpenGLRenderer_Destroy(&renderer);
     SDL_GL_DeleteContext(glContext);

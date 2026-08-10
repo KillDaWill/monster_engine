@@ -46,7 +46,11 @@ typedef struct SDFMesherStats {
     Vector3 voxelStep;           /**< Tamaño real del vóxel en cada eje */
     size_t cellCount;            /**< Cantidad total de celdas en la rejilla */
     size_t gridPointCount;       /**< Cantidad total de puntos muestreados en la rejilla */
-    size_t fieldEvaluationCount; /**< Cantidad de evaluaciones directas a field->evaluate */
+    size_t fieldEvaluationCount;       /**< Total de evaluaciones de campo (compatibilidad) */
+    size_t distanceEvaluationCount;   /**< Evaluaciones de sólo distancia escalar */
+    size_t fullSampleEvaluationCount; /**< Evaluaciones completas de color/atributos en vértices */
+    size_t gradientEvaluationCount;   /**< Gradientes calculados perezosamente */
+    size_t normalFallbackCount;       /**< Casos con gradiente nulo que usaron SDF_EstimateNormal */
     size_t generatedVertexCount; /**< Cantidad de vértices añadidos a la malla */
     size_t generatedTriangleCount; /**< Cantidad de triángulos añadidos a la malla */
     float requestedVoxelSize;    /**< Tamaño de vóxel solicitado originalmente */
@@ -61,11 +65,15 @@ typedef struct SDFMesherStats {
 typedef struct SDFMesher {
     SDFMesherConfig config;      /**< Configuración activa del mesher */
 
-    SDFSample* gridSamples;      /**< Buffer reutilizable de muestras de distancia/color */
-    size_t gridSampleCapacity;   /**< Capacidad reservada de gridSamples */
+    float* gridDistances;        /**< Buffer reutilizable de distancias escalares en rejilla */
+    size_t gridDistanceCapacity; /**< Capacidad reservada de gridDistances */
 
     Vector3* gridGradients;      /**< Buffer reutilizable de gradientes precortados */
     size_t gridGradientCapacity; /**< Capacidad reservada de gridGradients */
+
+    uint32_t* gradientStamp;          /**< Marcas de generación para cálculo perezoso de gradiente */
+    size_t gradientStampCapacity;    /**< Capacidad reservada de gradientStamp */
+    uint32_t currentGradientGeneration; /**< Identificador de generación actual */
 
     MeshIndex* xEdges;           /**< Caché reutilizable de vértices en aristas X */
     size_t xEdgeCapacity;        /**< Capacidad reservada de xEdges */

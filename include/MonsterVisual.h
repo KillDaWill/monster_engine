@@ -30,8 +30,18 @@ typedef struct MonsterVisualEye {
 } MonsterVisualEye;
 
 /**
+ * @struct MonsterVisualMouth
+ * @brief Trío de mallas primitivas (labio superior, labio inferior y cavidad profunda) para una boca.
+ */
+typedef struct MonsterVisualMouth {
+    Mesh upperLip;   /**< Tubo Bézier del labio superior */
+    Mesh lowerLip;   /**< Tubo Bézier del labio inferior */
+    Mesh innerCavity;/**< Cavidad interna elipsoidal con normales inward */
+} MonsterVisualMouth;
+
+/**
  * @struct MonsterVisual
- * @brief Estructura que gestiona el ciclo de vida del buffer de malla SDF y ojos para un monstruo.
+ * @brief Estructura que gestiona el ciclo de vida del buffer de malla SDF, ojos y bocas para un monstruo.
  */
 typedef struct MonsterVisual {
     MonsterSDF sdf;         /**< Snapshot SDF activo de la geometría */
@@ -42,8 +52,12 @@ typedef struct MonsterVisual {
     MonsterVisualEye* eyes; /**< Arreglo dinámico de mallas de ojos */
     size_t eyeCount;        /**< Cantidad actual de ojos */
     size_t eyeCapacity;     /**< Capacidad reservada de ojos */
-    uint64_t geometryFingerprint; /**< FNV-1a-64 de la geometría que invalida la reconstrucción */
-    uint64_t rebuildGeneration;   /**< Contador incremental de reconstrucciones exitosas */
+    MonsterVisualMouth* mouths; /**< Arreglo dinámico de mallas de bocas */
+    size_t mouthCount;          /**< Cantidad actual de bocas */
+    size_t mouthCapacity;       /**< Capacidad reservada de bocas */
+    uint64_t geometryFingerprint;    /**< FNV-1a-64 de la geometría del cuerpo */
+    uint64_t mouthVisualFingerprint; /**< FNV-1a-64 de la representación visual de boca */
+    uint64_t rebuildGeneration;   /**< Contador incremental de reconstrucciones del cuerpo */
     bool hasFingerprint; /**< true si geometryFingerprint ya fue calculado */
     bool isDirty;       /**< Flag que marca si la malla requiere reconstrucción */
     float updateTimer;  /**< Acumulativo de tiempo para reconstrucción periódica */
@@ -119,7 +133,27 @@ const Mesh* MonsterVisual_GetEyeSclera(const MonsterVisual* visual, size_t index
 const Mesh* MonsterVisual_GetEyePupil(const MonsterVisual* visual, size_t index);
 
 /**
- * @brief Envía la malla del cuerpo y todas las mallas de ojos al renderizador agnóstico.
+ * @brief Retorna la cantidad de bocas sintetizadas.
+ */
+size_t MonsterVisual_GetMouthCount(const MonsterVisual* visual);
+
+/**
+ * @brief Retorna la malla del labio superior de la boca en el índice dado (NULL si no existe).
+ */
+const Mesh* MonsterVisual_GetUpperLip(const MonsterVisual* visual, size_t index);
+
+/**
+ * @brief Retorna la malla del labio inferior de la boca en el índice dado (NULL si no existe).
+ */
+const Mesh* MonsterVisual_GetLowerLip(const MonsterVisual* visual, size_t index);
+
+/**
+ * @brief Retorna la malla de la cavidad interna de la boca en el índice dado (NULL si no existe).
+ */
+const Mesh* MonsterVisual_GetInnerCavity(const MonsterVisual* visual, size_t index);
+
+/**
+ * @brief Envía la malla del cuerpo y todas las mallas de ojos y labios/cavidad al renderizador agnóstico.
  * @return true si se envió al menos la malla del cuerpo correctamente.
  */
 bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer);

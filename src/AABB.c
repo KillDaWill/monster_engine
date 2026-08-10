@@ -56,3 +56,9 @@ Vector3 AABB_Size(AABB3D bounds) {
     s.z = Math_Max(s.z, 0.0f);
     return s;
 }
+
+bool AABB_ContainsPoint(AABB3D bounds, Vector3 point) {
+    return (point.x >= bounds.start.x && point.x <= bounds.end.x &&
+            point.y >= bounds.start.y && point.y <= bounds.end.y &&
+            point.z >= bounds.start.z && point.z <= bounds.end.z);
+}

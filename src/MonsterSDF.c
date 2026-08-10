@@ -87,11 +87,19 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
     for (size_t i = 0; i < monster->bodyPartCount; ++i) {
         const BodyPart* part = &monster->bodyParts[i];
         sdf->bodyParts[i].center = part->positionRender;
-        sdf->bodyParts[i].radii = Vec3_Create(
-            part->widthRender * 0.5f,
-            part->heightRender * 0.5f,
-            part->lengthRender * 0.5f
+
+        float rx = Math_Max(part->widthRender * 0.5f, 0.0001f);
+        float ry = Math_Max(part->heightRender * 0.5f, 0.0001f);
+        float rz = Math_Max(part->lengthRender * 0.5f, 0.0001f);
+
+        sdf->bodyParts[i].radii = Vec3_Create(rx, ry, rz);
+        sdf->bodyParts[i].invRadii = Vec3_Create(1.0f / rx, 1.0f / ry, 1.0f / rz);
+        sdf->bodyParts[i].invRadiiSquared = Vec3_Create(
+            sdf->bodyParts[i].invRadii.x * sdf->bodyParts[i].invRadii.x,
+            sdf->bodyParts[i].invRadii.y * sdf->bodyParts[i].invRadii.y,
+            sdf->bodyParts[i].invRadii.z * sdf->bodyParts[i].invRadii.z
         );
+        sdf->bodyParts[i].minRadius = Math_Min(rx, Math_Min(ry, rz));
         sdf->bodyParts[i].color = Monster_GetColorFromIndexStruct(monster, part->color);
 
         AABB_ExpandRadius(&sdf->bounds, sdf->bodyParts[i].center, sdf->bodyParts[i].radii);
@@ -115,8 +123,13 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
 
             sdf->connectors[i].a = p1->positionRender;
             sdf->connectors[i].b = p2->positionRender;
+            sdf->connectors[i].ba = Vec3_Sub(p2->positionRender, p1->positionRender);
+
+            float baLenSq = Vec3_Dot(sdf->connectors[i].ba, sdf->connectors[i].ba);
+            sdf->connectors[i].invBaLengthSquared = (baLenSq > 1e-8f) ? (1.0f / baLenSq) : 0.0f;
             sdf->connectors[i].r1 = r1;
             sdf->connectors[i].r2 = r2;
+            sdf->connectors[i].radiusDelta = r2 - r1;
 
             Color c1 = Monster_GetColorFromIndexStruct(monster, p1->color);
             Color c2 = Monster_GetColorFromIndexStruct(monster, p2->color);
@@ -144,28 +157,103 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             }
 
             Vector3 mouthWorldPos = Vec3_Add(partPos, mouth->offset);
-            sdf->mouths[m].transform = Transform3D_Create(mouthWorldPos, mouth->rotation, Vec3_Create(1.0f, 1.0f, 1.0f));
+            sdf->mouths[m].center = mouthWorldPos;
+            sdf->mouths[m].inverseRotation = Transform3D_BuildInverseRotationBasis(mouth->rotation);
 
-            float openF = Math_Clamp01(mouth->openFactor);
-            sdf->mouths[m].radii = Vec3_Create(
-                mouth->scale.x * 0.5f,
-                mouth->scale.y * 0.5f * (0.15f + 0.85f * openF),
-                mouth->scale.z * (0.30f + 0.70f * openF)
+            float width = Math_Max(mouth->scale.x, 0.0001f);
+            float maxOpening = Math_Max(mouth->scale.y, 0.0001f);
+            float depth = Math_Max(mouth->scale.z, 0.0001f);
+
+            float halfWidth = width * 0.5f;
+            float halfHeight = maxOpening * 0.5f;
+            float halfDepth = depth * 0.35f;
+
+            sdf->mouths[m].entranceCenterLocal = Vec3_Create(0.0f, 0.0f, -depth * 0.10f);
+            sdf->mouths[m].entranceHalfExtents = Vec3_Create(halfWidth, halfHeight, halfDepth);
+
+            sdf->mouths[m].cavityCenterLocal = Vec3_Create(0.0f, 0.0f, -depth * 0.55f);
+            sdf->mouths[m].cavityRadii = Vec3_Create(
+                width * 0.45f,
+                Math_Max(maxOpening * 0.70f, width * 0.20f),
+                depth * 0.65f
             );
 
             sdf->mouths[m].insideColor = mouth->insideColor;
-            sdf->mouths[m].lipColor = mouth->lipColor;
-            sdf->mouths[m].openFactor = openF;
+            sdf->mouths[m].entranceToCavitySmoothness = Math_Min(maxOpening, depth) * 0.15f;
 
-            /* Nota: Las bocas son cavidades sustractivas y NO expanden los límites exteriores del monstruo */
+            /* AABB conservador para descarte de boca */
+            RotationBasis3D invRot = sdf->mouths[m].inverseRotation;
+            float rx = width * 0.8f;
+            float ry = maxOpening * 0.8f;
+            float rz = depth * 1.2f;
+
+            float extX = fabsf(invRot.row0.x) * rx + fabsf(invRot.row1.x) * ry + fabsf(invRot.row2.x) * rz;
+            float extY = fabsf(invRot.row0.y) * rx + fabsf(invRot.row1.y) * ry + fabsf(invRot.row2.y) * rz;
+            float extZ = fabsf(invRot.row0.z) * rx + fabsf(invRot.row1.z) * ry + fabsf(invRot.row2.z) * rz;
+
+            float mouthPad = 0.10f;
+            extX += mouthPad;
+            extY += mouthPad;
+            extZ += mouthPad;
+
+            sdf->mouths[m].influenceBounds = (AABB3D){
+                .start = Vec3_Sub(mouthWorldPos, Vec3_Create(extX, extY, extZ)),
+                .end   = Vec3_Add(mouthWorldPos, Vec3_Create(extX, extY, extZ))
+            };
         }
     }
 
-    /* Padding de los bounds */
+    /* Padding de los bounds globales */
     float pad = config.boundsPadding + config.bodySmoothness;
     AABB_Pad(&sdf->bounds, pad);
 
     return true;
+}
+
+static inline float MonsterSDF_EvalBodyPartDistance(const MonsterSDFBodyPart* part, Vector3 point) {
+    Vector3 pLocal = Vec3_Sub(point, part->center);
+    Vector3 scaledP = Vec3_Create(pLocal.x * part->invRadii.x, pLocal.y * part->invRadii.y, pLocal.z * part->invRadii.z);
+    float k0 = Vec3_Length(scaledP);
+
+    Vector3 scaledP2 = Vec3_Create(pLocal.x * part->invRadiiSquared.x, pLocal.y * part->invRadiiSquared.y, pLocal.z * part->invRadiiSquared.z);
+    float k1 = Vec3_Length(scaledP2);
+
+    if (k0 < 1e-6f || k1 < 1e-6f) {
+        return -part->minRadius;
+    }
+    return k0 * (k0 - 1.0f) / k1;
+}
+
+static inline float MonsterSDF_EvalConnectorDistance(const MonsterSDFConnector* conn, Vector3 point) {
+    Vector3 pa = Vec3_Sub(point, conn->a);
+    if (conn->invBaLengthSquared <= 0.0f) {
+        return Vec3_Length(pa) - conn->r1;
+    }
+
+    float h = Math_Clamp01(Vec3_Dot(pa, conn->ba) * conn->invBaLengthSquared);
+    float radius = conn->r1 + conn->radiusDelta * h;
+    Vector3 projection = Vec3_Sub(pa, Vec3_Scale(conn->ba, h));
+    return Vec3_Length(projection) - radius;
+}
+
+static inline float MonsterSDF_EvalMouthDistance(const MonsterSDFMouth* mouth, Vector3 point, Vector3* outLocalP) {
+    Vector3 translated = Vec3_Sub(point, mouth->center);
+    Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, translated);
+
+    if (outLocalP) *outLocalP = localP;
+
+    Vector3 pEntrance = Vec3_Sub(localP, mouth->entranceCenterLocal);
+    float entranceDist = SDF_RoundedSlotExtruded(
+        pEntrance,
+        mouth->entranceHalfExtents.x,
+        mouth->entranceHalfExtents.y,
+        mouth->entranceHalfExtents.z
+    );
+
+    Vector3 pCavity = Vec3_Sub(localP, mouth->cavityCenterLocal);
+    float cavityDist = SDF_Ellipsoid(pCavity, mouth->cavityRadii);
+
+    return SDF_SmoothUnion(entranceDist, cavityDist, mouth->entranceToCavitySmoothness);
 }
 
 SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
@@ -179,12 +267,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
     /* 1. Evaluar elipsoides para cada BodyPart */
     for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
         const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
-        if (part->radii.x < 0.0001f || part->radii.y < 0.0001f || part->radii.z < 0.0001f) {
-            continue;
-        }
-
-        Vector3 pLocal = Vec3_Sub(point, part->center);
-        float dist = SDF_Ellipsoid(pLocal, part->radii);
+        float dist = MonsterSDF_EvalBodyPartDistance(part, point);
         SDFSample partSample = SDFSample_Create(dist, part->color, SDF_MATERIAL_SKIN);
 
         if (!hasInitialSample) {
@@ -198,9 +281,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
     /* 2. Evaluar conectores cónicos entre partes */
     for (size_t i = 0; i < sdf->connectorCount; ++i) {
         const MonsterSDFConnector* conn = &sdf->connectors[i];
-        if (conn->r1 < 0.0001f && conn->r2 < 0.0001f) continue;
-
-        float dist = SDF_TaperedCapsuleApprox(point, conn->a, conn->b, conn->r1, conn->r2);
+        float dist = MonsterSDF_EvalConnectorDistance(conn, point);
         SDFSample connSample = SDFSample_Create(dist, conn->color, SDF_MATERIAL_SKIN);
 
         if (!hasInitialSample) {
@@ -211,32 +292,59 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
         }
     }
 
-    /* 3. Evaluar cavidades bucales mediante sustracción suave */
+    /* 3. Evaluar cavidades bucales mediante sustracción limpia */
     for (size_t m = 0; m < sdf->mouthCount; ++m) {
         const MonsterSDFMouth* mouth = &sdf->mouths[m];
-        if (mouth->radii.x < 0.0001f || mouth->radii.y < 0.0001f || mouth->radii.z < 0.0001f) {
+        if (!AABB_ContainsPoint(mouth->influenceBounds, point)) {
             continue;
         }
 
-        Vector3 localP = Transform3D_WorldToLocalPoint(mouth->transform, point);
-        float cutterDist = SDF_Ellipsoid(localP, mouth->radii);
+        Vector3 localP;
+        float cutterDist = MonsterSDF_EvalMouthDistance(mouth, point, &localP);
 
-        float normX = localP.x / Math_Max(mouth->radii.x, 0.0001f);
-        float normY = localP.y / Math_Max(mouth->radii.y, 0.0001f);
-        float radial = sqrtf(normX * normX + normY * normY);
+        SDFSample cutterSample = SDFSample_Create(cutterDist, mouth->insideColor, SDF_MATERIAL_MOUTH);
+        accumulated = SDFSample_Subtract(accumulated, cutterSample, 0.01f);
+    }
 
-        Color mouthColor;
-        SDFMaterial mat;
-        if (radial >= 0.75f && mouth->lipColor.a > 0) {
-            mouthColor = mouth->lipColor;
-            mat = SDF_MATERIAL_LIP;
+    return accumulated;
+}
+
+float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point) {
+    if (!sdf || sdf->bodyPartCount == 0) {
+        return 1e6f;
+    }
+
+    float accumulated = 1e6f;
+    bool hasInitial = false;
+
+    for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
+        float dist = MonsterSDF_EvalBodyPartDistance(&sdf->bodyParts[i], point);
+        if (!hasInitial) {
+            accumulated = dist;
+            hasInitial = true;
         } else {
-            mouthColor = mouth->insideColor;
-            mat = SDF_MATERIAL_MOUTH;
+            accumulated = SDF_SmoothUnion(accumulated, dist, sdf->config.bodySmoothness);
+        }
+    }
+
+    for (size_t i = 0; i < sdf->connectorCount; ++i) {
+        float dist = MonsterSDF_EvalConnectorDistance(&sdf->connectors[i], point);
+        if (!hasInitial) {
+            accumulated = dist;
+            hasInitial = true;
+        } else {
+            accumulated = SDF_SmoothUnion(accumulated, dist, sdf->config.connectionSmoothness);
+        }
+    }
+
+    for (size_t m = 0; m < sdf->mouthCount; ++m) {
+        const MonsterSDFMouth* mouth = &sdf->mouths[m];
+        if (!AABB_ContainsPoint(mouth->influenceBounds, point)) {
+            continue;
         }
 
-        SDFSample cutterSample = SDFSample_Create(cutterDist, mouthColor, mat);
-        accumulated = SDFSample_Subtract(accumulated, cutterSample, sdf->config.mouthSmoothness);
+        float cutterDist = MonsterSDF_EvalMouthDistance(mouth, point, NULL);
+        accumulated = SDF_SmoothSubtract(accumulated, cutterDist, 0.01f);
     }
 
     return accumulated;
@@ -244,6 +352,10 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
 
 SDFSample MonsterSDF_EvaluateWrapper(const void* context, Vector3 point) {
     return MonsterSDF_Evaluate((const MonsterSDF*)context, point);
+}
+
+float MonsterSDF_EvaluateDistanceWrapper(const void* context, Vector3 point) {
+    return MonsterSDF_EvaluateDistance((const MonsterSDF*)context, point);
 }
 
 AABB3D MonsterSDF_GetBounds(const MonsterSDF* sdf) {
@@ -258,6 +370,7 @@ AABB3D MonsterSDF_GetBoundsWrapper(const void* context) {
 SDFField MonsterSDF_GetField(const MonsterSDF* sdf) {
     return (SDFField){
         .evaluate = MonsterSDF_EvaluateWrapper,
+        .evaluateDistance = MonsterSDF_EvaluateDistanceWrapper,
         .getBounds = MonsterSDF_GetBoundsWrapper,
         .context = (const void*)sdf
     };
