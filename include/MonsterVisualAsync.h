@@ -13,6 +13,7 @@
 #include "MonsterSDF.h"
 #include "SDFMesher.h"
 #include "Mesh.h"
+#include "MonsterVisual.h"
 #include "RenderInterfaces.h"
 #include <pthread.h>
 #include <stdbool.h>
@@ -74,6 +75,9 @@ typedef struct MonsterVisualAsync {
     size_t displayEyeCapacity;
     uint64_t displayGeneration;
     uint64_t displayFingerprint;
+    MonsterVisualMouth* displayMouths;
+    size_t displayMouthCount;
+    size_t displayMouthCapacity;
 
     /* Sincronización y worker thread */
     pthread_t workerThread;
@@ -97,6 +101,9 @@ typedef struct MonsterVisualAsync {
     uint64_t readyGeneration;
     uint64_t readyFingerprint;
     MonsterVisualQualityTier readyTier;
+    MonsterVisualMouth* readyMouths;
+    size_t readyMouthCount;
+    size_t readyMouthCapacity;
 
     /* Control de temporización de movimiento para cambio de tier */
     uint64_t lastObservedFingerprint;
@@ -153,7 +160,21 @@ const Mesh* MonsterVisualAsync_GetDisplayEyeSclera(const MonsterVisualAsync* asy
 const Mesh* MonsterVisualAsync_GetDisplayEyePupil(const MonsterVisualAsync* asyncMgr, size_t index);
 
 /**
- * @brief Renderiza todas las mallas visibles (cuerpo u ojos) utilizando la VTable de Renderer3D.
+ * @brief Obtiene el número de bocas activas en la malla mostrada.
+ */
+size_t MonsterVisualAsync_GetDisplayMouthCount(const MonsterVisualAsync* asyncMgr);
+
+/**
+ * @brief Obtiene mandíbula (0) o bisagra (1) de la boca indicada.
+ */
+const Mesh* MonsterVisualAsync_GetDisplayMouthMesh(
+    const MonsterVisualAsync* asyncMgr,
+    size_t mouthIndex,
+    size_t meshIndex
+);
+
+/**
+ * @brief Renderiza todas las mallas visibles (cuerpo, bocas y ojos) utilizando la VTable de Renderer3D.
  */
 bool MonsterVisualAsync_Render(const MonsterVisualAsync* asyncMgr, Renderer3D* renderer);
 

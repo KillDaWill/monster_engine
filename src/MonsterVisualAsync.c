@@ -61,6 +61,8 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
     hash = HashFloat(sdfConfig.boundsPadding, hash);
 
     if (!monster) return hash;
+    hash = HashBool(monster->hasHead,hash);
+    if(monster->hasHead) hash=Fnv1a64Bytes(&monster->head.phenotype,sizeof(monster->head.phenotype),hash);
 
     /* Partes del cuerpo */
     hash = HashSizeT(monster->bodyPartCount, hash);
@@ -78,12 +80,27 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
     for (size_t i = 0; i < monster->mouthCount; ++i) {
         const Mouth* mouth = &monster->mouths[i];
         hash = HashSizeT(mouth->bodyPartIndex, hash);
+        hash = HashSizeT((size_t)mouth->shape,hash);
         hash = HashVector3(mouth->offset, hash);
         hash = HashVector3(mouth->rotation, hash);
         hash = HashVector3(mouth->scale, hash);
-        hash = HashFloat(mouth->openFactor, hash);
+        hash = HashFloat(mouth->slitThickness, hash);
+        hash = HashFloat(mouth->slitSoftness, hash);
+        hash = HashFloat(mouth->cornerRadius, hash);
+        hash = HashVector3(mouth->jawPivot, hash);
+        hash = HashFloat(mouth->jawLength, hash);
+        hash = HashFloat(mouth->jawWidth, hash);
+        hash = HashFloat(mouth->jawThickness, hash);
+        hash = HashFloat(mouth->jawRearMass, hash);
+        hash = HashFloat(mouth->jawMuscle, hash);
+        hash = HashFloat(mouth->maxJawAngle, hash);
+        hash = HashFloat(mouth->hingeRadius, hash);
+        hash = HashFloat(mouth->throatRadius, hash);
+        hash = HashVector3(mouth->cranium, hash);
+        hash = HashVector3(mouth->snout, hash);
+        hash = HashVector3(mouth->cheeks, hash);
+        hash = HashVector3(mouth->brows, hash);
         hash = HashColor(mouth->insideColor, hash);
-        hash = HashColor(mouth->lipColor, hash);
     }
 
     /* Ojos */
@@ -113,11 +130,11 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     memset(&cfg, 0, sizeof(MonsterVisualAsyncConfig));
 
     cfg.interactiveMesherConfig = SDFMesher_DefaultConfig();
-    cfg.interactiveMesherConfig.voxelSize = 0.22f;
-    cfg.interactiveMesherConfig.maxCells = 100000;
+    cfg.interactiveMesherConfig.voxelSize = 0.12f;
+    cfg.interactiveMesherConfig.maxCells = 250000;
 
     cfg.settledMesherConfig = SDFMesher_DefaultConfig();
-    cfg.settledMesherConfig.voxelSize = 0.13f;
+    cfg.settledMesherConfig.voxelSize = 0.08f;
     cfg.settledMesherConfig.maxCells = 500000;
 
     cfg.sdfConfig = MonsterSDF_DefaultConfig();
@@ -132,6 +149,14 @@ static void FreeEyeArray(MonsterVisualEyeAsync* eyes, size_t count) {
         Mesh_Free(&eyes[i].pupil);
     }
     free(eyes);
+}
+
+static void FreeMouthArray(MonsterVisualMouth* mouths, size_t count) {
+    if (!mouths) return;
+    for (size_t i = 0; i < count; ++i) {
+        MonsterVisualMouth_Free(&mouths[i]);
+    }
+    free(mouths);
 }
 
 static void* WorkerThreadRoutine(void* arg) {
@@ -206,15 +231,17 @@ static void* WorkerThreadRoutine(void* arg) {
 
                     Vector3 eyePos = Vec3_Add(partPos, eye->offset);
                     Vector3 eyeRadii = Vec3_Scale(eye->scale, 0.5f);
-
                     Transform3D scleraTrans = Transform3D_Create(eyePos, eye->rotation, eyeRadii);
                     Vector3 pupilForward = Transform3D_RotateVector(eye->rotation, Vec3_Create(0.0f, 0.0f, 1.0f));
-                    float zOffset = eyeRadii.z * 0.90f;
-                    Vector3 pupilCenter = Vec3_Add(eyePos, Vec3_Scale(pupilForward, zOffset));
 
                     float pupilRadius = Math_Min(eyeRadii.x, eyeRadii.y) * Math_Clamp01(eye->pupilScale) * 0.5f;
                     pupilRadius = Math_Max(pupilRadius, 0.01f);
-                    Transform3D pupilTrans = Transform3D_Create(pupilCenter, eye->rotation, Vec3_Create(pupilRadius, pupilRadius, pupilRadius * 0.2f));
+                    Vector3 pupilScaleVec = Vec3_Create(pupilRadius, pupilRadius, pupilRadius * 0.2f);
+                    float halfDepth = pupilScaleVec.z;
+                    /* pupila a caballo del plano frontal de la esclerótica: centro retranqueado media profundidad escalada */
+                    float zOffset = eyeRadii.z - halfDepth * 0.5f;
+                    Vector3 pupilCenter = Vec3_Add(eyePos, Vec3_Scale(pupilForward, zOffset));
+                    Transform3D pupilTrans = Transform3D_Create(pupilCenter, eye->rotation, pupilScaleVec);
 
                     if (!PrimitiveMesh_GenerateEllipsoid(&workEyes[i].sclera, scleraTrans, 16, 12, eye->scleraColor) ||
                         !PrimitiveMesh_GenerateEllipsoid(&workEyes[i].pupil, pupilTrans, 12, 8, eye->pupilColor)) {
@@ -227,6 +254,24 @@ static void* WorkerThreadRoutine(void* arg) {
             }
         }
 
+        MonsterVisualMouth* workMouths = NULL;
+        size_t workMouthCount = workMonster.mouthCount;
+        bool mouthOk = true;
+
+        if (meshOk && workMouthCount > 0) {
+            workMouths = (MonsterVisualMouth*)calloc(workMouthCount, sizeof(MonsterVisualMouth));
+            if (!workMouths) {
+                mouthOk = false;
+            } else {
+                for (size_t i = 0; i < workMouthCount; ++i) {
+                    if (!MonsterVisual_BuildMouthMeshesFromSDF(&workMouths[i], &workMonster.mouths[i], &workMonster, &workerSdf, i)) {
+                        mouthOk = false;
+                        break;
+                    }
+                }
+            }
+        }
+
         Monster_Free(&workMonster);
         double tEnd = GetTimeMs();
         float durationMs = (float)(tEnd - tStart);
@@ -234,7 +279,7 @@ static void* WorkerThreadRoutine(void* arg) {
         /* --- DEPOSITAR RESULTADO EN READY BUFFER DENTRO DEL MUTEX --- */
         pthread_mutex_lock(&asyncMgr->lock);
 
-        if (buildOk && meshOk && eyeOk && !asyncMgr->shouldQuit) {
+        if (buildOk && meshOk && eyeOk && mouthOk && !asyncMgr->shouldQuit) {
             /* Liberar readyEyes anterior */
             FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
 
@@ -249,6 +294,10 @@ static void* WorkerThreadRoutine(void* arg) {
             asyncMgr->readyGeneration++;
             asyncMgr->readyFingerprint = workFingerprint;
             asyncMgr->readyTier = workTier;
+            FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
+            asyncMgr->readyMouths = workMouths;
+            asyncMgr->readyMouthCount = workMouthCount;
+            asyncMgr->readyMouthCapacity = workMouthCount;
             asyncMgr->hasReadyMesh = true;
 
             asyncMgr->stats.completedBuildCount++;
@@ -256,6 +305,7 @@ static void* WorkerThreadRoutine(void* arg) {
             asyncMgr->stats.activeQualityTier = workTier;
         } else {
             if (workEyes) FreeEyeArray(workEyes, workEyeCount);
+            if (workMouths) FreeMouthArray(workMouths, workMouthCount);
         }
 
         asyncMgr->stats.isWorkerBusy = false;
@@ -310,9 +360,11 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
 
     Mesh_Free(&asyncMgr->displayMesh);
     FreeEyeArray(asyncMgr->displayEyes, asyncMgr->displayEyeCount);
+    FreeMouthArray(asyncMgr->displayMouths, asyncMgr->displayMouthCount);
 
     Mesh_Free(&asyncMgr->readyMesh);
     FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
+    FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
@@ -358,6 +410,14 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         asyncMgr->readyEyeCount = 0;
         asyncMgr->readyEyeCapacity = 0;
 
+        FreeMouthArray(asyncMgr->displayMouths, asyncMgr->displayMouthCount);
+        asyncMgr->displayMouths = asyncMgr->readyMouths;
+        asyncMgr->displayMouthCount = asyncMgr->readyMouthCount;
+        asyncMgr->displayMouthCapacity = asyncMgr->readyMouthCapacity;
+        asyncMgr->readyMouths = NULL;
+        asyncMgr->readyMouthCount = 0;
+        asyncMgr->readyMouthCapacity = 0;
+
         asyncMgr->displayGeneration = asyncMgr->readyGeneration;
         asyncMgr->displayFingerprint = asyncMgr->readyFingerprint;
         asyncMgr->hasReadyMesh = false;
@@ -383,7 +443,15 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         pthread_cond_signal(&asyncMgr->cond);
     }
 
+    bool allowLiveArticulation = isDisplayMatch;
+
     pthread_mutex_unlock(&asyncMgr->lock);
+
+    if (allowLiveArticulation) {
+        for (size_t i = 0; i < asyncMgr->displayMouthCount && i < monster->mouthCount; ++i) {
+            MonsterVisual_UpdateMouthArticulation(&asyncMgr->displayMouths[i], &monster->mouths[i], monster);
+        }
+    }
 
     return updatedDisplay;
 }
@@ -406,11 +474,34 @@ const Mesh* MonsterVisualAsync_GetDisplayEyePupil(const MonsterVisualAsync* asyn
     return &asyncMgr->displayEyes[index].pupil;
 }
 
+size_t MonsterVisualAsync_GetDisplayMouthCount(const MonsterVisualAsync* asyncMgr) {
+    return asyncMgr ? asyncMgr->displayMouthCount : 0;
+}
+
+const Mesh* MonsterVisualAsync_GetDisplayMouthMesh(
+    const MonsterVisualAsync* asyncMgr,
+    size_t mouthIndex,
+    size_t meshIndex
+) {
+    if (!asyncMgr || mouthIndex >= asyncMgr->displayMouthCount || meshIndex >= 2) return NULL;
+    const MonsterVisualMouth* mouth = &asyncMgr->displayMouths[mouthIndex];
+    switch (meshIndex) {
+        case 0: return &mouth->jaw;
+        case 1: return &mouth->hinge;
+        default: return NULL;
+    }
+}
+
 bool MonsterVisualAsync_Render(const MonsterVisualAsync* asyncMgr, Renderer3D* renderer) {
     if (!asyncMgr || !renderer || !renderer->renderMesh) return false;
 
     if (asyncMgr->displayMesh.vertexCount > 0) {
         renderer->renderMesh(renderer, &asyncMgr->displayMesh);
+    }
+    for (size_t m = 0; m < asyncMgr->displayMouthCount; ++m) {
+        const MonsterVisualMouth* mouth = &asyncMgr->displayMouths[m];
+        if (mouth->jaw.vertexCount > 0) renderer->renderMesh(renderer, &mouth->jaw);
+        if (mouth->hinge.vertexCount > 0) renderer->renderMesh(renderer, &mouth->hinge);
     }
     for (size_t i = 0; i < asyncMgr->displayEyeCount; ++i) {
         if (asyncMgr->displayEyes[i].sclera.vertexCount > 0) {
@@ -466,6 +557,14 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
         asyncMgr->readyEyes = NULL;
         asyncMgr->readyEyeCount = 0;
         asyncMgr->readyEyeCapacity = 0;
+
+        FreeMouthArray(asyncMgr->displayMouths, asyncMgr->displayMouthCount);
+        asyncMgr->displayMouths = asyncMgr->readyMouths;
+        asyncMgr->displayMouthCount = asyncMgr->readyMouthCount;
+        asyncMgr->displayMouthCapacity = asyncMgr->readyMouthCapacity;
+        asyncMgr->readyMouths = NULL;
+        asyncMgr->readyMouthCount = 0;
+        asyncMgr->readyMouthCapacity = 0;
 
         asyncMgr->displayGeneration = asyncMgr->readyGeneration;
         asyncMgr->displayFingerprint = asyncMgr->readyFingerprint;

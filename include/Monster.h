@@ -13,6 +13,7 @@
 #include "BodyPart.h"
 #include "Eye.h"
 #include "Mouth.h"
+#include "Head.h"
 #include "MonsterQueries.h"
 #include "Trait.h"
 #include "VisualTrait.h"
@@ -48,6 +49,9 @@ typedef struct Monster {
     Mouth* mouths;           /**< Arreglo dinámico de bocas / cavidades bucales */
     size_t mouthCount;       /**< Cantidad actual de bocas */
     size_t mouthCapacity;    /**< Capacidad reservada de bocas */
+
+    Head head;               /**< Cabeza semántica propietaria del subsistema oral */
+    bool hasHead;            /**< Indica si la nueva canalización anatómica está activa */
 
     struct Trait** traits;     /**< Arreglo dinámico de rasgos generales */
     size_t traitCount;        /**< Cantidad de rasgos generales */
@@ -247,6 +251,29 @@ Mouth* Monster_GetMouth(Monster* monster, size_t index);
  * @param monster Puntero al monstruo.
  */
 void Monster_ClearMouths(Monster* monster);
+
+/**
+ * @brief Instala una cabeza anatómica y actualiza los arrays visuales heredados.
+ * @param monster Criatura destino.
+ * @param head Cabeza semántica fuente.
+ * @return true si se resolvió y sincronizó correctamente.
+ */
+bool Monster_SetHead(Monster* monster, Head head);
+
+/**
+ * @brief Vuelve a resolver la cabeza tras cambiar fenotipo o escala anfitriona.
+ * @return true si la anatomía y el puente de compatibilidad quedaron válidos.
+ */
+bool Monster_ResolveHead(Monster* monster);
+
+/** @brief Retorna la cabeza semántica o NULL cuando se usa el modelo heredado. */
+Head* Monster_GetAnatomicalHead(Monster* monster);
+
+/** @brief Actualiza la pose mandibular en Head y en el puente visual heredado. */
+void Monster_SetHeadOpenFactor(Monster* monster, float factor);
+
+/** @brief Retira la cabeza semántica sin modificar otras partes corporales. */
+void Monster_ClearHead(Monster* monster);
 
 /**
  * @brief Añade una parte del cuerpo al monstruo.

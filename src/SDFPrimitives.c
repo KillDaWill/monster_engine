@@ -62,6 +62,17 @@ float SDF_TaperedCapsuleApprox(Vector3 p, Vector3 a, Vector3 b, float r1, float 
     return Vec3_Length(projection) - r;
 }
 
+float SDF_TaperedEllipticalCapsuleApprox(Vector3 p, Vector3 a, Vector3 b, Vector3 ra, Vector3 rb) {
+    Vector3 ba=Vec3_Sub(b,a); float lengthSquared=Vec3_Dot(ba,ba);
+    float t=lengthSquared>1e-8f?Math_Clamp01(Vec3_Dot(Vec3_Sub(p,a),ba)/lengthSquared):0.0f;
+    Vector3 center=Vec3_Lerp(a,b,t);
+    Vector3 radii=Vec3_Lerp(ra,rb,t);
+    float body=SDF_Ellipsoid(Vec3_Sub(p,center),radii);
+    float capA=SDF_Ellipsoid(Vec3_Sub(p,a),ra);
+    float capB=SDF_Ellipsoid(Vec3_Sub(p,b),rb);
+    return Math_Min(body,Math_Min(capA,capB));
+}
+
 float SDF_Box(Vector3 p, Vector3 b) {
     Vector3 d = Vec3_Create(
         fabsf(p.x) - b.x,

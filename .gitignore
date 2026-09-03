@@ -12,6 +12,7 @@ run_demo
 run_tests
 demos/demo_ager_3d
 demos/demo_lizard_console
+demos/demo_mouth_animation
 
 # Documentation output
 doc/

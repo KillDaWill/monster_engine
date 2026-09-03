@@ -495,7 +495,8 @@ bool SDFMesher_GenerateMesh(
                         MeshVertex vert = {
                             .position = pos,
                             .normal = norm,
-                            .color = col
+                            .color = col,
+                            .material = surfaceSample.material
                         };
 
                         MeshIndex newIdx = 0;

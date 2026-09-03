@@ -10,6 +10,7 @@
 
 #include "Vector.h"
 #include "Color.h"
+#include "SDFOperations.h"
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -29,6 +30,7 @@ typedef struct MeshVertex {
     Vector3 position; /**< Posición en el espacio 3D */
     Vector3 normal;   /**< Vector normal unitario */
     Color color;      /**< Color RGBA */
+    SDFMaterial material; /**< Material SDF conservado desde el campo implícito */
 } MeshVertex;
 
 /**
@@ -56,6 +58,13 @@ typedef struct MeshValidationResult {
     size_t zeroAreaTriangleCount;   /**< Triángulos con área cero (vértices colineales) */
     size_t nonFiniteVertexCount;   /**< Vértices con posición no finita */
     size_t nonFiniteNormalCount;   /**< Vértices con normal no finita */
+    size_t boundaryEdgeCount;      /**< Aristas incidentes en un solo triángulo */
+    size_t nonManifoldEdgeCount;   /**< Aristas incidentes en más de dos triángulos */
+    size_t duplicateTriangleCount; /**< Triángulos repetidos ignorando orientación */
+    size_t isolatedVertexCount;    /**< Vértices no referenciados por índices */
+    size_t invalidMaterialCount;   /**< Identificadores de material desconocidos */
+    bool manifold;                 /**< No hay aristas frontera ni no-manifold */
+    bool watertight;               /**< La superficie no contiene aristas frontera */
 } MeshValidationResult;
 
 /**

@@ -12,6 +12,8 @@ void run_marching_cubes_tests(void);
 void run_mesh_tests(void);
 void run_primitive_mesh_tests(void);
 void run_visual_async_tests(void);
+void run_mouth_geometry_tests(void);
+void run_head_tests(void);
 
 int main(void) {
     printf("======================================\n");
@@ -53,6 +55,9 @@ int main(void) {
 
     printf("\n--- Módulo MonsterVisualAsync ---\n");
     run_visual_async_tests();
+
+    run_mouth_geometry_tests();
+    run_head_tests();
 
     printf("\n======================================\n");
     printf(" ¡TODAS LAS SUITES PASARON CON ÉXITO! \n");

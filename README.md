@@ -12,7 +12,8 @@ El motor está compuesto por los siguientes módulos principales:
 - **`AABB` (`include/AABB.h`)**: Bounding Boxes 3D alineadas a los ejes (AABB) y utilidades de expansión/margen.
 - **`Color` & `ColorPalette` (`include/Color.h`, `include/ColorPalette.h`)**: Gestión de espacio de colores RGBA/HSV, gradientes dinámicos y muestreo continuo.
 - **`BodyPart` (`include/BodyPart.h`)**: Definición anatómica de segmentos corporales, cajas de colisión y lista dinámica de traits.
-- **`Eye` & `Mouth` (`include/Eye.h`, `include/Mouth.h`)**: Órganos faciales de las criaturas: ojos individuales y boca/mandíbula.
+- **`Head` (`include/Head.h`)**: Fenotipo semántico, resolver de landmarks y receta superficial compartida por cabezas de lagarto, cánido y ave. `Mouth` es su subsistema oral; `Eye` continúa siendo geometría poseable separada.
+- **`Eye` & `Mouth` (`include/Eye.h`, `include/Mouth.h`)**: Puente visual de ojos y subsistema oral articulado, respectivamente.
 - **`Trait`, `VisualTrait` & `MonsterBehavior` (`include/Trait.h`, `include/VisualTrait.h`, `include/MonsterBehavior.h`)**: Rasgos polimórficos (comportamiento, combate y visuales) y controladores de comportamiento.
 - **`Monster` (`include/Monster.h`)**: Entidad principal que engloba paleta cromática, partes corporales, ojos, bocas, traits polimórficos y física.
 - **`MonsterQueries` (`include/MonsterQueries.h`)**: Funciones de consulta pura (no mutadoras) sobre la entidad: centros de masa, direcciones, anchos/altos interpolados y caja envolvente.
@@ -23,7 +24,7 @@ El motor está compuesto por los siguientes módulos principales:
 
 La geometría de los monstruos se define mediante **Signed Distance Fields (SDF)** y se convierte en malla poligonal a través del siguiente pipeline:
 
-1. **`SDFPrimitives` (`include/SDFPrimitives.h`)**: Primitivas geométricas continuas (esfera, elipsoide, cápsula, cápsula cónica, caja 3D).
+1. **`SDFPrimitives` (`include/SDFPrimitives.h`)**: Primitivas geométricas continuas (esfera, elipsoide, cápsula, cápsula cónica o elíptica ahusada y caja 3D).
 2. **`SDFOperations` (`include/SDFOperations.h`)**: Operaciones CSG booleanas y mezclas suaves (Smooth Union / Subtract) con materiales.
 3. **`SDFSampling` (`include/SDFSampling.h`)**: Muestreo del campo SDF y estimación de normales por diferencias finitas.
 4. **`MonsterSDF` (`include/MonsterSDF.h`)**: Representación geométrica implícita compilada de un monstruo (snapshot desacoplado e independiente tras `Build`).
@@ -76,7 +77,7 @@ make clean
    ```
 
 3. **Visor 3D Interactivo de Envejecimiento (`demos/demo_ager_3d`)**:
-   Muestra la animación en tiempo real con OpenGL del lagarto evolucionando de joven a adulto alfa.
+   Muestra la animación en tiempo real del lagarto evolucionando de juvenil a adulto. Ambos extremos comparten una cadena axial coherente y resuelven cráneo, rostrum, órbitas, narinas y mandíbula desde `HeadPhenotype`.
    - **Flecha DERECHA / ARRIBA**: Avanzar porcentaje de edad.
    - **Flecha IZQUIERDA / ABAJO**: Retroceder porcentaje de edad.
    - **ESPACIO**: Activar/Desactivar oscilación automática.
@@ -84,11 +85,15 @@ make clean
    ./demos/demo_ager_3d
    ```
 
+4. **Animación anatómica de mandíbula (`demos/demo_mouth_animation`)**:
+   Presenta un estudio cercano de cabeza, cuello y hombros de lagarto con ojos embebidos, rostrum largo, narinas sustractivas, mandíbula articulada y transición de tejido blando.
+   `ESPACIO` alterna la animación, las flechas ajustan `openFactor` y `R` reinicia.
+
 ---
 
 ## 🧪 Pruebas Unitarias
 
-La suite de pruebas unitarias (`tests/test_*.c`) cubre colores, vectores, partes del cuerpo, monstruo, envejecimiento, pipeline SDF, tablas de Marching Cubes, validación de mallas, mallas primitivas y el pipeline completo (SDF → Mesh → Visual). Se ejecuta con:
+La suite de pruebas unitarias (`tests/test_*.c`) cubre colores, vectores, partes del cuerpo, monstruo, envejecimiento, pipeline SDF, anatomía oral, materiales, auditoría topológica, tablas de Marching Cubes, mallas primitivas y el pipeline completo (SDF → Mesh → Visual). Se ejecuta con:
 
 ```bash
 make test

@@ -174,12 +174,48 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         mDst->insideColor = Color_Lerp(m1->insideColor, m2->insideColor, perc);
         mDst->lipColor = Color_Lerp(m1->lipColor, m2->lipColor, perc);
         mDst->openFactor = m1->openFactor + perc * (m2->openFactor - m1->openFactor);
-        mDst->lipThickness = m1->lipThickness + perc * (m2->lipThickness - m1->lipThickness);
-        mDst->lipCurvature = m1->lipCurvature + perc * (m2->lipCurvature - m1->lipCurvature);
-        mDst->lipProtrusion = m1->lipProtrusion + perc * (m2->lipProtrusion - m1->lipProtrusion);
+        mDst->shape = perc < .5f ? m1->shape : m2->shape;
+        mDst->slitThickness = m1->slitThickness + perc * (m2->slitThickness - m1->slitThickness);
+        mDst->slitSoftness = m1->slitSoftness + perc * (m2->slitSoftness - m1->slitSoftness);
+        mDst->cornerRadius = m1->cornerRadius + perc * (m2->cornerRadius - m1->cornerRadius);
+        mDst->jawPivot = Vec3_Lerp(m1->jawPivot, m2->jawPivot, perc);
+        mDst->jawLength = m1->jawLength + perc * (m2->jawLength - m1->jawLength);
+        mDst->jawWidth = m1->jawWidth + perc * (m2->jawWidth - m1->jawWidth);
+        mDst->jawThickness = m1->jawThickness + perc * (m2->jawThickness - m1->jawThickness);
+        mDst->jawRearMass = m1->jawRearMass + perc * (m2->jawRearMass - m1->jawRearMass);
+        mDst->jawMuscle = m1->jawMuscle + perc * (m2->jawMuscle - m1->jawMuscle);
+        mDst->maxJawAngle = m1->maxJawAngle + perc * (m2->maxJawAngle - m1->maxJawAngle);
+        mDst->hingeRadius = m1->hingeRadius + perc * (m2->hingeRadius - m1->hingeRadius);
+        mDst->throatRadius = m1->throatRadius + perc * (m2->throatRadius - m1->throatRadius);
+        mDst->cranium = Vec3_Lerp(m1->cranium, m2->cranium, perc);
+        mDst->snout = Vec3_Lerp(m1->snout, m2->snout, perc);
+        mDst->cheeks = Vec3_Lerp(m1->cheeks, m2->cheeks, perc);
+        mDst->brows = Vec3_Lerp(m1->brows, m2->brows, perc);
+        Mouth_Normalize(mDst);
     }
 
-    /* 5. Mezclar transformaciones globales */
+    /* 5. Interpolar semántica de cabeza y volver a resolver landmarks. */
+    if(monster1->hasHead && monster2->hasHead) {
+        const HeadPhenotype* h1=&monster1->head.phenotype;
+        const HeadPhenotype* h2=&monster2->head.phenotype;
+        HeadPhenotype* hd=&dst->head.phenotype;
+        *hd=*h1; hd->archetype=perc<.5f?h1->archetype:h2->archetype;
+#define LERP_HEAD_FIELD(name) hd->name=h1->name+perc*(h2->name-h1->name)
+        LERP_HEAD_FIELD(skullWidth); LERP_HEAD_FIELD(skullHeight); LERP_HEAD_FIELD(skullLength);
+        LERP_HEAD_FIELD(muzzleLength); LERP_HEAD_FIELD(muzzleWidth); LERP_HEAD_FIELD(muzzleTaper);
+        LERP_HEAD_FIELD(eyeSize); LERP_HEAD_FIELD(eyeLaterality); LERP_HEAD_FIELD(eyeForwardness);
+        LERP_HEAD_FIELD(jawLength); LERP_HEAD_FIELD(jawDepth); LERP_HEAD_FIELD(jawStrength);
+        LERP_HEAD_FIELD(noseScale); LERP_HEAD_FIELD(earSize); LERP_HEAD_FIELD(earPointiness);
+        LERP_HEAD_FIELD(cheekMass); LERP_HEAD_FIELD(beakLength); LERP_HEAD_FIELD(beakDepth);
+        LERP_HEAD_FIELD(beakTaper); LERP_HEAD_FIELD(beakCurvature); LERP_HEAD_FIELD(nostrilPosition);
+#undef LERP_HEAD_FIELD
+        HeadPhenotype_Normalize(hd); dst->hasHead=true;
+        float open=mouthCount>0?dst->mouths[0].openFactor:dst->head.anatomy.oralSystem.openFactor;
+        dst->head.anatomy.oralSystem.openFactor=open;
+        Monster_ResolveHead(dst); Monster_SetHeadOpenFactor(dst,open);
+    }
+
+    /* 6. Mezclar transformaciones globales */
     dst->angle = monster1->angle + perc * (monster2->angle - monster1->angle);
     dst->updateSpeed = monster1->updateSpeed + perc * (monster2->updateSpeed - monster1->updateSpeed);
 }

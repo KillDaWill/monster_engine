@@ -17,9 +17,15 @@
 extern "C" {
 #endif
 
+/** Receta estructural del elemento oral inferior. */
+typedef enum MouthShape {
+    MOUTH_SHAPE_MANDIBLE = 0, /**< Mandíbula con rama posterior y masa muscular. */
+    MOUTH_SHAPE_LOWER_BEAK    /**< Pico inferior ahusado, sin masa de mejilla mamífera. */
+} MouthShape;
+
 /**
  * @struct Mouth
- * @brief Estructura que representa la apertura bucal de un monstruo.
+ * @brief Fenotipo anatómico de una boca y su mandíbula articulada.
  */
 typedef struct Mouth {
     size_t bodyPartIndex; /**< Índice de la parte del cuerpo anfitriona (normalmente la cabeza) */
@@ -28,12 +34,28 @@ typedef struct Mouth {
     Vector3 scale;        /**< Dimensiones (ancho, alto/apertura, profundidad) */
     
     Color insideColor;    /**< Color interior de la cavidad bucal / garganta */
-    Color lipColor;       /**< Color del borde bucal / labios */
+    Color lipColor;       /**< Reservado para una futura banda de borde oral */
     float openFactor;     /**< Factor de apertura bucal [0.0 = cerrada, 1.0 = totalmente abierta] */
+    MouthShape shape;     /**< Modelo anatómico de la pieza oral inferior */
 
-    float lipThickness;   /**< Radio del tubo circular de cada labio */
-    float lipCurvature;   /**< Factor de curvatura normalizado [0,1] */
-    float lipProtrusion;  /**< Desplazamiento local +Z para elevar los labios sobre la piel */
+    float slitThickness;  /**< Grosor de la hendidura oral */
+    float slitSoftness;   /**< Suavidad del borde de la hendidura */
+    float cornerRadius;   /**< Radio anatómico de las comisuras */
+
+    Vector3 jawPivot;     /**< Pivote local posterior de la mandíbula */
+    float jawLength;      /**< Longitud de la mandíbula hacia delante */
+    float jawWidth;       /**< Anchura posterior de la mandíbula */
+    float jawThickness;   /**< Grosor vertical de la mandíbula */
+    float jawRearMass;    /**< Volumen posterior que envuelve el cóndilo */
+    float jawMuscle;      /**< Volumen de tejido muscular inferior */
+    float maxJawAngle;    /**< Ángulo máximo de apertura en grados */
+    float hingeRadius;    /**< Radio del tejido blando de la bisagra */
+    float throatRadius;   /**< Radio de continuidad hacia la garganta */
+
+    Vector3 cranium;      /**< Escala relativa del volumen craneal */
+    Vector3 snout;        /**< Escala relativa del hocico */
+    Vector3 cheeks;       /**< Escala relativa de las mejillas */
+    Vector3 brows;        /**< Escala relativa de los arcos supraorbitales */
 } Mouth;
 
 /**
@@ -53,6 +75,12 @@ Mouth Mouth_Create(size_t bodyPartIndex, Vector3 offset, Vector3 scale, Color in
  * @param factor Factor de apertura deseado.
  */
 void Mouth_SetOpenFactor(Mouth* mouth, float factor);
+
+/** @brief Normaliza todos los parámetros anatómicos a un estado válido. */
+void Mouth_Normalize(Mouth* mouth);
+
+/** @brief Convierte el factor normalizado en el ángulo de mandíbula. */
+float Mouth_GetJawAngle(const Mouth* mouth);
 
 #ifdef __cplusplus
 }

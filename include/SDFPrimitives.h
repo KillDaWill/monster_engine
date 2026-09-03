@@ -35,6 +35,18 @@ float SDF_Capsule(Vector3 point, Vector3 a, Vector3 b, float radius);
 float SDF_TaperedCapsuleApprox(Vector3 point, Vector3 a, Vector3 b, float r1, float r2);
 
 /**
+ * @brief Cápsula elíptica y ahusada entre dos centros.
+ * @param point Punto a evaluar.
+ * @param a Centro del extremo raíz.
+ * @param b Centro del extremo distal.
+ * @param radiiA Radios elípticos en la raíz.
+ * @param radiiB Radios elípticos en el extremo distal.
+ * @return Distancia firmada aproximada, estable incluso para un segmento degenerado.
+ */
+float SDF_TaperedEllipticalCapsuleApprox(Vector3 point, Vector3 a, Vector3 b,
+                                         Vector3 radiiA, Vector3 radiiB);
+
+/**
  * @brief SDF de una caja 3D orientada a los ejes centrada en el origen con mitades de dimensión b.
  */
 float SDF_Box(Vector3 point, Vector3 halfExtents);

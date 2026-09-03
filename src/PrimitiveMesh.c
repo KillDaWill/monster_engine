@@ -30,7 +30,8 @@ bool PrimitiveMesh_GenerateEllipsoidEx(Mesh* out, Transform3D transform, unsigne
     MeshVertex poleN = {
         .position = Vec3_Add(transform.position, Transform3D_RotateVector(transform.rotation, poleNLocalPos)),
         .normal = Transform3D_RotateVector(transform.rotation, poleNLocalNorm),
-        .color = color
+        .color = color,
+        .material = SDF_MATERIAL_SKIN
     };
     MeshIndex poleNIndex = 0;
     if (!Mesh_AddVertex(out, poleN, &poleNIndex)) {
@@ -62,7 +63,8 @@ bool PrimitiveMesh_GenerateEllipsoidEx(Mesh* out, Transform3D transform, unsigne
             MeshVertex v = {
                 .position = Vec3_Add(transform.position, Transform3D_RotateVector(transform.rotation, localPos)),
                 .normal = Transform3D_RotateVector(transform.rotation, localNorm),
-                .color = color
+                .color = color,
+                .material = SDF_MATERIAL_SKIN
             };
             MeshIndex index = 0;
             if (!Mesh_AddVertex(out, v, &index)) {
@@ -77,7 +79,8 @@ bool PrimitiveMesh_GenerateEllipsoidEx(Mesh* out, Transform3D transform, unsigne
     MeshVertex poleS = {
         .position = Vec3_Add(transform.position, Transform3D_RotateVector(transform.rotation, poleSLocalPos)),
         .normal = Transform3D_RotateVector(transform.rotation, poleSLocalNorm),
-        .color = color
+        .color = color,
+        .material = SDF_MATERIAL_SKIN
     };
     MeshIndex poleSIndex = 0;
     if (!Mesh_AddVertex(out, poleS, &poleSIndex)) {
@@ -206,7 +209,8 @@ bool PrimitiveMesh_GenerateQuadraticBezierTube(
             MeshVertex v = {
                 .position = pos,
                 .normal = norm,
-                .color = color
+                .color = color,
+                .material = SDF_MATERIAL_SKIN
             };
             MeshIndex unused;
             if (!Mesh_AddVertex(out, v, &unused)) return false;
@@ -218,7 +222,8 @@ bool PrimitiveMesh_GenerateQuadraticBezierTube(
     MeshVertex capStartVert = {
         .position = p0,
         .normal = Vec3_Scale(tan0, -1.0f),
-        .color = color
+        .color = color,
+        .material = SDF_MATERIAL_SKIN
     };
     MeshIndex capStartIndex = 0;
     if (!Mesh_AddVertex(out, capStartVert, &capStartIndex)) return false;
@@ -228,7 +233,8 @@ bool PrimitiveMesh_GenerateQuadraticBezierTube(
     MeshVertex capEndVert = {
         .position = p2,
         .normal = tan1,
-        .color = color
+        .color = color,
+        .material = SDF_MATERIAL_SKIN
     };
     MeshIndex capEndIndex = 0;
     if (!Mesh_AddVertex(out, capEndVert, &capEndIndex)) return false;
@@ -268,5 +274,6 @@ bool PrimitiveMesh_GenerateUVSphere(Mesh* out, Vector3 center, float radius, uns
     Transform3D t = Transform3D_Create(center, Vec3_Zero(), Vec3_Create(radius, radius, radius));
     return PrimitiveMesh_GenerateEllipsoid(out, t, segments, rings, color);
 }
+
 
 #undef RING_VERTEX

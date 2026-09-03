@@ -500,7 +500,7 @@ static void test_monster_visual_generation_and_transactional(void) {
     printf("[PASS] test_monster_visual_generation_and_transactional\n");
 }
 
-static void test_mouth_bounds_isolation(void) {
+static void test_mouth_muzzle_bounds_expansion(void) {
     Monster lizard = BuildLizard();
 
     MonsterSDF sdfBase = MonsterSDF_Create();
@@ -515,18 +515,13 @@ static void test_mouth_bounds_isolation(void) {
     MonsterSDF_Build(&sdfMouth, &lizard, MonsterSDF_DefaultConfig());
     AABB3D boundsMouth = MonsterSDF_GetField(&sdfMouth).getBounds(MonsterSDF_GetField(&sdfMouth).context);
 
-    /* La boca sustrativa no debe expandir el AABB en absoluto */
-    TEST_ASSERT(FLOAT_NEAR(boundsBase.start.x, boundsMouth.start.x) &&
-                FLOAT_NEAR(boundsBase.end.x, boundsMouth.end.x), "Boca sustrativa alteró AABB en X");
-    TEST_ASSERT(FLOAT_NEAR(boundsBase.start.y, boundsMouth.start.y) &&
-                FLOAT_NEAR(boundsBase.end.y, boundsMouth.end.y), "Boca sustrativa alteró AABB en Y");
-    TEST_ASSERT(FLOAT_NEAR(boundsBase.start.z, boundsMouth.start.z) &&
-                FLOAT_NEAR(boundsBase.end.z, boundsMouth.end.z), "Boca sustrativa alteró AABB en Z");
+    TEST_ASSERT(boundsMouth.start.x < boundsBase.start.x && boundsMouth.end.x > boundsBase.end.x,
+                "El soporte del hocico debe ampliar el AABB en X");
 
     MonsterSDF_Free(&sdfBase);
     MonsterSDF_Free(&sdfMouth);
     Monster_Free(&lizard);
-    printf("[PASS] test_mouth_bounds_isolation\n");
+    printf("[PASS] test_mouth_muzzle_bounds_expansion\n");
 }
 
 static void test_zero_scale_eye_ager_transition(void) {
@@ -822,7 +817,7 @@ void run_sdf_tests(void) {
     test_monster_visual();
     test_monster_visual_eyes_fingerprint();
     test_monster_visual_generation_and_transactional();
-    test_mouth_bounds_isolation();
+    test_mouth_muzzle_bounds_expansion();
     test_zero_scale_eye_ager_transition();
     test_monster_visual_complete_fingerprint();
     test_lizard_mesh_stats();

@@ -35,6 +35,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/BodyPart.c \
             $(SRC_DIR)/Eye.c \
             $(SRC_DIR)/Mouth.c \
+            $(SRC_DIR)/Head.c \
             $(SRC_DIR)/Monster.c \
             $(SRC_DIR)/MonsterQueries.c \
             $(SRC_DIR)/MonsterAger.c
@@ -58,7 +59,9 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_marching_cubes.c \
             $(TEST_DIR)/test_mesh.c \
             $(TEST_DIR)/test_primitive_mesh.c \
-            $(TEST_DIR)/test_visual_async.c
+            $(TEST_DIR)/test_visual_async.c \
+            $(TEST_DIR)/test_mouth_geometry.c \
+            $(TEST_DIR)/test_head.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
@@ -67,6 +70,7 @@ TEST_BIN = run_tests
 BENCHMARK_BIN = benchmarks/benchmark_sdf
 DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
+DEMO_MOUTH_BIN = $(DEMO_DIR)/demo_mouth_animation
 LIZARD_VIEWER_BIN = lizard_viewer
 
 .PHONY: all clean test benchmark docs demos
@@ -99,13 +103,16 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN)
+demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN)
 
 $(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(DEMO_LIZARD_BIN): $(CORE_OBJS) $(DEMO_DIR)/demo_lizard_console.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+$(DEMO_MOUTH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_mouth_animation.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Ejecutar tests automáticamente
 test: $(TEST_BIN)
@@ -117,4 +124,4 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) doc/html doc/latex
+	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) doc/html doc/latex

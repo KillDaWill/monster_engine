@@ -108,7 +108,8 @@ int main(int argc, char* argv[]) {
 
     Color darkRedInside = Color_FromRGB(80, 0, 10);
     Color lipColor = Color_FromRGB(180, 40, 40);
-    Mouth lizardMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.2f, 0.82f), Vec3_Create(1.0f, 0.5f, 0.8f), darkRedInside, lipColor);
+    BodyPart* viewerHead = Monster_GetHead(&lizard);
+    Mouth lizardMouth = Mouth_Create(0, Vec3_Create(0.0f, -viewerHead->height * 0.12f, viewerHead->length * 0.46f), Vec3_Create(viewerHead->width * 0.5f, viewerHead->height * 0.4f, viewerHead->length * 0.42f), darkRedInside, lipColor);
     lizardMouth.openFactor = 0.7f;
     Monster_AddMouth(&lizard, lizardMouth);
 

@@ -20,6 +20,90 @@
 #include "OpenGLRenderer.h"
 #include "MonsterVisualAsync.h"
 
+static void Demo_SetPartDimensions(BodyPart* part, float width, float height, float length) {
+    if (!part) return;
+    part->width = part->widthRender = width;
+    part->height = part->heightRender = height;
+    part->length = part->lengthRender = length;
+}
+
+static void Demo_AddLizardSection(Monster* monster, Vector3 position,
+                                  float width, float height, float length, int colorIndex) {
+    BodyPart part = BodyPart_Create(position.x, position.y, position.z,
+                                    width, length, height, 0.0f);
+    part.color.index = colorIndex;
+    part.bellyColor.index = colorIndex > 0 ? colorIndex - 1 : 0;
+    part.bellyThreshold = 0.28f;
+    Monster_AddBodyPart(monster, part);
+}
+
+static Monster Demo_CreateLizardStage(bool adult) {
+    Monster lizard = Monster_Create();
+    Monster_Init(&lizard);
+
+    if (adult) {
+        lizard.colorPalette = ColorPalette_CreateGradient(
+            Color_FromRGB(34, 86, 42), Color_FromRGB(178, 142, 54), 6);
+    } else {
+        lizard.colorPalette = ColorPalette_CreateGradient(
+            Color_FromRGB(58, 132, 68), Color_FromRGB(142, 196, 94), 6);
+    }
+
+    const float scale = adult ? 1.0f : 0.56f;
+    BodyPart* head = Monster_GetHead(&lizard);
+    head->position = head->oldPosition = head->positionRender =
+        Vec3_Create(0.0f, 0.30f * scale, 0.0f);
+    Demo_SetPartDimensions(head, 2.20f * scale, 1.20f * scale, 2.55f * scale);
+    head->color.index = adult ? 2 : 3;
+    head->bellyColor.index = 0;
+    head->bellyThreshold = 0.25f;
+
+    /* Cadena axial temporal con solapes amplios: cuello, tórax, abdomen, pelvis y cola. */
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.18f * scale, -1.75f * scale),
+                          1.25f * scale, 0.82f * scale, 1.35f * scale, 2);
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.08f * scale, -3.05f * scale),
+                          2.35f * scale, 1.28f * scale, 2.25f * scale, 3);
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.02f * scale, -5.15f * scale),
+                          2.10f * scale, 1.12f * scale, 2.35f * scale, 3);
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.08f * scale, -7.10f * scale),
+                          1.72f * scale, 0.96f * scale, 1.85f * scale, 2);
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.13f * scale, -8.85f * scale),
+                          1.18f * scale, 0.68f * scale, 1.75f * scale, 2);
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.20f * scale, -10.55f * scale),
+                          0.72f * scale, 0.45f * scale, 1.70f * scale, 1);
+    Demo_AddLizardSection(&lizard, Vec3_Create(0.0f, 0.28f * scale, -12.05f * scale),
+                          0.30f * scale, 0.24f * scale, 1.35f * scale, 0);
+
+    Head anatomicalHead = Head_Create(HEAD_ARCHETYPE_LIZARD, 0,
+        Vec3_Create(head->widthRender * 0.5f, head->heightRender * 0.5f, head->lengthRender * 0.5f));
+    HeadPhenotype* phenotype = &anatomicalHead.phenotype;
+    phenotype->skullWidth = adult ? 0.70f : 0.62f;
+    phenotype->skullHeight = adult ? 0.30f : 0.24f;
+    phenotype->skullLength = adult ? 0.64f : 0.52f;
+    phenotype->muzzleLength = adult ? 0.84f : 0.58f;
+    phenotype->muzzleWidth = adult ? 0.72f : 0.65f;
+    phenotype->muzzleTaper = adult ? 0.38f : 0.30f;
+    phenotype->eyeSize = adult ? 0.46f : 0.66f;
+    phenotype->eyeLaterality = 0.92f;
+    phenotype->eyeForwardness = adult ? 0.16f : 0.22f;
+    phenotype->jawLength = adult ? 0.88f : 0.62f;
+    phenotype->jawDepth = adult ? 0.40f : 0.28f;
+    phenotype->jawStrength = adult ? 0.66f : 0.32f;
+    phenotype->cheekMass = adult ? 0.38f : 0.24f;
+    phenotype->nostrilPosition = 0.88f;
+    HeadPhenotype_Normalize(phenotype);
+    Monster_SetHead(&lizard, anatomicalHead);
+    Monster_SetHeadOpenFactor(&lizard, adult ? 0.58f : 0.18f);
+
+    for (size_t i = 0; i < lizard.eyeCount; ++i) {
+        lizard.eyes[i].scleraColor = Color_FromRGB(214, 190, 78);
+        lizard.eyes[i].pupilColor = Color_FromRGB(8, 12, 6);
+        lizard.eyes[i].pupilScale = adult ? 0.38f : 0.46f;
+    }
+    if (lizard.mouthCount > 0) lizard.mouths[0].insideColor = Color_FromRGB(54, 8, 12);
+    return lizard;
+}
+
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
 
@@ -69,8 +153,8 @@ int main(int argc, char* argv[]) {
 
     /* 2. Configurar la cámara agnóstica 3D */
     ICamera camera;
-    camera.position = Vec3_Create(0.0f, 8.0f, 16.0f);
-    camera.target = Vec3_Create(0.0f, 0.0f, -4.5f);
+    camera.position = Vec3_Create(0.0f, 6.2f, 14.0f);
+    camera.target = Vec3_Create(0.0f, 0.0f, -4.8f);
     camera.up = Vec3_Create(0.0f, 1.0f, 0.0f);
     camera.fov = 45.0f;
     camera.nearPlane = 0.1f;
@@ -80,61 +164,10 @@ int main(int argc, char* argv[]) {
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
     /* 3. Crear FASE 1: Lagarto Joven */
-    Monster youngLizard = Monster_Create();
-    Monster_Init(&youngLizard);
-    youngLizard.colorPalette = ColorPalette_CreateGradient(Color_FromRGB(40, 200, 80), Color_FromRGB(100, 230, 120), 4);
-
-    BodyPart* headY = Monster_GetHead(&youngLizard);
-    if (headY) {
-        headY->width = 1.0f; headY->height = 0.8f; headY->length = 1.2f;
-    }
-    BodyPart chestY = BodyPart_Create(0.0f, 0.0f, -1.3f, 1.2f, 1.4f, 0.9f, 0.0f);
-    BodyPart tailY  = BodyPart_Create(0.0f, 0.0f, -2.8f, 0.6f, 1.5f, 0.5f, 0.0f);
-    Monster_AddBodyPart(&youngLizard, chestY);
-    Monster_AddBodyPart(&youngLizard, tailY);
-
-    Mouth youngMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.15f, 0.48f), Vec3_Create(0.6f, 0.3f, 0.5f), Color_FromRGB(100, 10, 10), Color_FromRGB(150, 40, 40));
-    youngMouth.openFactor = 0.3f;
-    Monster_AddMouth(&youngLizard, youngMouth);
-
-    Eye youngLeftEye = Eye_Create(0, Vec3_Create(-0.28f, 0.12f, 0.45f), Vec3_Create(0.16f, 0.15f, 0.10f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
-    youngLeftEye.pupilScale = 0.4f;
-    Monster_AddEye(&youngLizard, youngLeftEye);
-
-    Eye youngRightEye = Eye_Create(0, Vec3_Create(0.28f, 0.12f, 0.45f), Vec3_Create(0.16f, 0.15f, 0.10f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
-    youngRightEye.pupilScale = 0.4f;
-    Monster_AddEye(&youngLizard, youngRightEye);
+    Monster youngLizard = Demo_CreateLizardStage(false);
 
     /* 4. Crear FASE 2: Lagarto Alfa */
-    Monster adultLizard = Monster_Create();
-    Monster_Init(&adultLizard);
-    adultLizard.colorPalette = ColorPalette_CreateGradient(Color_FromRGB(220, 40, 40), Color_FromRGB(240, 180, 30), 4);
-
-    BodyPart* headA = Monster_GetHead(&adultLizard);
-    if (headA) {
-        headA->width = 2.5f; headA->height = 1.8f; headA->length = 2.8f;
-    }
-    BodyPart chestA   = BodyPart_Create(0.0f, 0.0f, -3.0f, 3.2f, 3.5f, 2.2f, 0.0f);
-    BodyPart abdomenA = BodyPart_Create(0.0f, 0.0f, -6.6f, 2.8f, 3.2f, 1.9f, 0.0f);
-    BodyPart tail1A   = BodyPart_Create(0.0f, 0.0f, -10.0f, 1.8f, 3.0f, 1.4f, 0.0f);
-    BodyPart tail2A   = BodyPart_Create(0.0f, 0.0f, -13.1f, 0.9f, 2.5f, 0.8f, 0.0f);
-
-    Monster_AddBodyPart(&adultLizard, chestA);
-    Monster_AddBodyPart(&adultLizard, abdomenA);
-    Monster_AddBodyPart(&adultLizard, tail1A);
-    Monster_AddBodyPart(&adultLizard, tail2A);
-
-    Mouth adultMouth = Mouth_Create(0, Vec3_Create(0.0f, -0.3f, 1.2f), Vec3_Create(1.6f, 0.9f, 1.2f), Color_FromRGB(60, 0, 0), Color_FromRGB(200, 30, 30));
-    adultMouth.openFactor = 0.95f;
-    Monster_AddMouth(&adultLizard, adultMouth);
-
-    Eye adultLeftEye = Eye_Create(0, Vec3_Create(-0.75f, 0.35f, 1.1f), Vec3_Create(0.42f, 0.4f, 0.25f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
-    adultLeftEye.pupilScale = 0.45f;
-    Monster_AddEye(&adultLizard, adultLeftEye);
-
-    Eye adultRightEye = Eye_Create(0, Vec3_Create(0.75f, 0.35f, 1.1f), Vec3_Create(0.42f, 0.4f, 0.25f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
-    adultRightEye.pupilScale = 0.45f;
-    Monster_AddEye(&adultLizard, adultRightEye);
+    Monster adultLizard = Demo_CreateLizardStage(true);
 
     /* 5. Inicializar MonsterAger y MonsterVisualAsync */
     float ageFactor = 0.0f;
@@ -148,7 +181,7 @@ int main(int argc, char* argv[]) {
     bool running = true;
     SDL_Event event;
     Uint32 lastTime = SDL_GetTicks();
-    float cameraAngle = 0.0f;
+    float cameraTime = 0.0f;
 
     while (running) {
         Uint32 currentTime = SDL_GetTicks();
@@ -200,8 +233,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        cameraAngle += deltaTime * 0.4f;
-        float camRadius = 18.0f;
+        cameraTime += deltaTime;
+        float cameraAngle = sinf(cameraTime * 0.28f) * 0.48f;
+        float camRadius = 15.5f;
         camera.position.x = sinf(cameraAngle) * camRadius;
         camera.position.z = cosf(cameraAngle) * camRadius - 6.0f;
 

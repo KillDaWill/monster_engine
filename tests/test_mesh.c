@@ -203,6 +203,7 @@ static void test_sphere_field_pipeline(void) {
     /* Validación estructural completa */
     MeshValidationResult res = Mesh_Validate(&mesh);
     TEST_ASSERT(res.valid, "Malla de esfera no pasó Mesh_Validate");
+    TEST_ASSERT(mesh.vertices[0].material == SDF_MATERIAL_SKIN, "El material SDF de la esfera se perdió");
 
     /* Sin slivers: ninguna arista de triángulo supera la diagonal de celda */
     Vector3 size = Vec3_Sub(field.getBounds(field.context).end, field.getBounds(field.context).start);
@@ -231,6 +232,16 @@ static void test_sphere_field_pipeline(void) {
     Mesh_Free(&mesh);
     SDFMesher_Free(&mesher);
     printf("[PASS] test_sphere_field_pipeline\n");
+}
+
+static void test_topology_audit(void) {
+    Mesh mesh=Mesh_Create(); MeshVertex v={.position=Vec3_Zero(),.normal=Vec3_Create(0,1,0),.color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
+    MeshIndex ids[5]; for(size_t i=0;i<5;++i){v.position=Vec3_Create((float)i,0,0);Mesh_AddVertex(&mesh,v,&ids[i]);}
+    Mesh_AddTriangle(&mesh,0,1,2); Mesh_AddTriangle(&mesh,1,0,3); Mesh_AddTriangle(&mesh,0,1,4);
+    MeshValidationResult r=Mesh_Validate(&mesh);
+    TEST_ASSERT(r.nonManifoldEdgeCount==1, "No se detectó la arista no-manifold");
+    TEST_ASSERT(r.boundaryEdgeCount>0 && !r.watertight, "La auditoría no detectó fronteras");
+    Mesh_Free(&mesh); printf("[PASS] test_topology_audit\n");
 }
 
 /* ============================================================
@@ -269,4 +280,5 @@ void run_mesh_tests(void) {
     test_zero_area_collinear_validation();
     test_sphere_field_pipeline();
     test_edge_cache_sharing();
+    test_topology_audit();
 }

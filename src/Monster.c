@@ -48,6 +48,8 @@ Monster Monster_Clone(const Monster* src) {
     dst.world = src->world;
     dst.behavior = src->behavior;
     dst.meta = src->meta;
+    dst.head = src->head;
+    dst.hasHead = src->hasHead;
 
     /* Copiar paleta de colores */
     dst.colorPalette.count = src->colorPalette.count;
@@ -153,6 +155,54 @@ void Monster_ClearMouths(Monster* monster) {
     }
     monster->mouthCount = 0;
     monster->mouthCapacity = 0;
+}
+
+bool Monster_ResolveHead(Monster* monster) {
+    if (!monster || !monster->hasHead) return false;
+    size_t attachment = monster->head.anatomy.attachmentBodyPartIndex;
+    if (attachment >= monster->bodyPartCount) return false;
+    const BodyPart* host = &monster->bodyParts[attachment];
+    Vector3 radii = Vec3_Create(Math_Max(host->widthRender*.5f,.08f),Math_Max(host->heightRender*.5f,.08f),Math_Max(host->lengthRender*.5f,.08f));
+    float openFactor = monster->mouthCount > 0 ? monster->mouths[0].openFactor : monster->head.anatomy.oralSystem.openFactor;
+    Color insideColor = monster->mouthCount > 0 ? monster->mouths[0].insideColor : monster->head.anatomy.oralSystem.insideColor;
+    Color lipColor = monster->mouthCount > 0 ? monster->mouths[0].lipColor : monster->head.anatomy.oralSystem.lipColor;
+    Eye eyeAppearance[2]; size_t appearanceCount=monster->eyeCount<2?monster->eyeCount:2;
+    for(size_t i=0;i<appearanceCount;++i) eyeAppearance[i]=monster->eyes[i];
+    HeadAnatomy resolved;
+    if (!HeadAnatomy_Resolve(&monster->head.phenotype,attachment,radii,&resolved)) return false;
+    Mouth_SetOpenFactor(&resolved.oralSystem,openFactor);
+    resolved.oralSystem.insideColor=insideColor; resolved.oralSystem.lipColor=lipColor;
+    monster->head.anatomy=resolved;
+
+    Monster_ClearMouths(monster);
+    if (!Monster_AddMouth(monster,resolved.oralSystem)) return false;
+    Monster_ClearEyes(monster);
+    Eye left=Eye_Create(attachment,resolved.landmarks.leftOrbit,resolved.eyeScale,COLOR_WHITE,COLOR_BLACK);
+    Eye right=Eye_Create(attachment,resolved.landmarks.rightOrbit,resolved.eyeScale,COLOR_WHITE,COLOR_BLACK);
+    if(appearanceCount>0) { left.scleraColor=eyeAppearance[0].scleraColor; left.pupilColor=eyeAppearance[0].pupilColor; left.pupilScale=eyeAppearance[0].pupilScale; }
+    if(appearanceCount>1) { right.scleraColor=eyeAppearance[1].scleraColor; right.pupilColor=eyeAppearance[1].pupilColor; right.pupilScale=eyeAppearance[1].pupilScale; }
+    if (!Monster_AddEye(monster,left) || !Monster_AddEye(monster,right)) return false;
+    return true;
+}
+
+bool Monster_SetHead(Monster* monster, Head head) {
+    if (!monster) return false;
+    monster->head=head; monster->hasHead=true;
+    return Monster_ResolveHead(monster);
+}
+
+Head* Monster_GetAnatomicalHead(Monster* monster) { return monster && monster->hasHead ? &monster->head : NULL; }
+
+void Monster_SetHeadOpenFactor(Monster* monster,float factor) {
+    if(!monster||!monster->hasHead) return;
+    Head_SetOpenFactor(&monster->head,factor);
+    if(monster->mouthCount>0) Mouth_SetOpenFactor(&monster->mouths[0],factor);
+}
+
+void Monster_ClearHead(Monster* monster) {
+    if (!monster) return;
+    memset(&monster->head,0,sizeof(monster->head)); monster->hasHead=false;
+    Monster_ClearMouths(monster); Monster_ClearEyes(monster);
 }
 
 void Monster_Update(Monster* monster, double diff) {
@@ -332,4 +382,3 @@ static bool AddVisualTraitToList(struct VisualTrait*** list, size_t* count, size
 bool Monster_AddVisualTrait(Monster* monster, struct VisualTrait* trait) {
     return monster ? AddVisualTraitToList(&monster->visualTraits, &monster->visualTraitCount, &monster->visualTraitCapacity, trait) : false;
 }
-
