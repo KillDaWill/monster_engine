@@ -142,7 +142,9 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
             ++result.nonFiniteNormalCount;
         }
         if (v->material != SDF_MATERIAL_SKIN && v->material != SDF_MATERIAL_MOUTH &&
-            v->material != SDF_MATERIAL_LIP && v->material != SDF_MATERIAL_UNKNOWN) {
+            v->material != SDF_MATERIAL_LIP && v->material != SDF_MATERIAL_EYE_SOCKET &&
+            v->material != SDF_MATERIAL_NOSTRIL && v->material != SDF_MATERIAL_TYMPANUM &&
+            v->material != SDF_MATERIAL_UNKNOWN) {
             ++result.invalidMaterialCount;
         }
     }
@@ -192,10 +194,7 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
             triangleKeys[keyCount++] = (MeshTriangleKey){a, b, c};
         }
 
-        Vector3 ab = Vec3_Sub(mesh->vertices[b].position, mesh->vertices[a].position);
-        Vector3 ac = Vec3_Sub(mesh->vertices[c].position, mesh->vertices[a].position);
-        Vector3 cross = Vec3_Cross(ab, ac);
-        if (Vec3_Dot(cross, cross) <= 1e-16f) {
+        if (!Mesh_TriangleHasArea(mesh->vertices[a].position,mesh->vertices[b].position,mesh->vertices[c].position)) {
             ++result.zeroAreaTriangleCount;
         }
     }
@@ -236,4 +235,76 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
                     result.invalidMaterialCount == 0 &&
                     result.duplicateTriangleCount == 0);
     return result;
+}
+
+static size_t Mesh_ComponentRoot(size_t* parent, size_t index) {
+    while (parent[index] != index) {
+        parent[index] = parent[parent[index]];
+        index = parent[index];
+    }
+    return index;
+}
+
+bool Mesh_KeepLargestComponent(Mesh* mesh) {
+    if (!mesh || mesh->indexCount < 3 || mesh->vertexCount == 0) return mesh != NULL;
+    size_t* parent = (size_t*)malloc(mesh->vertexCount * sizeof(size_t));
+    size_t* triangleCounts = (size_t*)calloc(mesh->vertexCount, sizeof(size_t));
+    MeshIndex* remap = (MeshIndex*)malloc(mesh->vertexCount * sizeof(MeshIndex));
+    if (!parent || !triangleCounts || !remap) {
+        free(parent); free(triangleCounts); free(remap);
+        return false;
+    }
+    for (size_t i = 0; i < mesh->vertexCount; ++i) {
+        parent[i] = i;
+        remap[i] = UINT32_MAX;
+    }
+    for (size_t i = 0; i + 2 < mesh->indexCount; i += 3) {
+        MeshIndex ids[3] = {mesh->indices[i], mesh->indices[i + 1], mesh->indices[i + 2]};
+        if (ids[0] >= mesh->vertexCount || ids[1] >= mesh->vertexCount || ids[2] >= mesh->vertexCount) continue;
+        for (size_t edge = 1; edge < 3; ++edge) {
+            size_t a = Mesh_ComponentRoot(parent, ids[0]);
+            size_t b = Mesh_ComponentRoot(parent, ids[edge]);
+            if (a != b) parent[b] = a;
+        }
+    }
+    size_t largestRoot = 0, largestTriangles = 0;
+    for (size_t i = 0; i + 2 < mesh->indexCount; i += 3) {
+        if (mesh->indices[i] >= mesh->vertexCount) continue;
+        size_t root = Mesh_ComponentRoot(parent, mesh->indices[i]);
+        size_t count = ++triangleCounts[root];
+        if (count > largestTriangles) { largestTriangles = count; largestRoot = root; }
+    }
+    if (largestTriangles * 3 == mesh->indexCount) {
+        free(parent); free(triangleCounts); free(remap);
+        return true;
+    }
+    Mesh compacted = Mesh_Create();
+    if (!Mesh_ReserveVertices(&compacted, mesh->vertexCount) ||
+        !Mesh_ReserveIndices(&compacted, largestTriangles * 3)) {
+        Mesh_Free(&compacted); free(parent); free(triangleCounts); free(remap);
+        return false;
+    }
+    bool ok = true;
+    for (size_t i = 0; ok && i + 2 < mesh->indexCount; i += 3) {
+        MeshIndex source[3] = {mesh->indices[i], mesh->indices[i + 1], mesh->indices[i + 2]};
+        if (source[0] >= mesh->vertexCount || Mesh_ComponentRoot(parent, source[0]) != largestRoot) continue;
+        MeshIndex target[3];
+        for (size_t j = 0; j < 3; ++j) {
+            if (remap[source[j]] == UINT32_MAX)
+                ok = Mesh_AddVertex(&compacted, mesh->vertices[source[j]], &remap[source[j]]);
+            target[j] = remap[source[j]];
+        }
+        if (ok) ok = Mesh_AddTriangle(&compacted, target[0], target[1], target[2]);
+    }
+    if (ok) { Mesh old = *mesh; *mesh = compacted; Mesh_Free(&old); }
+    else Mesh_Free(&compacted);
+    free(parent); free(triangleCounts); free(remap);
+    return ok;
+}
+
+bool Mesh_TriangleHasArea(Vector3 a,Vector3 b,Vector3 c) {
+    Vector3 ab=Vec3_Sub(b,a),ac=Vec3_Sub(c,a),bc=Vec3_Sub(c,b);
+    Vector3 cross=Vec3_Cross(ab,ac);
+    float longest=fmaxf(Vec3_LengthSq(ab),fmaxf(Vec3_LengthSq(ac),Vec3_LengthSq(bc)));
+    return longest>0 && Vec3_LengthSq(cross)>longest*longest*1e-12f;
 }

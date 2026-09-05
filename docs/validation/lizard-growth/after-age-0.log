@@ -1,0 +1,23 @@
+========================================================
+   MONSTER ENGINE 3D: Demo SDF Transición (MonsterAger) 
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas F1-F4                  : Inspección cabeza / vistas anatómicas
+  - 0..4 : Edades 0 / 25 / 50 / 75 / 100%; rueda : zoom
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: activo (4x)
+[MALLA] edad_solicitada=0.00 escala_visible=0.58000 gen=1 fp=12361169095148347806 tier=interactive ms=803.83 grid=91x50x138 voxel_max=0.12000 voxel_min=0.01071 celdas=627900 activas=17762 refinadas=594400 muestras=652188 triangulos=35512 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.00 escala_visible=0.58000 gen=2 fp=290146637701537655 tier=settled ms=1845.04 grid=128x66x174 voxel_max=0.09600 voxel_min=0.00625 celdas=1469952 activas=34908 refinadas=1388682 muestras=1512525 triangulos=69802 presupuesto=1 detalle_degradado=0 coalescidas=0
+[CAPTURA] /tmp/monster-final-captures/age-0-whole.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-body-lateral.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-body-front.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-body-dorsal.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-head-oblique.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-head-lateral.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-head-frontal.ppm
+[CAPTURA] /tmp/monster-final-captures/age-0-head-dorsal.ppm
+[INFO] Demo de envejecimiento finalizada limpiamente.

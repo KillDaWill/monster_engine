@@ -1,0 +1,6 @@
+age=0.00 tier=0 ms=1880.23 bodyCells=354816 headCells=159744 samples=541755 triangles=31022 steps=0.07000,0.01575
+age=0.00 tier=1 ms=3562.34 bodyCells=573352 headCells=846720 samples=1474712 triangles=85668 steps=0.06000,0.00900
+age=0.50 tier=0 ms=3450.87 bodyCells=633080 headCells=414120 samples=1092630 triangles=61000 steps=0.07000,0.01575
+age=0.50 tier=1 ms=6114.51 bodyCells=818214 headCells=2197160 samples=3106512 triangles=167260 steps=0.06410,0.00900
+age=1.00 tier=0 ms=4506.65 bodyCells=771456 headCells=877800 samples=1712593 triangles=100650 steps=0.07580,0.01575
+age=1.00 tier=1 ms=6089.22 bodyCells=806400 headCells=2090928 samples=2987835 triangles=168491 steps=0.07428,0.01177

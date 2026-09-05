@@ -20,6 +20,7 @@ extern "C" {
 /** Receta estructural del elemento oral inferior. */
 typedef enum MouthShape {
     MOUTH_SHAPE_MANDIBLE = 0, /**< Mandíbula con rama posterior y masa muscular. */
+    MOUTH_SHAPE_TAPERED_MANDIBLE, /**< Dos ramas ahusadas unidas en la sínfisis anterior. */
     MOUTH_SHAPE_LOWER_BEAK    /**< Pico inferior ahusado, sin masa de mejilla mamífera. */
 } MouthShape;
 

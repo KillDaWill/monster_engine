@@ -39,6 +39,8 @@ typedef enum MonsterVisualQualityTier {
 typedef struct MonsterVisualAsyncConfig {
     SDFMesherConfig interactiveMesherConfig; /**< Configuración mesher para tier INTERACTIVE */
     SDFMesherConfig settledMesherConfig;     /**< Configuración mesher para tier SETTLED */
+    SDFMesherConfig interactiveHeadMesherConfig; /**< Calidad local cefálica durante interacción. */
+    SDFMesherConfig settledHeadMesherConfig; /**< Calidad local cefálica asentada. */
     MonsterSDFConfig sdfConfig;              /**< Configuración del campo SDF del monstruo */
     float settledDelaySec;                   /**< Tiempo en segundos sin cambios para escalar a SETTLED */
 } MonsterVisualAsyncConfig;
@@ -48,17 +50,25 @@ typedef struct MonsterVisualAsyncConfig {
  * @brief Diagnósticos de rendimiento y métricas de ejecución en segundo plano.
  */
 typedef struct MonsterVisualAsyncStats {
+    uint64_t requestedFingerprint, workingFingerprint, displayedFingerprint; /**< Identidades de snapshots. */
+    float workingScale, displayedScale; /**< Escala semántica de generación y presentación. */
     uint64_t requestCount;                  /**< Total de solicitudes enviadas al hilo worker */
     uint64_t completedBuildCount;           /**< Reconstrucciones completadas exitosamente */
     uint64_t coalescedCount;                /**< Solicitudes intermedias descartadas por coalescencia */
     float lastBuildDurationMs;              /**< Duración de la última reconstrucción en milisegundos */
     bool isWorkerBusy;                     /**< Indica si el worker está construyendo una malla activamente */
     MonsterVisualQualityTier activeQualityTier; /**< Tier de calidad usado en la malla mostrada */
+    SDFMesherStats bodyMesher;              /**< Rejilla efectiva del cuerpo grueso. */
+    SDFMesherStats headMesher;              /**< Rejilla efectiva de la cabeza local. */
 } MonsterVisualAsyncStats;
 
+/** @struct MonsterVisualEyeAsync
+ * @brief Triple de mallas oculares transferible entre los buffers asíncronos.
+ */
 typedef struct MonsterVisualEyeAsync {
-    Mesh sclera;
-    Mesh pupil;
+    Mesh sclera; /**< Globo ocular base. */
+    Mesh iris; /**< Disco de iris orientado. */
+    Mesh pupil; /**< Disco de pupila orientado. */
 } MonsterVisualEyeAsync;
 
 /**
@@ -70,6 +80,7 @@ typedef struct MonsterVisualAsync {
 
     /* Front Buffer / Mallas expuestas al hilo principal de renderizado */
     Mesh displayMesh;
+    Mesh displayHeadMesh;
     MonsterVisualEyeAsync* displayEyes;
     size_t displayEyeCount;
     size_t displayEyeCapacity;
@@ -95,11 +106,13 @@ typedef struct MonsterVisualAsync {
     /* Ready Buffer / Mallas listas generadas por el worker */
     bool hasReadyMesh;
     Mesh readyMesh;
+    Mesh readyHeadMesh;
     MonsterVisualEyeAsync* readyEyes;
     size_t readyEyeCount;
     size_t readyEyeCapacity;
     uint64_t readyGeneration;
     uint64_t readyFingerprint;
+    float readyScale; /**< Escala del snapshot publicado. */
     MonsterVisualQualityTier readyTier;
     MonsterVisualMouth* readyMouths;
     size_t readyMouthCount;
@@ -108,8 +121,10 @@ typedef struct MonsterVisualAsync {
     /* Control de temporización de movimiento para cambio de tier */
     uint64_t lastObservedFingerprint;
     float timeSinceLastMotionSec;
+    bool continuousMotion; /**< Evita asentamientos durante una interacción sostenida. */
 
     /* Métricas */
+    MonsterVisualAsyncStats readyStats, displayStats; /**< Métricas transferidas con las mallas. */
     MonsterVisualAsyncStats stats;
 } MonsterVisualAsync;
 
@@ -139,10 +154,16 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr);
  */
 bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* monster, float deltaTime);
 
+/** @brief Mantiene el tier interactivo durante una animación; libera settled al detenerse. */
+void MonsterVisualAsync_SetContinuousMotion(MonsterVisualAsync* asyncMgr,bool active);
+
 /**
  * @brief Obtiene la malla del cuerpo lista para ser renderizada.
  */
 const Mesh* MonsterVisualAsync_GetDisplayMesh(const MonsterVisualAsync* asyncMgr);
+
+/** @brief Obtiene la malla local de cabeza de alta resolución. */
+const Mesh* MonsterVisualAsync_GetDisplayHeadMesh(const MonsterVisualAsync* asyncMgr);
 
 /**
  * @brief Obtiene el número de ojos activos en la malla mostrada.
@@ -153,6 +174,9 @@ size_t MonsterVisualAsync_GetDisplayEyeCount(const MonsterVisualAsync* asyncMgr)
  * @brief Obtiene la esclerótica del ojo en el índice especificado.
  */
 const Mesh* MonsterVisualAsync_GetDisplayEyeSclera(const MonsterVisualAsync* asyncMgr, size_t index);
+
+/** @brief Obtiene la malla visible del iris. */
+const Mesh* MonsterVisualAsync_GetDisplayEyeIris(const MonsterVisualAsync* asyncMgr, size_t index);
 
 /**
  * @brief Obtiene la pupila del ojo en el índice especificado.

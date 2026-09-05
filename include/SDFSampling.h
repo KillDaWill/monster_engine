@@ -11,6 +11,7 @@
 #include "Vector.h"
 #include "SDFOperations.h"
 #include "AABB.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +31,12 @@ typedef float (*SDFDistanceFn)(const void* context, Vector3 point);
  * @brief Firma de función opcional para calcular o retornar los bounds de un campo SDF.
  */
 typedef AABB3D (*SDFBoundsFn)(const void* context);
+
+/** @brief Región genérica de detalle; el objetivo describe la escala geométrica. */
+typedef struct SDFDetailRegion {
+    AABB3D bounds; /**< Región que contiene el rasgo. */
+    float targetVoxelSize; /**< Espaciado máximo deseado dentro de la región. */
+} SDFDetailRegion;
 
 /**
  * @struct SDFField

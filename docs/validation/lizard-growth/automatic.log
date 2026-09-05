@@ -1,0 +1,28 @@
+========================================================
+   MONSTER ENGINE 3D: Demo SDF Transición (MonsterAger) 
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas F1-F4                  : Inspección cabeza / vistas anatómicas
+  - 0..4 : Edades 0 / 25 / 50 / 75 / 100%; rueda : zoom
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: activo (4x)
+[MALLA] edad_solicitada=0.00 escala_visible=0.58000 gen=1 fp=12361169095148347806 tier=interactive ms=917.10 grid=91x50x138 voxel_max=0.12000 voxel_min=0.01071 celdas=627900 activas=17762 refinadas=594400 muestras=652188 triangulos=35512 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.01 escala_visible=0.58013 gen=2 fp=6150917674902945652 tier=interactive ms=989.17 grid=91x51x139 voxel_max=0.12000 voxel_min=0.00054 celdas=645099 activas=17794 refinadas=611599 muestras=669760 triangulos=35572 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.02 escala_visible=0.58050 gen=3 fp=12397834170046575484 tier=interactive ms=943.49 grid=91x51x139 voxel_max=0.12000 voxel_min=0.00170 celdas=645099 activas=17870 refinadas=612099 muestras=669760 triangulos=35728 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.03 escala_visible=0.58111 gen=4 fp=2449501486123681042 tier=interactive ms=940.52 grid=91x51x139 voxel_max=0.12000 voxel_min=0.00293 celdas=645099 activas=17833 refinadas=612099 muestras=669760 triangulos=35644 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.04 escala_visible=0.58196 gen=5 fp=8375629030807354040 tier=interactive ms=939.41 grid=91x51x138 voxel_max=0.12000 voxel_min=0.00423 celdas=640458 activas=17871 refinadas=607458 muestras=664976 triangulos=35720 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.05 escala_visible=0.58305 gen=6 fp=1286630755864608670 tier=interactive ms=925.79 grid=91x51x139 voxel_max=0.12000 voxel_min=0.00561 celdas=645099 activas=17953 refinadas=613419 muestras=669760 triangulos=35904 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.06 escala_visible=0.58435 gen=7 fp=13396666717775980947 tier=interactive ms=944.33 grid=91x51x139 voxel_max=0.12000 voxel_min=0.00707 celdas=645099 activas=17990 refinadas=613419 muestras=669760 triangulos=35972 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.07 escala_visible=0.58589 gen=8 fp=12176060505400885789 tier=interactive ms=916.73 grid=92x51x139 voxel_max=0.12000 voxel_min=0.00732 celdas=652188 activas=17973 refinadas=619188 muestras=677040 triangulos=35924 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.08 escala_visible=0.58763 gen=9 fp=5077106613336966308 tier=interactive ms=934.74 grid=92x51x140 voxel_max=0.12000 voxel_min=0.01021 celdas=656880 activas=18060 refinadas=623880 muestras=681876 triangulos=36088 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.09 escala_visible=0.58959 gen=10 fp=3855630684641148820 tier=interactive ms=919.40 grid=91x51x140 voxel_max=0.12000 voxel_min=0.01078 celdas=649740 activas=18052 refinadas=616240 muestras=674544 triangulos=36088 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.10 escala_visible=0.59176 gen=11 fp=753784565275474330 tier=interactive ms=905.86 grid=91x51x140 voxel_max=0.12000 voxel_min=0.01081 celdas=649740 activas=17895 refinadas=616240 muestras=674544 triangulos=35792 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.11 escala_visible=0.59413 gen=12 fp=8222797701857866833 tier=interactive ms=913.22 grid=91x51x140 voxel_max=0.12000 voxel_min=0.01084 celdas=649740 activas=17975 refinadas=616240 muestras=674544 triangulos=35940 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.12 escala_visible=0.59669 gen=13 fp=17486656297509315281 tier=interactive ms=910.41 grid=91x51x141 voxel_max=0.12000 voxel_min=0.01087 celdas=654381 activas=18027 refinadas=620881 muestras=679328 triangulos=36040 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.13 escala_visible=0.59945 gen=14 fp=18002358807366816633 tier=interactive ms=922.16 grid=91x51x141 voxel_max=0.12000 voxel_min=0.01091 celdas=654381 activas=18160 refinadas=620381 muestras=679328 triangulos=36314 presupuesto=0 detalle_degradado=0 coalescidas=0
+[MALLA] edad_solicitada=0.14 escala_visible=0.60239 gen=15 fp=1776613497277687785 tier=interactive ms=929.52 grid=92x51x141 voxel_max=0.12000 voxel_min=0.01046 celdas=661572 activas=18256 refinadas=626212 muestras=686712 triangulos=36496 presupuesto=0 detalle_degradado=0 coalescidas=0
+[INFO] Demo de envejecimiento finalizada limpiamente.

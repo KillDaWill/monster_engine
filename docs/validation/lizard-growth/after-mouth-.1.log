@@ -1,0 +1,10 @@
+========================================================
+   MONSTER ENGINE 3D: Demo de Mandíbula Anatómica       
+========================================================
+ Controles:
+  - ESPACIO               : Pausar / Reanudar animación automática
+  - Flecha ARRIBA / ABAJO : Abrir / Cerrar boca manualmente
+  - R                     : Reiniciar parámetros
+  - ESC                   : Salir
+========================================================
+[INFO] Demo de animación de boca finalizada limpiamente.

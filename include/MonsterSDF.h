@@ -14,6 +14,8 @@
 #include "AABB.h"
 #include "SDFOperations.h"
 #include "SDFSampling.h"
+#include "Anatomy.h"
+#include "SDFPrimitives.h"
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -57,10 +59,19 @@ typedef struct MonsterSDFConnector {
     Vector3 a;
     Vector3 b;
     Vector3 ba;
+    Vector3 forward, side, up; /**< Marco de segmento precalculado. */
+    float length; /**< Longitud del segmento. */
     float invBaLengthSquared;
     float r1;
     float r2;
     float radiusDelta;
+    float widthA;
+    float heightA;
+    float widthB;
+    float heightB;
+    AnatomyId fromId;
+    AnatomyId toId;
+    BodyConnectionKind kind;
     Color color;
 } MonsterSDFConnector;
 
@@ -98,12 +109,23 @@ typedef struct MonsterSDFMouth {
     Vector3 snoutRadii;
     Vector3 cheekCenterLocal;
     Vector3 cheekRadii;
-    Vector3 browCenterLocal;
+    Vector3 leftTemporalCenterLocal;
+    Vector3 rightTemporalCenterLocal;
+    Vector3 temporalRadii;
+    Vector3 leftMaxillaryCenterLocal;
+    Vector3 rightMaxillaryCenterLocal;
+    Vector3 maxillaryRadii;
+    Vector3 leftBrowCenterLocal;
+    Vector3 rightBrowCenterLocal;
     Vector3 browRadii;
+    bool sweptSkull; /**< Cráneo y rostro del lagarto comparten un único barrido. */
+    SDFSweepStation headStations[6]; /**< Perfil cefálico resuelto. */
     bool anatomicalHead; /**< Activa la receta compilada por HeadAnatomy. */
     Vector3 faceRootLocal; /**< Raíz local del rostro ahusado. */
+    Vector3 faceMidLocal; /**< Sección nasal local intermedia. */
     Vector3 faceTipLocal; /**< Extremo local del rostro ahusado. */
     Vector3 faceRootRadii; /**< Radios proximales del rostro. */
+    Vector3 faceMidRadii; /**< Radios de la sección nasal. */
     Vector3 faceTipRadii; /**< Radios distales del rostro. */
     Vector3 leftOrbitCenterLocal; /**< Centro del cutter orbital izquierdo. */
     Vector3 rightOrbitCenterLocal; /**< Centro del cutter orbital derecho. */
@@ -111,18 +133,34 @@ typedef struct MonsterSDFMouth {
     Vector3 leftOrbitRimCenterLocal; /**< Centro del reborde izquierdo. */
     Vector3 rightOrbitRimCenterLocal; /**< Centro del reborde derecho. */
     Vector3 orbitRimRadii; /**< Radios externos del reborde orbital. */
+    Vector3 leftOrbitNormal;
+    Vector3 rightOrbitNormal;
+    float orbitSocketDepth;
     Vector3 noseCenterLocal; /**< Centro de almohadilla nasal. */
     Vector3 noseRadii; /**< Radios de almohadilla nasal. */
     Vector3 leftNostrilCenterLocal; /**< Cutter de narina izquierda. */
     Vector3 rightNostrilCenterLocal; /**< Cutter de narina derecha. */
     Vector3 nostrilRadii; /**< Radios de ambos cutters nasales. */
+    Vector3 leftTympanumCenterLocal;
+    Vector3 rightTympanumCenterLocal;
+    Vector3 tympanumRadii;
+    float tympanumDepth;
     Vector3 leftEarCenterLocal; /**< Centro auricular izquierdo. */
     Vector3 rightEarCenterLocal; /**< Centro auricular derecho. */
     Vector3 earRadii; /**< Radios auriculares. */
     float headUnionSmoothness; /**< Suavidad de la receta de cabeza. */
+    float headBodySmoothness; /**< Suavidad local de la transición cefalocervical. */
+    Vector3 neckCollarRootLocal; /**< Inicio occipital del collar local. */
+    Vector3 neckCollarTipLocal; /**< Extremo del collar enterrado en el cuello corporal. */
+    Vector3 neckCollarRootRadii; /**< Radios occipitales del collar. */
+    Vector3 neckCollarTipRadii; /**< Radios terminales, menores que el cuello corporal. */
     bool hasNasalPad; /**< Incluye almohadilla nasal diferenciada. */
     bool hasEars; /**< Incluye volúmenes auriculares. */
+    bool hasTympana;
+    bool taperedMandible;
+    float faceRounding;
     AABB3D influenceBounds;
+    AABB3D headBounds; /**< AABB mundial ajustada al campo local de cabeza. */
     /* Anclas compartidas de costura derivadas de dimensiones host/boca */
     Vector3 seamSkullLeftLocal;      /**< Ancla craneal superior izquierda */
     Vector3 seamSkullRightLocal;     /**< Ancla craneal superior derecha */
@@ -146,6 +184,17 @@ typedef struct MonsterSDFSeamField {
     size_t mouthIndex;
 } MonsterSDFSeamField;
 
+/** Contexto del cuerpo grueso sin duplicar la cabeza anatómica. */
+typedef struct MonsterSDFBodyField {
+    const MonsterSDF* owner;
+} MonsterSDFBodyField;
+
+/** Contexto mundial del campo local de cabeza anatómica. */
+typedef struct MonsterSDFHeadField {
+    const MonsterSDF* owner;
+    size_t mouthIndex;
+} MonsterSDFHeadField;
+
 /** Modos de inspección del campo anatómico de la cabeza. */
 typedef enum MonsterHeadDebugMode {
     MONSTER_HEAD_DEBUG_FULL = 0,
@@ -155,7 +204,12 @@ typedef enum MonsterHeadDebugMode {
     MONSTER_HEAD_DEBUG_JAW,
     MONSTER_HEAD_DEBUG_BRIDGES,
     MONSTER_HEAD_DEBUG_CAVITY,
-    MONSTER_HEAD_DEBUG_SLIT
+    MONSTER_HEAD_DEBUG_SLIT,
+    MONSTER_HEAD_DEBUG_ROSTRUM,
+    MONSTER_HEAD_DEBUG_ORBIT_CAVITIES,
+    MONSTER_HEAD_DEBUG_PERIORBITAL,
+    MONSTER_HEAD_DEBUG_NOSTRILS,
+    MONSTER_HEAD_DEBUG_LOCAL_HEAD
 } MonsterHeadDebugMode;
 
 /**
@@ -177,8 +231,12 @@ struct MonsterSDF {
     size_t mouthCount;
     size_t mouthCapacity; /**< Capacidad reservada del buffer mouths */
 
+    SDFSweepStation axialStations[16]; /**< Receta axial continua del lagarto. */
+    int axialStationCount; /**< Cero conserva la ruta heredada. */
     MonsterSDFConfig config;
     AABB3D bounds;
+    AABB3D bodyBounds; /**< Bounds del cuerpo grueso particionado. */
+    bool hasPartitionedHead; /**< Existe una cabeza local que no debe duplicarse en cuerpo. */
 };
 
 /**
@@ -220,6 +278,12 @@ SDFField MonsterSDF_GetJawField(const MonsterSDF* sdf, size_t mouthIndex, Monste
 /** Obtiene el campo local de tejido blando de costura para una boca. */
 SDFField MonsterSDF_GetSeamField(const MonsterSDF* sdf, size_t mouthIndex, MonsterSDFSeamField* context);
 
+/** Obtiene el cuerpo grueso; excluye cabeza anatómica y conector HEAD -> NECK. */
+SDFField MonsterSDF_GetBodyField(const MonsterSDF* sdf, MonsterSDFBodyField* context);
+
+/** Obtiene la cabeza anatómica mundial, incluidos cutters y collar posterior. */
+SDFField MonsterSDF_GetHeadField(const MonsterSDF* sdf, size_t mouthIndex, MonsterSDFHeadField* context);
+
 /**
  * @brief Wrapper de evaluación completa compatible con la firma SDFEvaluateFn.
  */
@@ -249,6 +313,10 @@ AABB3D MonsterSDF_GetBoundsWrapper(const void* context);
  * @brief Construye y retorna la estructura agnóstica SDFField vinculada a esta instancia.
  */
 SDFField MonsterSDF_GetField(const MonsterSDF* sdf);
+
+/** @brief Deriva regiones mundiales por escala de rasgo y muestras por diámetro. */
+size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf, float samplesPerDiameter,
+    SDFDetailRegion* regions, size_t capacity);
 
 #ifdef __cplusplus
 }

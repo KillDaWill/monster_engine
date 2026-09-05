@@ -14,6 +14,8 @@ void run_primitive_mesh_tests(void);
 void run_visual_async_tests(void);
 void run_mouth_geometry_tests(void);
 void run_head_tests(void);
+void run_lizard_tests(void);
+void run_local_detail_tests(void);
 
 int main(void) {
     printf("======================================\n");
@@ -58,6 +60,8 @@ int main(void) {
 
     run_mouth_geometry_tests();
     run_head_tests();
+    run_lizard_tests();
+    run_local_detail_tests();
 
     printf("\n======================================\n");
     printf(" ¡TODAS LAS SUITES PASARON CON ÉXITO! \n");

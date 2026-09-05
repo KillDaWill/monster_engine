@@ -1,0 +1,2 @@
+Cabeza local: 259.57 ms, 256256 celdas, 270204 muestras, 35816 triángulos; scratch 9.22 MiB
+Ensayo de proyección (sin modificar la malla): 128.47 ms, residuo medio 0.000478 -> 0.000050

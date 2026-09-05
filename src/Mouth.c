@@ -40,7 +40,8 @@ void Mouth_SetOpenFactor(Mouth* mouth, float factor) {
 void Mouth_Normalize(Mouth* mouth) {
     if (!mouth) return;
     mouth->openFactor = Math_Clamp01(mouth->openFactor);
-    if(mouth->shape!=MOUTH_SHAPE_MANDIBLE&&mouth->shape!=MOUTH_SHAPE_LOWER_BEAK) mouth->shape=MOUTH_SHAPE_MANDIBLE;
+    if(mouth->shape!=MOUTH_SHAPE_MANDIBLE&&mouth->shape!=MOUTH_SHAPE_TAPERED_MANDIBLE&&
+       mouth->shape!=MOUTH_SHAPE_LOWER_BEAK) mouth->shape=MOUTH_SHAPE_MANDIBLE;
     mouth->scale.x = Math_Max(fabsf(mouth->scale.x), 0.001f);
     mouth->scale.y = Math_Max(fabsf(mouth->scale.y), 0.001f);
     mouth->scale.z = Math_Max(fabsf(mouth->scale.z), 0.001f);

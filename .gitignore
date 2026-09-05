@@ -24,3 +24,6 @@ doc/latex/
 .vscode/
 .idea/
 .omo/
+
+# Benchmark del preset anatómico
+benchmarks/benchmark_lizard

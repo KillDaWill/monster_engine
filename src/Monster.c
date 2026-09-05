@@ -50,6 +50,10 @@ Monster Monster_Clone(const Monster* src) {
     dst.meta = src->meta;
     dst.head = src->head;
     dst.hasHead = src->hasHead;
+    dst.anatomyGraph = src->anatomyGraph;
+    dst.hasAnatomyGraph = src->hasAnatomyGraph;
+    dst.lizardPhenotype = src->lizardPhenotype;
+    dst.hasLizardPhenotype = src->hasLizardPhenotype;
 
     /* Copiar paleta de colores */
     dst.colorPalette.count = src->colorPalette.count;
@@ -177,10 +181,15 @@ bool Monster_ResolveHead(Monster* monster) {
     Monster_ClearMouths(monster);
     if (!Monster_AddMouth(monster,resolved.oralSystem)) return false;
     Monster_ClearEyes(monster);
-    Eye left=Eye_Create(attachment,resolved.landmarks.leftOrbit,resolved.eyeScale,COLOR_WHITE,COLOR_BLACK);
-    Eye right=Eye_Create(attachment,resolved.landmarks.rightOrbit,resolved.eyeScale,COLOR_WHITE,COLOR_BLACK);
-    if(appearanceCount>0) { left.scleraColor=eyeAppearance[0].scleraColor; left.pupilColor=eyeAppearance[0].pupilColor; left.pupilScale=eyeAppearance[0].pupilScale; }
-    if(appearanceCount>1) { right.scleraColor=eyeAppearance[1].scleraColor; right.pupilColor=eyeAppearance[1].pupilColor; right.pupilScale=eyeAppearance[1].pupilScale; }
+    Eye left=Eye_Create(attachment,resolved.landmarks.leftEyeCenter,resolved.eyeScale,COLOR_WHITE,COLOR_BLACK);
+    Eye right=Eye_Create(attachment,resolved.landmarks.rightEyeCenter,resolved.eyeScale,COLOR_WHITE,COLOR_BLACK);
+    left.forward=resolved.landmarks.leftOrbitNormal; right.forward=resolved.landmarks.rightOrbitNormal;
+    left.rotation=Vec3_Create(-asinf(Math_Clamp(left.forward.y,-1.0f,1.0f))*57.2957795f,
+                              atan2f(left.forward.x,left.forward.z)*57.2957795f,0);
+    right.rotation=Vec3_Create(-asinf(Math_Clamp(right.forward.y,-1.0f,1.0f))*57.2957795f,
+                               atan2f(right.forward.x,right.forward.z)*57.2957795f,0);
+    if(appearanceCount>0) { left.scleraColor=eyeAppearance[0].scleraColor; left.irisColor=eyeAppearance[0].irisColor; left.pupilColor=eyeAppearance[0].pupilColor; left.irisScale=eyeAppearance[0].irisScale; left.pupilScale=eyeAppearance[0].pupilScale; left.pupilAspect=eyeAppearance[0].pupilAspect; }
+    if(appearanceCount>1) { right.scleraColor=eyeAppearance[1].scleraColor; right.irisColor=eyeAppearance[1].irisColor; right.pupilColor=eyeAppearance[1].pupilColor; right.irisScale=eyeAppearance[1].irisScale; right.pupilScale=eyeAppearance[1].pupilScale; right.pupilAspect=eyeAppearance[1].pupilAspect; }
     if (!Monster_AddEye(monster,left) || !Monster_AddEye(monster,right)) return false;
     return true;
 }

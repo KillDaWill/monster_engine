@@ -14,6 +14,8 @@
 #include "Eye.h"
 #include "Mouth.h"
 #include "Head.h"
+#include "Anatomy.h"
+#include "Lizard.h"
 #include "MonsterQueries.h"
 #include "Trait.h"
 #include "VisualTrait.h"
@@ -52,6 +54,11 @@ typedef struct Monster {
 
     Head head;               /**< Cabeza semántica propietaria del subsistema oral */
     bool hasHead;            /**< Indica si la nueva canalización anatómica está activa */
+
+    AnatomyGraph anatomyGraph; /**< Topología corporal explícita, independiente del orden de BodyPart. */
+    bool hasAnatomyGraph;      /**< Activa la superficie corporal anatómica continua. */
+    LizardPhenotype lizardPhenotype; /**< Autoridad semántica para envejecimiento de lagarto. */
+    bool hasLizardPhenotype;          /**< Indica que el grafo procede del preset de lagarto. */
 
     struct Trait** traits;     /**< Arreglo dinámico de rasgos generales */
     size_t traitCount;        /**< Cantidad de rasgos generales */

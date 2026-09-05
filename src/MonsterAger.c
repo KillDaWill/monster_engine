@@ -12,7 +12,7 @@ void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
 
     /* 1. Igualar la cantidad de partes anatómicas */
     if (size1 > size2) {
-        BodyPart lastPart2 = monster2->bodyParts[size2 - 1];
+        BodyPart lastPart2 = size2?monster2->bodyParts[size2 - 1]:(BodyPart){0};
         for (size_t i = 0; i < size1 - size2; ++i) {
             BodyPart part = monster1->bodyParts[size2 + i];
             part.position = lastPart2.position;
@@ -33,7 +33,7 @@ void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
             Monster_AddBodyPart(monster2, part);
         }
     } else if (size2 > size1) {
-        BodyPart lastPart1 = monster1->bodyParts[size1 - 1];
+        BodyPart lastPart1 = size1?monster1->bodyParts[size1 - 1]:(BodyPart){0};
         for (size_t i = 0; i < size2 - size1; ++i) {
             BodyPart part = monster2->bodyParts[size1 + i];
             part.position = lastPart1.position;
@@ -109,6 +109,19 @@ void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
 void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, float perc, Monster* dst) {
     if (!monster1 || !monster2 || !dst) return;
 
+    /* Una sola autoridad resuelve cuerpo, anfitrión cefálico y anclajes. */
+    if (monster1->hasLizardPhenotype && monster2->hasLizardPhenotype) {
+        LizardPhenotype phenotype=LizardPhenotype_Interpolate(
+            &monster1->lizardPhenotype,&monster2->lizardPhenotype,perc);
+        float open=monster1->head.anatomy.oralSystem.openFactor;
+        open+=Math_Clamp01(perc)*(monster2->head.anatomy.oralSystem.openFactor-open);
+        if (!Lizard_BuildMonster(dst,&phenotype)) return;
+        Monster_SetHeadOpenFactor(dst,open);
+        dst->angle=Math_Lerp(monster1->angle,monster2->angle,perc);
+        dst->updateSpeed=Math_Lerp(monster1->updateSpeed,monster2->updateSpeed,perc);
+        return;
+    }
+
     /* 1. Sincronizar y mezclar la paleta de colores */
     dst->colorPalette.count = 0;
     size_t paletteSize = ColorPalette_GetCount(&monster1->colorPalette);
@@ -154,10 +167,14 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         eDst->bodyPartIndex = e1->bodyPartIndex;
         eDst->offset = Vec3_Lerp(e1->offset, e2->offset, perc);
         eDst->rotation = Vec3_Lerp(e1->rotation, e2->rotation, perc);
+        eDst->forward = Vec3_Normalize(Vec3_Lerp(e1->forward, e2->forward, perc));
         eDst->scale = Vec3_Lerp(e1->scale, e2->scale, perc);
         eDst->scleraColor = Color_Lerp(e1->scleraColor, e2->scleraColor, perc);
+        eDst->irisColor = Color_Lerp(e1->irisColor, e2->irisColor, perc);
         eDst->pupilColor = Color_Lerp(e1->pupilColor, e2->pupilColor, perc);
+        eDst->irisScale = e1->irisScale + perc * (e2->irisScale - e1->irisScale);
         eDst->pupilScale = e1->pupilScale + perc * (e2->pupilScale - e1->pupilScale);
+        eDst->pupilAspect = e1->pupilAspect + perc * (e2->pupilAspect - e1->pupilAspect);
     }
 
     /* 4. Mezclar Bocas */
@@ -203,11 +220,16 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
 #define LERP_HEAD_FIELD(name) hd->name=h1->name+perc*(h2->name-h1->name)
         LERP_HEAD_FIELD(skullWidth); LERP_HEAD_FIELD(skullHeight); LERP_HEAD_FIELD(skullLength);
         LERP_HEAD_FIELD(muzzleLength); LERP_HEAD_FIELD(muzzleWidth); LERP_HEAD_FIELD(muzzleTaper);
+        LERP_HEAD_FIELD(rostrumDepth); LERP_HEAD_FIELD(rostrumDorsalSlope);
+        LERP_HEAD_FIELD(temporalWidth); LERP_HEAD_FIELD(temporalDepth);
         LERP_HEAD_FIELD(eyeSize); LERP_HEAD_FIELD(eyeLaterality); LERP_HEAD_FIELD(eyeForwardness);
+        LERP_HEAD_FIELD(eyeDorsality); LERP_HEAD_FIELD(eyeExposure);
+        LERP_HEAD_FIELD(browProminence); LERP_HEAD_FIELD(snoutBluntness);
         LERP_HEAD_FIELD(jawLength); LERP_HEAD_FIELD(jawDepth); LERP_HEAD_FIELD(jawStrength);
         LERP_HEAD_FIELD(noseScale); LERP_HEAD_FIELD(earSize); LERP_HEAD_FIELD(earPointiness);
         LERP_HEAD_FIELD(cheekMass); LERP_HEAD_FIELD(beakLength); LERP_HEAD_FIELD(beakDepth);
         LERP_HEAD_FIELD(beakTaper); LERP_HEAD_FIELD(beakCurvature); LERP_HEAD_FIELD(nostrilPosition);
+        LERP_HEAD_FIELD(orbitDepth); LERP_HEAD_FIELD(tympanumSize);
 #undef LERP_HEAD_FIELD
         HeadPhenotype_Normalize(hd); dst->hasHead=true;
         float open=mouthCount>0?dst->mouths[0].openFactor:dst->head.anatomy.oralSystem.openFactor;
@@ -215,7 +237,15 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         Monster_ResolveHead(dst); Monster_SetHeadOpenFactor(dst,open);
     }
 
-    /* 6. Mezclar transformaciones globales */
+    /* 6. El cuerpo de lagarto se interpola en semántica y se vuelve a resolver. */
+    if (monster1->hasLizardPhenotype && monster2->hasLizardPhenotype) {
+        dst->lizardPhenotype=LizardPhenotype_Interpolate(&monster1->lizardPhenotype,
+                                                         &monster2->lizardPhenotype,perc);
+        dst->hasLizardPhenotype=true;
+        dst->hasAnatomyGraph=Lizard_ResolveAnatomy(&dst->lizardPhenotype,&dst->anatomyGraph);
+    }
+
+    /* 7. Mezclar transformaciones globales */
     dst->angle = monster1->angle + perc * (monster2->angle - monster1->angle);
     dst->updateSpeed = monster1->updateSpeed + perc * (monster2->updateSpeed - monster1->updateSpeed);
 }
@@ -226,7 +256,8 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
     ager.monster2 = Monster_Clone(second);
     ager.perc = Math_Clamp01(perc);
 
-    MonsterAger_NormalizeEndpoints(&ager.monster1, &ager.monster2);
+    if(!first->hasLizardPhenotype || !second->hasLizardPhenotype)
+        MonsterAger_NormalizeEndpoints(&ager.monster1, &ager.monster2);
 
     ager.result = Monster_Clone(&ager.monster1);
     MonsterAger_Interpolate(&ager.monster1, &ager.monster2, ager.perc, &ager.result);

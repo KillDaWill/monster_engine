@@ -1,0 +1,22 @@
+========================================================
+   MONSTER ENGINE 3D: Demo SDF Transición (MonsterAger) 
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas 1-4                  : Inspección cabeza / vistas anatómicas
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: activo (4x)
+[MALLA] edad=1.00 tier=interactive cuerpo=82x49x192 voxel=0.07580 celdas=771456 ajuste=sí cabeza=110x42x190 voxel=0.01575 celdas=877800 ajuste=no
+[MALLA] edad=1.00 tier=settled cuerpo=84x50x192 voxel=0.07428 celdas=806400 ajuste=sí cabeza=147x56x254 voxel=0.01177 celdas=2090928 ajuste=sí
+[CAPTURA] /tmp/monster-before/fixed-1-whole.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-body-lateral.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-body-front.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-body-dorsal.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-head-oblique.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-head-lateral.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-head-frontal.ppm
+[CAPTURA] /tmp/monster-before/fixed-1-head-dorsal.ppm
+[INFO] Demo de envejecimiento finalizada limpiamente.
