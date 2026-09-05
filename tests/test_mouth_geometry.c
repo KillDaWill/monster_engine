@@ -729,11 +729,17 @@ static void test_compact_seam_bounds(void) {
 }
 static void test_default_async_voxel_configs(void) {
     MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
-    printf("  [debug] async interactive %.3f/%u settled %.3f/%u\n", cfg.interactiveMesherConfig.voxelSize, (unsigned)cfg.interactiveMesherConfig.maxCells, cfg.settledMesherConfig.voxelSize, (unsigned)cfg.settledMesherConfig.maxCells);
+    printf("  [debug] async cuerpo interactive %.3f/%u settled %.3f/%u | cabeza %.3f/%u -> %.3f/%u\n", cfg.interactiveMesherConfig.voxelSize, (unsigned)cfg.interactiveMesherConfig.maxCells, cfg.settledMesherConfig.voxelSize, (unsigned)cfg.settledMesherConfig.maxCells, cfg.interactiveHeadMesherConfig.voxelSize, (unsigned)cfg.interactiveHeadMesherConfig.maxCells, cfg.settledHeadMesherConfig.voxelSize, (unsigned)cfg.settledHeadMesherConfig.maxCells);
     TEST_ASSERT(fabsf(cfg.interactiveMesherConfig.voxelSize - 0.12f) < 0.015f, "Voxel interactivo no es ~0.12");
     TEST_ASSERT(cfg.interactiveMesherConfig.maxCells == 250000, "maxCells interactivo no es 250k");
     TEST_ASSERT(fabsf(cfg.settledMesherConfig.voxelSize - 0.08f) < 0.015f, "Voxel settled no es ~0.08");
     TEST_ASSERT(cfg.settledMesherConfig.maxCells == 500000, "maxCells settled no es 500k");
+    TEST_ASSERT(cfg.interactiveHeadMesherConfig.voxelSize<cfg.interactiveMesherConfig.voxelSize&&
+                cfg.settledHeadMesherConfig.voxelSize<cfg.interactiveHeadMesherConfig.voxelSize,
+                "Los tiers cefálicos no son independientes ni progresivos");
+    TEST_ASSERT(cfg.interactiveHeadMesherConfig.maxCells>cfg.interactiveMesherConfig.maxCells&&
+                cfg.settledHeadMesherConfig.maxCells>cfg.interactiveHeadMesherConfig.maxCells,
+                "Los presupuestos cefálicos no sostienen el refinamiento local");
     printf("[PASS] test_default_async_voxel_configs\n");
 }
 void run_mouth_geometry_tests(void) {

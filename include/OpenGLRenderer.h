@@ -47,6 +47,15 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh);
 void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled);
 
 /**
+ * @brief Guarda el framebuffer posterior como imagen PPM, invirtiendo el eje Y.
+ * @param path Ruta de salida.
+ * @param width Ancho del viewport.
+ * @param height Alto del viewport.
+ * @return true si se leyó y escribió la imagen completa.
+ */
+bool OpenGLRenderer_SavePPM(const char* path, int width, int height);
+
+/**
  * @brief Libera los recursos del contexto del renderizador OpenGL y limpia sus callbacks.
  * @param renderer Puntero al renderizador 3D.
  */

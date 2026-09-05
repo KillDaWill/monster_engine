@@ -165,6 +165,7 @@ void test_sdf_mesher(void) {
     Mesh_Free(&mesh);
     MonsterSDF_Free(&sdf);
     Monster_Free(&monster);
+    SDFMesher_Free(&mesher);
     printf("[PASS] test_sdf_mesher\n");
 }
 
@@ -329,6 +330,7 @@ void test_lizard_mesh_stats(void) {
     Mesh_Free(&mesh);
     MonsterSDF_Free(&sdf);
     Monster_Free(&lizard);
+    SDFMesher_Free(&mesher);
     printf("[PASS] test_lizard_mesh_stats\n");
 }
 
@@ -399,6 +401,7 @@ void test_ager_meshes(void) {
     MonsterAger_Free(&ager);
     Monster_Free(&young);
     Monster_Free(&adult);
+    SDFMesher_Free(&mesher);
     printf("[PASS] test_ager_meshes\n");
 }
 
@@ -572,6 +575,7 @@ static void test_zero_scale_eye_ager_transition(void) {
     MonsterVisual_Free(&visual);
     MonsterAger_Free(&ager);
     Monster_Free(&young);
+    Monster_Free(&adult);
     printf("[PASS] test_zero_scale_eye_ager_transition\n");
 }
 

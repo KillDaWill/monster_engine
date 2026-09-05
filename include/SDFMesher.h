@@ -55,6 +55,11 @@ typedef struct SDFMesherStats {
     size_t generatedTriangleCount; /**< Cantidad de triángulos añadidos a la malla */
     float requestedVoxelSize;    /**< Tamaño de vóxel solicitado originalmente */
     float effectiveVoxelSize;    /**< Tamaño de vóxel efectivo tras presupuesto */
+    float detailSpacingRatio; /**< Máxima razón espaciado/objetivo en los rasgos solicitados. */
+    float minimumVoxelSize; /**< Menor espaciado local utilizado. */
+    size_t activeCellCount; /**< Celdas que cortan la isosuperficie. */
+    size_t refinedCellCount; /**< Celdas con algún eje más fino que la base. */
+    bool detailBudgetAdjusted; /**< No se pudo satisfacer todo el detalle solicitado. */
     bool cellBudgetAdjusted;     /**< true si la resolución fue ajustada por presupuesto maxCells */
 } SDFMesherStats;
 
@@ -84,6 +89,10 @@ typedef struct SDFMesher {
     MeshIndex* zEdges;           /**< Caché reutilizable de vértices en aristas Z */
     size_t zEdgeCapacity;        /**< Capacidad reservada de zEdges */
 
+    MeshIndex* cornerVertices; /**< Vértices compartidos cuando la superficie pasa por un nodo. */
+    size_t cornerVertexCapacity; /**< Capacidad reutilizable de cornerVertices. */
+    float* coordinates[3]; /**< Ejes rectilíneos compartidos, sin uniones T. */
+    size_t coordinateCapacity[3]; /**< Capacidades reutilizables. */
     SDFMesherStats lastStats;    /**< Métricas de la última ejecución */
 } SDFMesher;
 
@@ -119,6 +128,10 @@ bool SDFMesher_GenerateMesh(
     const SDFField* field,
     Mesh* outMesh
 );
+
+/** @brief Extrae una única rejilla conformante con detalle local opcional y presupuesto global. */
+bool SDFMesher_GenerateMeshDetailed(SDFMesher* mesher, const SDFField* field,
+    const SDFDetailRegion* regions, size_t regionCount, Mesh* outMesh);
 
 #ifdef __cplusplus
 }

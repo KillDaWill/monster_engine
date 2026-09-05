@@ -1,71 +1,92 @@
-# Informe de rediseño anatómico de cabeza y boca
+# Rediseño anatómico de cabeza y boca
 
-## 1. Objetivo y alcance
+La extensión corporal y el muestreo conformante se documentan en
+[Validación de lagarto y crecimiento](lizard-growth-validation.md).
 
-La boca dejó de ser un conjunto de adornos superpuestos. La nueva raíz es `Head`: conserva un `HeadPhenotype` semántico, resuelve `HeadLandmarks` y compila una `HeadSurfaceRecipe`. `Mouth` queda como `oralSystem` de la anatomía resuelta y sólo concentra hendidura, comisuras, mandíbula, pivote, bisagra y garganta.
-El alcance corrige tres causas raíz: la mandíbula duplicada en el SDF corporal y en la visual, el cutter oral que no alcanzaba la superficie facial real y la huella que confundía pose con forma.
+## 1. Autoridad semántica
 
-## 2. Modelo geométrico
+La ruta productiva conserva `HeadPhenotype -> HeadAnatomy -> HeadSurfaceRecipe`.
+Los presets sólo fijan proporciones semánticas; `HeadAnatomy_Resolve` deriva
+landmarks, secciones, cutters y anclajes concretos. El envejecimiento interpola
+`HeadPhenotype` y vuelve a resolver la anatomía, de modo que no interpola una
+malla ni coordenadas de render arbitrarias.
 
-`MonsterSDF_Build` consume la receta resuelta y compone cráneo, rostro ahusado, mejillas, cejas, rebordes orbitales, almohadilla nasal y orejas según el arquetipo. Después sustrae la cavidad oral, las dos órbitas y las dos narinas del campo corporal completo. Esta última condición evita que el elipsoide anfitrión vuelva a rellenar los cutters. La mandíbula y el puente gular se evalúan en campos locales separados.
+Los controles añadidos son `eyeDorsality`, `eyeExposure`, `browProminence` y
+`snoutBluntness`. Permiten variar una anatomía futura de tipo escíncido, agámido,
+lacértido, gecko o varano sin codificar otra cabeza en el renderer.
 
-## 3. Materiales
+## 2. Distribución de masa
 
-`SDFSample.material` se conserva en `MeshVertex`. Las superficies exteriores son `SDF_MATERIAL_SKIN`; las paredes producidas por la sustracción son `SDF_MATERIAL_MOUTH`. La mandíbula local conserva ambos materiales; el puente gular es piel y no se etiqueta falsamente como tejido oral.
-`lipColor` permanece reservado y no se incluye en fingerprints porque no pinta ninguna superficie activa.
+El cráneo del lagarto es un barrido dorsoventralmente aplanado. Las masas
+temporal, maxilar y malar son bilaterales, más pequeñas y con uniones escaladas
+por la dimensión local. La región orbitotemporal conserva la anchura máxima y
+el rostro crea una constricción preorbital antes de estrecharse hacia el morro.
 
-## 4. Articulación
+`headBodySmoothness` es independiente de `mouthSmoothness`: se deriva de los
+radios locales del cráneo y del cuello. Por tanto, el valor oral global no puede
+volver a inflar o borrar la transición occipital.
 
-El ángulo es `clamp(openFactor) * maxJawAngle`. La mandíbula posee una malla base inmutable y cada actualización copia posiciones y normales desde esa base mediante una transformación inversa alrededor de `jawPivot`; no se transforma acumulativamente.
+## 3. Rostro multisección
 
-## 5. Runtime síncrono y asíncrono
+La cabeza anatómica ya no usa `SDF_RoundedTaperedWedge`. La receta contiene
+`faceRoot`, `faceMid` y `faceTip`, cada uno con centro Y y radios independientes.
+Para el lagarto, `SDF_EllipticalSweepZ` incorpora estas secciones al barrido
+craneal continuo. Otros arquetipos conservan `SDF_ThreeSectionEllipticalLoftApprox`.
+El taper es no lineal, `rostrumDorsalSlope`
+desplaza realmente el perfil vertical y `snoutBluntness` conserva un extremo
+premaxilar comprimido pero redondeado.
 
-Los cambios estáticos modifican la huella geométrica y remallan. Un cambio exclusivo de `openFactor` sólo actualiza la mandíbula visible. El worker asíncrono genera cuerpo, ojos y los componentes cerrados mandíbula/bisagra; el hilo principal aplica la articulación sin encolar un remallado completo.
-La ruta asíncrona usa el índice explícito del snapshot para cada boca; antes todas las bocas podían seleccionar accidentalmente el índice cero.
+La primitiva es una SDF aproximada: se optimiza la continuidad de la superficie
+cero y del gradiente para Marching Cubes, no una distancia euclídea exacta. Éste
+es el mismo contrato que las cápsulas ahusadas aproximadas existentes.
 
-## 6. Contrato de render
+## 4. Órbita, párpado y globo
 
-La boca expone dos componentes: mandíbula y bisagra. La cavidad pertenece al cuerpo SDF, por lo que no existe túnel independiente ni contrato de cinco overlays. El renderizador continúa siendo una VTable agnóstica.
+Para el preset de lagarto, `eyeLaterality` se mapea al intervalo aproximado
+`0.72..0.80` del semiancho craneal. `eyeDorsality` controla la altura. El centro
+del globo sólo avanza una fracción pequeña y explícita (`eyeExposure`) sobre la
+normal orbital; la validación limita esa exposición al 25 % de la profundidad
+del globo y exige que órbita y ojo sigan dentro de la envolvente craneal.
 
-## 7. Depuración
+Los rebordes y cejas son bilaterales. Cada volumen acompaña su órbita y penetra
+la masa craneal; no existe un elipsoide central entre ambos ojos. El cutter se
+adelanta hacia la normal exterior para crear una cavidad abierta, evitando una
+lámina cutánea delante del ojo. El globo, iris y pupila siguen siendo mallas
+analíticas separadas y orientadas por la normal, lo que preserva el detalle sin
+depender de la rejilla SDF.
 
-`MonsterHeadDebugMode` permite inspeccionar FULL, CRANIUM, SNOUT, UPPER_HEAD, JAW, BRIDGES, CAVITY y SLIT mediante `MonsterSDF_EvaluateDebug`.
+## 5. Superficie craneocervical conformante
 
-## 8. Validación topológica
+El lagarto usa una única malla para cuerpo y cabeza. Su cráneo y rostro comparten
+un barrido de seis estaciones; la transición al cuello se une en el campo antes
+de extraer Marching Cubes. Los getters de cuerpo/cabeza separados permanecen como
+herramientas de diagnóstico y ruta de compatibilidad para otras criaturas.
 
-`Mesh_Validate` mantiene las comprobaciones de índices, finitud y área, y además contabiliza aristas frontera, aristas no-manifold, triángulos duplicados y vértices aislados. Las banderas `manifold` y `watertight` distinguen una malla abierta válida de una superficie cerrada.
+La mandíbula y su tejido articulado conservan sus mallas propias. Un suelo
+volumétrico une las ramas mandibulares. La resolución semántica sigue siendo la
+autoridad de ojos, órbitas, bisagra, rostro y cutters.
 
-## 9. Envejecimiento y copias
+## 6. Detalle por escala de rasgo
 
-Cuando ambos extremos poseen `Head`, `MonsterAger` interpola `HeadPhenotype` y vuelve a resolver landmarks y receta. La interpolación de arrays continúa como puente para criaturas heredadas. `Monster_Clone` copia el modelo semántico además de conservar la semántica existente de arrays y punteros de traits.
+`MonsterSDF_GetDetailRegions` produce AABB y objetivos locales a partir de narinas,
+órbitas y tímpanos. `SDFMesher_GenerateMeshDetailed` construye ejes rectilíneos con
+espaciado variable y conectividad compartida. Los objetivos son 3,5 muestras por
+diámetro en interacción y 6 en reposo; las estadísticas indican cualquier
+incumplimiento por presupuesto. La cola mantiene un espaciado mayor.
 
-## 10. Resolución y presupuesto
+La caché de vértices nodales evita agujeros al coincidir una isosuperficie con un
+nodo de rejilla. El criterio de área relativa conserva triángulos pequeños
+válidos. Los gradientes cacheados usan el espaciado no uniforme real.
 
-El campo local de mandíbula solicita `voxelSize=0.04` y la costura blanda `0.03`, separados del presupuesto corporal. El tier asíncrono interactivo usa `0.12` con 250 000 celdas y el asentado `0.08` con 500 000; los límites pueden coarsenizar la resolución efectiva en criaturas grandes.
+## 7. Visualización y verificación
 
-## 11. Pruebas
+El demo permite edades fijas con 0..4, vistas cefálicas con H/F1..F4 y zoom con la
+rueda. Las capturas mantienen cámaras idénticas a todas las edades. El worker
+publica todos los componentes junto con sus métricas; evita solicitudes duplicadas
+y sólo aplica pose en vivo sobre una geometría coincidente.
 
-Las pruebas cubren conexión exterior, límite posterior, material oral, pivote, estados abierto/cerrado, articulación sin remallado corporal, componentes bilaterales de mandíbula/bisagra, finitud y auditoría topológica, además del contrato asíncrono. La suite de cabeza valida los tres presets, cutters orbitales y nasales reales, interpolación semántica, la primitiva elíptica ahusada, extracción de malla para cada arquetipo y 540 anatomías aleatorias legales en tres escalas.
-
-## 12. Demos y documentación
-
-El visor y las demos siguen usando `openFactor`; la demo dedicada muestra la articulación. `README.md` documenta el nuevo flujo y las teclas.
-
-## 13. Limitaciones y siguientes pasos
-
-La visualización de material todavía usa el pipeline de color fijo de OpenGL; el identificador queda disponible para un shader futuro. La mandíbula no participa en el campo corporal: se genera desde su campo local y se renderiza separadamente. La costura posterior se genera desde un único campo SDF conectado y se deforma en CPU entre anclas craneales fijas y mandibulares móviles.
-El array `BodyPart[]` todavía es una cadena implícita y los arrays `mouths`/`eyes` siguen presentes como puente para el renderer y demos existentes. El siguiente paso es introducir nodos axiales con `AnatomyId`, padre explícito y transform de reposo; entonces `HeadLandmarks.neckAttachment` podrá apuntar al nodo NECK sin depender del índice cero. Después pueden migrarse los conectores SDF de `i -> i + 1` a aristas explícitas.
-
-## 14. Parámetros y extensión de arquetipos
-
-`HeadPhenotype` expone proporciones de cráneo, hocico, ojos, mandíbula, nariz, orejas y pico en el rango normalizado `[0, 1]`. `HeadPhenotype_Normalize` constituye la frontera pública de validación. El resolver deriva las coordenadas dependientes y garantiza simetría bilateral, bisagras posteriores a las comisuras, rostro anterior al cráneo, órbitas dentro de la envolvente craneal, narinas dentro del tramo facial y anclaje cervical posterior/inferior.
-
-Para añadir otro arquetipo:
-
-1. Añadir el valor a `HeadArchetype` y un preset semántico; no añadir coordenadas al preset.
-2. Ajustar sólo las reglas de proporción necesarias dentro de `HeadAnatomy_Resolve` y expresarlas en `HeadSurfaceRecipe` genérica.
-3. Reutilizar primitivas SDF generales; una primitiva nueva necesita pruebas matemáticas propias.
-4. Añadir el preset al barrido aleatorio, a la validación de cutters y a la extracción de malla.
-5. Mantener la mandíbula o pico inferior en `HeadAnatomy.oralSystem` y la pose en `openFactor`, sin remallar el cuerpo por fotograma.
-
-La validación visual se realizó con capturas temporales del demo de crecimiento y de la demo mandibular en estados abierto, intermedio y casi cerrado; las capturas no se almacenan como artefactos del repositorio.
+Las pruebas incluyen cavidades subvoxel, estanqueidad de los casos medidos,
+propiedad semántica durante crecimiento, continuidad, simetría, poses y
+coalescencia. El informe enlazado contiene las imágenes reales antes/después,
+los presupuestos, benchmarks y limitaciones. No se afirma que Marching Cubes
+canónico resuelva toda ambigüedad topológica de cualquier CSG arbitraria.

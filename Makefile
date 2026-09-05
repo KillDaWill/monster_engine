@@ -36,6 +36,8 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/Eye.c \
             $(SRC_DIR)/Mouth.c \
             $(SRC_DIR)/Head.c \
+            $(SRC_DIR)/Anatomy.c \
+            $(SRC_DIR)/Lizard.c \
             $(SRC_DIR)/Monster.c \
             $(SRC_DIR)/MonsterQueries.c \
             $(SRC_DIR)/MonsterAger.c
@@ -61,7 +63,9 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_primitive_mesh.c \
             $(TEST_DIR)/test_visual_async.c \
             $(TEST_DIR)/test_mouth_geometry.c \
-            $(TEST_DIR)/test_head.c
+            $(TEST_DIR)/test_head.c \
+            $(TEST_DIR)/test_lizard.c \
+            $(TEST_DIR)/test_local_detail.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
@@ -80,12 +84,12 @@ all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
 # Regla para compilar objetos del núcleo
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 # Regla para compilar objetos de test
 $(BUILD_DIR)/%.o: $(TEST_DIR)/%.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 # Ejecutable de la Suite de Pruebas Unitarias (Puro C sin librerías gráficas)
 $(TEST_BIN): $(CORE_OBJS) $(TEST_OBJS)
@@ -124,4 +128,15 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) doc/html doc/latex
+	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) benchmarks/benchmark_lizard doc/html doc/latex
+
+# Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
+-include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
+
+# Benchmark del mismo preset y configuraciones que usa el demo de crecimiento.
+benchmarks/benchmark_lizard: $(CORE_OBJS) benchmarks/benchmark_lizard.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-lizard
+benchmark-lizard: benchmarks/benchmark_lizard
+	./benchmarks/benchmark_lizard

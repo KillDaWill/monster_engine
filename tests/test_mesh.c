@@ -274,6 +274,24 @@ static void test_edge_cache_sharing(void) {
     printf("[PASS] test_edge_cache_sharing\n");
 }
 
+static void test_keep_largest_component(void) {
+    Mesh mesh=Mesh_Create();MeshIndex index;
+    const Vector3 positions[]={
+        {0,0,0},{1,0,0},{0,1,0},
+        {3,0,0},{4,0,0},{3,1,0},{4,1,0}
+    };
+    for(size_t i=0;i<sizeof(positions)/sizeof(positions[0]);++i) {
+        MeshVertex vertex={positions[i],{0,0,1},COLOR_WHITE,SDF_MATERIAL_SKIN};
+        TEST_ASSERT(Mesh_AddVertex(&mesh,vertex,&index),"No se preparó la malla multicomponente");
+    }
+    TEST_ASSERT(Mesh_AddTriangle(&mesh,0,1,2)&&Mesh_AddTriangle(&mesh,3,4,5)&&Mesh_AddTriangle(&mesh,4,6,5),
+                "No se prepararon los componentes de prueba");
+    TEST_ASSERT(Mesh_KeepLargestComponent(&mesh),"Falló la compactación del componente mayor");
+    TEST_ASSERT(mesh.vertexCount==4&&mesh.indexCount==6,"La compactación no conservó sólo el componente mayor");
+    TEST_ASSERT(Mesh_Validate(&mesh).valid,"La compactación dejó índices o atributos inválidos");
+    Mesh_Free(&mesh);printf("[PASS] test_keep_largest_component\n");
+}
+
 void run_mesh_tests(void) {
     test_add_triangle_guards();
     test_mesh_validate();
@@ -281,4 +299,5 @@ void run_mesh_tests(void) {
     test_sphere_field_pipeline();
     test_edge_cache_sharing();
     test_topology_audit();
+    test_keep_largest_component();
 }

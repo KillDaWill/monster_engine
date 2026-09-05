@@ -73,6 +73,71 @@ float SDF_TaperedEllipticalCapsuleApprox(Vector3 p, Vector3 a, Vector3 b, Vector
     return Math_Min(body,Math_Min(capA,capB));
 }
 
+float SDF_ThreeSectionEllipticalLoftApprox(Vector3 p,
+                                           Vector3 root, Vector3 mid, Vector3 tip,
+                                           Vector3 rootRadii, Vector3 midRadii,
+                                           Vector3 tipRadii, float blend) {
+    float rear = SDF_TaperedEllipticalCapsuleApprox(p, root, mid, rootRadii, midRadii);
+    float front = SDF_TaperedEllipticalCapsuleApprox(p, mid, tip, midRadii, tipRadii);
+    float k = Math_Max(blend, 0.0f);
+    if (k <= 0.0001f) return Math_Min(rear, front);
+    float h = Math_Clamp01(0.5f + 0.5f * (front - rear) / k);
+    return Math_Lerp(front, rear, h) - k * h * (1.0f - h);
+}
+
+float SDF_TaperedEllipticalSegmentApprox(Vector3 p, Vector3 a, Vector3 b,
+                                         float widthA, float heightA,
+                                         float widthB, float heightB) {
+    Vector3 axis = Vec3_Sub(b, a);
+    float length = Vec3_Length(axis);
+    if (length < 1e-6f) return SDF_Ellipsoid(Vec3_Sub(p, a),
+        Vec3_Create(Math_Max(widthA, .0001f), Math_Max(heightA, .0001f), Math_Max(widthA, .0001f)));
+    Vector3 forward = Vec3_Scale(axis, 1.0f / length);
+    Vector3 referenceUp = fabsf(forward.y) > .94f ? Vec3_Create(1,0,0) : Vec3_Create(0,1,0);
+    Vector3 side = Vec3_Normalize(Vec3_Cross(referenceUp, forward));
+    Vector3 up = Vec3_Normalize(Vec3_Cross(forward, side));
+    Vector3 pa = Vec3_Sub(p, a);
+    float along = Vec3_Dot(pa, forward);
+    float t = Math_Clamp01(along / length);
+    float width = Math_Max(Math_Lerp(widthA, widthB, t), .0001f);
+    float height = Math_Max(Math_Lerp(heightA, heightB, t), .0001f);
+    float cap = Math_Min(width, height);
+    float outsideAxis = along < 0.0f ? along : (along > length ? along - length : 0.0f);
+    Vector3 center = Vec3_Add(a, Vec3_Scale(forward, Math_Clamp(along, 0.0f, length)));
+    Vector3 radial = Vec3_Sub(p, center);
+    float sx = Vec3_Dot(radial, side) / width;
+    float sy = Vec3_Dot(radial, up) / height;
+    float sz = outsideAxis / cap;
+    return (sqrtf(sx*sx + sy*sy + sz*sz) - 1.0f) * Math_Min(width, height);
+}
+
+float SDF_RoundedTaperedWedge(Vector3 p, Vector3 root, Vector3 tip,
+                             float rootHalfWidth, float tipHalfWidth,
+                             float rootHalfHeight, float tipHalfHeight,
+                             float rounding) {
+    Vector3 axis = Vec3_Sub(tip, root);
+    float length = Vec3_Length(axis);
+    if (length < 1e-6f) return SDF_Ellipsoid(Vec3_Sub(p, root),
+        Vec3_Create(rootHalfWidth, rootHalfHeight, rootHalfWidth));
+    Vector3 forward = Vec3_Scale(axis, 1.0f / length);
+    Vector3 referenceUp = fabsf(forward.y) > .94f ? Vec3_Create(1,0,0) : Vec3_Create(0,1,0);
+    Vector3 side = Vec3_Normalize(Vec3_Cross(referenceUp, forward));
+    Vector3 up = Vec3_Normalize(Vec3_Cross(forward, side));
+    Vector3 rel = Vec3_Sub(p, root);
+    float z = Vec3_Dot(rel, forward);
+    float t = Math_Clamp01(z / length);
+    float hw = Math_Max(Math_Lerp(rootHalfWidth, tipHalfWidth, t), .0001f);
+    float hh = Math_Max(Math_Lerp(rootHalfHeight, tipHalfHeight, t), .0001f);
+    float r = Math_Clamp(rounding, 0.0f, Math_Min(hw, hh) * .75f);
+    float x = fabsf(Vec3_Dot(rel, side)) - (hw - r);
+    float y = fabsf(Vec3_Dot(rel, up)) - (hh - r);
+    /* Las tres dimensiones retroceden el radio para redondear también las tapas. */
+    float dz = Math_Max(r - z, z - (length - r));
+    float ox = Math_Max(x, 0.0f), oy = Math_Max(y, 0.0f), oz = Math_Max(dz, 0.0f);
+    float outside = sqrtf(ox*ox + oy*oy + oz*oz);
+    return outside + Math_Min(Math_Max(x, Math_Max(y, dz)), 0.0f) - r;
+}
+
 float SDF_Box(Vector3 p, Vector3 b) {
     Vector3 d = Vec3_Create(
         fabsf(p.x) - b.x,
@@ -110,4 +175,48 @@ float SDF_RoundedSlotExtruded(Vector3 p, float halfWidth, float halfHeight, floa
     float inside = Math_Min(Math_Max(profileDist, depthDist), 0.0f);
 
     return outside + inside;
+}
+
+static float SDF_Hermite(float a,float b,float da,float db,float h,float t) {
+    float t2=t*t,t3=t2*t;
+    return (2*t3-3*t2+1)*a+(t3-2*t2+t)*h*da+(-2*t3+3*t2)*b+(t3-t2)*h*db;
+}
+
+float SDF_EllipticalSweepZ(Vector3 p,const SDFSweepStation* stations,int count) {
+    if (!stations || count<2) return 1e6f;
+    int i=0;
+    while(i<count-2 && p.z<stations[i+1].center.z) ++i;
+    const SDFSweepStation *a=&stations[i],*b=&stations[i+1];
+    float h=b->center.z-a->center.z;
+    float t=Math_Clamp01((p.z-a->center.z)/h);
+    float w=Math_Max(SDF_Hermite(a->width,b->width,a->widthSlope,b->widthSlope,h,t),.0001f);
+    float v=Math_Max(SDF_Hermite(a->height,b->height,a->heightSlope,b->heightSlope,h,t),.0001f);
+    float y=SDF_Hermite(a->center.y,b->center.y,a->centerSlope,b->centerSlope,h,t);
+    float x=Math_Lerp(a->center.x,b->center.x,t);
+    float z=p.z>stations[0].center.z?p.z-stations[0].center.z:
+            p.z<stations[count-1].center.z?p.z-stations[count-1].center.z:0;
+    float r=Math_Min(w,v),dx=(p.x-x)/w,dy=(p.y-y)/v,dz=z/r;
+    return (sqrtf(dx*dx+dy*dy+dz*dz)-1)*r;
+}
+
+bool SDF_SweepResolveTangents(SDFSweepStation* stations,int count) {
+    if(!stations || count<2)return false;
+    for(int i=0;i<count;++i) {
+        SDFSweepStation* st=&stations[i];
+        if(!isfinite(st->center.x)||!isfinite(st->center.y)||!isfinite(st->center.z)||
+           !isfinite(st->width)||!isfinite(st->height)||st->width<=0||st->height<=0||
+           (i>0 && st->center.z>=stations[i-1].center.z))return false;
+    }
+    for(int i=0;i<count;++i) {
+        SDFSweepStation* st=&stations[i];
+        SDFSweepStation* prev=&stations[i>0?i-1:i];
+        SDFSweepStation* next=&stations[i+1<count?i+1:i];
+#define TANGENT(value,slope) { \
+        float left=i>0?(st->value-prev->value)/(st->center.z-prev->center.z):0; \
+        float right=i+1<count?(next->value-st->value)/(next->center.z-st->center.z):0; \
+        st->slope=i==0?right:i==count-1?left:left*right>0?2*left*right/(left+right):0; }
+        TANGENT(width,widthSlope);TANGENT(height,heightSlope);TANGENT(center.y,centerSlope);
+#undef TANGENT
+    }
+    return true;
 }

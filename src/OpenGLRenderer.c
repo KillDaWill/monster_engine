@@ -20,6 +20,23 @@ void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled) {
     }
 }
 
+bool OpenGLRenderer_SavePPM(const char* path, int width, int height) {
+    if (!path || width <= 0 || height <= 0) return false;
+    size_t rowBytes=(size_t)width*3u,total=rowBytes*(size_t)height;
+    unsigned char* pixels=(unsigned char*)malloc(total);
+    if(!pixels)return false;
+    GLint previousPack=4;glGetIntegerv(GL_PACK_ALIGNMENT,&previousPack);
+    glPixelStorei(GL_PACK_ALIGNMENT,1);glReadBuffer(GL_BACK);glFinish();
+    glReadPixels(0,0,width,height,GL_RGB,GL_UNSIGNED_BYTE,pixels);
+    glPixelStorei(GL_PACK_ALIGNMENT,previousPack);
+    FILE* file=fopen(path,"wb");
+    bool ok=file&&fprintf(file,"P6\n%d %d\n255\n",width,height)>0;
+    for(int y=height-1;ok&&y>=0;--y)
+        ok=fwrite(pixels+(size_t)y*rowBytes,1,rowBytes,file)==rowBytes;
+    if(file&&fclose(file)!=0)ok=false;
+    free(pixels);return ok;
+}
+
 /* ============================================================
  * FRAME LIFECYCLE
  * ============================================================ */
@@ -160,6 +177,13 @@ Renderer3D OpenGLRenderer_Create(ICamera* camera) {
     glDepthFunc(GL_LEQUAL);
     glDisable(GL_CULL_FACE);
     glEnable(GL_NORMALIZE);
+#ifdef GL_MULTISAMPLE
+    {
+        GLint sampleBuffers=0;
+        glGetIntegerv(GL_SAMPLE_BUFFERS,&sampleBuffers);
+        if(sampleBuffers>0)glEnable(GL_MULTISAMPLE);
+    }
+#endif
 
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);

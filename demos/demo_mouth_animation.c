@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
 #include <math.h>
 #include <SDL2/SDL.h>
@@ -20,65 +21,26 @@
 #include "RenderInterfaces.h"
 #include "OpenGLRenderer.h"
 
-static void Demo_SetPartDimensions(BodyPart* part, float width, float height, float length) {
-    if (!part) return;
-    part->width = part->widthRender = width;
-    part->height = part->heightRender = height;
-    part->length = part->lengthRender = length;
-}
-
 static Monster Demo_CreateAnatomicalLizard(void) {
     Monster monster = Monster_Create();
-    Monster_Init(&monster);
-    monster.colorPalette = ColorPalette_CreateGradient(
-        Color_FromRGB(32, 92, 48), Color_FromRGB(150, 176, 72), 6);
-
-    BodyPart* head = Monster_GetHead(&monster);
-    head->position = head->oldPosition = head->positionRender = Vec3_Create(0.0f, 0.18f, 0.35f);
-    Demo_SetPartDimensions(head, 1.85f, 0.92f, 2.20f);
-    head->color.index = 3;
-    head->bellyColor.index = 0;
-    head->bellyThreshold = 0.24f;
-
-    BodyPart neck = BodyPart_Create(0.0f, 0.08f, -1.10f, 1.00f, 1.15f, 0.68f, 0.0f);
-    neck.color.index = 2;
-    BodyPart shoulders = BodyPart_Create(0.0f, -0.02f, -2.15f, 1.55f, 1.55f, 0.88f, 0.0f);
-    shoulders.color.index = 2;
-    Monster_AddBodyPart(&monster, neck);
-    Monster_AddBodyPart(&monster, shoulders);
-
-    Head anatomicalHead = Head_Create(HEAD_ARCHETYPE_LIZARD, 0,
-        Vec3_Create(head->widthRender * 0.5f, head->heightRender * 0.5f, head->lengthRender * 0.5f));
-    HeadPhenotype* phenotype = &anatomicalHead.phenotype;
-    phenotype->skullWidth = 0.70f;
-    phenotype->skullHeight = 0.25f;
-    phenotype->skullLength = 0.62f;
-    phenotype->muzzleLength = 0.88f;
-    phenotype->muzzleWidth = 0.74f;
-    phenotype->muzzleTaper = 0.40f;
-    phenotype->eyeSize = 0.50f;
-    phenotype->eyeLaterality = 0.94f;
-    phenotype->eyeForwardness = 0.16f;
-    phenotype->jawLength = 0.92f;
-    phenotype->jawDepth = 0.38f;
-    phenotype->jawStrength = 0.62f;
-    phenotype->cheekMass = 0.34f;
-    phenotype->nostrilPosition = 0.90f;
-    HeadPhenotype_Normalize(phenotype);
-    Monster_SetHead(&monster, anatomicalHead);
-    Monster_SetHeadOpenFactor(&monster, 0.42f);
-
-    for (size_t i = 0; i < monster.eyeCount; ++i) {
-        monster.eyes[i].scleraColor = Color_FromRGB(218, 190, 72);
-        monster.eyes[i].pupilColor = Color_FromRGB(5, 9, 4);
-        monster.eyes[i].pupilScale = 0.36f;
-    }
-    if (monster.mouthCount > 0) monster.mouths[0].insideColor = Color_FromRGB(48, 6, 10);
+    LizardPhenotype phenotype=LizardPreset_Adult();
+    if(!Lizard_BuildMonster(&monster,&phenotype))
+        fprintf(stderr,"[ERROR] No se pudo resolver el lagarto.\n");
+    Monster_SetHeadOpenFactor(&monster,0.18f);
+    /* El grafo completo permanece resuelto, pero el estudio cefálico no lo
+     * incluye en el campo: así maxCells se dedica a las pequeñas cavidades. */
+    monster.hasAnatomyGraph=false;
     return monster;
 }
 
 int main(int argc, char* argv[]) {
-    (void)argc; (void)argv;
+    float requestedOpen=-1.0f;
+    const char* capture=NULL;
+    for(int i=1;i<argc;++i)if(strncmp(argv[i],"--capture=",10)==0)capture=argv[i]+10;
+    if(argc>1) {
+        char* end=NULL;float parsed=strtof(argv[1],&end);
+        if(end&&end!=argv[1])requestedOpen=Math_Clamp01(parsed);
+    }
 
     printf("========================================================\n");
     printf("   MONSTER ENGINE 3D: Demo de Mandíbula Anatómica       \n");
@@ -126,7 +88,7 @@ int main(int argc, char* argv[]) {
 
     ICamera camera;
     camera.position = Vec3_Create(0.0f, 1.0f, 5.0f);
-    camera.target = Vec3_Create(0.0f, 0.0f, -0.35f);
+    camera.target = Vec3_Create(0.0f, 0.0f, 0.30f);
     camera.up = Vec3_Create(0.0f, 1.0f, 0.0f);
     camera.fov = 45.0f;
     camera.nearPlane = 0.1f;
@@ -136,15 +98,18 @@ int main(int argc, char* argv[]) {
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
     Monster monster = Demo_CreateAnatomicalLizard();
+    if(requestedOpen>=0.0f)Monster_SetHeadOpenFactor(&monster,requestedOpen);
 
     SDFMesherConfig mesherCfg = SDFMesher_DefaultConfig();
+    mesherCfg.voxelSize = HeadAnatomy_RecommendedVoxelSize(&monster.head.anatomy);
+    mesherCfg.maxCells = 900000;
     MonsterVisual visual = MonsterVisual_Create(mesherCfg);
     MonsterSDFConfig sdfCfg = MonsterSDF_DefaultConfig();
 
     MonsterVisual_RebuildNow(&visual, &monster, sdfCfg);
 
     bool running = true;
-    bool autoAnimate = true;
+    bool autoAnimate = requestedOpen<0.0f;
     float animTime = 0.0f;
     SDL_Event event;
     Uint32 lastTime = SDL_GetTicks();
@@ -195,12 +160,12 @@ int main(int argc, char* argv[]) {
 
         if (autoAnimate) {
             animTime += deltaTime * 2.0f;
-            Monster_SetHeadOpenFactor(&monster, 0.5f + 0.5f * sinf(animTime));
+            Monster_SetHeadOpenFactor(&monster, 0.16f + 0.16f * sinf(animTime));
         }
 
         cameraTime += deltaTime;
-        float cameraAngle = -0.36f + sinf(cameraTime * 0.32f) * 0.18f;
-        float camRadius = 4.8f;
+        float cameraAngle = -1.02f + (capture?0:sinf(cameraTime * 0.24f) * 0.16f);
+        float camRadius = 3.7f;
         camera.position.x = sinf(cameraAngle) * camRadius;
         camera.position.z = cosf(cameraAngle) * camRadius;
 
@@ -220,6 +185,10 @@ int main(int argc, char* argv[]) {
         MonsterVisual_Render(&visual, &renderer);
 
         renderer.endFrame(&renderer);
+        if(capture && bodyGen>0) {
+            if(!OpenGLRenderer_SavePPM(capture,windowWidth,windowHeight))fprintf(stderr,"[ERROR] Captura fallida\n");
+            running=false;
+        }
         SDL_GL_SwapWindow(window);
     }
 

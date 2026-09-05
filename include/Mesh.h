@@ -116,6 +116,19 @@ bool Mesh_AddTriangle(Mesh* mesh, MeshIndex a, MeshIndex b, MeshIndex c);
  */
 MeshValidationResult Mesh_Validate(const Mesh* mesh);
 
+/**
+ * @brief Conserva únicamente el componente conectado con más triángulos.
+ *
+ * Compacta vértices e índices sin modificar la malla si falla una reserva.
+ * Es útil tras booleanas SDF locales que dejan islotes subvoxel aislados.
+ * @param mesh Malla que se compactará in-place.
+ * @return true si la malla quedó intacta o compactada; false por memoria.
+ */
+bool Mesh_KeepLargestComponent(Mesh* mesh);
+
+/** @brief Comprueba área relativa a las aristas, sin eliminar triángulos pequeños válidos. */
+bool Mesh_TriangleHasArea(Vector3 a, Vector3 b, Vector3 c);
+
 #ifdef __cplusplus
 }
 #endif

@@ -22,11 +22,12 @@ extern "C" {
 
 /**
  * @struct MonsterVisualEye
- * @brief Par de mallas primitivas (esclerótica + pupila) que representan un ojo.
+ * @brief Mallas primitivas de globo, iris y pupila que representan un ojo.
  */
 typedef struct MonsterVisualEye {
     Mesh sclera; /**< Malla UV-esfera de la esclerótica (base blanca) */
-    Mesh pupil;  /**< Malla UV-esfera de la pupila/iris (sobresale al frente) */
+    Mesh iris;   /**< Disco elipsoidal coloreado orientado hacia fuera. */
+    Mesh pupil;  /**< Pupila oscura sobre el iris. */
 } MonsterVisualEye;
 
 /**
@@ -88,8 +89,11 @@ typedef struct MonsterVisual {
     MonsterSDF sdf;         /**< Snapshot SDF activo de la geometría */
     MonsterSDF stagingSdf;  /**< Snapshot SDF de trabajo (reutilizable) */
     SDFMesher mesher;       /**< Orquestador de poligonización */
+    SDFMesher headMesher;   /**< Orquestador local de alta resolución cefálica. */
     Mesh mesh;              /**< Malla 3D poligonizada activa (cuerpo) */
     Mesh stagingMesh;       /**< Malla 3D de trabajo (reutilizable) */
+    Mesh headMesh;          /**< Malla local anatómica de cabeza activa. */
+    Mesh stagingHeadMesh;   /**< Malla cefálica transaccional de trabajo. */
     MonsterVisualEye* eyes; /**< Arreglo dinámico de mallas de ojos */
     size_t eyeCount;        /**< Cantidad actual de ojos */
     size_t eyeCapacity;     /**< Capacidad reservada de ojos */
@@ -164,6 +168,9 @@ bool MonsterVisual_Update(
  */
 const Mesh* MonsterVisual_GetMesh(const MonsterVisual* visual);
 
+/** @brief Retorna la malla cefálica local de alta resolución. */
+const Mesh* MonsterVisual_GetHeadMesh(const MonsterVisual* visual);
+
 /**
  * @brief Retorna la cantidad de ojos sintetizados.
  */
@@ -173,6 +180,9 @@ size_t MonsterVisual_GetEyeCount(const MonsterVisual* visual);
  * @brief Retorna la malla de esclerótica del ojo en el índice dado (NULL si no existe).
  */
 const Mesh* MonsterVisual_GetEyeSclera(const MonsterVisual* visual, size_t index);
+
+/** @brief Retorna la malla de iris del ojo indicado. */
+const Mesh* MonsterVisual_GetEyeIris(const MonsterVisual* visual, size_t index);
 
 /**
  * @brief Retorna la malla de pupila del ojo en el índice dado (NULL si no existe).

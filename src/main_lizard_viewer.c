@@ -74,52 +74,14 @@ int main(int argc, char* argv[]) {
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
     /* 4. Construir al Monstruo Lagarto */
-    Monster lizard = Monster_Create();
-    Monster_Init(&lizard);
-
-    Color emeraldGreen = Color_FromRGB(16, 180, 75);
-    Color reptileYellow = Color_FromRGB(235, 195, 45);
-    lizard.colorPalette = ColorPalette_CreateGradient(emeraldGreen, reptileYellow, 5);
-
-    BodyPart* head = Monster_GetHead(&lizard);
-    if (head) {
-        head->width = 1.8f;
-        head->height = 1.2f;
-        head->length = 2.0f;
-        head->color.index = 0;
+    Monster lizard=Monster_Create();
+    LizardPhenotype phenotype=LizardPreset_Adult();
+    if(!Lizard_BuildMonster(&lizard,&phenotype)) {
+        fprintf(stderr,"[ERROR] No se pudo resolver el lagarto.\n");
+        Monster_Free(&lizard);OpenGLRenderer_Destroy(&renderer);
+        SDL_GL_DeleteContext(glContext);SDL_DestroyWindow(window);SDL_Quit();return 1;
     }
-
-    BodyPart chest = BodyPart_Create(0.0f, 0.0f, -2.2f, 2.2f, 2.5f, 1.5f, 0.0f);
-    chest.color.index = 1;
-
-    BodyPart abdomen = BodyPart_Create(0.0f, 0.0f, -4.8f, 2.0f, 2.5f, 1.3f, 0.0f);
-    abdomen.color.index = 2;
-
-    BodyPart tail1 = BodyPart_Create(0.0f, 0.0f, -7.3f, 1.4f, 2.2f, 1.0f, 0.0f);
-    tail1.color.index = 3;
-
-    BodyPart tail2 = BodyPart_Create(0.0f, 0.0f, -9.5f, 0.7f, 2.0f, 0.6f, 0.0f);
-    tail2.color.index = 4;
-
-    Monster_AddBodyPart(&lizard, chest);
-    Monster_AddBodyPart(&lizard, abdomen);
-    Monster_AddBodyPart(&lizard, tail1);
-    Monster_AddBodyPart(&lizard, tail2);
-
-    Color darkRedInside = Color_FromRGB(80, 0, 10);
-    Color lipColor = Color_FromRGB(180, 40, 40);
-    BodyPart* viewerHead = Monster_GetHead(&lizard);
-    Mouth lizardMouth = Mouth_Create(0, Vec3_Create(0.0f, -viewerHead->height * 0.12f, viewerHead->length * 0.46f), Vec3_Create(viewerHead->width * 0.5f, viewerHead->height * 0.4f, viewerHead->length * 0.42f), darkRedInside, lipColor);
-    lizardMouth.openFactor = 0.7f;
-    Monster_AddMouth(&lizard, lizardMouth);
-
-    Eye leftEye = Eye_Create(0, Vec3_Create(-0.55f, 0.25f, 0.85f), Vec3_Create(0.3f, 0.28f, 0.18f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
-    leftEye.pupilScale = 0.45f;
-    Monster_AddEye(&lizard, leftEye);
-
-    Eye rightEye = Eye_Create(0, Vec3_Create(0.55f, 0.25f, 0.85f), Vec3_Create(0.3f, 0.28f, 0.18f), COLOR_WHITE, Color_FromRGB(20, 20, 20));
-    rightEye.pupilScale = 0.45f;
-    Monster_AddEye(&lizard, rightEye);
+    Monster_SetHeadOpenFactor(&lizard,.10f);
 
     /* 5. Configurar el Orquestador Visual SDF Asíncrono */
     MonsterVisualAsyncConfig asyncCfg = MonsterVisualAsync_DefaultConfig();
@@ -155,8 +117,7 @@ int main(int argc, char* argv[]) {
         camera.position.x = sinf(rotationAngle) * radius;
         camera.position.z = cosf(rotationAngle) * radius - 4.5f;
 
-        Monster_Update(&lizard, deltaTime);
-        Monster_RenderUpdate(&lizard, deltaTime, 1.0);
+        /* La inspección mantiene la pose anatómica; la locomoción es independiente. */
         MonsterVisualAsync_Update(visual, &lizard, deltaTime);
 
         renderer.beginFrame(&renderer);

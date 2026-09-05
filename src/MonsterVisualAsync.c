@@ -63,6 +63,8 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
     if (!monster) return hash;
     hash = HashBool(monster->hasHead,hash);
     if(monster->hasHead) hash=Fnv1a64Bytes(&monster->head.phenotype,sizeof(monster->head.phenotype),hash);
+    hash=HashBool(monster->hasAnatomyGraph,hash);
+    if(monster->hasAnatomyGraph)hash=Fnv1a64Bytes(&monster->anatomyGraph,sizeof(monster->anatomyGraph),hash);
 
     /* Partes del cuerpo */
     hash = HashSizeT(monster->bodyPartCount, hash);
@@ -110,9 +112,13 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
         hash = HashSizeT(eye->bodyPartIndex, hash);
         hash = HashVector3(eye->offset, hash);
         hash = HashVector3(eye->rotation, hash);
+        hash = HashVector3(eye->forward, hash);
         hash = HashVector3(eye->scale, hash);
+        hash = HashFloat(eye->irisScale, hash);
         hash = HashFloat(eye->pupilScale, hash);
+        hash = HashFloat(eye->pupilAspect, hash);
         hash = HashColor(eye->scleraColor, hash);
+        hash = HashColor(eye->irisColor, hash);
         hash = HashColor(eye->pupilColor, hash);
     }
 
@@ -137,6 +143,16 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     cfg.settledMesherConfig.voxelSize = 0.08f;
     cfg.settledMesherConfig.maxCells = 500000;
 
+    cfg.interactiveHeadMesherConfig = SDFMesher_DefaultConfig();
+    cfg.interactiveHeadMesherConfig.voxelSize = 0.024f;
+    cfg.interactiveHeadMesherConfig.maxCells = 900000;
+    cfg.interactiveHeadMesherConfig.maxResolution = 256;
+
+    cfg.settledHeadMesherConfig = SDFMesher_DefaultConfig();
+    cfg.settledHeadMesherConfig.voxelSize = 0.015f;
+    cfg.settledHeadMesherConfig.maxCells = 2200000;
+    cfg.settledHeadMesherConfig.maxResolution = 384;
+
     cfg.sdfConfig = MonsterSDF_DefaultConfig();
     cfg.settledDelaySec = 0.15f;
     return cfg;
@@ -146,6 +162,7 @@ static void FreeEyeArray(MonsterVisualEyeAsync* eyes, size_t count) {
     if (!eyes) return;
     for (size_t i = 0; i < count; ++i) {
         Mesh_Free(&eyes[i].sclera);
+        Mesh_Free(&eyes[i].iris);
         Mesh_Free(&eyes[i].pupil);
     }
     free(eyes);
@@ -164,7 +181,9 @@ static void* WorkerThreadRoutine(void* arg) {
 
     MonsterSDF workerSdf = MonsterSDF_Create();
     SDFMesher workerMesher = SDFMesher_Create(asyncMgr->config.interactiveMesherConfig);
+    SDFMesher workerHeadMesher = SDFMesher_Create(asyncMgr->config.interactiveHeadMesherConfig);
     Mesh workBodyMesh = Mesh_Create();
+    Mesh workHeadMesh = Mesh_Create();
 
     while (1) {
         pthread_mutex_lock(&asyncMgr->lock);
@@ -184,6 +203,8 @@ static void* WorkerThreadRoutine(void* arg) {
         MonsterVisualQualityTier workTier = asyncMgr->pendingTier;
         asyncMgr->hasPendingRequest = false;
         asyncMgr->stats.isWorkerBusy = true;
+        asyncMgr->stats.workingFingerprint=workFingerprint;
+        asyncMgr->stats.workingScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
 
         pthread_mutex_unlock(&asyncMgr->lock);
 
@@ -192,16 +213,47 @@ static void* WorkerThreadRoutine(void* arg) {
 
         SDFMesherConfig activeMesherCfg = (workTier == MONSTER_VISUAL_QUALITY_INTERACTIVE) ?
             asyncMgr->config.interactiveMesherConfig : asyncMgr->config.settledMesherConfig;
+        SDFMesherConfig activeHeadCfg = (workTier == MONSTER_VISUAL_QUALITY_INTERACTIVE) ?
+            asyncMgr->config.interactiveHeadMesherConfig : asyncMgr->config.settledHeadMesherConfig;
 
+        if(workMonster.hasHead && !workMonster.hasLizardPhenotype) {
+            float recommended=HeadAnatomy_RecommendedVoxelSize(&workMonster.head.anatomy);
+            float tierTarget=workTier==MONSTER_VISUAL_QUALITY_INTERACTIVE?recommended*1.75f:recommended;
+            if(activeHeadCfg.voxelSize<=0.0001f||activeHeadCfg.voxelSize>tierTarget)
+                activeHeadCfg.voxelSize=tierTarget;
+        }
+
+        if(workMonster.hasLizardPhenotype) {
+            /* Una superficie comparte la mitad del presupuesto cefálico anterior. */
+            activeMesherCfg.maxCells+=activeHeadCfg.maxCells/2;
+            if(activeMesherCfg.maxResolution<activeHeadCfg.maxResolution)
+                activeMesherCfg.maxResolution=activeHeadCfg.maxResolution;
+        }
         workerMesher.config = activeMesherCfg;
+        workerHeadMesher.config = activeHeadCfg;
 
         bool buildOk = MonsterSDF_Build(&workerSdf, &workMonster, asyncMgr->config.sdfConfig);
         bool meshOk = false;
+        bool headOk = true;
 
         if (buildOk) {
-            SDFField field = MonsterSDF_GetField(&workerSdf);
+            MonsterSDFBodyField bodyContext;
+            SDFField field = MonsterSDF_GetBodyField(&workerSdf,&bodyContext);
             Mesh_Clear(&workBodyMesh);
-            meshOk = SDFMesher_GenerateMesh(&workerMesher, &field, &workBodyMesh);
+            SDFDetailRegion regions[28];
+            size_t regionCount=MonsterSDF_GetDetailRegions(&workerSdf,
+                workTier==MONSTER_VISUAL_QUALITY_INTERACTIVE?3.5f:6.0f,regions,28);
+            if(workerSdf.axialStationCount>1) field=MonsterSDF_GetField(&workerSdf);
+            meshOk = workerSdf.axialStationCount>1 ?
+                SDFMesher_GenerateMeshDetailed(&workerMesher,&field,regions,regionCount,&workBodyMesh):
+                SDFMesher_GenerateMesh(&workerMesher, &field, &workBodyMesh);
+            Mesh_Clear(&workHeadMesh);
+            if(meshOk&&workerSdf.hasPartitionedHead&&workerSdf.axialStationCount==0) {
+                MonsterSDFHeadField headContext;
+                SDFField headField=MonsterSDF_GetHeadField(&workerSdf,0,&headContext);
+                headOk=SDFMesher_GenerateMesh(&workerHeadMesher,&headField,&workHeadMesh)&&
+                       Mesh_KeepLargestComponent(&workHeadMesh);
+            }
         }
 
         /* Generar mallas primitivas de ojos */
@@ -209,13 +261,14 @@ static void* WorkerThreadRoutine(void* arg) {
         size_t workEyeCount = workMonster.eyeCount;
         bool eyeOk = true;
 
-        if (meshOk && workEyeCount > 0) {
+        if (meshOk && headOk && workEyeCount > 0) {
             workEyes = (MonsterVisualEyeAsync*)calloc(workEyeCount, sizeof(MonsterVisualEyeAsync));
             if (workEyes) {
                 const float EYE_VISIBILITY_EPS = 1e-4f;
                 for (size_t i = 0; i < workEyeCount; ++i) {
                     const Eye* eye = &workMonster.eyes[i];
                     workEyes[i].sclera = Mesh_Create();
+                    workEyes[i].iris = Mesh_Create();
                     workEyes[i].pupil = Mesh_Create();
 
                     if (eye->scale.x <= EYE_VISIBILITY_EPS ||
@@ -230,20 +283,19 @@ static void* WorkerThreadRoutine(void* arg) {
                     }
 
                     Vector3 eyePos = Vec3_Add(partPos, eye->offset);
-                    Vector3 eyeRadii = Vec3_Scale(eye->scale, 0.5f);
+                    Vector3 eyeRadii = eye->scale;
                     Transform3D scleraTrans = Transform3D_Create(eyePos, eye->rotation, eyeRadii);
-                    Vector3 pupilForward = Transform3D_RotateVector(eye->rotation, Vec3_Create(0.0f, 0.0f, 1.0f));
+                    Vector3 pupilForward = Vec3_Normalize(eye->forward);
+                    if(Vec3_LengthSq(pupilForward)<1e-6f)pupilForward=Transform3D_RotateVector(eye->rotation,Vec3_Create(0,0,1));
+                    float irisRadius=Math_Max(Math_Min(eyeRadii.x,eyeRadii.y)*Math_Clamp(eye->irisScale,.25f,.96f),.008f);
+                    float irisDepth=Math_Max(eyeRadii.z*.075f,.004f);
+                    Transform3D irisTrans=Transform3D_Create(Vec3_Add(eyePos,Vec3_Scale(pupilForward,eyeRadii.z-irisDepth*.55f)),eye->rotation,Vec3_Create(irisRadius,irisRadius,irisDepth));
+                    float pupilHeight=Math_Max(irisRadius*Math_Clamp(eye->pupilScale,.08f,.90f),.004f);
+                    float pupilWidth=pupilHeight*Math_Clamp(eye->pupilAspect,.12f,1.0f),pupilDepth=Math_Max(irisDepth*.55f,.002f);
+                    Transform3D pupilTrans=Transform3D_Create(Vec3_Add(eyePos,Vec3_Scale(pupilForward,eyeRadii.z+pupilDepth*.15f)),eye->rotation,Vec3_Create(pupilWidth,pupilHeight,pupilDepth));
 
-                    float pupilRadius = Math_Min(eyeRadii.x, eyeRadii.y) * Math_Clamp01(eye->pupilScale) * 0.5f;
-                    pupilRadius = Math_Max(pupilRadius, 0.01f);
-                    Vector3 pupilScaleVec = Vec3_Create(pupilRadius, pupilRadius, pupilRadius * 0.2f);
-                    float halfDepth = pupilScaleVec.z;
-                    /* pupila a caballo del plano frontal de la esclerótica: centro retranqueado media profundidad escalada */
-                    float zOffset = eyeRadii.z - halfDepth * 0.5f;
-                    Vector3 pupilCenter = Vec3_Add(eyePos, Vec3_Scale(pupilForward, zOffset));
-                    Transform3D pupilTrans = Transform3D_Create(pupilCenter, eye->rotation, pupilScaleVec);
-
-                    if (!PrimitiveMesh_GenerateEllipsoid(&workEyes[i].sclera, scleraTrans, 16, 12, eye->scleraColor) ||
+                    if (!PrimitiveMesh_GenerateEllipsoid(&workEyes[i].sclera, scleraTrans, 18, 14, eye->scleraColor) ||
+                        !PrimitiveMesh_GenerateEllipsoid(&workEyes[i].iris, irisTrans, 16, 10, eye->irisColor) ||
                         !PrimitiveMesh_GenerateEllipsoid(&workEyes[i].pupil, pupilTrans, 12, 8, eye->pupilColor)) {
                         eyeOk = false;
                         break;
@@ -258,7 +310,7 @@ static void* WorkerThreadRoutine(void* arg) {
         size_t workMouthCount = workMonster.mouthCount;
         bool mouthOk = true;
 
-        if (meshOk && workMouthCount > 0) {
+        if (meshOk && headOk && workMouthCount > 0) {
             workMouths = (MonsterVisualMouth*)calloc(workMouthCount, sizeof(MonsterVisualMouth));
             if (!workMouths) {
                 mouthOk = false;
@@ -272,6 +324,7 @@ static void* WorkerThreadRoutine(void* arg) {
             }
         }
 
+        float workScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
         Monster_Free(&workMonster);
         double tEnd = GetTimeMs();
         float durationMs = (float)(tEnd - tStart);
@@ -279,7 +332,8 @@ static void* WorkerThreadRoutine(void* arg) {
         /* --- DEPOSITAR RESULTADO EN READY BUFFER DENTRO DEL MUTEX --- */
         pthread_mutex_lock(&asyncMgr->lock);
 
-        if (buildOk && meshOk && eyeOk && mouthOk && !asyncMgr->shouldQuit) {
+        if (buildOk && meshOk && headOk && eyeOk && mouthOk && !asyncMgr->shouldQuit &&
+            !(asyncMgr->displayFingerprint==asyncMgr->stats.requestedFingerprint && workFingerprint!=asyncMgr->stats.requestedFingerprint)) {
             /* Liberar readyEyes anterior */
             FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
 
@@ -287,12 +341,16 @@ static void* WorkerThreadRoutine(void* arg) {
             Mesh tmp = asyncMgr->readyMesh;
             asyncMgr->readyMesh = workBodyMesh;
             workBodyMesh = tmp;
+            Mesh tmpHead=asyncMgr->readyHeadMesh;
+            asyncMgr->readyHeadMesh=workHeadMesh;
+            workHeadMesh=tmpHead;
 
             asyncMgr->readyEyes = workEyes;
             asyncMgr->readyEyeCount = workEyeCount;
             asyncMgr->readyEyeCapacity = workEyeCount;
             asyncMgr->readyGeneration++;
             asyncMgr->readyFingerprint = workFingerprint;
+            asyncMgr->readyScale=workScale;
             asyncMgr->readyTier = workTier;
             FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
             asyncMgr->readyMouths = workMouths;
@@ -303,6 +361,10 @@ static void* WorkerThreadRoutine(void* arg) {
             asyncMgr->stats.completedBuildCount++;
             asyncMgr->stats.lastBuildDurationMs = durationMs;
             asyncMgr->stats.activeQualityTier = workTier;
+            asyncMgr->stats.bodyMesher=*SDFMesher_GetLastStats(&workerMesher);
+            if(workerSdf.hasPartitionedHead&&workerSdf.axialStationCount==0)asyncMgr->stats.headMesher=*SDFMesher_GetLastStats(&workerHeadMesher);
+            else memset(&asyncMgr->stats.headMesher,0,sizeof(asyncMgr->stats.headMesher));
+            asyncMgr->readyStats=asyncMgr->stats;
         } else {
             if (workEyes) FreeEyeArray(workEyes, workEyeCount);
             if (workMouths) FreeMouthArray(workMouths, workMouthCount);
@@ -313,7 +375,9 @@ static void* WorkerThreadRoutine(void* arg) {
     }
 
     Mesh_Free(&workBodyMesh);
+    Mesh_Free(&workHeadMesh);
     SDFMesher_Free(&workerMesher);
+    SDFMesher_Free(&workerHeadMesher);
     MonsterSDF_Free(&workerSdf);
 
     return NULL;
@@ -326,6 +390,8 @@ MonsterVisualAsync* MonsterVisualAsync_Create(MonsterVisualAsyncConfig config) {
     asyncMgr->config = config;
     asyncMgr->displayMesh = Mesh_Create();
     asyncMgr->readyMesh = Mesh_Create();
+    asyncMgr->displayHeadMesh = Mesh_Create();
+    asyncMgr->readyHeadMesh = Mesh_Create();
 
     pthread_mutex_init(&asyncMgr->lock, NULL);
     pthread_cond_init(&asyncMgr->cond, NULL);
@@ -359,10 +425,12 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
     }
 
     Mesh_Free(&asyncMgr->displayMesh);
+    Mesh_Free(&asyncMgr->displayHeadMesh);
     FreeEyeArray(asyncMgr->displayEyes, asyncMgr->displayEyeCount);
     FreeMouthArray(asyncMgr->displayMouths, asyncMgr->displayMouthCount);
 
     Mesh_Free(&asyncMgr->readyMesh);
+    Mesh_Free(&asyncMgr->readyHeadMesh);
     FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
     FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
 
@@ -372,6 +440,12 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
     pthread_cond_destroy(&asyncMgr->cond);
 
     free(asyncMgr);
+}
+
+void MonsterVisualAsync_SetContinuousMotion(MonsterVisualAsync* asyncMgr,bool active) {
+    if(!asyncMgr)return;
+    if(asyncMgr->continuousMotion!=active)asyncMgr->timeSinceLastMotionSec=0;
+    asyncMgr->continuousMotion=active;
 }
 
 bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* monster, float deltaTime) {
@@ -386,7 +460,7 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         asyncMgr->timeSinceLastMotionSec += deltaTime;
     }
 
-    MonsterVisualQualityTier targetTier = (asyncMgr->timeSinceLastMotionSec < asyncMgr->config.settledDelaySec) ?
+    MonsterVisualQualityTier targetTier = (asyncMgr->continuousMotion || asyncMgr->timeSinceLastMotionSec < asyncMgr->config.settledDelaySec) ?
         MONSTER_VISUAL_QUALITY_INTERACTIVE : MONSTER_VISUAL_QUALITY_SETTLED;
 
     uint64_t targetFingerprint = ComputeMonsterFingerprint(monster, asyncMgr->config.sdfConfig, targetTier);
@@ -402,6 +476,9 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         Mesh tmp = asyncMgr->displayMesh;
         asyncMgr->displayMesh = asyncMgr->readyMesh;
         asyncMgr->readyMesh = tmp;
+        Mesh tmpHead=asyncMgr->displayHeadMesh;
+        asyncMgr->displayHeadMesh=asyncMgr->readyHeadMesh;
+        asyncMgr->readyHeadMesh=tmpHead;
 
         asyncMgr->displayEyes = asyncMgr->readyEyes;
         asyncMgr->displayEyeCount = asyncMgr->readyEyeCount;
@@ -420,6 +497,9 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
 
         asyncMgr->displayGeneration = asyncMgr->readyGeneration;
         asyncMgr->displayFingerprint = asyncMgr->readyFingerprint;
+        asyncMgr->stats.displayedFingerprint=asyncMgr->readyFingerprint;
+        asyncMgr->stats.displayedScale=asyncMgr->readyScale;
+        asyncMgr->displayStats=asyncMgr->readyStats;
         asyncMgr->hasReadyMesh = false;
         updatedDisplay = true;
     }
@@ -428,7 +508,14 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
     bool isPendingMatch = asyncMgr->hasPendingRequest && (asyncMgr->pendingFingerprint == targetFingerprint);
     bool isDisplayMatch = (asyncMgr->displayFingerprint == targetFingerprint);
 
-    if (!isDisplayMatch && !isPendingMatch) {
+    bool isWorkingMatch=asyncMgr->stats.isWorkerBusy && asyncMgr->stats.workingFingerprint==targetFingerprint;
+    asyncMgr->stats.requestedFingerprint=targetFingerprint;
+    if((isWorkingMatch || isDisplayMatch) && asyncMgr->hasPendingRequest && !isPendingMatch) {
+        Monster_Free(&asyncMgr->pendingSnapshot);
+        asyncMgr->hasPendingRequest=false;
+        asyncMgr->stats.coalescedCount++;
+    }
+    if (!isDisplayMatch && !isPendingMatch && !isWorkingMatch) {
         if (asyncMgr->hasPendingRequest) {
             Monster_Free(&asyncMgr->pendingSnapshot);
             asyncMgr->stats.coalescedCount++;
@@ -443,7 +530,9 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         pthread_cond_signal(&asyncMgr->cond);
     }
 
-    bool allowLiveArticulation = isDisplayMatch;
+    bool allowLiveArticulation = asyncMgr->displayGeneration>0 &&
+        ComputeMonsterFingerprint(monster,asyncMgr->config.sdfConfig,
+            asyncMgr->displayStats.activeQualityTier)==asyncMgr->displayFingerprint;
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
@@ -460,6 +549,10 @@ const Mesh* MonsterVisualAsync_GetDisplayMesh(const MonsterVisualAsync* asyncMgr
     return asyncMgr ? &asyncMgr->displayMesh : NULL;
 }
 
+const Mesh* MonsterVisualAsync_GetDisplayHeadMesh(const MonsterVisualAsync* asyncMgr) {
+    return asyncMgr ? &asyncMgr->displayHeadMesh : NULL;
+}
+
 size_t MonsterVisualAsync_GetDisplayEyeCount(const MonsterVisualAsync* asyncMgr) {
     return asyncMgr ? asyncMgr->displayEyeCount : 0;
 }
@@ -467,6 +560,11 @@ size_t MonsterVisualAsync_GetDisplayEyeCount(const MonsterVisualAsync* asyncMgr)
 const Mesh* MonsterVisualAsync_GetDisplayEyeSclera(const MonsterVisualAsync* asyncMgr, size_t index) {
     if (!asyncMgr || index >= asyncMgr->displayEyeCount || !asyncMgr->displayEyes) return NULL;
     return &asyncMgr->displayEyes[index].sclera;
+}
+
+const Mesh* MonsterVisualAsync_GetDisplayEyeIris(const MonsterVisualAsync* asyncMgr, size_t index) {
+    if (!asyncMgr || index >= asyncMgr->displayEyeCount || !asyncMgr->displayEyes) return NULL;
+    return &asyncMgr->displayEyes[index].iris;
 }
 
 const Mesh* MonsterVisualAsync_GetDisplayEyePupil(const MonsterVisualAsync* asyncMgr, size_t index) {
@@ -498,6 +596,7 @@ bool MonsterVisualAsync_Render(const MonsterVisualAsync* asyncMgr, Renderer3D* r
     if (asyncMgr->displayMesh.vertexCount > 0) {
         renderer->renderMesh(renderer, &asyncMgr->displayMesh);
     }
+    if(asyncMgr->displayHeadMesh.vertexCount>0)renderer->renderMesh(renderer,&asyncMgr->displayHeadMesh);
     for (size_t m = 0; m < asyncMgr->displayMouthCount; ++m) {
         const MonsterVisualMouth* mouth = &asyncMgr->displayMouths[m];
         if (mouth->jaw.vertexCount > 0) renderer->renderMesh(renderer, &mouth->jaw);
@@ -506,6 +605,9 @@ bool MonsterVisualAsync_Render(const MonsterVisualAsync* asyncMgr, Renderer3D* r
     for (size_t i = 0; i < asyncMgr->displayEyeCount; ++i) {
         if (asyncMgr->displayEyes[i].sclera.vertexCount > 0) {
             renderer->renderMesh(renderer, &asyncMgr->displayEyes[i].sclera);
+        }
+        if (asyncMgr->displayEyes[i].iris.vertexCount > 0) {
+            renderer->renderMesh(renderer, &asyncMgr->displayEyes[i].iris);
         }
         if (asyncMgr->displayEyes[i].pupil.vertexCount > 0) {
             renderer->renderMesh(renderer, &asyncMgr->displayEyes[i].pupil);
@@ -525,6 +627,12 @@ MonsterVisualAsyncStats MonsterVisualAsync_GetStats(const MonsterVisualAsync* as
 
     pthread_mutex_lock((pthread_mutex_t*)&asyncMgr->lock);
     s = asyncMgr->stats;
+    if(asyncMgr->displayGeneration>0) {
+        s.lastBuildDurationMs=asyncMgr->displayStats.lastBuildDurationMs;
+        s.activeQualityTier=asyncMgr->displayStats.activeQualityTier;
+        s.bodyMesher=asyncMgr->displayStats.bodyMesher;
+        s.headMesher=asyncMgr->displayStats.headMesher;
+    }
     pthread_mutex_unlock((pthread_mutex_t*)&asyncMgr->lock);
 
     return s;
@@ -550,6 +658,9 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
         Mesh tmp = asyncMgr->displayMesh;
         asyncMgr->displayMesh = asyncMgr->readyMesh;
         asyncMgr->readyMesh = tmp;
+        Mesh tmpHead=asyncMgr->displayHeadMesh;
+        asyncMgr->displayHeadMesh=asyncMgr->readyHeadMesh;
+        asyncMgr->readyHeadMesh=tmpHead;
 
         asyncMgr->displayEyes = asyncMgr->readyEyes;
         asyncMgr->displayEyeCount = asyncMgr->readyEyeCount;
@@ -568,6 +679,9 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
 
         asyncMgr->displayGeneration = asyncMgr->readyGeneration;
         asyncMgr->displayFingerprint = asyncMgr->readyFingerprint;
+        asyncMgr->stats.displayedFingerprint=asyncMgr->readyFingerprint;
+        asyncMgr->stats.displayedScale=asyncMgr->readyScale;
+        asyncMgr->displayStats=asyncMgr->readyStats;
         asyncMgr->hasReadyMesh = false;
     }
     pthread_mutex_unlock(&asyncMgr->lock);
