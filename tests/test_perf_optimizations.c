@@ -1,0 +1,308 @@
+/**
+ * @file test_perf_optimizations.c
+ * @brief Pruebas unitarias y de regresión para las optimizaciones de rendimiento:
+ *        - Equivalencia de distancia con poda conservadora de conectores.
+ *        - Determinismo exacto entre muestreo paralelo y muestreo serie.
+ *        - Integridad y cobertura de cajas AABB por componente y máscara de celdas candidatas.
+ *        - Reutilización sin fugas ni corrupción con Monster_CopyInto.
+ *        - Selección correcta de tiers (MORPH vs SETTLED) en MonsterVisualAsync.
+ */
+
+#include "test_utils.h"
+#include "Monster.h"
+#include "Lizard.h"
+#include "MonsterSDF.h"
+#include "SDFMesher.h"
+#include "SDFSamplingPool.h"
+#include "MonsterVisualAsync.h"
+#include "MonsterAger.h"
+#include "AABB.h"
+#include <string.h>
+#include <unistd.h>
+
+static Monster CreateTestLizard(bool adult) {
+    Monster lizard = Monster_Create();
+    LizardPhenotype phenotype = adult ? LizardPreset_Adult() : LizardPreset_Juvenile();
+    Lizard_BuildMonster(&lizard, &phenotype);
+    Monster_SetHeadOpenFactor(&lizard, 0.10f);
+    return lizard;
+}
+
+/**
+ * Prueba 1: Equivalencia numérica de evaluación de campo SDF entre
+ * poda conservadora activa y desactivada.
+ */
+static void test_connector_pruning_equivalence(void) {
+    printf("  [TEST] test_connector_pruning_equivalence...\n");
+    Monster lizard = CreateTestLizard(true);
+
+    MonsterSDFConfig cfgUnpruned = MonsterSDF_DefaultConfig();
+    cfgUnpruned.enableConnectorPruning = false;
+    MonsterSDF sdfUnpruned = MonsterSDF_Create();
+    MonsterSDF_Build(&sdfUnpruned, &lizard, cfgUnpruned);
+
+    MonsterSDFConfig cfgPruned = MonsterSDF_DefaultConfig();
+    cfgPruned.enableConnectorPruning = true;
+    MonsterSDF sdfPruned = MonsterSDF_Create();
+    MonsterSDF_Build(&sdfPruned, &lizard, cfgPruned);
+
+    AABB3D bounds = MonsterSDF_GetBounds(&sdfPruned);
+    /* Evaluar una rejilla de puntos dentro y fuera del volumen */
+    int samplesPerAxis = 12;
+    for (int ix = 0; ix < samplesPerAxis; ++ix) {
+        float tx = (float)ix / (float)(samplesPerAxis - 1);
+        float x = bounds.start.x + tx * (bounds.end.x - bounds.start.x);
+        for (int iy = 0; iy < samplesPerAxis; ++iy) {
+            float ty = (float)iy / (float)(samplesPerAxis - 1);
+            float y = bounds.start.y + ty * (bounds.end.y - bounds.start.y);
+            for (int iz = 0; iz < samplesPerAxis; ++iz) {
+                float tz = (float)iz / (float)(samplesPerAxis - 1);
+                float z = bounds.start.z + tz * (bounds.end.z - bounds.start.z);
+
+                Vector3 p = Vec3_Create(x, y, z);
+                float d1 = MonsterSDF_EvaluateDistance(&sdfUnpruned, p);
+                float d2 = MonsterSDF_EvaluateDistance(&sdfPruned, p);
+
+                /* En la banda inmediata de la isosuperficie (|d| < 0.05), donde
+                 * Marching Cubes genera vértices, la poda no debe alterar el campo. */
+                if (fabsf(d1) < 0.05f || fabsf(d2) < 0.05f) {
+                    if (!FLOAT_NEAR(d1, d2)) {
+                        printf("  [DEBUG ISOSUPERFICIE] ix=%d iy=%d iz=%d p=(%.3f,%.3f,%.3f) d1=%.5f d2=%.5f diff=%.5f\n",
+                               ix, iy, iz, p.x, p.y, p.z, d1, d2, fabsf(d1 - d2));
+                    }
+                    TEST_ASSERT(FLOAT_NEAR(d1, d2), "La poda conservadora no debe alterar la isosuperficie");
+                }
+            }
+        }
+    }
+
+    MonsterSDF_Free(&sdfUnpruned);
+    MonsterSDF_Free(&sdfPruned);
+    Monster_Free(&lizard);
+}
+
+/**
+ * Prueba 2: Determinismo estricto bit a bit / float idéntico entre
+ * muestreo serie (1 hilo) y paralelo (4 hilos).
+ */
+static void test_parallel_serial_determinism(void) {
+    printf("  [TEST] test_parallel_serial_determinism...\n");
+    Monster lizard = CreateTestLizard(false);
+
+    MonsterSDF sdf = MonsterSDF_Create();
+    MonsterSDF_Build(&sdf, &lizard, MonsterSDF_DefaultConfig());
+
+    SDFField field = MonsterSDF_GetField(&sdf);
+    AABB3D bounds = MonsterSDF_GetBounds(&sdf);
+    AABB_Pad(&bounds, 0.25f);
+
+    SDFMesherConfig cfgSerial = SDFMesher_DefaultConfig();
+    cfgSerial.voxelSize = 0.12f;
+    cfgSerial.useAutoBounds = false;
+    cfgSerial.bounds = bounds;
+    cfgSerial.samplingThreadCount = 1;
+
+    /* 1. Malla en serie */
+    SDFMesher mesherSerial = SDFMesher_Create(cfgSerial);
+    Mesh meshSerial = Mesh_Create();
+    bool okSerial = SDFMesher_GenerateMeshDetailed(&mesherSerial, &field, NULL, 0, &meshSerial);
+    TEST_ASSERT(okSerial, "Generación en serie debe ser exitosa");
+
+    /* 2. Malla en paralelo con pool de hilos */
+    SDFMesherConfig cfgParallel = cfgSerial;
+    cfgParallel.samplingThreadCount = 4;
+    SDFSamplingPool* pool = SDFSamplingPool_Create(4);
+    SDFMesher mesherParallel = SDFMesher_Create(cfgParallel);
+    SDFMesher_SetSamplingPool(&mesherParallel, pool);
+    Mesh meshParallel = Mesh_Create();
+    bool okParallel = SDFMesher_GenerateMeshDetailed(&mesherParallel, &field, NULL, 0, &meshParallel);
+    TEST_ASSERT(okParallel, "Generación en paralelo debe ser exitosa");
+
+    TEST_ASSERT(meshSerial.vertexCount > 0, "El mallador en serie debe generar vértices");
+    TEST_ASSERT(meshSerial.vertexCount == meshParallel.vertexCount,
+                "El conteo de vértices en paralelo debe ser exactamente igual al serie");
+    TEST_ASSERT(meshSerial.indexCount == meshParallel.indexCount,
+                "El conteo de índices en paralelo debe ser exactamente igual al serie");
+
+    for (size_t i = 0; i < meshSerial.vertexCount; ++i) {
+        TEST_ASSERT(FLOAT_NEAR(meshSerial.vertices[i].position.x, meshParallel.vertices[i].position.x),
+                    "Posición X de vértice debe coincidir");
+        TEST_ASSERT(FLOAT_NEAR(meshSerial.vertices[i].position.y, meshParallel.vertices[i].position.y),
+                    "Posición Y de vértice debe coincidir");
+        TEST_ASSERT(FLOAT_NEAR(meshSerial.vertices[i].position.z, meshParallel.vertices[i].position.z),
+                    "Posición Z de vértice debe coincidir");
+
+        TEST_ASSERT(FLOAT_NEAR(meshSerial.vertices[i].normal.x, meshParallel.vertices[i].normal.x),
+                    "Normal X de vértice debe coincidir");
+        TEST_ASSERT(FLOAT_NEAR(meshSerial.vertices[i].normal.y, meshParallel.vertices[i].normal.y),
+                    "Normal Y de vértice debe coincidir");
+        TEST_ASSERT(FLOAT_NEAR(meshSerial.vertices[i].normal.z, meshParallel.vertices[i].normal.z),
+                    "Normal Z de vértice debe coincidir");
+    }
+
+    for (size_t i = 0; i < meshSerial.indexCount; ++i) {
+        TEST_ASSERT(meshSerial.indices[i] == meshParallel.indices[i],
+                    "Los índices generados deben ser idénticos");
+    }
+
+    Mesh_Free(&meshSerial);
+    Mesh_Free(&meshParallel);
+    SDFMesher_Free(&mesherSerial);
+    SDFMesher_Free(&mesherParallel);
+    SDFSamplingPool_Free(pool);
+    MonsterSDF_Free(&sdf);
+    Monster_Free(&lizard);
+}
+
+/**
+ * Prueba 3: Cobertura de cajas AABB por componente y omisión de celdas vacías.
+ */
+static void test_component_bounds_and_cell_skipping(void) {
+    printf("  [TEST] test_component_bounds_and_cell_skipping...\n");
+    Monster lizard = CreateTestLizard(true);
+
+    MonsterSDF sdf = MonsterSDF_Create();
+    MonsterSDF_Build(&sdf, &lizard, MonsterSDF_DefaultConfig());
+
+    AABB3D compBoxes[64];
+    size_t compCount = MonsterSDF_GetComponentBounds(&sdf, compBoxes, 64);
+    TEST_ASSERT(compCount > 0, "Debe reportar cajas de componentes geométricos");
+
+    /* Verificar que las cajas de componentes cubran las partes anatómicas */
+    AABB3D totalUnion = compBoxes[0];
+    for (size_t i = 1; i < compCount; ++i) {
+        AABB_ExpandPoint(&totalUnion, compBoxes[i].start);
+        AABB_ExpandPoint(&totalUnion, compBoxes[i].end);
+    }
+
+    AABB3D sdfBox = MonsterSDF_GetBounds(&sdf);
+    /* La unión de componentes debe tener extensión geométrica y estar contenida en el dominio */
+    TEST_ASSERT(totalUnion.end.x > totalUnion.start.x + 1.0f, "La unión de componentes debe tener extensión física en X");
+    TEST_ASSERT(totalUnion.end.z > totalUnion.start.z + 5.0f, "La unión de componentes debe tener extensión física en Z");
+    TEST_ASSERT(totalUnion.start.x >= sdfBox.start.x - 0.1f, "La unión de componentes debe estar contenida en sdfBox min X");
+    TEST_ASSERT(totalUnion.end.x <= sdfBox.end.x + 0.1f, "La unión de componentes debe estar contenida en sdfBox max X");
+    TEST_ASSERT(totalUnion.start.z >= sdfBox.start.z - 0.1f, "La unión de componentes debe estar contenida en sdfBox min Z");
+    TEST_ASSERT(totalUnion.end.z <= sdfBox.end.z + 0.1f, "La unión de componentes debe estar contenida en sdfBox max Z");
+
+    /* Ejecutar mallador y verificar que omite celdas vacías */
+    SDFField field = MonsterSDF_GetField(&sdf);
+    SDFMesherConfig cfg = SDFMesher_DefaultConfig();
+    cfg.voxelSize = 0.08f;
+    cfg.useAutoBounds = true;
+
+    SDFMesher mesher = SDFMesher_Create(cfg);
+    Mesh mesh = Mesh_Create();
+    bool ok = SDFMesher_GenerateMeshDetailed(&mesher, &field, NULL, 0, &mesh);
+    TEST_ASSERT(ok, "Generación de malla debe ser exitosa");
+
+    const SDFMesherStats* stats = SDFMesher_GetLastStats(&mesher);
+    TEST_ASSERT(stats->cellCount > 0, "Debe haber celdas totales en el dominio");
+    TEST_ASSERT(stats->activeCellCount < stats->cellCount,
+                "El filtrado de celdas candidatas debe omitir celdas vacías");
+    TEST_ASSERT(stats->distanceEvaluationCount < (size_t)(stats->resolutionX * stats->resolutionY * stats->resolutionZ),
+                "El muestreo disperso debe evaluar menos nodos que el volumen denso");
+    TEST_ASSERT(mesh.indexCount > 0, "La malla generada debe contener triángulos válidos");
+
+    Mesh_Free(&mesh);
+    SDFMesher_Free(&mesher);
+    MonsterSDF_Free(&sdf);
+    Monster_Free(&lizard);
+}
+
+/**
+ * Prueba 4: Verificación de copia profunda y reutilización de buffers con Monster_CopyInto.
+ */
+static void test_monster_copy_into_reuse(void) {
+    printf("  [TEST] test_monster_copy_into_reuse...\n");
+    Monster young = CreateTestLizard(false);
+    Monster adult = CreateTestLizard(true);
+
+    Monster copy = Monster_Create();
+
+    /* 1. Primera copia */
+    bool ok1 = Monster_CopyInto(&copy, &young);
+    TEST_ASSERT(ok1, "Monster_CopyInto debe tener éxito al copiar joven");
+    TEST_ASSERT(copy.bodyPartCount == young.bodyPartCount, "Conteo de partes debe coincidir");
+    TEST_ASSERT(copy.eyeCount == young.eyeCount, "Conteo de ojos debe coincidir");
+    TEST_ASSERT(copy.mouthCount == young.mouthCount, "Conteo de bocas debe coincidir");
+    TEST_ASSERT(copy.hasLizardPhenotype == young.hasLizardPhenotype, "Flag de fenotipo debe coincidir");
+    TEST_ASSERT(FLOAT_NEAR(copy.lizardPhenotype.totalScale, young.lizardPhenotype.totalScale),
+                "Escala total debe coincidir con joven");
+
+    /* Guardar punteros de buffer preasignado */
+    BodyPart* initialParts = copy.bodyParts;
+    Eye* initialEyes = copy.eyes;
+    Mouth* initialMouths = copy.mouths;
+
+    /* 2. Sobrescribir copiando el adulto en el mismo contenedor */
+    bool ok2 = Monster_CopyInto(&copy, &adult);
+    TEST_ASSERT(ok2, "Monster_CopyInto debe tener éxito al copiar adulto");
+    TEST_ASSERT(FLOAT_NEAR(copy.lizardPhenotype.totalScale, adult.lizardPhenotype.totalScale),
+                "Escala total debe actualizarse a la del adulto");
+
+    /* Reutilización de memoria: si la capacidad era suficiente, no debe reasignar innecesariamente */
+    TEST_ASSERT(copy.bodyParts == initialParts, "Debe reutilizar el buffer existente de bodyParts");
+    TEST_ASSERT(copy.eyes == initialEyes, "Debe reutilizar el buffer existente de eyes");
+    TEST_ASSERT(copy.mouths == initialMouths, "Debe reutilizar el buffer existente de mouths");
+
+    Monster_Free(&copy);
+    Monster_Free(&young);
+    Monster_Free(&adult);
+}
+
+/**
+ * Prueba 5: Selección de calidad MORPH vs SETTLED en MonsterVisualAsync.
+ */
+static void test_visual_async_morph_settled_tiers(void) {
+    printf("  [TEST] test_visual_async_morph_settled_tiers...\n");
+    Monster lizard = CreateTestLizard(false);
+
+    MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
+    cfg.settledDelaySec = 0.05f;
+    MonsterVisualAsync* visual = MonsterVisualAsync_Create(cfg);
+    TEST_ASSERT(visual != NULL, "Debe crear el gestor asíncrono");
+
+    /* 1. Activar modo MORPH y actualizar */
+    MonsterVisualAsync_SetMorphMode(visual, true);
+    MonsterVisualAsync_Update(visual, &lizard, 0.016f);
+
+    /* Esperar a que el worker procese (margen generoso para sanitizers) */
+    int retries = 0;
+    while (retries++ < 300 && MonsterVisualAsync_GetDisplayGeneration(visual) == 0) {
+        usleep(10000); /* 10ms */
+        MonsterVisualAsync_Update(visual, &lizard, 0.010f);
+    }
+    TEST_ASSERT(MonsterVisualAsync_GetDisplayGeneration(visual) > 0,
+                "El worker debe completar al menos una malla");
+
+    MonsterVisualAsyncStats stats = MonsterVisualAsync_GetStats(visual);
+    TEST_ASSERT(stats.activeQualityTier == MONSTER_VISUAL_QUALITY_MORPH,
+                "En modo morph el tier activo debe ser MONSTER_VISUAL_QUALITY_MORPH");
+
+    /* 2. Desactivar modo MORPH y simular paso del tiempo para transición a SETTLED */
+    MonsterVisualAsync_SetMorphMode(visual, false);
+    /* Avanzar tiempo más allá de settledDelaySec */
+    MonsterVisualAsync_Update(visual, &lizard, 0.10f);
+
+    retries = 0;
+    while (retries++ < 300) {
+        usleep(10000); /* 10ms */
+        MonsterVisualAsync_Update(visual, &lizard, 0.010f);
+        stats = MonsterVisualAsync_GetStats(visual);
+        if (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED) break;
+    }
+
+    TEST_ASSERT(stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED,
+                "Tras el retraso de reposo debe transicionar a MONSTER_VISUAL_QUALITY_SETTLED");
+
+    MonsterVisualAsync_Free(visual);
+    Monster_Free(&lizard);
+}
+
+void run_perf_optimizations_tests(void) {
+    test_connector_pruning_equivalence();
+    test_parallel_serial_determinism();
+    test_component_bounds_and_cell_skipping();
+    test_monster_copy_into_reuse();
+    test_visual_async_morph_settled_tiers();
+}

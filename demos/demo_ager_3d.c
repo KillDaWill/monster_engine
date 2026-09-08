@@ -140,6 +140,13 @@ int main(int argc, char* argv[]) {
     int captureView=0;
     const char* captureNames[]={"whole","body-lateral","body-front","body-dorsal","head-oblique","head-lateral","head-frontal","head-dorsal"};
 
+    float ageSpeed = 0.20f; /* ~5 s para recorrido completo 0 -> 1 */
+    float fpsTimer = 0.0f;
+    int fpsFrames = 0;
+    float currentFps = 0.0f;
+    float currentBuildsPerSec = 0.0f;
+    uint64_t lastBuildCountForFps = 0;
+
     while (running) {
         Uint32 currentTime = SDL_GetTicks();
         float deltaTime = (currentTime - lastTime) / 1000.0f;
@@ -153,42 +160,47 @@ int main(int argc, char* argv[]) {
                     case SDLK_RIGHT:
                     case SDLK_UP:
                         autoAnimate = false;
-                        ageFactor += 0.05f;
-                        if (ageFactor > 1.0f) ageFactor = 1.0f;
+                        MonsterVisualAsync_SetMorphMode(visual, false);
+                        ageFactor = Math_Clamp01(ageFactor + 0.05f);
                         MonsterAger_SetPerc(&ager, ageFactor);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_LEFT:
                     case SDLK_DOWN:
                         autoAnimate = false;
-                        ageFactor -= 0.05f;
-                        if (ageFactor < 0.0f) ageFactor = 0.0f;
+                        MonsterVisualAsync_SetMorphMode(visual, false);
+                        ageFactor = Math_Clamp01(ageFactor - 0.05f);
                         MonsterAger_SetPerc(&ager, ageFactor);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_0: case SDLK_1: case SDLK_2: case SDLK_3: case SDLK_4:
-                        autoAnimate=false;ageFactor=(event.key.keysym.sym-SDLK_0)*.25f;
-                        MonsterAger_SetPerc(&ager,ageFactor);break;
-                    case SDLK_ESCAPE: running=false;break;
+                        autoAnimate = false;
+                        MonsterVisualAsync_SetMorphMode(visual, false);
+                        ageFactor = (event.key.keysym.sym - SDLK_0) * 0.25f;
+                        MonsterAger_SetPerc(&ager, ageFactor);
+                        printf("[AGER] Porcentaje directo: %.0f%%\n", ageFactor * 100.0f);
+                        break;
+                    case SDLK_ESCAPE: running = false; break;
                     case SDLK_SPACE:
                         autoAnimate = !autoAnimate;
+                        MonsterVisualAsync_SetMorphMode(visual, autoAnimate);
                         printf("[AGER] Animación automática: %s\n", autoAnimate ? "ACTIVADA" : "DESACTIVADA");
                         break;
                     case SDLK_h:
-                        inspectHead=!inspectHead;headView=inspectHead?1:0;
-                        printf("[VISTA] Inspección cefálica: %s\n",inspectHead?"ACTIVA":"INACTIVA");
+                        inspectHead = !inspectHead; headView = inspectHead ? 1 : 0;
+                        printf("[VISTA] Inspección cefálica: %s\n", inspectHead ? "ACTIVA" : "INACTIVA");
                         break;
                     case SDLK_w:
-                        headWireframe=!headWireframe;
-                        printf("[VISTA] Wireframe local de cabeza: %s\n",headWireframe?"ACTIVO":"INACTIVO");
+                        headWireframe = !headWireframe;
+                        printf("[VISTA] Wireframe local de cabeza: %s\n", headWireframe ? "ACTIVO" : "INACTIVO");
                         break;
-                    case SDLK_F1: inspectHead=true;headView=1;break;
-                    case SDLK_F2: inspectHead=true;headView=2;break;
-                    case SDLK_F3: inspectHead=true;headView=3;break;
-                    case SDLK_F4: inspectHead=true;headView=4;break;
+                    case SDLK_F1: inspectHead = true; headView = 1; break;
+                    case SDLK_F2: inspectHead = true; headView = 2; break;
+                    case SDLK_F3: inspectHead = true; headView = 3; break;
+                    case SDLK_F4: inspectHead = true; headView = 4; break;
                 }
             } else if (event.type == SDL_MOUSEWHEEL) {
-                cameraZoom=Math_Clamp(cameraZoom*(event.wheel.y>0?.90f:1.10f),.25f,2.5f);
+                cameraZoom = Math_Clamp(cameraZoom * (event.wheel.y > 0 ? 0.90f : 1.10f), 0.25f, 2.5f);
             } else if (event.type == SDL_WINDOWEVENT) {
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                     windowWidth = event.window.data1;
@@ -197,57 +209,91 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        if(captureActive){inspectHead=captureView>=4;headView=captureView-3;}
+        if (captureActive) { inspectHead = captureView >= 4; headView = captureView - 3; }
 
         if (autoAnimate) {
-            /* Esperar al snapshot mostrado limita el salto morfológico sin
-             * combinar ojos o mandíbulas de otra edad. La cámara sigue libre. */
-            MonsterVisualAsyncStats timing=MonsterVisualAsync_GetStats(visual);
-            const Monster* current=MonsterAger_GetResultConst(&ager);
-            if(!timing.isWorkerBusy && MonsterVisualAsync_GetDisplayGeneration(visual)>0 &&
-               fabsf(timing.displayedScale-current->lizardPhenotype.totalScale)<.00001f) {
-                ageFactor=Math_Clamp01(ageFactor+growthDirection*.01f);
-                if(ageFactor>=1)growthDirection=-1;
-                if(ageFactor<=0)growthDirection=1;
-                MonsterAger_SetPerc(&ager,ageFactor);
+            MonsterVisualAsync_SetMorphMode(visual, true);
+            /* Reloj de animación continuo e independiente de los fotogramas del mallador */
+            if (MonsterVisualAsync_GetDisplayGeneration(visual) > 0) {
+                ageFactor += growthDirection * ageSpeed * deltaTime;
+                if (ageFactor >= 1.0f) {
+                    ageFactor = 1.0f;
+                    growthDirection = -1.0f;
+                } else if (ageFactor <= 0.0f) {
+                    ageFactor = 0.0f;
+                    growthDirection = 1.0f;
+                }
+                MonsterAger_SetPerc(&ager, ageFactor);
             }
+        } else {
+            MonsterVisualAsync_SetMorphMode(visual, false);
         }
 
         const Monster* currentMonster = MonsterAger_GetResultConst(&ager);
         /* Cámaras de comparación ancladas al adulto, independientes de edad. */
-        camera.target=Vec3_Create(0,.25f,-5.3f);
-        Vector3 offset=Vec3_Create(-11,9,14);
-        if(captureActive && captureView==1)offset=Vec3_Create(18,1,0);
-        if(captureActive && captureView==2)offset=Vec3_Create(9,4,18);
-        if(captureActive && captureView==3)offset=Vec3_Create(.01f,20,.01f);
-        if(inspectHead) {
-            camera.target=Vec3_Create(0,.42f,.15f);
-            if(headView==2)offset=Vec3_Create(3.4f,.20f,0);
-            else if(headView==3)offset=Vec3_Create(0,.25f,3.6f);
-            else if(headView==4)offset=Vec3_Create(.01f,3.5f,.01f);
-            else offset=Vec3_Create(2.8f,1.8f,2.8f);
+        camera.target = Vec3_Create(0, 0.25f, -5.3f);
+        Vector3 offset = Vec3_Create(-11, 9, 14);
+        if (captureActive && captureView == 1) offset = Vec3_Create(18, 1, 0);
+        if (captureActive && captureView == 2) offset = Vec3_Create(9, 4, 18);
+        if (captureActive && captureView == 3) offset = Vec3_Create(0.01f, 20, 0.01f);
+        if (inspectHead) {
+            camera.target = Vec3_Create(0, 0.42f, 0.15f);
+            if (headView == 2) offset = Vec3_Create(3.4f, 0.20f, 0);
+            else if (headView == 3) offset = Vec3_Create(0, 0.25f, 3.6f);
+            else if (headView == 4) offset = Vec3_Create(0.01f, 3.5f, 0.01f);
+            else offset = Vec3_Create(2.8f, 1.8f, 2.8f);
         }
-        camera.position=Vec3_Add(camera.target,Vec3_Scale(offset,cameraZoom));
+        camera.position = Vec3_Add(camera.target, Vec3_Scale(offset, cameraZoom));
 
-        MonsterVisualAsync_SetContinuousMotion(visual,autoAnimate);
+        MonsterVisualAsync_SetContinuousMotion(visual, autoAnimate);
         MonsterVisualAsync_Update(visual, currentMonster, deltaTime);
-        uint64_t generation=MonsterVisualAsync_GetDisplayGeneration(visual);
-        if(generation!=0&&generation!=printedGeneration) {
-            MonsterVisualAsyncStats stats=MonsterVisualAsync_GetStats(visual);printedGeneration=generation;
-            settledReady=stats.activeQualityTier==MONSTER_VISUAL_QUALITY_SETTLED;
-            printf("[MALLA] edad_solicitada=%.2f escala_visible=%.5f gen=%llu fp=%llu tier=%s ms=%.2f grid=%dx%dx%d voxel_max=%.5f voxel_min=%.5f celdas=%zu activas=%zu refinadas=%zu muestras=%zu triangulos=%zu presupuesto=%d detalle_degradado=%d coalescidas=%llu\n",
-                ageFactor,stats.displayedScale,(unsigned long long)generation,(unsigned long long)stats.displayedFingerprint,
-                settledReady?"settled":"interactive",stats.lastBuildDurationMs,
-                stats.bodyMesher.resolutionX,stats.bodyMesher.resolutionY,stats.bodyMesher.resolutionZ,
-                stats.bodyMesher.effectiveVoxelSize,stats.bodyMesher.minimumVoxelSize,stats.bodyMesher.cellCount,
-                stats.bodyMesher.activeCellCount,stats.bodyMesher.refinedCellCount,stats.bodyMesher.distanceEvaluationCount,
-                stats.bodyMesher.generatedTriangleCount,stats.bodyMesher.cellBudgetAdjusted,stats.bodyMesher.detailBudgetAdjusted,
+
+        MonsterVisualAsyncStats stats = MonsterVisualAsync_GetStats(visual);
+        uint64_t generation = MonsterVisualAsync_GetDisplayGeneration(visual);
+
+        /* Cálculo de FPS y tasa de mallas generadas por segundo */
+        fpsFrames++;
+        fpsTimer += deltaTime;
+        if (fpsTimer >= 0.5f) {
+            currentFps = (float)fpsFrames / fpsTimer;
+            uint64_t buildsDelta = stats.completedBuildCount - lastBuildCountForFps;
+            currentBuildsPerSec = (float)buildsDelta / fpsTimer;
+            fpsFrames = 0;
+            fpsTimer = 0.0f;
+            lastBuildCountForFps = stats.completedBuildCount;
+        }
+
+        /* Desfase entre edad mostrada en pantalla y edad objetivo */
+        float juvenileScale = 0.58f;
+        float adultScale = 1.0f;
+        float displayedAge = stats.displayedScale > 0.0f
+            ? Math_Clamp01((stats.displayedScale - juvenileScale) / (adultScale - juvenileScale))
+            : ageFactor;
+        float ageLag = fabsf(displayedAge - ageFactor);
+        const char* tierStr = (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED)
+            ? "SETTLED"
+            : ((stats.activeQualityTier == MONSTER_VISUAL_QUALITY_MORPH) ? "MORPH" : "INTERACTIVE");
+
+        if (generation != 0 && generation != printedGeneration) {
+            printedGeneration = generation;
+            settledReady = (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED);
+            printf("[MALLA] edad_solicitada=%.2f edad_visible=%.2f lag=%.2f escala=%.5f gen=%llu fp=%llu tier=%s ms=%.2f fps=%.1f builds/s=%.1f grid=%dx%dx%d celdas=%zu activas=%zu refinadas=%zu muestras=%zu triangulos=%zu coalescidas=%llu\n",
+                ageFactor, displayedAge, ageLag, stats.displayedScale,
+                (unsigned long long)generation, (unsigned long long)stats.displayedFingerprint,
+                tierStr, stats.lastBuildDurationMs, currentFps, currentBuildsPerSec,
+                stats.bodyMesher.resolutionX, stats.bodyMesher.resolutionY, stats.bodyMesher.resolutionZ,
+                stats.bodyMesher.cellCount, stats.bodyMesher.activeCellCount, stats.bodyMesher.refinedCellCount,
+                stats.bodyMesher.distanceEvaluationCount, stats.bodyMesher.generatedTriangleCount,
                 (unsigned long long)stats.coalescedCount);
         }
 
-        char title[192];
-        snprintf(title,sizeof(title),"Monster Engine - Lagarto %.0f%% | %s",ageFactor*100.0f,autoAnimate?"animación":"inspección fija");
-        SDL_SetWindowTitle(window,title);
+        char title[256];
+        snprintf(title, sizeof(title),
+            "Monster Engine | Lagarto %.0f%% (lag: %.1f%%) | Tier: %s | Worker: %.1fms | FPS: %.0f | Builds/s: %.1f | %s",
+            ageFactor * 100.0f, ageLag * 100.0f, tierStr, stats.lastBuildDurationMs,
+            currentFps, currentBuildsPerSec,
+            autoAnimate ? "ANIMANDO" : "PAUSA");
+        SDL_SetWindowTitle(window, title);
 
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);

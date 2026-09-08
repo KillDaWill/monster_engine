@@ -73,6 +73,17 @@ bool MonsterVisual_BuildMouthMeshesFromSDF(
     size_t mouthIndex
 );
 
+/** Construye una boca reutilizando instancias preasignadas de SDFMesher para evitar churn en hebras worker. */
+bool MonsterVisual_BuildMouthMeshesFromSDFWithMeshers(
+    MonsterVisualMouth* visualMouth,
+    const Mouth* mouth,
+    const Monster* monster,
+    const MonsterSDF* sdf,
+    size_t mouthIndex,
+    SDFMesher* jawMesher,
+    SDFMesher* seamMesher
+);
+
 /** Actualiza únicamente las posiciones y normales de la mandíbula articulada. */
 void MonsterVisual_UpdateMouthArticulation(MonsterVisualMouth* visualMouth, const Mouth* mouth, const Monster* monster);
 

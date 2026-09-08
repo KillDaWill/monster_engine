@@ -33,6 +33,7 @@ typedef struct SDFMesherConfig {
     float normalEps;   /**< Paso épsilon para gradiente numérico de normales (si <= 0, auto: min(step)*0.25) */
     AABB3D bounds;     /**< Bounding Box 3D para el volumen de muestreo */
     bool useAutoBounds;/**< Si es true, recalcula las fronteras usando field->getBounds */
+    int samplingThreadCount; /**< Hilos totales para muestreo escalar (0=auto, 1=serial, N=hilos) */
 } SDFMesherConfig;
 
 /**
@@ -61,24 +62,35 @@ typedef struct SDFMesherStats {
     size_t refinedCellCount; /**< Celdas con algún eje más fino que la base. */
     bool detailBudgetAdjusted; /**< No se pudo satisfacer todo el detalle solicitado. */
     bool cellBudgetAdjusted;     /**< true si la resolución fue ajustada por presupuesto maxCells */
+    size_t connectorCandidateCount;       /**< Conectores considerados */
+    size_t connectorExactEvaluationCount; /**< Conectores evaluados exactamente */
+    size_t connectorPrunedCount;          /**< Conectores podados por cota de AABB */
+    int threadsUsed;                      /**< Cantidad de hilos utilizados en el muestreo */
+    size_t candidateCellCount;            /**< Celdas candidatas identificadas por influencia AABB */
+    size_t candidateNodeCount;            /**< Nodos requeridos muestreados */
+    size_t skippedCellCount;              /**< Celdas no candidatas ignoradas sin procesar */
+    size_t skippedNodeCount;              /**< Nodos vacíos saltados sin evaluación escalar */
 } SDFMesherStats;
+
+struct SDFSamplingPool;
 
 /**
  * @struct SDFMesher
  * @brief Estructura del orquestador SDFMesher con buffers scratch reutilizables.
  */
 typedef struct SDFMesher {
-    SDFMesherConfig config;      /**< Configuración activa del mesher */
+    SDFMesherConfig config;
 
-    float* gridDistances;        /**< Buffer reutilizable de distancias escalares en rejilla */
+    /* Buffers de muestreo y triangulación reutilizables */
+    float* gridDistances;        /**< Caché lineal de valores de distancia escalar */
     size_t gridDistanceCapacity; /**< Capacidad reservada de gridDistances */
 
-    Vector3* gridGradients;      /**< Buffer reutilizable de gradientes precortados */
+    Vector3* gridGradients;      /**< Caché reutilizable de gradientes precalculados */
     size_t gridGradientCapacity; /**< Capacidad reservada de gridGradients */
 
-    uint32_t* gradientStamp;          /**< Marcas de generación para cálculo perezoso de gradiente */
-    size_t gradientStampCapacity;    /**< Capacidad reservada de gradientStamp */
-    uint32_t currentGradientGeneration; /**< Identificador de generación actual */
+    uint32_t* gradientStamp;     /**< Marca de validez por celda para reuso de gradientes */
+    size_t gradientStampCapacity;/**< Capacidad reservada de gradientStamp */
+    uint32_t currentGradientGeneration; /**< Generación de llamada para invalidación O(1) */
 
     MeshIndex* xEdges;           /**< Caché reutilizable de vértices en aristas X */
     size_t xEdgeCapacity;        /**< Capacidad reservada de xEdges */
@@ -93,6 +105,12 @@ typedef struct SDFMesher {
     size_t cornerVertexCapacity; /**< Capacidad reutilizable de cornerVertices. */
     float* coordinates[3]; /**< Ejes rectilíneos compartidos, sin uniones T. */
     size_t coordinateCapacity[3]; /**< Capacidades reutilizables. */
+    uint8_t* cellCandidateMask;   /**< Máscara de celdas candidatas a poligonizar */
+    size_t cellCandidateCapacity; /**< Capacidad de cellCandidateMask */
+    uint8_t* nodeCandidateMask;   /**< Máscara de nodos requeridos a muestrear */
+    size_t nodeCandidateCapacity; /**< Capacidad de nodeCandidateMask */
+    struct SDFSamplingPool* borrowedPool; /**< Pool de muestreo prestado */
+    struct SDFSamplingPool* ownedPool;    /**< Pool propio si fue creado internamente */
     SDFMesherStats lastStats;    /**< Métricas de la última ejecución */
 } SDFMesher;
 
@@ -132,6 +150,11 @@ bool SDFMesher_GenerateMesh(
 /** @brief Extrae una única rejilla conformante con detalle local opcional y presupuesto global. */
 bool SDFMesher_GenerateMeshDetailed(SDFMesher* mesher, const SDFField* field,
     const SDFDetailRegion* regions, size_t regionCount, Mesh* outMesh);
+
+/**
+ * @brief Asigna un pool de hilos prestado (borrowed) para muestreo paralelo. El mesher NO libera este pool.
+ */
+void SDFMesher_SetSamplingPool(SDFMesher* mesher, struct SDFSamplingPool* pool);
 
 #ifdef __cplusplus
 }

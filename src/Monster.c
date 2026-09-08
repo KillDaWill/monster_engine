@@ -38,28 +38,75 @@ void Monster_Free(Monster* monster) {
     memset(monster, 0, sizeof(Monster));
 }
 
-Monster Monster_Clone(const Monster* src) {
-    Monster dst = Monster_Create();
-    if (!src) return dst;
+bool Monster_CopyInto(Monster* dst, const Monster* src) {
+    if (!dst || !src) return false;
 
-    dst.id = src->id;
-    dst.angle = src->angle;
-    dst.updateSpeed = src->updateSpeed;
-    dst.world = src->world;
-    dst.behavior = src->behavior;
-    dst.meta = src->meta;
-    dst.head = src->head;
-    dst.hasHead = src->hasHead;
-    dst.anatomyGraph = src->anatomyGraph;
-    dst.hasAnatomyGraph = src->hasAnatomyGraph;
-    dst.lizardPhenotype = src->lizardPhenotype;
-    dst.hasLizardPhenotype = src->hasLizardPhenotype;
+    /* Preservar punteros y capacidades preasignadas del destino */
+    BodyPart* savedParts = dst->bodyParts;
+    size_t savedPartCap = dst->bodyPartCapacity;
+    Eye* savedEyes = dst->eyes;
+    size_t savedEyeCap = dst->eyeCapacity;
+    Mouth* savedMouths = dst->mouths;
+    size_t savedMouthCap = dst->mouthCapacity;
+    struct Trait** savedTraits = dst->traits;
+    size_t savedTraitCap = dst->traitCapacity;
+    struct Trait** savedCombat = dst->combatTraits;
+    size_t savedCombatCap = dst->combatTraitCapacity;
+    struct VisualTrait** savedVisual = dst->visualTraits;
+    size_t savedVisualCap = dst->visualTraitCapacity;
+
+    /* Limpiar traits internos de partes previas en destino */
+    for (size_t i = 0; i < dst->bodyPartCount; ++i) {
+        if (dst->bodyParts[i].traits) {
+            free(dst->bodyParts[i].traits);
+            dst->bodyParts[i].traits = NULL;
+        }
+    }
+
+    /* Copiar campos escalares */
+    dst->id = src->id;
+    dst->angle = src->angle;
+    dst->updateSpeed = src->updateSpeed;
+    dst->world = src->world;
+    dst->behavior = src->behavior;
+    dst->meta = src->meta;
+    dst->head = src->head;
+    dst->hasHead = src->hasHead;
+    dst->anatomyGraph = src->anatomyGraph;
+    dst->hasAnatomyGraph = src->hasAnatomyGraph;
+    dst->lizardPhenotype = src->lizardPhenotype;
+    dst->hasLizardPhenotype = src->hasLizardPhenotype;
 
     /* Copiar paleta de colores */
-    dst.colorPalette.count = src->colorPalette.count;
+    dst->colorPalette.count = src->colorPalette.count;
     for (size_t i = 0; i < src->colorPalette.count; ++i) {
-        dst.colorPalette.colors[i] = src->colorPalette.colors[i];
+        dst->colorPalette.colors[i] = src->colorPalette.colors[i];
     }
+
+    /* Restaurar buffers y reiniciar cuentas */
+    dst->bodyParts = savedParts;
+    dst->bodyPartCapacity = savedPartCap;
+    dst->bodyPartCount = 0;
+
+    dst->eyes = savedEyes;
+    dst->eyeCapacity = savedEyeCap;
+    dst->eyeCount = 0;
+
+    dst->mouths = savedMouths;
+    dst->mouthCapacity = savedMouthCap;
+    dst->mouthCount = 0;
+
+    dst->traits = savedTraits;
+    dst->traitCapacity = savedTraitCap;
+    dst->traitCount = 0;
+
+    dst->combatTraits = savedCombat;
+    dst->combatTraitCapacity = savedCombatCap;
+    dst->combatTraitCount = 0;
+
+    dst->visualTraits = savedVisual;
+    dst->visualTraitCapacity = savedVisualCap;
+    dst->visualTraitCount = 0;
 
     /* Copiar partes del cuerpo */
     for (size_t i = 0; i < src->bodyPartCount; ++i) {
@@ -72,30 +119,38 @@ Monster Monster_Clone(const Monster* src) {
             BodyPart_AddTrait(&p, src->bodyParts[i].traits[t]);
         }
 
-        Monster_AddBodyPart(&dst, p);
+        Monster_AddBodyPart(dst, p);
     }
 
     /* Copiar ojos */
     for (size_t i = 0; i < src->eyeCount; ++i) {
-        Monster_AddEye(&dst, src->eyes[i]);
+        Monster_AddEye(dst, src->eyes[i]);
     }
 
     /* Copiar bocas */
     for (size_t i = 0; i < src->mouthCount; ++i) {
-        Monster_AddMouth(&dst, src->mouths[i]);
+        Monster_AddMouth(dst, src->mouths[i]);
     }
 
     /* Copiar traits de monstruo */
     for (size_t i = 0; i < src->traitCount; ++i) {
-        Monster_AddTrait(&dst, src->traits[i]);
+        Monster_AddTrait(dst, src->traits[i]);
     }
     for (size_t i = 0; i < src->combatTraitCount; ++i) {
-        Monster_AddCombatTrait(&dst, src->combatTraits[i]);
+        Monster_AddCombatTrait(dst, src->combatTraits[i]);
     }
     for (size_t i = 0; i < src->visualTraitCount; ++i) {
-        Monster_AddVisualTrait(&dst, src->visualTraits[i]);
+        Monster_AddVisualTrait(dst, src->visualTraits[i]);
     }
 
+    return true;
+}
+
+Monster Monster_Clone(const Monster* src) {
+    Monster dst = Monster_Create();
+    if (src) {
+        Monster_CopyInto(&dst, src);
+    }
     return dst;
 }
 

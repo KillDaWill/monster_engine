@@ -16,6 +16,7 @@ void run_mouth_geometry_tests(void);
 void run_head_tests(void);
 void run_lizard_tests(void);
 void run_local_detail_tests(void);
+void run_perf_optimizations_tests(void);
 
 int main(void) {
     printf("======================================\n");
@@ -62,6 +63,9 @@ int main(void) {
     run_head_tests();
     run_lizard_tests();
     run_local_detail_tests();
+
+    printf("\n--- Optimizaciones de Rendimiento y Regresión ---\n");
+    run_perf_optimizations_tests();
 
     printf("\n======================================\n");
     printf(" ¡TODAS LAS SUITES PASARON CON ÉXITO! \n");

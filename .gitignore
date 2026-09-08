@@ -25,5 +25,6 @@ doc/latex/
 .idea/
 .omo/
 
-# Benchmark del preset anatómico
+# Benchmarks (binarios)
 benchmarks/benchmark_lizard
+benchmarks/benchmark_sdf

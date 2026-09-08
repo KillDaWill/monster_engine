@@ -1,4 +1,5 @@
 #include "MonsterVisualAsync.h"
+#include "SDFSamplingPool.h"
 #include "PrimitiveMesh.h"
 #include "MathUtils.h"
 #include <stdlib.h>
@@ -59,6 +60,7 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
     hash = HashFloat(sdfConfig.mouthSmoothness, hash);
     hash = HashFloat(sdfConfig.connectionRadiusFactor, hash);
     hash = HashFloat(sdfConfig.boundsPadding, hash);
+    hash = HashBool(sdfConfig.enableConnectorPruning, hash);
 
     if (!monster) return hash;
     hash = HashBool(monster->hasHead,hash);
@@ -143,6 +145,10 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     cfg.settledMesherConfig.voxelSize = 0.08f;
     cfg.settledMesherConfig.maxCells = 500000;
 
+    cfg.morphMesherConfig = SDFMesher_DefaultConfig();
+    cfg.morphMesherConfig.voxelSize = 0.095f;
+    cfg.morphMesherConfig.maxCells = 300000;
+
     cfg.interactiveHeadMesherConfig = SDFMesher_DefaultConfig();
     cfg.interactiveHeadMesherConfig.voxelSize = 0.024f;
     cfg.interactiveHeadMesherConfig.maxCells = 900000;
@@ -152,6 +158,11 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     cfg.settledHeadMesherConfig.voxelSize = 0.015f;
     cfg.settledHeadMesherConfig.maxCells = 2200000;
     cfg.settledHeadMesherConfig.maxResolution = 384;
+
+    cfg.morphHeadMesherConfig = SDFMesher_DefaultConfig();
+    cfg.morphHeadMesherConfig.voxelSize = 0.024f;
+    cfg.morphHeadMesherConfig.maxCells = 500000;
+    cfg.morphHeadMesherConfig.maxResolution = 256;
 
     cfg.sdfConfig = MonsterSDF_DefaultConfig();
     cfg.settledDelaySec = 0.15f;
@@ -182,6 +193,17 @@ static void* WorkerThreadRoutine(void* arg) {
     MonsterSDF workerSdf = MonsterSDF_Create();
     SDFMesher workerMesher = SDFMesher_Create(asyncMgr->config.interactiveMesherConfig);
     SDFMesher workerHeadMesher = SDFMesher_Create(asyncMgr->config.interactiveHeadMesherConfig);
+    SDFMesherConfig jawCfg = SDFMesher_DefaultConfig(); jawCfg.voxelSize = 0.04f; jawCfg.maxCells = 100000; jawCfg.useAutoBounds = true;
+    SDFMesherConfig seamCfg = SDFMesher_DefaultConfig(); seamCfg.voxelSize = 0.03f; seamCfg.maxCells = 120000; seamCfg.useAutoBounds = true;
+    SDFMesher workerJawMesher = SDFMesher_Create(jawCfg);
+    SDFMesher workerSeamMesher = SDFMesher_Create(seamCfg);
+
+    SDFMesher_SetSamplingPool(&workerMesher, asyncMgr->samplingPool);
+    SDFMesher_SetSamplingPool(&workerHeadMesher, asyncMgr->samplingPool);
+    SDFMesher_SetSamplingPool(&workerJawMesher, asyncMgr->samplingPool);
+    SDFMesher_SetSamplingPool(&workerSeamMesher, asyncMgr->samplingPool);
+
+    Monster workMonster = Monster_Create();
     Mesh workBodyMesh = Mesh_Create();
     Mesh workHeadMesh = Mesh_Create();
 
@@ -196,8 +218,7 @@ static void* WorkerThreadRoutine(void* arg) {
             break;
         }
 
-        Monster workMonster = asyncMgr->pendingSnapshot;
-        memset(&asyncMgr->pendingSnapshot, 0, sizeof(Monster));
+        Monster_CopyInto(&workMonster, &asyncMgr->pendingSnapshot);
 
         uint64_t workFingerprint = asyncMgr->pendingFingerprint;
         MonsterVisualQualityTier workTier = asyncMgr->pendingTier;
@@ -211,14 +232,22 @@ static void* WorkerThreadRoutine(void* arg) {
         /* --- TRABAJO PESADO FUERA DEL MUTEX --- */
         double tStart = GetTimeMs();
 
-        SDFMesherConfig activeMesherCfg = (workTier == MONSTER_VISUAL_QUALITY_INTERACTIVE) ?
-            asyncMgr->config.interactiveMesherConfig : asyncMgr->config.settledMesherConfig;
-        SDFMesherConfig activeHeadCfg = (workTier == MONSTER_VISUAL_QUALITY_INTERACTIVE) ?
-            asyncMgr->config.interactiveHeadMesherConfig : asyncMgr->config.settledHeadMesherConfig;
+        SDFMesherConfig activeMesherCfg;
+        SDFMesherConfig activeHeadCfg;
+        if (workTier == MONSTER_VISUAL_QUALITY_SETTLED) {
+            activeMesherCfg = asyncMgr->config.settledMesherConfig;
+            activeHeadCfg = asyncMgr->config.settledHeadMesherConfig;
+        } else if (workTier == MONSTER_VISUAL_QUALITY_MORPH) {
+            activeMesherCfg = asyncMgr->config.morphMesherConfig;
+            activeHeadCfg = asyncMgr->config.morphHeadMesherConfig;
+        } else {
+            activeMesherCfg = asyncMgr->config.interactiveMesherConfig;
+            activeHeadCfg = asyncMgr->config.interactiveHeadMesherConfig;
+        }
 
         if(workMonster.hasHead && !workMonster.hasLizardPhenotype) {
             float recommended=HeadAnatomy_RecommendedVoxelSize(&workMonster.head.anatomy);
-            float tierTarget=workTier==MONSTER_VISUAL_QUALITY_INTERACTIVE?recommended*1.75f:recommended;
+            float tierTarget=workTier==MONSTER_VISUAL_QUALITY_SETTLED?recommended:recommended*1.75f;
             if(activeHeadCfg.voxelSize<=0.0001f||activeHeadCfg.voxelSize>tierTarget)
                 activeHeadCfg.voxelSize=tierTarget;
         }
@@ -242,7 +271,7 @@ static void* WorkerThreadRoutine(void* arg) {
             Mesh_Clear(&workBodyMesh);
             SDFDetailRegion regions[28];
             size_t regionCount=MonsterSDF_GetDetailRegions(&workerSdf,
-                workTier==MONSTER_VISUAL_QUALITY_INTERACTIVE?3.5f:6.0f,regions,28);
+                workTier==MONSTER_VISUAL_QUALITY_SETTLED?6.0f:3.5f,regions,28);
             if(workerSdf.axialStationCount>1) field=MonsterSDF_GetField(&workerSdf);
             meshOk = workerSdf.axialStationCount>1 ?
                 SDFMesher_GenerateMeshDetailed(&workerMesher,&field,regions,regionCount,&workBodyMesh):
@@ -316,7 +345,7 @@ static void* WorkerThreadRoutine(void* arg) {
                 mouthOk = false;
             } else {
                 for (size_t i = 0; i < workMouthCount; ++i) {
-                    if (!MonsterVisual_BuildMouthMeshesFromSDF(&workMouths[i], &workMonster.mouths[i], &workMonster, &workerSdf, i)) {
+                    if (!MonsterVisual_BuildMouthMeshesFromSDFWithMeshers(&workMouths[i], &workMonster.mouths[i], &workMonster, &workerSdf, i, &workerJawMesher, &workerSeamMesher)) {
                         mouthOk = false;
                         break;
                     }
@@ -325,7 +354,6 @@ static void* WorkerThreadRoutine(void* arg) {
         }
 
         float workScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
-        Monster_Free(&workMonster);
         double tEnd = GetTimeMs();
         float durationMs = (float)(tEnd - tStart);
 
@@ -378,7 +406,10 @@ static void* WorkerThreadRoutine(void* arg) {
     Mesh_Free(&workHeadMesh);
     SDFMesher_Free(&workerMesher);
     SDFMesher_Free(&workerHeadMesher);
+    SDFMesher_Free(&workerJawMesher);
+    SDFMesher_Free(&workerSeamMesher);
     MonsterSDF_Free(&workerSdf);
+    Monster_Free(&workMonster);
 
     return NULL;
 }
@@ -392,6 +423,8 @@ MonsterVisualAsync* MonsterVisualAsync_Create(MonsterVisualAsyncConfig config) {
     asyncMgr->readyMesh = Mesh_Create();
     asyncMgr->displayHeadMesh = Mesh_Create();
     asyncMgr->readyHeadMesh = Mesh_Create();
+    asyncMgr->pendingSnapshot = Monster_Create();
+    asyncMgr->samplingPool = SDFSamplingPool_Create(0);
 
     pthread_mutex_init(&asyncMgr->lock, NULL);
     pthread_cond_init(&asyncMgr->cond, NULL);
@@ -420,9 +453,7 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
 
     pthread_mutex_lock(&asyncMgr->lock);
 
-    if (asyncMgr->hasPendingRequest) {
-        Monster_Free(&asyncMgr->pendingSnapshot);
-    }
+    Monster_Free(&asyncMgr->pendingSnapshot);
 
     Mesh_Free(&asyncMgr->displayMesh);
     Mesh_Free(&asyncMgr->displayHeadMesh);
@@ -436,6 +467,11 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
+    if (asyncMgr->samplingPool) {
+        SDFSamplingPool_Free(asyncMgr->samplingPool);
+        asyncMgr->samplingPool = NULL;
+    }
+
     pthread_mutex_destroy(&asyncMgr->lock);
     pthread_cond_destroy(&asyncMgr->cond);
 
@@ -446,6 +482,11 @@ void MonsterVisualAsync_SetContinuousMotion(MonsterVisualAsync* asyncMgr,bool ac
     if(!asyncMgr)return;
     if(asyncMgr->continuousMotion!=active)asyncMgr->timeSinceLastMotionSec=0;
     asyncMgr->continuousMotion=active;
+}
+
+void MonsterVisualAsync_SetMorphMode(MonsterVisualAsync* asyncMgr, bool active) {
+    if(!asyncMgr)return;
+    asyncMgr->morphMode = active;
 }
 
 bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* monster, float deltaTime) {
@@ -460,8 +501,10 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         asyncMgr->timeSinceLastMotionSec += deltaTime;
     }
 
+    MonsterVisualQualityTier activeMotionTier = asyncMgr->morphMode ?
+        MONSTER_VISUAL_QUALITY_MORPH : MONSTER_VISUAL_QUALITY_INTERACTIVE;
     MonsterVisualQualityTier targetTier = (asyncMgr->continuousMotion || asyncMgr->timeSinceLastMotionSec < asyncMgr->config.settledDelaySec) ?
-        MONSTER_VISUAL_QUALITY_INTERACTIVE : MONSTER_VISUAL_QUALITY_SETTLED;
+        activeMotionTier : MONSTER_VISUAL_QUALITY_SETTLED;
 
     uint64_t targetFingerprint = ComputeMonsterFingerprint(monster, asyncMgr->config.sdfConfig, targetTier);
 
@@ -511,17 +554,15 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
     bool isWorkingMatch=asyncMgr->stats.isWorkerBusy && asyncMgr->stats.workingFingerprint==targetFingerprint;
     asyncMgr->stats.requestedFingerprint=targetFingerprint;
     if((isWorkingMatch || isDisplayMatch) && asyncMgr->hasPendingRequest && !isPendingMatch) {
-        Monster_Free(&asyncMgr->pendingSnapshot);
         asyncMgr->hasPendingRequest=false;
         asyncMgr->stats.coalescedCount++;
     }
     if (!isDisplayMatch && !isPendingMatch && !isWorkingMatch) {
         if (asyncMgr->hasPendingRequest) {
-            Monster_Free(&asyncMgr->pendingSnapshot);
             asyncMgr->stats.coalescedCount++;
         }
 
-        asyncMgr->pendingSnapshot = Monster_Clone(monster);
+        Monster_CopyInto(&asyncMgr->pendingSnapshot, monster);
         asyncMgr->pendingFingerprint = targetFingerprint;
         asyncMgr->pendingTier = targetTier;
         asyncMgr->hasPendingRequest = true;

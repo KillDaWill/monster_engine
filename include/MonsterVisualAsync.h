@@ -29,7 +29,8 @@ extern "C" {
  */
 typedef enum MonsterVisualQualityTier {
     MONSTER_VISUAL_QUALITY_INTERACTIVE = 0, /**< Malla rápida de menor resolución durante movimiento constante */
-    MONSTER_VISUAL_QUALITY_SETTLED = 1      /**< Malla detallada de alta resolución cuando la postura se estabiliza */
+    MONSTER_VISUAL_QUALITY_SETTLED = 1,      /**< Malla detallada de alta resolución cuando la postura se estabiliza */
+    MONSTER_VISUAL_QUALITY_MORPH = 2        /**< Tier adaptado para transiciones continuas de envejecimiento */
 } MonsterVisualQualityTier;
 
 /**
@@ -39,8 +40,10 @@ typedef enum MonsterVisualQualityTier {
 typedef struct MonsterVisualAsyncConfig {
     SDFMesherConfig interactiveMesherConfig; /**< Configuración mesher para tier INTERACTIVE */
     SDFMesherConfig settledMesherConfig;     /**< Configuración mesher para tier SETTLED */
+    SDFMesherConfig morphMesherConfig;       /**< Configuración mesher para tier MORPH */
     SDFMesherConfig interactiveHeadMesherConfig; /**< Calidad local cefálica durante interacción. */
     SDFMesherConfig settledHeadMesherConfig; /**< Calidad local cefálica asentada. */
+    SDFMesherConfig morphHeadMesherConfig;   /**< Calidad local cefálica durante MORPH. */
     MonsterSDFConfig sdfConfig;              /**< Configuración del campo SDF del monstruo */
     float settledDelaySec;                   /**< Tiempo en segundos sin cambios para escalar a SETTLED */
 } MonsterVisualAsyncConfig;
@@ -122,6 +125,8 @@ typedef struct MonsterVisualAsync {
     uint64_t lastObservedFingerprint;
     float timeSinceLastMotionSec;
     bool continuousMotion; /**< Evita asentamientos durante una interacción sostenida. */
+    bool morphMode;        /**< Utiliza el tier MORPH en lugar de INTERACTIVE durante movimiento continuo */
+    struct SDFSamplingPool* samplingPool; /**< Pool persistente de hilos compartido con los meshers */
 
     /* Métricas */
     MonsterVisualAsyncStats readyStats, displayStats; /**< Métricas transferidas con las mallas. */
@@ -156,6 +161,9 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
 
 /** @brief Mantiene el tier interactivo durante una animación; libera settled al detenerse. */
 void MonsterVisualAsync_SetContinuousMotion(MonsterVisualAsync* asyncMgr,bool active);
+
+/** @brief Activa o desactiva el modo de transición morfológica continua (usa MORPH tier durante movimiento). */
+void MonsterVisualAsync_SetMorphMode(MonsterVisualAsync* asyncMgr, bool active);
 
 /**
  * @brief Obtiene la malla del cuerpo lista para ser renderizada.

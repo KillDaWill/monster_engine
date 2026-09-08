@@ -38,7 +38,13 @@ static uint64_t HashMouth(const Monster* monster) {
 }
 static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, MonsterSDFConfig cfg) {
     uint64_t h = 0xcbf29ce484222325ULL;
-    h = HashBytes(&cfg, sizeof(cfg), h);
+    h = HashBytes(&cfg.bodySmoothness, sizeof(float), h);
+    h = HashBytes(&cfg.connectionSmoothness, sizeof(float), h);
+    h = HashBytes(&cfg.mouthSmoothness, sizeof(float), h);
+    h = HashBytes(&cfg.connectionRadiusFactor, sizeof(float), h);
+    h = HashBytes(&cfg.boundsPadding, sizeof(float), h);
+    bool pruning = cfg.enableConnectorPruning ? true : false;
+    h = HashBytes(&pruning, sizeof(bool), h);
     if (visual) h = HashBytes(&visual->mesher.config, sizeof(visual->mesher.config), h);
     if (!monster) return h;
     h=HashBytes(&monster->hasHead,sizeof(monster->hasHead),h);
@@ -145,7 +151,7 @@ void MonsterVisual_UpdateMouthArticulation(MonsterVisualMouth* vm, const Mouth* 
     vm->worldPosition = Vec3_Add(part, m.offset); vm->rotation = m.rotation; vm->pivot = m.jawPivot;
     TransformJaw(vm, &m);
 }
-static bool BuildMouthFromSdf(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster, const MonsterSDF* sdf, size_t mouthIndex) {
+static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster, const MonsterSDF* sdf, size_t mouthIndex, SDFMesher* jawMesher, SDFMesher* seamMesher) {
     if (!vm || !source || !monster || !sdf || mouthIndex >= sdf->mouthCount) return false;
     Mouth m = *source; Mouth_Normalize(&m);
     memset(vm, 0, sizeof(*vm));
@@ -162,39 +168,58 @@ static bool BuildMouthFromSdf(MonsterVisualMouth* vm, const Mouth* source, const
     vm->seamGular = sm->seamGularLocal;
     vm->seamJawAnchor = sm->seamJawAnchorLocal;
     vm->seamScale = sm->seamScale;
+
     MonsterSDFJawField jawContext;
     SDFField jawField=MonsterSDF_GetJawField(sdf,mouthIndex,&jawContext);
-    SDFMesherConfig jawConfig=SDFMesher_DefaultConfig(); jawConfig.voxelSize=.04f; jawConfig.maxCells=100000; jawConfig.useAutoBounds=true;
-    SDFMesher jawMesher=SDFMesher_Create(jawConfig);
-    if (!SDFMesher_GenerateMesh(&jawMesher,&jawField,&vm->jawBase)) { SDFMesher_Free(&jawMesher); return false; }
-    SDFMesher_Free(&jawMesher);
+    SDFMesher localJaw;
+    SDFMesher* activeJaw = jawMesher;
+    if (!activeJaw) {
+        SDFMesherConfig jawConfig=SDFMesher_DefaultConfig(); jawConfig.voxelSize=.04f; jawConfig.maxCells=100000; jawConfig.useAutoBounds=true;
+        localJaw = SDFMesher_Create(jawConfig);
+        activeJaw = &localJaw;
+    }
+    bool jawOk = SDFMesher_GenerateMesh(activeJaw, &jawField, &vm->jawBase);
+    if (!jawMesher) SDFMesher_Free(&localJaw);
+    if (!jawOk) return false;
+
     if (!Mesh_ReserveVertices(&vm->jaw, vm->jawBase.vertexCount) || !Mesh_ReserveIndices(&vm->jaw, vm->jawBase.indexCount)) return false;
     vm->jaw.vertexCount = vm->jawBase.vertexCount; vm->jaw.indexCount = vm->jawBase.indexCount;
     memcpy(vm->jaw.indices, vm->jawBase.indices, vm->jawBase.indexCount * sizeof(MeshIndex));
+
     MonsterSDFSeamField seamCtx;
     SDFField seamField=MonsterSDF_GetSeamField(sdf,mouthIndex,&seamCtx);
-    SDFMesherConfig seamConfig=SDFMesher_DefaultConfig(); seamConfig.voxelSize=.03f; seamConfig.maxCells=120000; seamConfig.useAutoBounds=true;
-    SDFMesher seamMesher=SDFMesher_Create(seamConfig);
-    if (!SDFMesher_GenerateMesh(&seamMesher,&seamField,&vm->hingeBase)) { SDFMesher_Free(&seamMesher); return false; }
-    SDFMesher_Free(&seamMesher);
+    SDFMesher localSeam;
+    SDFMesher* activeSeam = seamMesher;
+    if (!activeSeam) {
+        SDFMesherConfig seamConfig=SDFMesher_DefaultConfig(); seamConfig.voxelSize=.03f; seamConfig.maxCells=120000; seamConfig.useAutoBounds=true;
+        localSeam = SDFMesher_Create(seamConfig);
+        activeSeam = &localSeam;
+    }
+    bool seamOk = SDFMesher_GenerateMesh(activeSeam, &seamField, &vm->hingeBase);
+    if (!seamMesher) SDFMesher_Free(&localSeam);
+    if (!seamOk) return false;
+
     if (!Mesh_ReserveVertices(&vm->hinge, vm->hingeBase.vertexCount) || !Mesh_ReserveIndices(&vm->hinge, vm->hingeBase.indexCount)) return false;
     vm->hinge.vertexCount = vm->hingeBase.vertexCount; vm->hinge.indexCount = vm->hingeBase.indexCount;
     memcpy(vm->hinge.indices, vm->hingeBase.indices, vm->hingeBase.indexCount * sizeof(MeshIndex));
     TransformJaw(vm, &m);
     return true;
 }
+bool MonsterVisual_BuildMouthMeshesFromSDFWithMeshers(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster, const MonsterSDF* sdf, size_t mouthIndex, SDFMesher* jawMesher, SDFMesher* seamMesher) {
+    return BuildMouthFromSdfWithMeshers(vm, source, monster, sdf, mouthIndex, jawMesher, seamMesher);
+}
 bool MonsterVisual_BuildMouthMeshesFromSDF(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster, const MonsterSDF* sdf, size_t mouthIndex) {
-    return BuildMouthFromSdf(vm,source,monster,sdf,mouthIndex);
+    return BuildMouthFromSdfWithMeshers(vm,source,monster,sdf,mouthIndex,NULL,NULL);
 }
 bool MonsterVisual_BuildMouthMeshes(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster) {
     MonsterSDF sdf=MonsterSDF_Create(); if(!vm||!source||!monster||!MonsterSDF_Build(&sdf,monster,MonsterSDF_DefaultConfig())){MonsterSDF_Free(&sdf);return false;}
-    bool ok=BuildMouthFromSdf(vm,source,monster,&sdf,0); MonsterSDF_Free(&sdf); return ok;
+    bool ok=BuildMouthFromSdfWithMeshers(vm,source,monster,&sdf,0,NULL,NULL); MonsterSDF_Free(&sdf); return ok;
 }
 void MonsterVisualMouth_Free(MonsterVisualMouth* vm) { if (!vm) return; Mesh_Free(&vm->jawBase); Mesh_Free(&vm->jaw); Mesh_Free(&vm->hingeBase); Mesh_Free(&vm->hinge); }
 static bool BuildMouthArray(const Monster* monster, const MonsterSDF* sdf, MonsterVisualMouth** output) {
     MonsterVisualMouth* mouths = monster->mouthCount ? calloc(monster->mouthCount, sizeof(*mouths)) : NULL;
     if (monster->mouthCount && !mouths) return false;
-    for (size_t i = 0; i < monster->mouthCount; ++i) if (!BuildMouthFromSdf(&mouths[i], &monster->mouths[i], monster, sdf, i)) { for (size_t j = 0; j <= i; ++j) MonsterVisualMouth_Free(&mouths[j]); free(mouths); return false; }
+    for (size_t i = 0; i < monster->mouthCount; ++i) if (!BuildMouthFromSdfWithMeshers(&mouths[i], &monster->mouths[i], monster, sdf, i, NULL, NULL)) { for (size_t j = 0; j <= i; ++j) MonsterVisualMouth_Free(&mouths[j]); free(mouths); return false; }
     *output=mouths; return true;
 }
 static bool RebuildMouthsOnly(MonsterVisual* visual, const Monster* monster) {
