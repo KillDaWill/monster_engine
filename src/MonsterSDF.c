@@ -12,8 +12,30 @@ MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
         .connectionSmoothness = 0.4f,
         .mouthSmoothness = 0.25f,
         .connectionRadiusFactor = 0.85f,
-        .boundsPadding = 0.7f
+        .boundsPadding = 0.7f,
+        .enableConnectorPruning = true
     };
+}
+
+static __thread bool tls_enableStats = false;
+static __thread size_t tls_connectorCandidateCount = 0;
+static __thread size_t tls_connectorExactCount = 0;
+static __thread size_t tls_connectorPrunedCount = 0;
+
+void MonsterSDF_EnableThreadStats(bool enable) {
+    tls_enableStats = enable;
+}
+
+void MonsterSDF_ResetThreadStats(void) {
+    tls_connectorCandidateCount = 0;
+    tls_connectorExactCount = 0;
+    tls_connectorPrunedCount = 0;
+}
+
+void MonsterSDF_GetThreadStats(size_t* outCandidate, size_t* outExact, size_t* outPruned) {
+    if (outCandidate) *outCandidate = tls_connectorCandidateCount;
+    if (outExact) *outExact = tls_connectorExactCount;
+    if (outPruned) *outPruned = tls_connectorPrunedCount;
 }
 
 MonsterSDF MonsterSDF_Create(void) {
@@ -194,6 +216,19 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         Vector3 reference=fabsf(c->forward.y)>.94f?Vec3_Create(1,0,0):Vec3_Create(0,1,0);
         c->side=Vec3_Normalize(Vec3_Cross(reference,c->forward));
         c->up=Vec3_Cross(c->forward,c->side);
+
+        float maxR = Math_Max(Math_Max(c->widthA, c->heightA), Math_Max(c->widthB, c->heightB));
+        float minR = Math_Min(Math_Min(c->widthA, c->heightA), Math_Min(c->widthB, c->heightB));
+        float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ? 0.0f : c->kind == BODY_CONNECTION_LIMB_SEGMENT ? 0.18f : 0.08f;
+        c->localSmoothness = Math_Min(config.connectionSmoothness, minR * factor);
+        c->maxRadius = maxR;
+        Vector3 bmin = Vec3_Create(Math_Min(c->a.x, c->b.x) - maxR,
+                                   Math_Min(c->a.y, c->b.y) - maxR,
+                                   Math_Min(c->a.z, c->b.z) - maxR);
+        Vector3 bmax = Vec3_Create(Math_Max(c->a.x, c->b.x) + maxR,
+                                   Math_Max(c->a.y, c->b.y) + maxR,
+                                   Math_Max(c->a.z, c->b.z) + maxR);
+        c->bounds = AABB_FromMinMax(bmin, bmax);
     }
     /* 3. Bocas */
     if (monster->mouthCount > 0) {
@@ -563,6 +598,24 @@ static inline float MonsterSDF_EvalConnectorDistance(const MonsterSDFConnector* 
     float z=(along<0?along:along>conn->length?along-conn->length:0)/r;
     return (sqrtf(x*x+y*y+z*z)-1)*r;
 }
+
+static inline bool MonsterSDF_ShouldPruneConnector(const MonsterSDFConnector* conn, Vector3 point, float cutoff) {
+    if (cutoff <= 0.0f) return false;
+    /* Factor de seguridad para compensar la menor tasa de crecimiento de campos
+     * elípticos aproximados no 1-Lipschitz en secciones anisotrópicas. */
+    float safeCutoff = cutoff * 1.40f;
+    float dx = 0.0f, dy = 0.0f, dz = 0.0f;
+    if (point.x < conn->bounds.start.x) dx = conn->bounds.start.x - point.x;
+    else if (point.x > conn->bounds.end.x) dx = point.x - conn->bounds.end.x;
+
+    if (point.y < conn->bounds.start.y) dy = conn->bounds.start.y - point.y;
+    else if (point.y > conn->bounds.end.y) dy = point.y - conn->bounds.end.y;
+
+    if (point.z < conn->bounds.start.z) dz = conn->bounds.start.z - point.z;
+    else if (point.z > conn->bounds.end.z) dz = point.z - conn->bounds.end.z;
+
+    return (dx * dx + dy * dy + dz * dz) >= (safeCutoff * safeCutoff);
+}
 static inline float MonsterSDF_EvalMouthDistance(const MonsterSDFMouth* mouth, Vector3 point, Vector3* outLocalP) {
     Vector3 translated = Vec3_Sub(point, mouth->center);
     Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, translated);
@@ -767,13 +820,16 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
     for (size_t i = 0; i < sdf->connectorCount; ++i) {
         const MonsterSDFConnector* conn = &sdf->connectors[i];
         if(sdf->axialStationCount>1 && conn->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
+        if (tls_enableStats) tls_connectorCandidateCount++;
+        float localSmoothness = conn->localSmoothness;
+        if (sdf->config.enableConnectorPruning && hasInitialSample &&
+            MonsterSDF_ShouldPruneConnector(conn, point, accumulated.distance + localSmoothness)) {
+            if (tls_enableStats) tls_connectorPrunedCount++;
+            continue;
+        }
+        if (tls_enableStats) tls_connectorExactCount++;
         float dist = MonsterSDF_EvalConnectorDistance(conn, point);
         SDFSample connSample = SDFSample_Create(dist, conn->color, SDF_MATERIAL_SKIN);
-        float scale=Math_Min(Math_Min(conn->widthA,conn->heightA),Math_Min(conn->widthB,conn->heightB));
-        /* Los tramos axiales ya comparten exactamente su sección terminal.
-         * Una unión suave allí infla cada estación y recrea el aspecto de cuentas. */
-        float factor=conn->kind==BODY_CONNECTION_AXIAL_LOFT?0.0f:conn->kind==BODY_CONNECTION_LIMB_SEGMENT?.18f:.08f;
-        float localSmoothness=Math_Min(sdf->config.connectionSmoothness,scale*factor);
         if (!hasInitialSample) { accumulated = connSample; hasInitialSample = true; }
         else accumulated = SDFSample_SmoothUnion(accumulated, connSample, localSmoothness);
     }
@@ -817,12 +873,17 @@ float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point) {
         else accumulated = SDF_SmoothUnion(accumulated, dist, sdf->config.bodySmoothness);
     }
     for (size_t i = 0; i < sdf->connectorCount; ++i) {
-        if(sdf->axialStationCount>1 && sdf->connectors[i].kind==BODY_CONNECTION_AXIAL_LOFT)continue;
-        float dist = MonsterSDF_EvalConnectorDistance(&sdf->connectors[i], point);
         const MonsterSDFConnector* conn=&sdf->connectors[i];
-        float scale=Math_Min(Math_Min(conn->widthA,conn->heightA),Math_Min(conn->widthB,conn->heightB));
-        float factor=conn->kind==BODY_CONNECTION_AXIAL_LOFT?0.0f:conn->kind==BODY_CONNECTION_LIMB_SEGMENT?.18f:.08f;
-        float localSmoothness=Math_Min(sdf->config.connectionSmoothness,scale*factor);
+        if(sdf->axialStationCount>1 && conn->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
+        if (tls_enableStats) tls_connectorCandidateCount++;
+        float localSmoothness = conn->localSmoothness;
+        if (sdf->config.enableConnectorPruning && hasInitial &&
+            MonsterSDF_ShouldPruneConnector(conn, point, accumulated + localSmoothness)) {
+            if (tls_enableStats) tls_connectorPrunedCount++;
+            continue;
+        }
+        if (tls_enableStats) tls_connectorExactCount++;
+        float dist = MonsterSDF_EvalConnectorDistance(conn, point);
         if (!hasInitial) { accumulated = dist; hasInitial = true; }
         else accumulated = SDF_SmoothUnion(accumulated, dist, localSmoothness);
     }
@@ -865,9 +926,14 @@ static SDFSample MonsterSDF_EvaluateBodyPartition(const MonsterSDF* sdf,Vector3 
         const MonsterSDFConnector* c=&sdf->connectors[i];
         if(sdf->axialStationCount>1 && c->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
         if(c->fromId==ANATOMY_ID_HEAD&&c->toId==ANATOMY_ID_NECK)continue;
-        float scale=Math_Min(Math_Min(c->widthA,c->heightA),Math_Min(c->widthB,c->heightB));
-        float factor=c->kind==BODY_CONNECTION_AXIAL_LOFT?0.0f:c->kind==BODY_CONNECTION_LIMB_SEGMENT?.18f:.08f;
-        float smooth=Math_Min(sdf->config.connectionSmoothness,scale*factor);
+        if (tls_enableStats) tls_connectorCandidateCount++;
+        float smooth = c->localSmoothness;
+        if (sdf->config.enableConnectorPruning && has &&
+            MonsterSDF_ShouldPruneConnector(c, point, accumulated.distance + smooth)) {
+            if (tls_enableStats) tls_connectorPrunedCount++;
+            continue;
+        }
+        if (tls_enableStats) tls_connectorExactCount++;
         SDFSample sample=SDFSample_Create(MonsterSDF_EvalConnectorDistance(c,point),c->color,SDF_MATERIAL_SKIN);
         if(!has){accumulated=sample;has=true;}else accumulated=SDFSample_SmoothUnion(accumulated,sample,smooth);
     }
@@ -887,9 +953,14 @@ static float MonsterSDF_EvaluateBodyPartitionDistance(const MonsterSDF* sdf,Vect
         const MonsterSDFConnector* c=&sdf->connectors[i];
         if(sdf->axialStationCount>1 && c->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
         if(c->fromId==ANATOMY_ID_HEAD&&c->toId==ANATOMY_ID_NECK)continue;
-        float scale=Math_Min(Math_Min(c->widthA,c->heightA),Math_Min(c->widthB,c->heightB));
-        float factor=c->kind==BODY_CONNECTION_AXIAL_LOFT?0.0f:c->kind==BODY_CONNECTION_LIMB_SEGMENT?.18f:.08f;
-        float smooth=Math_Min(sdf->config.connectionSmoothness,scale*factor);
+        if (tls_enableStats) tls_connectorCandidateCount++;
+        float smooth = c->localSmoothness;
+        if (sdf->config.enableConnectorPruning && has &&
+            MonsterSDF_ShouldPruneConnector(c, point, accumulated + smooth)) {
+            if (tls_enableStats) tls_connectorPrunedCount++;
+            continue;
+        }
+        if (tls_enableStats) tls_connectorExactCount++;
         float d=MonsterSDF_EvalConnectorDistance(c,point);
         if(!has){accumulated=d;has=true;}else accumulated=SDF_SmoothUnion(accumulated,d,smooth);
     }
@@ -1004,10 +1075,81 @@ static AABB3D MonsterSDF_GetJawBoundsWrapper(const void* context) {
     // sin cápsulas frontales eliminadas: solo primitivas reales
     return AABB_FromMinMax(minJ, maxJ);
 }
+size_t MonsterSDF_GetComponentBounds(const MonsterSDF* sdf, AABB3D* outBoxes, size_t capacity) {
+    if (!sdf || !outBoxes || capacity == 0) return 0;
+    size_t count = 0;
+    float smoothMargin = sdf->config.bodySmoothness + sdf->config.connectionSmoothness + 0.05f;
+
+    /* 1. Barridos axiales estación a estación */
+    if (sdf->axialStationCount > 1) {
+        for (int i = 0; i < sdf->axialStationCount - 1 && count < capacity; ++i) {
+            const SDFSweepStation* s0 = &sdf->axialStations[i];
+            const SDFSweepStation* s1 = &sdf->axialStations[i + 1];
+            float maxR0 = Math_Max(s0->width, s0->height);
+            float maxR1 = Math_Max(s1->width, s1->height);
+            float r = Math_Max(maxR0, maxR1) + smoothMargin;
+
+            Vector3 minP = Vec3_Create(Math_Min(s0->center.x, s1->center.x),
+                                       Math_Min(s0->center.y, s1->center.y),
+                                       Math_Min(s0->center.z, s1->center.z));
+            Vector3 maxP = Vec3_Create(Math_Max(s0->center.x, s1->center.x),
+                                       Math_Max(s0->center.y, s1->center.y),
+                                       Math_Max(s0->center.z, s1->center.z));
+            AABB3D box = AABB_FromMinMax(Vec3_Sub(minP, Vec3_Create(r, r, r)),
+                                         Vec3_Add(maxP, Vec3_Create(r, r, r)));
+            outBoxes[count++] = box;
+        }
+    }
+
+    /* 2. Conectores de extremidades / dedos */
+    for (size_t i = 0; i < sdf->connectorCount && count < capacity; ++i) {
+        AABB3D box = sdf->connectors[i].bounds;
+        AABB_Pad(&box, sdf->connectors[i].localSmoothness + 0.02f);
+        outBoxes[count++] = box;
+    }
+
+    /* 3. Partes de cuerpo discretas */
+    for (size_t i = 0; i < sdf->bodyPartCount && count < capacity; ++i) {
+        const MonsterSDFBodyPart* bp = &sdf->bodyParts[i];
+        float r = bp->radii.x;
+        if (bp->radii.y > r) r = bp->radii.y;
+        if (bp->radii.z > r) r = bp->radii.z;
+        r += smoothMargin;
+        AABB3D box = AABB_FromMinMax(Vec3_Sub(bp->center, Vec3_Create(r, r, r)),
+                                     Vec3_Add(bp->center, Vec3_Create(r, r, r)));
+        outBoxes[count++] = box;
+    }
+
+    /* 4. Bocas y cabezas */
+    for (size_t i = 0; i < sdf->mouthCount && count < capacity; ++i) {
+        const MonsterSDFMouth* m = &sdf->mouths[i];
+        if (AABB_Size(m->headBounds).x > 0.001f) {
+            AABB3D box = m->headBounds;
+            AABB_Pad(&box, 0.05f);
+            outBoxes[count++] = box;
+        }
+        if (AABB_Size(m->influenceBounds).x > 0.001f && count < capacity) {
+            AABB3D box = m->influenceBounds;
+            AABB_Pad(&box, 0.05f);
+            outBoxes[count++] = box;
+        }
+    }
+
+    return count;
+}
+
+static size_t MonsterSDF_GetJawFieldComponentBoundsWrapper(const void* context, AABB3D* outBoxes, size_t capacity) {
+    const MonsterSDFJawField* field = (const MonsterSDFJawField*)context;
+    if (!field || !field->owner || field->mouthIndex >= field->owner->mouthCount || capacity == 0) return 0;
+    outBoxes[0] = MonsterSDF_GetJawBoundsWrapper(context);
+    AABB_Pad(&outBoxes[0], 0.03f);
+    return 1;
+}
+
 SDFField MonsterSDF_GetJawField(const MonsterSDF* sdf, size_t mouthIndex, MonsterSDFJawField* context) {
     if (!context) return (SDFField){0};
     context->owner=sdf; context->mouthIndex=mouthIndex;
-    return (SDFField){.evaluate=MonsterSDF_EvaluateJawWrapper,.evaluateDistance=MonsterSDF_EvaluateJawDistanceWrapper,.getBounds=MonsterSDF_GetJawBoundsWrapper,.context=context};
+    return (SDFField){.evaluate=MonsterSDF_EvaluateJawWrapper,.evaluateDistance=MonsterSDF_EvaluateJawDistanceWrapper,.getBounds=MonsterSDF_GetJawBoundsWrapper,.getComponentBounds=MonsterSDF_GetJawFieldComponentBoundsWrapper,.context=context};
 }
 static SDFSample MonsterSDF_EvaluateSeamWrapper(const void* context, Vector3 point) {
     const MonsterSDFSeamField* field=(const MonsterSDFSeamField*)context;
@@ -1026,10 +1168,17 @@ static AABB3D MonsterSDF_GetSeamBoundsWrapper(const void* context) {
     if (!field || !field->owner || field->mouthIndex >= field->owner->mouthCount) return AABB_Empty();
     return field->owner->mouths[field->mouthIndex].seamBounds;
 }
+static size_t MonsterSDF_GetSeamFieldComponentBoundsWrapper(const void* context, AABB3D* outBoxes, size_t capacity) {
+    const MonsterSDFSeamField* field = (const MonsterSDFSeamField*)context;
+    if (!field || !field->owner || field->mouthIndex >= field->owner->mouthCount || capacity == 0) return 0;
+    outBoxes[0] = field->owner->mouths[field->mouthIndex].seamBounds;
+    AABB_Pad(&outBoxes[0], 0.03f);
+    return 1;
+}
 SDFField MonsterSDF_GetSeamField(const MonsterSDF* sdf, size_t mouthIndex, MonsterSDFSeamField* context) {
     if (!context) return (SDFField){0};
     context->owner=sdf; context->mouthIndex=mouthIndex;
-    return (SDFField){.evaluate=MonsterSDF_EvaluateSeamWrapper,.evaluateDistance=MonsterSDF_EvaluateSeamDistanceWrapper,.getBounds=MonsterSDF_GetSeamBoundsWrapper,.context=context};
+    return (SDFField){.evaluate=MonsterSDF_EvaluateSeamWrapper,.evaluateDistance=MonsterSDF_EvaluateSeamDistanceWrapper,.getBounds=MonsterSDF_GetSeamBoundsWrapper,.getComponentBounds=MonsterSDF_GetSeamFieldComponentBoundsWrapper,.context=context};
 }
 
 static SDFSample MonsterSDF_EvaluateBodyWrapper(const void* context,Vector3 point) {
@@ -1044,10 +1193,15 @@ static AABB3D MonsterSDF_GetBodyFieldBoundsWrapper(const void* context) {
     const MonsterSDFBodyField* field=(const MonsterSDFBodyField*)context;
     return field&&field->owner?field->owner->bodyBounds:AABB_Empty();
 }
+static size_t MonsterSDF_GetBodyFieldComponentBoundsWrapper(const void* context, AABB3D* outBoxes, size_t capacity) {
+    const MonsterSDFBodyField* field = (const MonsterSDFBodyField*)context;
+    if (!field || !field->owner) return 0;
+    return MonsterSDF_GetComponentBounds(field->owner, outBoxes, capacity);
+}
 SDFField MonsterSDF_GetBodyField(const MonsterSDF* sdf,MonsterSDFBodyField* context) {
     if(!context)return (SDFField){0};
     context->owner=sdf;
-    return (SDFField){.evaluate=MonsterSDF_EvaluateBodyWrapper,.evaluateDistance=MonsterSDF_EvaluateBodyDistanceWrapper,.getBounds=MonsterSDF_GetBodyFieldBoundsWrapper,.context=context};
+    return (SDFField){.evaluate=MonsterSDF_EvaluateBodyWrapper,.evaluateDistance=MonsterSDF_EvaluateBodyDistanceWrapper,.getBounds=MonsterSDF_GetBodyFieldBoundsWrapper,.getComponentBounds=MonsterSDF_GetBodyFieldComponentBoundsWrapper,.context=context};
 }
 
 static SDFSample MonsterSDF_EvaluateHeadWrapper(const void* context,Vector3 point) {
@@ -1068,16 +1222,26 @@ static AABB3D MonsterSDF_GetHeadBoundsWrapper(const void* context) {
     if(!field||!field->owner||field->mouthIndex>=field->owner->mouthCount)return AABB_Empty();
     return field->owner->mouths[field->mouthIndex].headBounds;
 }
+static size_t MonsterSDF_GetHeadFieldComponentBoundsWrapper(const void* context, AABB3D* outBoxes, size_t capacity) {
+    const MonsterSDFHeadField* field = (const MonsterSDFHeadField*)context;
+    if (!field || !field->owner || field->mouthIndex >= field->owner->mouthCount || capacity == 0) return 0;
+    outBoxes[0] = field->owner->mouths[field->mouthIndex].headBounds;
+    AABB_Pad(&outBoxes[0], 0.05f);
+    return 1;
+}
 SDFField MonsterSDF_GetHeadField(const MonsterSDF* sdf,size_t mouthIndex,MonsterSDFHeadField* context) {
     if(!context)return (SDFField){0};
     context->owner=sdf;context->mouthIndex=mouthIndex;
-    return (SDFField){.evaluate=MonsterSDF_EvaluateHeadWrapper,.evaluateDistance=MonsterSDF_EvaluateHeadDistanceWrapper,.getBounds=MonsterSDF_GetHeadBoundsWrapper,.context=context};
+    return (SDFField){.evaluate=MonsterSDF_EvaluateHeadWrapper,.evaluateDistance=MonsterSDF_EvaluateHeadDistanceWrapper,.getBounds=MonsterSDF_GetHeadBoundsWrapper,.getComponentBounds=MonsterSDF_GetHeadFieldComponentBoundsWrapper,.context=context};
 }
 float MonsterSDF_EvaluateDistanceWrapper(const void* context, Vector3 point) { return MonsterSDF_EvaluateDistance((const MonsterSDF*)context, point); }
 AABB3D MonsterSDF_GetBounds(const MonsterSDF* sdf) { if (!sdf) return AABB_Empty(); return sdf->bounds; }
 AABB3D MonsterSDF_GetBoundsWrapper(const void* context) { return MonsterSDF_GetBounds((const MonsterSDF*)context); }
+static size_t MonsterSDF_GetFieldComponentBoundsWrapper(const void* context, AABB3D* outBoxes, size_t capacity) {
+    return MonsterSDF_GetComponentBounds((const MonsterSDF*)context, outBoxes, capacity);
+}
 SDFField MonsterSDF_GetField(const MonsterSDF* sdf) {
-    return (SDFField){ .evaluate = MonsterSDF_EvaluateWrapper, .evaluateDistance = MonsterSDF_EvaluateDistanceWrapper, .getBounds = MonsterSDF_GetBoundsWrapper, .context = (const void*)sdf };
+    return (SDFField){ .evaluate = MonsterSDF_EvaluateWrapper, .evaluateDistance = MonsterSDF_EvaluateDistanceWrapper, .getBounds = MonsterSDF_GetBoundsWrapper, .getComponentBounds = MonsterSDF_GetFieldComponentBoundsWrapper, .context = (const void*)sdf };
 }
 
 static SDFDetailRegion MonsterSDF_Detail(const MonsterSDFMouth* mouth,

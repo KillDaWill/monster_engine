@@ -38,6 +38,9 @@ typedef struct SDFDetailRegion {
     float targetVoxelSize; /**< Espaciado máximo deseado dentro de la región. */
 } SDFDetailRegion;
 
+/** @brief Firma para consultar cajas envolventes (AABB) de componentes individuales de un campo. */
+typedef size_t (*SDFComponentBoundsFn)(const void* context, AABB3D* outBoxes, size_t capacity);
+
 /**
  * @struct SDFField
  * @brief Abstracción de un campo escalar/vectorial SDF con su contexto asociado y delimitación.
@@ -46,6 +49,7 @@ typedef struct SDFField {
     SDFEvaluateFn evaluate;         /**< Puntero a función de evaluación del campo completo */
     SDFDistanceFn evaluateDistance; /**< Puntero opcional a función de sólo distancia escalar */
     SDFBoundsFn getBounds;          /**< Puntero a función opcional de límites */
+    SDFComponentBoundsFn getComponentBounds; /**< Puntero opcional para consultar cajas de influencia conservadora */
     const void* context;            /**< Contexto o estructura de datos del campo (ej. MonsterSDF*) */
 } SDFField;
 

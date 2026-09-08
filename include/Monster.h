@@ -107,6 +107,14 @@ void Monster_Free(Monster* monster);
 Monster Monster_Clone(const Monster* source);
 
 /**
+ * @brief Copia un monstruo dentro de otro destino reutilizando las capacidades preasignadas para evitar churn de memoria.
+ * @param dst Puntero al monstruo destino preasignado.
+ * @param src Puntero al monstruo origen a copiar.
+ * @return true si la copia se realizó con éxito.
+ */
+bool Monster_CopyInto(Monster* dst, const Monster* src);
+
+/**
  * @brief Actualiza la lógica interna y el comportamiento del monstruo.
  * @param monster Puntero al monstruo.
  * @param diff Delta de tiempo.

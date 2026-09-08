@@ -1,4 +1,6 @@
 #include "SDFMesher.h"
+#include "SDFSamplingPool.h"
+#include "MonsterSDF.h"
 #include "MarchingCubes.h"
 #include "MathUtils.h"
 #include <stdlib.h>
@@ -21,7 +23,8 @@ SDFMesherConfig SDFMesher_DefaultConfig(void) {
             .start = Vec3_Create(-2.0f, -2.0f, -2.0f),
             .end   = Vec3_Create(2.0f, 2.0f, 2.0f)
         },
-        .useAutoBounds = true
+        .useAutoBounds = true,
+        .samplingThreadCount = 0
     };
 }
 
@@ -36,8 +39,20 @@ SDFMesher SDFMesher_Create(SDFMesherConfig config) {
 void SDFMesher_Free(SDFMesher* mesher) {
     if (!mesher) return;
 
+    if (mesher->ownedPool) {
+        SDFSamplingPool_Free(mesher->ownedPool);
+        mesher->ownedPool = NULL;
+    }
+    mesher->borrowedPool = NULL;
+
     for(int axis=0;axis<3;++axis) { free(mesher->coordinates[axis]); mesher->coordinates[axis]=NULL; mesher->coordinateCapacity[axis]=0; }
     free(mesher->cornerVertices);mesher->cornerVertices=NULL;mesher->cornerVertexCapacity=0;
+    if (mesher->cellCandidateMask) free(mesher->cellCandidateMask);
+    if (mesher->nodeCandidateMask) free(mesher->nodeCandidateMask);
+    mesher->cellCandidateMask = NULL;
+    mesher->cellCandidateCapacity = 0;
+    mesher->nodeCandidateMask = NULL;
+    mesher->nodeCandidateCapacity = 0;
     if (mesher->gridDistances) free(mesher->gridDistances);
     if (mesher->gridGradients) free(mesher->gridGradients);
     if (mesher->gradientStamp) free(mesher->gradientStamp);
@@ -60,6 +75,11 @@ void SDFMesher_Free(SDFMesher* mesher) {
     mesher->zEdgeCapacity = 0;
 
     memset(&mesher->lastStats, 0, sizeof(SDFMesherStats));
+}
+
+void SDFMesher_SetSamplingPool(SDFMesher* mesher, SDFSamplingPool* pool) {
+    if (!mesher) return;
+    mesher->borrowedPool = pool;
 }
 
 const SDFMesherStats* SDFMesher_GetLastStats(const SDFMesher* mesher) {
@@ -291,6 +311,70 @@ bool SDFMesher_GenerateMesh(SDFMesher* mesher,const SDFField* field,Mesh* mesh) 
     return SDFMesher_GenerateMeshDetailed(mesher,field,NULL,0,mesh);
 }
 
+typedef struct SamplingContext {
+    SDFMesher* mesher;
+    const SDFField* field;
+    SDFResolvedGrid grid;
+    SDFDistanceFn distFn;
+    SDFEvaluateFn evalFn;
+    const uint8_t* nodeCandidateMask;
+    bool hasCandidateCulling;
+    bool hasNonFinite;
+    size_t threadDistanceCount[SDF_SAMPLING_POOL_MAX_THREADS];
+    size_t threadSkippedNodeCount[SDF_SAMPLING_POOL_MAX_THREADS];
+    size_t threadCandidateCount[SDF_SAMPLING_POOL_MAX_THREADS];
+    size_t threadExactCount[SDF_SAMPLING_POOL_MAX_THREADS];
+    size_t threadPrunedCount[SDF_SAMPLING_POOL_MAX_THREADS];
+} SamplingContext;
+
+static void SDFMesher_SamplingSliceWork(void* context, int startIndex, int endIndex, int threadIndex) {
+    SamplingContext* ctx = (SamplingContext*)context;
+    MonsterSDF_EnableThreadStats(true);
+    MonsterSDF_ResetThreadStats();
+    size_t localDistEvals = 0;
+    size_t localSkippedNodes = 0;
+
+    for (int ix = startIndex; ix < endIndex; ++ix) {
+        float x = ctx->mesher->coordinates[0][ix];
+        for (int iy = 0; iy < ctx->grid.numGridY; ++iy) {
+            float y = ctx->mesher->coordinates[1][iy];
+            for (int iz = 0; iz < ctx->grid.numGridZ; ++iz) {
+                size_t gIdx = GridIndex(ix, iy, iz, ctx->grid.numGridY, ctx->grid.numGridZ);
+
+                if (ctx->hasCandidateCulling && !ctx->nodeCandidateMask[gIdx]) {
+                    ctx->mesher->gridDistances[gIdx] = 1e6f;
+                    localSkippedNodes++;
+                    continue;
+                }
+
+                float z = ctx->mesher->coordinates[2][iz];
+                Vector3 p = Vec3_Create(x, y, z);
+                float dist;
+                if (ctx->distFn) {
+                    dist = ctx->distFn(ctx->field->context, p);
+                } else {
+                    dist = ctx->evalFn(ctx->field->context, p).distance;
+                }
+                if (!isfinite(dist)) {
+                    ctx->hasNonFinite = true;
+                }
+                ctx->mesher->gridDistances[gIdx] = dist;
+                localDistEvals++;
+            }
+        }
+    }
+
+    size_t cCand = 0, cExact = 0, cPruned = 0;
+    MonsterSDF_GetThreadStats(&cCand, &cExact, &cPruned);
+    if (threadIndex >= 0 && threadIndex < SDF_SAMPLING_POOL_MAX_THREADS) {
+        ctx->threadDistanceCount[threadIndex] = localDistEvals;
+        ctx->threadSkippedNodeCount[threadIndex] = localSkippedNodes;
+        ctx->threadCandidateCount[threadIndex] = cCand;
+        ctx->threadExactCount[threadIndex] = cExact;
+        ctx->threadPrunedCount[threadIndex] = cPruned;
+    }
+}
+
 bool SDFMesher_GenerateMeshDetailed(
     SDFMesher* mesher,
     const SDFField* field,
@@ -409,25 +493,138 @@ bool SDFMesher_GenerateMeshDetailed(
     SDFDistanceFn distFn = field->evaluateDistance;
     SDFEvaluateFn evalFn = field->evaluate;
 
-    /* 1. Muestreo de sólo distancia escalar en todos los nodos de la rejilla */
-    for (int ix = 0; ix < grid.numGridX; ++ix) {
-        float x = mesher->coordinates[0][ix];
-        for (int iy = 0; iy < grid.numGridY; ++iy) {
-            float y = mesher->coordinates[1][iy];
-            for (int iz = 0; iz < grid.numGridZ; ++iz) {
-                float z = mesher->coordinates[2][iz];
-                size_t gIdx = GridIndex(ix, iy, iz, grid.numGridY, grid.numGridZ);
+    /* Preparar cajas de influencia de componentes para poda espacial conservadora */
+    AABB3D compBoxes[128];
+    size_t compCount = 0;
+    if (field->getComponentBounds) {
+        compCount = field->getComponentBounds(field->context, compBoxes, 96);
+    }
+    for (size_t r = 0; r < regionCount && compCount < 128; ++r) {
+        compBoxes[compCount++] = regions[r].bounds;
+    }
 
-                Vector3 p = Vec3_Create(x, y, z);
-                if (distFn) {
-                    mesher->gridDistances[gIdx] = distFn(field->context, p);
-                } else {
-                    mesher->gridDistances[gIdx] = evalFn(field->context, p).distance;
+    bool hasCandidateCulling = (compCount > 0);
+    size_t candCellCount = 0;
+    size_t candNodeCount = 0;
+
+    if (hasCandidateCulling) {
+        if (!EnsureBufferCapacity((void**)&mesher->cellCandidateMask, &mesher->cellCandidateCapacity, grid.cellCount, sizeof(uint8_t)) ||
+            !EnsureBufferCapacity((void**)&mesher->nodeCandidateMask, &mesher->nodeCandidateCapacity, grid.gridPointCount, sizeof(uint8_t))) {
+            return false;
+        }
+        memset(mesher->cellCandidateMask, 0, grid.cellCount * sizeof(uint8_t));
+        memset(mesher->nodeCandidateMask, 0, grid.gridPointCount * sizeof(uint8_t));
+
+        for (size_t b = 0; b < compCount; ++b) {
+            AABB3D box = compBoxes[b];
+            if (box.end.x < cfg.bounds.start.x || box.start.x > cfg.bounds.end.x ||
+                box.end.y < cfg.bounds.start.y || box.start.y > cfg.bounds.end.y ||
+                box.end.z < cfg.bounds.start.z || box.start.z > cfg.bounds.end.z) {
+                continue;
+            }
+
+            int minCell[3] = {0, 0, 0};
+            int maxCell[3] = {grid.resX - 1, grid.resY - 1, grid.resZ - 1};
+
+            for (int axis = 0; axis < 3; ++axis) {
+                float bStart = SDF_Axis(box.start, axis);
+                float bEnd = SDF_Axis(box.end, axis);
+                const float* coords = mesher->coordinates[axis];
+                int res = dims[axis];
+
+                int iMin = 0;
+                while (iMin < res && coords[iMin + 1] < bStart) {
+                    iMin++;
                 }
-                if(!isfinite(mesher->gridDistances[gIdx]))return false;
-                mesher->lastStats.distanceEvaluationCount++;
+                int iMax = res - 1;
+                while (iMax >= 0 && coords[iMax] > bEnd) {
+                    iMax--;
+                }
+
+                iMin = Math_Max(0, iMin - 1);
+                iMax = Math_Min(res - 1, iMax + 1);
+
+                minCell[axis] = iMin;
+                maxCell[axis] = iMax;
+            }
+
+            if (minCell[0] <= maxCell[0] && minCell[1] <= maxCell[1] && minCell[2] <= maxCell[2]) {
+                for (int cx = minCell[0]; cx <= maxCell[0]; ++cx) {
+                    for (int cy = minCell[1]; cy <= maxCell[1]; ++cy) {
+                        for (int cz = minCell[2]; cz <= maxCell[2]; ++cz) {
+                            size_t cIdx = (size_t)cx * (size_t)grid.resY * (size_t)grid.resZ +
+                                          (size_t)cy * (size_t)grid.resZ + (size_t)cz;
+                            mesher->cellCandidateMask[cIdx] = 1;
+                        }
+                    }
+                }
             }
         }
+
+        for (int cx = 0; cx < grid.resX; ++cx) {
+            for (int cy = 0; cy < grid.resY; ++cy) {
+                for (int cz = 0; cz < grid.resZ; ++cz) {
+                    size_t cIdx = (size_t)cx * (size_t)grid.resY * (size_t)grid.resZ +
+                                  (size_t)cy * (size_t)grid.resZ + (size_t)cz;
+                    if (mesher->cellCandidateMask[cIdx]) {
+                        candCellCount++;
+                        for (int dx = 0; dx <= 1; ++dx) {
+                            for (int dy = 0; dy <= 1; ++dy) {
+                                for (int dz = 0; dz <= 1; ++dz) {
+                                    size_t nIdx = GridIndex(cx + dx, cy + dy, cz + dz,
+                                                            grid.numGridY, grid.numGridZ);
+                                    mesher->nodeCandidateMask[nIdx] = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (size_t n = 0; n < grid.gridPointCount; ++n) {
+            if (mesher->nodeCandidateMask[n]) candNodeCount++;
+        }
+    }
+
+    /* 1. Muestreo de sólo distancia escalar en todos los nodos de la rejilla */
+    SDFSamplingPool* poolToUse = NULL;
+    if (cfg.samplingThreadCount != 1) {
+        if (mesher->borrowedPool) {
+            poolToUse = mesher->borrowedPool;
+        } else {
+            if (!mesher->ownedPool) {
+                mesher->ownedPool = SDFSamplingPool_Create(cfg.samplingThreadCount);
+            }
+            poolToUse = mesher->ownedPool;
+        }
+    }
+
+    SamplingContext sctx;
+    memset(&sctx, 0, sizeof(sctx));
+    sctx.mesher = mesher;
+    sctx.field = field;
+    sctx.grid = grid;
+    sctx.distFn = distFn;
+    sctx.evalFn = evalFn;
+    sctx.nodeCandidateMask = mesher->nodeCandidateMask;
+    sctx.hasCandidateCulling = hasCandidateCulling;
+
+    if (poolToUse) {
+        SDFSamplingPool_ParallelFor(poolToUse, grid.numGridX, SDFMesher_SamplingSliceWork, &sctx);
+        mesher->lastStats.threadsUsed = SDFSamplingPool_GetThreadCount(poolToUse);
+    } else {
+        SDFMesher_SamplingSliceWork(&sctx, 0, grid.numGridX, 0);
+        mesher->lastStats.threadsUsed = 1;
+    }
+
+    if (sctx.hasNonFinite) return false;
+
+    for (int t = 0; t < SDF_SAMPLING_POOL_MAX_THREADS; ++t) {
+        mesher->lastStats.distanceEvaluationCount += sctx.threadDistanceCount[t];
+        mesher->lastStats.connectorCandidateCount += sctx.threadCandidateCount[t];
+        mesher->lastStats.connectorExactEvaluationCount += sctx.threadExactCount[t];
+        mesher->lastStats.connectorPrunedCount += sctx.threadPrunedCount[t];
     }
     mesher->lastStats.fieldEvaluationCount = mesher->lastStats.distanceEvaluationCount;
 
@@ -437,14 +634,17 @@ bool SDFMesher_GenerateMeshDetailed(
     bool success = true;
 
     /* 2. Recorrer celdas y poligonizar */
+    size_t skippedCells = 0;
     for (int ix = 0; ix < grid.resX && success; ++ix) {
-
-
         for (int iy = 0; iy < grid.resY && success; ++iy) {
-
-
             for (int iz = 0; iz < grid.resZ && success; ++iz) {
+                size_t cellIndex = (size_t)ix * (size_t)grid.resY * (size_t)grid.resZ +
+                                   (size_t)iy * (size_t)grid.resZ + (size_t)iz;
 
+                if (hasCandidateCulling && !mesher->cellCandidateMask[cellIndex]) {
+                    skippedCells++;
+                    continue;
+                }
 
                 Vector3 corners[8];
                 float cornerDistances[8];
@@ -667,6 +867,12 @@ bool SDFMesher_GenerateMeshDetailed(
     mesher->lastStats.requestedVoxelSize = cfg.voxelSize;
     mesher->lastStats.effectiveVoxelSize = grid.effectiveVoxelSize;
     mesher->lastStats.cellBudgetAdjusted = grid.budgetAdjusted;
+    mesher->lastStats.candidateCellCount = hasCandidateCulling ? candCellCount : grid.cellCount;
+    mesher->lastStats.candidateNodeCount = hasCandidateCulling ? candNodeCount : grid.gridPointCount;
+    mesher->lastStats.skippedCellCount = hasCandidateCulling ? skippedCells : 0;
+    for (int t = 0; t < SDF_SAMPLING_POOL_MAX_THREADS; ++t) {
+        mesher->lastStats.skippedNodeCount += sctx.threadSkippedNodeCount[t];
+    }
 
     return true;
 }

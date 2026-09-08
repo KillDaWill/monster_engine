@@ -26,6 +26,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/SDFPrimitives.c \
             $(SRC_DIR)/SDFOperations.c \
             $(SRC_DIR)/SDFSampling.c \
+            $(SRC_DIR)/SDFSamplingPool.c \
             $(SRC_DIR)/MonsterSDF.c \
             $(SRC_DIR)/MarchingCubesTables.c \
             $(SRC_DIR)/MarchingCubes.c \
@@ -65,7 +66,8 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_mouth_geometry.c \
             $(TEST_DIR)/test_head.c \
             $(TEST_DIR)/test_lizard.c \
-            $(TEST_DIR)/test_local_detail.c
+            $(TEST_DIR)/test_local_detail.c \
+            $(TEST_DIR)/test_perf_optimizations.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 

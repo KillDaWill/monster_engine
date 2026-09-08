@@ -36,6 +36,7 @@ typedef struct MonsterSDFConfig {
     float mouthSmoothness;         /**< Factor k de sustracción suave para cavidades bucales */
     float connectionRadiusFactor;  /**< Escala de radio para los conectores cónicos */
     float boundsPadding;           /**< Margen extra asignado al Bounding Box (AABB) */
+    bool enableConnectorPruning;   /**< Poda conservadora de conectores para acelerar el muestreo (defecto true) */
 } MonsterSDFConfig;
 
 /**
@@ -73,6 +74,9 @@ typedef struct MonsterSDFConnector {
     AnatomyId toId;
     BodyConnectionKind kind;
     Color color;
+    AABB3D bounds;             /**< AABB que encierra el volumen conservador del conector */
+    float maxRadius;           /**< Radio máximo de sección transversal */
+    float localSmoothness;     /**< Suavizado local de unión suave precalculado */
 } MonsterSDFConnector;
 
 /**
@@ -314,9 +318,33 @@ AABB3D MonsterSDF_GetBoundsWrapper(const void* context);
  */
 SDFField MonsterSDF_GetField(const MonsterSDF* sdf);
 
+/**
+ * @brief Obtiene las cajas AABB de influencia geométrica conservadora de todos los componentes del monstruo.
+ * @param sdf Puntero al MonsterSDF compilado.
+ * @param outBoxes Arreglo de salida donde se escribirán las AABBs.
+ * @param capacity Capacidad máxima del arreglo outBoxes.
+ * @return Cantidad de cajas escritas.
+ */
+size_t MonsterSDF_GetComponentBounds(const MonsterSDF* sdf, AABB3D* outBoxes, size_t capacity);
+
 /** @brief Deriva regiones mundiales por escala de rasgo y muestras por diámetro. */
 size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf, float samplesPerDiameter,
     SDFDetailRegion* regions, size_t capacity);
+
+/**
+ * @brief Habilita/deshabilita la recolección de estadísticas de poda en el hilo actual.
+ */
+void MonsterSDF_EnableThreadStats(bool enable);
+
+/**
+ * @brief Reinicia los contadores de poda de conectores en el hilo actual.
+ */
+void MonsterSDF_ResetThreadStats(void);
+
+/**
+ * @brief Obtiene los contadores de poda acumulados en el hilo actual.
+ */
+void MonsterSDF_GetThreadStats(size_t* outCandidate, size_t* outExact, size_t* outPruned);
 
 #ifdef __cplusplus
 }
