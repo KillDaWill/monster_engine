@@ -17,6 +17,8 @@ static LizardPhenotype LizardPreset_Base(void) {
     p.trunkLength = 4.8f; p.bodyFlattening = 0.92f;
     p.forelimbLength = 2.15f; p.forelimbThickness = 0.27f;
     p.hindlimbLength = 2.55f; p.hindlimbThickness = 0.36f;
+    const float manualLengths[5] = {.60f, .82f, 1.0f, 1.06f, .70f};
+    for (unsigned i=0;i<5;++i) p.manualDigitLengths[i]=manualLengths[i];
     p.tailLength = 6.8f; p.tailBaseWidth = 0.68f; p.tailBaseHeight = 0.48f;
     p.tailTipWidth = 0.055f; p.tailTipHeight = 0.045f; p.tailTaperCurve = 1.35f;
     p.colorMaturity=1.0f;
@@ -65,6 +67,10 @@ void LizardPhenotype_Normalize(LizardPhenotype* p) {
     POSITIVE(tailLength, 6.0f); POSITIVE(tailBaseWidth, 0.6f); POSITIVE(tailBaseHeight, 0.45f);
     POSITIVE(tailTipWidth, 0.05f); POSITIVE(tailTipHeight, 0.04f);
 #undef POSITIVE
+    const float manualDefaults[5] = {.60f, .82f, 1.0f, 1.06f, .70f};
+    for (unsigned i=0;i<5;++i)
+        p->manualDigitLengths[i] = isfinite(p->manualDigitLengths[i]) && p->manualDigitLengths[i]>0 ?
+            Math_Clamp(p->manualDigitLengths[i],.35f,1.5f) : manualDefaults[i];
     p->totalScale = Math_Clamp(p->totalScale, 0.2f, 4.0f);
     if(!isfinite(p->bodyFlattening))p->bodyFlattening=.92f;
     if(!isfinite(p->tailTaperCurve))p->tailTaperCurve=1.35f;
@@ -113,6 +119,8 @@ LizardPhenotype LizardPhenotype_Interpolate(const LizardPhenotype* a,
     LERP_HEAD(beakTaper); LERP_HEAD(beakCurvature); LERP_HEAD(nostrilPosition);
     LERP_HEAD(orbitDepth); LERP_HEAD(tympanumSize);
 #undef LERP_HEAD
+    for (unsigned i=0;i<5;++i)
+        p.manualDigitLengths[i]=Lizard_Lerp(p.manualDigitLengths[i],q.manualDigitLengths[i],t);
     LizardPhenotype_Normalize(&p);
     return p;
 }
@@ -127,7 +135,51 @@ static bool Lizard_AddEdge(AnatomyGraph* g, AnatomyId id, AnatomyId from,
     return AnatomyGraph_Connect(g, (BodyConnection){id, from, to, kind});
 }
 
-static bool Lizard_AddLimb(AnatomyGraph* g, bool left, bool hind, float scale,
+/* Perfil normalizado: falanges (incluido ungual), origen, abanico y curvatura.
+ * El metapodio tiene dos estaciones propias y no cuenta como falange. */
+typedef struct LizardDigitProfile {
+    unsigned phalanges;
+    float length, base, splay, bend;
+} LizardDigitProfile;
+
+static bool Lizard_AddAutopod(AnatomyGraph* g, AnatomyId handId, Vector3 hand,
+    unsigned limb, bool hind, float length, float r, int color, const float manual[5]) {
+    const unsigned formula[2][5]={{2,3,4,5,3},{2,3,4,5,4}};
+    const float pedalLengths[5]={.48f,.69f,.88f,1.15f,.74f};
+    const float angles[2][5]={{-.65f,-.30f,.02f,.36f,1.05f},
+                             {-.60f,-.24f,.06f,.37f,1.30f}};
+    float side=(limb%2==0)?1.0f:-1.0f, forward=hind?-1.0f:1.0f;
+    for(unsigned digit=0;digit<5;++digit) {
+        LizardDigitProfile p={formula[hind][digit],hind?pedalLengths[digit]:manual[digit],
+            ((float)digit-2.0f)*.50f,angles[hind][digit],.34f};
+        Vector3 root=Vec3_Create(hand.x+side*r*p.base,hand.y,
+            hand.z+forward*r*(.32f-.20f*fabsf(p.base)));
+        AnatomyId previous=handId;
+        Vector3 position=root;
+        float digitalLength=length*(hind?.29f:.26f)*p.length;
+        /* Fracciones descendentes: articulaciones proximales largas, ungual corto. */
+        float weights=0;
+        for(unsigned j=0;j<p.phalanges;++j) weights+=1.0f-.12f*j;
+        for(unsigned station=0;station<=p.phalanges+1;++station) {
+            AnatomyId id=Anatomy_DigitId(limb,digit,station);
+            float progress=station>0?(float)(station-1)/p.phalanges:0;
+            float radius=r*(station==0?.40f:(.32f-.18f*progress));
+            if(station>0) {
+                float segment=station==1?r*.65f:digitalLength*(1.0f-.12f*(station-2))/weights;
+                float angle=p.splay+p.bend*progress;
+                position.x+=side*sinf(angle)*segment;
+                position.z+=forward*cosf(angle)*segment;
+                position.y+=segment*(station==p.phalanges+1?-.45f:.12f-.34f*progress);
+            }
+            if(!Lizard_AddNode(g,id,position,radius,radius*.88f,color,ANATOMY_ROLE_DIGIT) ||
+               !Lizard_AddEdge(g,10000u+id,previous,id,BODY_CONNECTION_DIGIT_SEGMENT))return false;
+            previous=id;
+        }
+    }
+    return true;
+}
+
+static bool Lizard_AddLimb(AnatomyGraph* g, bool left, bool hind, const float manual[5],
                            float girdleX, float girdleY, float z, float length,
                            float thickness, int color) {
     float side = left ? 1.0f : -1.0f;
@@ -136,35 +188,25 @@ static bool Lizard_AddLimb(AnatomyGraph* g, bool left, bool hind, float scale,
     float upper = length * (hind ? 0.36f : 0.34f);
     float lower = length * (hind ? 0.31f : 0.32f);
     Vector3 root = Vec3_Create(side * girdleX, girdleY, z);
-    Vector3 elbow = Vec3_Create(side * (girdleX + upper), girdleY - 0.22f * scale,
-                                z + (hind ? 0.40f : -0.30f) * scale);
+    Vector3 elbow = Vec3_Create(side * (girdleX + upper), girdleY - length * 0.10f,
+                                z + length * (hind ? 0.16f : -0.14f));
     Vector3 wrist = Vec3_Create(side * (girdleX + upper * 0.72f),
-                                girdleY - lower * 0.78f,
+                                girdleY - lower * 0.98f,
                                 z + (hind ? -lower * 0.36f : lower * 0.44f));
     Vector3 hand = Vec3_Create(side * (girdleX + upper * 0.78f),
-                               girdleY - lower * 0.92f,
+                               girdleY - lower * 1.10f,
                                wrist.z + (hind ? -length * 0.16f : length * 0.14f));
     float r = thickness;
     if (!Lizard_AddNode(g, base, root, r * (hind ? 1.50f : 1.30f), r * 1.12f, color, ANATOMY_ROLE_JOINT) ||
         !Lizard_AddNode(g, base + 1, elbow, r, r * 0.82f, color, ANATOMY_ROLE_JOINT) ||
         !Lizard_AddNode(g, base + 2, wrist, r * 0.72f, r * 0.60f, color, ANATOMY_ROLE_JOINT) ||
-        !Lizard_AddNode(g, base + 3, hand, r * 0.92f, r * 0.42f, color, ANATOMY_ROLE_JOINT) ||
+        !Lizard_AddNode(g, base + 3, hand, r * (hind ? 1.40f : 1.25f), r * 0.42f, color, ANATOMY_ROLE_JOINT) ||
         !Lizard_AddEdge(g, 1000 + base, base, base + 1, BODY_CONNECTION_LIMB_SEGMENT) ||
         !Lizard_AddEdge(g, 1001 + base, base + 1, base + 2, BODY_CONNECTION_LIMB_SEGMENT) ||
         !Lizard_AddEdge(g, 1002 + base, base + 2, base + 3, BODY_CONNECTION_LIMB_SEGMENT)) return false;
 
     unsigned limbIndex = hind ? (left ? 2u : 3u) : (left ? 0u : 1u);
-    for (unsigned digit = 0; digit < 5; ++digit) {
-        AnatomyId digitId = ANATOMY_ID_DIGIT_BASE + limbIndex * 10u + digit;
-        float spread = ((float)digit - 2.0f) * r * .90f;
-        float digitLength = length * (0.16f + (2.0f - fabsf((float)digit - 2.0f)) * 0.014f);
-        Vector3 tip = Vec3_Create(hand.x + side * spread,
-                                  hand.y - r * 0.05f,
-                                  hand.z + (hind ? -digitLength : digitLength));
-        if (!Lizard_AddNode(g, digitId, tip, r * 0.32f, r * 0.28f, color, ANATOMY_ROLE_DIGIT) ||
-            !Lizard_AddEdge(g, 2000 + digitId, base + 3, digitId, BODY_CONNECTION_DIGIT_SEGMENT)) return false;
-    }
-    return true;
+    return Lizard_AddAutopod(g,base+3,hand,limbIndex,hind,length,r,color,manual);
 }
 
 bool Lizard_ResolveAnatomy(const LizardPhenotype* source, AnatomyGraph* graph) {
@@ -220,13 +262,13 @@ bool Lizard_ResolveAnatomy(const LizardPhenotype* source, AnatomyGraph* graph) {
     if (!pectoral || !pelvis) return false;
     float shoulderX = p.shoulderWidth * 0.43f * s;
     float hipX = p.pelvicWidth * 0.43f * s;
-    if (!Lizard_AddLimb(graph, true, false, s, shoulderX, pectoral->center.y,
+    if (!Lizard_AddLimb(graph, true, false, p.manualDigitLengths, shoulderX, pectoral->center.y,
                         pectoral->center.z, p.forelimbLength*s, p.forelimbThickness*s, 2) ||
-        !Lizard_AddLimb(graph, false, false, s, shoulderX, pectoral->center.y,
+        !Lizard_AddLimb(graph, false, false, p.manualDigitLengths, shoulderX, pectoral->center.y,
                         pectoral->center.z, p.forelimbLength*s, p.forelimbThickness*s, 2) ||
-        !Lizard_AddLimb(graph, true, true, s, hipX, pelvis->center.y,
+        !Lizard_AddLimb(graph, true, true, p.manualDigitLengths, hipX, pelvis->center.y,
                         pelvis->center.z, p.hindlimbLength*s, p.hindlimbThickness*s, 2) ||
-        !Lizard_AddLimb(graph, false, true, s, hipX, pelvis->center.y,
+        !Lizard_AddLimb(graph, false, true, p.manualDigitLengths, hipX, pelvis->center.y,
                         pelvis->center.z, p.hindlimbLength*s, p.hindlimbThickness*s, 2)) return false;
 
     if (!Lizard_AddEdge(graph, 80, ANATOMY_ID_PECTORAL, ANATOMY_ID_FORE_LEFT_SHOULDER, BODY_CONNECTION_LIMB_SEGMENT) ||

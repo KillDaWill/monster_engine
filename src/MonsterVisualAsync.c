@@ -66,7 +66,10 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
     hash = HashBool(monster->hasHead,hash);
     if(monster->hasHead) hash=Fnv1a64Bytes(&monster->head.phenotype,sizeof(monster->head.phenotype),hash);
     hash=HashBool(monster->hasAnatomyGraph,hash);
-    if(monster->hasAnatomyGraph)hash=Fnv1a64Bytes(&monster->anatomyGraph,sizeof(monster->anatomyGraph),hash);
+    if(monster->hasAnatomyGraph) {
+        uint64_t anatomy=AnatomyGraph_Fingerprint(&monster->anatomyGraph);
+        hash=Fnv1a64Bytes(&anatomy,sizeof(anatomy),hash);
+    }
 
     /* Partes del cuerpo */
     hash = HashSizeT(monster->bodyPartCount, hash);
@@ -169,6 +172,20 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     return cfg;
 }
 
+SDFMesherConfig MonsterVisualAsync_ResolveBodyConfig(const MonsterVisualAsyncConfig* c,
+    MonsterVisualQualityTier tier, bool lizard) {
+    SDFMesherConfig body=tier==MONSTER_VISUAL_QUALITY_SETTLED?c->settledMesherConfig:
+        tier==MONSTER_VISUAL_QUALITY_MORPH?c->morphMesherConfig:c->interactiveMesherConfig;
+    SDFMesherConfig head=tier==MONSTER_VISUAL_QUALITY_SETTLED?c->settledHeadMesherConfig:
+        tier==MONSTER_VISUAL_QUALITY_MORPH?c->morphHeadMesherConfig:c->interactiveHeadMesherConfig;
+    if(lizard) {
+        body.adaptiveDetail=true;
+        body.maxCells+=head.maxCells/2;
+        if(body.maxResolution<head.maxResolution)body.maxResolution=head.maxResolution;
+    }
+    return body;
+}
+
 static void FreeEyeArray(MonsterVisualEyeAsync* eyes, size_t count) {
     if (!eyes) return;
     for (size_t i = 0; i < count; ++i) {
@@ -252,12 +269,8 @@ static void* WorkerThreadRoutine(void* arg) {
                 activeHeadCfg.voxelSize=tierTarget;
         }
 
-        if(workMonster.hasLizardPhenotype) {
-            /* Una superficie comparte la mitad del presupuesto cefálico anterior. */
-            activeMesherCfg.maxCells+=activeHeadCfg.maxCells/2;
-            if(activeMesherCfg.maxResolution<activeHeadCfg.maxResolution)
-                activeMesherCfg.maxResolution=activeHeadCfg.maxResolution;
-        }
+        activeMesherCfg=MonsterVisualAsync_ResolveBodyConfig(&asyncMgr->config,workTier,
+            workMonster.hasLizardPhenotype);
         workerMesher.config = activeMesherCfg;
         workerHeadMesher.config = activeHeadCfg;
 
@@ -269,9 +282,9 @@ static void* WorkerThreadRoutine(void* arg) {
             MonsterSDFBodyField bodyContext;
             SDFField field = MonsterSDF_GetBodyField(&workerSdf,&bodyContext);
             Mesh_Clear(&workBodyMesh);
-            SDFDetailRegion regions[28];
+            SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];
             size_t regionCount=MonsterSDF_GetDetailRegions(&workerSdf,
-                workTier==MONSTER_VISUAL_QUALITY_SETTLED?6.0f:3.5f,regions,28);
+                workTier==MONSTER_VISUAL_QUALITY_SETTLED?6.0f:3.5f,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
             if(workerSdf.axialStationCount>1) field=MonsterSDF_GetField(&workerSdf);
             meshOk = workerSdf.axialStationCount>1 ?
                 SDFMesher_GenerateMeshDetailed(&workerMesher,&field,regions,regionCount,&workBodyMesh):

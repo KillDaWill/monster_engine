@@ -16,7 +16,7 @@ static uint64_t HashMouth(const Monster* monster) {
     h = HashBytes(&monster->hasHead,sizeof(monster->hasHead),h);
     if(monster->hasHead) h=HashBytes(&monster->head.phenotype,sizeof(monster->head.phenotype),h);
     h=HashBytes(&monster->hasAnatomyGraph,sizeof(monster->hasAnatomyGraph),h);
-    if(monster->hasAnatomyGraph)h=HashBytes(&monster->anatomyGraph,sizeof(monster->anatomyGraph),h);
+    if(monster->hasAnatomyGraph) {uint64_t anatomy=AnatomyGraph_Fingerprint(&monster->anatomyGraph);h=HashBytes(&anatomy,sizeof(anatomy),h);}
     h = HashBytes(&monster->mouthCount, sizeof(size_t), h);
     for (size_t i = 0; i < monster->mouthCount; ++i) {
         const Mouth* m = &monster->mouths[i];
@@ -47,6 +47,8 @@ static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, Mo
     h = HashBytes(&pruning, sizeof(bool), h);
     if (visual) h = HashBytes(&visual->mesher.config, sizeof(visual->mesher.config), h);
     if (!monster) return h;
+    h=HashBytes(&monster->hasAnatomyGraph,sizeof(monster->hasAnatomyGraph),h);
+    if(monster->hasAnatomyGraph) {uint64_t anatomy=AnatomyGraph_Fingerprint(&monster->anatomyGraph);h=HashBytes(&anatomy,sizeof(anatomy),h);}
     h=HashBytes(&monster->hasHead,sizeof(monster->hasHead),h);
     if(monster->hasHead) h=HashBytes(&monster->head.phenotype,sizeof(monster->head.phenotype),h);
     h = HashBytes(&monster->bodyPartCount, sizeof(size_t), h);
@@ -238,9 +240,10 @@ uint64_t MonsterVisual_GetMouthVisualGeneration(const MonsterVisual* v) { return
 bool MonsterVisual_RebuildNow(MonsterVisual* v, const Monster* monster, MonsterSDFConfig cfg) {
     if (!v || !monster || !MonsterSDF_Build(&v->stagingSdf, monster, cfg)) return false;
     MonsterSDFBodyField bodyContext;SDFField field=MonsterSDF_GetBodyField(&v->stagingSdf,&bodyContext); Mesh_Clear(&v->stagingMesh);
-    SDFDetailRegion regions[28];size_t regionCount=MonsterSDF_GetDetailRegions(&v->stagingSdf,6,regions,28);
+    SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];size_t regionCount=MonsterSDF_GetDetailRegions(&v->stagingSdf,6,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
     if(v->stagingSdf.axialStationCount>1) {
         field=MonsterSDF_GetField(&v->stagingSdf);
+        v->mesher.config.adaptiveDetail=true;
         if(!SDFMesher_GenerateMeshDetailed(&v->mesher,&field,regions,regionCount,&v->stagingMesh))return false;
     } else if (!SDFMesher_GenerateMesh(&v->mesher,&field,&v->stagingMesh)) return false;
     Mesh_Clear(&v->stagingHeadMesh);

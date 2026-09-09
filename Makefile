@@ -31,6 +31,7 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/MarchingCubesTables.c \
             $(SRC_DIR)/MarchingCubes.c \
             $(SRC_DIR)/SDFMesher.c \
+            $(SRC_DIR)/SDFAdaptiveMesher.c \
             $(SRC_DIR)/MonsterVisual.c \
             $(SRC_DIR)/MonsterVisualAsync.c \
             $(SRC_DIR)/BodyPart.c \
@@ -130,7 +131,7 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) benchmarks/benchmark_lizard doc/html doc/latex
+	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -142,3 +143,11 @@ benchmarks/benchmark_lizard: $(CORE_OBJS) benchmarks/benchmark_lizard.c
 .PHONY: benchmark-lizard
 benchmark-lizard: benchmarks/benchmark_lizard
 	./benchmarks/benchmark_lizard
+
+# Visibilidad estática y comparación A/B de optimizaciones en apéndices finos.
+benchmarks/benchmark_appendages: $(CORE_OBJS) benchmarks/benchmark_appendages.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-appendages
+benchmark-appendages: benchmarks/benchmark_appendages
+	./benchmarks/benchmark_appendages --ab

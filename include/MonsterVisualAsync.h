@@ -138,6 +138,16 @@ typedef struct MonsterVisualAsync {
  */
 MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void);
 
+/** @brief Resuelve la configuración corporal efectiva compartida por worker y regresiones.
+ * @param config Configuración de las tres calidades.
+ * @param tier Calidad solicitada.
+ * @param lizard Si el cuerpo incorpora detalle anatómico cefálico.
+ * @return Configuración con el presupuesto de la superficie unificada.
+ */
+SDFMesherConfig MonsterVisualAsync_ResolveBodyConfig(const MonsterVisualAsyncConfig* config,
+    MonsterVisualQualityTier tier, bool lizard);
+
+
 /**
  * @brief Inicializa el gestor asíncrono y crea el hilo worker de reconstrucción.
  * @return Puntero asignado en heap a MonsterVisualAsync o NULL si falla.

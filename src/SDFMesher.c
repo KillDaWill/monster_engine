@@ -1,4 +1,5 @@
 #include "SDFMesher.h"
+#include "SDFAdaptiveMesher.h"
 #include "SDFSamplingPool.h"
 #include "MonsterSDF.h"
 #include "MarchingCubes.h"
@@ -382,6 +383,8 @@ bool SDFMesher_GenerateMeshDetailed(
     Mesh* outMesh
 ) {
     if (!mesher || !field || !field->evaluate || !outMesh) return false;
+    if(mesher->config.adaptiveDetail && mesher->config.useAutoBounds && regions && regionCount)
+        return SDFAdaptiveMesher_Generate(mesher,field,regions,regionCount,outMesh);
 
     Mesh_Clear(outMesh);
     memset(&mesher->lastStats,0,sizeof(mesher->lastStats));
@@ -494,16 +497,19 @@ bool SDFMesher_GenerateMeshDetailed(
     SDFEvaluateFn evalFn = field->evaluate;
 
     /* Preparar cajas de influencia de componentes para poda espacial conservadora */
-    AABB3D compBoxes[128];
+    enum { COMPONENT_BOX_CAPACITY = 2 * ANATOMY_MAX_CONNECTIONS + 64 };
+    AABB3D compBoxes[COMPONENT_BOX_CAPACITY];
     size_t compCount = 0;
     if (field->getComponentBounds) {
-        compCount = field->getComponentBounds(field->context, compBoxes, 96);
+        compCount = field->getComponentBounds(field->context, compBoxes, COMPONENT_BOX_CAPACITY);
     }
-    for (size_t r = 0; r < regionCount && compCount < 128; ++r) {
-        compBoxes[compCount++] = regions[r].bounds;
+    /* Una respuesta llena puede estar truncada. Nunca podar a partir de un
+     * subconjunto de componentes, ni de regiones de detalle sin cobertura total. */
+    bool hasCandidateCulling = (compCount > 0 && compCount < COMPONENT_BOX_CAPACITY);
+    if (hasCandidateCulling) {
+        for (size_t r = 0; r < regionCount && compCount < COMPONENT_BOX_CAPACITY; ++r)
+            compBoxes[compCount++] = regions[r].bounds;
     }
-
-    bool hasCandidateCulling = (compCount > 0);
     size_t candCellCount = 0;
     size_t candNodeCount = 0;
 

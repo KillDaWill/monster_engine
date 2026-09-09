@@ -75,6 +75,10 @@ typedef struct MonsterSDFConnector {
     BodyConnectionKind kind;
     Color color;
     AABB3D bounds;             /**< AABB que encierra el volumen conservador del conector */
+    float distanceLowerBoundScale; /**< Cota conservadora de anisotropía para poda. */
+    size_t groupCount; /**< Conectores consecutivos del mismo miembro; cero fuera del inicio. */
+    AABB3D groupBounds; /**< Caja conservadora de la rama completa. */
+    float groupLowerBoundScale, groupSmoothness; /**< Cotas para descartar la rama sin cambiar el orden. */
     float maxRadius;           /**< Radio máximo de sección transversal */
     float localSmoothness;     /**< Suavizado local de unión suave precalculado */
 } MonsterSDFConnector;
@@ -326,6 +330,9 @@ SDFField MonsterSDF_GetField(const MonsterSDF* sdf);
  * @return Cantidad de cajas escritas.
  */
 size_t MonsterSDF_GetComponentBounds(const MonsterSDF* sdf, AABB3D* outBoxes, size_t capacity);
+
+/** Capacidad compartida: cuatro cabezas de siete rasgos y cuatro pares autopodio/distal. */
+#define MONSTER_SDF_DETAIL_REGION_CAPACITY (7 * 4 + 2 * 4)
 
 /** @brief Deriva regiones mundiales por escala de rasgo y muestras por diámetro. */
 size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf, float samplesPerDiameter,
