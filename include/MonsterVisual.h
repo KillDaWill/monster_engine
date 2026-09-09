@@ -49,7 +49,25 @@ typedef struct MonsterVisualMouth {
     Vector3 seamGular;
     Vector3 seamJawAnchor;
     float seamScale;
+    Vector3 basePivot;        /**< Pivote de la mandíbula al momento del mallado base */
+    float baseJawLength;      /**< Longitud mandibular de referencia */
+    float baseJawWidth;       /**< Anchura mandibular de referencia */
+    float baseJawThickness;   /**< Grosor mandibular de referencia */
+    float baseScale;          /**< Escala ontogenética del monstruo al mallar */
 } MonsterVisualMouth;
+
+/**
+ * @brief Actualiza las mallas de los ojos según los parámetros anatómicos del monstruo sin recalcular el SDF.
+ * @param eyes Arreglo de mallas de ojos.
+ * @param eyeCount Cantidad de ojos asignados en el arreglo.
+ * @param monster Monstruo con los ojos actualizados.
+ * @return true si la actualización fue exitosa.
+ */
+bool MonsterVisual_UpdateEyes(
+    MonsterVisualEye* eyes,
+    size_t eyeCount,
+    const Monster* monster
+);
 
 /**
  * @brief Construye la mandíbula y la bisagra sin generar geometría de labios.
