@@ -42,7 +42,8 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/Lizard.c \
             $(SRC_DIR)/Monster.c \
             $(SRC_DIR)/MonsterQueries.c \
-            $(SRC_DIR)/MonsterAger.c
+            $(SRC_DIR)/MonsterAger.c \
+            $(SRC_DIR)/LizardMorph.c
 
 # Módulo de Renderizador OpenGL
 RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c
@@ -68,7 +69,8 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_head.c \
             $(TEST_DIR)/test_lizard.c \
             $(TEST_DIR)/test_local_detail.c \
-            $(TEST_DIR)/test_perf_optimizations.c
+            $(TEST_DIR)/test_perf_optimizations.c \
+            $(TEST_DIR)/test_morph.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
@@ -131,7 +133,7 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages doc/html doc/latex
+	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -151,3 +153,11 @@ benchmarks/benchmark_appendages: $(CORE_OBJS) benchmarks/benchmark_appendages.c
 .PHONY: benchmark-appendages
 benchmark-appendages: benchmarks/benchmark_appendages
 	./benchmarks/benchmark_appendages --ab
+
+# Benchmark de coherencia temporal y lag de deformación en tiempo real
+benchmarks/benchmark_ager_realtime: $(CORE_OBJS) benchmarks/benchmark_ager_realtime.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-ager-realtime
+benchmark-ager-realtime: benchmarks/benchmark_ager_realtime
+	./benchmarks/benchmark_ager_realtime

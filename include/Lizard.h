@@ -62,6 +62,8 @@ void LizardPhenotype_Normalize(LizardPhenotype* phenotype);
 bool Lizard_ResolveAnatomy(const LizardPhenotype* phenotype, AnatomyGraph* graph);
 /** Instala cabeza, ojos, boca, paleta y grafo anatómico en un Monster. */
 bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* phenotype);
+/** Calcula la edad ontogenética inversa correspondiente a una escala corporal total. */
+float Lizard_AgeFromScale(float scale);
 
 #ifdef __cplusplus
 }

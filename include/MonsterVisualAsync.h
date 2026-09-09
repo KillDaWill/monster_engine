@@ -57,6 +57,7 @@ typedef struct MonsterVisualAsyncStats {
     float workingScale, displayedScale; /**< Escala semántica de generación y presentación. */
     uint64_t requestCount;                  /**< Total de solicitudes enviadas al hilo worker */
     uint64_t completedBuildCount;           /**< Reconstrucciones completadas exitosamente */
+    uint64_t cancelledBuildCount;           /**< Reconstrucciones canceladas por quedar obsoletas */
     uint64_t coalescedCount;                /**< Solicitudes intermedias descartadas por coalescencia */
     float lastBuildDurationMs;              /**< Duración de la última reconstrucción en milisegundos */
     bool isWorkerBusy;                     /**< Indica si el worker está construyendo una malla activamente */
@@ -126,6 +127,8 @@ typedef struct MonsterVisualAsync {
     float timeSinceLastMotionSec;
     bool continuousMotion; /**< Evita asentamientos durante una interacción sostenida. */
     bool morphMode;        /**< Utiliza el tier MORPH en lugar de INTERACTIVE durante movimiento continuo */
+    struct LizardMorph* displayMorph; /**< Deformador morfológico en tiempo real para display */
+    struct LizardMorph* readyMorph;   /**< Deformador morfológico listo para transferir */
     struct SDFSamplingPool* samplingPool; /**< Pool persistente de hilos compartido con los meshers */
 
     /* Métricas */

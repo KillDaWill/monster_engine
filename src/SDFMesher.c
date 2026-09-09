@@ -75,6 +75,11 @@ void SDFMesher_Free(SDFMesher* mesher) {
     mesher->zEdges = NULL;
     mesher->zEdgeCapacity = 0;
 
+    if (mesher->adaptiveWorkspace) {
+        SDFAdaptiveWorkspace_Free(mesher->adaptiveWorkspace);
+        mesher->adaptiveWorkspace = NULL;
+    }
+
     memset(&mesher->lastStats, 0, sizeof(SDFMesherStats));
 }
 

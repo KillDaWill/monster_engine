@@ -13,6 +13,31 @@
 typedef struct AdaptivePoint { uint32_t p[3]; float distance; MeshIndex vertex; } AdaptivePoint;
 typedef struct AdaptiveCell { uint32_t p[3], size, child; bool candidate; } AdaptiveCell;
 typedef struct AdaptiveEdge { uint64_t key; MeshIndex vertex; bool occupied; } AdaptiveEdge;
+
+struct SDFAdaptiveWorkspace {
+    AdaptiveCell* cells;
+    size_t cellCapacity;
+    AdaptivePoint* points;
+    size_t pointCapacity;
+    uint32_t* pointTable;
+    size_t pointTableCapacity;
+    AdaptiveEdge* edges;
+    size_t edgeCapacity;
+};
+
+SDFAdaptiveWorkspace* SDFAdaptiveWorkspace_Create(void) {
+    return (SDFAdaptiveWorkspace*)calloc(1, sizeof(SDFAdaptiveWorkspace));
+}
+
+void SDFAdaptiveWorkspace_Free(SDFAdaptiveWorkspace* ws) {
+    if (!ws) return;
+    free(ws->cells);
+    free(ws->points);
+    free(ws->pointTable);
+    free(ws->edges);
+    free(ws);
+}
+
 typedef struct AdaptiveContext {
     const SDFField* field;
     const SDFDetailRegion* regions;
@@ -32,7 +57,9 @@ typedef struct AdaptiveContext {
     size_t pointTableCapacity;
     AdaptiveEdge* edges;
     size_t edgeCount, edgeCapacity;
-    bool failed, exhausted;
+    bool (*shouldCancel)(void* cancelContext);
+    void* cancelContext;
+    bool failed, exhausted, cancelled;
 } AdaptiveContext;
 
 static uint64_t Adaptive_Hash(uint64_t x) {
@@ -103,7 +130,11 @@ static uint32_t Adaptive_Sample(AdaptiveContext* c, const uint32_t p[3]) {
 }
 
 static void Adaptive_Build(AdaptiveContext* c, uint32_t index) {
-    if(c->failed || c->exhausted)return;
+    if(c->failed || c->exhausted || c->cancelled)return;
+    if(c->shouldCancel && (c->cellCount & 0x7f) == 0 && c->shouldCancel(c->cancelContext)) {
+        c->cancelled = true;
+        return;
+    }
     AdaptiveCell cell=c->cells[index];
     AABB3D box=Adaptive_Box(c,&cell);
     bool candidate=Adaptive_Overlaps(box,c->bounds);
@@ -128,7 +159,14 @@ static void Adaptive_Build(AdaptiveContext* c, uint32_t index) {
             target=fminf(target,c->regions[r].targetVoxelSize);
     if(cell.size>2 && cell.size*c->unit>target*(1+1e-5f)) {
         size_t totalLeaves=1+7*((c->cellCount-1)/8);
-        if(totalLeaves+7>c->budget){c->exhausted=true;return;}
+        if(totalLeaves+7>c->budget){
+            c->exhausted=true;
+            c->leaves++;
+            float step=cell.size*c->unit;
+            c->stats->minimumVoxelSize=fminf(c->stats->minimumVoxelSize,step);
+            c->stats->effectiveVoxelSize=fmaxf(c->stats->effectiveVoxelSize,step);
+            return;
+        }
         if(c->cellCount>UINT32_MAX-8 ||
            !Adaptive_Grow((void**)&c->cells,&c->cellCapacity,c->cellCount+8,sizeof(*c->cells))) {
             c->failed=true;return;
@@ -378,6 +416,30 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     if(!isfinite(extent.x)||!isfinite(extent.y)||!isfinite(extent.z)||extent.x<=0||extent.y<=0||extent.z<=0)return false;
     c.origin=c.bounds.start;c.base=mesher->config.voxelSize;c.iso=mesher->config.isolevel;
     c.budget=mesher->config.maxCells?mesher->config.maxCells:500000;
+    c.shouldCancel=mesher->config.shouldCancel;
+    c.cancelContext=mesher->config.cancelContext;
+
+    /* Reutilización de espacio de trabajo persistente */
+    if(!mesher->adaptiveWorkspace) {
+        mesher->adaptiveWorkspace=SDFAdaptiveWorkspace_Create();
+    }
+    if(mesher->adaptiveWorkspace) {
+        c.cells=mesher->adaptiveWorkspace->cells;
+        c.cellCapacity=mesher->adaptiveWorkspace->cellCapacity;
+        c.points=mesher->adaptiveWorkspace->points;
+        c.pointCapacity=mesher->adaptiveWorkspace->pointCapacity;
+        c.pointTable=mesher->adaptiveWorkspace->pointTable;
+        c.pointTableCapacity=mesher->adaptiveWorkspace->pointTableCapacity;
+        if(c.pointTable && c.pointTableCapacity) {
+            memset(c.pointTable,0,c.pointTableCapacity*sizeof(*c.pointTable));
+        }
+        c.edges=mesher->adaptiveWorkspace->edges;
+        c.edgeCapacity=mesher->adaptiveWorkspace->edgeCapacity;
+        if(c.edges && c.edgeCapacity) {
+            memset(c.edges,0,c.edgeCapacity*sizeof(*c.edges));
+        }
+    }
+
     float minTarget=c.base,span=fmaxf(extent.x,fmaxf(extent.y,extent.z));
     for(size_t i=0;i<regionCount;++i)
         if(isfinite(regions[i].targetVoxelSize)&&regions[i].targetVoxelSize>0)minTarget=fminf(minTarget,regions[i].targetVoxelSize);
@@ -397,7 +459,10 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
         c.cells[0]=(AdaptiveCell){{0,0,0},c.rootSize,0,false};c.cellCount=1;
         Adaptive_Build(&c,0);
     }
-    if(!c.failed && !c.exhausted)for(size_t i=0;i<c.cellCount && !c.failed;++i) {
+    if(!c.failed && !c.cancelled)for(size_t i=0;i<c.cellCount && !c.failed;++i) {
+        if((i & 0xff)==0 && c.shouldCancel && c.shouldCancel(c.cancelContext)) {
+            c.cancelled=true;break;
+        }
         AdaptiveCell cell=c.cells[i];if(cell.child || !cell.candidate)continue;
         size_t before=mesh->indexCount;
         if(cell.size==2 || Adaptive_Regular(&c,&cell))Adaptive_RegularCell(&c,&cell);
@@ -413,7 +478,7 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     }
     MonsterSDF_GetThreadStats(&c.stats->connectorCandidateCount,&c.stats->connectorExactEvaluationCount,&c.stats->connectorPrunedCount);
     MonsterSDF_EnableThreadStats(false);
-    if(!c.failed && !c.exhausted)Adaptive_FinalizeAttributes(&c,mesher);
+    if(!c.failed && !c.cancelled)Adaptive_FinalizeAttributes(&c,mesher);
     c.stats->cellCount=c.cellCount?1+7*((c.cellCount-1)/8):0;c.stats->candidateCellCount=c.leaves;c.stats->candidateNodeCount=c.pointCount;
     c.stats->gridPointCount=c.pointCount;c.stats->fieldEvaluationCount=c.stats->distanceEvaluationCount+c.stats->fullSampleEvaluationCount;
     c.stats->generatedVertexCount=mesh->vertexCount;c.stats->generatedTriangleCount=mesh->indexCount/3;
@@ -422,7 +487,20 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     c.stats->resolutionZ=(int)ceilf(extent.z/c.stats->minimumVoxelSize);
     c.stats->voxelStep=Vec3_Create(c.stats->effectiveVoxelSize,c.stats->effectiveVoxelSize,c.stats->effectiveVoxelSize);
     c.stats->detailBudgetAdjusted=c.exhausted;c.stats->cellBudgetAdjusted=c.exhausted;
-    free(c.cells);free(c.points);free(c.pointTable);free(c.edges);
-    if(c.failed || c.exhausted){Mesh_Clear(mesh);return false;}
+
+    /* Actualizar punteros en workspace */
+    if(mesher->adaptiveWorkspace) {
+        mesher->adaptiveWorkspace->cells=c.cells;
+        mesher->adaptiveWorkspace->cellCapacity=c.cellCapacity;
+        mesher->adaptiveWorkspace->points=c.points;
+        mesher->adaptiveWorkspace->pointCapacity=c.pointCapacity;
+        mesher->adaptiveWorkspace->pointTable=c.pointTable;
+        mesher->adaptiveWorkspace->pointTableCapacity=c.pointTableCapacity;
+        mesher->adaptiveWorkspace->edges=c.edges;
+        mesher->adaptiveWorkspace->edgeCapacity=c.edgeCapacity;
+    } else {
+        free(c.cells);free(c.points);free(c.pointTable);free(c.edges);
+    }
+    if(c.failed || c.cancelled){Mesh_Clear(mesh);return false;}
     return true;
 }
