@@ -12,7 +12,8 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 AGES = ('0', '.25', '.5', '.75', '1')
 VIEWS = ('whole', 'body-lateral', 'body-front', 'body-dorsal',
-         'head-oblique', 'head-lateral', 'head-frontal', 'head-dorsal')
+         'head-oblique', 'head-lateral', 'head-frontal', 'head-dorsal',
+         'manus-dorsal', 'pes-dorsal', 'manus-oblique', 'pes-oblique')
 
 
 def run_capture(command, log):
@@ -36,10 +37,12 @@ def panel(files, labels, destination, columns=3):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path)
-    output = parser.parse_args().output.resolve()
+    parser.add_argument('--morph', action='store_true', help='Capturar calidad MORPH a edad fija')
+    args = parser.parse_args()
+    output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     for age in AGES:
-        run_capture([str(ROOT/'demos/demo_ager_3d'), age, f'--capture-prefix={output}/age-{age}'],
+        run_capture([str(ROOT/'demos/demo_ager_3d'), age, f'--capture-prefix={output}/age-{age}'] + (['--morph'] if args.morph else []),
                     output/f'age-{age}.log')
     for view in VIEWS:
         panel([output/f'age-{age}-{view}.ppm' for age in AGES],

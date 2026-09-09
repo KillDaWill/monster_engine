@@ -31,13 +31,41 @@ static Monster Demo_CreateLizardStage(bool adult) {
     return lizard;
 }
 
+/* Verifica los extremos de la anatomía que pertenece a la malla publicada,
+ * no los de una solicitud más reciente todavía pendiente en el worker. */
+static unsigned Demo_VisibleDigits(const Mesh* mesh,float scale) {
+    float lo=0,hi=1;
+    for(unsigned i=0;i<24;++i) {
+        float t=(lo+hi)*.5f;
+        LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,t);
+        if(p.totalScale<scale)lo=t;else hi=t;
+    }
+    LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,(lo+hi)*.5f);
+    AnatomyGraph graph;if(!Lizard_ResolveAnatomy(&p,&graph))return 0;
+    const unsigned formula[2][5]={{2,3,4,5,3},{2,3,4,5,4}};
+    unsigned visible=0;
+    for(unsigned limb=0;limb<4;++limb)for(unsigned digit=0;digit<5;++digit) {
+        const AnatomyNode* n=AnatomyGraph_FindNode(&graph,
+            Anatomy_DigitId(limb,digit,formula[limb/2][digit]+1));
+        float nearest=1e6f;
+        for(size_t v=0;v<mesh->vertexCount;++v)
+            nearest=fminf(nearest,Vec3_Distance(n->center,mesh->vertices[v].position));
+        visible+=nearest<=n->widthRadius*1.8f;
+    }
+    return visible;
+}
+
 int main(int argc, char* argv[]) {
     setvbuf(stdout,NULL,_IOLBF,0);
     float requestedAge=-1.0f;
     bool inspectHead=false;
     bool headWireframe=false;
     const char* capturePrefix=NULL;
+    const char* cyclePrefix=NULL;
+    bool captureMorph=false;
     for(int argi=1;argi<argc;++argi) {
+        if(strncmp(argv[argi],"--validate-cycle=",17)==0){cyclePrefix=argv[argi]+17;continue;}
+        if(strcmp(argv[argi],"--morph")==0){captureMorph=true;continue;}
         if(strcmp(argv[argi],"--head")==0){inspectHead=true;continue;}
         if(strcmp(argv[argi],"--wire-head")==0){inspectHead=true;headWireframe=true;continue;}
         if(strncmp(argv[argi],"--capture-prefix=",17)==0){capturePrefix=argv[argi]+17;continue;}
@@ -137,8 +165,10 @@ int main(int argc, char* argv[]) {
     int headView=inspectHead?1:0;
     uint64_t printedGeneration=0;
     bool captureActive=false,captureComplete=false,settledReady=false;
-    int captureView=0;
-    const char* captureNames[]={"whole","body-lateral","body-front","body-dorsal","head-oblique","head-lateral","head-frontal","head-dorsal"};
+    int captureView=0,captureFrames=0;
+    bool cycleReturning=false,cycleDone=false;
+    unsigned cycleFrames=0,cycleFailures=0;
+    const char* captureNames[]={"whole","body-lateral","body-front","body-dorsal","head-oblique","head-lateral","head-frontal","head-dorsal","manus-dorsal","pes-dorsal","manus-oblique","pes-oblique"};
 
     float ageSpeed = 0.20f; /* ~5 s para recorrido completo 0 -> 1 */
     float fpsTimer = 0.0f;
@@ -160,7 +190,7 @@ int main(int argc, char* argv[]) {
                     case SDLK_RIGHT:
                     case SDLK_UP:
                         autoAnimate = false;
-                        MonsterVisualAsync_SetMorphMode(visual, false);
+                        MonsterVisualAsync_SetMorphMode(visual, captureMorph);
                         ageFactor = Math_Clamp01(ageFactor + 0.05f);
                         MonsterAger_SetPerc(&ager, ageFactor);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
@@ -168,14 +198,14 @@ int main(int argc, char* argv[]) {
                     case SDLK_LEFT:
                     case SDLK_DOWN:
                         autoAnimate = false;
-                        MonsterVisualAsync_SetMorphMode(visual, false);
+                        MonsterVisualAsync_SetMorphMode(visual, captureMorph);
                         ageFactor = Math_Clamp01(ageFactor - 0.05f);
                         MonsterAger_SetPerc(&ager, ageFactor);
                         printf("[AGER] Porcentaje manual: %.0f%%\n", ageFactor * 100.0f);
                         break;
                     case SDLK_0: case SDLK_1: case SDLK_2: case SDLK_3: case SDLK_4:
                         autoAnimate = false;
-                        MonsterVisualAsync_SetMorphMode(visual, false);
+                        MonsterVisualAsync_SetMorphMode(visual, captureMorph);
                         ageFactor = (event.key.keysym.sym - SDLK_0) * 0.25f;
                         MonsterAger_SetPerc(&ager, ageFactor);
                         printf("[AGER] Porcentaje directo: %.0f%%\n", ageFactor * 100.0f);
@@ -209,7 +239,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        if (captureActive) { inspectHead = captureView >= 4; headView = captureView - 3; }
+        if (captureActive) { inspectHead = captureView >= 4 && captureView < 8; headView = captureView - 3; }
 
         if (autoAnimate) {
             MonsterVisualAsync_SetMorphMode(visual, true);
@@ -219,29 +249,40 @@ int main(int argc, char* argv[]) {
                 if (ageFactor >= 1.0f) {
                     ageFactor = 1.0f;
                     growthDirection = -1.0f;
+                    cycleReturning=true;
                 } else if (ageFactor <= 0.0f) {
                     ageFactor = 0.0f;
                     growthDirection = 1.0f;
+                    if(cyclePrefix&&cycleReturning){cycleDone=true;autoAnimate=false;}
                 }
                 MonsterAger_SetPerc(&ager, ageFactor);
             }
         } else {
-            MonsterVisualAsync_SetMorphMode(visual, false);
+            MonsterVisualAsync_SetMorphMode(visual, captureMorph);
         }
 
         const Monster* currentMonster = MonsterAger_GetResultConst(&ager);
         /* Cámaras de comparación ancladas al adulto, independientes de edad. */
         camera.target = Vec3_Create(0, 0.25f, -5.3f);
+        camera.up=Vec3_Create(0,1,0);
         Vector3 offset = Vec3_Create(-11, 9, 14);
         if (captureActive && captureView == 1) offset = Vec3_Create(18, 1, 0);
-        if (captureActive && captureView == 2) offset = Vec3_Create(9, 4, 18);
-        if (captureActive && captureView == 3) offset = Vec3_Create(0.01f, 20, 0.01f);
+        if (captureActive && captureView == 2) offset = Vec3_Create(0, 2, 18);
+        if (captureActive && captureView == 3) {offset = Vec3_Create(0,20,0);camera.up=Vec3_Create(0,0,-1);}
         if (inspectHead) {
             camera.target = Vec3_Create(0, 0.42f, 0.15f);
             if (headView == 2) offset = Vec3_Create(3.4f, 0.20f, 0);
             else if (headView == 3) offset = Vec3_Create(0, 0.25f, 3.6f);
             else if (headView == 4) offset = Vec3_Create(0.01f, 3.5f, 0.01f);
             else offset = Vec3_Create(2.8f, 1.8f, 2.8f);
+        }
+        if(captureActive&&captureView>=8) {
+            const AnatomyNode* n=AnatomyGraph_FindNode(&currentMonster->anatomyGraph,
+                captureView%2?ANATOMY_ID_HIND_LEFT_FOOT:ANATOMY_ID_FORE_LEFT_HAND);
+            camera.target=n->center;
+            float scale=currentMonster->lizardPhenotype.totalScale;
+            if(captureView<10){offset=Vec3_Create(0,2.6f*scale,0);camera.up=Vec3_Create(0,0,-1);}
+            else offset=Vec3_Scale(Vec3_Create(1.8f,1.4f,1.2f),scale);
         }
         camera.position = Vec3_Add(camera.target, Vec3_Scale(offset, cameraZoom));
 
@@ -276,7 +317,7 @@ int main(int argc, char* argv[]) {
 
         if (generation != 0 && generation != printedGeneration) {
             printedGeneration = generation;
-            settledReady = (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED);
+            settledReady = (stats.activeQualityTier == (captureMorph?MONSTER_VISUAL_QUALITY_MORPH:MONSTER_VISUAL_QUALITY_SETTLED));
             printf("[MALLA] edad_solicitada=%.2f edad_visible=%.2f lag=%.2f escala=%.5f gen=%llu fp=%llu tier=%s ms=%.2f fps=%.1f builds/s=%.1f grid=%dx%dx%d celdas=%zu activas=%zu refinadas=%zu muestras=%zu triangulos=%zu coalescidas=%llu\n",
                 ageFactor, displayedAge, ageLag, stats.displayedScale,
                 (unsigned long long)generation, (unsigned long long)stats.displayedFingerprint,
@@ -314,13 +355,23 @@ int main(int argc, char* argv[]) {
         }
 
         renderer.endFrame(&renderer);
-        if(captureActive) {
+        if(cyclePrefix&&generation&&cycleFrames!=(unsigned)generation) {
+            cycleFrames=(unsigned)generation;
+            unsigned visible=Demo_VisibleDigits(bodyMesh,stats.displayedScale);
+            cycleFailures+=visible!=20;
+            char path[768];snprintf(path,sizeof(path),"%s-%04u.ppm",cyclePrefix,cycleFrames);
+            if(!OpenGLRenderer_SavePPM(path,windowWidth,windowHeight))cycleFailures++;
+            printf("[CICLO] generación=%u extremos_visibles=%u/20 escala=%.6f\n",cycleFrames,visible,stats.displayedScale);
+        }
+        if(cyclePrefix&&cycleDone&&stats.activeQualityTier==MONSTER_VISUAL_QUALITY_SETTLED)running=false;
+        if(captureActive && ++captureFrames>=3) {
+            captureFrames=0;
             char path[768];snprintf(path,sizeof(path),"%s-%s.ppm",capturePrefix,captureNames[captureView]);
             if(OpenGLRenderer_SavePPM(path,windowWidth,windowHeight))printf("[CAPTURA] %s\n",path);
             else fprintf(stderr,"[ERROR] No se pudo guardar %s\n",path);
             captureView++;
-            if(captureView>=8){captureActive=false;captureComplete=true;running=false;}
-        } else if(capturePrefix&&settledReady&&!captureComplete) {
+            if(captureView>=12){captureActive=false;captureComplete=true;running=false;}
+        } else if(!captureActive&&capturePrefix&&settledReady&&!captureComplete) {
             captureActive=true;captureView=0;
         }
         SDL_GL_SwapWindow(window);
@@ -337,5 +388,6 @@ int main(int argc, char* argv[]) {
     SDL_Quit();
 
     printf("[INFO] Demo de envejecimiento finalizada limpiamente.\n");
-    return 0;
+    if(cyclePrefix)printf("[CICLO] recorrido 0 -> 1 -> 0 terminado: %u mallas, %u fallos\n",cycleFrames,cycleFailures);
+    return cycleFailures?2:0;
 }

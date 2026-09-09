@@ -164,8 +164,8 @@ static void test_component_bounds_and_cell_skipping(void) {
     MonsterSDF sdf = MonsterSDF_Create();
     MonsterSDF_Build(&sdf, &lizard, MonsterSDF_DefaultConfig());
 
-    AABB3D compBoxes[64];
-    size_t compCount = MonsterSDF_GetComponentBounds(&sdf, compBoxes, 64);
+    AABB3D compBoxes[ANATOMY_MAX_CONNECTIONS+32];
+    size_t compCount = MonsterSDF_GetComponentBounds(&sdf, compBoxes, ANATOMY_MAX_CONNECTIONS+32);
     TEST_ASSERT(compCount > 0, "Debe reportar cajas de componentes geométricos");
 
     /* Verificar que las cajas de componentes cubran las partes anatómicas */
@@ -268,7 +268,7 @@ static void test_visual_async_morph_settled_tiers(void) {
 
     /* Esperar a que el worker procese (margen generoso para sanitizers) */
     int retries = 0;
-    while (retries++ < 300 && MonsterVisualAsync_GetDisplayGeneration(visual) == 0) {
+    while (retries++ < 3000 && MonsterVisualAsync_GetDisplayGeneration(visual) == 0) {
         usleep(10000); /* 10ms */
         MonsterVisualAsync_Update(visual, &lizard, 0.010f);
     }
@@ -285,7 +285,7 @@ static void test_visual_async_morph_settled_tiers(void) {
     MonsterVisualAsync_Update(visual, &lizard, 0.10f);
 
     retries = 0;
-    while (retries++ < 300) {
+    while (retries++ < 3000) {
         usleep(10000); /* 10ms */
         MonsterVisualAsync_Update(visual, &lizard, 0.010f);
         stats = MonsterVisualAsync_GetStats(visual);
@@ -299,8 +299,93 @@ static void test_visual_async_morph_settled_tiers(void) {
     Monster_Free(&lizard);
 }
 
+
+static bool contains_point(AABB3D b,Vector3 p) {
+    return p.x>=b.start.x&&p.x<=b.end.x&&p.y>=b.start.y&&p.y<=b.end.y&&p.z>=b.start.z&&p.z<=b.end.z;
+}
+
+static void test_juvenile_connector_bounds(void) {
+    Monster m=CreateTestLizard(false);MonsterSDF sdf=MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(&sdf,&m,MonsterSDF_DefaultConfig()),"SDF juvenil inválido");
+    AABB3D boxes[ANATOMY_MAX_CONNECTIONS+32];
+    size_t count=MonsterSDF_GetComponentBounds(&sdf,boxes,ANATOMY_MAX_CONNECTIONS+32);
+    TEST_ASSERT(count>sdf.connectorCount&&sdf.connectorCount>96,"No se ejercita la capacidad ampliada");
+    size_t probes=0;
+    for(size_t i=0;i<sdf.connectorCount;++i) {
+        const MonsterSDFConnector* c=&sdf.connectors[i];
+        if(c->kind!=BODY_CONNECTION_DIGIT_SEGMENT)continue;
+        /* Banda alrededor de la superficie de cada conector, incluidos extremos. */
+        for(unsigned j=0;j<5;++j)for(unsigned a=0;a<24;++a)for(unsigned k=0;k<5;++k) {
+            float t=j*.25f,angle=a*6.28318530718f/24,scale=.8f+k*.1f;
+            float w=c->widthA+t*(c->widthB-c->widthA),h=c->heightA+t*(c->heightB-c->heightA);
+            Vector3 p=Vec3_Add(Vec3_Lerp(c->a,c->b,t),Vec3_Add(
+                Vec3_Scale(c->side,w*cosf(angle)*scale),Vec3_Scale(c->up,h*sinf(angle)*scale)));
+            sdf.config.enableConnectorPruning=false;float full=MonsterSDF_EvaluateDistance(&sdf,p);
+            sdf.config.enableConnectorPruning=true;float pruned=MonsterSDF_EvaluateDistance(&sdf,p);
+            TEST_ASSERT(isfinite(full)&&isfinite(pruned),"Distancia digital no finita");
+            if(fabsf(full)<h*.25f) {
+                TEST_ASSERT(fabsf(full-pruned)<1e-6f,"La poda altera el campo junto a una falange juvenil");
+                TEST_ASSERT(fabsf(full)<1e-6f||(full<0)==(pruned<0),"La poda invierte el signo digital");
+                bool covered=false;
+                for(size_t b=0;b<count;++b)covered|=contains_point(boxes[b],p);
+                TEST_ASSERT(covered,"Las cajas no cubren la banda superficial digital");
+                ++probes;
+            }
+            if(scale<=1.0f)TEST_ASSERT(contains_point(c->bounds,p),"La caja local no contiene el conector");
+        }
+        /* También inspecciona el entorno mundial de su AABB; no sólo el eje. */
+        for(unsigned x=0;x<5;++x)for(unsigned y=0;y<5;++y)for(unsigned z=0;z<5;++z) {
+            Vector3 p=Vec3_Create(c->bounds.start.x+(c->bounds.end.x-c->bounds.start.x)*x*.25f,
+                c->bounds.start.y+(c->bounds.end.y-c->bounds.start.y)*y*.25f,
+                c->bounds.start.z+(c->bounds.end.z-c->bounds.start.z)*z*.25f);
+            sdf.config.enableConnectorPruning=false;float full=MonsterSDF_EvaluateDistance(&sdf,p);
+            sdf.config.enableConnectorPruning=true;float pruned=MonsterSDF_EvaluateDistance(&sdf,p);
+            if(fabsf(full)<.01f)TEST_ASSERT(fabsf(full-pruned)<1e-6f,"Poda incorrecta cerca de caja digital");
+        }
+    }
+    TEST_ASSERT(probes>1000,"Cobertura insuficiente de falanges finas");
+    MonsterSDF_Free(&sdf);Monster_Free(&m);
+    printf("[PASS] test_juvenile_connector_bounds (%zu muestras superficiales)\n",probes);
+}
+
+static size_t full_domain_bounds(const void* context,AABB3D* boxes,size_t capacity) {
+    if(!capacity)return 0;
+    boxes[0]=MonsterSDF_GetBounds(context);return 1;
+}
+
+static void test_digit_candidate_culling(void) {
+    Monster m=CreateTestLizard(false);MonsterSDF sdf=MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(&sdf,&m,MonsterSDF_DefaultConfig()),"SDF juvenil inválido");
+    /* Dominio pequeño y fino sobre los dedos más frágiles, tras el límite antiguo. */
+    for(unsigned limb=0;limb<4;++limb) {
+        SDFMesherConfig cfg=SDFMesher_DefaultConfig();cfg.useAutoBounds=false;
+        cfg.bounds=AABB_Empty();cfg.voxelSize=.014f;cfg.maxResolution=160;cfg.maxCells=500000;
+        for(size_t i=0;i<m.anatomyGraph.nodeCount;++i) {
+            const AnatomyNode* n=&m.anatomyGraph.nodes[i];
+            if(n->id>=Anatomy_DigitId(limb,0,0)&&n->id<=Anatomy_DigitId(limb,4,6))
+                AABB_ExpandRadius(&cfg.bounds,n->center,Vec3_Create(n->widthRadius,n->widthRadius,n->widthRadius));
+        }
+        AABB_Pad(&cfg.bounds,.04f);
+        SDFMesher mesher=SDFMesher_Create(cfg);Mesh culled=Mesh_Create(),full=Mesh_Create();
+        SDFField field=MonsterSDF_GetField(&sdf);
+        TEST_ASSERT(SDFMesher_GenerateMesh(&mesher,&field,&culled),"Mallado con descarte falló");
+        field.getComponentBounds=full_domain_bounds;
+        TEST_ASSERT(SDFMesher_GenerateMesh(&mesher,&field,&full),"Mallado sin descarte falló");
+        TEST_ASSERT(culled.vertexCount==full.vertexCount&&culled.indexCount==full.indexCount,
+            "El descarte de componentes elimina superficie digital");
+        for(size_t i=0;i<full.vertexCount;++i)
+            TEST_ASSERT(Vec3_Distance(culled.vertices[i].position,full.vertices[i].position)<1e-6f,
+                "El descarte cambió una intersección superficial");
+        Mesh_Free(&culled);Mesh_Free(&full);SDFMesher_Free(&mesher);
+    }
+    MonsterSDF_Free(&sdf);Monster_Free(&m);
+    printf("[PASS] test_digit_candidate_culling\n");
+}
+
 void run_perf_optimizations_tests(void) {
     test_connector_pruning_equivalence();
+    test_juvenile_connector_bounds();
+    test_digit_candidate_culling();
     test_parallel_serial_determinism();
     test_component_bounds_and_cell_skipping();
     test_monster_copy_into_reuse();

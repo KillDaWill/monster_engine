@@ -33,6 +33,7 @@ typedef struct SDFMesherConfig {
     float normalEps;   /**< Paso épsilon para gradiente numérico de normales (si <= 0, auto: min(step)*0.25) */
     AABB3D bounds;     /**< Bounding Box 3D para el volumen de muestreo */
     bool useAutoBounds;/**< Si es true, recalcula las fronteras usando field->getBounds */
+    bool adaptiveDetail; /**< Octree local conformante en autobounds; maxResolution sólo limita la rejilla densa. */
     int samplingThreadCount; /**< Hilos totales para muestreo escalar (0=auto, 1=serial, N=hilos) */
 } SDFMesherConfig;
 

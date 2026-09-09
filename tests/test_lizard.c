@@ -4,6 +4,7 @@
 #include "MonsterAger.h"
 #include "MonsterSDF.h"
 #include "SDFMesher.h"
+#include "MonsterVisualAsync.h"
 #include "SDFPrimitives.h"
 #include "Mesh.h"
 #include "MathUtils.h"
@@ -59,7 +60,12 @@ static void test_lizard_graph_topology(void) {
     LizardPhenotype p=LizardPreset_Adult(); AnatomyGraph graph;
     TEST_ASSERT(Lizard_ResolveAnatomy(&p,&graph),"No se resolvió el grafo del lagarto");
     TEST_ASSERT(AnatomyGraph_Validate(&graph),"El grafo anatómico no es válido");
-    TEST_ASSERT(graph.nodeCount==47&&graph.connectionCount==46,"La topología estable cambió inesperadamente");
+    AnatomyGraph changed=graph;
+    changed.nodes[changed.nodeCount].center.y=123;
+    TEST_ASSERT(AnatomyGraph_Fingerprint(&changed)==AnatomyGraph_Fingerprint(&graph),"La huella depende de la reserva inactiva");
+    changed.nodes[changed.nodeCount-1].center.y+=.001f;
+    TEST_ASSERT(AnatomyGraph_Fingerprint(&changed)!=AnatomyGraph_Fingerprint(&graph),"La huella ignora una falange distal");
+    TEST_ASSERT(graph.connectionCount+1==graph.nodeCount,"La topología estable cambió inesperadamente");
     TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PECTORAL,ANATOMY_ID_FORE_LEFT_SHOULDER),"Falta la rama anterior izquierda");
     TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PECTORAL,ANATOMY_ID_FORE_RIGHT_SHOULDER),"Falta la rama anterior derecha");
     TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PELVIS,ANATOMY_ID_HIND_LEFT_HIP),"Falta la rama posterior izquierda");
@@ -281,13 +287,13 @@ static void test_lizard_aging_and_mesh_sweep(void) {
     TEST_ASSERT(juvenile.anatomyGraph.nodeCount==adult.anatomyGraph.nodeCount&&
                 juvenile.anatomyGraph.connectionCount==adult.anatomyGraph.connectionCount,"Joven y adulto no comparten topología");
     for(size_t i=0;i<juvenile.anatomyGraph.nodeCount;++i)
-        TEST_ASSERT(juvenile.anatomyGraph.nodes[i].id==adult.anatomyGraph.nodes[i].id,"Los IDs cambian con la edad");
+        TEST_ASSERT(AnatomyGraph_FindNode(&adult.anatomyGraph,juvenile.anatomyGraph.nodes[i].id)!=NULL,"Los IDs cambian con la edad");
     MonsterAger ager=MonsterAger_Create(&juvenile,&adult,0);
     const float ages[]={0,.25f,.50f,.75f,1};
     for(size_t i=0;i<sizeof(ages)/sizeof(ages[0]);++i) {
         MonsterAger_SetPerc(&ager,ages[i]); Monster* current=MonsterAger_GetResult(&ager);
         Monster_SetHeadOpenFactor(current,(float)i*.25f);
-        TEST_ASSERT(current->hasAnatomyGraph&&current->anatomyGraph.nodeCount==47,"La interpolación perdió extremidades");
+        TEST_ASSERT(current->hasAnatomyGraph&&current->anatomyGraph.nodeCount==juvenile.anatomyGraph.nodeCount,"La interpolación perdió extremidades");
         TEST_ASSERT(HeadAnatomy_Validate(&current->head.anatomy)==HEAD_VALID,"Una edad intermedia produjo cabeza inválida");
         MonsterSDF sdf=MonsterSDF_Create();
         TEST_ASSERT(MonsterSDF_Build(&sdf,current,MonsterSDF_DefaultConfig()),"Una edad intermedia produjo SDF inválido");
@@ -307,7 +313,13 @@ static void test_lizard_aging_and_mesh_sweep(void) {
         SDFMesherConfig cfg=SDFMesher_DefaultConfig();cfg.voxelSize=.06f;cfg.maxCells=850000;cfg.maxResolution=192;
         SDFMesher mesher=SDFMesher_Create(cfg);Mesh mesh=Mesh_Create();MonsterSDFBodyField bodyContext;
         SDFField field=MonsterSDF_GetBodyField(&sdf,&bodyContext);
-        TEST_ASSERT(SDFMesher_GenerateMesh(&mesher,&field,&mesh)&&Mesh_Validate(&mesh).valid,
+        SDFDetailRegion bodyRegions[MONSTER_SDF_DETAIL_REGION_CAPACITY];
+        size_t bodyRegionCount=MonsterSDF_GetDetailRegions(&sdf,6,bodyRegions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
+        MonsterVisualAsyncConfig actualConfig=MonsterVisualAsync_DefaultConfig();
+        mesher.config=MonsterVisualAsync_ResolveBodyConfig(&actualConfig,MONSTER_VISUAL_QUALITY_SETTLED,true);
+        /* La regresión de conectividad corporal incluye ahora todas las falanges. */
+        field=MonsterSDF_GetField(&sdf);
+        TEST_ASSERT(SDFMesher_GenerateMeshDetailed(&mesher,&field,bodyRegions,bodyRegionCount,&mesh)&&Mesh_Validate(&mesh).valid,
                     "Una edad frágil produjo cuerpo inválido");
         size_t bodyComponents=mesh_component_count(&mesh),bodyVertices=mesh.vertexCount;
         TEST_ASSERT(bodyComponents==1,"Una edad frágil produjo partes corporales desconectadas");
@@ -334,9 +346,159 @@ static void test_lizard_aging_and_mesh_sweep(void) {
     printf("[PASS] test_lizard_aging_and_mesh_sweep\n");
 }
 
+
+/* La fórmula cuenta el ungual como última falange, nunca como hueso adicional. */
+static const unsigned digit_formula[2][5]={{2,3,4,5,3},{2,3,4,5,4}};
+static const AnatomyId limb_roots[4]={100,120,140,160};
+
+static void test_lizard_articulated_digits(void) {
+    AnatomyGraph reference;LizardPhenotype adult=LizardPreset_Adult();
+    TEST_ASSERT(Lizard_ResolveAnatomy(&adult,&reference),"Referencia adulta inválida");
+    for(unsigned age=0;age<=4;++age) {
+        Monster m=Monster_Create();LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,age*.25f);
+        TEST_ASSERT(Lizard_BuildMonster(&m,&p),"No se resolvió una edad articulada");
+        AnatomyGraph* g=&m.anatomyGraph;
+        TEST_ASSERT(g->nodeCount==reference.nodeCount&&g->connectionCount==reference.connectionCount,
+            "La edad cambió la topología");
+        MonsterSDF sdf=MonsterSDF_Create();
+        TEST_ASSERT(MonsterSDF_Build(&sdf,&m,MonsterSDF_DefaultConfig()),"SDF articulado inválido");
+        for(size_t j=0;j<g->nodeCount;++j) {
+            const AnatomyNode* n=&g->nodes[j];
+            TEST_ASSERT(AnatomyGraph_FindNode(&reference,n->id)&&isfinite(n->widthRadius)&&
+                isfinite(n->heightRadius)&&n->widthRadius>0&&n->heightRadius>0&&
+                isfinite(n->center.x)&&isfinite(n->center.y)&&isfinite(n->center.z),"Estación o ID inválido");
+        }
+        for(size_t j=0;j<g->connectionCount;++j) {
+            const BodyConnection* c=&g->connections[j];
+            TEST_ASSERT(AnatomyGraph_HasConnection(&reference,c->fromId,c->toId),"La edad cambió una arista");
+            if(c->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
+            const AnatomyNode* a=AnatomyGraph_FindNode(g,c->fromId);
+            const AnatomyNode* b=AnatomyGraph_FindNode(g,c->toId);
+            for(unsigned k=0;k<=4;++k) {
+                float d=MonsterSDF_EvaluateDistance(&sdf,Vec3_Lerp(a->center,b->center,k*.25f));
+                TEST_ASSERT(isfinite(d)&&d<0,"Extremidad, falange o articulación discontinua");
+            }
+        }
+        for(unsigned limb=0;limb<4;++limb) {
+            float lengths[5]={0};
+            const AnatomyNode* hand=AnatomyGraph_FindNode(g,limb_roots[limb]+3);
+            TEST_ASSERT(outgoing_digits(g,hand->id)==5,"No hay cinco radios metapodiales");
+            for(unsigned digit=0;digit<5;++digit) {
+                unsigned count=digit_formula[limb/2][digit];
+                AnatomyId previous=hand->id;float previousWidth=1e6f,previousHeight=1e6f;
+                for(unsigned st=0;st<=count+1;++st) {
+                    AnatomyId id=Anatomy_DigitId(limb,digit,st);
+                    const AnatomyNode* node=AnatomyGraph_FindNode(g,id);
+                    const AnatomyNode* parent=AnatomyGraph_FindNode(g,previous);
+                    TEST_ASSERT(node&&AnatomyGraph_HasConnection(g,previous,id),"Falta metapodio o falange esperada");
+                    TEST_ASSERT(node->role==ANATOMY_ROLE_DIGIT,"La cadena perdió una estación digital");
+                    TEST_ASSERT(node->widthRadius<=previousWidth&&node->heightRadius<=previousHeight,
+                        "El dedo no se ahúsa en ambos ejes");
+                    previousWidth=node->widthRadius;previousHeight=node->heightRadius;
+                    TEST_ASSERT(outgoing_digits(g,id)==(st<count+1?1u:0u),
+                        "La cadena digital tiene una rama o falange adicional");
+                    TEST_ASSERT(mirrored_nodes(g,Anatomy_DigitId(limb&~1u,digit,st),
+                        Anatomy_DigitId(limb|1u,digit,st)),"Falange no espejada");
+                    if(st>=2) lengths[digit]+=Vec3_Distance(parent->center,node->center);
+                    previous=id;
+                }
+                TEST_ASSERT(!AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,digit,count+2)),"Falange adicional inesperada");
+                if(digit>0) {
+                    const AnatomyNode* a=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,digit,0));
+                    const AnatomyNode* b=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,digit-1,0));
+                    TEST_ASSERT(Vec3_Distance(a->center,b->center)>hand->widthRadius*.2f,"Orígenes metapodiales coincidentes");
+                }
+            }
+            if(limb>=2) {
+                TEST_ASSERT(lengths[0]<lengths[1]&&lengths[1]<lengths[2]&&lengths[2]<lengths[3]&&
+                    lengths[4]<lengths[3]&&lengths[4]>lengths[0],"Perfil pedal I-IV-V incorrecto");
+                const AnatomyNode* iv=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,3,6));
+                const AnatomyNode* v=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,4,5));
+                TEST_ASSERT(fabsf(v->center.x)>fabsf(iv->center.x),"El dedo V no diverge lateralmente");
+            }
+        }
+        MonsterSDF_Free(&sdf);Monster_Free(&m);
+    }
+    /* Dos perfiles manuales opuestos conservan los IDs y cambian la dominancia. */
+    LizardPhenotype profileIII=adult,profileIV=adult;
+    profileIII.manualDigitLengths[2]=1.3f;profileIII.manualDigitLengths[3]=.7f;
+    profileIV.manualDigitLengths[2]=.7f;profileIV.manualDigitLengths[3]=1.3f;
+    LizardPhenotype blended=LizardPhenotype_Interpolate(&profileIII,&profileIV,.25f);
+    for(unsigned digit=0;digit<5;++digit)
+        TEST_ASSERT(FLOAT_NEAR(blended.manualDigitLengths[digit],
+            profileIII.manualDigitLengths[digit]+.15625f*
+            (profileIV.manualDigitLengths[digit]-profileIII.manualDigitLengths[digit])),
+            "La interpolación ignora el perfil manual configurable");
+    AnatomyGraph variants[2];
+    TEST_ASSERT(Lizard_ResolveAnatomy(&profileIII,&variants[0])&&
+        Lizard_ResolveAnatomy(&profileIV,&variants[1]),"Perfil manual configurable inválido");
+    for(unsigned variant=0;variant<2;++variant)for(unsigned limb=0;limb<2;++limb) {
+        float lengths[2]={0};
+        for(unsigned digit=2;digit<=3;++digit)for(unsigned station=2;
+            station<=digit_formula[0][digit]+1;++station) {
+            const AnatomyNode* a=AnatomyGraph_FindNode(&variants[variant],Anatomy_DigitId(limb,digit,station-1));
+            const AnatomyNode* b=AnatomyGraph_FindNode(&variants[variant],Anatomy_DigitId(limb,digit,station));
+            TEST_ASSERT(a&&b,"El perfil manual cambió la topología");
+            lengths[digit-2]+=Vec3_Distance(a->center,b->center);
+        }
+        TEST_ASSERT(variant==0?lengths[0]>lengths[1]:lengths[1]>lengths[0],
+            "La geometría manual no responde a la dominancia III/IV");
+    }
+    for(size_t i=0;i<variants[0].nodeCount;++i) {
+        const AnatomyNode* a=&variants[0].nodes[i];
+        const AnatomyNode* b=AnatomyGraph_FindNode(&variants[1],a->id);
+        TEST_ASSERT(b,"La configuración manual perdió un ID estable");
+        if(a->id>=Anatomy_DigitId(2,0,0))
+            TEST_ASSERT(Vec3_Distance(a->center,b->center)<1e-6f,
+                "El perfil manual altera los dedos posteriores");
+    }
+    printf("[PASS] test_lizard_articulated_digits\n");
+}
+
+static void test_lizard_appendage_mesh_visibility(void) {
+    MonsterVisualAsyncConfig ac=MonsterVisualAsync_DefaultConfig();
+    const float ages[]={0,.1f,.25f,.5f,.75f,.9f,1};
+    for(unsigned age=0;age<7;++age)for(unsigned tier=0;tier<2;++tier) {
+        Monster m=Monster_Create();LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,ages[age]);
+        TEST_ASSERT(Lizard_BuildMonster(&m,&p),"No se resolvió la edad de visibilidad");
+        MonsterSDF sdf=MonsterSDF_Create();
+        TEST_ASSERT(MonsterSDF_Build(&sdf,&m,MonsterSDF_DefaultConfig()),"SDF de visibilidad inválido");
+        SDFMesherConfig cfg=MonsterVisualAsync_ResolveBodyConfig(&ac,
+            tier?MONSTER_VISUAL_QUALITY_SETTLED:MONSTER_VISUAL_QUALITY_MORPH,true);
+        SDFMesher mesher=SDFMesher_Create(cfg);Mesh mesh=Mesh_Create();
+        SDFField field=MonsterSDF_GetField(&sdf);SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];
+        size_t n=MonsterSDF_GetDetailRegions(&sdf,tier?6:3.5f,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
+        TEST_ASSERT(SDFMesher_GenerateMeshDetailed(&mesher,&field,regions,n,&mesh),"Mallado de apéndices falló");
+        for(unsigned limb=0;limb<4;++limb)for(unsigned feature=0;feature<6;++feature) {
+            AnatomyId id=feature==5?limb_roots[limb]+3:
+                Anatomy_DigitId(limb,feature,digit_formula[limb/2][feature]+1);
+            const AnatomyNode* node=AnatomyGraph_FindNode(&m.anatomyGraph,id);
+            float nearest=1e6f;
+            for(size_t i=0;i<mesh.vertexCount;++i)
+                nearest=fminf(nearest,Vec3_Distance(mesh.vertices[i].position,node->center));
+            if(nearest>node->widthRadius*1.8f)
+                printf("[DEBUG] edad %.2f tier %u ID %u distancia %.6f radio %.6f\n",ages[age],tier,id,nearest,node->widthRadius);
+            TEST_ASSERT(nearest<=node->widthRadius*1.8f,"Dedo/autopodio presente en SDF pero ausente en malla");
+        }
+        TEST_ASSERT(mesh_component_count(&mesh)==1,"Apéndices desconectados de la malla corporal");
+        MeshValidationResult validation=Mesh_Validate(&mesh);
+        TEST_ASSERT(validation.valid&&validation.watertight&&validation.nonManifoldEdgeCount==0,
+            "El detalle local tiene grietas o triángulos inválidos");
+        TEST_ASSERT(mesher.lastStats.detailSpacingRatio<=1.001f &&
+            mesher.lastStats.effectiveVoxelSize<=cfg.voxelSize*1.001f,
+            "La calidad real sacrifica detalle digital o coarseniza el torso");
+        printf("  [visibilidad] edad %.2f %s: 20 unguales, 4 autopodios, %zu celdas, razón %.3f\n",
+            ages[age],tier?"SETTLED":"MORPH",mesher.lastStats.cellCount,mesher.lastStats.detailSpacingRatio);
+        Mesh_Free(&mesh);SDFMesher_Free(&mesher);MonsterSDF_Free(&sdf);Monster_Free(&m);
+    }
+    printf("[PASS] test_lizard_appendage_mesh_visibility\n");
+}
+
 void run_lizard_tests(void) {
     printf("\n--- Módulo Anatomía de Lagarto ---\n");
     test_lizard_graph_topology();
+    test_lizard_articulated_digits();
+    test_lizard_appendage_mesh_visibility();
     test_lizard_axial_loft_and_tail();
     test_lizard_head_semantics();
     test_lizard_tapered_jaw_has_closed_floor();

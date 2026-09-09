@@ -87,9 +87,9 @@ typedef struct BodyConnection {
 } BodyConnection;
 
 /** Capacidad máxima de estaciones del grafo compacto embebido. */
-#define ANATOMY_MAX_NODES 96
+#define ANATOMY_MAX_NODES 192
 /** Capacidad máxima de conexiones del grafo compacto embebido. */
-#define ANATOMY_MAX_CONNECTIONS 96
+#define ANATOMY_MAX_CONNECTIONS 192
 
 /** @struct AnatomyGraph
  * @brief Grafo anatómico compacto con nodos identificados y aristas explícitas.
@@ -101,6 +101,13 @@ typedef struct AnatomyGraph {
     size_t connectionCount; /**< Número de aristas activas. */
 } AnatomyGraph;
 
+/** @brief ID digital estable: miembro 0..3, dedo I..V (0..4), estación 0..6.
+ * 0 = base metapodial, 1 = articulación metapodiofalángica, 2..6 = extremos
+ * de falanges; la última falange es el ungual. Nunca depende del almacenamiento.
+ * @return Identidad reservada para la estación, o cero si los índices no son válidos.
+ */
+AnatomyId Anatomy_DigitId(unsigned limb, unsigned digit, unsigned station);
+
 /** Inicializa un grafo vacío. */
 void AnatomyGraph_Init(AnatomyGraph* graph);
 /** Añade una estación si su identidad y dimensiones son válidas y únicas. */
@@ -111,6 +118,8 @@ bool AnatomyGraph_Connect(AnatomyGraph* graph, BodyConnection connection);
 const AnatomyNode* AnatomyGraph_FindNode(const AnatomyGraph* graph, AnatomyId id);
 /** Comprueba si existe la arista dirigida indicada. */
 bool AnatomyGraph_HasConnection(const AnatomyGraph* graph, AnatomyId fromId, AnatomyId toId);
+/** @brief Huella de estaciones y aristas activas; sin leer reservas ni bytes de relleno. */
+uint64_t AnatomyGraph_Fingerprint(const AnatomyGraph* graph);
 /** Valida referencias, dimensiones e identidades del grafo. */
 bool AnatomyGraph_Validate(const AnatomyGraph* graph);
 

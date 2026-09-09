@@ -1,5 +1,5 @@
 /** @file benchmark_lizard.c
- * @brief Benchmark reproducible del preset compartido, tiers reales y detalle cefálico.
+ * @brief Benchmark reproducible del preset compartido, tiers reales y detalle anatómico local.
  */
 #include "MonsterVisualAsync.h"
 #include "MonsterAger.h"
@@ -14,20 +14,22 @@ int main(int argc,char**argv) {
     if(!Lizard_BuildMonster(&a,&pa)||!Lizard_BuildMonster(&b,&pb))return 1;
     Monster_SetHeadOpenFactor(&a,.1f);Monster_SetHeadOpenFactor(&b,.1f);
     MonsterAger ag=MonsterAger_Create(&a,&b,0);
-    puts("age,tier,iteration,ms,cells,active,refined,distance_samples,attribute_samples,triangles,min_step,max_step,detail_ratio,budget_adjusted,detail_degraded,boundary_edges,nostril_vertices,orbit_vertices");
-    for(int i=0;i<3;++i) {
-        MonsterAger_SetPerc(&ag,i*.5f);
+    puts("age,tier,iteration,ms,cells,active,refined,distance_samples,attribute_samples,triangles,min_step,max_step,detail_ratio,budget_adjusted,detail_degraded,boundary_edges,nostril_vertices,orbit_vertices,connector_candidates,connector_exact,connector_pruned");
+    const float ages[]={0,.10f,.25f,.50f,.75f,.90f,1};
+    for(unsigned i=0;i<7;++i) {
+        MonsterAger_SetPerc(&ag,ages[i]);
         for(int rep=0;rep<repetitions;++rep) {
             MonsterVisualAsync* v=MonsterVisualAsync_Create(MonsterVisualAsync_DefaultConfig());if(!v)return 1;
-            for(int q=0;q<2;++q) {
-                MonsterVisualAsync_Update(v,&ag.result,q?1:0);MonsterVisualAsync_Flush(v);
+            for(int q=0;q<3;++q) {
+                MonsterVisualAsync_SetMorphMode(v,q==1);
+                MonsterVisualAsync_Update(v,&ag.result,q==2?1:0);MonsterVisualAsync_Flush(v);
                 MonsterVisualAsyncStats async=MonsterVisualAsync_GetStats(v);SDFMesherStats s=async.bodyMesher;
                 const Mesh* mesh=MonsterVisualAsync_GetDisplayMesh(v);MeshValidationResult validation=Mesh_Validate(mesh);
                 size_t nose=0,orbit=0;for(size_t j=0;j<mesh->vertexCount;++j){nose+=mesh->vertices[j].material==SDF_MATERIAL_NOSTRIL;orbit+=mesh->vertices[j].material==SDF_MATERIAL_EYE_SOCKET;}
-                printf("%.2f,%s,%d,%.3f,%zu,%zu,%zu,%zu,%zu,%zu,%.6f,%.6f,%.4f,%d,%d,%zu,%zu,%zu\n",
-                    i*.5,q?"settled":"interactive",rep,async.lastBuildDurationMs,s.cellCount,s.activeCellCount,s.refinedCellCount,
+                printf("%.2f,%s,%d,%.3f,%zu,%zu,%zu,%zu,%zu,%zu,%.6f,%.6f,%.4f,%d,%d,%zu,%zu,%zu,%zu,%zu,%zu\n",
+                    ages[i],q==2?"settled":q==1?"morph":"interactive",rep,async.lastBuildDurationMs,s.cellCount,s.activeCellCount,s.refinedCellCount,
                     s.distanceEvaluationCount,s.fullSampleEvaluationCount,s.generatedTriangleCount,s.minimumVoxelSize,s.effectiveVoxelSize,
-                    s.detailSpacingRatio,s.cellBudgetAdjusted,s.detailBudgetAdjusted,validation.boundaryEdgeCount,nose,orbit);
+                    s.detailSpacingRatio,s.cellBudgetAdjusted,s.detailBudgetAdjusted,validation.boundaryEdgeCount,nose,orbit,s.connectorCandidateCount,s.connectorExactEvaluationCount,s.connectorPrunedCount);
                 fflush(stdout);if(!validation.valid||!validation.watertight||nose==0||orbit==0)return 2;
             }
             MonsterVisualAsync_Free(v);
@@ -35,7 +37,7 @@ int main(int argc,char**argv) {
     }
     MonsterSDF sdf=MonsterSDF_Create();if(!MonsterSDF_Build(&sdf,&b,MonsterSDF_DefaultConfig()))return 1;
     MonsterSDFHeadField context;SDFField field=MonsterSDF_GetHeadField(&sdf,0,&context);
-    SDFDetailRegion regions[28];size_t count=MonsterSDF_GetDetailRegions(&sdf,6,regions,28);
+    SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];size_t count=MonsterSDF_GetDetailRegions(&sdf,6,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
     SDFMesherConfig cfg=SDFMesher_DefaultConfig();cfg.voxelSize=.06f;cfg.maxResolution=384;cfg.maxCells=800000;
     SDFMesher mesher=SDFMesher_Create(cfg);Mesh mesh=Mesh_Create();double start=now_ms();
     if(!SDFMesher_GenerateMeshDetailed(&mesher,&field,regions,count,&mesh))return 1;

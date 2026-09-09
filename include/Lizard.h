@@ -36,6 +36,7 @@ typedef struct LizardPhenotype {
     float forelimbThickness; /**< Robustez de miembros anteriores. */
     float hindlimbLength; /**< Longitud semántica de miembros posteriores. */
     float hindlimbThickness; /**< Robustez de miembros posteriores. */
+    float manualDigitLengths[5]; /**< Longitudes relativas I-V; permite dominancia III o IV. */
     float tailLength; /**< Longitud de la cola desde la pelvis. */
     float tailBaseWidth; /**< Radio transversal de la base caudal. */
     float tailBaseHeight; /**< Radio vertical de la base caudal. */

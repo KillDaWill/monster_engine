@@ -12,6 +12,7 @@
 #include "SDFOperations.h"
 #include "AABB.h"
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,9 @@ typedef struct SDFDetailRegion {
 /** @brief Firma para consultar cajas envolventes (AABB) de componentes individuales de un campo. */
 typedef size_t (*SDFComponentBoundsFn)(const void* context, AABB3D* outBoxes, size_t capacity);
 
+/** @brief Intervalo conservador del campo en una caja; false indica intervalo desconocido. */
+typedef bool (*SDFCellRangeFn)(const void* context, AABB3D box, float* minimum, float* maximum);
+
 /**
  * @struct SDFField
  * @brief Abstracción de un campo escalar/vectorial SDF con su contexto asociado y delimitación.
@@ -51,6 +55,7 @@ typedef struct SDFField {
     SDFBoundsFn getBounds;          /**< Puntero a función opcional de límites */
     SDFComponentBoundsFn getComponentBounds; /**< Puntero opcional para consultar cajas de influencia conservadora */
     const void* context;            /**< Contexto o estructura de datos del campo (ej. MonsterSDF*) */
+    SDFCellRangeFn getCellRange;     /**< Intervalo opcional, sin asumir que el campo sea 1-Lipschitz. */
 } SDFField;
 
 /**
