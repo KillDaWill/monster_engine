@@ -11,7 +11,8 @@
 #include "Monster.h"
 #include "MonsterSDF.h"
 #include "SDFMesher.h"
-#include "Mesh.h"
+#include "MonsterAger.h"
+#include "MonsterVisualAsync.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -138,7 +139,99 @@ static void test_lizard_morph_sweep_and_perf(void) {
     printf("[PASS] test_lizard_morph_sweep_and_perf\n");
 }
 
+static void test_lizard_morph_eye_and_jaw_growth(void) {
+    Monster young = Monster_Create();
+    LizardPhenotype pYoung = LizardPreset_Juvenile();
+    TEST_ASSERT(Lizard_BuildMonster(&young, &pYoung), "Construcción lagarto joven");
+
+    Monster adult = Monster_Create();
+    LizardPhenotype pAdult = LizardPreset_Adult();
+    TEST_ASSERT(Lizard_BuildMonster(&adult, &pAdult), "Construcción lagarto adulto");
+
+    MonsterAger ager = MonsterAger_Create(&young, &adult, 0.0f);
+    MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
+    MonsterVisualAsync* asyncMgr = MonsterVisualAsync_Create(cfg);
+    TEST_ASSERT(asyncMgr != NULL, "Creación de MonsterVisualAsync");
+
+    /* Paso 1: Generación base juvenil */
+    const Monster* cur0 = MonsterAger_GetResultConst(&ager);
+    MonsterVisualAsync_Update(asyncMgr, cur0, 0.016f);
+    MonsterVisualAsync_Flush(asyncMgr);
+
+    TEST_ASSERT(MonsterVisualAsync_GetDisplayEyeCount(asyncMgr) == 2, "Debe tener 2 ojos en display");
+    TEST_ASSERT(MonsterVisualAsync_GetDisplayMouthCount(asyncMgr) == 1, "Debe tener 1 boca en display");
+
+    const Mesh* eye0 = MonsterVisualAsync_GetDisplayEyeSclera(asyncMgr, 0);
+    const Mesh* jaw0 = MonsterVisualAsync_GetDisplayMouthMesh(asyncMgr, 0, 0);
+    TEST_ASSERT(eye0 != NULL && eye0->vertexCount > 0, "Malla de esclerótica ojo 0");
+    TEST_ASSERT(jaw0 != NULL && jaw0->vertexCount > 0, "Malla de mandíbula 0");
+
+    Vector3 eyeMin0 = eye0->vertices[0].position, eyeMax0 = eye0->vertices[0].position;
+    for (size_t i = 1; i < eye0->vertexCount; ++i) {
+        eyeMin0.x = fminf(eyeMin0.x, eye0->vertices[i].position.x);
+        eyeMin0.y = fminf(eyeMin0.y, eye0->vertices[i].position.y);
+        eyeMin0.z = fminf(eyeMin0.z, eye0->vertices[i].position.z);
+        eyeMax0.x = fmaxf(eyeMax0.x, eye0->vertices[i].position.x);
+        eyeMax0.y = fmaxf(eyeMax0.y, eye0->vertices[i].position.y);
+        eyeMax0.z = fmaxf(eyeMax0.z, eye0->vertices[i].position.z);
+    }
+    Vector3 jawMin0 = jaw0->vertices[0].position, jawMax0 = jaw0->vertices[0].position;
+    for (size_t i = 1; i < jaw0->vertexCount; ++i) {
+        jawMin0.x = fminf(jawMin0.x, jaw0->vertices[i].position.x);
+        jawMin0.y = fminf(jawMin0.y, jaw0->vertices[i].position.y);
+        jawMin0.z = fminf(jawMin0.z, jaw0->vertices[i].position.z);
+        jawMax0.x = fmaxf(jawMax0.x, jaw0->vertices[i].position.x);
+        jawMax0.y = fmaxf(jawMax0.y, jaw0->vertices[i].position.y);
+        jawMax0.z = fmaxf(jawMax0.z, jaw0->vertices[i].position.z);
+    }
+    float eyeWidth0 = eyeMax0.x - eyeMin0.x;
+    float jawLength0 = jawMax0.z - jawMin0.z;
+    float eyeCenterX0 = (eyeMin0.x + eyeMax0.x) * 0.5f;
+
+    /* Paso 2: Crecer a adulto con morphMode activo sin esperar al worker */
+    MonsterVisualAsync_SetMorphMode(asyncMgr, true);
+    MonsterAger_SetPerc(&ager, 1.0f);
+    const Monster* adultCur = MonsterAger_GetResultConst(&ager);
+    MonsterVisualAsync_Update(asyncMgr, adultCur, 0.016f);
+
+    const Mesh* eye1 = MonsterVisualAsync_GetDisplayEyeSclera(asyncMgr, 0);
+    const Mesh* jaw1 = MonsterVisualAsync_GetDisplayMouthMesh(asyncMgr, 0, 0);
+    Vector3 eyeMin1 = eye1->vertices[0].position, eyeMax1 = eye1->vertices[0].position;
+    for (size_t i = 1; i < eye1->vertexCount; ++i) {
+        eyeMin1.x = fminf(eyeMin1.x, eye1->vertices[i].position.x);
+        eyeMin1.y = fminf(eyeMin1.y, eye1->vertices[i].position.y);
+        eyeMin1.z = fminf(eyeMin1.z, eye1->vertices[i].position.z);
+        eyeMax1.x = fmaxf(eyeMax1.x, eye1->vertices[i].position.x);
+        eyeMax1.y = fmaxf(eyeMax1.y, eye1->vertices[i].position.y);
+        eyeMax1.z = fmaxf(eyeMax1.z, eye1->vertices[i].position.z);
+    }
+    Vector3 jawMin1 = jaw1->vertices[0].position, jawMax1 = jaw1->vertices[0].position;
+    for (size_t i = 1; i < jaw1->vertexCount; ++i) {
+        jawMin1.x = fminf(jawMin1.x, jaw1->vertices[i].position.x);
+        jawMin1.y = fminf(jawMin1.y, jaw1->vertices[i].position.y);
+        jawMin1.z = fminf(jawMin1.z, jaw1->vertices[i].position.z);
+        jawMax1.x = fmaxf(jawMax1.x, jaw1->vertices[i].position.x);
+        jawMax1.y = fmaxf(jawMax1.y, jaw1->vertices[i].position.y);
+        jawMax1.z = fmaxf(jawMax1.z, jaw1->vertices[i].position.z);
+    }
+    float eyeWidth1 = eyeMax1.x - eyeMin1.x;
+    float jawLength1 = jawMax1.z - jawMin1.z;
+    float eyeCenterX1 = (eyeMin1.x + eyeMax1.x) * 0.5f;
+
+    /* Verificaciones de crecimiento anatómico */
+    TEST_ASSERT(eyeWidth1 > eyeWidth0 * 1.35f, "El ojo debe crecer más de un 35% en anchura");
+    TEST_ASSERT(eyeCenterX1 > eyeCenterX0 * 1.50f, "El ojo debe desplazarse lateralmente con el ensanchamiento craneal");
+    TEST_ASSERT(jawLength1 > jawLength0 * 1.50f, "La mandíbula debe crecer más de un 50% en longitud con el hocico adulto");
+
+    MonsterVisualAsync_Free(asyncMgr);
+    MonsterAger_Free(&ager);
+    Monster_Free(&young);
+    Monster_Free(&adult);
+    printf("[PASS] test_lizard_morph_eye_and_jaw_growth\n");
+}
+
 void run_morph_tests(void) {
     test_lizard_morph_lifecycle();
     test_lizard_morph_sweep_and_perf();
+    test_lizard_morph_eye_and_jaw_growth();
 }

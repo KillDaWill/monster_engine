@@ -76,13 +76,35 @@ static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, Mo
     h = HashBytes(monster->colorPalette.colors, monster->colorPalette.count*sizeof(Color), h);
     return h;
 }
-static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth) {
+static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth, const Monster* monster) {
     float angle = Mouth_GetJawAngle(mouth) * 0.01745329252f;
     float c = cosf(angle), s = sinf(angle);
+
+    float scaleX = 1.0f, scaleY = 1.0f, scaleZ = 1.0f;
+    if (monster && monster->hasLizardPhenotype && vm->baseScale > 1e-4f) {
+        float factor = monster->lizardPhenotype.totalScale / vm->baseScale;
+        scaleX = factor;
+        scaleY = factor;
+        scaleZ = factor;
+    } else {
+        if (vm->baseJawWidth > 1e-4f && mouth->jawWidth > 1e-4f) {
+            scaleX = mouth->jawWidth / vm->baseJawWidth;
+        }
+        if (vm->baseJawThickness > 1e-4f && mouth->jawThickness > 1e-4f) {
+            scaleY = mouth->jawThickness / vm->baseJawThickness;
+        }
+        if (vm->baseJawLength > 1e-4f && mouth->jawLength > 1e-4f) {
+            scaleZ = mouth->jawLength / vm->baseJawLength;
+        }
+    }
+
+    Vector3 pivotBase = (Vec3_LengthSq(vm->basePivot) > 0.0f || vm->baseJawLength > 0.0f) ? vm->basePivot : vm->pivot;
+
     for (size_t i = 0; i < vm->jawBase.vertexCount; ++i) {
-        Vector3 p = Vec3_Sub(vm->jawBase.vertices[i].position, vm->pivot);
+        Vector3 pRel = Vec3_Sub(vm->jawBase.vertices[i].position, pivotBase);
         Vector3 n = vm->jawBase.vertices[i].normal;
-        Vector3 rp = Vec3_Create(p.x, c * p.y - s * p.z, s * p.y + c * p.z);
+        Vector3 pScaled = Vec3_Create(pRel.x * scaleX, pRel.y * scaleY, pRel.z * scaleZ);
+        Vector3 rp = Vec3_Create(pScaled.x, c * pScaled.y - s * pScaled.z, s * pScaled.y + c * pScaled.z);
         Vector3 rn = Vec3_Create(n.x, c * n.y - s * n.z, s * n.y + c * n.z);
         vm->jaw.vertices[i] = vm->jawBase.vertices[i];
         vm->jaw.vertices[i].position = Vec3_Add(vm->worldPosition, Transform3D_RotateVector(vm->rotation, Vec3_Add(vm->pivot, rp)));
@@ -95,13 +117,42 @@ static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth) {
     for (size_t i = 0; i < vm->hingeBase.vertexCount; ++i) {
         Vector3 p = vm->hingeBase.vertices[i].position;
         Vector3 n = vm->hingeBase.vertices[i].normal;
-        float h = vm->seamScale;
-        if (h < 1e-4f) h = Math_Max(Vec3_Distance(vm->seamSkullLeft, vm->pivot), 0.02f);
-        float dSkull = Math_Min(Vec3_Distance(p, vm->seamSkullLeft), Vec3_Distance(p, vm->seamSkullRight));
-        dSkull = Math_Min(dSkull, Vec3_Distance(p, vm->seamGular));
-        dSkull = Math_Min(dSkull, Vec3_Distance(p, vm->pivot));
-        float dJaw = Math_Min(Vec3_Distance(p, vm->seamJawLeftClosed), Vec3_Distance(p, vm->seamJawRightClosed));
-        dJaw = Math_Min(dJaw, Vec3_Distance(p, vm->seamJawAnchor));
+        float h = vm->seamScale * scaleZ;
+        if (h < 1e-4f) h = Math_Max(Vec3_Distance(vm->seamSkullLeft, vm->pivot) * scaleZ, 0.02f);
+        Vector3 pRel = Vec3_Sub(p, pivotBase);
+        Vector3 pRelScaled = Vec3_Create(pRel.x * scaleX, pRel.y * scaleY, pRel.z * scaleZ);
+        Vector3 pScaled = Vec3_Add(vm->pivot, pRelScaled);
+
+        Vector3 seamSkullLeft = Vec3_Add(vm->pivot, Vec3_Create(
+            (vm->seamSkullLeft.x - pivotBase.x) * scaleX,
+            (vm->seamSkullLeft.y - pivotBase.y) * scaleY,
+            (vm->seamSkullLeft.z - pivotBase.z) * scaleZ));
+        Vector3 seamSkullRight = Vec3_Add(vm->pivot, Vec3_Create(
+            (vm->seamSkullRight.x - pivotBase.x) * scaleX,
+            (vm->seamSkullRight.y - pivotBase.y) * scaleY,
+            (vm->seamSkullRight.z - pivotBase.z) * scaleZ));
+        Vector3 seamGular = Vec3_Add(vm->pivot, Vec3_Create(
+            (vm->seamGular.x - pivotBase.x) * scaleX,
+            (vm->seamGular.y - pivotBase.y) * scaleY,
+            (vm->seamGular.z - pivotBase.z) * scaleZ));
+        Vector3 seamJawLeftClosed = Vec3_Add(vm->pivot, Vec3_Create(
+            (vm->seamJawLeftClosed.x - pivotBase.x) * scaleX,
+            (vm->seamJawLeftClosed.y - pivotBase.y) * scaleY,
+            (vm->seamJawLeftClosed.z - pivotBase.z) * scaleZ));
+        Vector3 seamJawRightClosed = Vec3_Add(vm->pivot, Vec3_Create(
+            (vm->seamJawRightClosed.x - pivotBase.x) * scaleX,
+            (vm->seamJawRightClosed.y - pivotBase.y) * scaleY,
+            (vm->seamJawRightClosed.z - pivotBase.z) * scaleZ));
+        Vector3 seamJawAnchor = Vec3_Add(vm->pivot, Vec3_Create(
+            (vm->seamJawAnchor.x - pivotBase.x) * scaleX,
+            (vm->seamJawAnchor.y - pivotBase.y) * scaleY,
+            (vm->seamJawAnchor.z - pivotBase.z) * scaleZ));
+
+        float dSkull = Math_Min(Vec3_Distance(pScaled, seamSkullLeft), Vec3_Distance(pScaled, seamSkullRight));
+        dSkull = Math_Min(dSkull, Vec3_Distance(pScaled, seamGular));
+        dSkull = Math_Min(dSkull, Vec3_Distance(pScaled, vm->pivot));
+        float dJaw = Math_Min(Vec3_Distance(pScaled, seamJawLeftClosed), Vec3_Distance(pScaled, seamJawRightClosed));
+        dJaw = Math_Min(dJaw, Vec3_Distance(pScaled, seamJawAnchor));
         float dnSkull = dSkull / h;
         float dnJaw = dJaw / h;
         float denom = dnSkull + dnJaw + 1e-6f;
@@ -110,8 +161,7 @@ static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth) {
         float ws = w * w * (3.0f - 2.0f * w);
         float wAngle = angle * ws;
         float cw = cosf(wAngle), sw = sinf(wAngle);
-        Vector3 pRel = Vec3_Sub(p, vm->pivot);
-        Vector3 pr = Vec3_Create(pRel.x, cw * pRel.y - sw * pRel.z, sw * pRel.y + cw * pRel.z);
+        Vector3 pr = Vec3_Create(pRelScaled.x, cw * pRelScaled.y - sw * pRelScaled.z, sw * pRelScaled.y + cw * pRelScaled.z);
         Vector3 newPos = Vec3_Add(vm->pivot, pr);
         Vector3 nRot = Vec3_Create(n.x, cw * n.y - sw * n.z, sw * n.y + cw * n.z);
         float nl = Vec3_Length(nRot);
@@ -125,25 +175,63 @@ static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth) {
         else vm->hinge.vertices[i].normal = Vec3_Scale(vm->hinge.vertices[i].normal, 1.0f/nlen);
     }
 }
-static bool GenerateEyes(const Monster* monster, MonsterVisualEye** output) {
-    MonsterVisualEye* eyes = monster->eyeCount ? calloc(monster->eyeCount, sizeof(*eyes)) : NULL;
-    if (monster->eyeCount && !eyes) return false;
-    *output=eyes;
-    for (size_t i=0;i<monster->eyeCount;++i) { const Eye* e=&monster->eyes[i]; eyes[i].sclera=Mesh_Create(); eyes[i].iris=Mesh_Create(); eyes[i].pupil=Mesh_Create();
-        if(e->scale.x<=1e-4f||e->scale.y<=1e-4f||e->scale.z<=1e-4f) continue;
-        Vector3 base=e->bodyPartIndex<monster->bodyPartCount?monster->bodyParts[e->bodyPartIndex].positionRender:Vec3_Zero(); Vector3 p=Vec3_Add(base,e->offset),r=e->scale,f=Vec3_Normalize(e->forward);
-        if(Vec3_LengthSq(f)<1e-6f)f=Transform3D_RotateVector(e->rotation,Vec3_Create(0,0,1));
-        Transform3D st=Transform3D_Create(p,e->rotation,r);
-        float irisRadius=Math_Max(Math_Min(r.x,r.y)*Math_Clamp(e->irisScale,.25f,.96f),.008f);
-        float irisDepth=Math_Max(r.z*.075f,.004f);
-        Transform3D it=Transform3D_Create(Vec3_Add(p,Vec3_Scale(f,r.z-irisDepth*.55f)),e->rotation,Vec3_Create(irisRadius,irisRadius,irisDepth));
-        float pupilHeight=Math_Max(irisRadius*Math_Clamp(e->pupilScale,.08f,.90f),.004f);
-        float pupilWidth=pupilHeight*Math_Clamp(e->pupilAspect,.12f,1.0f),pupilDepth=Math_Max(irisDepth*.55f,.002f);
-        Transform3D pt=Transform3D_Create(Vec3_Add(p,Vec3_Scale(f,r.z+pupilDepth*.15f)),e->rotation,Vec3_Create(pupilWidth,pupilHeight,pupilDepth));
-        if(!PrimitiveMesh_GenerateEllipsoid(&eyes[i].sclera,st,18,14,e->scleraColor)||!PrimitiveMesh_GenerateEllipsoid(&eyes[i].iris,it,16,10,e->irisColor)||!PrimitiveMesh_GenerateEllipsoid(&eyes[i].pupil,pt,12,8,e->pupilColor)) {
-            for(size_t j=0;j<=i;++j){Mesh_Free(&eyes[j].sclera);Mesh_Free(&eyes[j].iris);Mesh_Free(&eyes[j].pupil);} free(eyes);*output=NULL;return false;
+
+bool MonsterVisual_UpdateEyes(MonsterVisualEye* eyes, size_t eyeCount, const Monster* monster) {
+    if (!monster) return false;
+    if (monster->eyeCount == 0) return true;
+    if (!eyes || eyeCount < monster->eyeCount) return false;
+    for (size_t i = 0; i < monster->eyeCount; ++i) {
+        const Eye* e = &monster->eyes[i];
+        if (e->scale.x <= 1e-4f || e->scale.y <= 1e-4f || e->scale.z <= 1e-4f) {
+            Mesh_Clear(&eyes[i].sclera);
+            Mesh_Clear(&eyes[i].iris);
+            Mesh_Clear(&eyes[i].pupil);
+            continue;
         }
-    } return true;
+        Vector3 base = e->bodyPartIndex < monster->bodyPartCount ? monster->bodyParts[e->bodyPartIndex].positionRender : Vec3_Zero();
+        Vector3 p = Vec3_Add(base, e->offset), r = e->scale, f = Vec3_Normalize(e->forward);
+        if (Vec3_LengthSq(f) < 1e-6f) f = Transform3D_RotateVector(e->rotation, Vec3_Create(0, 0, 1));
+        Transform3D st = Transform3D_Create(p, e->rotation, r);
+        float irisRadius = Math_Max(Math_Min(r.x, r.y) * Math_Clamp(e->irisScale, .25f, .96f), .008f);
+        float irisDepth = Math_Max(r.z * .075f, .004f);
+        Transform3D it = Transform3D_Create(Vec3_Add(p, Vec3_Scale(f, r.z - irisDepth * .55f)), e->rotation, Vec3_Create(irisRadius, irisRadius, irisDepth));
+        float pupilHeight = Math_Max(irisRadius * Math_Clamp(e->pupilScale, .08f, .90f), .004f);
+        float pupilWidth = pupilHeight * Math_Clamp(e->pupilAspect, .12f, 1.0f), pupilDepth = Math_Max(irisDepth * .55f, .002f);
+        Transform3D pt = Transform3D_Create(Vec3_Add(p, Vec3_Scale(f, r.z + pupilDepth * .15f)), e->rotation, Vec3_Create(pupilWidth, pupilHeight, pupilDepth));
+        if (!PrimitiveMesh_GenerateEllipsoid(&eyes[i].sclera, st, 18, 14, e->scleraColor) ||
+            !PrimitiveMesh_GenerateEllipsoid(&eyes[i].iris, it, 16, 10, e->irisColor) ||
+            !PrimitiveMesh_GenerateEllipsoid(&eyes[i].pupil, pt, 12, 8, e->pupilColor)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool GenerateEyes(const Monster* monster, MonsterVisualEye** output) {
+    if (!monster || !output) return false;
+    if (monster->eyeCount == 0) {
+        *output = NULL;
+        return true;
+    }
+    MonsterVisualEye* eyes = (MonsterVisualEye*)calloc(monster->eyeCount, sizeof(*eyes));
+    if (!eyes) return false;
+    for (size_t i = 0; i < monster->eyeCount; ++i) {
+        eyes[i].sclera = Mesh_Create();
+        eyes[i].iris = Mesh_Create();
+        eyes[i].pupil = Mesh_Create();
+    }
+    if (!MonsterVisual_UpdateEyes(eyes, monster->eyeCount, monster)) {
+        for (size_t j = 0; j < monster->eyeCount; ++j) {
+            Mesh_Free(&eyes[j].sclera);
+            Mesh_Free(&eyes[j].iris);
+            Mesh_Free(&eyes[j].pupil);
+        }
+        free(eyes);
+        *output = NULL;
+        return false;
+    }
+    *output = eyes;
+    return true;
 }
 static void FreeEyes(MonsterVisualEye* eyes,size_t count){if(!eyes)return;for(size_t i=0;i<count;++i){Mesh_Free(&eyes[i].sclera);Mesh_Free(&eyes[i].iris);Mesh_Free(&eyes[i].pupil);}free(eyes);}
 void MonsterVisual_UpdateMouthArticulation(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster) {
@@ -151,7 +239,7 @@ void MonsterVisual_UpdateMouthArticulation(MonsterVisualMouth* vm, const Mouth* 
     Mouth m = *source; Mouth_Normalize(&m);
     Vector3 part = m.bodyPartIndex < monster->bodyPartCount ? monster->bodyParts[m.bodyPartIndex].positionRender : Vec3_Zero();
     vm->worldPosition = Vec3_Add(part, m.offset); vm->rotation = m.rotation; vm->pivot = m.jawPivot;
-    TransformJaw(vm, &m);
+    TransformJaw(vm, &m, monster);
 }
 static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster, const MonsterSDF* sdf, size_t mouthIndex, SDFMesher* jawMesher, SDFMesher* seamMesher) {
     if (!vm || !source || !monster || !sdf || mouthIndex >= sdf->mouthCount) return false;
@@ -170,6 +258,11 @@ static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* so
     vm->seamGular = sm->seamGularLocal;
     vm->seamJawAnchor = sm->seamJawAnchorLocal;
     vm->seamScale = sm->seamScale;
+    vm->basePivot = m.jawPivot;
+    vm->baseJawLength = m.jawLength;
+    vm->baseJawWidth = m.jawWidth;
+    vm->baseJawThickness = m.jawThickness;
+    vm->baseScale = monster->hasLizardPhenotype ? monster->lizardPhenotype.totalScale : 1.0f;
 
     MonsterSDFJawField jawContext;
     SDFField jawField=MonsterSDF_GetJawField(sdf,mouthIndex,&jawContext);
@@ -204,7 +297,7 @@ static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* so
     if (!Mesh_ReserveVertices(&vm->hinge, vm->hingeBase.vertexCount) || !Mesh_ReserveIndices(&vm->hinge, vm->hingeBase.indexCount)) return false;
     vm->hinge.vertexCount = vm->hingeBase.vertexCount; vm->hinge.indexCount = vm->hingeBase.indexCount;
     memcpy(vm->hinge.indices, vm->hingeBase.indices, vm->hingeBase.indexCount * sizeof(MeshIndex));
-    TransformJaw(vm, &m);
+    TransformJaw(vm, &m, monster);
     return true;
 }
 bool MonsterVisual_BuildMouthMeshesFromSDFWithMeshers(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster, const MonsterSDF* sdf, size_t mouthIndex, SDFMesher* jawMesher, SDFMesher* seamMesher) {

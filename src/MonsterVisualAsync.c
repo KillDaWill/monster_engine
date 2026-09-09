@@ -321,42 +321,13 @@ static void* WorkerThreadRoutine(void* arg) {
         if (meshOk && headOk && workEyeCount > 0) {
             workEyes = (MonsterVisualEyeAsync*)calloc(workEyeCount, sizeof(MonsterVisualEyeAsync));
             if (workEyes) {
-                const float EYE_VISIBILITY_EPS = 1e-4f;
                 for (size_t i = 0; i < workEyeCount; ++i) {
-                    const Eye* eye = &workMonster.eyes[i];
                     workEyes[i].sclera = Mesh_Create();
                     workEyes[i].iris = Mesh_Create();
                     workEyes[i].pupil = Mesh_Create();
-
-                    if (eye->scale.x <= EYE_VISIBILITY_EPS ||
-                        eye->scale.y <= EYE_VISIBILITY_EPS ||
-                        eye->scale.z <= EYE_VISIBILITY_EPS) {
-                        continue;
-                    }
-
-                    Vector3 partPos = Vec3_Zero();
-                    if (eye->bodyPartIndex < workMonster.bodyPartCount) {
-                        partPos = workMonster.bodyParts[eye->bodyPartIndex].positionRender;
-                    }
-
-                    Vector3 eyePos = Vec3_Add(partPos, eye->offset);
-                    Vector3 eyeRadii = eye->scale;
-                    Transform3D scleraTrans = Transform3D_Create(eyePos, eye->rotation, eyeRadii);
-                    Vector3 pupilForward = Vec3_Normalize(eye->forward);
-                    if(Vec3_LengthSq(pupilForward)<1e-6f)pupilForward=Transform3D_RotateVector(eye->rotation,Vec3_Create(0,0,1));
-                    float irisRadius=Math_Max(Math_Min(eyeRadii.x,eyeRadii.y)*Math_Clamp(eye->irisScale,.25f,.96f),.008f);
-                    float irisDepth=Math_Max(eyeRadii.z*.075f,.004f);
-                    Transform3D irisTrans=Transform3D_Create(Vec3_Add(eyePos,Vec3_Scale(pupilForward,eyeRadii.z-irisDepth*.55f)),eye->rotation,Vec3_Create(irisRadius,irisRadius,irisDepth));
-                    float pupilHeight=Math_Max(irisRadius*Math_Clamp(eye->pupilScale,.08f,.90f),.004f);
-                    float pupilWidth=pupilHeight*Math_Clamp(eye->pupilAspect,.12f,1.0f),pupilDepth=Math_Max(irisDepth*.55f,.002f);
-                    Transform3D pupilTrans=Transform3D_Create(Vec3_Add(eyePos,Vec3_Scale(pupilForward,eyeRadii.z+pupilDepth*.15f)),eye->rotation,Vec3_Create(pupilWidth,pupilHeight,pupilDepth));
-
-                    if (!PrimitiveMesh_GenerateEllipsoid(&workEyes[i].sclera, scleraTrans, 18, 14, eye->scleraColor) ||
-                        !PrimitiveMesh_GenerateEllipsoid(&workEyes[i].iris, irisTrans, 16, 10, eye->irisColor) ||
-                        !PrimitiveMesh_GenerateEllipsoid(&workEyes[i].pupil, pupilTrans, 12, 8, eye->pupilColor)) {
-                        eyeOk = false;
-                        break;
-                    }
+                }
+                if (!MonsterVisual_UpdateEyes(workEyes, workEyeCount, &workMonster)) {
+                    eyeOk = false;
                 }
             } else {
                 eyeOk = false;
@@ -618,9 +589,7 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         pthread_cond_signal(&asyncMgr->cond);
     }
 
-    bool allowLiveArticulation = asyncMgr->displayGeneration>0 &&
-        ComputeMonsterFingerprint(monster,asyncMgr->config.sdfConfig,
-            asyncMgr->displayStats.activeQualityTier)==asyncMgr->displayFingerprint;
+    bool allowLiveArticulation = isDisplayMatch || asyncMgr->morphMode;
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
@@ -631,6 +600,27 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         asyncMgr->stats.displayedScale = monster->lizardPhenotype.totalScale;
     }
 
+    /* Ojos: actualización continua de posición y escala morfológica en tiempo real */
+    if (allowLiveArticulation && monster->eyeCount > 0) {
+        if (asyncMgr->displayEyeCount < monster->eyeCount) {
+            FreeEyeArray(asyncMgr->displayEyes, asyncMgr->displayEyeCount);
+            asyncMgr->displayEyes = (MonsterVisualEyeAsync*)calloc(monster->eyeCount, sizeof(MonsterVisualEyeAsync));
+            if (asyncMgr->displayEyes) {
+                for (size_t i = 0; i < monster->eyeCount; ++i) {
+                    asyncMgr->displayEyes[i].sclera = Mesh_Create();
+                    asyncMgr->displayEyes[i].iris = Mesh_Create();
+                    asyncMgr->displayEyes[i].pupil = Mesh_Create();
+                }
+                asyncMgr->displayEyeCount = monster->eyeCount;
+                asyncMgr->displayEyeCapacity = monster->eyeCount;
+            }
+        }
+        if (asyncMgr->displayEyes && asyncMgr->displayEyeCount >= monster->eyeCount) {
+            MonsterVisual_UpdateEyes(asyncMgr->displayEyes, asyncMgr->displayEyeCount, monster);
+        }
+    }
+
+    /* Mandíbula: actualización continua de articulación y escalado morfológico */
     if (allowLiveArticulation) {
         for (size_t i = 0; i < asyncMgr->displayMouthCount && i < monster->mouthCount; ++i) {
             MonsterVisual_UpdateMouthArticulation(&asyncMgr->displayMouths[i], &monster->mouths[i], monster);
