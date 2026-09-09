@@ -172,6 +172,7 @@ int main(int argc, char* argv[]) {
 
     float ageSpeed = 0.20f; /* ~5 s para recorrido completo 0 -> 1 */
     float fpsTimer = 0.0f;
+    float titleTimer = 0.0f;
     int fpsFrames = 0;
     float currentFps = 0.0f;
     float currentBuildsPerSec = 0.0f;
@@ -305,10 +306,8 @@ int main(int argc, char* argv[]) {
         }
 
         /* Desfase entre edad mostrada en pantalla y edad objetivo */
-        float juvenileScale = 0.58f;
-        float adultScale = 1.0f;
         float displayedAge = stats.displayedScale > 0.0f
-            ? Math_Clamp01((stats.displayedScale - juvenileScale) / (adultScale - juvenileScale))
+            ? Lizard_AgeFromScale(stats.displayedScale)
             : ageFactor;
         float ageLag = fabsf(displayedAge - ageFactor);
         const char* tierStr = (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED)
@@ -328,13 +327,17 @@ int main(int argc, char* argv[]) {
                 (unsigned long long)stats.coalescedCount);
         }
 
-        char title[256];
-        snprintf(title, sizeof(title),
-            "Monster Engine | Lagarto %.0f%% (lag: %.1f%%) | Tier: %s | Worker: %.1fms | FPS: %.0f | Builds/s: %.1f | %s",
-            ageFactor * 100.0f, ageLag * 100.0f, tierStr, stats.lastBuildDurationMs,
-            currentFps, currentBuildsPerSec,
-            autoAnimate ? "ANIMANDO" : "PAUSA");
-        SDL_SetWindowTitle(window, title);
+        titleTimer += deltaTime;
+        if (titleTimer >= 0.10f || generation != printedGeneration) {
+            titleTimer = 0.0f;
+            char title[256];
+            snprintf(title, sizeof(title),
+                "Monster Engine | Lagarto %.0f%% (lag: %.1f%%) | Tier: %s | Worker: %.1fms | FPS: %.0f | Builds/s: %.1f | %s",
+                ageFactor * 100.0f, ageLag * 100.0f, tierStr, stats.lastBuildDurationMs,
+                currentFps, currentBuildsPerSec,
+                autoAnimate ? "ANIMANDO" : "PAUSA");
+            SDL_SetWindowTitle(window, title);
+        }
 
         renderer.beginFrame(&renderer);
         OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);

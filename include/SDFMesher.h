@@ -35,6 +35,8 @@ typedef struct SDFMesherConfig {
     bool useAutoBounds;/**< Si es true, recalcula las fronteras usando field->getBounds */
     bool adaptiveDetail; /**< Octree local conformante en autobounds; maxResolution sólo limita la rejilla densa. */
     int samplingThreadCount; /**< Hilos totales para muestreo escalar (0=auto, 1=serial, N=hilos) */
+    bool (*shouldCancel)(void* cancelContext); /**< Callback opcional para cancelación cooperativa */
+    void* cancelContext;                       /**< Contexto opaco para shouldCancel */
 } SDFMesherConfig;
 
 /**
@@ -112,6 +114,7 @@ typedef struct SDFMesher {
     size_t nodeCandidateCapacity; /**< Capacidad de nodeCandidateMask */
     struct SDFSamplingPool* borrowedPool; /**< Pool de muestreo prestado */
     struct SDFSamplingPool* ownedPool;    /**< Pool propio si fue creado internamente */
+    struct SDFAdaptiveWorkspace* adaptiveWorkspace; /**< Espacio de trabajo reutilizable para SDFAdaptiveMesher */
     SDFMesherStats lastStats;    /**< Métricas de la última ejecución */
 } SDFMesher;
 

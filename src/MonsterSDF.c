@@ -392,7 +392,12 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             if (rear > maxRear) rear = maxRear;
             halfDepth = Math_Max((front - rear) * 0.5f, slitThickness * 2.0f);
             sdf->mouths[m].entranceCenterLocal = Vec3_Create(0.0f, useAnatomicalHead?resolvedHead.landmarks.leftMouthCorner.y:0.0f, (front + rear) * 0.5f);
-            sdf->mouths[m].entranceHalfExtents = Vec3_Create(cutHalfWidth, cutHalfHeight, halfDepth);
+            float entranceHalfX = cutHalfWidth;
+            if (useAnatomicalHead) {
+                float maxLateral = Math_Max(resolvedHead.landmarks.leftMouthCorner.x, resolvedHead.landmarks.leftJawHinge.x);
+                entranceHalfX = Math_Max(entranceHalfX, maxLateral + cutHalfHeight);
+            }
+            sdf->mouths[m].entranceHalfExtents = Vec3_Create(entranceHalfX, cutHalfHeight, halfDepth);
             sdf->mouths[m].cavityCenterLocal = useAnatomicalHead?resolvedHead.landmarks.oralCavityCenter:Vec3_Create(0.0f, 0.0f, rear + halfDepth * 0.32f);
             sdf->mouths[m].cavityRadii = Vec3_Create(Math_Max(width * 0.43f, slitThickness * 2.0f), useAnatomicalHead?Math_Max(resolvedHead.surface.faceRootRadii.y*.34f,slitThickness*2.0f):Math_Max(maxOpening * 0.62f, width * 0.18f), Math_Max(depth * 0.48f, slitThickness * 2.0f));
             sdf->mouths[m].insideColor = mouth->insideColor;
@@ -825,7 +830,7 @@ static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vect
         d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(localP,rightCheek),mouth->cheekRadii),k*.42f);
         /* Las masas periorbitales deben penetrar el cráneo; una unión demasiado
          * estrecha permite que aparezcan como placas independientes. */
-        d=SDF_SmoothUnion(d,MonsterSDF_EvalPeriorbitalDistance(mouth,localP),k*.48f);
+        d=SDF_SmoothUnion(d,MonsterSDF_EvalPeriorbitalDistance(mouth,localP),k*.85f);
         d=SDF_SmoothUnion(d,MonsterSDF_EvalNeckCollarDistance(mouth,localP),mouth->headBodySmoothness);
         if(mouth->hasNasalPad) d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(localP,mouth->noseCenterLocal),mouth->noseRadii),k*.35f);
         if(mouth->hasEars) {

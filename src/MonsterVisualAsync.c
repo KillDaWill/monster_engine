@@ -1,4 +1,5 @@
 #include "MonsterVisualAsync.h"
+#include "LizardMorph.h"
 #include "SDFSamplingPool.h"
 #include "PrimitiveMesh.h"
 #include "MathUtils.h"
@@ -204,6 +205,15 @@ static void FreeMouthArray(MonsterVisualMouth* mouths, size_t count) {
     free(mouths);
 }
 
+static bool WorkerShouldCancel(void* context) {
+    MonsterVisualAsync* asyncMgr = (MonsterVisualAsync*)context;
+    if (!asyncMgr) return true;
+    if (asyncMgr->shouldQuit) return true;
+    if (asyncMgr->displayGeneration == 0) return false;
+    if (asyncMgr->hasPendingRequest) return true;
+    return false;
+}
+
 static void* WorkerThreadRoutine(void* arg) {
     MonsterVisualAsync* asyncMgr = (MonsterVisualAsync*)arg;
 
@@ -223,6 +233,7 @@ static void* WorkerThreadRoutine(void* arg) {
     Monster workMonster = Monster_Create();
     Mesh workBodyMesh = Mesh_Create();
     Mesh workHeadMesh = Mesh_Create();
+    LizardMorph* workerMorph = LizardMorph_Create();
 
     while (1) {
         pthread_mutex_lock(&asyncMgr->lock);
@@ -271,6 +282,10 @@ static void* WorkerThreadRoutine(void* arg) {
 
         activeMesherCfg=MonsterVisualAsync_ResolveBodyConfig(&asyncMgr->config,workTier,
             workMonster.hasLizardPhenotype);
+        activeMesherCfg.shouldCancel = WorkerShouldCancel;
+        activeMesherCfg.cancelContext = asyncMgr;
+        activeHeadCfg.shouldCancel = WorkerShouldCancel;
+        activeHeadCfg.cancelContext = asyncMgr;
         workerMesher.config = activeMesherCfg;
         workerHeadMesher.config = activeHeadCfg;
 
@@ -366,6 +381,10 @@ static void* WorkerThreadRoutine(void* arg) {
             }
         }
 
+        if (meshOk && workMonster.hasLizardPhenotype && workBodyMesh.vertexCount > 0) {
+            LizardMorph_Bind(workerMorph, &workBodyMesh, &workMonster.anatomyGraph);
+        }
+
         float workScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
         double tEnd = GetTimeMs();
         float durationMs = (float)(tEnd - tStart);
@@ -385,6 +404,10 @@ static void* WorkerThreadRoutine(void* arg) {
             Mesh tmpHead=asyncMgr->readyHeadMesh;
             asyncMgr->readyHeadMesh=workHeadMesh;
             workHeadMesh=tmpHead;
+
+            LizardMorph* tmpMorph = asyncMgr->readyMorph;
+            asyncMgr->readyMorph = workerMorph;
+            workerMorph = tmpMorph;
 
             asyncMgr->readyEyes = workEyes;
             asyncMgr->readyEyeCount = workEyeCount;
@@ -409,12 +432,14 @@ static void* WorkerThreadRoutine(void* arg) {
         } else {
             if (workEyes) FreeEyeArray(workEyes, workEyeCount);
             if (workMouths) FreeMouthArray(workMouths, workMouthCount);
+            if (!meshOk) asyncMgr->stats.cancelledBuildCount++;
         }
 
         asyncMgr->stats.isWorkerBusy = false;
         pthread_mutex_unlock(&asyncMgr->lock);
     }
 
+    LizardMorph_Free(workerMorph);
     Mesh_Free(&workBodyMesh);
     Mesh_Free(&workHeadMesh);
     SDFMesher_Free(&workerMesher);
@@ -437,6 +462,8 @@ MonsterVisualAsync* MonsterVisualAsync_Create(MonsterVisualAsyncConfig config) {
     asyncMgr->displayHeadMesh = Mesh_Create();
     asyncMgr->readyHeadMesh = Mesh_Create();
     asyncMgr->pendingSnapshot = Monster_Create();
+    asyncMgr->displayMorph = LizardMorph_Create();
+    asyncMgr->readyMorph = LizardMorph_Create();
     asyncMgr->samplingPool = SDFSamplingPool_Create(0);
 
     pthread_mutex_init(&asyncMgr->lock, NULL);
@@ -477,6 +504,9 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
     Mesh_Free(&asyncMgr->readyHeadMesh);
     FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
     FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
+
+    LizardMorph_Free(asyncMgr->displayMorph);
+    LizardMorph_Free(asyncMgr->readyMorph);
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
@@ -536,6 +566,10 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         asyncMgr->displayHeadMesh=asyncMgr->readyHeadMesh;
         asyncMgr->readyHeadMesh=tmpHead;
 
+        LizardMorph* tmpMorph = asyncMgr->displayMorph;
+        asyncMgr->displayMorph = asyncMgr->readyMorph;
+        asyncMgr->readyMorph = tmpMorph;
+
         asyncMgr->displayEyes = asyncMgr->readyEyes;
         asyncMgr->displayEyeCount = asyncMgr->readyEyeCount;
         asyncMgr->displayEyeCapacity = asyncMgr->readyEyeCapacity;
@@ -589,6 +623,13 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
             asyncMgr->displayStats.activeQualityTier)==asyncMgr->displayFingerprint;
 
     pthread_mutex_unlock(&asyncMgr->lock);
+
+    if (asyncMgr->morphMode && monster->hasLizardPhenotype &&
+        LizardMorph_IsBound(asyncMgr->displayMorph) &&
+        asyncMgr->displayMesh.vertexCount == LizardMorph_GetVertexCount(asyncMgr->displayMorph)) {
+        LizardMorph_Deform(asyncMgr->displayMorph, &monster->anatomyGraph, &asyncMgr->displayMesh);
+        asyncMgr->stats.displayedScale = monster->lizardPhenotype.totalScale;
+    }
 
     if (allowLiveArticulation) {
         for (size_t i = 0; i < asyncMgr->displayMouthCount && i < monster->mouthCount; ++i) {
@@ -715,6 +756,10 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
         Mesh tmpHead=asyncMgr->displayHeadMesh;
         asyncMgr->displayHeadMesh=asyncMgr->readyHeadMesh;
         asyncMgr->readyHeadMesh=tmpHead;
+
+        LizardMorph* tmpMorph = asyncMgr->displayMorph;
+        asyncMgr->displayMorph = asyncMgr->readyMorph;
+        asyncMgr->readyMorph = tmpMorph;
 
         asyncMgr->displayEyes = asyncMgr->readyEyes;
         asyncMgr->displayEyeCount = asyncMgr->readyEyeCount;

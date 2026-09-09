@@ -311,3 +311,17 @@ bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* source)
     }
     return true;
 }
+
+float Lizard_AgeFromScale(float scale) {
+    const float juvenileScale = 0.58f;
+    const float adultScale = 1.0f;
+    float t = Math_Clamp01((scale - juvenileScale) / (adultScale - juvenileScale));
+    float a = t;
+    for (int iter = 0; iter < 8; ++iter) {
+        float f = a * a * (3.0f - 2.0f * a) - t;
+        float df = 6.0f * a * (1.0f - a);
+        if (fabsf(df) < 1e-6f) break;
+        a = Math_Clamp01(a - f / df);
+    }
+    return a;
+}
