@@ -36,6 +36,7 @@ typedef struct LizardPhenotype {
     float forelimbThickness; /**< Robustez de miembros anteriores. */
     float hindlimbLength; /**< Longitud semántica de miembros posteriores. */
     float hindlimbThickness; /**< Robustez de miembros posteriores. */
+    float appendageDevelopment; /**< Emergencia ontogenética de miembros y dedos [0,1]. */
     float manualDigitLengths[5]; /**< Longitudes relativas I-V; permite dominancia III o IV. */
     float tailLength; /**< Longitud de la cola desde la pelvis. */
     float tailBaseWidth; /**< Radio transversal de la base caudal. */
@@ -44,12 +45,16 @@ typedef struct LizardPhenotype {
     float tailTipHeight; /**< Radio vertical distal. */
     float tailTaperCurve; /**< Exponente del ahusamiento caudal. */
     float colorMaturity; /**< Maduración cromática del preset, independiente de la pose. */
+    float pigmentation; /**< Aparición ontogenética de pigmento corporal [0,1]. */
+    float cephalicDevelopment; /**< Diferenciación de cabeza, ojos y sistema oral [0,1]. */
     float eyeProportion; /**< Reserva semántica de proporción ocular ontogenética. */
     HeadPhenotype head; /**< Fenotipo cefálico poseído. */
 } LizardPhenotype;
 
 /** @return Fenotipo juvenil válido con la topología compartida. */
 LizardPhenotype LizardPreset_Juvenile(void);
+/** @return Fenotipo larvario vermiforme, blanco y sin apéndices visibles. */
+LizardPhenotype LizardPreset_Larva(void);
 /** @return Fenotipo adulto válido con la topología compartida. */
 LizardPhenotype LizardPreset_Adult(void);
 /** Interpola dos fenotipos en espacio semántico y normaliza el resultado. */
@@ -64,6 +69,8 @@ bool Lizard_ResolveAnatomy(const LizardPhenotype* phenotype, AnatomyGraph* graph
 bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* phenotype);
 /** Calcula la edad ontogenética inversa correspondiente a una escala corporal total. */
 float Lizard_AgeFromScale(float scale);
+/** Calcula la edad inversa entre dos escalas fenotípicas concretas. */
+float Lizard_AgeFromScaleBetween(float scale, float initialScale, float finalScale);
 
 #ifdef __cplusplus
 }

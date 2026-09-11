@@ -10,6 +10,7 @@
 
 #include "RenderInterfaces.h"
 #include "Mesh.h"
+#include "MonsterSDF.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,6 +61,47 @@ bool OpenGLRenderer_SavePPM(const char* path, int width, int height);
  * @param renderer Puntero al renderizador 3D.
  */
 void OpenGLRenderer_Destroy(Renderer3D* renderer);
+
+/** @brief Dibuja directamente el campo compilado sin reconstruir triángulos.
+ * @param renderer Backend OpenGL propietario de los recursos GPU.
+ * @param sdf Campo compilado correspondiente al fotograma actual.
+ * @param camera Cámara actual.
+ * @param width Anchura del framebuffer.
+ * @param height Altura del framebuffer.
+ * @return false si el backend no admite GLSL 330 o falla la preparación.
+ */
+bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,
+    const ICamera* camera,int width,int height);
+
+/** @brief Inicia un fotograma SDF con resolución espacial adaptada al presupuesto GPU.
+ * @param renderer Backend propietario del framebuffer y las consultas temporales.
+ * @param camera Cámara actual; se conserva su proyección y relación de aspecto.
+ * @param width Anchura de presentación.
+ * @param height Altura de presentación.
+ * @param adaptive Ajustar resolución para reservar 8 ms de trabajo GPU.
+ * @return true si se preparó el framebuffer.
+ */
+bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive);
+/** @brief Presenta el fotograma SDF y recoge tiempos GPU sin bloquear. */
+void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height);
+/** @brief Última duración GPU completada, en milisegundos. */
+float OpenGLRenderer_GetSDFGpuMs(const Renderer3D* renderer);
+/** @brief Escala espacial actual del framebuffer SDF respecto a la ventana. */
+float OpenGLRenderer_GetSDFResolutionScale(const Renderer3D* renderer);
+
+/** @brief Compara en GPU y CPU puntos del último campo dibujado por RenderSDF.
+ * @param renderer Backend que acaba de recibir el snapshot sdf.
+ * @param sdf El mismo snapshot compilado, sin modificar desde RenderSDF.
+ * @param points Puntos mundiales de comprobación.
+ * @param count Cantidad de puntos, entre 1 y 4096.
+ * @param maxError Salida: máximo error absoluto de distancia.
+ * @return true si se ejecutó la lectura GPU; el llamador comprueba la tolerancia.
+ */
+bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,
+    const Vector3* points,size_t count,float* maxError);
+
+/** @brief Espera a la GPU para medir el coste real en validaciones de rendimiento. */
+void OpenGLRenderer_Finish(void);
 
 #ifdef __cplusplus
 }

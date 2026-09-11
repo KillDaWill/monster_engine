@@ -21,26 +21,32 @@
 #include "RenderInterfaces.h"
 #include "OpenGLRenderer.h"
 #include "MonsterVisualAsync.h"
+#include "demo_ager_realtime.h"
 
 static Monster Demo_CreateLizardStage(bool adult) {
     Monster lizard = Monster_Create();
-    LizardPhenotype phenotype=adult?LizardPreset_Adult():LizardPreset_Juvenile();
+    LizardPhenotype phenotype=adult?LizardPreset_Adult():LizardPreset_Larva();
     if(!Lizard_BuildMonster(&lizard,&phenotype))
         fprintf(stderr,"[ERROR] No se pudo resolver el lagarto.\n");
-    Monster_SetHeadOpenFactor(&lizard,0.10f);
+    Monster_SetHeadOpenFactor(&lizard,adult?0.10f:0.0f);
     return lizard;
 }
 
 /* Verifica los extremos de la anatomía que pertenece a la malla publicada,
  * no los de una solicitud más reciente todavía pendiente en el worker. */
-static unsigned Demo_VisibleDigits(const Mesh* mesh,float scale) {
+static LizardPhenotype Demo_PhenotypeAtScale(float scale) {
+    LizardPhenotype larva=LizardPreset_Larva(),adult=LizardPreset_Adult();
     float lo=0,hi=1;
     for(unsigned i=0;i<24;++i) {
         float t=(lo+hi)*.5f;
-        LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,t);
+        LizardPhenotype p=LizardPhenotype_Interpolate(&larva,&adult,t);
         if(p.totalScale<scale)lo=t;else hi=t;
     }
-    LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,(lo+hi)*.5f);
+    return LizardPhenotype_Interpolate(&larva,&adult,(lo+hi)*.5f);
+}
+
+static unsigned Demo_VisibleDigits(const Mesh* mesh,float scale) {
+    LizardPhenotype p=Demo_PhenotypeAtScale(scale);
     AnatomyGraph graph;if(!Lizard_ResolveAnatomy(&p,&graph))return 0;
     const unsigned formula[2][5]={{2,3,4,5,3},{2,3,4,5,4}};
     unsigned visible=0;
@@ -58,13 +64,20 @@ static unsigned Demo_VisibleDigits(const Mesh* mesh,float scale) {
 int main(int argc, char* argv[]) {
     setvbuf(stdout,NULL,_IOLBF,0);
     float requestedAge=-1.0f;
+    bool directSdf=true,nativeScale=false,validateGPU=false;int benchmarkFrames=0;
+    const char* profilePrefix=NULL;
     bool inspectHead=false;
     bool headWireframe=false;
     const char* capturePrefix=NULL;
     const char* cyclePrefix=NULL;
     bool captureMorph=false;
     for(int argi=1;argi<argc;++argi) {
-        if(strncmp(argv[argi],"--validate-cycle=",17)==0){cyclePrefix=argv[argi]+17;continue;}
+        if(strcmp(argv[argi],"--validate-gpu")==0){validateGPU=true;continue;}
+        if(strcmp(argv[argi],"--mesh")==0){directSdf=false;continue;}
+        if(strcmp(argv[argi],"--native-scale")==0){nativeScale=true;continue;}
+        if(strncmp(argv[argi],"--benchmark=",12)==0){benchmarkFrames=atoi(argv[argi]+12);continue;}
+        if(strncmp(argv[argi],"--profile-prefix=",17)==0){profilePrefix=argv[argi]+17;continue;}
+        if(strncmp(argv[argi],"--validate-cycle=",17)==0){cyclePrefix=argv[argi]+17;directSdf=false;continue;}
         if(strcmp(argv[argi],"--morph")==0){captureMorph=true;continue;}
         if(strcmp(argv[argi],"--head")==0){inspectHead=true;continue;}
         if(strcmp(argv[argi],"--wire-head")==0){inspectHead=true;headWireframe=true;continue;}
@@ -79,7 +92,7 @@ int main(int argc, char* argv[]) {
     if(capturePrefix&&requestedAge<0.0f)requestedAge=0.0f;
 
     printf("========================================================\n");
-    printf("   MONSTER ENGINE 3D: Demo SDF Transición (MonsterAger) \n");
+    printf(" MONSTER ENGINE 3D: Metamorfosis Gusano -> Lagarto (MonsterAger)\n");
     printf("========================================================\n");
     printf(" Controles:\n");
     printf("  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)\n");
@@ -98,8 +111,8 @@ int main(int argc, char* argv[]) {
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,1);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,4);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,directSdf?0:1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,directSdf?0:4);
 
     int windowWidth = 1024;
     int windowHeight = 768;
@@ -142,8 +155,8 @@ int main(int argc, char* argv[]) {
     Renderer3D renderer = OpenGLRenderer_Create(&camera);
     OpenGLRenderer_SetupCamera(&camera, windowWidth, windowHeight);
 
-    /* 3. Crear FASE 1: Lagarto Joven */
-    Monster youngLizard = Demo_CreateLizardStage(false);
+    /* 3. Crear FASE 1: larva vermiforme blanca */
+    Monster larva = Demo_CreateLizardStage(false);
 
     /* 4. Crear FASE 2: Lagarto Alfa */
     Monster adultLizard = Demo_CreateLizardStage(true);
@@ -151,7 +164,15 @@ int main(int argc, char* argv[]) {
     /* 5. Inicializar MonsterAger y MonsterVisualAsync */
     float ageFactor = requestedAge>=0.0f?requestedAge:0.0f;
     bool autoAnimate = requestedAge<0.0f;
-    MonsterAger ager = MonsterAger_Create(&youngLizard, &adultLizard, ageFactor);
+    MonsterAger ager = MonsterAger_Create(&larva, &adultLizard, ageFactor);
+
+    if(directSdf) {
+        int result=Demo_RunRealtime(window,&renderer,&camera,&ager,requestedAge,capturePrefix,
+            benchmarkFrames,profilePrefix,nativeScale,inspectHead,validateGPU);
+        MonsterAger_Free(&ager);Monster_Free(&larva);Monster_Free(&adultLizard);
+        OpenGLRenderer_Destroy(&renderer);SDL_GL_DeleteContext(glContext);SDL_DestroyWindow(window);SDL_Quit();
+        return result;
+    }
 
     MonsterVisualAsyncConfig asyncCfg = MonsterVisualAsync_DefaultConfig();
     MonsterVisualAsync* visual = MonsterVisualAsync_Create(asyncCfg);
@@ -162,15 +183,19 @@ int main(int argc, char* argv[]) {
     Uint32 lastTime = SDL_GetTicks();
     float cameraZoom = 1.0f;
     float growthDirection=1.0f;
+    float endpointHold=0.0f;
+    bool waitingAtEndpoint=false;
     int headView=inspectHead?1:0;
     uint64_t printedGeneration=0;
     bool captureActive=false,captureComplete=false,settledReady=false;
     int captureView=0,captureFrames=0;
     bool cycleReturning=false,cycleDone=false;
     unsigned cycleFrames=0,cycleFailures=0;
+    unsigned cycleCoverage[2]={0,0};
+    float previousCycleAge=0,maximumCycleStep=0;
     const char* captureNames[]={"whole","body-lateral","body-front","body-dorsal","head-oblique","head-lateral","head-frontal","head-dorsal","manus-dorsal","pes-dorsal","manus-oblique","pes-oblique"};
 
-    float ageSpeed = 0.20f; /* ~5 s para recorrido completo 0 -> 1 */
+    float ageSpeed = 0.20f; /* Velocidad máxima; el reloj respeta la publicación. */
     float fpsTimer = 0.0f;
     float titleTimer = 0.0f;
     int fpsFrames = 0;
@@ -191,6 +216,7 @@ int main(int argc, char* argv[]) {
                     case SDLK_RIGHT:
                     case SDLK_UP:
                         autoAnimate = false;
+                        waitingAtEndpoint=false;endpointHold=0.0f;
                         MonsterVisualAsync_SetMorphMode(visual, captureMorph);
                         ageFactor = Math_Clamp01(ageFactor + 0.05f);
                         MonsterAger_SetPerc(&ager, ageFactor);
@@ -199,6 +225,7 @@ int main(int argc, char* argv[]) {
                     case SDLK_LEFT:
                     case SDLK_DOWN:
                         autoAnimate = false;
+                        waitingAtEndpoint=false;endpointHold=0.0f;
                         MonsterVisualAsync_SetMorphMode(visual, captureMorph);
                         ageFactor = Math_Clamp01(ageFactor - 0.05f);
                         MonsterAger_SetPerc(&ager, ageFactor);
@@ -206,6 +233,7 @@ int main(int argc, char* argv[]) {
                         break;
                     case SDLK_0: case SDLK_1: case SDLK_2: case SDLK_3: case SDLK_4:
                         autoAnimate = false;
+                        waitingAtEndpoint=false;endpointHold=0.0f;
                         MonsterVisualAsync_SetMorphMode(visual, captureMorph);
                         ageFactor = (event.key.keysym.sym - SDLK_0) * 0.25f;
                         MonsterAger_SetPerc(&ager, ageFactor);
@@ -214,6 +242,7 @@ int main(int argc, char* argv[]) {
                     case SDLK_ESCAPE: running = false; break;
                     case SDLK_SPACE:
                         autoAnimate = !autoAnimate;
+                        if(autoAnimate){waitingAtEndpoint=false;endpointHold=0.0f;}
                         MonsterVisualAsync_SetMorphMode(visual, autoAnimate);
                         printf("[AGER] Animación automática: %s\n", autoAnimate ? "ACTIVADA" : "DESACTIVADA");
                         break;
@@ -244,17 +273,31 @@ int main(int argc, char* argv[]) {
 
         if (autoAnimate) {
             MonsterVisualAsync_SetMorphMode(visual, true);
-            /* Reloj de animación continuo e independiente de los fotogramas del mallador */
+            /* El reloj objetivo sigue siendo continuo, pero cada extremo espera a
+             * que la malla publicada lo alcance: la demo debe enseñar ambas fases. */
             if (MonsterVisualAsync_GetDisplayGeneration(visual) > 0) {
-                ageFactor += growthDirection * ageSpeed * deltaTime;
-                if (ageFactor >= 1.0f) {
-                    ageFactor = 1.0f;
-                    growthDirection = -1.0f;
-                    cycleReturning=true;
-                } else if (ageFactor <= 0.0f) {
-                    ageFactor = 0.0f;
-                    growthDirection = 1.0f;
-                    if(cyclePrefix&&cycleReturning){cycleDone=true;autoAnimate=false;}
+                if(waitingAtEndpoint) {
+                    MonsterVisualAsyncStats visible=MonsterVisualAsync_GetStats(visual);
+                    if(visible.displayedFingerprint==visible.requestedFingerprint)endpointHold+=deltaTime;
+                    else endpointHold=0.0f;
+                    if(endpointHold>=.75f) {
+                        waitingAtEndpoint=false;endpointHold=0.0f;
+                        if(ageFactor>=1.0f){growthDirection=-1.0f;cycleReturning=true;}
+                        else {
+                            growthDirection=1.0f;
+                            if(cyclePrefix&&cycleReturning){cycleDone=true;autoAnimate=false;}
+                        }
+                    }
+                } else {
+                    /* No acumular tiempo de trabajo ni saltarse anatomías cuando
+                     * el mallador tarda: avanzar sólo tras publicar el objetivo.
+                     * El límite depende del porcentaje del ager, no de la especie
+                     * ni de invertir una escala (X e Y pueden medir lo mismo). */
+                    MonsterVisualAsyncStats visible=MonsterVisualAsync_GetStats(visual);
+                    if(visible.displayedFingerprint==visible.requestedFingerprint)
+                        ageFactor += growthDirection * fminf(ageSpeed * deltaTime, .005f);
+                    if(ageFactor>=1.0f){ageFactor=1.0f;waitingAtEndpoint=true;}
+                    else if(ageFactor<=0.0f){ageFactor=0.0f;waitingAtEndpoint=true;}
                 }
                 MonsterAger_SetPerc(&ager, ageFactor);
             }
@@ -287,7 +330,7 @@ int main(int argc, char* argv[]) {
         }
         camera.position = Vec3_Add(camera.target, Vec3_Scale(offset, cameraZoom));
 
-        MonsterVisualAsync_SetContinuousMotion(visual, autoAnimate);
+        MonsterVisualAsync_SetContinuousMotion(visual, autoAnimate || captureMorph);
         MonsterVisualAsync_Update(visual, currentMonster, deltaTime);
 
         MonsterVisualAsyncStats stats = MonsterVisualAsync_GetStats(visual);
@@ -307,7 +350,8 @@ int main(int argc, char* argv[]) {
 
         /* Desfase entre edad mostrada en pantalla y edad objetivo */
         float displayedAge = stats.displayedScale > 0.0f
-            ? Lizard_AgeFromScale(stats.displayedScale)
+            ? Lizard_AgeFromScaleBetween(stats.displayedScale,
+                larva.lizardPhenotype.totalScale,adultLizard.lizardPhenotype.totalScale)
             : ageFactor;
         float ageLag = fabsf(displayedAge - ageFactor);
         const char* tierStr = (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED)
@@ -332,7 +376,7 @@ int main(int argc, char* argv[]) {
             titleTimer = 0.0f;
             char title[256];
             snprintf(title, sizeof(title),
-                "Monster Engine | Lagarto %.0f%% (lag: %.1f%%) | Tier: %s | Worker: %.1fms | FPS: %.0f | Builds/s: %.1f | %s",
+                "Monster Engine | Gusano -> Lagarto %.0f%% (lag: %.1f%%) | Tier: %s | Worker: %.1fms | FPS: %.0f | Builds/s: %.1f | %s",
                 ageFactor * 100.0f, ageLag * 100.0f, tierStr, stats.lastBuildDurationMs,
                 currentFps, currentBuildsPerSec,
                 autoAnimate ? "ANIMANDO" : "PAUSA");
@@ -359,9 +403,18 @@ int main(int argc, char* argv[]) {
 
         renderer.endFrame(&renderer);
         if(cyclePrefix&&generation&&cycleFrames!=(unsigned)generation) {
+            if(cycleFrames) {
+                float step=fabsf(displayedAge-previousCycleAge);
+                maximumCycleStep=fmaxf(maximumCycleStep,step);
+                if(step>.0051f)cycleFailures++;
+            }
+            previousCycleAge=displayedAge;
+            cycleCoverage[cycleReturning?1:0]|=1u<<(unsigned)(Math_Clamp01(displayedAge)*10);
             cycleFrames=(unsigned)generation;
             unsigned visible=Demo_VisibleDigits(bodyMesh,stats.displayedScale);
-            cycleFailures+=visible!=20;
+            LizardPhenotype visiblePhenotype=Demo_PhenotypeAtScale(stats.displayedScale);
+            if(visiblePhenotype.appendageDevelopment<.02f)cycleFailures+=visible!=0;
+            else if(visiblePhenotype.appendageDevelopment>.92f)cycleFailures+=visible!=20;
             char path[768];snprintf(path,sizeof(path),"%s-%04u.ppm",cyclePrefix,cycleFrames);
             if(!OpenGLRenderer_SavePPM(path,windowWidth,windowHeight))cycleFailures++;
             printf("[CICLO] generación=%u extremos_visibles=%u/20 escala=%.6f\n",cycleFrames,visible,stats.displayedScale);
@@ -383,7 +436,7 @@ int main(int argc, char* argv[]) {
     /* Limpieza */
     MonsterVisualAsync_Free(visual);
     MonsterAger_Free(&ager);
-    Monster_Free(&youngLizard);
+    Monster_Free(&larva);
     Monster_Free(&adultLizard);
     OpenGLRenderer_Destroy(&renderer);
     SDL_GL_DeleteContext(glContext);
@@ -391,6 +444,12 @@ int main(int argc, char* argv[]) {
     SDL_Quit();
 
     printf("[INFO] Demo de envejecimiento finalizada limpiamente.\n");
-    if(cyclePrefix)printf("[CICLO] recorrido 0 -> 1 -> 0 terminado: %u mallas, %u fallos\n",cycleFrames,cycleFailures);
+    if(cyclePrefix) {
+        /* Cada décima debe haberse publicado en ambos sentidos. */
+        if((cycleCoverage[0]&1023u)!=1023u||(cycleCoverage[1]&1023u)!=1023u||!cycleDone)
+            cycleFailures++;
+        printf("[CICLO] recorrido 0 -> 1 -> 0 terminado: %u mallas, %u fallos, paso máximo %.6f\n",
+            cycleFrames,cycleFailures,maximumCycleStep);
+    }
     return cycleFailures?2:0;
 }
