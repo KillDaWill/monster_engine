@@ -39,7 +39,7 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
     MonsterSDF sdf=MonsterSDF_Create();MonsterVisualEye* eyes=NULL;size_t eyeCapacity=0;
     bool running=true,automatic=requestedAge<0,ready=false;float age=ager->perc,direction=1,hold=0,zoom=1;
     int width=1024,height=768,view=inspectHead?4:0,captureView=0,captureFrames=0,error=0;
-    unsigned frame=0,animatedFrames=0;double last=Demo_ClockMs(),start=last,titleTime=last;
+    unsigned frame=0,animatedFrames=0,titleFrames=0;double last=Demo_ClockMs(),start=last,titleTime=last;
     double* times=benchmarkFrames>0?calloc((size_t)benchmarkFrames,sizeof(double)):NULL;
     FILE* csv=NULL;char path[768];
     if(profilePrefix){snprintf(path,sizeof(path),"%s.csv",profilePrefix);csv=fopen(path,"w");if(csv)fprintf(csv,"frame,age,frame_ms,cpu_ms,gpu_ms,resolution_scale\n");}
@@ -50,7 +50,7 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             if(event.type==SDL_QUIT)running=false;
-            else if(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_RESIZED){width=event.window.data1;height=event.window.data2;}
+            else if(event.type==SDL_WINDOWEVENT&&(event.window.event==SDL_WINDOWEVENT_RESIZED||event.window.event==SDL_WINDOWEVENT_SIZE_CHANGED)){width=event.window.data1;height=event.window.data2;}
             else if(event.type==SDL_MOUSEWHEEL)zoom=Math_Clamp(zoom*(event.wheel.y>0?.9f:1.1f),.25f,2.5f);
             else if(event.type==SDL_KEYDOWN) {
                 SDL_Keycode key=event.key.keysym.sym;
@@ -95,7 +95,7 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
             if(++captureView>=12)running=false;
         }
         if(validateGPU) {
-            Vector3 points[1024];unsigned random=1729;size_t count=0;
+            Vector3 points[4096];unsigned random=1729;size_t count=0;
             Vector3 size=AABB_Size(sdf.bounds);
             for(size_t i=0;i<768;++i) {
                 float t[3];for(int axis=0;axis<3;++axis){random=random*1664525u+1013904223u;t[axis]=(float)(random>>8)/16777216.f;}
@@ -103,6 +103,31 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
             }
             for(size_t i=0;i<monster->anatomyGraph.nodeCount&&count<1024;++i)
                 points[count++]=monster->anatomyGraph.nodes[i].center;
+            /* Rayos CPU de referencia: puntos superficiales y stencil normal,
+             * además del muestreo volumétrico. La GPU comprueba ambas rutas. */
+            Vector3 forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
+            Vector3 right=Vec3_Normalize(Vec3_Cross(forward,camera->up));
+            Vector3 up=Vec3_Cross(right,forward);
+            float tangent=tanf(camera->fov*.00872664626f);
+            for(int y=0;y<18;++y)for(int x=0;x<24;++x) {
+                Vector3 directionRay=Vec3_Normalize(Vec3_Add(forward,Vec3_Add(
+                    Vec3_Scale(right,((x+.5f)/24.f*2.f-1.f)*tangent*(float)width/height),
+                    Vec3_Scale(up,((y+.5f)/18.f*2.f-1.f)*tangent))));
+                float t=0;
+                for(int step=0;step<256&&t<camera->farPlane;++step) {
+                    Vector3 point=Vec3_Add(camera->position,Vec3_Scale(directionRay,t));
+                    float distance=MonsterSDF_EvaluateVisualDistance(&sdf,point);
+                    if(distance<.001f) {
+                        if(count+7<=4096) {
+                            points[count++]=point;
+                            const Vector3 offsets[]={{.00065f,0,0},{-.00065f,0,0},{0,.00065f,0},{0,-.00065f,0},{0,0,.00065f},{0,0,-.00065f}};
+                            for(int axis=0;axis<6;++axis)points[count++]=Vec3_Add(point,offsets[axis]);
+                        }
+                        break;
+                    }
+                    t+=fmaxf(distance*.8f,.00035f);
+                }
+            }
             float maxError=0;
             if(!OpenGLRenderer_ValidateSDF(renderer,&sdf,points,count,&maxError)||maxError>.0002f){error=1;running=false;}
             printf("[PARIDAD GPU] edad=%.3f puntos=%zu error=%.9f %s\n",age,count,maxError,error?"FAIL":"PASS");
@@ -115,9 +140,11 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
         if(times&&frame<(unsigned)benchmarkFrames)times[frame]=elapsed;
         if(csv)fprintf(csv,"%u,%.7f,%.6f,%.6f,%.6f,%.6f\n",frame,age,elapsed,cpu,OpenGLRenderer_GetSDFGpuMs(renderer),OpenGLRenderer_GetSDFResolutionScale(renderer));
         ++frame;
+        ++titleFrames;
         if(end-titleTime>=500) {
-            char title[256];snprintf(title,sizeof(title),"Monster Ager | %.1f%% | GPU %.2f ms | resolución %.0f%% | %s",age*100,OpenGLRenderer_GetSDFGpuMs(renderer),OpenGLRenderer_GetSDFResolutionScale(renderer)*100,automatic?"ANIMANDO":"PAUSA");
-            SDL_SetWindowTitle(window,title);titleTime=end;
+            double fps=(titleFrames>0&&end>titleTime)?((double)titleFrames*1000.0/(end-titleTime)):0.0;
+            char title[256];snprintf(title,sizeof(title),"Monster Ager | FPS %.0f | %.1f%% | GPU %.2f ms | resolución %.0f%% | %s",fps,age*100,OpenGLRenderer_GetSDFGpuMs(renderer),OpenGLRenderer_GetSDFResolutionScale(renderer)*100,automatic?"ANIMANDO":"PAUSA");
+            SDL_SetWindowTitle(window,title);titleTime=end;titleFrames=0;
         }
         if(benchmarkFrames>0&&frame>=(unsigned)benchmarkFrames)running=false;
     }

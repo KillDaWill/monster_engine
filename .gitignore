@@ -31,3 +31,7 @@ benchmarks/benchmark_sdf
 
 benchmarks/benchmark_appendages
 benchmarks/benchmark_ager_realtime
+
+# Python cache
+__pycache__/
+*.py[cod]

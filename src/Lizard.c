@@ -75,13 +75,13 @@ LizardPhenotype LizardPreset_Larva(void) {
 
 LizardPhenotype LizardPreset_Adult(void) {
     LizardPhenotype p = LizardPreset_Base();
-    p.head.skullWidth = 0.64f; p.head.skullHeight = 0.30f; p.head.skullLength = 0.50f;
-    p.head.muzzleLength = 0.68f; p.head.muzzleWidth = 0.62f; p.head.muzzleTaper = 0.66f;
+    p.head.skullWidth = 0.64f; p.head.skullHeight = 0.36f; p.head.skullLength = 0.52f;
+    p.head.muzzleLength = 0.68f; p.head.muzzleWidth = 0.62f; p.head.muzzleTaper = 0.48f;
     p.head.eyeSize = 0.48f; p.head.jawLength = 0.86f; p.head.jawDepth = 0.43f;
     p.head.jawStrength = 0.45f; p.head.cheekMass = 0.40f;
     p.head.browProminence = 0.42f; p.head.tympanumSize = 0.35f;
-    p.head.snoutBluntness = 0.30f; p.head.rostrumDepth = 0.38f;
-    p.head.rostrumDorsalSlope = 0.25f; p.head.temporalWidth = 0.52f;
+    p.head.snoutBluntness = 0.60f; p.head.rostrumDepth = 0.62f;
+    p.head.rostrumDorsalSlope = 0.32f; p.head.temporalWidth = 0.52f;
     p.head.temporalDepth = 0.40f; p.head.noseScale = 0.30f;
     p.appendageDevelopment = 1.0f;
     p.colorMaturity = 1.0f; p.pigmentation = 1.0f; p.cephalicDevelopment = 1.0f;

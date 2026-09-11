@@ -397,7 +397,10 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             }
             float front = hostCenter.z + hostRadii.z + Math_Max(0.02f, slitThickness * 0.5f);
             float rear = hostCenter.z - hostRadii.z * 0.55f;
-            if(useAnatomicalHead){front=resolvedHead.landmarks.mandibularSymphysis.z;rear=resolvedHead.landmarks.leftJawHinge.z;}
+            if(useAnatomicalHead){
+                front=resolvedHead.surface.faceTip.z+resolvedHead.surface.faceTipRadii.z+0.04f;
+                rear=resolvedHead.landmarks.leftJawHinge.z;
+            }
             float maxRear = front - Math_Max(depth * 0.95f, slitThickness * 4.0f);
             if (rear > maxRear) rear = maxRear;
             halfDepth = Math_Max((front - rear) * 0.5f, slitThickness * 2.0f);
@@ -409,7 +412,9 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             }
             sdf->mouths[m].entranceHalfExtents = Vec3_Create(entranceHalfX, cutHalfHeight, halfDepth);
             sdf->mouths[m].cavityCenterLocal = useAnatomicalHead?resolvedHead.landmarks.oralCavityCenter:Vec3_Create(0.0f, 0.0f, rear + halfDepth * 0.32f);
-            sdf->mouths[m].cavityRadii = Vec3_Create(Math_Max(width * 0.43f, slitThickness * 2.0f), useAnatomicalHead?Math_Max(resolvedHead.surface.faceRootRadii.y*.34f,slitThickness*2.0f):Math_Max(maxOpening * 0.62f, width * 0.18f), Math_Max(depth * 0.48f, slitThickness * 2.0f));
+            float maxCavityX = useAnatomicalHead ? resolvedHead.surface.faceMidRadii.x * 0.65f : width * 0.43f;
+            float cavityX = Math_Max(Math_Min(width * 0.43f, maxCavityX), slitThickness * 2.0f);
+            sdf->mouths[m].cavityRadii = Vec3_Create(cavityX, useAnatomicalHead?Math_Max(resolvedHead.surface.faceRootRadii.y*.34f,slitThickness*2.0f):Math_Max(maxOpening * 0.62f, width * 0.18f), Math_Max(depth * 0.48f, slitThickness * 2.0f));
             sdf->mouths[m].insideColor = mouth->insideColor;
             sdf->mouths[m].entranceToCavitySmoothness = Math_Min(maxOpening, depth) * 0.15f;
             sdf->mouths[m].rimBevel = Math_Clamp(slitThickness * (0.15f + mouth->slitSoftness * 0.2f), 0.004f, 0.06f);
@@ -436,7 +441,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             float derivedLen = frontZ0 - rearZ;
             if (derivedLen < h * 0.6f) derivedLen = h * 0.6f;
             float phenotypeLen = mouth->jawLength;
-            float effLen = Math_Max(derivedLen, phenotypeLen * 0.98f);
+            float effLen = useAnatomicalHead ? phenotypeLen : Math_Max(derivedLen, phenotypeLen * 0.98f);
             float rz = effLen * 0.5f;
             if (rz < h * 0.45f) rz = h * 0.45f;
             float cx = 0.0f;
@@ -598,6 +603,14 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         m->headStations[3]=(SDFSweepStation){.center=Vec3_Add(c,Vec3_Create(0,0,r.z*.05f)),.width=r.x*.98f,.height=r.y*.92f};
         m->headStations[4]=(SDFSweepStation){.center=Vec3_Add(c,Vec3_Create(0,0,-r.z*.45f)),.width=r.x*.88f,.height=r.y*.88f};
         m->headStations[5]=(SDFSweepStation){.center=Vec3_Add(c,Vec3_Create(0,-r.y*.08f,-r.z*.85f)),.width=r.x*.50f,.height=r.y*.62f};
+        float safeBottom = m->entranceCenterLocal.y;
+        for(int st=0; st<4; ++st) {
+            float topY = m->headStations[st].center.y + m->headStations[st].height;
+            if(topY > safeBottom + 0.01f) {
+                m->headStations[st].height = (topY - safeBottom) * 0.5f;
+                m->headStations[st].center.y = safeBottom + m->headStations[st].height;
+            }
+        }
         if(!SDF_SweepResolveTangents(m->headStations,6)){MonsterSDF_Free(sdf);return false;}
     }
     for(size_t i=0;i<sdf->mouthCount;++i) {
@@ -777,6 +790,22 @@ static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP
     result = SDF_SmoothUnion(result, muscle, k);
     return result;
 }
+static float MonsterSDF_EvalTongueDistance(const MonsterSDFMouth* mouth, Vector3 localP) {
+    if(!mouth->taperedMandible) return 1e6f;
+    float tDev = Math_Clamp01((mouth->cephalicDevelopment - 0.25f) / 0.50f);
+    if(tDev <= 0.001f) return 1e6f;
+    float rx=mouth->jawRadii.x, ry=mouth->jawRadii.y, rz=mouth->jawRadii.z;
+    Vector3 leftRear=Vec3_Add(mouth->hingeCenterLocal,Vec3_Create(rx*.76f,-ry*.18f,0));
+    Vector3 leftTip=Vec3_Create(rx*.08f,mouth->jawCenterLocal.y+ry*.64f,mouth->jawCenterLocal.z+rz*.96f);
+    Vector3 floorRear=Vec3_Create(0,leftRear.y-ry*.18f,leftRear.z);
+    Vector3 floorTip=Vec3_Create(0,leftTip.y-ry*.10f,leftTip.z);
+    float spanZ=floorTip.z-floorRear.z;
+    Vector3 tongueRoot=Vec3_Create(0,floorRear.y+ry*(0.44f*tDev),floorRear.z+spanZ*.18f);
+    Vector3 tongueTip=Vec3_Create(0,floorTip.y+ry*(0.36f*tDev),floorRear.z+spanZ*.74f);
+    float rootW=rx*.32f*tDev, rootH=ry*.20f*tDev;
+    float tipW=rx*.14f*tDev, tipH=ry*.10f*tDev;
+    return SDF_TaperedEllipticalSegmentApprox(localP,tongueRoot,tongueTip,rootW,rootH,tipW,tipH);
+}
 static float MonsterSDF_EvalSeamDistance(const MonsterSDFMouth* mouth, Vector3 localP) {
     float h = mouth->seamScale;
     if (h < 1e-4f) h = Math_Max(mouth->hingeRadius, Math_Max(mouth->throatRadius, mouth->entranceHalfExtents.y * 2.0f));
@@ -920,7 +949,8 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
     for (size_t m = 0; m < sdf->mouthCount; ++m) {
         const MonsterSDFMouth* mouth = &sdf->mouths[m];
         Vector3 localP; float cutterDist = MonsterSDF_EvalMouthDistance(mouth, point, &localP);
-        cutterDist += (1.0f - mouth->cephalicDevelopment) * Math_Max(mouth->hostRadii.x, Math_Max(mouth->hostRadii.y, mouth->hostRadii.z)) * 2.0f;
+        float devMouth = Math_Clamp01((mouth->cephalicDevelopment - 0.05f) / 0.25f);
+        cutterDist += (1.0f - devMouth) * Math_Max(mouth->hostRadii.x, Math_Max(mouth->hostRadii.y, mouth->hostRadii.z)) * 2.0f;
         SDFSample cutterSample = SDFSample_Create(cutterDist, mouth->insideColor, SDF_MATERIAL_MOUTH);
         accumulated = SDFSample_Subtract(accumulated, cutterSample, mouth->rimBevel);
         if(mouth->anatomicalHead) {
@@ -967,7 +997,8 @@ float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point) {
     for (size_t m = 0; m < sdf->mouthCount; ++m) {
         const MonsterSDFMouth* mouth = &sdf->mouths[m];
         float cutterDist = MonsterSDF_EvalMouthDistance(mouth, point, NULL);
-        cutterDist += (1.0f - mouth->cephalicDevelopment) * Math_Max(mouth->hostRadii.x, Math_Max(mouth->hostRadii.y, mouth->hostRadii.z)) * 2.0f;
+        float devMouth = Math_Clamp01((mouth->cephalicDevelopment - 0.05f) / 0.25f);
+        cutterDist += (1.0f - devMouth) * Math_Max(mouth->hostRadii.x, Math_Max(mouth->hostRadii.y, mouth->hostRadii.z)) * 2.0f;
         accumulated = SDF_SmoothSubtract(accumulated, cutterDist, mouth->rimBevel);
         if(mouth->anatomicalHead) {
             Vector3 localP=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
@@ -1095,9 +1126,11 @@ SDFSample MonsterSDF_EvaluateDebug(const MonsterSDF* sdf, Vector3 point, Monster
 
 static float MonsterSDF_EvalJawCarvedDistance(const MonsterSDFMouth* mouth, Vector3 point) {
     float body = MonsterSDF_EvalJawBase(mouth, point);
-    /* Las ramas de la mandíbula ahusada ya delimitan el espacio oral. Tallar
-     * además el antiguo cuenco elipsoidal las perforaba de lado a lado. */
-    if(mouth->taperedMandible)return body;
+    if(mouth->taperedMandible) {
+        float tongue = MonsterSDF_EvalTongueDistance(mouth, point);
+        float k = Math_Max(mouth->seamScale * .08f, .005f);
+        return SDF_SmoothUnion(body, tongue, k);
+    }
     Vector3 basinCenter, basinRadii; float k;
     MonsterSDF_GetBasinParams(mouth, &basinCenter, &basinRadii, &k);
     float oral = SDF_Ellipsoid(Vec3_Sub(point, basinCenter), basinRadii);
@@ -1108,12 +1141,17 @@ static SDFSample MonsterSDF_EvaluateJawWrapper(const void* context, Vector3 poin
     if (!field || !field->owner || field->mouthIndex >= field->owner->mouthCount) return SDFSample_Create(1e6f, COLOR_WHITE, SDF_MATERIAL_UNKNOWN);
     const MonsterSDFMouth* mouth=&field->owner->mouths[field->mouthIndex];
     float body = MonsterSDF_EvalJawBase(mouth, point);
-    SDFSample sample = SDFSample_Create(body, mouth->skinColor, SDF_MATERIAL_SKIN);
-    if(mouth->taperedMandible)return sample;
+    if(mouth->taperedMandible) {
+        float tongue = MonsterSDF_EvalTongueDistance(mouth, point);
+        float k = Math_Max(mouth->seamScale * .08f, .005f);
+        SDFSample bodySample = SDFSample_Create(body, mouth->skinColor, SDF_MATERIAL_SKIN);
+        SDFSample tongueSample = SDFSample_Create(tongue, mouth->insideColor, SDF_MATERIAL_LIP);
+        return SDFSample_SmoothUnion(bodySample, tongueSample, k);
+    }
     Vector3 basinCenter, basinRadii; float k;
     MonsterSDF_GetBasinParams(mouth, &basinCenter, &basinRadii, &k);
     float oral = SDF_Ellipsoid(Vec3_Sub(point, basinCenter), basinRadii);
-    return SDFSample_Subtract(sample, SDFSample_Create(oral, mouth->insideColor, SDF_MATERIAL_MOUTH), k);
+    return SDFSample_Subtract(SDFSample_Create(body, mouth->skinColor, SDF_MATERIAL_SKIN), SDFSample_Create(oral, mouth->insideColor, SDF_MATERIAL_MOUTH), k);
 }
 static float MonsterSDF_EvaluateJawDistanceWrapper(const void* context, Vector3 point) {
     const MonsterSDFJawField* field=(const MonsterSDFJawField*)context;

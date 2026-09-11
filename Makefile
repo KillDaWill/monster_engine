@@ -61,6 +61,7 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_monster.c \
             $(TEST_DIR)/test_ager.c \
             $(TEST_DIR)/test_sdf.c \
+            $(TEST_DIR)/test_sdf_ray_bounds.c \
             $(TEST_DIR)/test_marching_cubes.c \
             $(TEST_DIR)/test_mesh.c \
             $(TEST_DIR)/test_primitive_mesh.c \
@@ -114,8 +115,8 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 # Demos
 demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN)
 
-$(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c
-	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+$(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c $(DEMO_DIR)/demo_ager_realtime.h
+	$(CC) $(CFLAGS) $(filter %.o %.c,$^) $(GL_LIBS) -o $@
 
 $(DEMO_LIZARD_BIN): $(CORE_OBJS) $(DEMO_DIR)/demo_lizard_console.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@

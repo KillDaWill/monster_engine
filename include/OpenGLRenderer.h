@@ -78,7 +78,7 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,
  * @param camera Cámara actual; se conserva su proyección y relación de aspecto.
  * @param width Anchura de presentación.
  * @param height Altura de presentación.
- * @param adaptive Ajustar resolución para reservar 8 ms de trabajo GPU.
+ * @param adaptive Ajustar gradualmente la resolución al presupuesto GPU para mantener >= 30 FPS (100% entre 30 y 60 Hz).
  * @return true si se preparó el framebuffer.
  */
 bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive);
