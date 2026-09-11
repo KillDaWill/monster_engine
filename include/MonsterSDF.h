@@ -89,10 +89,14 @@ typedef struct MonsterSDFConnector {
  */
 typedef struct MonsterSDFMouth {
     Vector3 center;
+    AABB3D visualBounds; /**< Caja mundial conservadora de mandíbula y costura articuladas. */
+    Vector3 visualJawPivot; /**< Pivote de articulación del snapshot visual. */
+    float visualJawAngle, visualJawScale, visualJawBoundRadius; /**< Ángulo en radianes y desarrollo de mandíbula. */
     RotationBasis3D inverseRotation;
     Vector3 muzzleCenterLocal;
     Vector3 muzzleHalfExtents;
     float muzzleSmoothness;
+    float cephalicDevelopment; /**< Peso continuo de rasgos cefálicos sobre la forma larvaria simple. */
     Color skinColor;
     Vector3 entranceCenterLocal;
     Vector3 entranceHalfExtents;
@@ -241,6 +245,7 @@ struct MonsterSDF {
 
     SDFSweepStation axialStations[16]; /**< Receta axial continua del lagarto. */
     int axialStationCount; /**< Cero conserva la ruta heredada. */
+    float appendageDevelopment; /**< Desarrollo compilado usado para presupuestar detalle local. */
     MonsterSDFConfig config;
     AABB3D bounds;
     AABB3D bodyBounds; /**< Bounds del cuerpo grueso particionado. */
@@ -301,6 +306,13 @@ SDFSample MonsterSDF_EvaluateWrapper(const void* context, Vector3 point);
  * @brief Evalúa única y exclusivamente la distancia escalar en cualquier punto 3D del espacio.
  */
 float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point);
+
+/** @brief Campo corporal más mandíbula y bisagra articuladas del mismo snapshot.
+ * @param sdf Geometría compilada del fotograma.
+ * @param point Punto mundial.
+ * @return Distancia al volumen visual completo, excluidos ojos primitivos.
+ */
+float MonsterSDF_EvaluateVisualDistance(const MonsterSDF* sdf, Vector3 point);
 
 /**
  * @brief Wrapper de evaluación de sólo distancia escalar compatible con la firma SDFDistanceFn.

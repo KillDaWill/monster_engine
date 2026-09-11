@@ -368,6 +368,10 @@ void test_bug_async_growth_displays_old_body_with_new_jaw_hinge_snapshot_mixing(
     MonsterVisualAsync* asyncMgr = MonsterVisualAsync_Create(cfg);
     TEST_ASSERT(asyncMgr != NULL, "asyncMgr no debe ser NULL en test snapshot-mixing");
 
+    /* MORPH también debe conservar juntos cuerpo, ojos y mandíbula. */
+    MonsterVisualAsync_SetMorphMode(asyncMgr, true);
+    MonsterVisualAsync_SetContinuousMotion(asyncMgr, true);
+
     /* 1) Flush de la edad conocida T0 (joven) — snapshot mostrado estable */
     MonsterAger_SetPerc(&ager, 0.0f);
     const Monster* curYoung = MonsterAger_GetResultConst(&ager);
@@ -426,21 +430,29 @@ void test_bug_async_growth_displays_old_body_with_new_jaw_hinge_snapshot_mixing(
 }
 
 static void test_visual_async_single_snapshot(void) {
-    Monster m=Monster_Create();LizardPhenotype p=LizardPreset_Juvenile();
+    Monster m=Monster_Create();LizardPhenotype p=LizardPreset_Larva();
     TEST_ASSERT(Lizard_BuildMonster(&m,&p),"Snapshot juvenil inválido");
     MonsterVisualAsync* v=MonsterVisualAsync_Create(MonsterVisualAsync_DefaultConfig());
     TEST_ASSERT(v!=NULL,"No se creó el worker");
     MonsterVisualAsync_SetContinuousMotion(v,true);
+    MonsterVisualAsync_SetMorphMode(v,true);
     MonsterVisualAsync_Update(v,&m,0);
     for(int i=0;i<100;++i)MonsterVisualAsync_Update(v,&m,.1f);
     MonsterVisualAsync_Flush(v);
     MonsterVisualAsyncStats stats=MonsterVisualAsync_GetStats(v);
-    TEST_ASSERT(stats.activeQualityTier==MONSTER_VISUAL_QUALITY_INTERACTIVE,"La animación continua disparó un asentamiento");
+    TEST_ASSERT(stats.activeQualityTier==MONSTER_VISUAL_QUALITY_MORPH,"La animación continua disparó un asentamiento");
     TEST_ASSERT(stats.requestCount==1&&stats.completedBuildCount==1,"Se repitió un snapshot ya pendiente o en ejecución");
     TEST_ASSERT(stats.requestedFingerprint==stats.displayedFingerprint&&FLOAT_NEAR(stats.displayedScale,p.totalScale),"La telemetría no describe la malla mostrada");
     TEST_ASSERT(Mesh_Validate(MonsterVisualAsync_GetDisplayMesh(v)).watertight,"La malla unificada presenta fronteras abiertas");
+    const Mesh* shown=MonsterVisualAsync_GetDisplayMesh(v);
+    Vector3 position=shown->vertices[0].position;
+    float oldScale=stats.displayedScale;
     p=LizardPreset_Adult();Lizard_BuildMonster(&m,&p);MonsterVisualAsync_Update(v,&m,0);
-    p=LizardPreset_Juvenile();Lizard_BuildMonster(&m,&p);MonsterVisualAsync_Update(v,&m,0);
+    stats=MonsterVisualAsync_GetStats(v);
+    TEST_ASSERT(FLOAT_NEAR(stats.displayedScale,oldScale),"MORPH falseó la escala visible con la solicitud adulta");
+    TEST_ASSERT(Vec3_Distance(position,shown->vertices[0].position)<1e-6f,
+        "MORPH estiró la topología del gusano antes de publicar la anatomía adulta");
+    p=LizardPreset_Larva();Lizard_BuildMonster(&m,&p);MonsterVisualAsync_Update(v,&m,0);
     MonsterVisualAsync_Flush(v);stats=MonsterVisualAsync_GetStats(v);
     TEST_ASSERT(stats.requestedFingerprint==stats.displayedFingerprint&&FLOAT_NEAR(stats.displayedScale,p.totalScale),"Una generación obsoleta sustituyó el snapshot solicitado");
     MonsterVisualAsync_Free(v);Monster_Free(&m);

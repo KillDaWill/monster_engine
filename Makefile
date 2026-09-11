@@ -161,3 +161,8 @@ benchmarks/benchmark_ager_realtime: $(CORE_OBJS) benchmarks/benchmark_ager_realt
 .PHONY: benchmark-ager-realtime
 benchmark-ager-realtime: benchmarks/benchmark_ager_realtime
 	./benchmarks/benchmark_ager_realtime
+
+src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_sdf_trace.glsl src/MonsterSDF.c src/SDFPrimitives.c src/SDFOperations.c include/MonsterSDF.h
+	python3 tools/generate_sdf_shader.py
+
+$(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSDFShader.generated.h

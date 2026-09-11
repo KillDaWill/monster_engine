@@ -188,11 +188,21 @@ static void test_lizard_morph_eye_and_jaw_growth(void) {
     float jawLength0 = jawMax0.z - jawMin0.z;
     float eyeCenterX0 = (eyeMin0.x + eyeMax0.x) * 0.5f;
 
-    /* Paso 2: Crecer a adulto con morphMode activo sin esperar al worker */
+    /* Paso 2: MORPH conserva los anexos juveniles hasta publicar el adulto. */
+    Vector3 oldEye=eye0->vertices[0].position,oldJaw=jaw0->vertices[0].position;
+    uint64_t oldGeneration=MonsterVisualAsync_GetDisplayGeneration(asyncMgr);
     MonsterVisualAsync_SetMorphMode(asyncMgr, true);
     MonsterAger_SetPerc(&ager, 1.0f);
     const Monster* adultCur = MonsterAger_GetResultConst(&ager);
     MonsterVisualAsync_Update(asyncMgr, adultCur, 0.016f);
+    TEST_ASSERT(MonsterVisualAsync_GetDisplayGeneration(asyncMgr)==oldGeneration,
+        "La solicitud todavía no debe haber publicado la malla adulta");
+    TEST_ASSERT(Vec3_Distance(oldEye,eye0->vertices[0].position)<1e-6f&&
+                Vec3_Distance(oldJaw,jaw0->vertices[0].position)<1e-6f,
+        "MORPH mezcló anexos adultos con el cuerpo juvenil");
+    MonsterVisualAsync_Flush(asyncMgr);
+    TEST_ASSERT(MonsterVisualAsync_GetDisplayGeneration(asyncMgr)>oldGeneration,
+        "El adulto debe publicarse antes de comprobar su crecimiento");
 
     const Mesh* eye1 = MonsterVisualAsync_GetDisplayEyeSclera(asyncMgr, 0);
     const Mesh* jaw1 = MonsterVisualAsync_GetDisplayMouthMesh(asyncMgr, 0, 0);
@@ -230,7 +240,39 @@ static void test_lizard_morph_eye_and_jaw_growth(void) {
     printf("[PASS] test_lizard_morph_eye_and_jaw_growth\n");
 }
 
+/* El campo directo debe contener las mismas piezas orales que el renderer
+ * de mallas, incluso al desaparecer y al cambiar la articulación. */
+static void test_visual_sdf_posed_mouth_bounds(void) {
+    const float ages[]={0,.25f,.5f,1};
+    const float openings[]={0,.1f,1};
+    Monster first=Monster_Create(),last=Monster_Create();
+    LizardPhenotype a=LizardPreset_Larva(),b=LizardPreset_Adult();
+    TEST_ASSERT(Lizard_BuildMonster(&first,&a)&&Lizard_BuildMonster(&last,&b),"Extremos visuales inválidos");
+    MonsterAger ager=MonsterAger_Create(&first,&last,0);
+    MonsterSDF sdf=MonsterSDF_Create();
+    for(size_t age=0;age<4;++age)for(size_t opening=0;opening<3;++opening) {
+        MonsterAger_SetPerc(&ager,ages[age]);Monster* monster=MonsterAger_GetResult(&ager);
+        Monster_SetHeadOpenFactor(monster,openings[opening]);
+        TEST_ASSERT(MonsterSDF_Build(&sdf,monster,MonsterSDF_DefaultConfig()),"Falló el snapshot visual");
+        for(size_t i=0;i<monster->mouthCount;++i) {
+            MonsterVisualMouth meshes={0};
+            TEST_ASSERT(MonsterVisual_BuildMouthMeshesFromSDF(&meshes,&monster->mouths[i],monster,&sdf,i),"Falló la referencia oral");
+            const Mesh* parts[]={&meshes.jaw,&meshes.hinge};
+            for(size_t part=0;part<2;++part)for(size_t v=0;v<parts[part]->vertexCount;++v) {
+                Vector3 p=parts[part]->vertices[v].position;
+                TEST_ASSERT(AABB_ContainsPoint(sdf.mouths[i].visualBounds,p),"La caja visual recorta una pieza oral articulada");
+                float distance=MonsterSDF_EvaluateVisualDistance(&sdf,p);
+                TEST_ASSERT(isfinite(distance)&&distance<.06f,"El campo visual pierde superficie de la referencia oral");
+            }
+            MonsterVisualMouth_Free(&meshes);
+        }
+    }
+    MonsterSDF_Free(&sdf);MonsterAger_Free(&ager);Monster_Free(&first);Monster_Free(&last);
+    printf("[PASS] test_visual_sdf_posed_mouth_bounds\n");
+}
+
 void run_morph_tests(void) {
+    test_visual_sdf_posed_mouth_bounds();
     test_lizard_morph_lifecycle();
     test_lizard_morph_sweep_and_perf();
     test_lizard_morph_eye_and_jaw_growth();

@@ -83,6 +83,7 @@ static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth, const Monst
     float scaleX = 1.0f, scaleY = 1.0f, scaleZ = 1.0f;
     if (monster && monster->hasLizardPhenotype && vm->baseScale > 1e-4f) {
         float factor = monster->lizardPhenotype.totalScale / vm->baseScale;
+        factor *= monster->lizardPhenotype.cephalicDevelopment;
         scaleX = factor;
         scaleY = factor;
         scaleZ = factor;

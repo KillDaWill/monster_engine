@@ -17,11 +17,12 @@ static LizardPhenotype LizardPreset_Base(void) {
     p.trunkLength = 4.8f; p.bodyFlattening = 0.92f;
     p.forelimbLength = 2.15f; p.forelimbThickness = 0.27f;
     p.hindlimbLength = 2.55f; p.hindlimbThickness = 0.36f;
+    p.appendageDevelopment = 1.0f;
     const float manualLengths[5] = {.60f, .82f, 1.0f, 1.06f, .70f};
     for (unsigned i=0;i<5;++i) p.manualDigitLengths[i]=manualLengths[i];
     p.tailLength = 6.8f; p.tailBaseWidth = 0.68f; p.tailBaseHeight = 0.48f;
     p.tailTipWidth = 0.055f; p.tailTipHeight = 0.045f; p.tailTaperCurve = 1.35f;
-    p.colorMaturity=1.0f;
+    p.colorMaturity=1.0f; p.pigmentation=1.0f; p.cephalicDevelopment=1.0f;
     p.eyeProportion = 0.50f;
     p.head = HeadPhenotype_LizardPreset();
     return p;
@@ -46,20 +47,53 @@ LizardPhenotype LizardPreset_Juvenile(void) {
     return p;
 }
 
+LizardPhenotype LizardPreset_Larva(void) {
+    LizardPhenotype p = LizardPreset_Base();
+    p.totalScale = 0.38f;
+    p.neckLength = 0.45f; p.neckWidth = 0.90f;
+    p.shoulderWidth = 0.92f;
+    p.thoraxWidth = 0.92f; p.thoraxHeight = 0.92f;
+    p.abdomenWidth = 0.92f; p.abdomenHeight = 0.92f;
+    p.pelvicWidth = 0.90f; p.pelvicHeight = 0.90f;
+    p.trunkLength = 2.40f; p.bodyFlattening = 1.0f;
+    p.tailLength = 0.50f; p.tailBaseWidth = 0.44f; p.tailBaseHeight = 0.44f;
+    p.tailTipWidth = 0.16f; p.tailTipHeight = 0.16f; p.tailTaperCurve = 1.0f;
+    p.appendageDevelopment = 0.0f;
+    p.colorMaturity = 0.0f; p.pigmentation = 0.0f; p.cephalicDevelopment = 0.0f;
+    p.eyeProportion = 0.0f;
+    p.head.skullWidth = 0.35f; p.head.skullHeight = 0.35f; p.head.skullLength = 0.20f;
+    p.head.muzzleLength = 0.01f; p.head.muzzleWidth = 0.45f; p.head.muzzleTaper = 0.05f;
+    p.head.rostrumDepth = 0.10f; p.head.rostrumDorsalSlope = 0.50f;
+    p.head.temporalWidth = 0.0f; p.head.temporalDepth = 0.0f;
+    p.head.eyeSize = 0.0f; p.head.browProminence = 0.0f;
+    p.head.snoutBluntness = 1.0f; p.head.jawLength = 0.0f;
+    p.head.jawDepth = 0.0f; p.head.jawStrength = 0.0f;
+    p.head.noseScale = 0.0f; p.head.cheekMass = 0.0f; p.head.tympanumSize = 0.0f;
+    LizardPhenotype_Normalize(&p);
+    return p;
+}
+
 LizardPhenotype LizardPreset_Adult(void) {
     LizardPhenotype p = LizardPreset_Base();
     p.head.skullWidth = 0.64f; p.head.skullHeight = 0.30f; p.head.skullLength = 0.50f;
     p.head.muzzleLength = 0.68f; p.head.muzzleWidth = 0.62f; p.head.muzzleTaper = 0.66f;
     p.head.eyeSize = 0.48f; p.head.jawLength = 0.86f; p.head.jawDepth = 0.43f;
-    p.head.jawStrength = 0.66f; p.head.cheekMass = 0.48f;
+    p.head.jawStrength = 0.45f; p.head.cheekMass = 0.40f;
+    p.head.browProminence = 0.42f; p.head.tympanumSize = 0.35f;
+    p.head.snoutBluntness = 0.30f; p.head.rostrumDepth = 0.38f;
+    p.head.rostrumDorsalSlope = 0.25f; p.head.temporalWidth = 0.52f;
+    p.head.temporalDepth = 0.40f; p.head.noseScale = 0.30f;
+    p.appendageDevelopment = 1.0f;
+    p.colorMaturity = 1.0f; p.pigmentation = 1.0f; p.cephalicDevelopment = 1.0f;
+    LizardPhenotype_Normalize(&p);
     return p;
 }
 
 void LizardPhenotype_Normalize(LizardPhenotype* p) {
     if (!p) return;
-#define POSITIVE(name, fallback) p->name = !isfinite(p->name) || p->name <= 0.0f ? fallback : Math_Clamp(p->name,(fallback)*.10f,(fallback)*4.0f)
-    POSITIVE(totalScale, 1.0f); POSITIVE(neckLength, 1.0f); POSITIVE(neckWidth, 0.7f);
-    POSITIVE(shoulderWidth, 1.5f); POSITIVE(thoraxWidth, 1.7f); POSITIVE(thoraxHeight, 0.75f);
+#define POSITIVE(name, fallback) if (!isfinite(p->name) || p->name <= 0.0f) p->name = fallback
+    POSITIVE(neckLength, 0.7f); POSITIVE(neckWidth, 1.2f);
+    POSITIVE(shoulderWidth, 1.7f); POSITIVE(thoraxWidth, 1.8f); POSITIVE(thoraxHeight, 0.8f);
     POSITIVE(abdomenWidth, 1.6f); POSITIVE(abdomenHeight, 0.7f);
     POSITIVE(pelvicWidth, 1.65f); POSITIVE(pelvicHeight, 0.72f); POSITIVE(trunkLength, 4.5f);
     POSITIVE(forelimbLength, 2.0f); POSITIVE(forelimbThickness, 0.18f);
@@ -81,7 +115,10 @@ void LizardPhenotype_Normalize(LizardPhenotype* p) {
     HeadPhenotype_Normalize(&p->head);
     p->eyeProportion=p->head.eyeSize;
     p->colorMaturity=isfinite(p->colorMaturity)?Math_Clamp01(p->colorMaturity):0;
-    p->neckWidth=Math_Min(p->neckWidth,p->shoulderWidth*.80f);
+    p->pigmentation=isfinite(p->pigmentation)?Math_Clamp01(p->pigmentation):1;
+    p->appendageDevelopment=isfinite(p->appendageDevelopment)?Math_Clamp01(p->appendageDevelopment):1;
+    p->cephalicDevelopment=isfinite(p->cephalicDevelopment)?Math_Clamp01(p->cephalicDevelopment):1;
+    p->neckWidth=Math_Min(p->neckWidth,p->shoulderWidth*Lizard_Lerp(1.0f,0.80f,p->cephalicDevelopment));
 }
 
 LizardPhenotype LizardPhenotype_Interpolate(const LizardPhenotype* a,
@@ -103,7 +140,8 @@ LizardPhenotype LizardPhenotype_Interpolate(const LizardPhenotype* a,
     p.hindlimbThickness=Lizard_Lerp(p.hindlimbThickness,q.hindlimbThickness,mature);
     LERP_BODY(tailLength); LERP_BODY(tailBaseWidth); LERP_BODY(tailBaseHeight);
     LERP_BODY(tailTipWidth); LERP_BODY(tailTipHeight); LERP_BODY(tailTaperCurve);
-    LERP_BODY(eyeProportion); LERP_BODY(colorMaturity);
+    LERP_BODY(eyeProportion); LERP_BODY(colorMaturity); LERP_BODY(pigmentation);
+    LERP_BODY(appendageDevelopment); LERP_BODY(cephalicDevelopment);
 #undef LERP_BODY
 #define LERP_HEAD(name) p.head.name = Lizard_Lerp(p.head.name, q.head.name, t)
     LERP_HEAD(skullWidth); LERP_HEAD(skullHeight); LERP_HEAD(skullLength);
@@ -181,7 +219,10 @@ static bool Lizard_AddAutopod(AnatomyGraph* g, AnatomyId handId, Vector3 hand,
 
 static bool Lizard_AddLimb(AnatomyGraph* g, bool left, bool hind, const float manual[5],
                            float girdleX, float girdleY, float z, float length,
-                           float thickness, int color) {
+                           float thickness, float development, int color) {
+    float emergence=development*development*(3.0f-2.0f*development);
+    length*=emergence;
+    thickness=Lizard_Lerp(Math_Max(thickness*.012f,.0005f),thickness,emergence);
     float side = left ? 1.0f : -1.0f;
     AnatomyId base = hind ? (left ? ANATOMY_ID_HIND_LEFT_HIP : ANATOMY_ID_HIND_RIGHT_HIP)
                           : (left ? ANATOMY_ID_FORE_LEFT_SHOULDER : ANATOMY_ID_FORE_RIGHT_SHOULDER);
@@ -214,16 +255,20 @@ bool Lizard_ResolveAnatomy(const LizardPhenotype* source, AnatomyGraph* graph) {
     LizardPhenotype p = *source; LizardPhenotype_Normalize(&p);
     AnatomyGraph_Init(graph);
     float s = p.totalScale;
-    float headY = 0.42f * s;
+    float vertical = p.bodyFlattening;
+    float headDev = p.cephalicDevelopment * p.cephalicDevelopment * (3.0f - 2.0f * p.cephalicDevelopment);
+    float headY = Lizard_Lerp(0.30f, 0.42f, headDev) * s;
     float neckZ = -p.neckLength * s;
+    float headW = Lizard_Lerp(p.neckWidth * 0.50f, 0.58f, headDev) * s;
+    float headH = Lizard_Lerp(p.neckWidth * 0.46f * vertical, 0.38f, headDev) * s;
+    float headZ = Lizard_Lerp(neckZ + p.neckLength * 0.45f * s, -0.25f * s, headDev);
     float pectoralZ = neckZ - p.trunkLength * 0.10f * s;
     float thoraxAZ = neckZ - p.trunkLength * 0.28f * s;
     float thoraxPZ = neckZ - p.trunkLength * 0.49f * s;
     float abdomenZ = neckZ - p.trunkLength * 0.70f * s;
     float pelvisZ = neckZ - p.trunkLength * s;
-    float vertical = p.bodyFlattening;
-    if (!Lizard_AddNode(graph, ANATOMY_ID_HEAD, Vec3_Create(0, headY, -0.25f*s),
-                        0.58f*s, 0.38f*s, 3, ANATOMY_ROLE_AXIAL) ||
+    if (!Lizard_AddNode(graph, ANATOMY_ID_HEAD, Vec3_Create(0, headY, headZ),
+                        headW, headH, 3, ANATOMY_ROLE_AXIAL) ||
         !Lizard_AddNode(graph, ANATOMY_ID_NECK, Vec3_Create(0, 0.30f*s, neckZ),
                         p.neckWidth*0.50f*s, p.neckWidth*0.46f*vertical*s, 2, ANATOMY_ROLE_AXIAL) ||
         !Lizard_AddNode(graph, ANATOMY_ID_PECTORAL, Vec3_Create(0, 0.28f*s, pectoralZ),
@@ -263,13 +308,13 @@ bool Lizard_ResolveAnatomy(const LizardPhenotype* source, AnatomyGraph* graph) {
     float shoulderX = p.shoulderWidth * 0.43f * s;
     float hipX = p.pelvicWidth * 0.43f * s;
     if (!Lizard_AddLimb(graph, true, false, p.manualDigitLengths, shoulderX, pectoral->center.y,
-                        pectoral->center.z, p.forelimbLength*s, p.forelimbThickness*s, 2) ||
+                        pectoral->center.z, p.forelimbLength*s, p.forelimbThickness*s, p.appendageDevelopment, 2) ||
         !Lizard_AddLimb(graph, false, false, p.manualDigitLengths, shoulderX, pectoral->center.y,
-                        pectoral->center.z, p.forelimbLength*s, p.forelimbThickness*s, 2) ||
+                        pectoral->center.z, p.forelimbLength*s, p.forelimbThickness*s, p.appendageDevelopment, 2) ||
         !Lizard_AddLimb(graph, true, true, p.manualDigitLengths, hipX, pelvis->center.y,
-                        pelvis->center.z, p.hindlimbLength*s, p.hindlimbThickness*s, 2) ||
+                        pelvis->center.z, p.hindlimbLength*s, p.hindlimbThickness*s, p.appendageDevelopment, 2) ||
         !Lizard_AddLimb(graph, false, true, p.manualDigitLengths, hipX, pelvis->center.y,
-                        pelvis->center.z, p.hindlimbLength*s, p.hindlimbThickness*s, 2)) return false;
+                        pelvis->center.z, p.hindlimbLength*s, p.hindlimbThickness*s, p.appendageDevelopment, 2)) return false;
 
     if (!Lizard_AddEdge(graph, 80, ANATOMY_ID_PECTORAL, ANATOMY_ID_FORE_LEFT_SHOULDER, BODY_CONNECTION_LIMB_SEGMENT) ||
         !Lizard_AddEdge(graph, 81, ANATOMY_ID_PECTORAL, ANATOMY_ID_FORE_RIGHT_SHOULDER, BODY_CONNECTION_LIMB_SEGMENT) ||
@@ -283,15 +328,23 @@ bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* source)
     LizardPhenotype p = *source; LizardPhenotype_Normalize(&p);
     if (monster->bodyPartCount == 0) Monster_Init(monster);
     if (monster->bodyPartCount == 0) return false;
-    monster->colorPalette = ColorPalette_CreateGradient(
-        Color_Lerp(Color_FromRGB(42,72,34),Color_FromRGB(48,66,34),p.colorMaturity),
-        Color_Lerp(Color_FromRGB(126,158,67),Color_FromRGB(112,142,62),p.colorMaturity), 6);
+    Color dorsal=Color_Lerp(Color_FromRGB(42,72,34),Color_FromRGB(48,66,34),p.colorMaturity);
+    Color ventral=Color_Lerp(Color_FromRGB(126,158,67),Color_FromRGB(112,142,62),p.colorMaturity);
+    dorsal=Color_Lerp(Color_FromRGB(242,241,230),dorsal,p.pigmentation);
+    ventral=Color_Lerp(Color_FromRGB(255,254,246),ventral,p.pigmentation);
+    monster->colorPalette = ColorPalette_CreateGradient(dorsal,ventral,6);
     BodyPart* host = Monster_GetHead(monster);
     float s = p.totalScale;
-    host->position = host->oldPosition = host->positionRender = Vec3_Create(0, 0.42f*s, 0);
-    host->width = host->widthRender = 2.05f*s;
-    host->height = host->heightRender = 1.20f*s;
-    host->length = host->lengthRender = 2.20f*s;
+    float vertical = p.bodyFlattening;
+    float headDevelopment=p.cephalicDevelopment*p.cephalicDevelopment*
+        (3.0f-2.0f*p.cephalicDevelopment);
+    float headY = Lizard_Lerp(0.30f, 0.42f, headDevelopment) * s;
+    float neckZ = -p.neckLength * s;
+    float headZ = Lizard_Lerp(neckZ + p.neckLength * 0.45f * s, 0.0f, headDevelopment);
+    host->position = host->oldPosition = host->positionRender = Vec3_Create(0, headY, headZ);
+    host->width = host->widthRender = Lizard_Lerp(p.neckWidth*0.96f,2.05f,headDevelopment)*s;
+    host->height = host->heightRender = Lizard_Lerp(p.neckWidth*0.92f*vertical,1.20f,headDevelopment)*s;
+    host->length = host->lengthRender = Lizard_Lerp(p.neckWidth*0.70f,2.20f,headDevelopment)*s;
     host->color.index = 3; host->bellyColor.index = 0; host->bellyThreshold = 0.24f;
     if (!Lizard_ResolveAnatomy(&p, &monster->anatomyGraph)) return false;
     monster->hasAnatomyGraph = true;
@@ -308,14 +361,19 @@ bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* source)
         monster->eyes[i].irisScale = 0.72f;
         monster->eyes[i].pupilScale = 0.34f;
         monster->eyes[i].pupilAspect = 0.34f;
+        monster->eyes[i].scale=Vec3_Scale(monster->eyes[i].scale,p.cephalicDevelopment);
     }
     return true;
 }
 
 float Lizard_AgeFromScale(float scale) {
-    const float juvenileScale = 0.58f;
-    const float adultScale = 1.0f;
-    float t = Math_Clamp01((scale - juvenileScale) / (adultScale - juvenileScale));
+    return Lizard_AgeFromScaleBetween(scale,0.58f,1.0f);
+}
+
+float Lizard_AgeFromScaleBetween(float scale,float initialScale,float finalScale) {
+    float span=finalScale-initialScale;
+    if(!isfinite(span)||fabsf(span)<1e-6f)return 0.0f;
+    float t = Math_Clamp01((scale - initialScale) / span);
     float a = t;
     for (int iter = 0; iter < 8; ++iter) {
         float f = a * a * (3.0f - 2.0f * a) - t;

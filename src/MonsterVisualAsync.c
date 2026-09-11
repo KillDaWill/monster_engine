@@ -208,10 +208,14 @@ static void FreeMouthArray(MonsterVisualMouth* mouths, size_t count) {
 static bool WorkerShouldCancel(void* context) {
     MonsterVisualAsync* asyncMgr = (MonsterVisualAsync*)context;
     if (!asyncMgr) return true;
-    if (asyncMgr->shouldQuit) return true;
-    if (asyncMgr->displayGeneration == 0) return false;
-    if (asyncMgr->hasPendingRequest) return true;
-    return false;
+    /* En movimiento sostenido se termina el snapshot en curso. Cancelarlo
+     * ante cada frame nuevo impediría publicar cualquier fase intermedia. */
+    pthread_mutex_lock(&asyncMgr->lock);
+    bool cancel = asyncMgr->shouldQuit ||
+        (asyncMgr->displayGeneration != 0 && !asyncMgr->continuousMotion &&
+         asyncMgr->hasPendingRequest);
+    pthread_mutex_unlock(&asyncMgr->lock);
+    return cancel;
 }
 
 static void* WorkerThreadRoutine(void* arg) {
@@ -352,10 +356,6 @@ static void* WorkerThreadRoutine(void* arg) {
             }
         }
 
-        if (meshOk && workMonster.hasLizardPhenotype && workBodyMesh.vertexCount > 0) {
-            LizardMorph_Bind(workerMorph, &workBodyMesh, &workMonster.anatomyGraph);
-        }
-
         float workScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
         double tEnd = GetTimeMs();
         float durationMs = (float)(tEnd - tStart);
@@ -494,8 +494,10 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
 
 void MonsterVisualAsync_SetContinuousMotion(MonsterVisualAsync* asyncMgr,bool active) {
     if(!asyncMgr)return;
+    pthread_mutex_lock(&asyncMgr->lock);
     if(asyncMgr->continuousMotion!=active)asyncMgr->timeSinceLastMotionSec=0;
     asyncMgr->continuousMotion=active;
+    pthread_mutex_unlock(&asyncMgr->lock);
 }
 
 void MonsterVisualAsync_SetMorphMode(MonsterVisualAsync* asyncMgr, bool active) {
@@ -589,16 +591,13 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         pthread_cond_signal(&asyncMgr->cond);
     }
 
-    bool allowLiveArticulation = isDisplayMatch || asyncMgr->morphMode;
+    bool allowLiveArticulation = isDisplayMatch;
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
-    if (asyncMgr->morphMode && monster->hasLizardPhenotype &&
-        LizardMorph_IsBound(asyncMgr->displayMorph) &&
-        asyncMgr->displayMesh.vertexCount == LizardMorph_GetVertexCount(asyncMgr->displayMorph)) {
-        LizardMorph_Deform(asyncMgr->displayMorph, &monster->anatomyGraph, &asyncMgr->displayMesh);
-        asyncMgr->stats.displayedScale = monster->lizardPhenotype.totalScale;
-    }
+    /* Una metamorfosis puede crear superficie: deformar la topología anterior
+     * no representa el resultado del ager. Cuerpo, color y anexos pertenecen
+     * siempre al mismo snapshot publicado, también en MORPH. */
 
     /* Ojos: actualización continua de posición y escala morfológica en tiempo real */
     if (allowLiveArticulation && monster->eyeCount > 0) {

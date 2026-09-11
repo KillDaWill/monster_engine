@@ -494,11 +494,48 @@ static void test_lizard_appendage_mesh_visibility(void) {
     printf("[PASS] test_lizard_appendage_mesh_visibility\n");
 }
 
+static void test_lizard_larval_metamorphosis(void) {
+    LizardPhenotype lp=LizardPreset_Larva(),ap=LizardPreset_Adult();
+    TEST_ASSERT(lp.appendageDevelopment==0.0f&&lp.pigmentation==0.0f&&
+                lp.cephalicDevelopment==0.0f,"El preset larvario no parte de rasgos indiferenciados");
+    Monster larva=Monster_Create(),adult=Monster_Create();
+    TEST_ASSERT(Lizard_BuildMonster(&larva,&lp)&&Lizard_BuildMonster(&adult,&ap),
+                "No se construyeron los extremos larva/adulto");
+    TEST_ASSERT(larva.anatomyGraph.nodeCount==adult.anatomyGraph.nodeCount&&
+                larva.anatomyGraph.connectionCount==adult.anatomyGraph.connectionCount,
+                "La metamorfosis no conserva correspondencia anatómica");
+    Color larvalColor=Monster_GetColorFromIndex(&larva,0);
+    TEST_ASSERT(larvalColor.r>230&&larvalColor.g>230&&larvalColor.b>220,
+                "La fase vermiforme no es blanca");
+    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&larva.anatomyGraph,ANATOMY_ID_FORE_LEFT_SHOULDER);
+    const AnatomyNode* hand=AnatomyGraph_FindNode(&larva.anatomyGraph,ANATOMY_ID_FORE_LEFT_HAND);
+    const AnatomyNode* adultShoulder=AnatomyGraph_FindNode(&adult.anatomyGraph,ANATOMY_ID_FORE_LEFT_SHOULDER);
+    const AnatomyNode* adultHand=AnatomyGraph_FindNode(&adult.anatomyGraph,ANATOMY_ID_FORE_LEFT_HAND);
+    TEST_ASSERT(shoulder&&hand&&Vec3_Distance(shoulder->center,hand->center)<.01f,
+                "La larva conserva una extremidad visible");
+    TEST_ASSERT(adultShoulder&&adultHand&&Vec3_Distance(adultShoulder->center,adultHand->center)>.5f,
+                "El adulto no desarrolla la extremidad");
+    for(size_t i=0;i<larva.eyeCount;++i)
+        TEST_ASSERT(Vec3_LengthSq(larva.eyes[i].scale)<1e-8f,"La larva conserva ojos visibles");
+    MonsterAger ager=MonsterAger_Create(&larva,&adult,.5f);
+    const Monster* middle=MonsterAger_GetResultConst(&ager);
+    TEST_ASSERT(middle->lizardPhenotype.appendageDevelopment>0.0f&&
+                middle->lizardPhenotype.appendageDevelopment<1.0f,
+                "Los apéndices no emergen de forma continua");
+    TEST_ASSERT(AnatomyGraph_Validate(&middle->anatomyGraph),"La anatomía intermedia es inválida");
+    MonsterSDF sdf=MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(&sdf,&larva,MonsterSDF_DefaultConfig()),
+                "La fase vermiforme no compila al campo SDF productivo");
+    MonsterSDF_Free(&sdf);MonsterAger_Free(&ager);Monster_Free(&larva);Monster_Free(&adult);
+    printf("[PASS] test_lizard_larval_metamorphosis\n");
+}
+
 void run_lizard_tests(void) {
     printf("\n--- Módulo Anatomía de Lagarto ---\n");
     test_lizard_graph_topology();
     test_lizard_articulated_digits();
     test_lizard_appendage_mesh_visibility();
+    test_lizard_larval_metamorphosis();
     test_lizard_axial_loft_and_tail();
     test_lizard_head_semantics();
     test_lizard_tapered_jaw_has_closed_floor();

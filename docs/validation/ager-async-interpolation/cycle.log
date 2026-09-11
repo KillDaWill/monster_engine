@@ -1,0 +1,826 @@
+========================================================
+ MONSTER ENGINE 3D: Metamorfosis Gusano -> Lagarto (MonsterAger)
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas F1-F4                  : Inspección cabeza / vistas anatómicas
+  - 0..4 : Edades 0 / 25 / 50 / 75 / 100%; rueda : zoom
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: activo (4x)
+[MALLA] edad_solicitada=0.00 edad_visible=0.00 lag=0.00 escala=0.45000 gen=1 fp=10213493241046634461 tier=MORPH ms=28.10 fps=0.0 builds/s=0.0 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=1 extremos_visibles=0/20 escala=0.450000
+[MALLA] edad_solicitada=0.00 edad_visible=0.01 lag=0.00 escala=0.45004 gen=2 fp=946596115642893961 tier=MORPH ms=29.30 fps=0.0 builds/s=0.0 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=2 extremos_visibles=0/20 escala=0.450041
+[MALLA] edad_solicitada=0.01 edad_visible=0.01 lag=0.00 escala=0.45015 gen=3 fp=16192207788298236192 tier=MORPH ms=25.52 fps=0.0 builds/s=0.0 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=3 extremos_visibles=0/20 escala=0.450151
+[MALLA] edad_solicitada=0.01 edad_visible=0.01 lag=0.00 escala=0.45032 gen=4 fp=5891762853725463677 tier=MORPH ms=24.17 fps=0.0 builds/s=0.0 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=4 extremos_visibles=0/20 escala=0.450320
+[MALLA] edad_solicitada=0.02 edad_visible=0.02 lag=0.00 escala=0.45055 gen=5 fp=15040054544227371740 tier=MORPH ms=25.80 fps=0.0 builds/s=0.0 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=5 extremos_visibles=0/20 escala=0.450552
+[MALLA] edad_solicitada=0.02 edad_visible=0.02 lag=0.00 escala=0.45084 gen=6 fp=14871294711033774513 tier=MORPH ms=25.71 fps=0.0 builds/s=0.0 grid=34x32x76 celdas=82688 activas=882 refinadas=0 muestras=61040 triangulos=1756 coalescidas=0
+[CICLO] generación=6 extremos_visibles=0/20 escala=0.450845
+[MALLA] edad_solicitada=0.03 edad_visible=0.03 lag=0.00 escala=0.45120 gen=7 fp=4304809969094335983 tier=MORPH ms=25.57 fps=0.0 builds/s=0.0 grid=34x32x77 celdas=83776 activas=892 refinadas=0 muestras=61910 triangulos=1776 coalescidas=0
+[CICLO] generación=7 extremos_visibles=0/20 escala=0.451199
+[MALLA] edad_solicitada=0.03 edad_visible=0.03 lag=0.00 escala=0.45161 gen=8 fp=14514051626771039965 tier=MORPH ms=24.86 fps=0.0 builds/s=0.0 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=8 extremos_visibles=0/20 escala=0.451613
+[MALLA] edad_solicitada=0.04 edad_visible=0.04 lag=0.00 escala=0.45209 gen=9 fp=9720514407187119881 tier=MORPH ms=24.92 fps=0.0 builds/s=0.0 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=9 extremos_visibles=0/20 escala=0.452087
+[MALLA] edad_solicitada=0.04 edad_visible=0.04 lag=0.00 escala=0.45262 gen=10 fp=5125345308669124108 tier=MORPH ms=24.07 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=10 extremos_visibles=0/20 escala=0.452621
+[MALLA] edad_solicitada=0.04 edad_visible=0.04 lag=0.00 escala=0.45321 gen=11 fp=11258962190014814823 tier=MORPH ms=23.72 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=11 extremos_visibles=0/20 escala=0.453213
+[MALLA] edad_solicitada=0.05 edad_visible=0.05 lag=0.00 escala=0.45386 gen=12 fp=7848062990059681091 tier=MORPH ms=23.47 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=898 refinadas=0 muestras=61910 triangulos=1788 coalescidas=0
+[CICLO] generación=12 extremos_visibles=0/20 escala=0.453863
+[MALLA] edad_solicitada=0.05 edad_visible=0.05 lag=0.00 escala=0.45457 gen=13 fp=4401587477662967921 tier=MORPH ms=23.62 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=898 refinadas=0 muestras=61910 triangulos=1788 coalescidas=0
+[CICLO] generación=13 extremos_visibles=0/20 escala=0.454571
+[MALLA] edad_solicitada=0.06 edad_visible=0.06 lag=0.00 escala=0.45534 gen=14 fp=16336946899148326640 tier=MORPH ms=24.35 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=900 refinadas=0 muestras=61910 triangulos=1792 coalescidas=0
+[CICLO] generación=14 extremos_visibles=0/20 escala=0.455336
+[MALLA] edad_solicitada=0.06 edad_visible=0.06 lag=0.00 escala=0.45616 gen=15 fp=10529965943227067560 tier=MORPH ms=23.15 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=900 refinadas=0 muestras=61910 triangulos=1792 coalescidas=0
+[CICLO] generación=15 extremos_visibles=0/20 escala=0.456157
+[MALLA] edad_solicitada=0.07 edad_visible=0.07 lag=0.00 escala=0.45708 gen=16 fp=7310356414180070436 tier=MORPH ms=24.10 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=900 refinadas=0 muestras=61910 triangulos=1792 coalescidas=0
+[CICLO] generación=16 extremos_visibles=0/20 escala=0.457076
+[MALLA] edad_solicitada=0.07 edad_visible=0.07 lag=0.00 escala=0.45801 gen=17 fp=6695111623760775347 tier=MORPH ms=22.32 fps=163.0 builds/s=17.9 grid=34x32x77 celdas=83776 activas=906 refinadas=0 muestras=61910 triangulos=1804 coalescidas=0
+[CICLO] generación=17 extremos_visibles=0/20 escala=0.458011
+[MALLA] edad_solicitada=0.08 edad_visible=0.08 lag=0.00 escala=0.45914 gen=18 fp=8969946575308204000 tier=MORPH ms=24.52 fps=163.0 builds/s=17.9 grid=34x32x78 celdas=84864 activas=918 refinadas=0 muestras=62751 triangulos=1828 coalescidas=0
+[CICLO] generación=18 extremos_visibles=0/20 escala=0.459140
+[MALLA] edad_solicitada=0.08 edad_visible=0.08 lag=0.00 escala=0.46034 gen=19 fp=5775542759602422856 tier=MORPH ms=23.94 fps=62.0 builds/s=20.0 grid=34x32x78 celdas=84864 activas=920 refinadas=0 muestras=62751 triangulos=1832 coalescidas=0
+[CICLO] generación=19 extremos_visibles=0/20 escala=0.460340
+[MALLA] edad_solicitada=0.09 edad_visible=0.09 lag=0.00 escala=0.46161 gen=20 fp=8350903133762187049 tier=MORPH ms=26.81 fps=62.0 builds/s=20.0 grid=34x32x78 celdas=84864 activas=922 refinadas=0 muestras=62722 triangulos=1836 coalescidas=0
+[CICLO] generación=20 extremos_visibles=0/20 escala=0.461608
+[MALLA] edad_solicitada=0.09 edad_visible=0.09 lag=0.00 escala=0.46294 gen=21 fp=10010342128245806121 tier=MORPH ms=30.19 fps=62.0 builds/s=20.0 grid=34x32x78 celdas=84864 activas=922 refinadas=0 muestras=62722 triangulos=1836 coalescidas=0
+[CICLO] generación=21 extremos_visibles=0/20 escala=0.462944
+[MALLA] edad_solicitada=0.10 edad_visible=0.10 lag=0.00 escala=0.46435 gen=22 fp=8395461469840377826 tier=MORPH ms=30.71 fps=62.0 builds/s=20.0 grid=34x32x78 celdas=84864 activas=926 refinadas=0 muestras=62780 triangulos=1844 coalescidas=0
+[CICLO] generación=22 extremos_visibles=0/20 escala=0.464348
+[MALLA] edad_solicitada=0.10 edad_visible=0.10 lag=0.00 escala=0.46582 gen=23 fp=13617572873831333016 tier=MORPH ms=35.98 fps=62.0 builds/s=20.0 grid=34x32x79 celdas=85952 activas=946 refinadas=0 muestras=63650 triangulos=1884 coalescidas=0
+[CICLO] generación=23 extremos_visibles=0/20 escala=0.465818
+[MALLA] edad_solicitada=0.11 edad_visible=0.11 lag=0.00 escala=0.46735 gen=24 fp=10649961644159580827 tier=MORPH ms=31.15 fps=62.0 builds/s=20.0 grid=34x32x79 celdas=85952 activas=948 refinadas=0 muestras=63650 triangulos=1888 coalescidas=0
+[CICLO] generación=24 extremos_visibles=0/20 escala=0.467355
+[MALLA] edad_solicitada=0.11 edad_visible=0.11 lag=0.00 escala=0.46896 gen=25 fp=10061610703076555247 tier=MORPH ms=34.71 fps=62.0 builds/s=20.0 grid=34x32x79 celdas=85952 activas=946 refinadas=0 muestras=63650 triangulos=1884 coalescidas=0
+[CICLO] generación=25 extremos_visibles=0/20 escala=0.468956
+[MALLA] edad_solicitada=0.12 edad_visible=0.12 lag=0.00 escala=0.47062 gen=26 fp=4143640196950618117 tier=MORPH ms=38.26 fps=57.4 builds/s=11.5 grid=34x32x79 celdas=85952 activas=950 refinadas=0 muestras=63621 triangulos=1892 coalescidas=0
+[CICLO] generación=26 extremos_visibles=0/20 escala=0.470621
+[MALLA] edad_solicitada=0.12 edad_visible=0.12 lag=0.00 escala=0.47235 gen=27 fp=9397716331222566076 tier=MORPH ms=39.88 fps=57.4 builds/s=11.5 grid=34x32x79 celdas=85952 activas=946 refinadas=0 muestras=63621 triangulos=1884 coalescidas=0
+[CICLO] generación=27 extremos_visibles=0/20 escala=0.472350
+[MALLA] edad_solicitada=0.13 edad_visible=0.13 lag=0.00 escala=0.47414 gen=28 fp=15934339215935499681 tier=MORPH ms=31.74 fps=57.4 builds/s=11.5 grid=34x33x80 celdas=89760 activas=974 refinadas=0 muestras=66511 triangulos=1940 coalescidas=0
+[CICLO] generación=28 extremos_visibles=0/20 escala=0.474141
+[MALLA] edad_solicitada=0.13 edad_visible=0.13 lag=0.00 escala=0.47599 gen=29 fp=17141082587832116097 tier=MORPH ms=37.02 fps=57.4 builds/s=11.5 grid=34x33x80 celdas=89760 activas=974 refinadas=0 muestras=66511 triangulos=1940 coalescidas=0
+[CICLO] generación=29 extremos_visibles=0/20 escala=0.475993
+[MALLA] edad_solicitada=0.14 edad_visible=0.14 lag=0.00 escala=0.47791 gen=30 fp=2139953405673500846 tier=MORPH ms=29.26 fps=57.4 builds/s=11.5 grid=34x33x80 celdas=89760 activas=988 refinadas=0 muestras=66511 triangulos=1968 coalescidas=0
+[CICLO] generación=30 extremos_visibles=0/20 escala=0.477907
+[MALLA] edad_solicitada=0.14 edad_visible=0.14 lag=0.00 escala=0.47988 gen=31 fp=9128169867286625389 tier=MORPH ms=35.11 fps=57.4 builds/s=11.5 grid=34x33x80 celdas=89760 activas=992 refinadas=0 muestras=66511 triangulos=1976 coalescidas=0
+[CICLO] generación=31 extremos_visibles=0/20 escala=0.479880
+[MALLA] edad_solicitada=0.15 edad_visible=0.15 lag=0.00 escala=0.48191 gen=32 fp=10637935997547538134 tier=MORPH ms=37.57 fps=62.6 builds/s=11.7 grid=34x33x81 celdas=90882 activas=1008 refinadas=0 muestras=67468 triangulos=2008 coalescidas=0
+[CICLO] generación=32 extremos_visibles=0/20 escala=0.481913
+[MALLA] edad_solicitada=0.15 edad_visible=0.15 lag=0.00 escala=0.48400 gen=33 fp=12794251377429769640 tier=MORPH ms=37.33 fps=62.6 builds/s=11.7 grid=34x33x81 celdas=90882 activas=1008 refinadas=0 muestras=67468 triangulos=2008 coalescidas=0
+[CICLO] generación=33 extremos_visibles=0/20 escala=0.484004
+[MALLA] edad_solicitada=0.16 edad_visible=0.16 lag=0.00 escala=0.48615 gen=34 fp=10826704204837471184 tier=MORPH ms=55.58 fps=62.6 builds/s=11.7 grid=34x33x81 celdas=90882 activas=1016 refinadas=0 muestras=70149 triangulos=2024 coalescidas=0
+[CICLO] generación=34 extremos_visibles=0/20 escala=0.486152
+[MALLA] edad_solicitada=0.16 edad_visible=0.16 lag=0.00 escala=0.48836 gen=35 fp=4326734449803110713 tier=MORPH ms=48.12 fps=62.6 builds/s=11.7 grid=34x33x82 celdas=92004 activas=1036 refinadas=0 muestras=71050 triangulos=2064 coalescidas=0
+[CICLO] generación=35 extremos_visibles=0/20 escala=0.488358
+[MALLA] edad_solicitada=0.17 edad_visible=0.17 lag=0.00 escala=0.49062 gen=36 fp=17578704964557499335 tier=MORPH ms=57.51 fps=62.6 builds/s=11.7 grid=34x33x82 celdas=92004 activas=1036 refinadas=0 muestras=71050 triangulos=2064 coalescidas=0
+[CICLO] generación=36 extremos_visibles=0/20 escala=0.490619
+[MALLA] edad_solicitada=0.17 edad_visible=0.17 lag=0.00 escala=0.49293 gen=37 fp=7101978266657785654 tier=MORPH ms=64.67 fps=59.9 builds/s=10.0 grid=34x33x82 celdas=92004 activas=1046 refinadas=0 muestras=71732 triangulos=2084 coalescidas=0
+[CICLO] generación=37 extremos_visibles=0/20 escala=0.492935
+[MALLA] edad_solicitada=0.18 edad_visible=0.18 lag=0.00 escala=0.49531 gen=38 fp=15442288728432452539 tier=MORPH ms=66.09 fps=59.9 builds/s=10.0 grid=34x33x83 celdas=93126 activas=1074 refinadas=0 muestras=72662 triangulos=2140 coalescidas=0
+[CICLO] generación=38 extremos_visibles=0/20 escala=0.495305
+[MALLA] edad_solicitada=0.18 edad_visible=0.18 lag=0.00 escala=0.49773 gen=39 fp=15298671331805810074 tier=MORPH ms=63.70 fps=59.9 builds/s=10.0 grid=34x33x83 celdas=93126 activas=1074 refinadas=0 muestras=72941 triangulos=2136 coalescidas=0
+[CICLO] generación=39 extremos_visibles=0/20 escala=0.497729
+[MALLA] edad_solicitada=0.19 edad_visible=0.19 lag=0.00 escala=0.50021 gen=40 fp=999329401287873096 tier=MORPH ms=75.17 fps=59.9 builds/s=10.0 grid=34x33x83 celdas=93126 activas=1074 refinadas=0 muestras=72941 triangulos=2140 coalescidas=0
+[CICLO] generación=40 extremos_visibles=0/20 escala=0.500205
+[MALLA] edad_solicitada=0.19 edad_visible=0.19 lag=0.00 escala=0.50273 gen=41 fp=7276415235844531806 tier=MORPH ms=45.78 fps=59.9 builds/s=8.0 grid=34x33x84 celdas=94248 activas=1110 refinadas=0 muestras=73811 triangulos=2212 coalescidas=0
+[CICLO] generación=41 extremos_visibles=0/20 escala=0.502733
+[MALLA] edad_solicitada=0.20 edad_visible=0.20 lag=0.00 escala=0.50531 gen=42 fp=16930714046172491163 tier=MORPH ms=54.38 fps=59.9 builds/s=8.0 grid=34x33x84 celdas=94248 activas=1128 refinadas=0 muestras=73811 triangulos=2248 coalescidas=0
+[CICLO] generación=42 extremos_visibles=0/20 escala=0.505312
+[MALLA] edad_solicitada=0.20 edad_visible=0.20 lag=0.00 escala=0.50794 gen=43 fp=13769410500617332649 tier=MORPH ms=42.96 fps=59.9 builds/s=8.0 grid=34x33x84 celdas=94248 activas=1160 refinadas=0 muestras=73931 triangulos=2312 coalescidas=0
+[CICLO] generación=43 extremos_visibles=0/20 escala=0.507941
+[MALLA] edad_solicitada=0.21 edad_visible=0.21 lag=0.00 escala=0.51062 gen=44 fp=68731919324216316 tier=MORPH ms=40.16 fps=59.9 builds/s=8.0 grid=34x33x85 celdas=95370 activas=1194 refinadas=0 muestras=74863 triangulos=2380 coalescidas=0
+[CICLO] generación=44 extremos_visibles=0/20 escala=0.510619
+[MALLA] edad_solicitada=0.21 edad_visible=0.21 lag=0.00 escala=0.51335 gen=45 fp=14902664477599589710 tier=MORPH ms=41.07 fps=59.9 builds/s=8.0 grid=34x33x85 celdas=95370 activas=1206 refinadas=0 muestras=74863 triangulos=2404 coalescidas=0
+[CICLO] generación=45 extremos_visibles=0/20 escala=0.513346
+[MALLA] edad_solicitada=0.22 edad_visible=0.22 lag=0.00 escala=0.51612 gen=46 fp=12287791087720596549 tier=MORPH ms=35.16 fps=59.9 builds/s=8.0 grid=34x33x86 celdas=96492 activas=1250 refinadas=0 muestras=75950 triangulos=2492 coalescidas=0
+[CICLO] generación=46 extremos_visibles=0/20 escala=0.516121
+[MALLA] edad_solicitada=0.22 edad_visible=0.22 lag=0.00 escala=0.51894 gen=47 fp=17163400877092871143 tier=MORPH ms=32.80 fps=57.8 builds/s=11.6 grid=34x33x86 celdas=96492 activas=1262 refinadas=0 muestras=75919 triangulos=2516 coalescidas=0
+[CICLO] generación=47 extremos_visibles=0/20 escala=0.518942
+[MALLA] edad_solicitada=0.23 edad_visible=0.23 lag=0.00 escala=0.52181 gen=48 fp=1636074614796361032 tier=MORPH ms=29.41 fps=57.8 builds/s=11.6 grid=34x33x86 celdas=96492 activas=1280 refinadas=0 muestras=75896 triangulos=2552 coalescidas=0
+[CICLO] generación=48 extremos_visibles=0/20 escala=0.521809
+[MALLA] edad_solicitada=0.23 edad_visible=0.23 lag=0.00 escala=0.52472 gen=49 fp=3673879229806987820 tier=MORPH ms=35.08 fps=57.8 builds/s=11.6 grid=34x33x87 celdas=97614 activas=1308 refinadas=0 muestras=76857 triangulos=2608 coalescidas=0
+[CICLO] generación=49 extremos_visibles=0/20 escala=0.524721
+[MALLA] edad_solicitada=0.24 edad_visible=0.24 lag=0.00 escala=0.52768 gen=50 fp=13668499876996083041 tier=MORPH ms=29.90 fps=57.8 builds/s=11.6 grid=34x33x87 celdas=97614 activas=1318 refinadas=0 muestras=76857 triangulos=2628 coalescidas=0
+[CICLO] generación=50 extremos_visibles=0/20 escala=0.527678
+[MALLA] edad_solicitada=0.24 edad_visible=0.24 lag=0.00 escala=0.53068 gen=51 fp=7491065082428357181 tier=MORPH ms=30.53 fps=57.8 builds/s=11.6 grid=34x33x88 celdas=98736 activas=1338 refinadas=0 muestras=77789 triangulos=2668 coalescidas=0
+[CICLO] generación=51 extremos_visibles=0/20 escala=0.530678
+[MALLA] edad_solicitada=0.25 edad_visible=0.25 lag=0.00 escala=0.53372 gen=52 fp=13986868059268356503 tier=MORPH ms=30.22 fps=57.8 builds/s=11.6 grid=35x33x88 celdas=101640 activas=1280 refinadas=0 muestras=80072 triangulos=2552 coalescidas=0
+[CICLO] generación=52 extremos_visibles=0/20 escala=0.533721
+[MALLA] edad_solicitada=0.25 edad_visible=0.25 lag=0.00 escala=0.53681 gen=53 fp=15578160766057389241 tier=MORPH ms=27.50 fps=59.9 builds/s=12.0 grid=35x33x89 celdas=102795 activas=1304 refinadas=0 muestras=81244 triangulos=2600 coalescidas=0
+[CICLO] generación=53 extremos_visibles=0/20 escala=0.536805
+[MALLA] edad_solicitada=0.26 edad_visible=0.26 lag=0.00 escala=0.53993 gen=54 fp=16892034075399110231 tier=MORPH ms=35.20 fps=59.9 builds/s=12.0 grid=35x33x89 celdas=102795 activas=1314 refinadas=0 muestras=81244 triangulos=2620 coalescidas=0
+[CICLO] generación=54 extremos_visibles=0/20 escala=0.539931
+[MALLA] edad_solicitada=0.26 edad_visible=0.26 lag=0.00 escala=0.54310 gen=55 fp=748484734947548297 tier=MORPH ms=32.35 fps=59.9 builds/s=12.0 grid=35x33x90 celdas=103950 activas=1328 refinadas=0 muestras=82422 triangulos=2648 coalescidas=0
+[CICLO] generación=55 extremos_visibles=0/20 escala=0.543097
+[MALLA] edad_solicitada=0.27 edad_visible=0.27 lag=0.00 escala=0.54630 gen=56 fp=7122610209514542375 tier=MORPH ms=28.53 fps=59.9 builds/s=12.0 grid=35x33x90 celdas=103950 activas=1338 refinadas=0 muestras=82422 triangulos=2668 coalescidas=0
+[CICLO] generación=56 extremos_visibles=0/20 escala=0.546302
+[MALLA] edad_solicitada=0.27 edad_visible=0.27 lag=0.00 escala=0.54955 gen=57 fp=7908071122433192901 tier=MORPH ms=27.54 fps=59.9 builds/s=12.0 grid=35x33x90 celdas=103950 activas=1350 refinadas=0 muestras=82360 triangulos=2692 coalescidas=0
+[CICLO] generación=57 extremos_visibles=0/20 escala=0.549546
+[MALLA] edad_solicitada=0.28 edad_visible=0.28 lag=0.00 escala=0.55283 gen=58 fp=12493328696271175244 tier=MORPH ms=35.23 fps=59.9 builds/s=12.0 grid=35x33x91 celdas=105105 activas=1400 refinadas=0 muestras=83292 triangulos=2792 coalescidas=0
+[CICLO] generación=58 extremos_visibles=0/20 escala=0.552827
+[MALLA] edad_solicitada=0.28 edad_visible=0.28 lag=0.00 escala=0.55615 gen=59 fp=952199011246749635 tier=MORPH ms=31.57 fps=62.6 builds/s=11.7 grid=35x33x91 celdas=105105 activas=1432 refinadas=0 muestras=83292 triangulos=2856 coalescidas=0
+[CICLO] generación=59 extremos_visibles=0/20 escala=0.556146
+[MALLA] edad_solicitada=0.29 edad_visible=0.29 lag=0.00 escala=0.55950 gen=60 fp=2159312655835408997 tier=MORPH ms=36.04 fps=62.6 builds/s=11.7 grid=35x33x92 celdas=106260 activas=1478 refinadas=0 muestras=83292 triangulos=2948 coalescidas=0
+[CICLO] generación=60 extremos_visibles=0/20 escala=0.559500
+[MALLA] edad_solicitada=0.29 edad_visible=0.29 lag=0.00 escala=0.56289 gen=61 fp=5884285811193819167 tier=MORPH ms=517.21 fps=60.0 builds/s=3.9 grid=2547x2429x6817 celdas=124510 activas=38573 refinadas=67284 muestras=126647 triangulos=262444 coalescidas=0
+[CICLO] generación=61 extremos_visibles=14/20 escala=0.562890
+[MALLA] edad_solicitada=0.30 edad_visible=0.30 lag=0.00 escala=0.56631 gen=62 fp=94505492297853790 tier=MORPH ms=1025.43 fps=60.0 builds/s=0.0 grid=2413x2299x6484 celdas=243867 activas=49016 refinadas=168818 muestras=248897 triangulos=333150 coalescidas=0
+[CICLO] generación=62 extremos_visibles=16/20 escala=0.566314
+[MALLA] edad_solicitada=0.30 edad_visible=0.30 lag=0.00 escala=0.56977 gen=63 fp=16638709806691597334 tier=MORPH ms=901.42 fps=60.0 builds/s=0.0 grid=2287x2179x6174 celdas=227277 activas=48535 refinadas=156165 muestras=229861 triangulos=327540 coalescidas=0
+[CICLO] generación=63 extremos_visibles=16/20 escala=0.569771
+[MALLA] edad_solicitada=0.31 edad_visible=0.31 lag=0.00 escala=0.57326 gen=64 fp=9194555100123271018 tier=MORPH ms=896.85 fps=60.0 builds/s=0.0 grid=2170x2066x5885 celdas=226794 activas=53498 refinadas=146718 muestras=226764 triangulos=358364 coalescidas=0
+[CICLO] generación=64 extremos_visibles=16/20 escala=0.573262
+[MALLA] edad_solicitada=0.31 edad_visible=0.31 lag=0.00 escala=0.57678 gen=65 fp=2030410978444042621 tier=MORPH ms=888.57 fps=60.1 builds/s=1.9 grid=2065x1961x5615 celdas=226136 activas=54227 refinadas=137614 muestras=221988 triangulos=362844 coalescidas=0
+[CICLO] generación=65 extremos_visibles=16/20 escala=0.576784
+[MALLA] edad_solicitada=0.32 edad_visible=0.32 lag=0.00 escala=0.58034 gen=66 fp=9254346663904681730 tier=MORPH ms=811.43 fps=63.2 builds/s=0.0 grid=1973x1863x5362 celdas=210673 activas=54381 refinadas=130438 muestras=212234 triangulos=365972 coalescidas=0
+[CICLO] generación=66 extremos_visibles=16/20 escala=0.580338
+[MALLA] edad_solicitada=0.32 edad_visible=0.32 lag=0.00 escala=0.58392 gen=67 fp=15724782283971343158 tier=MORPH ms=781.39 fps=60.0 builds/s=0.0 grid=1888x1771x5125 celdas=202182 activas=54642 refinadas=121315 muestras=198418 triangulos=365120 coalescidas=0
+[CICLO] generación=67 extremos_visibles=16/20 escala=0.583922
+[MALLA] edad_solicitada=0.33 edad_visible=0.33 lag=0.00 escala=0.58753 gen=68 fp=15340571767405389344 tier=MORPH ms=794.04 fps=60.0 builds/s=1.9 grid=1808x1686x4902 celdas=199851 activas=55676 refinadas=117827 muestras=201079 triangulos=371632 coalescidas=0
+[CICLO] generación=68 extremos_visibles=18/20 escala=0.587535
+[MALLA] edad_solicitada=0.33 edad_visible=0.33 lag=0.00 escala=0.59118 gen=69 fp=282176762585511697 tier=MORPH ms=736.11 fps=60.1 builds/s=0.0 grid=1733x1605x4694 celdas=195168 activas=56025 refinadas=110306 muestras=193699 triangulos=373640 coalescidas=0
+[CICLO] generación=69 extremos_visibles=20/20 escala=0.591177
+[MALLA] edad_solicitada=0.34 edad_visible=0.34 lag=0.00 escala=0.59485 gen=70 fp=3173702706565455256 tier=MORPH ms=783.13 fps=60.1 builds/s=0.0 grid=1663x1530x4498 celdas=206305 activas=55659 refinadas=115806 muestras=204904 triangulos=370484 coalescidas=0
+[CICLO] generación=70 extremos_visibles=20/20 escala=0.594846
+[MALLA] edad_solicitada=0.34 edad_visible=0.34 lag=0.00 escala=0.59854 gen=71 fp=11729396890085571767 tier=MORPH ms=719.36 fps=60.0 builds/s=1.9 grid=1597x1459x4313 celdas=185200 activas=55762 refinadas=104000 muestras=183146 triangulos=368722 coalescidas=0
+[CICLO] generación=71 extremos_visibles=20/20 escala=0.598543
+[MALLA] edad_solicitada=0.35 edad_visible=0.35 lag=0.00 escala=0.60227 gen=72 fp=8451310529711793033 tier=MORPH ms=698.60 fps=59.9 builds/s=2.0 grid=1535x1393x4140 celdas=180153 activas=56505 refinadas=98308 muestras=178272 triangulos=375398 coalescidas=0
+[CICLO] generación=72 extremos_visibles=20/20 escala=0.602266
+[MALLA] edad_solicitada=0.35 edad_visible=0.35 lag=0.00 escala=0.60601 gen=73 fp=9057712371268566952 tier=MORPH ms=687.43 fps=59.9 builds/s=0.0 grid=1476x1331x3977 celdas=183625 activas=57037 refinadas=98316 muestras=178957 triangulos=375032 coalescidas=0
+[CICLO] generación=73 extremos_visibles=20/20 escala=0.606014
+[MALLA] edad_solicitada=0.36 edad_visible=0.36 lag=0.00 escala=0.60979 gen=74 fp=15300986507546613987 tier=MORPH ms=743.60 fps=60.1 builds/s=1.9 grid=1422x1273x3823 celdas=195525 activas=57324 refinadas=109243 muestras=194432 triangulos=376776 coalescidas=0
+[CICLO] generación=74 extremos_visibles=20/20 escala=0.609787
+[MALLA] edad_solicitada=0.36 edad_visible=0.36 lag=0.00 escala=0.61358 gen=75 fp=14387947446966362712 tier=MORPH ms=694.34 fps=59.6 builds/s=0.0 grid=1370x1218x3678 celdas=184171 activas=57006 refinadas=100942 muestras=183330 triangulos=377234 coalescidas=0
+[CICLO] generación=75 extremos_visibles=20/20 escala=0.613584
+[MALLA] edad_solicitada=0.37 edad_visible=0.37 lag=0.00 escala=0.61740 gen=76 fp=7107379601690115892 tier=MORPH ms=679.94 fps=60.3 builds/s=1.9 grid=1322x1166x3541 celdas=177598 activas=54638 refinadas=97755 muestras=177141 triangulos=358438 coalescidas=0
+[CICLO] generación=76 extremos_visibles=20/20 escala=0.617403
+[MALLA] edad_solicitada=0.37 edad_visible=0.37 lag=0.00 escala=0.62124 gen=77 fp=12237843387292056670 tier=MORPH ms=686.35 fps=63.2 builds/s=0.0 grid=1276x1117x3412 celdas=177479 activas=55271 refinadas=94495 muestras=177387 triangulos=363732 coalescidas=0
+[CICLO] generación=77 extremos_visibles=20/20 escala=0.621244
+[MALLA] edad_solicitada=0.38 edad_visible=0.38 lag=0.00 escala=0.62511 gen=78 fp=7475812802477626436 tier=MORPH ms=673.14 fps=60.1 builds/s=1.9 grid=1233x1071x3290 celdas=170262 activas=54102 refinadas=92111 muestras=169035 triangulos=355436 coalescidas=0
+[CICLO] generación=78 extremos_visibles=20/20 escala=0.625107
+[MALLA] edad_solicitada=0.38 edad_visible=0.38 lag=0.00 escala=0.62899 gen=79 fp=5530526604815589818 tier=MORPH ms=669.93 fps=60.1 builds/s=0.0 grid=1193x1028x3175 celdas=181420 activas=57241 refinadas=87745 muestras=175597 triangulos=376072 coalescidas=0
+[CICLO] generación=79 extremos_visibles=20/20 escala=0.628990
+[MALLA] edad_solicitada=0.39 edad_visible=0.39 lag=0.00 escala=0.63289 gen=80 fp=17169856033384277922 tier=MORPH ms=1169.70 fps=60.0 builds/s=0.0 grid=1155x987x3066 celdas=289304 activas=63958 refinadas=199131 muestras=289332 triangulos=417662 coalescidas=0
+[CICLO] generación=80 extremos_visibles=20/20 escala=0.632892
+[MALLA] edad_solicitada=0.39 edad_visible=0.39 lag=0.00 escala=0.63681 gen=81 fp=9240234025357138413 tier=MORPH ms=1149.45 fps=60.0 builds/s=0.0 grid=1119x949x2963 celdas=282857 activas=63031 refinadas=184919 muestras=282369 triangulos=411912 coalescidas=0
+[CICLO] generación=81 extremos_visibles=20/20 escala=0.636814
+[MALLA] edad_solicitada=0.40 edad_visible=0.40 lag=0.00 escala=0.64075 gen=82 fp=4122759867378624997 tier=MORPH ms=1109.95 fps=60.0 builds/s=0.0 grid=1084x912x2865 celdas=265126 activas=61828 refinadas=168336 muestras=265461 triangulos=404424 coalescidas=0
+[CICLO] generación=82 extremos_visibles=20/20 escala=0.640753
+[MALLA] edad_solicitada=0.40 edad_visible=0.40 lag=0.00 escala=0.64471 gen=83 fp=15987437840654224393 tier=MORPH ms=1054.03 fps=59.9 builds/s=0.0 grid=1052x878x2773 celdas=255634 activas=60119 refinadas=165091 muestras=257920 triangulos=391502 coalescidas=0
+[CICLO] generación=83 extremos_visibles=20/20 escala=0.644709
+[MALLA] edad_solicitada=0.41 edad_visible=0.41 lag=0.00 escala=0.64868 gen=84 fp=8714585627154100890 tier=MORPH ms=969.25 fps=60.0 builds/s=0.0 grid=1022x845x2685 celdas=237819 activas=58192 refinadas=152299 muestras=236725 triangulos=379614 coalescidas=0
+[CICLO] generación=84 extremos_visibles=20/20 escala=0.648682
+[MALLA] edad_solicitada=0.41 edad_visible=0.41 lag=0.00 escala=0.65267 gen=85 fp=9785318296256114182 tier=MORPH ms=970.79 fps=60.1 builds/s=0.0 grid=993x815x2602 celdas=242250 activas=57491 refinadas=148735 muestras=239458 triangulos=373622 coalescidas=0
+[CICLO] generación=85 extremos_visibles=20/20 escala=0.652670
+[MALLA] edad_solicitada=0.42 edad_visible=0.42 lag=0.00 escala=0.65667 gen=86 fp=12382864185215275504 tier=MORPH ms=928.24 fps=60.1 builds/s=0.0 grid=965x785x2523 celdas=227396 activas=56743 refinadas=141186 muestras=226238 triangulos=369710 coalescidas=0
+[CICLO] generación=86 extremos_visibles=20/20 escala=0.656672
+[MALLA] edad_solicitada=0.42 edad_visible=0.42 lag=0.00 escala=0.66069 gen=87 fp=1486815350106295501 tier=MORPH ms=887.82 fps=60.0 builds/s=1.9 grid=939x758x2448 celdas=224162 activas=55958 refinadas=137686 muestras=223208 triangulos=364380 coalescidas=0
+[CICLO] generación=87 extremos_visibles=20/20 escala=0.660689
+[MALLA] edad_solicitada=0.43 edad_visible=0.43 lag=0.00 escala=0.66472 gen=88 fp=11196911635078998008 tier=MORPH ms=881.16 fps=63.0 builds/s=0.0 grid=915x732x2377 celdas=218681 activas=55415 refinadas=131365 muestras=216420 triangulos=359148 coalescidas=0
+[CICLO] generación=88 extremos_visibles=20/20 escala=0.664718
+[MALLA] edad_solicitada=0.43 edad_visible=0.43 lag=0.00 escala=0.66876 gen=89 fp=7017318056100195325 tier=MORPH ms=891.14 fps=60.0 builds/s=0.0 grid=891x707x2309 celdas=215097 activas=54902 refinadas=125641 muestras=211527 triangulos=356558 coalescidas=0
+[CICLO] generación=89 extremos_visibles=20/20 escala=0.668760
+[MALLA] edad_solicitada=0.44 edad_visible=0.44 lag=0.00 escala=0.67281 gen=90 fp=4806510849069313761 tier=MORPH ms=843.00 fps=60.2 builds/s=0.0 grid=869x683x2245 celdas=207404 activas=53837 refinadas=122830 muestras=208277 triangulos=349774 coalescidas=0
+[CICLO] generación=90 extremos_visibles=20/20 escala=0.672813
+[MALLA] edad_solicitada=0.44 edad_visible=0.44 lag=0.00 escala=0.67688 gen=91 fp=5629250910161193179 tier=MORPH ms=827.06 fps=60.1 builds/s=0.0 grid=848x661x2183 celdas=203694 activas=53241 refinadas=117267 muestras=198502 triangulos=343060 coalescidas=0
+[CICLO] generación=91 extremos_visibles=20/20 escala=0.676876
+[MALLA] edad_solicitada=0.45 edad_visible=0.45 lag=0.00 escala=0.68095 gen=92 fp=12188917082940187670 tier=MORPH ms=797.02 fps=59.9 builds/s=2.0 grid=828x640x2125 celdas=198374 activas=52332 refinadas=115856 muestras=194920 triangulos=339014 coalescidas=0
+[CICLO] generación=92 extremos_visibles=20/20 escala=0.680949
+[MALLA] edad_solicitada=0.45 edad_visible=0.45 lag=0.00 escala=0.68503 gen=93 fp=10479284714949858461 tier=MORPH ms=804.28 fps=59.9 builds/s=0.0 grid=809x620x2069 celdas=198360 activas=52256 refinadas=111958 muestras=196897 triangulos=336734 coalescidas=0
+[CICLO] generación=93 extremos_visibles=20/20 escala=0.685031
+[MALLA] edad_solicitada=0.46 edad_visible=0.46 lag=0.00 escala=0.68912 gen=94 fp=950554775500122632 tier=MORPH ms=807.14 fps=59.9 builds/s=0.0 grid=791x600x2017 celdas=202665 activas=52598 refinadas=116342 muestras=203032 triangulos=339748 coalescidas=0
+[CICLO] generación=94 extremos_visibles=20/20 escala=0.689121
+[MALLA] edad_solicitada=0.46 edad_visible=0.46 lag=0.00 escala=0.69322 gen=95 fp=2369083974386089926 tier=MORPH ms=771.81 fps=60.1 builds/s=1.9 grid=774x582x1966 celdas=189078 activas=50780 refinadas=109875 muestras=187306 triangulos=328822 coalescidas=0
+[CICLO] generación=95 extremos_visibles=20/20 escala=0.693218
+[MALLA] edad_solicitada=0.47 edad_visible=0.47 lag=0.00 escala=0.69732 gen=96 fp=1577216885424862221 tier=MORPH ms=803.84 fps=60.1 builds/s=0.0 grid=757x565x1918 celdas=197478 activas=50624 refinadas=112176 muestras=196493 triangulos=328142 coalescidas=0
+[CICLO] generación=96 extremos_visibles=20/20 escala=0.697321
+[MALLA] edad_solicitada=0.47 edad_visible=0.47 lag=0.00 escala=0.70143 gen=97 fp=13470158373977524304 tier=MORPH ms=776.26 fps=60.0 builds/s=1.9 grid=742x548x1872 celdas=186075 activas=50099 refinadas=105263 muestras=181242 triangulos=323470 coalescidas=0
+[CICLO] generación=97 extremos_visibles=20/20 escala=0.701430
+[MALLA] edad_solicitada=0.48 edad_visible=0.48 lag=0.00 escala=0.70554 gen=98 fp=8270124158855648562 tier=MORPH ms=783.79 fps=63.1 builds/s=0.0 grid=727x532x1828 celdas=198514 activas=55762 refinadas=101906 muestras=194500 triangulos=360958 coalescidas=0
+[CICLO] generación=98 extremos_visibles=20/20 escala=0.705544
+[MALLA] edad_solicitada=0.48 edad_visible=0.48 lag=0.00 escala=0.70966 gen=99 fp=15372675800490274889 tier=MORPH ms=841.17 fps=60.1 builds/s=0.0 grid=712x517x1787 celdas=205577 activas=55392 refinadas=105224 muestras=204599 triangulos=359282 coalescidas=0
+[CICLO] generación=99 extremos_visibles=20/20 escala=0.709662
+[MALLA] edad_solicitada=0.49 edad_visible=0.49 lag=0.00 escala=0.71378 gen=100 fp=14162990645757399499 tier=MORPH ms=848.99 fps=60.0 builds/s=0.0 grid=699x503x1747 celdas=206557 activas=54984 refinadas=107160 muestras=206049 triangulos=355638 coalescidas=0
+[CICLO] generación=100 extremos_visibles=20/20 escala=0.713783
+[MALLA] edad_solicitada=0.49 edad_visible=0.49 lag=0.00 escala=0.71791 gen=101 fp=16933154828450971641 tier=MORPH ms=846.03 fps=60.0 builds/s=1.9 grid=686x489x1708 celdas=210351 activas=54684 refinadas=111328 muestras=210089 triangulos=353076 coalescidas=0
+[CICLO] generación=101 extremos_visibles=20/20 escala=0.717905
+[MALLA] edad_solicitada=0.50 edad_visible=0.50 lag=0.00 escala=0.72203 gen=102 fp=16451616686749198403 tier=MORPH ms=822.93 fps=60.0 builds/s=0.0 grid=674x476x1672 celdas=209616 activas=54041 refinadas=113224 muestras=212700 triangulos=351210 coalescidas=0
+[CICLO] generación=102 extremos_visibles=20/20 escala=0.722030
+[MALLA] edad_solicitada=0.50 edad_visible=0.50 lag=0.00 escala=0.72615 gen=103 fp=8963524508728167355 tier=MORPH ms=851.91 fps=60.0 builds/s=0.0 grid=662x464x1637 celdas=206214 activas=53381 refinadas=109427 muestras=204611 triangulos=346384 coalescidas=0
+[CICLO] generación=103 extremos_visibles=20/20 escala=0.726155
+[MALLA] edad_solicitada=0.51 edad_visible=0.51 lag=0.00 escala=0.73028 gen=104 fp=7026728985253567757 tier=MORPH ms=896.40 fps=60.1 builds/s=0.0 grid=651x453x1604 celdas=205171 activas=53369 refinadas=107733 muestras=206996 triangulos=345464 coalescidas=0
+[CICLO] generación=104 extremos_visibles=20/20 escala=0.730279
+[MALLA] edad_solicitada=0.51 edad_visible=0.51 lag=0.00 escala=0.73440 gen=105 fp=11665430136532557702 tier=MORPH ms=876.13 fps=60.0 builds/s=1.9 grid=640x442x1572 celdas=206571 activas=52630 refinadas=110241 muestras=207769 triangulos=340318 coalescidas=0
+[CICLO] generación=105 extremos_visibles=20/20 escala=0.734403
+[MALLA] edad_solicitada=0.52 edad_visible=0.52 lag=0.00 escala=0.73852 gen=106 fp=9800603993680832245 tier=MORPH ms=804.23 fps=60.1 builds/s=0.0 grid=629x433x1541 celdas=203883 activas=53172 refinadas=107316 muestras=202726 triangulos=343450 coalescidas=0
+[CICLO] generación=106 extremos_visibles=20/20 escala=0.738525
+[MALLA] edad_solicitada=0.52 edad_visible=0.52 lag=0.00 escala=0.74264 gen=107 fp=2775558297675556711 tier=MORPH ms=843.82 fps=60.0 builds/s=0.0 grid=620x424x1513 celdas=203883 activas=51879 refinadas=109332 muestras=207012 triangulos=333728 coalescidas=0
+[CICLO] generación=107 extremos_visibles=20/20 escala=0.742644
+[MALLA] edad_solicitada=0.53 edad_visible=0.53 lag=0.00 escala=0.74676 gen=108 fp=4710966444290646475 tier=MORPH ms=820.23 fps=60.1 builds/s=1.9 grid=617x420x1502 celdas=201664 activas=52421 refinadas=108751 muestras=201549 triangulos=340412 coalescidas=0
+[CICLO] generación=108 extremos_visibles=20/20 escala=0.746760
+[MALLA] edad_solicitada=0.53 edad_visible=0.53 lag=0.00 escala=0.75087 gen=109 fp=14172938046754009969 tier=MORPH ms=827.66 fps=63.4 builds/s=0.0 grid=615x416x1491 celdas=208076 activas=53849 refinadas=109402 muestras=207307 triangulos=348434 coalescidas=0
+[CICLO] generación=109 extremos_visibles=20/20 escala=0.750871
+[MALLA] edad_solicitada=0.54 edad_visible=0.54 lag=0.00 escala=0.75498 gen=110 fp=18207107887732287773 tier=MORPH ms=861.80 fps=59.8 builds/s=0.0 grid=612x412x1480 celdas=214789 activas=54525 refinadas=113735 muestras=212081 triangulos=353092 coalescidas=0
+[CICLO] generación=110 extremos_visibles=20/20 escala=0.754977
+[MALLA] edad_solicitada=0.54 edad_visible=0.54 lag=0.00 escala=0.75908 gen=111 fp=13779916702078697001 tier=MORPH ms=927.48 fps=59.9 builds/s=0.0 grid=610x409x1469 celdas=220123 activas=55651 refinadas=114944 muestras=222659 triangulos=360458 coalescidas=0
+[CICLO] generación=111 extremos_visibles=20/20 escala=0.759077
+[MALLA] edad_solicitada=0.55 edad_visible=0.55 lag=0.00 escala=0.76317 gen=112 fp=16639910822104996552 tier=MORPH ms=898.26 fps=59.9 builds/s=0.0 grid=607x405x1458 celdas=215566 activas=56240 refinadas=111882 muestras=212101 triangulos=364920 coalescidas=0
+[CICLO] generación=112 extremos_visibles=20/20 escala=0.763170
+[MALLA] edad_solicitada=0.55 edad_visible=0.55 lag=0.00 escala=0.76726 gen=113 fp=13799706723137568704 tier=MORPH ms=883.45 fps=59.9 builds/s=0.0 grid=605x402x1448 celdas=211891 activas=57083 refinadas=110962 muestras=211301 triangulos=369116 coalescidas=0
+[CICLO] generación=113 extremos_visibles=20/20 escala=0.767255
+[MALLA] edad_solicitada=0.56 edad_visible=0.56 lag=0.00 escala=0.77133 gen=114 fp=5762337588688340244 tier=MORPH ms=884.42 fps=60.1 builds/s=1.9 grid=602x398x1437 celdas=206256 activas=57760 refinadas=109597 muestras=202381 triangulos=372118 coalescidas=0
+[CICLO] generación=114 extremos_visibles=20/20 escala=0.771332
+[MALLA] edad_solicitada=0.56 edad_visible=0.56 lag=0.00 escala=0.77540 gen=115 fp=13203896137119650288 tier=MORPH ms=949.77 fps=60.2 builds/s=0.0 grid=600x395x1427 celdas=227998 activas=58796 refinadas=118915 muestras=223194 triangulos=379612 coalescidas=0
+[CICLO] generación=115 extremos_visibles=20/20 escala=0.775400
+[MALLA] edad_solicitada=0.57 edad_visible=0.57 lag=0.00 escala=0.77946 gen=116 fp=8261250348626319336 tier=MORPH ms=869.07 fps=60.1 builds/s=0.0 grid=598x391x1417 celdas=207096 activas=58888 refinadas=107854 muestras=201403 triangulos=380180 coalescidas=0
+[CICLO] generación=116 extremos_visibles=20/20 escala=0.779458
+[MALLA] edad_solicitada=0.57 edad_visible=0.57 lag=0.00 escala=0.78350 gen=117 fp=11414663967830056193 tier=MORPH ms=918.04 fps=60.1 builds/s=0.0 grid=595x388x1407 celdas=216630 activas=59767 refinadas=111355 muestras=212828 triangulos=384074 coalescidas=0
+[CICLO] generación=117 extremos_visibles=20/20 escala=0.783504
+[MALLA] edad_solicitada=0.58 edad_visible=0.58 lag=0.00 escala=0.78754 gen=118 fp=16967998033726886311 tier=MORPH ms=993.08 fps=60.2 builds/s=0.0 grid=593x385x1398 celdas=226990 activas=60316 refinadas=117399 muestras=225824 triangulos=389220 coalescidas=0
+[CICLO] generación=118 extremos_visibles=20/20 escala=0.787539
+[MALLA] edad_solicitada=0.58 edad_visible=0.58 lag=0.00 escala=0.79156 gen=119 fp=10047903974147919390 tier=MORPH ms=932.38 fps=60.1 builds/s=0.0 grid=591x382x1388 celdas=221320 activas=61184 refinadas=121071 muestras=221457 triangulos=394738 coalescidas=0
+[CICLO] generación=119 extremos_visibles=20/20 escala=0.791561
+[MALLA] edad_solicitada=0.59 edad_visible=0.59 lag=0.00 escala=0.79557 gen=120 fp=13777545574626041043 tier=MORPH ms=1771.37 fps=60.1 builds/s=0.0 grid=588x379x1379 celdas=378771 activas=72652 refinadas=259524 muestras=390184 triangulos=468626 coalescidas=0
+[CICLO] generación=120 extremos_visibles=20/20 escala=0.795570
+[MALLA] edad_solicitada=0.59 edad_visible=0.59 lag=0.00 escala=0.79956 gen=121 fp=7877705484941935825 tier=MORPH ms=1726.16 fps=60.1 builds/s=0.0 grid=586x375x1370 celdas=379954 activas=73227 refinadas=252716 muestras=383869 triangulos=471370 coalescidas=0
+[CICLO] generación=121 extremos_visibles=20/20 escala=0.799565
+[MALLA] edad_solicitada=0.60 edad_visible=0.60 lag=0.00 escala=0.80354 gen=122 fp=8670964324227211734 tier=MORPH ms=1727.32 fps=60.0 builds/s=0.0 grid=584x372x1361 celdas=367984 activas=73555 refinadas=251281 muestras=362351 triangulos=472932 coalescidas=0
+[CICLO] generación=122 extremos_visibles=20/20 escala=0.803544
+[MALLA] edad_solicitada=0.60 edad_visible=0.60 lag=0.00 escala=0.80751 gen=123 fp=14453556127396836369 tier=MORPH ms=1671.20 fps=60.0 builds/s=0.0 grid=582x370x1352 celdas=364197 activas=73616 refinadas=253459 muestras=361329 triangulos=473446 coalescidas=0
+[CICLO] generación=123 extremos_visibles=20/20 escala=0.807508
+[MALLA] edad_solicitada=0.61 edad_visible=0.61 lag=0.00 escala=0.81145 gen=124 fp=18093723303096445589 tier=MORPH ms=1648.31 fps=60.0 builds/s=0.0 grid=580x367x1344 celdas=369153 activas=74441 refinadas=254640 muestras=374323 triangulos=477512 coalescidas=0
+[CICLO] generación=124 extremos_visibles=20/20 escala=0.811455
+[MALLA] edad_solicitada=0.61 edad_visible=0.61 lag=0.00 escala=0.81538 gen=125 fp=555387048188087415 tier=MORPH ms=1690.36 fps=59.9 builds/s=0.0 grid=577x364x1335 celdas=373325 activas=74696 refinadas=252392 muestras=385969 triangulos=481154 coalescidas=0
+[CICLO] generación=125 extremos_visibles=20/20 escala=0.815384
+[MALLA] edad_solicitada=0.62 edad_visible=0.62 lag=0.00 escala=0.81929 gen=126 fp=18357545231437808135 tier=MORPH ms=1764.81 fps=60.0 builds/s=0.0 grid=575x361x1327 celdas=391826 activas=75741 refinadas=259088 muestras=400981 triangulos=485102 coalescidas=0
+[CICLO] generación=126 extremos_visibles=20/20 escala=0.819295
+[MALLA] edad_solicitada=0.62 edad_visible=0.62 lag=0.00 escala=0.82319 gen=127 fp=8476122776019940027 tier=MORPH ms=1729.65 fps=59.9 builds/s=0.0 grid=573x358x1319 celdas=383174 activas=76016 refinadas=259625 muestras=395140 triangulos=486624 coalescidas=0
+[CICLO] generación=127 extremos_visibles=20/20 escala=0.823187
+[MALLA] edad_solicitada=0.63 edad_visible=0.63 lag=0.00 escala=0.82706 gen=128 fp=8080474749821708850 tier=MORPH ms=1498.55 fps=60.2 builds/s=0.0 grid=571x356x1311 celdas=333887 activas=70281 refinadas=232214 muestras=338309 triangulos=451900 coalescidas=0
+[CICLO] generación=128 extremos_visibles=20/20 escala=0.827058
+[MALLA] edad_solicitada=0.63 edad_visible=0.63 lag=0.00 escala=0.83091 gen=129 fp=15164769759752673802 tier=MORPH ms=1592.45 fps=59.9 builds/s=0.0 grid=569x353x1303 celdas=357771 activas=71466 refinadas=245894 muestras=357332 triangulos=458410 coalescidas=0
+[CICLO] generación=129 extremos_visibles=20/20 escala=0.830909
+[MALLA] edad_solicitada=0.64 edad_visible=0.64 lag=0.00 escala=0.83474 gen=130 fp=13029353279418369850 tier=MORPH ms=1552.90 fps=60.0 builds/s=0.0 grid=567x351x1295 celdas=346214 activas=71175 refinadas=234352 muestras=349316 triangulos=456670 coalescidas=0
+[CICLO] generación=130 extremos_visibles=20/20 escala=0.834738
+[MALLA] edad_solicitada=0.64 edad_visible=0.64 lag=0.00 escala=0.83854 gen=131 fp=3050443596700961916 tier=MORPH ms=1589.33 fps=60.0 builds/s=0.0 grid=565x348x1288 celdas=345556 activas=71667 refinadas=238345 muestras=351774 triangulos=459408 coalescidas=0
+[CICLO] generación=131 extremos_visibles=20/20 escala=0.838545
+[MALLA] edad_solicitada=0.65 edad_visible=0.65 lag=0.00 escala=0.84233 gen=132 fp=10425084560663180889 tier=MORPH ms=1568.89 fps=60.0 builds/s=0.0 grid=563x346x1281 celdas=333145 activas=71557 refinadas=229938 muestras=339541 triangulos=457336 coalescidas=0
+[CICLO] generación=132 extremos_visibles=20/20 escala=0.842328
+[MALLA] edad_solicitada=0.65 edad_visible=0.65 lag=0.00 escala=0.84609 gen=133 fp=17261309448318673789 tier=MORPH ms=1693.01 fps=60.1 builds/s=0.0 grid=561x343x1274 celdas=371505 activas=72177 refinadas=244317 muestras=387837 triangulos=463228 coalescidas=0
+[CICLO] generación=133 extremos_visibles=20/20 escala=0.846087
+[MALLA] edad_solicitada=0.66 edad_visible=0.66 lag=0.00 escala=0.84982 gen=134 fp=8892307967298768749 tier=MORPH ms=1644.11 fps=60.1 builds/s=0.0 grid=559x341x1267 celdas=355489 activas=71777 refinadas=236762 muestras=371129 triangulos=461058 coalescidas=0
+[CICLO] generación=134 extremos_visibles=20/20 escala=0.849821
+[MALLA] edad_solicitada=0.66 edad_visible=0.66 lag=0.00 escala=0.85353 gen=135 fp=292227621671347877 tier=MORPH ms=1648.77 fps=60.1 builds/s=0.0 grid=557x338x1260 celdas=348853 activas=72117 refinadas=232680 muestras=354875 triangulos=462034 coalescidas=0
+[CICLO] generación=135 extremos_visibles=20/20 escala=0.853530
+[MALLA] edad_solicitada=0.67 edad_visible=0.67 lag=0.00 escala=0.85721 gen=136 fp=1356190985907578295 tier=MORPH ms=1595.21 fps=60.1 builds/s=0.0 grid=555x336x1253 celdas=351156 activas=72520 refinadas=235602 muestras=355971 triangulos=464620 coalescidas=0
+[CICLO] generación=136 extremos_visibles=20/20 escala=0.857211
+[MALLA] edad_solicitada=0.67 edad_visible=0.67 lag=0.00 escala=0.86087 gen=137 fp=11054730353913821576 tier=MORPH ms=1527.28 fps=60.0 builds/s=0.0 grid=553x334x1247 celdas=342707 activas=72915 refinadas=227902 muestras=347635 triangulos=467870 coalescidas=0
+[CICLO] generación=137 extremos_visibles=20/20 escala=0.860866
+[MALLA] edad_solicitada=0.68 edad_visible=0.68 lag=0.00 escala=0.86449 gen=138 fp=2497893311103983466 tier=MORPH ms=1525.42 fps=59.9 builds/s=0.0 grid=551x332x1240 celdas=344359 activas=72952 refinadas=230328 muestras=348588 triangulos=466126 coalescidas=0
+[CICLO] generación=138 extremos_visibles=20/20 escala=0.864492
+[MALLA] edad_solicitada=0.68 edad_visible=0.68 lag=0.00 escala=0.86809 gen=139 fp=1919756378122054783 tier=MORPH ms=1566.70 fps=60.2 builds/s=0.0 grid=549x330x1234 celdas=350953 activas=73326 refinadas=233902 muestras=354257 triangulos=469616 coalescidas=0
+[CICLO] generación=139 extremos_visibles=20/20 escala=0.868089
+[MALLA] edad_solicitada=0.69 edad_visible=0.69 lag=0.00 escala=0.87166 gen=140 fp=17800589162452105604 tier=MORPH ms=1578.03 fps=60.0 builds/s=0.0 grid=547x328x1228 celdas=345563 activas=73470 refinadas=230013 muestras=352728 triangulos=468976 coalescidas=0
+[CICLO] generación=140 extremos_visibles=20/20 escala=0.871656
+[MALLA] edad_solicitada=0.69 edad_visible=0.69 lag=0.00 escala=0.87519 gen=141 fp=8929119108746409898 tier=MORPH ms=1582.03 fps=60.0 builds/s=0.0 grid=545x326x1222 celdas=346683 activas=73536 refinadas=229978 muestras=356445 triangulos=470078 coalescidas=0
+[CICLO] generación=141 extremos_visibles=20/20 escala=0.875192
+[MALLA] edad_solicitada=0.70 edad_visible=0.70 lag=0.00 escala=0.87870 gen=142 fp=10283091143203525054 tier=MORPH ms=1680.98 fps=60.0 builds/s=0.0 grid=543x323x1216 celdas=372023 activas=82900 refinadas=219801 muestras=371668 triangulos=529328 coalescidas=0
+[CICLO] generación=142 extremos_visibles=20/20 escala=0.878696
+[MALLA] edad_solicitada=0.70 edad_visible=0.70 lag=0.00 escala=0.88217 gen=143 fp=13138293149108375498 tier=MORPH ms=1701.39 fps=60.0 builds/s=0.0 grid=542x322x1211 celdas=378197 activas=83357 refinadas=226273 muestras=380681 triangulos=532142 coalescidas=0
+[CICLO] generación=143 extremos_visibles=20/20 escala=0.882169
+[MALLA] edad_solicitada=0.71 edad_visible=0.71 lag=0.00 escala=0.88561 gen=144 fp=8391440053800664212 tier=MORPH ms=2028.23 fps=60.1 builds/s=0.0 grid=540x320x1205 celdas=382866 activas=83441 refinadas=219017 muestras=381641 triangulos=533616 coalescidas=0
+[CICLO] generación=144 extremos_visibles=20/20 escala=0.885608
+[MALLA] edad_solicitada=0.71 edad_visible=0.71 lag=0.00 escala=0.88901 gen=145 fp=9113905547288266826 tier=MORPH ms=1862.27 fps=60.0 builds/s=0.0 grid=538x318x1200 celdas=390265 activas=83006 refinadas=223292 muestras=390188 triangulos=530778 coalescidas=0
+[CICLO] generación=145 extremos_visibles=20/20 escala=0.889012
+[MALLA] edad_solicitada=0.72 edad_visible=0.72 lag=0.00 escala=0.89238 gen=146 fp=4131414693825148861 tier=MORPH ms=1763.32 fps=60.1 builds/s=0.0 grid=536x316x1195 celdas=387304 activas=82700 refinadas=225167 muestras=386411 triangulos=530306 coalescidas=0
+[CICLO] generación=146 extremos_visibles=20/20 escala=0.892383
+[MALLA] edad_solicitada=0.72 edad_visible=0.72 lag=0.00 escala=0.89572 gen=147 fp=14196048302789520824 tier=MORPH ms=1754.85 fps=59.9 builds/s=0.0 grid=534x314x1190 celdas=390503 activas=82455 refinadas=226871 muestras=387878 triangulos=528144 coalescidas=0
+[CICLO] generación=147 extremos_visibles=20/20 escala=0.895717
+[MALLA] edad_solicitada=0.73 edad_visible=0.73 lag=0.00 escala=0.89901 gen=148 fp=399883966733308779 tier=MORPH ms=1793.97 fps=60.1 builds/s=0.0 grid=533x312x1185 celdas=393282 activas=82210 refinadas=225807 muestras=393061 triangulos=526154 coalescidas=0
+[CICLO] generación=148 extremos_visibles=20/20 escala=0.899015
+[MALLA] edad_solicitada=0.73 edad_visible=0.73 lag=0.00 escala=0.90228 gen=149 fp=1505577835580463969 tier=MORPH ms=1717.78 fps=60.2 builds/s=0.0 grid=531x311x1180 celdas=384413 activas=82342 refinadas=220561 muestras=384338 triangulos=524716 coalescidas=0
+[CICLO] generación=149 extremos_visibles=20/20 escala=0.902275
+[MALLA] edad_solicitada=0.74 edad_visible=0.74 lag=0.00 escala=0.90550 gen=150 fp=17232674700523727534 tier=MORPH ms=1730.46 fps=59.9 builds/s=0.0 grid=529x309x1176 celdas=374928 activas=82722 refinadas=217950 muestras=378550 triangulos=527592 coalescidas=0
+[CICLO] generación=150 extremos_visibles=20/20 escala=0.905497
+[MALLA] edad_solicitada=0.74 edad_visible=0.74 lag=0.00 escala=0.90868 gen=151 fp=1428159391463478771 tier=MORPH ms=1660.63 fps=60.1 builds/s=0.0 grid=528x307x1171 celdas=368551 activas=82624 refinadas=218360 muestras=369497 triangulos=528258 coalescidas=0
+[CICLO] generación=151 extremos_visibles=20/20 escala=0.908681
+[MALLA] edad_solicitada=0.75 edad_visible=0.75 lag=0.00 escala=0.91182 gen=152 fp=3945794715792873459 tier=MORPH ms=1677.38 fps=60.1 builds/s=0.0 grid=526x306x1167 celdas=375138 activas=81578 refinadas=213751 muestras=370280 triangulos=522462 coalescidas=0
+[CICLO] generación=152 extremos_visibles=20/20 escala=0.911824
+[MALLA] edad_solicitada=0.75 edad_visible=0.75 lag=0.00 escala=0.91493 gen=153 fp=9297450978115964516 tier=MORPH ms=1684.12 fps=60.1 builds/s=0.0 grid=524x304x1162 celdas=374620 activas=81934 refinadas=215869 muestras=371672 triangulos=524238 coalescidas=0
+[CICLO] generación=153 extremos_visibles=20/20 escala=0.914927
+[MALLA] edad_solicitada=0.76 edad_visible=0.76 lag=0.00 escala=0.91799 gen=154 fp=1935702877405177349 tier=MORPH ms=1734.00 fps=60.0 builds/s=0.0 grid=523x302x1158 celdas=384042 activas=81842 refinadas=219603 muestras=380447 triangulos=522442 coalescidas=0
+[CICLO] generación=154 extremos_visibles=20/20 escala=0.917988
+[MALLA] edad_solicitada=0.76 edad_visible=0.76 lag=0.00 escala=0.92101 gen=155 fp=18114030117484117794 tier=MORPH ms=1669.89 fps=60.1 builds/s=0.0 grid=521x301x1154 celdas=378309 activas=81520 refinadas=216747 muestras=373471 triangulos=520260 coalescidas=0
+[CICLO] generación=155 extremos_visibles=20/20 escala=0.921007
+[MALLA] edad_solicitada=0.77 edad_visible=0.77 lag=0.00 escala=0.92398 gen=156 fp=335211234760067567 tier=MORPH ms=1767.99 fps=60.0 builds/s=0.0 grid=519x299x1150 celdas=370014 activas=81669 refinadas=210615 muestras=364601 triangulos=522530 coalescidas=0
+[CICLO] generación=156 extremos_visibles=20/20 escala=0.923983
+[MALLA] edad_solicitada=0.77 edad_visible=0.77 lag=0.00 escala=0.92691 gen=157 fp=15652747027948579883 tier=MORPH ms=1713.33 fps=60.0 builds/s=0.0 grid=518x298x1146 celdas=374697 activas=81178 refinadas=212235 muestras=371170 triangulos=518234 coalescidas=0
+[CICLO] generación=157 extremos_visibles=20/20 escala=0.926915
+[MALLA] edad_solicitada=0.78 edad_visible=0.78 lag=0.00 escala=0.92980 gen=158 fp=4540409208809321035 tier=MORPH ms=1700.07 fps=59.9 builds/s=0.0 grid=516x296x1143 celdas=370420 activas=81052 refinadas=212026 muestras=367363 triangulos=519222 coalescidas=0
+[CICLO] generación=158 extremos_visibles=20/20 escala=0.929802
+[MALLA] edad_solicitada=0.78 edad_visible=0.78 lag=0.00 escala=0.93264 gen=159 fp=15183239732754203069 tier=MORPH ms=1700.10 fps=59.9 builds/s=0.0 grid=515x295x1139 celdas=374193 activas=80987 refinadas=216016 muestras=374348 triangulos=518240 coalescidas=0
+[CICLO] generación=159 extremos_visibles=20/20 escala=0.932643
+[MALLA] edad_solicitada=0.79 edad_visible=0.79 lag=0.00 escala=0.93544 gen=160 fp=3715504216934770861 tier=MORPH ms=1596.84 fps=60.2 builds/s=0.0 grid=513x294x1136 celdas=350120 activas=80074 refinadas=202899 muestras=348878 triangulos=511278 coalescidas=0
+[CICLO] generación=160 extremos_visibles=20/20 escala=0.935439
+[MALLA] edad_solicitada=0.79 edad_visible=0.79 lag=0.00 escala=0.93819 gen=161 fp=9263330586344692919 tier=MORPH ms=1654.65 fps=60.0 builds/s=0.0 grid=512x292x1132 celdas=363182 activas=80481 refinadas=211746 muestras=364114 triangulos=514952 coalescidas=0
+[CICLO] generación=161 extremos_visibles=20/20 escala=0.938186
+[MALLA] edad_solicitada=0.80 edad_visible=0.80 lag=0.00 escala=0.94089 gen=162 fp=1094597420071919243 tier=MORPH ms=1643.96 fps=60.0 builds/s=0.0 grid=510x291x1129 celdas=363308 activas=80644 refinadas=211204 muestras=364435 triangulos=515482 coalescidas=0
+[CICLO] generación=162 extremos_visibles=20/20 escala=0.940886
+[MALLA] edad_solicitada=0.80 edad_visible=0.80 lag=0.00 escala=0.94354 gen=163 fp=4505869066259937764 tier=MORPH ms=1665.72 fps=60.1 builds/s=0.0 grid=509x290x1126 celdas=364967 activas=80002 refinadas=203703 muestras=364406 triangulos=512410 coalescidas=0
+[CICLO] generación=163 extremos_visibles=20/20 escala=0.943537
+[MALLA] edad_solicitada=0.81 edad_visible=0.81 lag=0.00 escala=0.94614 gen=164 fp=3372737498408754163 tier=MORPH ms=1630.77 fps=60.0 builds/s=0.0 grid=507x289x1123 celdas=356189 activas=79294 refinadas=204814 muestras=350872 triangulos=506016 coalescidas=0
+[CICLO] generación=164 extremos_visibles=20/20 escala=0.946138
+[MALLA] edad_solicitada=0.81 edad_visible=0.81 lag=0.00 escala=0.94869 gen=165 fp=1938086973743330815 tier=MORPH ms=1594.19 fps=60.1 builds/s=0.0 grid=506x287x1119 celdas=352164 activas=79701 refinadas=202413 muestras=346992 triangulos=510876 coalescidas=0
+[CICLO] generación=165 extremos_visibles=20/20 escala=0.948689
+[MALLA] edad_solicitada=0.82 edad_visible=0.82 lag=0.00 escala=0.95119 gen=166 fp=18383754523206195284 tier=MORPH ms=1672.51 fps=60.1 builds/s=0.0 grid=505x286x1117 celdas=353410 activas=79189 refinadas=202786 muestras=347848 triangulos=507104 coalescidas=0
+[CICLO] generación=166 extremos_visibles=20/20 escala=0.951188
+[MALLA] edad_solicitada=0.82 edad_visible=0.82 lag=0.00 escala=0.95363 gen=167 fp=393128639814487887 tier=MORPH ms=1826.81 fps=60.0 builds/s=1.9 grid=503x285x1114 celdas=359682 activas=78434 refinadas=204580 muestras=352824 triangulos=501044 coalescidas=0
+[CICLO] generación=167 extremos_visibles=20/20 escala=0.953635
+[MALLA] edad_solicitada=0.83 edad_visible=0.83 lag=0.00 escala=0.95603 gen=168 fp=13309534441289708325 tier=MORPH ms=1892.91 fps=60.0 builds/s=0.0 grid=502x284x1111 celdas=359773 activas=78868 refinadas=206895 muestras=355348 triangulos=504314 coalescidas=0
+[CICLO] generación=168 extremos_visibles=20/20 escala=0.956029
+[MALLA] edad_solicitada=0.83 edad_visible=0.83 lag=0.00 escala=0.95837 gen=169 fp=5205727930161178077 tier=MORPH ms=1777.64 fps=60.2 builds/s=0.0 grid=500x283x1108 celdas=360816 activas=79055 refinadas=201501 muestras=359369 triangulos=504876 coalescidas=0
+[CICLO] generación=169 extremos_visibles=20/20 escala=0.958369
+[MALLA] edad_solicitada=0.84 edad_visible=0.84 lag=0.00 escala=0.96065 gen=170 fp=6852122772437623736 tier=MORPH ms=1665.90 fps=59.9 builds/s=0.0 grid=499x282x1106 celdas=361201 activas=78066 refinadas=204978 muestras=362650 triangulos=499862 coalescidas=0
+[CICLO] generación=170 extremos_visibles=20/20 escala=0.960654
+[MALLA] edad_solicitada=0.84 edad_visible=0.84 lag=0.00 escala=0.96288 gen=171 fp=6957342934572839989 tier=MORPH ms=1619.97 fps=59.9 builds/s=0.0 grid=498x281x1103 celdas=351849 activas=78046 refinadas=203692 muestras=351132 triangulos=499718 coalescidas=0
+[CICLO] generación=171 extremos_visibles=20/20 escala=0.962884
+[MALLA] edad_solicitada=0.85 edad_visible=0.85 lag=0.00 escala=0.96506 gen=172 fp=11790740210672737765 tier=MORPH ms=1556.38 fps=60.2 builds/s=0.0 grid=497x280x1101 celdas=330961 activas=78151 refinadas=194289 muestras=329386 triangulos=500292 coalescidas=0
+[CICLO] generación=172 extremos_visibles=20/20 escala=0.965058
+[MALLA] edad_solicitada=0.85 edad_visible=0.85 lag=0.00 escala=0.96717 gen=173 fp=4871580403185369553 tier=MORPH ms=1558.50 fps=60.1 builds/s=0.0 grid=495x279x1098 celdas=338360 activas=77726 refinadas=196952 muestras=338811 triangulos=497656 coalescidas=0
+[CICLO] generación=173 extremos_visibles=20/20 escala=0.967174
+[MALLA] edad_solicitada=0.86 edad_visible=0.86 lag=0.00 escala=0.96923 gen=174 fp=12810390652140484674 tier=MORPH ms=1585.43 fps=60.1 builds/s=0.0 grid=494x278x1096 celdas=342546 activas=77374 refinadas=198191 muestras=339220 triangulos=494296 coalescidas=0
+[CICLO] generación=174 extremos_visibles=20/20 escala=0.969232
+[MALLA] edad_solicitada=0.86 edad_visible=0.86 lag=0.00 escala=0.97123 gen=175 fp=7917922505977279504 tier=MORPH ms=1637.13 fps=60.1 builds/s=0.0 grid=493x277x1094 celdas=351730 activas=76487 refinadas=197718 muestras=351998 triangulos=490778 coalescidas=0
+[CICLO] generación=175 extremos_visibles=20/20 escala=0.971232
+[MALLA] edad_solicitada=0.87 edad_visible=0.87 lag=0.00 escala=0.97317 gen=176 fp=475778466109864038 tier=MORPH ms=1666.80 fps=59.3 builds/s=0.0 grid=492x276x1091 celdas=349434 activas=77310 refinadas=197520 muestras=348370 triangulos=495644 coalescidas=0
+[CICLO] generación=176 extremos_visibles=20/20 escala=0.973172
+[MALLA] edad_solicitada=0.87 edad_visible=0.87 lag=0.00 escala=0.97505 gen=177 fp=5990012438150848764 tier=MORPH ms=1664.44 fps=60.1 builds/s=0.0 grid=490x275x1089 celdas=347579 activas=76834 refinadas=195325 muestras=345335 triangulos=492716 coalescidas=0
+[CICLO] generación=177 extremos_visibles=20/20 escala=0.975052
+[MALLA] edad_solicitada=0.88 edad_visible=0.88 lag=0.00 escala=0.97687 gen=178 fp=3006120687467325835 tier=MORPH ms=1636.74 fps=60.1 builds/s=0.0 grid=489x274x1087 celdas=350169 activas=76357 refinadas=198534 muestras=348614 triangulos=488778 coalescidas=0
+[CICLO] generación=178 extremos_visibles=20/20 escala=0.976870
+[MALLA] edad_solicitada=0.88 edad_visible=0.88 lag=0.00 escala=0.97863 gen=179 fp=18253688000876044321 tier=MORPH ms=1587.05 fps=60.1 builds/s=0.0 grid=488x273x1085 celdas=349511 activas=76534 refinadas=198624 muestras=349348 triangulos=489432 coalescidas=0
+[CICLO] generación=179 extremos_visibles=20/20 escala=0.978626
+[MALLA] edad_solicitada=0.89 edad_visible=0.89 lag=0.00 escala=0.98032 gen=180 fp=8898304117033299234 tier=MORPH ms=1607.03 fps=59.9 builds/s=0.0 grid=487x272x1083 celdas=336554 activas=76053 refinadas=195027 muestras=335209 triangulos=488718 coalescidas=0
+[CICLO] generación=180 extremos_visibles=20/20 escala=0.980319
+[MALLA] edad_solicitada=0.89 edad_visible=0.89 lag=0.00 escala=0.98195 gen=181 fp=13695253259154523902 tier=MORPH ms=1595.88 fps=60.2 builds/s=0.0 grid=486x271x1081 celdas=327321 activas=77268 refinadas=189845 muestras=323108 triangulos=499126 coalescidas=0
+[CICLO] generación=181 extremos_visibles=20/20 escala=0.981949
+[MALLA] edad_solicitada=0.90 edad_visible=0.90 lag=0.00 escala=0.98351 gen=182 fp=16576057831089542437 tier=MORPH ms=1534.72 fps=59.9 builds/s=0.0 grid=485x271x1079 celdas=335063 activas=77872 refinadas=191519 muestras=329874 triangulos=503494 coalescidas=0
+[CICLO] generación=182 extremos_visibles=20/20 escala=0.983514
+[MALLA] edad_solicitada=0.90 edad_visible=0.90 lag=0.00 escala=0.98501 gen=183 fp=5923210011750598134 tier=MORPH ms=1558.59 fps=60.2 builds/s=0.0 grid=484x270x1077 celdas=343036 activas=77700 refinadas=192069 muestras=340159 triangulos=501270 coalescidas=0
+[CICLO] generación=183 extremos_visibles=20/20 escala=0.985013
+[MALLA] edad_solicitada=0.91 edad_visible=0.91 lag=0.00 escala=0.98645 gen=184 fp=15011194384624750112 tier=MORPH ms=1511.43 fps=59.9 builds/s=0.0 grid=483x269x1076 celdas=328602 activas=76142 refinadas=185250 muestras=324052 triangulos=493888 coalescidas=0
+[CICLO] generación=184 extremos_visibles=20/20 escala=0.986446
+[MALLA] edad_solicitada=0.91 edad_visible=0.91 lag=0.00 escala=0.98781 gen=185 fp=8229637907650517847 tier=MORPH ms=1529.59 fps=60.2 builds/s=0.0 grid=482x268x1074 celdas=333348 activas=76750 refinadas=190013 muestras=333555 triangulos=498126 coalescidas=0
+[CICLO] generación=185 extremos_visibles=20/20 escala=0.987812
+[MALLA] edad_solicitada=0.92 edad_visible=0.92 lag=0.00 escala=0.98911 gen=186 fp=1731413161977891022 tier=MORPH ms=1552.23 fps=59.9 builds/s=0.0 grid=481x268x1072 celdas=339487 activas=75712 refinadas=190241 muestras=336570 triangulos=490570 coalescidas=0
+[CICLO] generación=186 extremos_visibles=20/20 escala=0.989111
+[MALLA] edad_solicitada=0.92 edad_visible=0.92 lag=0.00 escala=0.99034 gen=187 fp=18408595346726320659 tier=MORPH ms=1561.18 fps=60.0 builds/s=0.0 grid=480x267x1070 celdas=341566 activas=75129 refinadas=192447 muestras=337313 triangulos=487658 coalescidas=0
+[CICLO] generación=187 extremos_visibles=20/20 escala=0.990340
+[MALLA] edad_solicitada=0.93 edad_visible=0.93 lag=0.00 escala=0.99150 gen=188 fp=8834828564479163085 tier=MORPH ms=1495.80 fps=60.0 builds/s=0.0 grid=479x266x1069 celdas=326733 activas=75408 refinadas=184261 muestras=323483 triangulos=490420 coalescidas=0
+[CICLO] generación=188 extremos_visibles=20/20 escala=0.991500
+[MALLA] edad_solicitada=0.93 edad_visible=0.93 lag=0.00 escala=0.99259 gen=189 fp=7262165503508030659 tier=MORPH ms=1502.82 fps=60.0 builds/s=0.0 grid=478x266x1067 celdas=329946 activas=75579 refinadas=186369 muestras=327503 triangulos=488098 coalescidas=0
+[CICLO] generación=189 extremos_visibles=20/20 escala=0.992590
+[MALLA] edad_solicitada=0.94 edad_visible=0.94 lag=0.00 escala=0.99361 gen=190 fp=7028097963157997133 tier=MORPH ms=1500.75 fps=60.0 builds/s=0.0 grid=477x265x1066 celdas=329162 activas=74613 refinadas=184742 muestras=326312 triangulos=481610 coalescidas=0
+[CICLO] generación=190 extremos_visibles=20/20 escala=0.993609
+[MALLA] edad_solicitada=0.94 edad_visible=0.94 lag=0.00 escala=0.99456 gen=191 fp=9734398281251532346 tier=MORPH ms=1487.24 fps=60.0 builds/s=0.0 grid=476x265x1064 celdas=323562 activas=74189 refinadas=183220 muestras=322143 triangulos=478802 coalescidas=0
+[CICLO] generación=191 extremos_visibles=20/20 escala=0.994555
+[MALLA] edad_solicitada=0.95 edad_visible=0.95 lag=0.00 escala=0.99543 gen=192 fp=16240686630777193453 tier=MORPH ms=1481.29 fps=59.8 builds/s=1.9 grid=475x264x1063 celdas=320482 activas=74134 refinadas=188467 muestras=321624 triangulos=478708 coalescidas=0
+[CICLO] generación=192 extremos_visibles=20/20 escala=0.995429
+[MALLA] edad_solicitada=0.95 edad_visible=0.95 lag=0.00 escala=0.99623 gen=193 fp=5397503250648669433 tier=MORPH ms=1494.06 fps=60.1 builds/s=0.0 grid=474x263x1061 celdas=318284 activas=73237 refinadas=186691 muestras=319776 triangulos=471228 coalescidas=0
+[CICLO] generación=193 extremos_visibles=20/20 escala=0.996229
+[MALLA] edad_solicitada=0.96 edad_visible=0.96 lag=0.00 escala=0.99695 gen=194 fp=11766384698118891840 tier=MORPH ms=1618.03 fps=59.9 builds/s=0.0 grid=474x263x1060 celdas=346613 activas=78201 refinadas=199450 muestras=346739 triangulos=504620 coalescidas=0
+[CICLO] generación=194 extremos_visibles=20/20 escala=0.996955
+[MALLA] edad_solicitada=0.96 edad_visible=0.96 lag=0.00 escala=0.99760 gen=195 fp=4754872280931882575 tier=MORPH ms=1581.42 fps=60.1 builds/s=0.0 grid=473x262x1058 celdas=341216 activas=78062 refinadas=198009 muestras=340812 triangulos=503992 coalescidas=0
+[CICLO] generación=195 extremos_visibles=20/20 escala=0.997605
+[MALLA] edad_solicitada=0.97 edad_visible=0.97 lag=0.00 escala=0.99818 gen=196 fp=7082065705214192073 tier=MORPH ms=1617.03 fps=59.9 builds/s=0.0 grid=472x262x1057 celdas=343946 activas=78416 refinadas=197988 muestras=343286 triangulos=506014 coalescidas=0
+[CICLO] generación=196 extremos_visibles=20/20 escala=0.998179
+[MALLA] edad_solicitada=0.97 edad_visible=0.97 lag=0.00 escala=0.99868 gen=197 fp=16590416820834946166 tier=MORPH ms=1602.28 fps=60.1 builds/s=0.0 grid=471x261x1055 celdas=348762 activas=78094 refinadas=199624 muestras=345215 triangulos=504770 coalescidas=0
+[CICLO] generación=197 extremos_visibles=20/20 escala=0.998676
+[MALLA] edad_solicitada=0.98 edad_visible=0.98 lag=0.00 escala=0.99910 gen=198 fp=7217729845908294707 tier=MORPH ms=1544.61 fps=60.1 builds/s=0.0 grid=471x261x1054 celdas=344814 activas=76815 refinadas=197273 muestras=339181 triangulos=494612 coalescidas=0
+[CICLO] generación=198 extremos_visibles=20/20 escala=0.999095
+[MALLA] edad_solicitada=0.98 edad_visible=0.98 lag=0.00 escala=0.99944 gen=199 fp=10693214257137359170 tier=MORPH ms=1605.86 fps=59.9 builds/s=0.0 grid=470x261x1052 celdas=350554 activas=76594 refinadas=199466 muestras=344212 triangulos=493736 coalescidas=0
+[CICLO] generación=199 extremos_visibles=20/20 escala=0.999436
+[MALLA] edad_solicitada=0.99 edad_visible=0.99 lag=0.00 escala=0.99970 gen=200 fp=7986439229498973801 tier=MORPH ms=1632.18 fps=60.1 builds/s=0.0 grid=469x260x1051 celdas=350197 activas=76877 refinadas=200253 muestras=344909 triangulos=494494 coalescidas=0
+[CICLO] generación=200 extremos_visibles=20/20 escala=0.999698
+[MALLA] edad_solicitada=0.99 edad_visible=0.99 lag=0.00 escala=0.99988 gen=201 fp=6440984532843711863 tier=MORPH ms=1530.92 fps=60.1 builds/s=0.0 grid=469x260x1050 celdas=338381 activas=76341 refinadas=196293 muestras=336028 triangulos=492640 coalescidas=0
+[CICLO] generación=201 extremos_visibles=20/20 escala=0.999879
+[MALLA] edad_solicitada=1.00 edad_visible=1.00 lag=0.00 escala=0.99998 gen=202 fp=11145210372599230624 tier=MORPH ms=1600.61 fps=60.1 builds/s=0.0 grid=468x259x1048 celdas=342357 activas=76521 refinadas=197919 muestras=338951 triangulos=493588 coalescidas=0
+[CICLO] generación=202 extremos_visibles=20/20 escala=0.999979
+[MALLA] edad_solicitada=1.00 edad_visible=1.00 lag=0.00 escala=1.00000 gen=203 fp=14078849438818192527 tier=MORPH ms=1602.10 fps=60.0 builds/s=0.0 grid=468x259x1047 celdas=342504 activas=76546 refinadas=196970 muestras=339941 triangulos=493190 coalescidas=0
+[CICLO] generación=203 extremos_visibles=20/20 escala=1.000000
+[MALLA] edad_solicitada=1.00 edad_visible=1.00 lag=0.00 escala=0.99998 gen=204 fp=3978048187932360863 tier=MORPH ms=1565.20 fps=59.9 builds/s=0.0 grid=468x259x1048 celdas=342343 activas=76519 refinadas=197717 muestras=338578 triangulos=493486 coalescidas=0
+[CICLO] generación=204 extremos_visibles=20/20 escala=0.999981
+[MALLA] edad_solicitada=0.99 edad_visible=0.99 lag=0.00 escala=0.99988 gen=205 fp=16696737077036877896 tier=MORPH ms=1562.87 fps=60.1 builds/s=0.0 grid=469x260x1050 celdas=337282 activas=76238 refinadas=195395 muestras=334530 triangulos=491810 coalescidas=0
+[CICLO] generación=205 extremos_visibles=20/20 escala=0.999884
+[MALLA] edad_solicitada=0.99 edad_visible=0.99 lag=0.00 escala=0.99971 gen=206 fp=12080331826185712252 tier=MORPH ms=1614.97 fps=60.1 builds/s=1.9 grid=469x260x1051 celdas=349105 activas=76827 refinadas=199647 muestras=343796 triangulos=494344 coalescidas=0
+[CICLO] generación=206 extremos_visibles=20/20 escala=0.999706
+[MALLA] edad_solicitada=0.98 edad_visible=0.98 lag=0.00 escala=0.99945 gen=207 fp=13409969270663606981 tier=MORPH ms=1644.50 fps=59.9 builds/s=0.0 grid=470x261x1052 celdas=350904 activas=76572 refinadas=199732 muestras=344679 triangulos=493606 coalescidas=0
+[CICLO] generación=207 extremos_visibles=20/20 escala=0.999448
+[MALLA] edad_solicitada=0.98 edad_visible=0.98 lag=0.00 escala=0.99911 gen=208 fp=13302230585719009016 tier=MORPH ms=1565.37 fps=60.1 builds/s=0.0 grid=471x261x1054 celdas=345388 activas=76780 refinadas=197555 muestras=339882 triangulos=494386 coalescidas=0
+[CICLO] generación=208 extremos_visibles=20/20 escala=0.999111
+[MALLA] edad_solicitada=0.97 edad_visible=0.97 lag=0.00 escala=0.99869 gen=209 fp=218624475444867471 tier=MORPH ms=1664.15 fps=60.0 builds/s=0.0 grid=471x261x1055 celdas=350463 activas=78098 refinadas=200378 muestras=346532 triangulos=504744 coalescidas=0
+[CICLO] generación=209 extremos_visibles=20/20 escala=0.998694
+[MALLA] edad_solicitada=0.97 edad_visible=0.97 lag=0.00 escala=0.99820 gen=210 fp=5769161235173194325 tier=MORPH ms=1935.08 fps=60.0 builds/s=0.0 grid=472x262x1057 celdas=343414 activas=78457 refinadas=197763 muestras=342683 triangulos=506090 coalescidas=0
+[CICLO] generación=210 extremos_visibles=20/20 escala=0.998200
+[MALLA] edad_solicitada=0.96 edad_visible=0.96 lag=0.00 escala=0.99763 gen=211 fp=16464946537871358594 tier=MORPH ms=1879.84 fps=60.4 builds/s=0.0 grid=473x262x1058 celdas=342476 activas=78115 refinadas=198805 muestras=342128 triangulos=504096 coalescidas=0
+[CICLO] generación=211 extremos_visibles=20/20 escala=0.997629
+[MALLA] edad_solicitada=0.96 edad_visible=0.96 lag=0.00 escala=0.99698 gen=212 fp=14106466157728205532 tier=MORPH ms=1964.80 fps=60.0 builds/s=0.0 grid=474x263x1059 celdas=347257 activas=78184 refinadas=200605 muestras=348238 triangulos=504514 coalescidas=0
+[CICLO] generación=212 extremos_visibles=20/20 escala=0.996982
+[MALLA] edad_solicitada=0.95 edad_visible=0.95 lag=0.00 escala=0.99626 gen=213 fp=4053413308968965599 tier=MORPH ms=1723.08 fps=60.1 builds/s=0.0 grid=474x263x1061 celdas=318669 activas=73249 refinadas=187906 muestras=320022 triangulos=471216 coalescidas=0
+[CICLO] generación=213 extremos_visibles=20/20 escala=0.996260
+[MALLA] edad_solicitada=0.95 edad_visible=0.95 lag=0.00 escala=0.99546 gen=214 fp=10233113436722844470 tier=MORPH ms=1782.95 fps=60.0 builds/s=0.0 grid=475x264x1062 celdas=322120 activas=74125 refinadas=189285 muestras=323162 triangulos=478572 coalescidas=0
+[CICLO] generación=214 extremos_visibles=20/20 escala=0.995462
+[MALLA] edad_solicitada=0.94 edad_visible=0.94 lag=0.00 escala=0.99459 gen=215 fp=15517068779963048804 tier=MORPH ms=1749.49 fps=59.9 builds/s=2.0 grid=476x264x1064 celdas=321721 activas=74178 refinadas=182464 muestras=320399 triangulos=478574 coalescidas=0
+[CICLO] generación=215 extremos_visibles=20/20 escala=0.994592
+[MALLA] edad_solicitada=0.94 edad_visible=0.94 lag=0.00 escala=0.99365 gen=216 fp=4335156315966809724 tier=MORPH ms=1743.99 fps=59.6 builds/s=0.0 grid=477x265x1066 celdas=326789 activas=73826 refinadas=183919 muestras=323868 triangulos=476018 coalescidas=0
+[CICLO] generación=216 extremos_visibles=20/20 escala=0.993648
+[MALLA] edad_solicitada=0.93 edad_visible=0.93 lag=0.00 escala=0.99263 gen=217 fp=243166363092740228 tier=MORPH ms=1773.04 fps=60.2 builds/s=0.0 grid=478x266x1067 celdas=328903 activas=75483 refinadas=185998 muestras=326624 triangulos=487362 coalescidas=0
+[CICLO] generación=217 extremos_visibles=20/20 escala=0.992632
+[MALLA] edad_solicitada=0.93 edad_visible=0.93 lag=0.00 escala=0.99155 gen=218 fp=11025219769402602168 tier=MORPH ms=1793.22 fps=60.1 builds/s=0.0 grid=479x266x1069 celdas=327062 activas=75387 refinadas=184024 muestras=323242 triangulos=490296 coalescidas=0
+[CICLO] generación=218 extremos_visibles=20/20 escala=0.991545
+[MALLA] edad_solicitada=0.92 edad_visible=0.92 lag=0.00 escala=0.99039 gen=219 fp=4432371627338840029 tier=MORPH ms=1865.17 fps=60.0 builds/s=0.0 grid=480x267x1070 celdas=340152 activas=75082 refinadas=191509 muestras=335812 triangulos=487516 coalescidas=0
+[CICLO] generación=219 extremos_visibles=20/20 escala=0.990388
+[MALLA] edad_solicitada=0.92 edad_visible=0.92 lag=0.00 escala=0.98916 gen=220 fp=13579408590231154189 tier=MORPH ms=1893.84 fps=60.0 builds/s=0.0 grid=481x268x1072 celdas=338626 activas=75731 refinadas=189683 muestras=335192 triangulos=490624 coalescidas=0
+[CICLO] generación=220 extremos_visibles=20/20 escala=0.989161
+[MALLA] edad_solicitada=0.91 edad_visible=0.91 lag=0.00 escala=0.98787 gen=221 fp=8926687213427151105 tier=MORPH ms=1845.38 fps=60.0 builds/s=0.0 grid=482x268x1074 celdas=332585 activas=76742 refinadas=189666 muestras=333157 triangulos=498196 coalescidas=0
+[CICLO] generación=221 extremos_visibles=20/20 escala=0.987866
+[MALLA] edad_solicitada=0.91 edad_visible=0.91 lag=0.00 escala=0.98650 gen=222 fp=12797923115212390634 tier=MORPH ms=1716.78 fps=60.1 builds/s=0.0 grid=483x269x1076 celdas=328266 activas=76125 refinadas=185313 muestras=324023 triangulos=493800 coalescidas=0
+[CICLO] generación=222 extremos_visibles=20/20 escala=0.986502
+[MALLA] edad_solicitada=0.90 edad_visible=0.90 lag=0.00 escala=0.98507 gen=223 fp=7642626998499937277 tier=MORPH ms=1771.74 fps=60.0 builds/s=0.0 grid=484x270x1077 celdas=346361 activas=77700 refinadas=193845 muestras=343948 triangulos=501076 coalescidas=0
+[CICLO] generación=223 extremos_visibles=20/20 escala=0.985072
+[MALLA] edad_solicitada=0.90 edad_visible=0.90 lag=0.00 escala=0.98357 gen=224 fp=15716427681463180431 tier=MORPH ms=1650.90 fps=60.0 builds/s=0.0 grid=485x271x1079 celdas=338619 activas=77884 refinadas=193989 muestras=334326 triangulos=503492 coalescidas=0
+[CICLO] generación=224 extremos_visibles=20/20 escala=0.983575
+[MALLA] edad_solicitada=0.89 edad_visible=0.89 lag=0.00 escala=0.98201 gen=225 fp=4627775644681222120 tier=MORPH ms=1620.95 fps=60.0 builds/s=0.0 grid=486x271x1081 celdas=327405 activas=77273 refinadas=189695 muestras=322950 triangulos=499134 coalescidas=0
+[CICLO] generación=225 extremos_visibles=20/20 escala=0.982013
+[MALLA] edad_solicitada=0.89 edad_visible=0.89 lag=0.00 escala=0.98039 gen=226 fp=3793598509927123872 tier=MORPH ms=1676.23 fps=60.1 builds/s=0.0 grid=487x272x1083 celdas=338122 activas=76522 refinadas=196034 muestras=336239 triangulos=491184 coalescidas=0
+[CICLO] generación=226 extremos_visibles=20/20 escala=0.980386
+[MALLA] edad_solicitada=0.88 edad_visible=0.88 lag=0.00 escala=0.97870 gen=227 fp=11310502491005931208 tier=MORPH ms=1689.63 fps=60.1 builds/s=0.0 grid=488x273x1085 celdas=350414 activas=76541 refinadas=199023 muestras=350302 triangulos=489572 coalescidas=0
+[CICLO] generación=227 extremos_visibles=20/20 escala=0.978695
+[MALLA] edad_solicitada=0.88 edad_visible=0.88 lag=0.00 escala=0.97694 gen=228 fp=6891389762681640946 tier=MORPH ms=1675.98 fps=59.9 builds/s=0.0 grid=489x274x1087 celdas=347327 activas=76366 refinadas=196495 muestras=344811 triangulos=488474 coalescidas=0
+[CICLO] generación=228 extremos_visibles=20/20 escala=0.976942
+[MALLA] edad_solicitada=0.87 edad_visible=0.87 lag=0.00 escala=0.97513 gen=229 fp=11123668735637996575 tier=MORPH ms=1703.10 fps=59.9 builds/s=0.0 grid=490x275x1089 celdas=347299 activas=76794 refinadas=195030 muestras=345004 triangulos=492394 coalescidas=0
+[CICLO] generación=229 extremos_visibles=20/20 escala=0.975126
+[MALLA] edad_solicitada=0.87 edad_visible=0.87 lag=0.00 escala=0.97325 gen=230 fp=18385906957680662962 tier=MORPH ms=1752.49 fps=59.9 builds/s=0.0 grid=492x276x1091 celdas=348594 activas=77364 refinadas=197234 muestras=347362 triangulos=495910 coalescidas=0
+[CICLO] generación=230 extremos_visibles=20/20 escala=0.973249
+[MALLA] edad_solicitada=0.86 edad_visible=0.86 lag=0.00 escala=0.97131 gen=231 fp=14786249153100699015 tier=MORPH ms=1849.16 fps=60.1 builds/s=0.0 grid=493x277x1094 celdas=352115 activas=76952 refinadas=198392 muestras=351627 triangulos=493016 coalescidas=0
+[CICLO] generación=231 extremos_visibles=20/20 escala=0.971311
+[MALLA] edad_solicitada=0.86 edad_visible=0.86 lag=0.00 escala=0.96931 gen=232 fp=8838735245142562943 tier=MORPH ms=1716.33 fps=60.0 builds/s=0.0 grid=494x277x1096 celdas=341433 activas=76842 refinadas=197956 muestras=339364 triangulos=492656 coalescidas=0
+[CICLO] generación=232 extremos_visibles=20/20 escala=0.969314
+[MALLA] edad_solicitada=0.85 edad_visible=0.85 lag=0.00 escala=0.96726 gen=233 fp=14178980345106536705 tier=MORPH ms=1671.42 fps=60.0 builds/s=0.0 grid=495x278x1098 celdas=337961 activas=77703 refinadas=196680 muestras=338322 triangulos=497238 coalescidas=0
+[CICLO] generación=233 extremos_visibles=20/20 escala=0.967258
+[MALLA] edad_solicitada=0.85 edad_visible=0.85 lag=0.00 escala=0.96514 gen=234 fp=15539657415543313863 tier=MORPH ms=1643.97 fps=60.1 builds/s=0.0 grid=496x279x1101 celdas=335945 activas=78210 refinadas=197430 muestras=335771 triangulos=501004 coalescidas=0
+[CICLO] generación=234 extremos_visibles=20/20 escala=0.965144
+[MALLA] edad_solicitada=0.84 edad_visible=0.84 lag=0.00 escala=0.96297 gen=235 fp=15067709558114424554 tier=MORPH ms=1755.06 fps=60.0 builds/s=0.0 grid=498x281x1103 celdas=352367 activas=78128 refinadas=205391 muestras=351658 triangulos=500206 coalescidas=0
+[CICLO] generación=235 extremos_visibles=20/20 escala=0.962972
+[MALLA] edad_solicitada=0.84 edad_visible=0.84 lag=0.00 escala=0.96074 gen=236 fp=523958071636053276 tier=MORPH ms=1883.31 fps=60.0 builds/s=0.0 grid=499x282x1106 celdas=363063 activas=78211 refinadas=205807 muestras=364448 triangulos=500928 coalescidas=0
+[CICLO] generación=236 extremos_visibles=20/20 escala=0.960745
+[MALLA] edad_solicitada=0.83 edad_visible=0.83 lag=0.00 escala=0.95846 gen=237 fp=10299699226666838617 tier=MORPH ms=1805.22 fps=60.1 builds/s=0.0 grid=500x283x1108 celdas=359654 activas=79053 refinadas=202286 muestras=358419 triangulos=504868 coalescidas=0
+[CICLO] generación=237 extremos_visibles=20/20 escala=0.958462
+[MALLA] edad_solicitada=0.83 edad_visible=0.83 lag=0.00 escala=0.95612 gen=238 fp=13507555346666500746 tier=MORPH ms=1800.98 fps=60.1 builds/s=0.0 grid=502x284x1111 celdas=359913 activas=78899 refinadas=200042 muestras=355524 triangulos=504866 coalescidas=0
+[CICLO] generación=238 extremos_visibles=20/20 escala=0.956124
+[MALLA] edad_solicitada=0.82 edad_visible=0.82 lag=0.00 escala=0.95373 gen=239 fp=12525002595238868018 tier=MORPH ms=1754.55 fps=59.9 builds/s=0.0 grid=503x285x1114 celdas=358877 activas=78427 refinadas=203707 muestras=351039 triangulos=500924 coalescidas=0
+[CICLO] generación=239 extremos_visibles=20/20 escala=0.953732
+[MALLA] edad_solicitada=0.82 edad_visible=0.82 lag=0.00 escala=0.95129 gen=240 fp=1261068979373992975 tier=MORPH ms=1697.89 fps=60.0 builds/s=0.0 grid=504x286x1116 celdas=354229 activas=79110 refinadas=202985 muestras=348287 triangulos=506674 coalescidas=0
+[CICLO] generación=240 extremos_visibles=20/20 escala=0.951287
+[MALLA] edad_solicitada=0.81 edad_visible=0.81 lag=0.00 escala=0.94879 gen=241 fp=2699107221717040708 tier=MORPH ms=1744.54 fps=60.1 builds/s=0.0 grid=506x287x1119 celdas=352458 activas=79688 refinadas=202694 muestras=347687 triangulos=510732 coalescidas=0
+[CICLO] generación=241 extremos_visibles=20/20 escala=0.948790
+[MALLA] edad_solicitada=0.81 edad_visible=0.81 lag=0.00 escala=0.94624 gen=242 fp=427480886470990376 tier=MORPH ms=1676.40 fps=60.1 builds/s=0.0 grid=507x288x1122 celdas=356280 activas=79286 refinadas=204876 muestras=351003 triangulos=505954 coalescidas=0
+[CICLO] generación=242 extremos_visibles=20/20 escala=0.946241
+[MALLA] edad_solicitada=0.80 edad_visible=0.80 lag=0.00 escala=0.94364 gen=243 fp=300066618352254119 tier=MORPH ms=1723.76 fps=60.0 builds/s=0.0 grid=509x290x1126 celdas=364393 activas=79128 refinadas=203447 muestras=363605 triangulos=506422 coalescidas=0
+[CICLO] generación=243 extremos_visibles=20/20 escala=0.943642
+[MALLA] edad_solicitada=0.80 edad_visible=0.80 lag=0.00 escala=0.94099 gen=244 fp=14558559389177747423 tier=MORPH ms=1851.46 fps=60.0 builds/s=0.0 grid=510x291x1129 celdas=363455 activas=80598 refinadas=212605 muestras=364815 triangulos=514918 coalescidas=0
+[CICLO] generación=244 extremos_visibles=20/20 escala=0.940993
+[MALLA] edad_solicitada=0.79 edad_visible=0.79 lag=0.00 escala=0.93830 gen=245 fp=8640669445586628142 tier=MORPH ms=1814.22 fps=60.0 builds/s=0.0 grid=512x292x1132 celdas=362545 activas=80464 refinadas=211630 muestras=363802 triangulos=514712 coalescidas=0
+[CICLO] generación=245 extremos_visibles=20/20 escala=0.938296
+[MALLA] edad_solicitada=0.79 edad_visible=0.79 lag=0.00 escala=0.93555 gen=246 fp=14168867186226945991 tier=MORPH ms=1678.39 fps=60.1 builds/s=0.0 grid=513x294x1135 celdas=349644 activas=80055 refinadas=202342 muestras=348165 triangulos=511166 coalescidas=0
+[CICLO] generación=246 extremos_visibles=20/20 escala=0.935550
+[MALLA] edad_solicitada=0.78 edad_visible=0.78 lag=0.00 escala=0.93276 gen=247 fp=13743495423686616080 tier=MORPH ms=1741.99 fps=60.0 builds/s=0.0 grid=515x295x1139 celdas=370168 activas=80806 refinadas=215318 muestras=370896 triangulos=517144 coalescidas=0
+[CICLO] generación=247 extremos_visibles=20/20 escala=0.932757
+[MALLA] edad_solicitada=0.78 edad_visible=0.78 lag=0.00 escala=0.92992 gen=248 fp=14823508580743124410 tier=MORPH ms=1760.05 fps=60.1 builds/s=0.0 grid=516x296x1143 celdas=371603 activas=81048 refinadas=213052 muestras=369241 triangulos=519118 coalescidas=0
+[CICLO] generación=248 extremos_visibles=20/20 escala=0.929917
+[MALLA] edad_solicitada=0.77 edad_visible=0.77 lag=0.00 escala=0.92703 gen=249 fp=648906540064494814 tier=MORPH ms=1804.15 fps=59.9 builds/s=0.0 grid=518x298x1146 celdas=375026 activas=81105 refinadas=211186 muestras=369886 triangulos=517748 coalescidas=0
+[CICLO] generación=249 extremos_visibles=20/20 escala=0.927032
+[MALLA] edad_solicitada=0.77 edad_visible=0.77 lag=0.00 escala=0.92410 gen=250 fp=5929456069936023365 tier=MORPH ms=1803.87 fps=59.9 builds/s=0.0 grid=519x299x1150 celdas=368838 activas=81644 refinadas=209873 muestras=362667 triangulos=522540 coalescidas=0
+[CICLO] generación=250 extremos_visibles=20/20 escala=0.924101
+[MALLA] edad_solicitada=0.76 edad_visible=0.76 lag=0.00 escala=0.92113 gen=251 fp=3327896988345165338 tier=MORPH ms=1813.99 fps=60.1 builds/s=0.0 grid=521x301x1154 celdas=377070 activas=81462 refinadas=216222 muestras=372684 triangulos=519684 coalescidas=0
+[CICLO] generación=251 extremos_visibles=20/20 escala=0.921127
+[MALLA] edad_solicitada=0.76 edad_visible=0.76 lag=0.00 escala=0.91811 gen=252 fp=12369613495764148931 tier=MORPH ms=1819.91 fps=60.1 builds/s=0.0 grid=523x302x1158 celdas=376321 activas=81853 refinadas=215432 muestras=372032 triangulos=522358 coalescidas=0
+[CICLO] generación=252 extremos_visibles=20/20 escala=0.918110
+[MALLA] edad_solicitada=0.75 edad_visible=0.75 lag=0.00 escala=0.91505 gen=253 fp=13290229431475834368 tier=MORPH ms=1819.40 fps=60.0 builds/s=0.0 grid=524x304x1162 celdas=374858 activas=81801 refinadas=214894 muestras=372368 triangulos=523670 coalescidas=0
+[CICLO] generación=253 extremos_visibles=20/20 escala=0.915051
+[MALLA] edad_solicitada=0.75 edad_visible=0.75 lag=0.00 escala=0.91195 gen=254 fp=12104396397857381547 tier=MORPH ms=1851.76 fps=60.0 builds/s=0.0 grid=526x305x1166 celdas=377126 activas=82016 refinadas=214986 muestras=371933 triangulos=524594 coalescidas=0
+[CICLO] generación=254 extremos_visibles=20/20 escala=0.911949
+[MALLA] edad_solicitada=0.74 edad_visible=0.74 lag=0.00 escala=0.90881 gen=255 fp=6605049734152880455 tier=MORPH ms=1777.79 fps=60.0 builds/s=0.0 grid=528x307x1171 celdas=368278 activas=82582 refinadas=218513 muestras=369725 triangulos=528014 coalescidas=0
+[CICLO] generación=255 extremos_visibles=20/20 escala=0.908808
+[MALLA] edad_solicitada=0.74 edad_visible=0.74 lag=0.00 escala=0.90563 gen=256 fp=15472475708235385955 tier=MORPH ms=1805.06 fps=60.0 builds/s=0.0 grid=529x309x1175 celdas=374375 activas=82726 refinadas=218126 muestras=378546 triangulos=527428 coalescidas=0
+[CICLO] generación=256 extremos_visibles=20/20 escala=0.905626
+[MALLA] edad_solicitada=0.73 edad_visible=0.73 lag=0.00 escala=0.90241 gen=257 fp=9457135067332922213 tier=MORPH ms=1835.89 fps=60.1 builds/s=0.0 grid=531x310x1180 celdas=383965 activas=82199 refinadas=219831 muestras=383374 triangulos=523868 coalescidas=0
+[CICLO] generación=257 extremos_visibles=20/20 escala=0.902405
+[MALLA] edad_solicitada=0.73 edad_visible=0.73 lag=0.00 escala=0.89915 gen=258 fp=10830182221868204610 tier=MORPH ms=1878.93 fps=59.9 builds/s=0.0 grid=533x312x1185 celdas=395354 activas=82632 refinadas=226622 muestras=395337 triangulos=529938 coalescidas=0
+[CICLO] generación=258 extremos_visibles=20/20 escala=0.899146
+[MALLA] edad_solicitada=0.72 edad_visible=0.72 lag=0.00 escala=0.89585 gen=259 fp=210302345805016023 tier=MORPH ms=1834.14 fps=59.9 builds/s=0.0 grid=534x314x1190 celdas=390216 activas=82399 refinadas=226315 muestras=387582 triangulos=527478 coalescidas=0
+[CICLO] generación=259 extremos_visibles=20/20 escala=0.895850
+[MALLA] edad_solicitada=0.72 edad_visible=0.72 lag=0.00 escala=0.89252 gen=260 fp=3161493785701317993 tier=MORPH ms=1842.27 fps=59.9 builds/s=0.0 grid=536x316x1195 celdas=383111 activas=82775 refinadas=223046 muestras=382950 triangulos=530672 coalescidas=0
+[CICLO] generación=260 extremos_visibles=20/20 escala=0.892517
+[MALLA] edad_solicitada=0.71 edad_visible=0.71 lag=0.00 escala=0.88915 gen=261 fp=8549077149111781251 tier=MORPH ms=1925.57 fps=60.0 builds/s=0.0 grid=538x318x1200 celdas=392057 activas=83067 refinadas=224921 muestras=392453 triangulos=531042 coalescidas=0
+[CICLO] generación=261 extremos_visibles=20/20 escala=0.889148
+[MALLA] edad_solicitada=0.71 edad_visible=0.71 lag=0.00 escala=0.88574 gen=262 fp=8236399793502032885 tier=MORPH ms=1832.66 fps=60.0 builds/s=0.0 grid=540x320x1205 celdas=387206 activas=83444 refinadas=221676 muestras=386216 triangulos=533484 coalescidas=0
+[CICLO] generación=262 extremos_visibles=20/20 escala=0.885745
+[MALLA] edad_solicitada=0.70 edad_visible=0.70 lag=0.00 escala=0.88231 gen=263 fp=10319134225605655599 tier=MORPH ms=1860.18 fps=60.1 builds/s=0.0 grid=542x321x1211 celdas=381851 activas=83349 refinadas=227850 muestras=383862 triangulos=532052 coalescidas=0
+[CICLO] generación=263 extremos_visibles=20/20 escala=0.882307
+[MALLA] edad_solicitada=0.70 edad_visible=0.70 lag=0.00 escala=0.87884 gen=264 fp=8488867970715958378 tier=MORPH ms=1834.48 fps=60.0 builds/s=0.0 grid=543x323x1216 celdas=372009 activas=83026 refinadas=220922 muestras=372885 triangulos=529870 coalescidas=0
+[CICLO] generación=264 extremos_visibles=20/20 escala=0.878836
+[MALLA] edad_solicitada=0.69 edad_visible=0.69 lag=0.00 escala=0.87533 gen=265 fp=1843829119124019511 tier=MORPH ms=1732.12 fps=60.0 builds/s=0.0 grid=545x325x1222 celdas=347992 activas=73677 refinadas=230599 muestras=357255 triangulos=470624 coalescidas=0
+[CICLO] generación=265 extremos_visibles=20/20 escala=0.875333
+[MALLA] edad_solicitada=0.69 edad_visible=0.69 lag=0.00 escala=0.87180 gen=266 fp=11980524481537912677 tier=MORPH ms=1716.48 fps=60.1 builds/s=0.0 grid=547x327x1228 celdas=346641 activas=73428 refinadas=230826 muestras=354980 triangulos=468792 coalescidas=0
+[CICLO] generación=266 extremos_visibles=20/20 escala=0.871798
+[MALLA] edad_solicitada=0.68 edad_visible=0.68 lag=0.00 escala=0.86823 gen=267 fp=4130961824555723478 tier=MORPH ms=1713.11 fps=60.0 builds/s=0.0 grid=549x330x1234 celdas=352052 activas=73399 refinadas=233993 muestras=354641 triangulos=469524 coalescidas=0
+[CICLO] generación=267 extremos_visibles=20/20 escala=0.868232
+[MALLA] edad_solicitada=0.68 edad_visible=0.68 lag=0.00 escala=0.86464 gen=268 fp=13522686851670643960 tier=MORPH ms=1695.60 fps=60.2 builds/s=0.0 grid=551x332x1240 celdas=343141 activas=73012 refinadas=231919 muestras=348229 triangulos=466552 coalescidas=0
+[CICLO] generación=268 extremos_visibles=20/20 escala=0.864637
+[MALLA] edad_solicitada=0.67 edad_visible=0.67 lag=0.00 escala=0.86101 gen=269 fp=15452621857334163776 tier=MORPH ms=1650.41 fps=60.1 builds/s=0.0 grid=553x334x1246 celdas=345563 activas=72985 refinadas=230044 muestras=350666 triangulos=468106 coalescidas=0
+[CICLO] generación=269 extremos_visibles=20/20 escala=0.861012
+[MALLA] edad_solicitada=0.67 edad_visible=0.67 lag=0.00 escala=0.85736 gen=270 fp=12414051790174167 tier=MORPH ms=1747.47 fps=59.9 builds/s=0.0 grid=555x336x1253 celdas=354579 activas=73142 refinadas=237097 muestras=358816 triangulos=469374 coalescidas=0
+[CICLO] generación=270 extremos_visibles=20/20 escala=0.857359
+[MALLA] edad_solicitada=0.66 edad_visible=0.66 lag=0.00 escala=0.85368 gen=271 fp=16210439159332016538 tier=MORPH ms=1741.63 fps=60.1 builds/s=0.0 grid=557x338x1260 celdas=351954 activas=72160 refinadas=234815 muestras=355750 triangulos=462056 coalescidas=0
+[CICLO] generación=271 extremos_visibles=20/20 escala=0.853678
+[MALLA] edad_solicitada=0.66 edad_visible=0.66 lag=0.00 escala=0.84997 gen=272 fp=15786309141363584558 tier=MORPH ms=1765.51 fps=60.1 builds/s=0.0 grid=559x341x1266 celdas=353200 activas=71796 refinadas=235580 muestras=369058 triangulos=461270 coalescidas=0
+[CICLO] generación=272 extremos_visibles=20/20 escala=0.849971
+[MALLA] edad_solicitada=0.65 edad_visible=0.65 lag=0.00 escala=0.84624 gen=273 fp=10246936181045059225 tier=MORPH ms=1813.39 fps=60.0 builds/s=0.0 grid=561x343x1273 celdas=370567 activas=72099 refinadas=242413 muestras=388135 triangulos=463204 coalescidas=0
+[CICLO] generación=273 extremos_visibles=20/20 escala=0.846238
+[MALLA] edad_solicitada=0.65 edad_visible=0.65 lag=0.00 escala=0.84248 gen=274 fp=2431191142696598435 tier=MORPH ms=1662.44 fps=60.0 builds/s=0.0 grid=563x345x1280 celdas=332676 activas=71483 refinadas=230464 muestras=339845 triangulos=457002 coalescidas=0
+[CICLO] generación=274 extremos_visibles=20/20 escala=0.842479
+[MALLA] edad_solicitada=0.64 edad_visible=0.64 lag=0.00 escala=0.83870 gen=275 fp=10537666849866329926 tier=MORPH ms=1701.89 fps=60.0 builds/s=1.9 grid=565x348x1288 celdas=346585 activas=71468 refinadas=238358 muestras=352196 triangulos=458174 coalescidas=0
+[CICLO] generación=275 extremos_visibles=20/20 escala=0.838697
+[MALLA] edad_solicitada=0.64 edad_visible=0.64 lag=0.00 escala=0.83489 gen=276 fp=14731297282039659358 tier=MORPH ms=1688.19 fps=60.0 builds/s=0.0 grid=567x350x1295 celdas=347264 activas=71705 refinadas=235189 muestras=348528 triangulos=460268 coalescidas=0
+[CICLO] generación=276 extremos_visibles=20/20 escala=0.834891
+[MALLA] edad_solicitada=0.63 edad_visible=0.63 lag=0.00 escala=0.83106 gen=277 fp=999428605624698386 tier=MORPH ms=1712.30 fps=60.0 builds/s=0.0 grid=569x353x1303 celdas=361278 activas=71558 refinadas=247372 muestras=360251 triangulos=458994 coalescidas=0
+[CICLO] generación=277 extremos_visibles=20/20 escala=0.831063
+[MALLA] edad_solicitada=0.63 edad_visible=0.63 lag=0.00 escala=0.82721 gen=278 fp=11574902329477933747 tier=MORPH ms=1600.87 fps=60.2 builds/s=1.9 grid=571x356x1310 celdas=333054 activas=70222 refinadas=233568 muestras=339282 triangulos=451754 coalescidas=0
+[CICLO] generación=278 extremos_visibles=20/20 escala=0.827213
+[MALLA] edad_solicitada=0.62 edad_visible=0.62 lag=0.00 escala=0.82334 gen=279 fp=13001858348502214159 tier=MORPH ms=1923.27 fps=59.9 builds/s=0.0 grid=573x358x1318 celdas=382278 activas=75879 refinadas=259952 muestras=394812 triangulos=485950 coalescidas=0
+[CICLO] generación=279 extremos_visibles=20/20 escala=0.823342
+[MALLA] edad_solicitada=0.62 edad_visible=0.62 lag=0.00 escala=0.81945 gen=280 fp=1337574435129795147 tier=MORPH ms=1910.06 fps=59.9 builds/s=0.0 grid=575x361x1326 celdas=390811 activas=75767 refinadas=259331 muestras=400392 triangulos=485188 coalescidas=0
+[CICLO] generación=280 extremos_visibles=20/20 escala=0.819451
+[MALLA] edad_solicitada=0.61 edad_visible=0.61 lag=0.00 escala=0.81554 gen=281 fp=12248648121658448053 tier=MORPH ms=1871.30 fps=59.9 builds/s=0.0 grid=577x364x1335 celdas=371589 activas=74592 refinadas=251480 muestras=384024 triangulos=480884 coalescidas=0
+[CICLO] generación=281 extremos_visibles=20/20 escala=0.815541
+[MALLA] edad_solicitada=0.61 edad_visible=0.61 lag=0.00 escala=0.81161 gen=282 fp=3313557574299610819 tier=MORPH ms=1829.54 fps=59.9 builds/s=0.0 grid=580x367x1343 celdas=373059 activas=74511 refinadas=255065 muestras=376579 triangulos=477644 coalescidas=0
+[CICLO] generación=282 extremos_visibles=20/20 escala=0.811613
+[MALLA] edad_solicitada=0.60 edad_visible=0.60 lag=0.00 escala=0.80767 gen=283 fp=8551788747793631633 tier=MORPH ms=1741.17 fps=60.0 builds/s=0.0 grid=582x369x1352 celdas=363140 activas=73510 refinadas=252134 muestras=359816 triangulos=472846 coalescidas=0
+[CICLO] generación=283 extremos_visibles=20/20 escala=0.807667
+[MALLA] edad_solicitada=0.60 edad_visible=0.60 lag=0.00 escala=0.80370 gen=284 fp=14584917868418912954 tier=MORPH ms=1729.67 fps=60.0 builds/s=0.0 grid=584x372x1361 celdas=371673 activas=73703 refinadas=252779 muestras=366699 triangulos=473788 coalescidas=0
+[CICLO] generación=284 extremos_visibles=20/20 escala=0.803704
+[MALLA] edad_solicitada=0.59 edad_visible=0.59 lag=0.00 escala=0.79972 gen=285 fp=18355347859956304902 tier=MORPH ms=1812.85 fps=60.0 builds/s=0.0 grid=586x375x1369 celdas=385519 activas=73535 refinadas=253922 muestras=389318 triangulos=473096 coalescidas=0
+[CICLO] generación=285 extremos_visibles=20/20 escala=0.799725
+[MALLA] edad_solicitada=0.59 edad_visible=0.59 lag=0.00 escala=0.79573 gen=286 fp=5776733444340537442 tier=MORPH ms=1849.29 fps=60.0 builds/s=0.0 grid=588x378x1379 celdas=378687 activas=72234 refinadas=259669 muestras=389069 triangulos=464318 coalescidas=0
+[CICLO] generación=286 extremos_visibles=20/20 escala=0.795731
+[MALLA] edad_solicitada=0.58 edad_visible=0.58 lag=0.00 escala=0.79172 gen=287 fp=8591112845358519012 tier=MORPH ms=1026.96 fps=59.9 builds/s=0.0 grid=591x382x1388 celdas=224512 activas=61203 refinadas=120232 muestras=222181 triangulos=395052 coalescidas=0
+[CICLO] generación=287 extremos_visibles=20/20 escala=0.791723
+[MALLA] edad_solicitada=0.58 edad_visible=0.58 lag=0.00 escala=0.78770 gen=288 fp=1201520638725842194 tier=MORPH ms=960.42 fps=60.0 builds/s=0.0 grid=593x385x1397 celdas=228957 activas=60407 refinadas=118605 muestras=228278 triangulos=389508 coalescidas=0
+[CICLO] generación=288 extremos_visibles=20/20 escala=0.787701
+[MALLA] edad_solicitada=0.57 edad_visible=0.57 lag=0.00 escala=0.78367 gen=289 fp=12695929985914172595 tier=MORPH ms=947.89 fps=60.0 builds/s=0.0 grid=595x388x1407 celdas=220963 activas=60119 refinadas=113567 muestras=217483 triangulos=386622 coalescidas=0
+[CICLO] generación=289 extremos_visibles=20/20 escala=0.783667
+[MALLA] edad_solicitada=0.57 edad_visible=0.57 lag=0.00 escala=0.77962 gen=290 fp=5654894195747142258 tier=MORPH ms=894.57 fps=59.9 builds/s=0.0 grid=598x391x1417 celdas=210806 activas=59187 refinadas=109790 muestras=205064 triangulos=381872 coalescidas=0
+[CICLO] generación=290 extremos_visibles=20/20 escala=0.779620
+[MALLA] edad_solicitada=0.56 edad_visible=0.56 lag=0.00 escala=0.77556 gen=291 fp=7026508655107322763 tier=MORPH ms=959.49 fps=60.0 builds/s=0.0 grid=600x395x1427 celdas=224421 activas=58159 refinadas=117768 muestras=220277 triangulos=374780 coalescidas=0
+[CICLO] generación=291 extremos_visibles=20/20 escala=0.775563
+[MALLA] edad_solicitada=0.56 edad_visible=0.56 lag=0.00 escala=0.77150 gen=292 fp=6917853350327685096 tier=MORPH ms=871.66 fps=60.1 builds/s=0.0 grid=602x398x1437 celdas=207579 activas=57853 refinadas=110531 muestras=203403 triangulos=373004 coalescidas=0
+[CICLO] generación=292 extremos_visibles=20/20 escala=0.771496
+[MALLA] edad_solicitada=0.55 edad_visible=0.55 lag=0.00 escala=0.76742 gen=293 fp=2661349185789757640 tier=MORPH ms=927.68 fps=60.1 builds/s=0.0 grid=605x401x1447 celdas=211555 activas=57132 refinadas=111225 muestras=213352 triangulos=369632 coalescidas=0
+[CICLO] generación=293 extremos_visibles=20/20 escala=0.767419
+[MALLA] edad_solicitada=0.55 edad_visible=0.55 lag=0.00 escala=0.76333 gen=294 fp=16751194125339527524 tier=MORPH ms=895.81 fps=60.2 builds/s=1.9 grid=607x405x1458 celdas=213592 activas=56218 refinadas=110554 muestras=211129 triangulos=364898 coalescidas=0
+[CICLO] generación=294 extremos_visibles=20/20 escala=0.763334
+[MALLA] edad_solicitada=0.54 edad_visible=0.54 lag=0.00 escala=0.75924 gen=295 fp=6897897257476784262 tier=MORPH ms=949.67 fps=59.9 builds/s=0.0 grid=610x409x1468 celdas=220123 activas=55868 refinadas=113211 muestras=220271 triangulos=361272 coalescidas=0
+[CICLO] generación=295 extremos_visibles=20/20 escala=0.759241
+[MALLA] edad_solicitada=0.54 edad_visible=0.54 lag=0.00 escala=0.75514 gen=296 fp=12041510673724119963 tier=MORPH ms=886.96 fps=63.0 builds/s=0.0 grid=612x412x1479 celdas=215825 activas=54665 refinadas=114564 muestras=215571 triangulos=353846 coalescidas=0
+[CICLO] generación=296 extremos_visibles=20/20 escala=0.755141
+[MALLA] edad_solicitada=0.53 edad_visible=0.53 lag=0.00 escala=0.75104 gen=297 fp=6311544648485737428 tier=MORPH ms=899.12 fps=59.9 builds/s=0.0 grid=615x416x1490 celdas=207642 activas=53970 refinadas=110788 muestras=208227 triangulos=349024 coalescidas=0
+[CICLO] generación=297 extremos_visibles=20/20 escala=0.751036
+[MALLA] edad_solicitada=0.53 edad_visible=0.53 lag=0.00 escala=0.74692 gen=298 fp=2831930563423694775 tier=MORPH ms=803.03 fps=59.8 builds/s=0.0 grid=617x420x1501 celdas=195532 activas=52955 refinadas=106111 muestras=196325 triangulos=343460 coalescidas=0
+[CICLO] generación=298 extremos_visibles=20/20 escala=0.746925
+[MALLA] edad_solicitada=0.52 edad_visible=0.52 lag=0.00 escala=0.74281 gen=299 fp=3282496264845739136 tier=MORPH ms=827.74 fps=60.0 builds/s=1.9 grid=620x424x1513 celdas=198010 activas=52081 refinadas=106852 muestras=200487 triangulos=335134 coalescidas=0
+[CICLO] generación=299 extremos_visibles=20/20 escala=0.742809
+[MALLA] edad_solicitada=0.52 edad_visible=0.52 lag=0.00 escala=0.73869 gen=300 fp=2010349183089158016 tier=MORPH ms=855.05 fps=60.0 builds/s=0.0 grid=629x432x1540 celdas=206053 activas=52576 refinadas=110250 muestras=205022 triangulos=339556 coalescidas=0
+[CICLO] generación=300 extremos_visibles=20/20 escala=0.738690
+[MALLA] edad_solicitada=0.51 edad_visible=0.51 lag=0.00 escala=0.73457 gen=301 fp=16321413367485963029 tier=MORPH ms=876.73 fps=60.0 builds/s=0.0 grid=639x442x1571 celdas=207474 activas=53000 refinadas=109878 muestras=207427 triangulos=341468 coalescidas=0
+[CICLO] generación=301 extremos_visibles=20/20 escala=0.734569
+[MALLA] edad_solicitada=0.51 edad_visible=0.51 lag=0.00 escala=0.73045 gen=302 fp=2848264859370824440 tier=MORPH ms=817.41 fps=60.0 builds/s=0.0 grid=650x452x1603 celdas=198304 activas=53598 refinadas=103964 muestras=197674 triangulos=346918 coalescidas=0
+[CICLO] generación=302 extremos_visibles=20/20 escala=0.730445
+[MALLA] edad_solicitada=0.50 edad_visible=0.50 lag=0.00 escala=0.72632 gen=303 fp=1296192032191717956 tier=MORPH ms=859.28 fps=60.0 builds/s=0.0 grid=661x463x1636 celdas=203386 activas=53318 refinadas=108034 muestras=201737 triangulos=345466 coalescidas=0
+[CICLO] generación=303 extremos_visibles=20/20 escala=0.726320
+[MALLA] edad_solicitada=0.50 edad_visible=0.50 lag=0.00 escala=0.72220 gen=304 fp=421015134390039563 tier=MORPH ms=856.93 fps=60.0 builds/s=1.9 grid=673x476x1671 celdas=204324 activas=53758 refinadas=109946 muestras=206715 triangulos=348694 coalescidas=0
+[CICLO] generación=304 extremos_visibles=20/20 escala=0.722195
+[MALLA] edad_solicitada=0.49 edad_visible=0.49 lag=0.00 escala=0.71807 gen=305 fp=17205339672530562285 tier=MORPH ms=878.69 fps=60.0 builds/s=0.0 grid=685x489x1707 celdas=217022 activas=54457 refinadas=113997 muestras=215746 triangulos=352084 coalescidas=0
+[CICLO] generación=305 extremos_visibles=20/20 escala=0.718071
+[MALLA] edad_solicitada=0.49 edad_visible=0.49 lag=0.00 escala=0.71395 gen=306 fp=18119853141104403014 tier=MORPH ms=909.98 fps=60.0 builds/s=0.0 grid=698x502x1745 celdas=214607 activas=54875 refinadas=114009 muestras=215585 triangulos=354728 coalescidas=0
+[CICLO] generación=306 extremos_visibles=20/20 escala=0.713948
+[MALLA] edad_solicitada=0.48 edad_visible=0.48 lag=0.00 escala=0.70983 gen=307 fp=1425039199781320796 tier=MORPH ms=829.89 fps=60.1 builds/s=0.0 grid=712x517x1785 celdas=201279 activas=55849 refinadas=104608 muestras=198547 triangulos=361954 coalescidas=0
+[CICLO] generación=307 extremos_visibles=20/20 escala=0.709827
+[MALLA] edad_solicitada=0.48 edad_visible=0.48 lag=0.00 escala=0.70571 gen=308 fp=10877047095078390524 tier=MORPH ms=893.56 fps=60.1 builds/s=0.0 grid=726x532x1827 celdas=212171 activas=55922 refinadas=109316 muestras=207148 triangulos=361418 coalescidas=0
+[CICLO] generación=308 extremos_visibles=20/20 escala=0.705709
+[MALLA] edad_solicitada=0.47 edad_visible=0.47 lag=0.00 escala=0.70160 gen=309 fp=18221344165036629020 tier=MORPH ms=778.71 fps=60.0 builds/s=1.9 grid=741x547x1870 celdas=185025 activas=50127 refinadas=104325 muestras=181747 triangulos=323598 coalescidas=0
+[CICLO] generación=309 extremos_visibles=20/20 escala=0.701596
+[MALLA] edad_solicitada=0.47 edad_visible=0.47 lag=0.00 escala=0.69749 gen=310 fp=9167606739040229949 tier=MORPH ms=913.37 fps=60.0 builds/s=0.0 grid=757x564x1916 celdas=201762 activas=51221 refinadas=114818 muestras=200043 triangulos=331352 coalescidas=0
+[CICLO] generación=310 extremos_visibles=20/20 escala=0.697486
+[MALLA] edad_solicitada=0.46 edad_visible=0.46 lag=0.00 escala=0.69338 gen=311 fp=13424164138734322159 tier=MORPH ms=768.45 fps=60.0 builds/s=0.0 grid=773x581x1964 celdas=184850 activas=50844 refinadas=107977 muestras=184792 triangulos=329314 coalescidas=0
+[CICLO] generación=311 extremos_visibles=20/20 escala=0.693383
+[MALLA] edad_solicitada=0.46 edad_visible=0.46 lag=0.00 escala=0.68929 gen=312 fp=13418789092515402737 tier=MORPH ms=865.62 fps=60.1 builds/s=1.9 grid=790x600x2014 celdas=199592 activas=51718 refinadas=113403 muestras=197259 triangulos=334054 coalescidas=0
+[CICLO] generación=312 extremos_visibles=20/20 escala=0.689285
+[MALLA] edad_solicitada=0.45 edad_visible=0.45 lag=0.00 escala=0.68520 gen=313 fp=6037109890723946465 tier=MORPH ms=839.42 fps=63.5 builds/s=0.0 grid=808x619x2067 celdas=193579 activas=52342 refinadas=108985 muestras=191113 triangulos=338242 coalescidas=0
+[CICLO] generación=313 extremos_visibles=20/20 escala=0.685195
+[MALLA] edad_solicitada=0.45 edad_visible=0.45 lag=0.00 escala=0.68111 gen=314 fp=7341506642540990471 tier=MORPH ms=922.87 fps=60.0 builds/s=0.0 grid=827x639x2123 celdas=195588 activas=51846 refinadas=114690 muestras=195142 triangulos=337166 coalescidas=0
+[CICLO] generación=314 extremos_visibles=20/20 escala=0.681113
+[MALLA] edad_solicitada=0.44 edad_visible=0.44 lag=0.00 escala=0.67704 gen=315 fp=8786709949657437080 tier=MORPH ms=905.92 fps=60.1 builds/s=0.0 grid=847x660x2181 celdas=212766 activas=53598 refinadas=122301 muestras=209386 triangulos=345660 coalescidas=0
+[CICLO] generación=315 extremos_visibles=20/20 escala=0.677040
+[MALLA] edad_solicitada=0.44 edad_visible=0.44 lag=0.00 escala=0.67298 gen=316 fp=13850555912611266633 tier=MORPH ms=904.73 fps=60.2 builds/s=0.0 grid=868x682x2242 celdas=210274 activas=53776 refinadas=125606 muestras=207945 triangulos=350090 coalescidas=0
+[CICLO] generación=316 extremos_visibles=20/20 escala=0.672976
+[MALLA] edad_solicitada=0.43 edad_visible=0.43 lag=0.00 escala=0.66892 gen=317 fp=14203041629855977650 tier=MORPH ms=913.69 fps=60.1 builds/s=0.0 grid=890x706x2306 celdas=210771 activas=54976 refinadas=123871 muestras=208051 triangulos=357096 coalescidas=0
+[CICLO] generación=317 extremos_visibles=20/20 escala=0.668922
+[MALLA] edad_solicitada=0.43 edad_visible=0.43 lag=0.00 escala=0.66488 gen=318 fp=1182617296488489616 tier=MORPH ms=896.67 fps=60.1 builds/s=0.0 grid=914x731x2374 celdas=208545 activas=54001 refinadas=128664 muestras=206901 triangulos=351526 coalescidas=0
+[CICLO] generación=318 extremos_visibles=20/20 escala=0.664880
+[MALLA] edad_solicitada=0.42 edad_visible=0.42 lag=0.00 escala=0.66085 gen=319 fp=4282594573460455931 tier=MORPH ms=968.71 fps=60.2 builds/s=0.0 grid=938x757x2445 celdas=222636 activas=55632 refinadas=134368 muestras=217300 triangulos=360754 coalescidas=0
+[CICLO] generación=319 extremos_visibles=20/20 escala=0.660850
+[MALLA] edad_solicitada=0.42 edad_visible=0.42 lag=0.00 escala=0.65683 gen=320 fp=9718340411177694584 tier=MORPH ms=961.78 fps=60.1 builds/s=0.0 grid=964x784x2520 celdas=221866 activas=56112 refinadas=139068 muestras=222325 triangulos=365030 coalescidas=0
+[CICLO] generación=320 extremos_visibles=20/20 escala=0.656834
+[MALLA] edad_solicitada=0.41 edad_visible=0.41 lag=0.00 escala=0.65283 gen=321 fp=12249140497503095343 tier=MORPH ms=1080.86 fps=60.1 builds/s=0.0 grid=991x813x2599 celdas=240290 activas=57569 refinadas=148264 muestras=238448 triangulos=375270 coalescidas=0
+[CICLO] generación=321 extremos_visibles=20/20 escala=0.652830
+[MALLA] edad_solicitada=0.41 edad_visible=0.41 lag=0.00 escala=0.64884 gen=322 fp=12481475225898558546 tier=MORPH ms=1055.67 fps=60.0 builds/s=0.0 grid=1020x844x2682 celdas=251469 activas=58914 refinadas=160265 muestras=252059 triangulos=383872 coalescidas=0
+[CICLO] generación=322 extremos_visibles=20/20 escala=0.648842
+[MALLA] edad_solicitada=0.40 edad_visible=0.40 lag=0.00 escala=0.64487 gen=323 fp=5904981158524502093 tier=MORPH ms=1085.32 fps=60.1 builds/s=0.0 grid=1051x877x2769 celdas=247542 activas=59824 refinadas=161339 muestras=246825 triangulos=388674 coalescidas=0
+[CICLO] generación=323 extremos_visibles=20/20 escala=0.644868
+[MALLA] edad_solicitada=0.40 edad_visible=0.40 lag=0.00 escala=0.64091 gen=324 fp=15916066690638366164 tier=MORPH ms=1170.63 fps=60.1 builds/s=0.0 grid=1083x911x2861 celdas=265287 activas=61370 refinadas=173514 muestras=268390 triangulos=402352 coalescidas=0
+[CICLO] generación=324 extremos_visibles=20/20 escala=0.640911
+[MALLA] edad_solicitada=0.39 edad_visible=0.39 lag=0.00 escala=0.63697 gen=325 fp=16476148521888826489 tier=MORPH ms=1154.07 fps=60.1 builds/s=0.0 grid=1117x947x2959 celdas=274324 activas=62458 refinadas=181148 muestras=275400 triangulos=407202 coalescidas=0
+[CICLO] generación=325 extremos_visibles=20/20 escala=0.636972
+[MALLA] edad_solicitada=0.39 edad_visible=0.39 lag=0.00 escala=0.63305 gen=326 fp=11831590490229122433 tier=MORPH ms=1248.43 fps=60.0 builds/s=0.0 grid=1153x986x3062 celdas=292818 activas=64590 refinadas=195362 muestras=292842 triangulos=420682 coalescidas=0
+[CICLO] generación=326 extremos_visibles=20/20 escala=0.633050
+[MALLA] edad_solicitada=0.38 edad_visible=0.38 lag=0.00 escala=0.62915 gen=327 fp=6733079188745129851 tier=MORPH ms=711.52 fps=63.2 builds/s=0.0 grid=1191x1026x3171 celdas=184759 activas=56465 refinadas=89944 muestras=180507 triangulos=372400 coalescidas=0
+[CICLO] generación=327 extremos_visibles=20/20 escala=0.629146
+[MALLA] edad_solicitada=0.38 edad_visible=0.38 lag=0.00 escala=0.62526 gen=328 fp=6673372414193360346 tier=MORPH ms=714.62 fps=60.0 builds/s=1.9 grid=1232x1070x3285 celdas=176562 activas=53988 refinadas=93585 muestras=171687 triangulos=354376 coalescidas=0
+[CICLO] generación=328 extremos_visibles=20/20 escala=0.625262
+[MALLA] edad_solicitada=0.37 edad_visible=0.37 lag=0.00 escala=0.62140 gen=329 fp=14418243891289834296 tier=MORPH ms=705.76 fps=63.5 builds/s=0.0 grid=1275x1115x3407 celdas=182036 activas=55099 refinadas=95174 muestras=177112 triangulos=359298 coalescidas=0
+[CICLO] generación=329 extremos_visibles=20/20 escala=0.621399
+[MALLA] edad_solicitada=0.37 edad_visible=0.37 lag=0.00 escala=0.61756 gen=330 fp=17757630677647848374 tier=MORPH ms=741.98 fps=60.1 builds/s=1.9 grid=1320x1164x3536 celdas=188329 activas=55481 refinadas=102040 muestras=186182 triangulos=363912 coalescidas=0
+[CICLO] generación=330 extremos_visibles=20/20 escala=0.617557
+[MALLA] edad_solicitada=0.36 edad_visible=0.36 lag=0.00 escala=0.61374 gen=331 fp=11026510322508808763 tier=MORPH ms=807.62 fps=63.4 builds/s=0.0 grid=1368x1215x3672 celdas=194622 activas=56988 refinadas=107123 muestras=194434 triangulos=373328 coalescidas=0
+[CICLO] generación=331 extremos_visibles=20/20 escala=0.613737
+[MALLA] edad_solicitada=0.36 edad_visible=0.36 lag=0.00 escala=0.60994 gen=332 fp=3036006704073054784 tier=MORPH ms=777.50 fps=60.0 builds/s=0.0 grid=1420x1270x3817 celdas=196519 activas=57348 refinadas=108621 muestras=196072 triangulos=377860 coalescidas=0
+[CICLO] generación=332 extremos_visibles=20/20 escala=0.609939
+[MALLA] edad_solicitada=0.35 edad_visible=0.35 lag=0.00 escala=0.60617 gen=333 fp=5580269956486121804 tier=MORPH ms=773.16 fps=60.1 builds/s=1.9 grid=1474x1329x3970 celdas=189960 activas=56798 refinadas=101274 muestras=185730 triangulos=375390 coalescidas=0
+[CICLO] generación=333 extremos_visibles=20/20 escala=0.606165
+[MALLA] edad_solicitada=0.35 edad_visible=0.35 lag=0.00 escala=0.60242 gen=334 fp=8529030191893926311 tier=MORPH ms=784.69 fps=59.9 builds/s=0.0 grid=1532x1391x4133 celdas=189050 activas=56885 refinadas=104664 muestras=186248 triangulos=374840 coalescidas=0
+[CICLO] generación=334 extremos_visibles=20/20 escala=0.602416
+[MALLA] edad_solicitada=0.34 edad_visible=0.34 lag=0.00 escala=0.59869 gen=335 fp=10960649447307781549 tier=MORPH ms=781.24 fps=59.9 builds/s=0.0 grid=1594x1457x4306 celdas=190856 activas=55441 refinadas=105888 muestras=187580 triangulos=367444 coalescidas=0
+[CICLO] generación=335 extremos_visibles=20/20 escala=0.598692
+[MALLA] edad_solicitada=0.34 edad_visible=0.34 lag=0.00 escala=0.59499 gen=336 fp=16062709548786475938 tier=MORPH ms=816.37 fps=60.2 builds/s=1.9 grid=1660x1527x4490 celdas=196330 activas=56084 refinadas=111575 muestras=194472 triangulos=372508 coalescidas=0
+[CICLO] generación=336 extremos_visibles=20/20 escala=0.594994
+[MALLA] edad_solicitada=0.33 edad_visible=0.33 lag=0.00 escala=0.59132 gen=337 fp=5913168409346434372 tier=MORPH ms=801.66 fps=60.1 builds/s=0.0 grid=1730x1602x4686 celdas=198255 activas=56071 refinadas=112734 muestras=196388 triangulos=374228 coalescidas=0
+[CICLO] generación=337 extremos_visibles=20/20 escala=0.591324
+[MALLA] edad_solicitada=0.33 edad_visible=0.33 lag=0.00 escala=0.58768 gen=338 fp=10738543292657305321 tier=MORPH ms=876.85 fps=60.2 builds/s=0.0 grid=1805x1682x4894 celdas=205976 activas=55627 refinadas=118070 muestras=206511 triangulos=371276 coalescidas=0
+[CICLO] generación=338 extremos_visibles=18/20 escala=0.587681
+[MALLA] edad_solicitada=0.32 edad_visible=0.32 lag=0.00 escala=0.58407 gen=339 fp=16374868956789012318 tier=MORPH ms=838.05 fps=60.1 builds/s=0.0 grid=1885x1768x5115 celdas=205948 activas=54644 refinadas=122055 muestras=203442 triangulos=365016 coalescidas=0
+[CICLO] generación=339 extremos_visibles=16/20 escala=0.584066
+[MALLA] edad_solicitada=0.32 edad_visible=0.32 lag=0.00 escala=0.58048 gen=340 fp=18280369755644455261 tier=MORPH ms=846.08 fps=59.9 builds/s=2.0 grid=1970x1859x5352 celdas=205178 activas=54516 refinadas=127988 muestras=207184 triangulos=364714 coalescidas=0
+[CICLO] generación=340 extremos_visibles=16/20 escala=0.580481
+[MALLA] edad_solicitada=0.31 edad_visible=0.31 lag=0.00 escala=0.57693 gen=341 fp=6256082529094042842 tier=MORPH ms=857.28 fps=59.9 builds/s=0.0 grid=2061x1957x5604 celdas=221523 activas=53519 refinadas=138650 muestras=221341 triangulos=359636 coalescidas=0
+[CICLO] generación=341 extremos_visibles=16/20 escala=0.576926
+[MALLA] edad_solicitada=0.31 edad_visible=0.31 lag=0.00 escala=0.57340 gen=342 fp=4109267071534620342 tier=MORPH ms=976.73 fps=59.9 builds/s=0.0 grid=2165x2062x5874 celdas=231323 activas=53671 refinadas=146221 muestras=232079 triangulos=360088 coalescidas=0
+[CICLO] generación=342 extremos_visibles=16/20 escala=0.573403
+[MALLA] edad_solicitada=0.30 edad_visible=0.30 lag=0.00 escala=0.56991 gen=343 fp=5915257305319725396 tier=MORPH ms=934.15 fps=60.0 builds/s=0.0 grid=2282x2174x6162 celdas=232247 activas=49436 refinadas=157618 muestras=230815 triangulos=331962 coalescidas=0
+[CICLO] generación=343 extremos_visibles=16/20 escala=0.569911
+[MALLA] edad_solicitada=0.30 edad_visible=0.30 lag=0.00 escala=0.56645 gen=344 fp=8994897095749644279 tier=MORPH ms=1078.42 fps=59.9 builds/s=0.0 grid=2407x2294x6472 celdas=248032 activas=49165 refinadas=174200 muestras=253072 triangulos=331162 coalescidas=0
+[CICLO] generación=344 extremos_visibles=16/20 escala=0.566452
+[MALLA] edad_solicitada=0.29 edad_visible=0.29 lag=0.00 escala=0.56303 gen=345 fp=13351312308305049058 tier=MORPH ms=492.22 fps=60.1 builds/s=1.9 grid=2542x2423x6803 celdas=123509 activas=38742 refinadas=66918 muestras=126217 triangulos=265338 coalescidas=0
+[CICLO] generación=345 extremos_visibles=14/20 escala=0.563026
+[MALLA] edad_solicitada=0.29 edad_visible=0.29 lag=0.00 escala=0.55964 gen=346 fp=4180827934256914266 tier=MORPH ms=41.43 fps=60.0 builds/s=1.9 grid=35x33x92 celdas=106260 activas=1478 refinadas=0 muestras=84700 triangulos=2948 coalescidas=0
+[CICLO] generación=346 extremos_visibles=0/20 escala=0.559635
+[MALLA] edad_solicitada=0.28 edad_visible=0.28 lag=0.00 escala=0.55628 gen=347 fp=5291791691647263808 tier=MORPH ms=40.36 fps=60.0 builds/s=1.9 grid=35x33x91 celdas=105105 activas=1432 refinadas=0 muestras=83292 triangulos=2856 coalescidas=0
+[CICLO] generación=347 extremos_visibles=0/20 escala=0.556280
+[MALLA] edad_solicitada=0.28 edad_visible=0.28 lag=0.00 escala=0.55296 gen=348 fp=17765331930758209209 tier=MORPH ms=39.38 fps=60.0 builds/s=1.9 grid=35x33x91 celdas=105105 activas=1400 refinadas=0 muestras=83292 triangulos=2792 coalescidas=0
+[CICLO] generación=348 extremos_visibles=0/20 escala=0.552960
+[MALLA] edad_solicitada=0.27 edad_visible=0.27 lag=0.00 escala=0.54968 gen=349 fp=2499644100970428378 tier=MORPH ms=35.00 fps=60.0 builds/s=1.9 grid=35x33x90 celdas=103950 activas=1350 refinadas=0 muestras=82360 triangulos=2692 coalescidas=0
+[CICLO] generación=349 extremos_visibles=0/20 escala=0.549677
+[MALLA] edad_solicitada=0.27 edad_visible=0.27 lag=0.00 escala=0.54643 gen=350 fp=2890451878556093633 tier=MORPH ms=34.67 fps=60.0 builds/s=1.9 grid=35x33x90 celdas=103950 activas=1338 refinadas=0 muestras=82422 triangulos=2668 coalescidas=0
+[CICLO] generación=350 extremos_visibles=0/20 escala=0.546431
+[MALLA] edad_solicitada=0.26 edad_visible=0.26 lag=0.00 escala=0.54322 gen=351 fp=4220543635382693381 tier=MORPH ms=41.53 fps=60.0 builds/s=1.9 grid=35x33x90 celdas=103950 activas=1328 refinadas=0 muestras=82422 triangulos=2648 coalescidas=0
+[CICLO] generación=351 extremos_visibles=0/20 escala=0.543225
+[MALLA] edad_solicitada=0.26 edad_visible=0.26 lag=0.00 escala=0.54006 gen=352 fp=12349345006779741249 tier=MORPH ms=37.51 fps=60.0 builds/s=11.6 grid=35x33x89 celdas=102795 activas=1314 refinadas=0 muestras=81244 triangulos=2620 coalescidas=0
+[CICLO] generación=352 extremos_visibles=0/20 escala=0.540057
+[MALLA] edad_solicitada=0.25 edad_visible=0.25 lag=0.00 escala=0.53693 gen=353 fp=14827028758971197012 tier=MORPH ms=38.80 fps=60.0 builds/s=11.6 grid=35x33x89 celdas=102795 activas=1304 refinadas=0 muestras=81244 triangulos=2600 coalescidas=0
+[CICLO] generación=353 extremos_visibles=0/20 escala=0.536930
+[MALLA] edad_solicitada=0.25 edad_visible=0.25 lag=0.00 escala=0.53384 gen=354 fp=18312600563889267435 tier=MORPH ms=39.65 fps=60.0 builds/s=11.6 grid=35x33x88 celdas=101640 activas=1280 refinadas=0 muestras=80072 triangulos=2552 coalescidas=0
+[CICLO] generación=354 extremos_visibles=0/20 escala=0.533844
+[MALLA] edad_solicitada=0.24 edad_visible=0.24 lag=0.00 escala=0.53080 gen=355 fp=1437638498129843773 tier=MORPH ms=42.27 fps=60.0 builds/s=11.6 grid=34x33x88 celdas=98736 activas=1338 refinadas=0 muestras=77789 triangulos=2668 coalescidas=0
+[CICLO] generación=355 extremos_visibles=0/20 escala=0.530799
+[MALLA] edad_solicitada=0.24 edad_visible=0.24 lag=0.00 escala=0.52780 gen=356 fp=15938404837800680044 tier=MORPH ms=36.30 fps=60.0 builds/s=11.6 grid=34x33x87 celdas=97614 activas=1318 refinadas=0 muestras=76857 triangulos=2628 coalescidas=0
+[CICLO] generación=356 extremos_visibles=0/20 escala=0.527797
+[MALLA] edad_solicitada=0.23 edad_visible=0.23 lag=0.00 escala=0.52484 gen=357 fp=15774577416616144919 tier=MORPH ms=36.73 fps=60.0 builds/s=11.6 grid=34x33x87 celdas=97614 activas=1308 refinadas=0 muestras=76857 triangulos=2608 coalescidas=0
+[CICLO] generación=357 extremos_visibles=0/20 escala=0.524839
+[MALLA] edad_solicitada=0.23 edad_visible=0.23 lag=0.00 escala=0.52192 gen=358 fp=582485871132906985 tier=MORPH ms=41.32 fps=59.8 builds/s=12.0 grid=34x33x86 celdas=96492 activas=1284 refinadas=0 muestras=75896 triangulos=2560 coalescidas=0
+[CICLO] generación=358 extremos_visibles=0/20 escala=0.521925
+[MALLA] edad_solicitada=0.22 edad_visible=0.22 lag=0.00 escala=0.51906 gen=359 fp=17202263036815040593 tier=MORPH ms=35.66 fps=59.8 builds/s=12.0 grid=34x33x86 celdas=96492 activas=1262 refinadas=0 muestras=75919 triangulos=2516 coalescidas=0
+[CICLO] generación=359 extremos_visibles=0/20 escala=0.519056
+[MALLA] edad_solicitada=0.22 edad_visible=0.22 lag=0.00 escala=0.51623 gen=360 fp=7921823051957746351 tier=MORPH ms=37.45 fps=59.8 builds/s=12.0 grid=34x33x86 celdas=96492 activas=1250 refinadas=0 muestras=75950 triangulos=2492 coalescidas=0
+[CICLO] generación=360 extremos_visibles=0/20 escala=0.516233
+[MALLA] edad_solicitada=0.21 edad_visible=0.21 lag=0.00 escala=0.51346 gen=361 fp=9251214598172439560 tier=MORPH ms=36.35 fps=59.8 builds/s=12.0 grid=34x33x85 celdas=95370 activas=1210 refinadas=0 muestras=74863 triangulos=2412 coalescidas=0
+[CICLO] generación=361 extremos_visibles=0/20 escala=0.513457
+[MALLA] edad_solicitada=0.21 edad_visible=0.21 lag=0.00 escala=0.51073 gen=362 fp=11061362953865240003 tier=MORPH ms=37.94 fps=59.8 builds/s=12.0 grid=34x33x85 celdas=95370 activas=1194 refinadas=0 muestras=74863 triangulos=2380 coalescidas=0
+[CICLO] generación=362 extremos_visibles=0/20 escala=0.510728
+[MALLA] edad_solicitada=0.20 edad_visible=0.20 lag=0.00 escala=0.50805 gen=363 fp=11475907629194010388 tier=MORPH ms=36.13 fps=59.8 builds/s=12.0 grid=34x33x84 celdas=94248 activas=1160 refinadas=0 muestras=73931 triangulos=2312 coalescidas=0
+[CICLO] generación=363 extremos_visibles=0/20 escala=0.508048
+[MALLA] edad_solicitada=0.20 edad_visible=0.20 lag=0.00 escala=0.50542 gen=364 fp=3820083042891521575 tier=MORPH ms=28.37 fps=60.3 builds/s=13.6 grid=34x33x84 celdas=94248 activas=1128 refinadas=0 muestras=73811 triangulos=2248 coalescidas=0
+[CICLO] generación=364 extremos_visibles=0/20 escala=0.505417
+[MALLA] edad_solicitada=0.19 edad_visible=0.19 lag=0.00 escala=0.50284 gen=365 fp=9935339642606358276 tier=MORPH ms=31.21 fps=60.3 builds/s=13.6 grid=34x33x84 celdas=94248 activas=1110 refinadas=0 muestras=73811 triangulos=2212 coalescidas=0
+[CICLO] generación=365 extremos_visibles=0/20 escala=0.502836
+[MALLA] edad_solicitada=0.19 edad_visible=0.19 lag=0.00 escala=0.50031 gen=366 fp=63892842135499324 tier=MORPH ms=31.14 fps=60.3 builds/s=13.6 grid=34x33x83 celdas=93126 activas=1074 refinadas=0 muestras=72941 triangulos=2140 coalescidas=0
+[CICLO] generación=366 extremos_visibles=0/20 escala=0.500306
+[MALLA] edad_solicitada=0.18 edad_visible=0.18 lag=0.00 escala=0.49783 gen=367 fp=16276241942113177741 tier=MORPH ms=29.68 fps=60.3 builds/s=13.6 grid=34x33x83 celdas=93126 activas=1074 refinadas=0 muestras=72941 triangulos=2140 coalescidas=0
+[CICLO] generación=367 extremos_visibles=0/20 escala=0.497827
+[MALLA] edad_solicitada=0.18 edad_visible=0.18 lag=0.00 escala=0.49540 gen=368 fp=14781773049984462927 tier=MORPH ms=30.39 fps=60.3 builds/s=13.6 grid=34x33x83 celdas=93126 activas=1074 refinadas=0 muestras=72662 triangulos=2140 coalescidas=0
+[CICLO] generación=368 extremos_visibles=0/20 escala=0.495401
+[MALLA] edad_solicitada=0.17 edad_visible=0.17 lag=0.00 escala=0.49303 gen=369 fp=7604576278352670427 tier=MORPH ms=28.29 fps=60.3 builds/s=13.6 grid=34x33x82 celdas=92004 activas=1046 refinadas=0 muestras=71732 triangulos=2084 coalescidas=0
+[CICLO] generación=369 extremos_visibles=0/20 escala=0.493029
+[MALLA] edad_solicitada=0.17 edad_visible=0.17 lag=0.00 escala=0.49071 gen=370 fp=1626902430917821916 tier=MORPH ms=28.68 fps=60.3 builds/s=13.6 grid=34x33x82 celdas=92004 activas=1036 refinadas=0 muestras=71050 triangulos=2064 coalescidas=0
+[CICLO] generación=370 extremos_visibles=0/20 escala=0.490711
+[MALLA] edad_solicitada=0.16 edad_visible=0.16 lag=0.00 escala=0.48845 gen=371 fp=7287972770727158145 tier=MORPH ms=28.80 fps=57.5 builds/s=11.1 grid=34x33x82 celdas=92004 activas=1036 refinadas=0 muestras=71050 triangulos=2064 coalescidas=0
+[CICLO] generación=371 extremos_visibles=0/20 escala=0.488447
+[MALLA] edad_solicitada=0.16 edad_visible=0.16 lag=0.00 escala=0.48624 gen=372 fp=14329211032501917003 tier=MORPH ms=35.25 fps=57.5 builds/s=11.1 grid=34x33x81 celdas=90882 activas=1016 refinadas=0 muestras=70149 triangulos=2024 coalescidas=0
+[CICLO] generación=372 extremos_visibles=0/20 escala=0.486240
+[MALLA] edad_solicitada=0.15 edad_visible=0.15 lag=0.00 escala=0.48409 gen=373 fp=4499788552018395455 tier=MORPH ms=32.83 fps=57.5 builds/s=11.1 grid=34x33x81 celdas=90882 activas=1008 refinadas=0 muestras=67468 triangulos=2008 coalescidas=0
+[CICLO] generación=373 extremos_visibles=0/20 escala=0.484089
+[MALLA] edad_solicitada=0.15 edad_visible=0.15 lag=0.00 escala=0.48200 gen=374 fp=17019999149074231637 tier=MORPH ms=30.42 fps=57.5 builds/s=11.1 grid=34x33x81 celdas=90882 activas=1008 refinadas=0 muestras=67468 triangulos=2008 coalescidas=0
+[CICLO] generación=374 extremos_visibles=0/20 escala=0.481996
+[MALLA] edad_solicitada=0.14 edad_visible=0.14 lag=0.00 escala=0.47996 gen=375 fp=1978383417523509592 tier=MORPH ms=29.67 fps=57.5 builds/s=11.1 grid=34x33x80 celdas=89760 activas=992 refinadas=0 muestras=66511 triangulos=1976 coalescidas=0
+[CICLO] generación=375 extremos_visibles=0/20 escala=0.479961
+[MALLA] edad_solicitada=0.14 edad_visible=0.14 lag=0.00 escala=0.47798 gen=376 fp=5650670646045636189 tier=MORPH ms=28.10 fps=57.5 builds/s=11.1 grid=34x33x80 celdas=89760 activas=988 refinadas=0 muestras=66511 triangulos=1968 coalescidas=0
+[CICLO] generación=376 extremos_visibles=0/20 escala=0.477985
+[MALLA] edad_solicitada=0.13 edad_visible=0.13 lag=0.00 escala=0.47607 gen=377 fp=6531912855840618123 tier=MORPH ms=31.76 fps=61.9 builds/s=12.0 grid=34x33x80 celdas=89760 activas=978 refinadas=0 muestras=66511 triangulos=1948 coalescidas=0
+[CICLO] generación=377 extremos_visibles=0/20 escala=0.476069
+[MALLA] edad_solicitada=0.13 edad_visible=0.13 lag=0.00 escala=0.47421 gen=378 fp=12371176024873837990 tier=MORPH ms=34.91 fps=61.9 builds/s=12.0 grid=34x33x80 celdas=89760 activas=974 refinadas=0 muestras=66511 triangulos=1940 coalescidas=0
+[CICLO] generación=378 extremos_visibles=0/20 escala=0.474214
+[MALLA] edad_solicitada=0.12 edad_visible=0.12 lag=0.00 escala=0.47242 gen=379 fp=14689694776293172647 tier=MORPH ms=34.31 fps=61.9 builds/s=12.0 grid=34x32x79 celdas=85952 activas=946 refinadas=0 muestras=63621 triangulos=1884 coalescidas=0
+[CICLO] generación=379 extremos_visibles=0/20 escala=0.472420
+[MALLA] edad_solicitada=0.12 edad_visible=0.12 lag=0.00 escala=0.47069 gen=380 fp=8229927988286065033 tier=MORPH ms=30.53 fps=61.9 builds/s=12.0 grid=34x32x79 celdas=85952 activas=950 refinadas=0 muestras=63621 triangulos=1892 coalescidas=0
+[CICLO] generación=380 extremos_visibles=0/20 escala=0.470689
+[MALLA] edad_solicitada=0.11 edad_visible=0.11 lag=0.00 escala=0.46902 gen=381 fp=8555249122777299391 tier=MORPH ms=35.21 fps=61.9 builds/s=12.0 grid=34x32x79 celdas=85952 activas=946 refinadas=0 muestras=63650 triangulos=1884 coalescidas=0
+[CICLO] generación=381 extremos_visibles=0/20 escala=0.469021
+[MALLA] edad_solicitada=0.11 edad_visible=0.11 lag=0.00 escala=0.46742 gen=382 fp=14990625903404062004 tier=MORPH ms=32.79 fps=61.9 builds/s=12.0 grid=34x32x79 celdas=85952 activas=950 refinadas=0 muestras=63650 triangulos=1892 coalescidas=0
+[CICLO] generación=382 extremos_visibles=0/20 escala=0.467418
+[MALLA] edad_solicitada=0.10 edad_visible=0.10 lag=0.00 escala=0.46588 gen=383 fp=15742170748248486104 tier=MORPH ms=27.00 fps=59.9 builds/s=12.0 grid=34x32x79 celdas=85952 activas=946 refinadas=0 muestras=63650 triangulos=1884 coalescidas=0
+[CICLO] generación=383 extremos_visibles=0/20 escala=0.465879
+[MALLA] edad_solicitada=0.10 edad_visible=0.10 lag=0.00 escala=0.46441 gen=384 fp=12763784994305987694 tier=MORPH ms=29.65 fps=59.9 builds/s=12.0 grid=34x32x78 celdas=84864 activas=926 refinadas=0 muestras=62780 triangulos=1844 coalescidas=0
+[CICLO] generación=384 extremos_visibles=0/20 escala=0.464406
+[MALLA] edad_solicitada=0.09 edad_visible=0.09 lag=0.00 escala=0.46300 gen=385 fp=12086417587656068537 tier=MORPH ms=25.16 fps=59.9 builds/s=12.0 grid=34x32x78 celdas=84864 activas=922 refinadas=0 muestras=62722 triangulos=1836 coalescidas=0
+[CICLO] generación=385 extremos_visibles=0/20 escala=0.462999
+[MALLA] edad_solicitada=0.09 edad_visible=0.09 lag=0.00 escala=0.46166 gen=386 fp=9782761220420289238 tier=MORPH ms=31.98 fps=59.9 builds/s=12.0 grid=34x32x78 celdas=84864 activas=922 refinadas=0 muestras=62722 triangulos=1836 coalescidas=0
+[CICLO] generación=386 extremos_visibles=0/20 escala=0.461660
+[MALLA] edad_solicitada=0.08 edad_visible=0.08 lag=0.00 escala=0.46039 gen=387 fp=2239621041492549822 tier=MORPH ms=25.02 fps=59.9 builds/s=12.0 grid=34x32x78 celdas=84864 activas=920 refinadas=0 muestras=62751 triangulos=1832 coalescidas=0
+[CICLO] generación=387 extremos_visibles=0/20 escala=0.460389
+[MALLA] edad_solicitada=0.08 edad_visible=0.08 lag=0.00 escala=0.45919 gen=388 fp=15129954168311783310 tier=MORPH ms=25.37 fps=59.9 builds/s=12.0 grid=34x32x78 celdas=84864 activas=918 refinadas=0 muestras=62751 triangulos=1828 coalescidas=0
+[CICLO] generación=388 extremos_visibles=0/20 escala=0.459187
+[MALLA] edad_solicitada=0.07 edad_visible=0.07 lag=0.00 escala=0.45806 gen=389 fp=302399209207491619 tier=MORPH ms=27.02 fps=59.9 builds/s=12.0 grid=34x32x77 celdas=83776 activas=906 refinadas=0 muestras=61910 triangulos=1804 coalescidas=0
+[CICLO] generación=389 extremos_visibles=0/20 escala=0.458055
+[MALLA] edad_solicitada=0.07 edad_visible=0.07 lag=0.00 escala=0.45699 gen=390 fp=8045891760099391144 tier=MORPH ms=29.85 fps=58.4 builds/s=13.6 grid=34x32x77 celdas=83776 activas=900 refinadas=0 muestras=61910 triangulos=1792 coalescidas=0
+[CICLO] generación=390 extremos_visibles=0/20 escala=0.456994
+[MALLA] edad_solicitada=0.06 edad_visible=0.06 lag=0.00 escala=0.45600 gen=391 fp=1335262847647402553 tier=MORPH ms=24.66 fps=58.4 builds/s=13.6 grid=34x32x77 celdas=83776 activas=900 refinadas=0 muestras=61910 triangulos=1792 coalescidas=0
+[CICLO] generación=391 extremos_visibles=0/20 escala=0.456004
+[MALLA] edad_solicitada=0.06 edad_visible=0.06 lag=0.00 escala=0.45509 gen=392 fp=8161743408935870648 tier=MORPH ms=30.01 fps=58.4 builds/s=13.6 grid=34x32x77 celdas=83776 activas=898 refinadas=0 muestras=61910 triangulos=1788 coalescidas=0
+[CICLO] generación=392 extremos_visibles=0/20 escala=0.455087
+[MALLA] edad_solicitada=0.05 edad_visible=0.05 lag=0.00 escala=0.45424 gen=393 fp=11699116095280308000 tier=MORPH ms=25.96 fps=58.4 builds/s=13.6 grid=34x32x77 celdas=83776 activas=898 refinadas=0 muestras=61910 triangulos=1788 coalescidas=0
+[CICLO] generación=393 extremos_visibles=0/20 escala=0.454242
+[MALLA] edad_solicitada=0.05 edad_visible=0.05 lag=0.00 escala=0.45347 gen=394 fp=17980701856164900424 tier=MORPH ms=29.83 fps=58.4 builds/s=13.6 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=394 extremos_visibles=0/20 escala=0.453472
+[MALLA] edad_solicitada=0.04 edad_visible=0.04 lag=0.00 escala=0.45278 gen=395 fp=7577957670309932294 tier=MORPH ms=30.90 fps=58.4 builds/s=13.6 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=395 extremos_visibles=0/20 escala=0.452776
+[MALLA] edad_solicitada=0.04 edad_visible=0.04 lag=0.00 escala=0.45216 gen=396 fp=1615235158159754241 tier=MORPH ms=34.81 fps=62.5 builds/s=13.7 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=396 extremos_visibles=0/20 escala=0.452156
+[MALLA] edad_solicitada=0.03 edad_visible=0.03 lag=0.00 escala=0.45161 gen=397 fp=14478756304534382198 tier=MORPH ms=30.72 fps=62.5 builds/s=13.7 grid=34x32x77 celdas=83776 activas=894 refinadas=0 muestras=61910 triangulos=1780 coalescidas=0
+[CICLO] generación=397 extremos_visibles=0/20 escala=0.451613
+[MALLA] edad_solicitada=0.03 edad_visible=0.03 lag=0.00 escala=0.45115 gen=398 fp=3582216981325035229 tier=MORPH ms=25.17 fps=62.5 builds/s=13.7 grid=34x32x77 celdas=83776 activas=892 refinadas=0 muestras=61910 triangulos=1776 coalescidas=0
+[CICLO] generación=398 extremos_visibles=0/20 escala=0.451147
+[MALLA] edad_solicitada=0.02 edad_visible=0.02 lag=0.00 escala=0.45076 gen=399 fp=15753474346582623140 tier=MORPH ms=26.00 fps=62.5 builds/s=13.7 grid=34x32x76 celdas=82688 activas=882 refinadas=0 muestras=61040 triangulos=1756 coalescidas=0
+[CICLO] generación=399 extremos_visibles=0/20 escala=0.450759
+[MALLA] edad_solicitada=0.02 edad_visible=0.02 lag=0.00 escala=0.45045 gen=400 fp=13137750443619810383 tier=MORPH ms=34.64 fps=62.5 builds/s=13.7 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=400 extremos_visibles=0/20 escala=0.450450
+[MALLA] edad_solicitada=0.01 edad_visible=0.01 lag=0.00 escala=0.45022 gen=401 fp=12669724700029174691 tier=MORPH ms=29.65 fps=62.5 builds/s=13.7 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=401 extremos_visibles=0/20 escala=0.450220
+[MALLA] edad_solicitada=0.01 edad_visible=0.01 lag=0.00 escala=0.45007 gen=402 fp=12022651111924737486 tier=MORPH ms=29.18 fps=62.5 builds/s=13.7 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=402 extremos_visibles=0/20 escala=0.450072
+[MALLA] edad_solicitada=0.00 edad_visible=0.00 lag=0.00 escala=0.45000 gen=403 fp=828528256070063822 tier=MORPH ms=35.96 fps=57.4 builds/s=11.9 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=403 extremos_visibles=0/20 escala=0.450004
+[MALLA] edad_solicitada=0.00 edad_visible=0.00 lag=0.00 escala=0.45000 gen=404 fp=10213493241046634461 tier=MORPH ms=29.95 fps=57.4 builds/s=11.9 grid=34x32x76 celdas=82688 activas=878 refinadas=0 muestras=61040 triangulos=1748 coalescidas=0
+[CICLO] generación=404 extremos_visibles=0/20 escala=0.450000
+[MALLA] edad_solicitada=0.00 edad_visible=0.00 lag=0.00 escala=0.45000 gen=405 fp=14504664287689158819 tier=INTERACTIVE ms=16.32 fps=62.6 builds/s=3.9 grid=27x26x61 celdas=42822 activas=562 refinadas=0 muestras=33704 triangulos=1116 coalescidas=0
+[CICLO] generación=405 extremos_visibles=0/20 escala=0.450000
+[MALLA] edad_solicitada=0.00 edad_visible=0.00 lag=0.00 escala=0.45000 gen=406 fp=3571307678008511808 tier=SETTLED ms=46.15 fps=60.0 builds/s=1.9 grid=40x38x91 celdas=138320 activas=1204 refinadas=0 muestras=99033 triangulos=2400 coalescidas=0
+[CICLO] generación=406 extremos_visibles=0/20 escala=0.450000
+[INFO] Demo de envejecimiento finalizada limpiamente.
+[CICLO] recorrido 0 -> 1 -> 0 terminado: 406 mallas, 0 fallos
