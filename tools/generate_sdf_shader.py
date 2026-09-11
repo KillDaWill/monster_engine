@@ -108,7 +108,7 @@ sweep='''float SDF_EllipticalSweepZ(vec3 p,int base,int count) {
 }
 '''
 heads=[]
-for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalUpperHeadDistance']:
+for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalUpperHeadDistance']:
     heads.append(function('src/MonsterSDF.c',name))
 
 def translate(s):

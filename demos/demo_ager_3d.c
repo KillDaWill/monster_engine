@@ -64,7 +64,7 @@ static unsigned Demo_VisibleDigits(const Mesh* mesh,float scale) {
 int main(int argc, char* argv[]) {
     setvbuf(stdout,NULL,_IOLBF,0);
     float requestedAge=-1.0f;
-    bool directSdf=true,nativeScale=false,validateGPU=false;int benchmarkFrames=0;
+    bool directSdf=true,nativeScale=true,validateGPU=false;int benchmarkFrames=0;
     const char* profilePrefix=NULL;
     bool inspectHead=false;
     bool headWireframe=false;
@@ -75,6 +75,7 @@ int main(int argc, char* argv[]) {
         if(strcmp(argv[argi],"--validate-gpu")==0){validateGPU=true;continue;}
         if(strcmp(argv[argi],"--mesh")==0){directSdf=false;continue;}
         if(strcmp(argv[argi],"--native-scale")==0){nativeScale=true;continue;}
+        if(strcmp(argv[argi],"--adaptive")==0||strcmp(argv[argi],"--adaptive-scale")==0){nativeScale=false;continue;}
         if(strncmp(argv[argi],"--benchmark=",12)==0){benchmarkFrames=atoi(argv[argi]+12);continue;}
         if(strncmp(argv[argi],"--profile-prefix=",17)==0){profilePrefix=argv[argi]+17;continue;}
         if(strncmp(argv[argi],"--validate-cycle=",17)==0){cyclePrefix=argv[argi]+17;directSdf=false;continue;}
@@ -141,7 +142,8 @@ int main(int argc, char* argv[]) {
     int sampleBuffers=0,samples=0;SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS,&sampleBuffers);SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES,&samples);
     printf("[RENDER] MSAA: %s (%dx)\n",sampleBuffers>0?"activo":"no disponible",sampleBuffers>0?samples:0);
 
-    SDL_GL_SetSwapInterval(1);
+    if (benchmarkFrames > 0) SDL_GL_SetSwapInterval(0);
+    else if (SDL_GL_SetSwapInterval(-1) < 0) SDL_GL_SetSwapInterval(1);
 
     /* 2. Configurar la cámara agnóstica 3D */
     ICamera camera;

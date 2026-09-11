@@ -15,15 +15,22 @@
 typedef struct OpenGLRendererData {
     bool wireframe;
     GLuint sdfProgram, sdfBuffer, sdfTexture;
+    struct {
+        GLint validationMode,validationPointBase,sceneData;
+        GLint partBase,partCount,connectorBase,connectorCount,mouthBase,mouthCount,axialBase,axialCount;
+        GLint bodySmoothness,tileDataBase,tileColumns,cameraPosition,cameraForward,cameraRight,cameraUp;
+        GLint boundsMin,boundsMax,viewportSize,tanHalfFov,aspectRatio,hitTolerance,viewProjection;
+    } uniforms;
     float (*sdfData)[4];
     size_t sdfCapacity,sdfCount;
     int* tileIndices;
     size_t tileCapacity;
     GLuint sdfFramebuffer,sdfColor,sdfDepth,sdfQueries[4];
-    unsigned queryFrame;
+    unsigned queryFrame,querySerial[4];
     bool queryPending[4], sdfFrameActive, queryIssued;
-    int sdfWidth,sdfHeight;
-    float resolutionScale,gpuMs;
+    int sdfWidth,sdfHeight,sdfAllocatedWidth,sdfAllocatedHeight;
+    float resolutionScale,gpuMs,filteredGpuMs,queryScale[4];
+    unsigned overBudget,underBudget;
 } OpenGLRendererData;
 
 void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled) {
@@ -234,6 +241,7 @@ static void PackStation(float (*out)[4],const SDFSweepStation* s){
     out[1][0]=s->height;out[1][1]=s->widthSlope;out[1][2]=s->heightSlope;out[1][3]=s->centerSlope;
 }
 #include "MonsterSDFShader.generated.h"
+#include "MonsterSDFRayBounds.h"
 
 static GLuint CompileSDFShader(GLenum type,const char* const* source,size_t count) {
     GLuint shader=glCreateShader(type);
@@ -252,21 +260,48 @@ static bool InitSDFProgram(OpenGLRendererData* d) {
     glDeleteShader(vs);glDeleteShader(fs);GLint ok;glGetProgramiv(p,GL_LINK_STATUS,&ok);
     if(!ok){char log[4096];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[SDF GPU] %s\n",log);glDeleteProgram(p);return false;}
     d->sdfProgram=p;
+    /* Las ubicaciones pertenecen al programa enlazado, no al fotograma. */
+    d->uniforms.validationMode=glGetUniformLocation(p,"validationMode");
+    d->uniforms.validationPointBase=glGetUniformLocation(p,"validationPointBase");
+    d->uniforms.sceneData=glGetUniformLocation(p,"sceneData");
+    d->uniforms.partBase=glGetUniformLocation(p,"partBase");
+    d->uniforms.partCount=glGetUniformLocation(p,"partCount");
+    d->uniforms.connectorBase=glGetUniformLocation(p,"connectorBase");
+    d->uniforms.connectorCount=glGetUniformLocation(p,"connectorCount");
+    d->uniforms.mouthBase=glGetUniformLocation(p,"mouthBase");
+    d->uniforms.mouthCount=glGetUniformLocation(p,"mouthCount");
+    d->uniforms.axialBase=glGetUniformLocation(p,"axialBase");
+    d->uniforms.axialCount=glGetUniformLocation(p,"axialCount");
+    d->uniforms.bodySmoothness=glGetUniformLocation(p,"bodySmoothness");
+    d->uniforms.tileDataBase=glGetUniformLocation(p,"tileDataBase");
+    d->uniforms.tileColumns=glGetUniformLocation(p,"tileColumns");
+    d->uniforms.cameraPosition=glGetUniformLocation(p,"cameraPosition");
+    d->uniforms.cameraForward=glGetUniformLocation(p,"cameraForward");
+    d->uniforms.cameraRight=glGetUniformLocation(p,"cameraRight");
+    d->uniforms.cameraUp=glGetUniformLocation(p,"cameraUp");
+    d->uniforms.boundsMin=glGetUniformLocation(p,"boundsMin");
+    d->uniforms.boundsMax=glGetUniformLocation(p,"boundsMax");
+    d->uniforms.viewportSize=glGetUniformLocation(p,"viewportSize");
+    d->uniforms.tanHalfFov=glGetUniformLocation(p,"tanHalfFov");
+    d->uniforms.aspectRatio=glGetUniformLocation(p,"aspectRatio");
+    d->uniforms.hitTolerance=glGetUniformLocation(p,"hitTolerance");
+    d->uniforms.viewProjection=glGetUniformLocation(p,"viewProjection");
     if(!d->sdfBuffer)glGenBuffers(1,&d->sdfBuffer);
     if(!d->sdfTexture)glGenTextures(1,&d->sdfTexture);
     fprintf(stdout,"[SDF GPU] %s | %s\n",glGetString(GL_RENDERER),glGetString(GL_VERSION));
     return true;
 }
-static void UniformVector(GLuint p,const char* name,Vector3 v){glUniform3f(glGetUniformLocation(p,name),v.x,v.y,v.z);}
+static void UniformVector(GLint location,Vector3 v){glUniform3f(location,v.x,v.y,v.z);}
 
 bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const ICamera* camera,int width,int height) {
     if(!renderer||!renderer->user_data||!sdf||!camera||width<=0||height<=0)return false;
     OpenGLRendererData* d=renderer->user_data;
+    float displayAspect=(float)width/height;
     if(d->sdfFrameActive){width=d->sdfWidth;height=d->sdfHeight;}
     if(!d->sdfProgram&&!InitSDFProgram(d))return false;
     Vector3 forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
     Vector3 right=Vec3_Normalize(Vec3_Cross(forward,camera->up)),up=Vec3_Cross(right,forward);
-    float tangent=tanf(camera->fov*.00872664626f),aspect=(float)width/height;
+    float tangent=tanf(camera->fov*.00872664626f),aspect=displayAspect;
     int columns=(width+15)/16,rows=(height+15)/16;
     size_t tiles=(size_t)columns*rows,stride=sdf->connectorCount+1;
     if(tiles*stride>d->tileCapacity){int* indices=realloc(d->tileIndices,tiles*stride*sizeof(int));if(!indices)return false;d->tileIndices=indices;d->tileCapacity=tiles*stride;}
@@ -309,7 +344,13 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const I
     size_t connectorBase=offset;
     for(size_t i=0;i<sdf->connectorCount;++i){PackC(d->sdfData+offset,&sdf->connectors[i]);offset+=C_STRIDE;}
     size_t mouthBase=offset;
-    for(size_t i=0;i<sdf->mouthCount;++i){PackM(d->sdfData+offset,&sdf->mouths[i]);offset+=M_STRIDE;}
+    float mouthSmoothness=0;
+    for(size_t i=0;i<sdf->mouthCount;++i)
+        mouthSmoothness+=sdf->mouths[i].anatomicalHead?sdf->mouths[i].headBodySmoothness:2.f*sdf->mouths[i].muzzleSmoothness;
+    for(size_t i=0;i<sdf->mouthCount;++i){
+        MonsterSDFMouth packed=RayBounds_PackedMouth(&sdf->mouths[i],mouthSmoothness,.001f);
+        PackM(d->sdfData+offset,&packed);offset+=M_STRIDE;
+    }
     size_t axialBase=offset;
     for(int i=0;i<sdf->axialStationCount;++i){PackStation(d->sdfData+offset,&sdf->axialStations[i]);offset+=2;}
     size_t tileDataBase=offset;offset+=tiles;
@@ -323,22 +364,50 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const I
     glBindBuffer(GL_TEXTURE_BUFFER,d->sdfBuffer);glBufferData(GL_TEXTURE_BUFFER,count*sizeof(*d->sdfData),d->sdfData,GL_STREAM_DRAW);
     glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_BUFFER,d->sdfTexture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->sdfBuffer);
     GLuint p=d->sdfProgram;glUseProgram(p);
-#define UI(name,value) glUniform1i(glGetUniformLocation(p,name),(GLint)(value))
-#define UF(name,value) glUniform1f(glGetUniformLocation(p,name),(float)(value))
-    UI("validationMode",0);
-    UI("sceneData",0);UI("partBase",partBase);UI("partCount",sdf->bodyPartCount);UI("connectorBase",connectorBase);UI("connectorCount",sdf->connectorCount);
-    UI("mouthBase",mouthBase);UI("mouthCount",sdf->mouthCount);UI("axialBase",axialBase);UI("axialCount",sdf->axialStationCount);
-    UF("bodySmoothness",sdf->config.bodySmoothness);
-    UI("tileDataBase",tileDataBase);UI("tileColumns",columns);
-    UniformVector(p,"cameraPosition",camera->position);UniformVector(p,"cameraForward",forward);UniformVector(p,"cameraRight",right);UniformVector(p,"cameraUp",up);
-    UniformVector(p,"boundsMin",sdf->bounds.start);UniformVector(p,"boundsMax",sdf->bounds.end);
-    glUniform2f(glGetUniformLocation(p,"viewportSize"),(float)width,(float)height);
-    UF("tanHalfFov",tanf(camera->fov*.00872664626f));UF("aspectRatio",(float)width/(float)height);
-    UF("hitTolerance",.001f);
+#define UI(name,value) glUniform1i(d->uniforms.name,(GLint)(value))
+#define UF(name,value) glUniform1f(d->uniforms.name,(float)(value))
+    UI(validationMode,0);
+    UI(sceneData,0);UI(partBase,partBase);UI(partCount,sdf->bodyPartCount);UI(connectorBase,connectorBase);UI(connectorCount,sdf->connectorCount);
+    UI(mouthBase,mouthBase);UI(mouthCount,sdf->mouthCount);UI(axialBase,axialBase);UI(axialCount,sdf->axialStationCount);
+    UF(bodySmoothness,sdf->config.bodySmoothness);
+    UI(tileDataBase,tileDataBase);UI(tileColumns,columns);
+    UniformVector(d->uniforms.cameraPosition,camera->position);UniformVector(d->uniforms.cameraForward,forward);UniformVector(d->uniforms.cameraRight,right);UniformVector(d->uniforms.cameraUp,up);
+    UniformVector(d->uniforms.boundsMin,sdf->bounds.start);UniformVector(d->uniforms.boundsMax,sdf->bounds.end);
+    glUniform2f(d->uniforms.viewportSize,(float)width,(float)height);
+    UF(tanHalfFov,tanf(camera->fov*.00872664626f));UF(aspectRatio,displayAspect);
+    UF(hitTolerance,.001f);
     GLfloat mv[16],projection[16],vp[16];glGetFloatv(GL_MODELVIEW_MATRIX,mv);glGetFloatv(GL_PROJECTION_MATRIX,projection);
     for(int c=0;c<4;++c)for(int r=0;r<4;++r){float sum=0;for(int k=0;k<4;++k)sum+=projection[k*4+r]*mv[c*4+k];vp[c*4+r]=sum;}
-    glUniformMatrix4fv(glGetUniformLocation(p,"viewProjection"),1,GL_FALSE,vp);
+    glUniformMatrix4fv(d->uniforms.viewProjection,1,GL_FALSE,vp);
+    float pad=sdf->config.bodySmoothness+0.08f;
+    Vector3 bStart=Vec3_Sub(sdf->bounds.start,Vec3_Create(pad,pad,pad));
+    Vector3 bEnd=Vec3_Add(sdf->bounds.end,Vec3_Create(pad,pad,pad));
+    float sMinX=(float)width,sMaxX=0.0f,sMinY=(float)height,sMaxY=0.0f;
+    bool cameraInsideOrNear=false;
+    for(int corner=0;corner<8;++corner) {
+        Vector3 pos=Vec3_Create((corner&1)?bEnd.x:bStart.x,(corner&2)?bEnd.y:bStart.y,(corner&4)?bEnd.z:bStart.z);
+        Vector3 delta=Vec3_Sub(pos,camera->position);float z=Vec3_Dot(delta,forward);
+        if(z<camera->nearPlane){cameraInsideOrNear=true;break;}
+        float x=(Vec3_Dot(delta,right)/(z*tangent*aspect)+1.0f)*0.5f*(float)width;
+        float y=(Vec3_Dot(delta,up)/(z*tangent)+1.0f)*0.5f*(float)height;
+        sMinX=fminf(sMinX,x);sMaxX=fmaxf(sMaxX,x);
+        sMinY=fminf(sMinY,y);sMaxY=fmaxf(sMaxY,y);
+    }
+    bool applyScissor=false;
+    GLint scX=0,scY=0;GLsizei scW=width,scH=height;
+    if(!cameraInsideOrNear&&sMaxX>=0.0f&&sMinX<(float)width&&sMaxY>=0.0f&&sMinY<(float)height) {
+        scX=(GLint)fmaxf(0.0f,floorf(sMinX));
+        scY=(GLint)fmaxf(0.0f,floorf(sMinY));
+        GLint scX1=(GLint)fminf((float)(width-1),ceilf(sMaxX));
+        GLint scY1=(GLint)fminf((float)(height-1),ceilf(sMaxY));
+        if(scX1>=scX&&scY1>=scY) {
+            scW=(GLsizei)(scX1-scX+1);scH=(GLsizei)(scY1-scY+1);
+            applyScissor=true;
+        }
+    }
+    if(applyScissor){glEnable(GL_SCISSOR_TEST);glScissor(scX,scY,scW,scH);}
     glBegin(GL_TRIANGLES);glVertex2f(-1,-1);glVertex2f(3,-1);glVertex2f(-1,3);glEnd();
+    if(applyScissor){glDisable(GL_SCISSOR_TEST);}
     glUseProgram(0);glBindTexture(GL_TEXTURE_BUFFER,0);glBindBuffer(GL_TEXTURE_BUFFER,0);
 #undef UI
 #undef UF
@@ -346,42 +415,80 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const I
 }
 void OpenGLRenderer_Finish(void){glFinish();}
 
+/* Presupuesto de 30-60 Hz: 29.5 ms para esta consulta (SDF y ojos), con margen
+ * de ~3.8 ms para CPU y presentación (total 33.3 ms = 30 FPS).
+ * La resolución se mantiene al 100% mientras la tasa sea >= 30 FPS; la calidad
+ * baja tras 4 muestras si se cae de 30 FPS y sube tras 24 si hay margen suficiente. */
+static const float SDF_TARGET_GPU_MS=29.5f,SDF_MIN_SCALE=.60f,SDF_MAX_SCALE=1.f;
+static const float SDF_EMA_ALPHA=.15f,SDF_DOWN_HYSTERESIS=1.06f,SDF_UP_HYSTERESIS=.85f;
+static const float SDF_MAX_DOWN_STEP=.05f,SDF_MAX_UP_STEP=.025f;
+static const unsigned SDF_OVER_SAMPLES=4,SDF_UNDER_SAMPLES=24;
+
+static void UpdateSDFResolution(OpenGLRendererData* d,float gpuMs) {
+    if(!isfinite(gpuMs)||gpuMs<=0)return;
+    d->filteredGpuMs=d->filteredGpuMs>0?
+        d->filteredGpuMs+(gpuMs-d->filteredGpuMs)*SDF_EMA_ALPHA:gpuMs;
+    if(d->filteredGpuMs>SDF_TARGET_GPU_MS*SDF_DOWN_HYSTERESIS) {
+        ++d->overBudget;d->underBudget=0;
+    } else if(d->filteredGpuMs<SDF_TARGET_GPU_MS*SDF_UP_HYSTERESIS) {
+        ++d->underBudget;d->overBudget=0;
+    } else {d->overBudget=0;d->underBudget=0;}
+    float target=d->resolutionScale*sqrtf(SDF_TARGET_GPU_MS/d->filteredGpuMs);
+    if(d->overBudget>=SDF_OVER_SAMPLES) {
+        d->resolutionScale=fmaxf(SDF_MIN_SCALE,fmaxf(target,d->resolutionScale-SDF_MAX_DOWN_STEP));
+        d->overBudget=0;
+    } else if(d->underBudget>=SDF_UNDER_SAMPLES) {
+        d->resolutionScale=fminf(SDF_MAX_SCALE,fminf(target,d->resolutionScale+SDF_MAX_UP_STEP));
+        d->underBudget=0;
+    }
+}
+
 bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive) {
     if(!renderer||!renderer->user_data||!camera||width<=0||height<=0)return false;
     OpenGLRendererData* d=renderer->user_data;
     /* Compilar antes de iniciar la consulta: el arranque no es coste de reproducción. */
     if(!d->sdfProgram&&!InitSDFProgram(d))return false;
     if(!d->sdfQueries[0])glGenQueries(4,d->sdfQueries);
-    for(unsigned i=0;i<4;++i)if(d->queryPending[i]) {
+    if(d->resolutionScale<=0)d->resolutionScale=SDF_MAX_SCALE;
+    if(!adaptive){d->resolutionScale=SDF_MAX_SCALE;d->filteredGpuMs=0;d->overBudget=0;d->underBudget=0;}
+    /* Seleccionar la consulta más antigua, también si se saltó una ranura
+     * ocupada. La cola GPU conserva el orden de emisión. */
+    for(unsigned pending=0;pending<4;++pending) {
+        unsigned i=4,oldest=0;
+        for(unsigned slot=0;slot<4;++slot)if(d->queryPending[slot]) {
+            unsigned age=d->queryFrame-d->querySerial[slot];
+            if(i==4||age>oldest){i=slot;oldest=age;}
+        }
+        if(i==4)break;
         GLint ready=0;glGetQueryObjectiv(d->sdfQueries[i],GL_QUERY_RESULT_AVAILABLE,&ready);
-        if(ready){GLuint64 ns=0;glGetQueryObjectui64v(d->sdfQueries[i],GL_QUERY_RESULT,&ns);d->gpuMs=(float)((double)ns/1e6);d->queryPending[i]=false;}
-    }
-    if(d->resolutionScale<=0)d->resolutionScale=adaptive?.65f:1.f;
-    if(!adaptive)d->resolutionScale=1.f;
-    else if(d->gpuMs>0 && d->queryFrame%8==0) {
-        float target=d->resolutionScale*sqrtf(8.f/d->gpuMs);
-        target=fmaxf(.30f,fminf(1.f,target));
-        /* Histéresis evita recrear buffers por pequeñas variaciones de carga. */
-        if(target<d->resolutionScale*.94f||target>d->resolutionScale*1.12f)d->resolutionScale=target;
+        if(!ready)break;
+        GLuint64 ns=0;glGetQueryObjectui64v(d->sdfQueries[i],GL_QUERY_RESULT,&ns);
+        d->gpuMs=(float)((double)ns/1e6);d->queryPending[i]=false;
+        if(adaptive&&fabsf(d->queryScale[i]-d->resolutionScale)<.0001f)
+            UpdateSDFResolution(d,d->gpuMs);
     }
     int rw=(int)ceilf(width*d->resolutionScale),rh=(int)ceilf(height*d->resolutionScale);
     if(!d->sdfFramebuffer){glGenFramebuffers(1,&d->sdfFramebuffer);glGenTextures(1,&d->sdfColor);glGenRenderbuffers(1,&d->sdfDepth);}
     glBindFramebuffer(GL_FRAMEBUFFER,d->sdfFramebuffer);
-    if(rw!=d->sdfWidth||rh!=d->sdfHeight) {
-        glBindTexture(GL_TEXTURE_2D,d->sdfColor);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,rw,rh,0,GL_RGBA,GL_UNSIGNED_BYTE,NULL);
+    if(width>d->sdfAllocatedWidth||height>d->sdfAllocatedHeight) {
+        int aw=width>d->sdfAllocatedWidth?width:d->sdfAllocatedWidth;
+        int ah=height>d->sdfAllocatedHeight?height:d->sdfAllocatedHeight;
+        glBindTexture(GL_TEXTURE_2D,d->sdfColor);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,aw,ah,0,GL_RGBA,GL_UNSIGNED_BYTE,NULL);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,d->sdfColor,0);
-        glBindRenderbuffer(GL_RENDERBUFFER,d->sdfDepth);glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT24,rw,rh);
+        glBindRenderbuffer(GL_RENDERBUFFER,d->sdfDepth);glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT24,aw,ah);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,d->sdfDepth);
         glBindTexture(GL_TEXTURE_2D,0);glBindRenderbuffer(GL_RENDERBUFFER,0);
         if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){glBindFramebuffer(GL_FRAMEBUFFER,0);return false;}
-        d->sdfWidth=rw;d->sdfHeight=rh;
+        d->sdfAllocatedWidth=aw;d->sdfAllocatedHeight=ah;
     }
+    d->sdfWidth=rw;d->sdfHeight=rh;
     unsigned q=d->queryFrame%4;
     d->queryIssued=!d->queryPending[q];
-    if(d->queryIssued)glBeginQuery(GL_TIME_ELAPSED,d->sdfQueries[q]);
+    if(d->queryIssued){d->querySerial[q]=d->queryFrame;d->queryScale[q]=d->resolutionScale;glBeginQuery(GL_TIME_ELAPSED,d->sdfQueries[q]);}
     d->sdfFrameActive=true;
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);OpenGLRenderer_SetupCamera(camera,rw,rh);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);OpenGLRenderer_SetupCamera(camera,width,height);
+    glViewport(0,0,rw,rh);
     return true;
 }
 void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
@@ -414,17 +521,23 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,const
         glBindBuffer(GL_TEXTURE_BUFFER,d->sdfBuffer);glBufferData(GL_TEXTURE_BUFFER,total*sizeof(*d->sdfData),d->sdfData,GL_STREAM_DRAW);
         glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_BUFFER,d->sdfTexture);
         GLuint p=d->sdfProgram;glUseProgram(p);
-        glUniform1i(glGetUniformLocation(p,"validationMode"),1);
-        glUniform1i(glGetUniformLocation(p,"validationPointBase"),(GLint)d->sdfCount);
+        glUniform1i(d->uniforms.validationMode,1);
+        glUniform1i(d->uniforms.validationPointBase,(GLint)d->sdfCount);
         glBegin(GL_TRIANGLES);glVertex2f(-1,-1);glVertex2f(3,-1);glVertex2f(-1,3);glEnd();
         glReadPixels(0,0,(GLsizei)count,1,GL_RGBA,GL_FLOAT,samples);
-        glUniform1i(glGetUniformLocation(p,"validationMode"),0);
+        glUniform1i(d->uniforms.validationMode,0);
         *maxError=0;
         for(size_t i=0;i<count;++i) {
             float gpu=samples[i*4];
             float cpu=MonsterSDF_EvaluateVisualDistance(sdf,points[i]);
             if(!isfinite(gpu)||!isfinite(cpu)){ok=false;break;}
             *maxError=fmaxf(*maxError,fabsf(cpu-gpu));
+            /* La distancia lejana de una fase omitida puede cambiar; su banda
+             * superficial y las muestras normales deben conservar la paridad. */
+            if(fabsf(cpu)<.002f) {
+                if(!isfinite(samples[i*4+1])){ok=false;break;}
+                *maxError=fmaxf(*maxError,fabsf(cpu-samples[i*4+1]));
+            }
         }
         glUseProgram(0);glEnable(GL_DEPTH_TEST);
     }

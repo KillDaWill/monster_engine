@@ -8,6 +8,7 @@ void run_body_part_tests(void);
 void run_monster_tests(void);
 void run_ager_tests(void);
 void run_sdf_tests(void);
+void run_sdf_ray_bounds_tests(void);
 void run_marching_cubes_tests(void);
 void run_mesh_tests(void);
 void run_primitive_mesh_tests(void);
@@ -56,6 +57,7 @@ int main(void) {
 
     printf("\n--- Módulo SDF Engine & Mesher ---\n");
     run_sdf_tests();
+    run_sdf_ray_bounds_tests();
 
     printf("\n--- Módulo MonsterVisualAsync ---\n");
     run_visual_async_tests();
