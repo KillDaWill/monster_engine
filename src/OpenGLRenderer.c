@@ -2,6 +2,7 @@
 #include "OpenGLRenderer.h"
 #include "MonsterSDF.h"
 #include <string.h>
+#include <SDL2/SDL.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <stdio.h>
@@ -544,4 +545,45 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,const
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER,(GLuint)previousDraw);glBindFramebuffer(GL_READ_FRAMEBUFFER,(GLuint)previousRead);glViewport(viewport[0],viewport[1],viewport[2],viewport[3]);
     glBindTexture(GL_TEXTURE_2D,0);glBindTexture(GL_TEXTURE_BUFFER,0);glBindBuffer(GL_TEXTURE_BUFFER,0);
     glDeleteTextures(1,&texture);glDeleteFramebuffers(1,&framebuffer);free(samples);return ok;
+}
+
+/* Adaptador de plataforma para demos nuevas; SDL/GL queda confinado aquí. */
+struct OpenGLDemoWindow { SDL_Window* window; SDL_GLContext context; };
+OpenGLDemoWindow* OpenGLDemoWindow_Create(const char* title,int width,int height) {
+    if(SDL_Init(SDL_INIT_VIDEO)<0)return NULL;
+    OpenGLDemoWindow* w=calloc(1,sizeof(*w));
+    if(!w) { SDL_Quit(); return NULL; }
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1); SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);
+    w->window=SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,width,height,SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
+    if(w->window)w->context=SDL_GL_CreateContext(w->window);
+    if(!w->context) { OpenGLDemoWindow_Free(w); return NULL; }
+    SDL_GL_SetSwapInterval(0); return w;
+}
+OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
+    (void)w; OpenGLDemoInput input={.view=-1}; SDL_Event e;
+    while(SDL_PollEvent(&e)) {
+        if(e.type==SDL_QUIT)input.quit=true;
+        if(e.type==SDL_KEYDOWN) {
+            if(e.key.keysym.sym==SDLK_ESCAPE)input.quit=true;
+            if(e.key.keysym.sym==SDLK_SPACE)input.togglePause=true;
+            if(e.key.keysym.sym==SDLK_d)input.toggleDebug=true;
+            if(e.key.keysym.sym>=SDLK_1 && e.key.keysym.sym<=SDLK_4)input.view=e.key.keysym.sym-SDLK_1;
+        }
+    }
+    return input;
+}
+void OpenGLDemoWindow_Swap(OpenGLDemoWindow* w) { if(w)SDL_GL_SwapWindow(w->window); }
+void OpenGLDemoWindow_Free(OpenGLDemoWindow* w) {
+    if(!w)return;
+    if(w->context)SDL_GL_DeleteContext(w->context);
+    if(w->window)SDL_DestroyWindow(w->window);
+    free(w); SDL_Quit();
+}
+double OpenGLDemoWindow_Time(void) { return (double)SDL_GetPerformanceCounter()/SDL_GetPerformanceFrequency(); }
+void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color) {
+    glPushAttrib(GL_ENABLE_BIT|GL_CURRENT_BIT|GL_LINE_BIT);
+    glDisable(GL_LIGHTING); glDisable(GL_DEPTH_TEST); glLineWidth(2);
+    glColor4ub(color.r,color.g,color.b,color.a);
+    glBegin(GL_LINES); glVertex3f(a.x,a.y,a.z); glVertex3f(b.x,b.y,b.z); glEnd();
+    glPopAttrib();
 }

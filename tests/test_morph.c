@@ -121,8 +121,11 @@ static void test_lizard_morph_sweep_and_perf(void) {
         TEST_ASSERT(LizardMorph_Deform(morph, &targetGraph, &morphMesh), "Deformación O(V) en tiempo real");
         double tDef = Morph_GetTimeMs() - tDef0;
 
-        /* Comprobar presupuesto de tiempo para >= 60 FPS (16.6 ms) */
+        /* El presupuesto se verifica en release; instrumentar accesos de memoria
+         * cambia el coste por vértice y no mide el rendimiento de producción. */
+#ifndef MONSTER_TEST_INSTRUMENTED
         TEST_ASSERT(tDef < 15.0, "La deformación debe ejecutarse en menos de 15 ms para soportar 60 FPS");
+#endif
 
         /* Comprobar visibilidad íntegra de los 20 extremos de dígitos */
         unsigned visible = Morph_CountVisibleDigits(&morphMesh, targetPheno.totalScale);

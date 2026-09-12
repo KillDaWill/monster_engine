@@ -158,6 +158,9 @@ void MonsterVisual_MarkDirty(MonsterVisual* visual);
  */
 uint64_t MonsterVisual_GetGeneration(const MonsterVisual* visual);
 
+/** @brief Comprueba que la generación publicada pertenece a esta morfología sin reconstruir. */
+bool MonsterVisual_MatchesGeometry(const MonsterVisual* visual,const Monster* monster);
+
 /**
  * @brief Obtiene el contador de generaciones de reconstrucción de bocas visuales.
  */

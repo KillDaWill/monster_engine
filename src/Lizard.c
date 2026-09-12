@@ -1,4 +1,7 @@
 #include "Lizard.h"
+#include "LizardRig.h"
+#include "LizardGaits.h"
+#include "MonsterAnimation.h"
 #include "Monster.h"
 #include "MathUtils.h"
 #include "ColorPalette.h"
@@ -363,7 +366,8 @@ bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* source)
         monster->eyes[i].pupilAspect = 0.34f;
         monster->eyes[i].scale=Vec3_Scale(monster->eyes[i].scale,p.cephalicDevelopment);
     }
-    return true;
+    Rig rig;
+    return LizardRig_Build(monster,&rig) && MonsterAnimation_Configure(monster,&rig,LizardGaits_Walk(s));
 }
 
 float Lizard_AgeFromScale(float scale) {

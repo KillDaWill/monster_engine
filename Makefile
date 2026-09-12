@@ -43,7 +43,19 @@ CORE_SRCS = $(SRC_DIR)/Color.c \
             $(SRC_DIR)/Monster.c \
             $(SRC_DIR)/MonsterQueries.c \
             $(SRC_DIR)/MonsterAger.c \
-            $(SRC_DIR)/LizardMorph.c
+            $(SRC_DIR)/LizardMorph.c \
+            $(SRC_DIR)/Quaternion.c \
+            $(SRC_DIR)/Skeleton.c \
+            $(SRC_DIR)/IK.c \
+            $(SRC_DIR)/RigBuilder.c \
+            $(SRC_DIR)/LizardRig.c \
+            $(SRC_DIR)/AnatomyDeformer.c \
+            $(SRC_DIR)/WorldInterface.c \
+            $(SRC_DIR)/Locomotion.c \
+            $(SRC_DIR)/ProceduralAnimator.c \
+            $(SRC_DIR)/LizardGaits.c \
+            $(SRC_DIR)/MonsterAnimation.c \
+            $(SRC_DIR)/AnimatedVisual.c
 
 # Módulo de Renderizador OpenGL
 RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c
@@ -71,7 +83,8 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_lizard.c \
             $(TEST_DIR)/test_local_detail.c \
             $(TEST_DIR)/test_perf_optimizations.c \
-            $(TEST_DIR)/test_morph.c
+            $(TEST_DIR)/test_morph.c \
+            $(TEST_DIR)/test_animation.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
@@ -81,6 +94,7 @@ BENCHMARK_BIN = benchmarks/benchmark_sdf
 DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
 DEMO_MOUTH_BIN = $(DEMO_DIR)/demo_mouth_animation
+DEMO_ANIMATION_BIN = $(DEMO_DIR)/demo_lizard_animation
 LIZARD_VIEWER_BIN = lizard_viewer
 
 .PHONY: all clean test benchmark docs demos
@@ -113,7 +127,7 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN)
+demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN)
 
 $(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c $(DEMO_DIR)/demo_ager_realtime.h
 	$(CC) $(CFLAGS) $(filter %.o %.c,$^) $(GL_LIBS) -o $@
@@ -122,6 +136,9 @@ $(DEMO_LIZARD_BIN): $(CORE_OBJS) $(DEMO_DIR)/demo_lizard_console.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 $(DEMO_MOUTH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_mouth_animation.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(DEMO_ANIMATION_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_lizard_animation.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Ejecutar tests automáticamente
@@ -134,7 +151,7 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime doc/html doc/latex
+	rm -rf benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -167,3 +184,16 @@ src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_s
 	python3 tools/generate_sdf_shader.py
 
 $(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSDFShader.generated.h
+
+# Etapas de animación: comparten infraestructura, cada ejecutable selecciona su controlador.
+ANIMATION_DEMOS = demos/demo_lizard_ik demos/demo_lizard_jaw demos/demo_lizard_walk
+demos: $(ANIMATION_DEMOS)
+$(ANIMATION_DEMOS): $(CORE_OBJS) $(RENDER_OBJS) demos/demo_lizard_animation.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+# Auditoría CPU independiente de SDL/GL, con instrumentación del enlazador GNU.
+benchmarks/benchmark_animation: $(CORE_OBJS) benchmarks/benchmark_animation.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=MonsterSDF_Build,--wrap=SDFMesher_GenerateMesh,--wrap=SDFMesher_GenerateMeshDetailed -o $@
+.PHONY: benchmark-animation
+benchmark-animation: benchmarks/benchmark_animation
+	./benchmarks/benchmark_animation
