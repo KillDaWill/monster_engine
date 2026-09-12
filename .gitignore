@@ -35,3 +35,11 @@ benchmarks/benchmark_ager_realtime
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Demos de animación procedural
+/demos/demo_lizard_ik
+/demos/demo_lizard_jaw
+/demos/demo_lizard_walk
+/benchmarks/benchmark_animation
+
+/demos/demo_lizard_animation

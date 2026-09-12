@@ -76,6 +76,9 @@ static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, Mo
     h = HashBytes(monster->colorPalette.colors, monster->colorPalette.count*sizeof(Color), h);
     return h;
 }
+bool MonsterVisual_MatchesGeometry(const MonsterVisual* v,const Monster* m) {
+    return v && m && v->hasFingerprint && !v->isDirty && HashBody(v,m,v->sdf.config)==v->geometryFingerprint;
+}
 static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth, const Monster* monster) {
     float angle = Mouth_GetJawAngle(mouth) * 0.01745329252f;
     float c = cosf(angle), s = sinf(angle);
@@ -280,7 +283,7 @@ static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* so
 
     if (!Mesh_ReserveVertices(&vm->jaw, vm->jawBase.vertexCount) || !Mesh_ReserveIndices(&vm->jaw, vm->jawBase.indexCount)) return false;
     vm->jaw.vertexCount = vm->jawBase.vertexCount; vm->jaw.indexCount = vm->jawBase.indexCount;
-    memcpy(vm->jaw.indices, vm->jawBase.indices, vm->jawBase.indexCount * sizeof(MeshIndex));
+    if (vm->jawBase.indexCount) memcpy(vm->jaw.indices, vm->jawBase.indices, vm->jawBase.indexCount * sizeof(MeshIndex));
 
     MonsterSDFSeamField seamCtx;
     SDFField seamField=MonsterSDF_GetSeamField(sdf,mouthIndex,&seamCtx);
@@ -297,7 +300,7 @@ static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* so
 
     if (!Mesh_ReserveVertices(&vm->hinge, vm->hingeBase.vertexCount) || !Mesh_ReserveIndices(&vm->hinge, vm->hingeBase.indexCount)) return false;
     vm->hinge.vertexCount = vm->hingeBase.vertexCount; vm->hinge.indexCount = vm->hingeBase.indexCount;
-    memcpy(vm->hinge.indices, vm->hingeBase.indices, vm->hingeBase.indexCount * sizeof(MeshIndex));
+    if (vm->hingeBase.indexCount) memcpy(vm->hinge.indices, vm->hingeBase.indices, vm->hingeBase.indexCount * sizeof(MeshIndex));
     TransformJaw(vm, &m, monster);
     return true;
 }

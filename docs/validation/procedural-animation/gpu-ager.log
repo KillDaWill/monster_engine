@@ -1,0 +1,15 @@
+========================================================
+ MONSTER ENGINE 3D: Metamorfosis Gusano -> Lagarto (MonsterAger)
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas F1-F4                  : Inspección cabeza / vistas anatómicas
+  - 0..4 : Edades 0 / 25 / 50 / 75 / 100%; rueda : zoom
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: no disponible (0x)
+[AGER GPU] Campo directo: la anatomía avanza cada fotograma; SPACE pausa, 0..4 edades, H/F1..F4 cabeza.
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-28-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[RENDIMIENTO GPU] frames=60 anatómicos=0 segundos=2.933 fps=20.455 frame_p50=49.170 frame_p95=52.642 frame_p99=58.503 ms

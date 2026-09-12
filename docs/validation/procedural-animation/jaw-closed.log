@@ -1,0 +1,4 @@
+modo=jaw vértices=599876 índices=3599268 generación=1
+frames=141 pose_media_ms=0.054 pose_max_ms=0.084 deform_media_ms=24.092 deform_max_ms=42.508
+error_IK_max=0.000000 longitud_error_max=0.000000 apoyo_error_max=0.000000 stance=564 swing=0 avance=0.000
+rebuilds_animación=0 huella_inmutable=1 topología_inmutable=1

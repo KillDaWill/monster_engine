@@ -1,0 +1,218 @@
+======================================
+ Ejecutando Test Suite (monster_engine)
+======================================
+
+--- Módulo Color & ColorPalette ---
+[PASS] test_color_creation_and_conversion
+[PASS] test_color_palette
+
+--- Módulo Vector ---
+[PASS] test_vectors_fixed
+[PASS] test_vector_nd
+
+--- Módulo MathUtils ---
+[PASS] test_math_grow_capacity
+[PASS] test_math_mul_size
+
+--- Módulo Transform3D ---
+Ejecutando pruebas de Transform3D (RotationBasis3D)...
+  [OK] Transform3D RotationBasis3D equivale a InverseRotateVector exactamente.
+
+--- Módulo BodyPart ---
+[PASS] test_body_part
+
+--- Módulo Monster ---
+[PASS] test_monster_lifecycle
+[PASS] test_behavior_update
+[PASS] test_monster_trait_update
+[PASS] test_bodypart_trait_update
+[PASS] test_position_lifecycle
+
+--- Módulo MonsterAger ---
+[PASS] test_monster_ager
+[TRACE] eye pupil straddle sweep (malla observable): age -> scleraFront / pupilFront / pupilRear
+[TRACE] age=0.00 eye=0 scleraFront=0.0985 pupilFront=0.1047 pupilRear=0.0965 halfDepth=0.0030 tol=0.0008
+[TRACE] age=0.00 eye=1 scleraFront=0.0985 pupilFront=0.1047 pupilRear=0.0965 halfDepth=0.0030 tol=0.0008
+[TRACE] age=0.10 eye=0 scleraFront=0.1133 pupilFront=0.1205 pupilRear=0.1110 halfDepth=0.0035 tol=0.0009
+[TRACE] age=0.10 eye=1 scleraFront=0.1133 pupilFront=0.1205 pupilRear=0.1110 halfDepth=0.0035 tol=0.0009
+[TRACE] age=0.25 eye=0 scleraFront=0.1354 pupilFront=0.1440 pupilRear=0.1327 halfDepth=0.0044 tol=0.0011
+[TRACE] age=0.25 eye=1 scleraFront=0.1354 pupilFront=0.1440 pupilRear=0.1327 halfDepth=0.0044 tol=0.0011
+[TRACE] age=0.50 eye=0 scleraFront=0.1723 pupilFront=0.1833 pupilRear=0.1689 halfDepth=0.0058 tol=0.0015
+[TRACE] age=0.50 eye=1 scleraFront=0.1723 pupilFront=0.1833 pupilRear=0.1689 halfDepth=0.0058 tol=0.0015
+[TRACE] age=0.75 eye=0 scleraFront=0.2093 pupilFront=0.2226 pupilRear=0.2050 halfDepth=0.0074 tol=0.0018
+[TRACE] age=0.75 eye=1 scleraFront=0.2093 pupilFront=0.2226 pupilRear=0.2050 halfDepth=0.0074 tol=0.0018
+[TRACE] age=0.90 eye=0 scleraFront=0.2314 pupilFront=0.2461 pupilRear=0.2268 halfDepth=0.0083 tol=0.0021
+[TRACE] age=0.90 eye=1 scleraFront=0.2314 pupilFront=0.2461 pupilRear=0.2268 halfDepth=0.0083 tol=0.0021
+[TRACE] age=1.00 eye=0 scleraFront=0.2462 pupilFront=0.2619 pupilRear=0.2412 halfDepth=0.0090 tol=0.0022
+[TRACE] age=1.00 eye=1 scleraFront=0.2462 pupilFront=0.2619 pupilRear=0.2412 halfDepth=0.0090 tol=0.0022
+[PASS] test_bug_eye_pupil_buried_behind_sclera_during_growth
+
+--- Módulo Marching Cubes (tablas) ---
+[PASS] test_all_rows_structure
+[PASS] test_used_edges_equal_active_edges
+[PASS] test_case_32_explicit
+[PASS] test_edge_endpoints
+[PASS] test_invalid_cube_index
+[PASS] test_edge_cache_info
+
+--- Módulo Mesh ---
+[PASS] test_add_triangle_guards
+[PASS] test_mesh_validate
+[PASS] test_zero_area_collinear_validation
+[PASS] test_sphere_field_pipeline
+[PASS] test_edge_cache_sharing
+[PASS] test_topology_audit
+[PASS] test_keep_largest_component
+
+--- Módulo PrimitiveMesh ---
+[PASS] test_uv_sphere_valid
+[PASS] test_uv_sphere_winding
+[PASS] test_uv_sphere_invalid_params
+[PASS] test_ellipsoid_transform
+[PASS] test_bezier_tube
+[PASS] test_inward_ellipsoid
+
+--- Módulo SDF Engine & Mesher ---
+[PASS] test_sdf_primitives_and_ops
+[PASS] test_sdf_primitives_extended
+[PASS] test_sdf_rounded_slot
+[PASS] test_monster_sdf_evaluation
+[PASS] test_sdf_mesher
+[PASS] test_monster_visual
+[PASS] test_monster_visual_eyes_fingerprint
+[PASS] test_monster_visual_generation_and_transactional
+[PASS] test_mouth_muzzle_bounds_expansion
+[PASS] test_zero_scale_eye_ager_transition
+[PASS] test_monster_visual_complete_fingerprint
+[PASS] test_lizard_mesh_stats
+[PASS] test_ager_meshes
+[PASS] test_monster_sdf_buffer_reuse
+[PASS] test_adaptive_resolution_and_budget
+[PASS] test_cached_normal_quality_and_eval_count
+[PASS] test_large_monster_regression
+[PASS] test_monster_visual_throttling
+[PASS] test_sdf_ray_bounds: 30420 muestras exteriores, cinco edades, dos recetas
+
+--- Módulo MonsterVisualAsync ---
+[PASS] test_visual_async_lifecycle_and_flush
+[PASS] test_visual_async_coalescing
+[PASS] test_visual_async_quality_tiers
+[PASS] test_visual_async_renders_jaw_components
+[TRACE] growth sweep: edad -> mandíbula/bisagra (vertexCount)
+[TRACE] age=0.00 v=[340 188]
+[TRACE] age=0.10 v=[430 178]
+[TRACE] age=0.25 v=[526 234]
+[TRACE] age=0.50 v=[752 348]
+[TRACE] age=0.75 v=[994 496]
+[TRACE] age=0.90 v=[1218 574]
+[TRACE] age=1.00 v=[1342 636]
+[PASS] test_visual_async_growth_sweep
+  [debug] async cabeza interactiva 0.00000/0 settled 0.00000/0
+[PASS] test_visual_async_conforming_head
+[PASS] test_visual_async_single_snapshot
+[PASS] test_bug_async_growth_displays_old_body_with_new_jaw_hinge_snapshot_mixing
+
+--- Módulo Boca Anatómica ---
+[PASS] test_anatomical_defaults
+[PASS] test_cavity_exterior_and_depth
+[PASS] test_material_and_debug_layers
+[PASS] test_jaw_articulation_without_body_remesh
+[PASS] test_mesh_components
+[PASS] test_body_and_dedicated_jaw_fields
+[PASS] test_deterministic_anatomy_sweep
+[PASS] test_async_multi_mouth_indexing
+[PASS] test_individual_phenotype_influence
+[PASS] test_strengthened_hinge_isosurface_and_populations
+  [debug] jaw basin: oralY=-0.1243 topY=-0.0590 beyondY=0.1439 sawEmpty=1 emptyStartY=-0.0991 reentered=0 reentryY=0.0000 reentryDist=0.0000 dCenter=0.0345 dLeft=0.0139 dRight=0.0139 hingeR=0.1144
+[PASS] test_bug_jaw_oral_basin_reenters_solid_superior_cap
+  [debug] bridge components=1 (esperado 1)
+  [debug] bridge skinVertices=444 redMismatch=0 (0.0%) skin=(255,255,255) inside=(45,8,12)
+  [debug] bridge hostMatch=444 (100.0%)
+[PASS] test_bug_soft_tissue_bridge_is_three_disconnected_red_islands
+  [debug] closed seam: lowerSeamY=-0.0590 jawTopY=-0.0590 diff=-0.0000 h=0.1560 slitHalfY=0.0590
+  [debug] jaw mesh maxY local -0.0355 vs lowerSeam -0.0590 diff 0.0236
+[PASS] test_bug_closed_jaw_does_not_share_upper_mouth_seam
+  [debug] bridge articulation: n=444 minDisp=0.0006 maxDisp=0.0871 avgDisp=0.0344 fixed<0.008=91 (20.5%) openFactor 0->1
+  [debug] skull anchor region: cnt=106 radius=0.1201 skullMin=0.0026 skullMax=0.0398 skullAvg=0.0121 pivotWorld=(0.000,-0.368,0.606)
+  [debug] closed[0]=(-0.1782,-0.4583,0.6869) open[0]=(-0.1782,-0.4848,0.6380)
+[PASS] test_bug_bridge_skull_anchor_moves_with_jaw
+[PASS] test_seam_material_and_openFactor_sweep
+[PASS] test_scale_sweep_05_1_2
+[PASS] test_rotation_and_bounds_nonzero
+  [debug] jaw thickness 0.2007 h 0.1560 norm 1.287
+[PASS] test_jaw_side_profile_thickness
+[PASS] test_basin_depth_width_no_cap
+  [debug] seam maxZ 0.0637 visibleFront 0.0692 entrance -0.5675 half 0.7075
+[PASS] test_compact_seam_bounds
+  [debug] async cuerpo interactive 0.120/250000 settled 0.080/500000 | cabeza 0.024/900000 -> 0.015/2200000
+[PASS] test_default_async_voxel_configs
+
+--- Módulo Cabeza Anatómica ---
+[PASS] test_head_presets_and_ownership
+[PASS] test_head_randomized_anatomy_sweep
+[PASS] test_head_socket_and_nostril_cutters
+[PASS] test_head_meshes_and_primitive
+[PASS] test_head_semantic_aging_and_pose
+
+--- Módulo Anatomía de Lagarto ---
+[PASS] test_lizard_graph_topology
+[PASS] test_lizard_articulated_digits
+  [visibilidad] edad 0.00 MORPH: 20 unguales, 4 autopodios, 263068 celdas, razón 1.000
+  [visibilidad] edad 0.00 SETTLED: 20 unguales, 4 autopodios, 571544 celdas, razón 1.000
+  [visibilidad] edad 0.10 MORPH: 20 unguales, 4 autopodios, 281044 celdas, razón 1.000
+  [visibilidad] edad 0.10 SETTLED: 20 unguales, 4 autopodios, 583451 celdas, razón 1.000
+  [visibilidad] edad 0.25 MORPH: 20 unguales, 4 autopodios, 272588 celdas, razón 1.000
+  [visibilidad] edad 0.25 SETTLED: 20 unguales, 4 autopodios, 562948 celdas, razón 1.000
+  [visibilidad] edad 0.50 MORPH: 20 unguales, 4 autopodios, 292104 celdas, razón 1.000
+  [visibilidad] edad 0.50 SETTLED: 20 unguales, 4 autopodios, 558237 celdas, razón 1.000
+  [visibilidad] edad 0.75 MORPH: 20 unguales, 4 autopodios, 350526 celdas, razón 1.000
+  [visibilidad] edad 0.75 SETTLED: 20 unguales, 4 autopodios, 676467 celdas, razón 1.000
+  [visibilidad] edad 0.90 MORPH: 20 unguales, 4 autopodios, 357162 celdas, razón 1.000
+  [visibilidad] edad 0.90 SETTLED: 20 unguales, 4 autopodios, 660269 celdas, razón 1.000
+  [visibilidad] edad 1.00 MORPH: 20 unguales, 4 autopodios, 380402 celdas, razón 1.000
+  [visibilidad] edad 1.00 SETTLED: 20 unguales, 4 autopodios, 678231 celdas, razón 1.000
+[PASS] test_lizard_appendage_mesh_visibility
+[PASS] test_lizard_larval_metamorphosis
+[PASS] test_lizard_axial_loft_and_tail
+[PASS] test_lizard_head_semantics
+  [debug] mandíbula cerrada: v=3352 comp=1 boundary=0 nonManifold=0 bounds=[-0.825 -0.630 -0.444]-[0.825 -0.007 1.380] mesh=[-0.650 -0.316 -0.419]-[0.650 -0.026 1.270]
+[PASS] test_lizard_tapered_jaw_has_closed_floor
+  [debug] topología cabeza juvenil: válida=1 componentes=1 bordes=0 noManifold=0 degenerados=0
+  [debug] juvenil cuerpo 85x55x152 voxel=0.05980 celdas=710600 ajuste=0 | cabeza 112x45x163 voxel=0.00899 celdas=821520 ajuste=0 bordes=0
+  [debug] topología cabeza adulta: válida=1 componentes=1 bordes=0 noManifold=0 degenerados=0
+  [debug] adulto cuerpo 91x49x182 voxel=0.08463 celdas=811538 ajuste=1 | cabeza 147x57x250 voxel=0.01173 celdas=2094750 ajuste=1 bordes=0
+[PASS] test_lizard_local_head_field_quality
+  [debug] edad frágil 0.15: cuerpo=1/453480 cabeza=1/10608
+  [debug] edad frágil 0.35: cuerpo=1/456446 cabeza=1/14608
+  [debug] edad frágil 0.55: cuerpo=1/448119 cabeza=1/21094
+  [debug] edad frágil 0.75: cuerpo=1/550506 cabeza=1/28424
+[PASS] test_lizard_aging_and_mesh_sweep
+[PASS] test_local_cavities
+[PASS] test_growth_ownership
+
+--- Optimizaciones de Rendimiento y Regresión ---
+  [TEST] test_connector_pruning_equivalence...
+[PASS] test_juvenile_connector_bounds (57098 muestras superficiales)
+[PASS] test_digit_candidate_culling
+  [TEST] test_parallel_serial_determinism...
+  [TEST] test_component_bounds_and_cell_skipping...
+  [TEST] test_monster_copy_into_reuse...
+  [TEST] test_visual_async_morph_settled_tiers...
+
+--- Módulo LizardMorph ---
+[PASS] test_visual_sdf_posed_mouth_bounds
+[PASS] test_lizard_morph_lifecycle
+  [debug] LizardMorph bind: 177024 vértices en 1032.7 ms
+  [debug] LizardMorph edad 0.00: 86.02 ms, dígitos=20/20
+  [debug] LizardMorph edad 0.15: 98.20 ms, dígitos=20/20
+  [debug] LizardMorph edad 0.35: 102.51 ms, dígitos=20/20
+  [debug] LizardMorph edad 0.50: 104.17 ms, dígitos=20/20
+  [debug] LizardMorph edad 0.70: 103.41 ms, dígitos=20/20
+  [debug] LizardMorph edad 0.85: 96.73 ms, dígitos=20/20
+  [debug] LizardMorph edad 1.00: 98.42 ms, dígitos=20/20
+[PASS] test_lizard_morph_sweep_and_perf
+[PASS] test_lizard_morph_eye_and_jaw_growth
+
+======================================
+ ¡TODAS LAS SUITES PASARON CON ÉXITO! 
+======================================

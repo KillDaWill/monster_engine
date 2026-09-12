@@ -14,6 +14,7 @@
 #include "SDFMesher.h"
 #include "Mesh.h"
 #include "MonsterVisual.h"
+#include "LizardMorph.h"
 #include "RenderInterfaces.h"
 #include <pthread.h>
 #include <stdbool.h>
@@ -66,14 +67,8 @@ typedef struct MonsterVisualAsyncStats {
     SDFMesherStats headMesher;              /**< Rejilla efectiva de la cabeza local. */
 } MonsterVisualAsyncStats;
 
-/** @struct MonsterVisualEyeAsync
- * @brief Triple de mallas oculares transferible entre los buffers asíncronos.
- */
-typedef struct MonsterVisualEyeAsync {
-    Mesh sclera; /**< Globo ocular base. */
-    Mesh iris; /**< Disco de iris orientado. */
-    Mesh pupil; /**< Disco de pupila orientado. */
-} MonsterVisualEyeAsync;
+/** @brief Mismo tipo ocular que la ruta síncrona; transferencia entre buffers. */
+typedef MonsterVisualEye MonsterVisualEyeAsync;
 
 /**
  * @struct MonsterVisualAsync
@@ -127,8 +122,8 @@ typedef struct MonsterVisualAsync {
     float timeSinceLastMotionSec;
     bool continuousMotion; /**< Evita asentamientos durante una interacción sostenida. */
     bool morphMode;        /**< Utiliza el tier MORPH en lugar de INTERACTIVE durante movimiento continuo */
-    struct LizardMorph* displayMorph; /**< Deformador morfológico en tiempo real para display */
-    struct LizardMorph* readyMorph;   /**< Deformador morfológico listo para transferir */
+    LizardMorph* displayMorph; /**< Deformador morfológico en tiempo real para display */
+    LizardMorph* readyMorph;   /**< Deformador morfológico listo para transferir */
     struct SDFSamplingPool* samplingPool; /**< Pool persistente de hilos compartido con los meshers */
 
     /* Métricas */

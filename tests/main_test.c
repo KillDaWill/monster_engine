@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+void run_animation_tests(void);
 void run_color_tests(void);
 void run_vector_tests(void);
 void run_math_utils_tests(void);
@@ -26,6 +27,7 @@ int main(void) {
     printf("======================================\n");
 
     printf("\n--- Módulo Color & ColorPalette ---\n");
+    run_animation_tests();
     run_color_tests();
 
     printf("\n--- Módulo Vector ---\n");

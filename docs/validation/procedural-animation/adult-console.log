@@ -1,0 +1,51 @@
+========================================================
+     DEMO: Creación y Análisis de Monstruo Lagarto      
+========================================================
+
+[DATOS GENERALES]
+ - ID Monstruo        : 777
+ - Ángulo             : 0.00 rad
+ - Cantidad de Nodos  : 6 partes del cuerpo
+ - Longitud Total     : 13.00 unidades
+ - Centro Geométrico  : X: 0.00, Y: 0.00, Z: -4.92
+
+[PALETA DE COLORES]
+ - Colores en Paleta  : 5
+   Col 0: R= 16, G=124, B= 65, A=255
+   Col 1: R= 65, G=136, B= 62, A=255
+   Col 2: R=114, G=149, B= 60, A=255
+   Col 3: R=163, G=162, B= 57, A=255
+   Col 4: R=212, G=175, B= 55, A=255
+
+[DETALLE DE PARTES ANATÓMICAS]
+ Part [0]: Dim(Ancho=1.8, Alto=1.2, Largo=2.0) | PosRender(Z=0.0)
+         Color Primario: R=16 G=124 B=65 | Color Vientre: R=212 G=175 B=55
+         Traits Adjuntos: 0
+ Part [1]: Dim(Ancho=2.2, Alto=1.5, Largo=2.5) | PosRender(Z=-2.0)
+         Color Primario: R=65 G=136 B=62 | Color Vientre: R=212 G=175 B=55
+         Traits Adjuntos: 0
+ Part [2]: Dim(Ancho=2.0, Alto=1.3, Largo=2.5) | PosRender(Z=-4.5)
+         Color Primario: R=114 G=149 B=60 | Color Vientre: R=212 G=175 B=55
+         Traits Adjuntos: 0
+ Part [3]: Dim(Ancho=1.4, Alto=1.0, Largo=2.0) | PosRender(Z=-7.0)
+         Color Primario: R=163 G=162 B=57 | Color Vientre: R=212 G=175 B=55
+         Traits Adjuntos: 1
+ Part [4]: Dim(Ancho=0.7, Alto=0.6, Largo=2.0) | PosRender(Z=-9.0)
+         Color Primario: R=212 G=175 B=55 | Color Vientre: R=212 G=175 B=55
+         Traits Adjuntos: 0
+ Part [5]: Dim(Ancho=1.4, Alto=1.0, Largo=2.0) | PosRender(Z=-7.0)
+         Color Primario: R=163 G=162 B=57 | Color Vientre: R=212 G=175 B=55
+         Traits Adjuntos: 0
+
+[MUESTREO DE POSICIÓN AL LARGO DEL CUERPO]
+ - Cabeza   ( 0%) : Z = 0.00
+ - Lomo     (50%) : Z = -6.50
+ - Cola     (100%): Z = -7.00
+
+[BOUNDING BOX (AABB3D)]
+ - Min (Start): X=0.00, Y=0.00, Z=-9.00
+ - Max (End)  : X=0.00, Y=0.00, Z=0.00
+
+========================================================
+            Prueba Lógica Finalizada con Éxito          
+========================================================

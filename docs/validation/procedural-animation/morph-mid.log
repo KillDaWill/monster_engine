@@ -1,0 +1,26 @@
+========================================================
+ MONSTER ENGINE 3D: Metamorfosis Gusano -> Lagarto (MonsterAger)
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas F1-F4                  : Inspección cabeza / vistas anatómicas
+  - 0..4 : Edades 0 / 25 / 50 / 75 / 100%; rueda : zoom
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: activo (4x)
+[MALLA] edad_solicitada=0.50 edad_visible=0.50 lag=0.00 escala=0.69000 gen=1 fp=11899290846334136012 tier=MORPH ms=2073.31 fps=60.1 builds/s=0.0 grid=723x513x1397 celdas=230812 activas=57267 refinadas=132179 muestras=232780 triangulos=370860 coalescidas=0
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-whole.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-body-lateral.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-body-front.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-body-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-head-oblique.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-head-lateral.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-head-frontal.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-head-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-manus-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-pes-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-manus-oblique.ppm
+[CAPTURA] /tmp/monster-animation-qa/morph-mid-pes-oblique.ppm
+[INFO] Demo de envejecimiento finalizada limpiamente.

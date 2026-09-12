@@ -1,0 +1,27 @@
+========================================================
+ MONSTER ENGINE 3D: Metamorfosis Gusano -> Lagarto (MonsterAger)
+========================================================
+ Controles:
+  - Flecha DERECHA / Flecha ARRIBA  : Avanzar edad (+ perc)
+  - Flecha IZQUIERDA / Flecha ABAJO : Retroceder edad (- perc)
+  - TECLA ESPACIO                   : Alternar animación automática
+  - H / teclas F1-F4                  : Inspección cabeza / vistas anatómicas
+  - 0..4 : Edades 0 / 25 / 50 / 75 / 100%; rueda : zoom
+  - W                               : Wireframe de la malla local de cabeza
+========================================================
+[RENDER] MSAA: activo (4x)
+[MALLA] edad_solicitada=1.00 edad_visible=1.00 lag=0.00 escala=1.00000 gen=1 fp=2858083986603850140 tier=INTERACTIVE ms=3601.04 fps=59.9 builds/s=0.0 grid=502x279x1125 celdas=380402 activas=81517 refinadas=219775 muestras=380409 triangulos=523684 coalescidas=0
+[MALLA] edad_solicitada=1.00 edad_visible=1.00 lag=0.00 escala=1.00000 gen=2 fp=5126587394065479315 tier=SETTLED ms=5977.12 fps=59.8 builds/s=0.0 grid=860x477x1929 celdas=678231 activas=187993 refinadas=374488 muestras=641702 triangulos=1199756 coalescidas=0
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-whole.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-body-lateral.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-body-front.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-body-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-head-oblique.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-head-lateral.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-head-frontal.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-head-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-manus-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-pes-dorsal.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-manus-oblique.ppm
+[CAPTURA] /tmp/monster-animation-qa/settled-adult-pes-oblique.ppm
+[INFO] Demo de envejecimiento finalizada limpiamente.

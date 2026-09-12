@@ -1,0 +1,4 @@
+modo=walk vértices=599876 índices=3599268 generación=1
+frames=180 pose_media_ms=1.149 pose_max_ms=1.927 deform_media_ms=23.925 deform_max_ms=30.517
+error_IK_max=0.001999 longitud_error_max=0.000000 apoyo_error_max=0.001989 stance=564 swing=156 avance=1.105
+rebuilds_animación=0 huella_inmutable=1 topología_inmutable=1

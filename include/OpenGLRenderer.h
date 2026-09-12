@@ -103,6 +103,22 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,
 /** @brief Espera a la GPU para medir el coste real en validaciones de rendimiento. */
 void OpenGLRenderer_Finish(void);
 
+/** @brief Ventana opaca para demos sin dependencias SDL/GL en sus fuentes. */
+typedef struct OpenGLDemoWindow OpenGLDemoWindow;
+typedef struct OpenGLDemoInput { bool quit,togglePause,toggleDebug; int view; } OpenGLDemoInput;
+/** @brief Crea contexto para demos; NULL si falla. */
+OpenGLDemoWindow* OpenGLDemoWindow_Create(const char* title,int width,int height);
+/** @brief Consulta entrada: Escape, espacio, D y teclas 1..4. */
+OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* window);
+/** @brief Presenta framebuffer. */
+void OpenGLDemoWindow_Swap(OpenGLDemoWindow* window);
+/** @brief Destruye contexto y ventana. */
+void OpenGLDemoWindow_Free(OpenGLDemoWindow* window);
+/** @brief Reloj monótono en segundos. */
+double OpenGLDemoWindow_Time(void);
+/** @brief Líneas de depuración; no requiere recrear mallas. */
+void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color);
+
 #ifdef __cplusplus
 }
 #endif

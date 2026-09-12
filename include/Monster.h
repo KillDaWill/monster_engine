@@ -30,6 +30,7 @@ extern "C" {
 
 /* Forward declarations */
 struct MonsterMeta;
+struct MonsterAnimation;
 
 
 
@@ -59,6 +60,8 @@ typedef struct Monster {
     bool hasAnatomyGraph;      /**< Activa la superficie corporal anatómica continua. */
     LizardPhenotype lizardPhenotype; /**< Autoridad semántica para envejecimiento de lagarto. */
     bool hasLizardPhenotype;          /**< Indica que el grafo procede del preset de lagarto. */
+
+    struct MonsterAnimation* animation; /**< Estado poseído; excluido de snapshots morfológicos. */
 
     struct Trait** traits;     /**< Arreglo dinámico de rasgos generales */
     size_t traitCount;        /**< Cantidad de rasgos generales */

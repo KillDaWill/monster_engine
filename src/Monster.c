@@ -1,4 +1,5 @@
 #include "Monster.h"
+#include "MonsterAnimation.h"
 #include "MathUtils.h"
 #include <stdlib.h>
 #include <math.h>
@@ -35,11 +36,16 @@ void Monster_Free(Monster* monster) {
     if (monster->combatTraits) free(monster->combatTraits);
     if (monster->visualTraits) free(monster->visualTraits);
 
+    MonsterAnimation_Free(monster->animation);
     memset(monster, 0, sizeof(Monster));
 }
 
 bool Monster_CopyInto(Monster* dst, const Monster* src) {
     if (!dst || !src) return false;
+    if (dst == src) return true;
+    /* CopyInto crea snapshots de morfología, nunca comparte pose mutable. */
+    MonsterAnimation_Free(dst->animation);
+    dst->animation = NULL;
 
     /* Preservar punteros y capacidades preasignadas del destino */
     BodyPart* savedParts = dst->bodyParts;

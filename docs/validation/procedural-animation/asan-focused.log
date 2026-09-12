@@ -1,0 +1,2 @@
+Suite nueva completa, compilada con ASan/UBSan: exit_code=0.
+Sin diagnósticos ni fugas. Incluye la comprobación final del contenido de índices.

@@ -1,0 +1,4 @@
+modo=ik vértices=599876 índices=3599268 generación=1
+frames=120 pose_media_ms=0.419 pose_max_ms=1.913 deform_media_ms=32.606 deform_max_ms=64.295
+error_IK_max=0.001964 longitud_error_max=0.000000 apoyo_error_max=0.000000 stance=480 swing=0 avance=0.000
+rebuilds_animación=0 huella_inmutable=1 topología_inmutable=1
