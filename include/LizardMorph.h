@@ -18,4 +18,6 @@ bool LizardMorph_Deform(const LizardMorph* morph,const AnatomyGraph* graph,Mesh*
 bool LizardMorph_IsBound(const LizardMorph* morph);
 /** @brief Número de vértices vinculados. */
 size_t LizardMorph_GetVertexCount(const LizardMorph* morph);
+/** @brief Copia vinculaciones y buffers. */
+#define LizardMorph_Copy AnatomyDeformer_Copy
 #endif

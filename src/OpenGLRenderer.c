@@ -8,6 +8,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
+
+#define GPU_MESH_CACHE_CAPACITY 32
+typedef struct GeometryGpuVertex { float position[3],normal[3]; unsigned char color[4]; } GeometryGpuVertex;
+typedef struct SurfaceGpuVertex { float position[3],normal[3],region[4]; int material; } SurfaceGpuVertex;
+typedef struct GpuMesh {
+    const Mesh* owner;
+    uint64_t identity;
+    const void* vertexPointer;
+    const void* indexPointer;
+    GLuint vao,geometryVbo,surfaceVbo,indexBuffer;
+    uint64_t geometryGeneration,surfaceGeneration,lastUse;
+    size_t vertexCount,indexCount;
+} GpuMesh;
 
 /* ============================================================
  * RENDER STATE DATA
@@ -16,6 +30,10 @@
 typedef struct OpenGLRendererData {
     bool wireframe;
     GLuint sdfProgram, sdfBuffer, sdfTexture;
+    GLuint surfaceProgram;
+    GLint surfaceRecipeLocation,pigmentSeedLocation,scaleSeedLocation,surfaceDebugLocation;
+    int surfaceDebug;
+    bool surfaceFailed;
     struct {
         GLint validationMode,validationPointBase,sceneData;
         GLint partBase,partCount,connectorBase,connectorCount,mouthBase,mouthCount,axialBase,axialCount;
@@ -32,7 +50,19 @@ typedef struct OpenGLRendererData {
     int sdfWidth,sdfHeight,sdfAllocatedWidth,sdfAllocatedHeight;
     float resolutionScale,gpuMs,filteredGpuMs,queryScale[4];
     unsigned overBudget,underBudget;
+    GpuMesh meshCache[GPU_MESH_CACHE_CAPACITY];
+    GeometryGpuVertex* geometryScratch;
+    SurfaceGpuVertex* surfaceScratch;
+    size_t geometryScratchCapacity,surfaceScratchCapacity;
+    uint64_t meshFrame;
+    OpenGLMeshPerformanceStats meshStats;
+    GLuint meshQueries[4];unsigned meshQueryFrame,meshQuerySerial[4];bool meshQueryPending[4],meshQueryIssued;
 } OpenGLRendererData;
+
+static double RendererNowMs(void) {
+    struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);
+    return (double)t.tv_sec*1000.0+(double)t.tv_nsec/1000000.0;
+}
 
 void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled) {
     if (renderer && renderer->user_data) {
@@ -63,7 +93,24 @@ bool OpenGLRenderer_SavePPM(const char* path, int width, int height) {
  * ============================================================ */
 
 static void OpenGL_BeginFrame(Renderer3D* self) {
-    (void)self;
+    OpenGLRendererData* d=self?self->user_data:NULL;
+    if(d) {
+        if(!d->meshQueries[0])glGenQueries(4,d->meshQueries);
+        for(unsigned pending=0;pending<4;++pending) {
+            unsigned oldest=4,ageBest=0;
+            for(unsigned i=0;i<4;++i)if(d->meshQueryPending[i]) {
+                unsigned age=d->meshQueryFrame-d->meshQuerySerial[i];
+                if(oldest==4||age>ageBest){oldest=i;ageBest=age;}
+            }
+            if(oldest==4)break;
+            GLint ready=0;glGetQueryObjectiv(d->meshQueries[oldest],GL_QUERY_RESULT_AVAILABLE,&ready);if(!ready)break;
+            GLuint64 ns=0;glGetQueryObjectui64v(d->meshQueries[oldest],GL_QUERY_RESULT,&ns);
+            d->meshStats.gpuRenderMs=(float)((double)ns/1e6);d->meshQueryPending[oldest]=false;
+        }
+        unsigned q=d->meshQueryFrame%4;d->meshQueryIssued=!d->meshQueryPending[q];
+        if(d->meshQueryIssued){d->meshQuerySerial[q]=d->meshQueryFrame;glBeginQuery(GL_TIME_ELAPSED,d->meshQueries[q]);}
+        ++d->meshFrame;
+    }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
@@ -71,7 +118,9 @@ static void OpenGL_BeginFrame(Renderer3D* self) {
 }
 
 static void OpenGL_EndFrame(Renderer3D* self) {
-    (void)self;
+    OpenGLRendererData* d=self?self->user_data:NULL;
+    if(d&&d->meshQueryIssued){glEndQuery(GL_TIME_ELAPSED);d->meshQueryPending[d->meshQueryFrame%4]=true;}
+    if(d){++d->meshQueryFrame;d->meshQueryIssued=false;}
 }
 
 #include <stddef.h>
@@ -120,6 +169,8 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
     glDisableClientState(GL_VERTEX_ARRAY);
 }
 
+static bool RenderSurfaceMesh(OpenGLRendererData* data,const Mesh* mesh);
+
 static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
     bool wireframe = false;
     if (self && self->user_data) {
@@ -133,7 +184,8 @@ static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
 
-    OpenGLRenderer_RenderMesh(mesh);
+    OpenGLRendererData* data=self?self->user_data:NULL;
+    if(!data || !mesh || !mesh->hasSurface || !RenderSurfaceMesh(data,mesh))OpenGLRenderer_RenderMesh(mesh);
 
     if (wireframe) {
         glPolygonMode(GL_FRONT, previousPolygonMode[0]);
@@ -146,6 +198,14 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
 
     if (renderer->user_data) {
         OpenGLRendererData* data=renderer->user_data;
+        if(data->surfaceProgram)glDeleteProgram(data->surfaceProgram);
+        for(unsigned i=0;i<GPU_MESH_CACHE_CAPACITY;++i) {
+            GpuMesh* m=&data->meshCache[i];
+            if(m->vao)glDeleteVertexArrays(1,&m->vao);
+            if(m->geometryVbo)glDeleteBuffers(1,&m->geometryVbo);
+            if(m->surfaceVbo)glDeleteBuffers(1,&m->surfaceVbo);
+            if(m->indexBuffer)glDeleteBuffers(1,&m->indexBuffer);
+        }
         if(data->sdfProgram)glDeleteProgram(data->sdfProgram);
         if(data->sdfBuffer)glDeleteBuffers(1,&data->sdfBuffer);
         if(data->sdfTexture)glDeleteTextures(1,&data->sdfTexture);
@@ -153,6 +213,8 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
         if(data->sdfColor)glDeleteTextures(1,&data->sdfColor);
         if(data->sdfDepth)glDeleteRenderbuffers(1,&data->sdfDepth);
         if(data->sdfQueries[0])glDeleteQueries(4,data->sdfQueries);
+        if(data->meshQueries[0])glDeleteQueries(4,data->meshQueries);
+        free(data->geometryScratch);free(data->surfaceScratch);
         free(data->sdfData);
         free(data->tileIndices);
         free(renderer->user_data);
@@ -244,18 +306,18 @@ static void PackStation(float (*out)[4],const SDFSweepStation* s){
 #include "MonsterSDFShader.generated.h"
 #include "MonsterSDFRayBounds.h"
 
-static GLuint CompileSDFShader(GLenum type,const char* const* source,size_t count) {
+static GLuint CompileShader(GLenum type,const char* const* source,size_t count) {
     GLuint shader=glCreateShader(type);
     glShaderSource(shader,(GLsizei)count,source,NULL);glCompileShader(shader);
     GLint ok=0;glGetShaderiv(shader,GL_COMPILE_STATUS,&ok);
-    if(!ok){char log[4096];glGetShaderInfoLog(shader,sizeof(log),NULL,log);fprintf(stderr,"[SDF GPU] %s\n",log);glDeleteShader(shader);return 0;}
+    if(!ok){char log[4096];glGetShaderInfoLog(shader,sizeof(log),NULL,log);fprintf(stderr,"[GLSL] %s\n",log);glDeleteShader(shader);return 0;}
     return shader;
 }
 static bool InitSDFProgram(OpenGLRendererData* d) {
     const char* vertex="#version 330 compatibility\nvoid main(){gl_Position=gl_Vertex;}\n";
-    GLuint vs=CompileSDFShader(GL_VERTEX_SHADER,&vertex,1);
+    GLuint vs=CompileShader(GL_VERTEX_SHADER,&vertex,1);
     const size_t sourceCount=sizeof(sdfFragmentSource)/sizeof(*sdfFragmentSource);
-    GLuint fs=CompileSDFShader(GL_FRAGMENT_SHADER,sdfFragmentSource,sourceCount);
+    GLuint fs=CompileShader(GL_FRAGMENT_SHADER,sdfFragmentSource,sourceCount);
     if(!vs||!fs){if(vs)glDeleteShader(vs);if(fs)glDeleteShader(fs);return false;}
     GLuint p=glCreateProgram();glAttachShader(p,vs);glAttachShader(p,fs);glLinkProgram(p);
     glDeleteShader(vs);glDeleteShader(fs);GLint ok;glGetProgramiv(p,GL_LINK_STATUS,&ok);
@@ -447,6 +509,11 @@ static void UpdateSDFResolution(OpenGLRendererData* d,float gpuMs) {
 bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive) {
     if(!renderer||!renderer->user_data||!camera||width<=0||height<=0)return false;
     OpenGLRendererData* d=renderer->user_data;
+    /* GL_TIME_ELAPSED no admite consultas anidadas del mismo target. */
+    if(d->meshQueryIssued) {
+        glEndQuery(GL_TIME_ELAPSED);d->meshQueryPending[d->meshQueryFrame%4]=true;
+        d->meshQueryIssued=false;
+    }
     /* Compilar antes de iniciar la consulta: el arranque no es coste de reproducción. */
     if(!d->sdfProgram&&!InitSDFProgram(d))return false;
     if(!d->sdfQueries[0])glGenQueries(4,d->sdfQueries);
@@ -566,6 +633,14 @@ OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
         if(e.type==SDL_KEYDOWN) {
             if(e.key.keysym.sym==SDLK_ESCAPE)input.quit=true;
             if(e.key.keysym.sym==SDLK_SPACE)input.togglePause=true;
+            if(e.key.keysym.sym==SDLK_LEFT)input.surfaceSelect=-1;
+            if(e.key.keysym.sym==SDLK_RIGHT)input.surfaceSelect=1;
+            if(e.key.keysym.sym==SDLK_UP || e.key.keysym.sym==SDLK_EQUALS)input.surfaceAdjust=1;
+            if(e.key.keysym.sym==SDLK_DOWN || e.key.keysym.sym==SDLK_MINUS)input.surfaceAdjust=-1;
+            if(e.key.keysym.sym==SDLK_r)input.surfaceSeed=true;
+            if(e.key.keysym.sym==SDLK_c)input.surfacePigment=true;
+            if(e.key.keysym.sym==SDLK_TAB)input.surfaceDebugNext=true;
+            if(e.key.keysym.sym==SDLK_s)input.surfaceToggle=true;
             if(e.key.keysym.sym==SDLK_d)input.toggleDebug=true;
             if(e.key.keysym.sym>=SDLK_1 && e.key.keysym.sym<=SDLK_4)input.view=e.key.keysym.sym-SDLK_1;
         }
@@ -586,4 +661,136 @@ void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color) {
     glColor4ub(color.r,color.g,color.b,color.a);
     glBegin(GL_LINES); glVertex3f(a.x,a.y,a.z); glVertex3f(b.x,b.y,b.z); glEnd();
     glPopAttrib();
+}
+
+#include "MonsterSurfaceShader.generated.h"
+_Static_assert(SURFACE_RECIPE_ROWS==28,"Actualizar contrato GLSL de superficie al cambiar regiones");
+static bool InitSurfaceProgram(OpenGLRendererData* d) {
+    if(d->surfaceProgram)return true;
+    if(d->surfaceFailed)return false;
+    GLuint vs=CompileShader(GL_VERTEX_SHADER,surfaceVertexSource,sizeof(surfaceVertexSource)/sizeof(*surfaceVertexSource));
+    GLuint fs=CompileShader(GL_FRAGMENT_SHADER,surfaceFragmentSource,sizeof(surfaceFragmentSource)/sizeof(*surfaceFragmentSource));
+    if(!vs || !fs) { if(vs)glDeleteShader(vs); if(fs)glDeleteShader(fs); d->surfaceFailed=true; return false; }
+    GLuint p=glCreateProgram(); glAttachShader(p,vs); glAttachShader(p,fs); glLinkProgram(p);
+    glDeleteShader(vs); glDeleteShader(fs); GLint ok=0; glGetProgramiv(p,GL_LINK_STATUS,&ok);
+    if(!ok) {
+        char log[4096]; glGetProgramInfoLog(p,sizeof(log),NULL,log); fprintf(stderr,"[Superficie GLSL] %s\n",log);
+        glDeleteProgram(p); d->surfaceFailed=true; return false;
+    }
+    d->surfaceProgram=p;
+    d->surfaceRecipeLocation=glGetUniformLocation(p,"surfaceRecipe");
+    d->pigmentSeedLocation=glGetUniformLocation(p,"pigmentSeed");
+    d->scaleSeedLocation=glGetUniformLocation(p,"scaleSeed");
+    d->surfaceDebugLocation=glGetUniformLocation(p,"surfaceDebug");
+    return true;
+}
+static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
+    if(!mesh->vertexCount || !mesh->indexCount)return true;
+    if(!InitSurfaceProgram(d))return false;
+    GLint previous=0,buffer=0,indexBuffer=0,vao=0;
+    glGetIntegerv(GL_CURRENT_PROGRAM,&previous); glGetIntegerv(GL_ARRAY_BUFFER_BINDING,&buffer);
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING,&indexBuffer);glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&vao);
+    GpuMesh* cached=NULL,*evict=&d->meshCache[0];
+    for(unsigned i=0;i<GPU_MESH_CACHE_CAPACITY;++i) {
+        GpuMesh* entry=&d->meshCache[i];
+        if(entry->owner==mesh && entry->identity==mesh->identity){cached=entry;break;}
+        if(!entry->owner || entry->lastUse<evict->lastUse)evict=entry;
+    }
+    if(!cached) {
+        cached=evict;
+        if(!cached->vao)glGenVertexArrays(1,&cached->vao);
+        if(!cached->geometryVbo)glGenBuffers(1,&cached->geometryVbo);
+        if(!cached->surfaceVbo)glGenBuffers(1,&cached->surfaceVbo);
+        if(!cached->indexBuffer)glGenBuffers(1,&cached->indexBuffer);
+        cached->owner=mesh;cached->identity=mesh->identity;cached->geometryGeneration=UINT64_MAX;cached->surfaceGeneration=UINT64_MAX;
+        cached->vertexPointer=NULL;cached->indexPointer=NULL;
+    }
+    cached->lastUse=d->meshFrame;
+    bool indicesChanged=cached->indexPointer!=mesh->indices || cached->indexCount!=mesh->indexCount;
+    bool geometryChanged=cached->geometryGeneration!=mesh->geometryGeneration || cached->vertexPointer!=mesh->vertices ||
+        cached->vertexCount!=mesh->vertexCount || indicesChanged;
+    bool surfaceChanged=cached->surfaceGeneration!=mesh->surfaceGeneration || cached->vertexPointer!=mesh->vertices || cached->vertexCount!=mesh->vertexCount;
+    double uploadStart=RendererNowMs();uint64_t uploaded=0;
+    if(geometryChanged) {
+        if(mesh->vertexCount>d->geometryScratchCapacity) {
+            GeometryGpuVertex* p=realloc(d->geometryScratch,mesh->vertexCount*sizeof(*p));if(!p)return false;
+            d->geometryScratch=p;d->geometryScratchCapacity=mesh->vertexCount;
+        }
+        for(size_t i=0;i<mesh->vertexCount;++i) {
+            const MeshVertex* v=&mesh->vertices[i];GeometryGpuVertex* p=&d->geometryScratch[i];
+            p->position[0]=v->position.x;p->position[1]=v->position.y;p->position[2]=v->position.z;
+            p->normal[0]=v->normal.x;p->normal[1]=v->normal.y;p->normal[2]=v->normal.z;
+            p->color[0]=v->color.r;p->color[1]=v->color.g;p->color[2]=v->color.b;p->color[3]=v->color.a;
+        }
+        glBindBuffer(GL_ARRAY_BUFFER,cached->geometryVbo);glBufferData(GL_ARRAY_BUFFER,mesh->vertexCount*sizeof(GeometryGpuVertex),d->geometryScratch,GL_STREAM_DRAW);
+        uploaded+=mesh->vertexCount*sizeof(GeometryGpuVertex);
+        cached->geometryGeneration=mesh->geometryGeneration;
+    }
+    if(indicesChanged) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);glBufferData(GL_ELEMENT_ARRAY_BUFFER,mesh->indexCount*sizeof(MeshIndex),mesh->indices,GL_STATIC_DRAW);
+        uploaded+=mesh->indexCount*sizeof(MeshIndex);
+    }
+    if(surfaceChanged) {
+        if(mesh->vertexCount>d->surfaceScratchCapacity) {
+            SurfaceGpuVertex* p=realloc(d->surfaceScratch,mesh->vertexCount*sizeof(*p));if(!p)return false;
+            d->surfaceScratch=p;d->surfaceScratchCapacity=mesh->vertexCount;
+        }
+        for(size_t i=0;i<mesh->vertexCount;++i) {
+            const MeshVertex* v=&mesh->vertices[i];SurfaceGpuVertex* p=&d->surfaceScratch[i];
+            p->position[0]=v->surface.position.x;p->position[1]=v->surface.position.y;p->position[2]=v->surface.position.z;
+            p->normal[0]=v->surface.normal.x;p->normal[1]=v->surface.normal.y;p->normal[2]=v->surface.normal.z;
+            p->region[0]=v->surface.region;p->region[1]=v->surface.secondaryRegion;p->region[2]=v->surface.blend;p->region[3]=v->surface.ventral;
+            p->material=(int)v->material;
+        }
+        glBindBuffer(GL_ARRAY_BUFFER,cached->surfaceVbo);glBufferData(GL_ARRAY_BUFFER,mesh->vertexCount*sizeof(SurfaceGpuVertex),d->surfaceScratch,GL_STATIC_DRAW);
+        uploaded+=mesh->vertexCount*sizeof(SurfaceGpuVertex);cached->surfaceGeneration=mesh->surfaceGeneration;
+    }
+    if(uploaded){++d->meshStats.uploadCount;d->meshStats.totalBytesUploaded+=uploaded;d->meshStats.lastUploadMs=RendererNowMs()-uploadStart;}
+    else ++d->meshStats.cacheHitCount;
+    cached->vertexPointer=mesh->vertices;cached->indexPointer=mesh->indices;cached->vertexCount=mesh->vertexCount;cached->indexCount=mesh->indexCount;
+    glBindVertexArray(cached->vao);
+    glUseProgram(d->surfaceProgram);
+    glUniform4fv(d->surfaceRecipeLocation,SURFACE_RECIPE_ROWS,&mesh->surfaceRecipe.data[0][0]);
+    glUniform1ui(d->pigmentSeedLocation,mesh->surfaceRecipe.pigmentSeed);
+    glUniform1ui(d->scaleSeedLocation,mesh->surfaceRecipe.scaleSeed);
+    glUniform1i(d->surfaceDebugLocation,d->surfaceDebug);
+    glBindBuffer(GL_ARRAY_BUFFER,cached->surfaceVbo);
+    size_t offsets[4]={offsetof(SurfaceGpuVertex,position),offsetof(SurfaceGpuVertex,normal),
+        offsetof(SurfaceGpuVertex,region),offsetof(SurfaceGpuVertex,material)};
+    int sizes[4]={3,3,4,1};
+    for(unsigned i=0;i<4;++i) {
+        glEnableVertexAttribArray(8+i);
+        glVertexAttribPointer(8+i,sizes[i],i==3?GL_INT:GL_FLOAT,GL_FALSE,sizeof(SurfaceGpuVertex),(const void*)offsets[i]);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER,cached->geometryVbo);
+    glEnableClientState(GL_VERTEX_ARRAY); glEnableClientState(GL_NORMAL_ARRAY); glEnableClientState(GL_COLOR_ARRAY);
+    glVertexPointer(3,GL_FLOAT,sizeof(GeometryGpuVertex),(const void*)offsetof(GeometryGpuVertex,position));
+    glNormalPointer(GL_FLOAT,sizeof(GeometryGpuVertex),(const void*)offsetof(GeometryGpuVertex,normal));
+    glColorPointer(4,GL_UNSIGNED_BYTE,sizeof(GeometryGpuVertex),(const void*)offsetof(GeometryGpuVertex,color));
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);
+    size_t offset=0;
+    while(offset<mesh->indexCount) {
+        size_t count=mesh->indexCount-offset,max=(size_t)INT32_MAX-((size_t)INT32_MAX%3);
+        if(count>max)count=max;
+        glDrawElements(GL_TRIANGLES,(GLsizei)count,GL_UNSIGNED_INT,(const void*)(offset*sizeof(MeshIndex))); offset+=count;
+    }
+    glDisableClientState(GL_VERTEX_ARRAY); glDisableClientState(GL_NORMAL_ARRAY); glDisableClientState(GL_COLOR_ARRAY);
+    for(unsigned i=0;i<4;++i)glDisableVertexAttribArray(8+i);
+    glBindVertexArray((GLuint)vao);glUseProgram((GLuint)previous); glBindBuffer(GL_ARRAY_BUFFER,(GLuint)buffer); glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,(GLuint)indexBuffer);
+    return true;
+}
+void OpenGLRenderer_SetSurfaceDebug(Renderer3D* r,int mode) {
+    if(r && r->user_data)((OpenGLRendererData*)r->user_data)->surfaceDebug=mode>=0&&mode<=9?mode:0;
+}
+bool OpenGLRenderer_SurfaceReady(Renderer3D* r) {
+    return r && r->user_data && InitSurfaceProgram(r->user_data);
+}
+bool OpenGLRenderer_CheckErrors(void) {
+    bool ok=true; GLenum error;
+    while((error=glGetError())!=GL_NO_ERROR) { fprintf(stderr,"[OpenGL] error 0x%x\n",error); ok=false; }
+    return ok;
+}
+OpenGLMeshPerformanceStats OpenGLRenderer_GetMeshPerformanceStats(const Renderer3D* r) {
+    OpenGLMeshPerformanceStats empty={0};
+    return r&&r->user_data?((const OpenGLRendererData*)r->user_data)->meshStats:empty;
 }

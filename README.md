@@ -80,6 +80,8 @@ make clean
    Muestra la animación en tiempo real del lagarto evolucionando de juvenil a adulto. Ambos extremos comparten una cadena axial coherente y resuelven cráneo, rostrum, órbitas, narinas y mandíbula desde `HeadPhenotype`.
    - **Flecha DERECHA / ARRIBA**: Avanzar porcentaje de edad.
    - **Flecha IZQUIERDA / ABAJO**: Retroceder porcentaje de edad.
+   La ruta predeterminada muestra las escamas procedurales mientras la cámara gira y la criatura crece. `--sdf` selecciona el raymarcher anterior; `--validate-gpu` y `--benchmark=N` también seleccionan esa ruta.
+   - **R**: Pausar/reanudar el giro de cámara.
    - **ESPACIO**: Activar/Desactivar oscilación automática.
    ```bash
    ./demos/demo_ager_3d
@@ -108,3 +110,17 @@ Toda la base de código utiliza anotaciones en formato Doxygen (`@file`, `@brief
 Para actualizar o consultar la documentación HTML:
 1. Ejecuta `make docs` o `doxygen Doxyfile`.
 2. Abre `doc/html/index.html` en el navegador.
+
+## Superficies procedurales
+
+`make demos && ./demos/demo_lizard_surface` abre el editor en vivo de escamas,
+pigmento y rugosidad sobre la malla animada. Las coordenadas de material permanecen
+en reposo y cambiar apariencia no reconstruye el SDF. Consulta la
+[arquitectura de superficies](docs/PROCEDURAL_SURFACES.md) para controles, API,
+filtrado, pruebas y limitaciones de los backends.
+
+El [informe de implementación y validación](docs/SURFACE_IMPLEMENTATION_REPORT.md)
+incluye resultados, medidas de rendimiento y limitaciones conocidas.
+El [informe de rendimiento del Ager](docs/AGER_PERFORMANCE.md) documenta el
+perfil por etapas, la cuantización geométrica, la deformación continua, la
+residencia GPU y los benchmarks con escamas activadas/desactivadas.

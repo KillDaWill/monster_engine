@@ -138,6 +138,7 @@ typedef struct HeadSurfaceRecipe {
     bool hasNasalPad; /**< Activa volumen nasal diferenciado. */
     bool hasEars; /**< Activa volúmenes auriculares. */
     bool isBeak; /**< Indica una receta facial aviar. */
+    float tympanumDevelopment; /**< Peso continuo de apertura timpánica. */
     bool hasTympana; /**< Activa aberturas timpánicas externas. */
     float faceRounding; /**< Redondeo de la cuña facial. */
 } HeadSurfaceRecipe;

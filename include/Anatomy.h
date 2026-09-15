@@ -98,7 +98,8 @@ typedef struct AnatomyGraph {
     AnatomyNode nodes[ANATOMY_MAX_NODES]; /**< Estaciones resueltas. */
     size_t nodeCount; /**< Número de estaciones activas. */
     BodyConnection connections[ANATOMY_MAX_CONNECTIONS]; /**< Aristas declaradas. */
-    size_t connectionCount; /**< Número de aristas activas. */
+    size_t connectionCount; /**< Número de aristas declaradas. */
+    bool dormantConnections[ANATOMY_MAX_CONNECTIONS]; /**< Blueprint sin superficie ni influencia de vinculación. */
 } AnatomyGraph;
 
 /** @brief ID digital estable: miembro 0..3, dedo I..V (0..4), estación 0..6.

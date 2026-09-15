@@ -4,6 +4,7 @@
 #include <math.h>
 static bool CopyMesh(Mesh* dst,const Mesh* src) {
     if(!Mesh_ReserveVertices(dst,src->vertexCount) || !Mesh_ReserveIndices(dst,src->indexCount))return false;
+    dst->surfaceRecipe=src->surfaceRecipe; dst->hasSurface=src->hasSurface;
     dst->vertexCount=src->vertexCount; dst->indexCount=src->indexCount;
     if(src->vertexCount)memcpy(dst->vertices,src->vertices,src->vertexCount*sizeof(MeshVertex));
     if(src->indexCount)memcpy(dst->indices,src->indices,src->indexCount*sizeof(MeshIndex));
@@ -47,6 +48,7 @@ static void RigidMesh(Mesh* mesh,const Mesh* base,Quaternion q,Vector3 rest,Vect
 bool AnimatedVisual_Deform(const AnimatedVisual* a,MonsterVisual* v,const Monster* m) {
     if(!a || !v || !m || !m->animation || !a->bound || a->generation!=v->rebuildGeneration ||
        a->restFingerprint!=m->animation->restFingerprint || a->rigGeneration!=m->animation->rigGeneration || a->eyeCount!=v->eyeCount)return false;
+    MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);
     const MonsterAnimation* animation=m->animation; const Rig* rig=&animation->rig; const SkeletonPose* p=&animation->pose;
     if(!AnatomyDeformer_DeformPose(a->body,&rig->skeleton,p,&v->mesh))return false;
     int head=rig->headJoint; if(head<0)return true;

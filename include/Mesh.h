@@ -9,6 +9,7 @@
 #define MONSTER_MESH_H
 
 #include "Vector.h"
+#include "Surface.h"
 #include "Color.h"
 #include "SDFOperations.h"
 #include <stddef.h>
@@ -31,6 +32,7 @@ typedef struct MeshVertex {
     Vector3 normal;   /**< Vector normal unitario */
     Color color;      /**< Color RGBA */
     SDFMaterial material; /**< Material SDF conservado desde el campo implícito */
+    SurfaceCoordinate surface; /**< Dominio inmutable de reposo y mezcla regional. */
 } MeshVertex;
 
 /**
@@ -38,6 +40,11 @@ typedef struct MeshVertex {
  * @brief Representación desacoplada de una malla poligonal 3D indexada.
  */
 typedef struct Mesh {
+    uint64_t identity; /**< Identidad estable para cachés aunque el allocator reutilice una dirección. */
+    SurfaceRecipe surfaceRecipe; /**< Apariencia separada de los buffers geométricos. */
+    bool hasSurface;
+    uint64_t geometryGeneration; /**< Revisión de posiciones, normales, color o índices. */
+    uint64_t surfaceGeneration;  /**< Revisión del dominio superficial por vértice. */
     MeshVertex* vertices;  /**< Arreglo dinámico de vértices */
     size_t vertexCount;    /**< Cantidad actual de vértices */
     size_t vertexCapacity; /**< Capacidad reservada de vértices */
@@ -128,6 +135,12 @@ bool Mesh_KeepLargestComponent(Mesh* mesh);
 
 /** @brief Comprueba área relativa a las aristas, sin eliminar triángulos pequeños válidos. */
 bool Mesh_TriangleHasArea(Vector3 a, Vector3 b, Vector3 c);
+
+/** @brief Invalida únicamente los atributos geométricos residentes en GPU. */
+void Mesh_MarkGeometryChanged(Mesh* mesh);
+
+/** @brief Invalida únicamente el dominio superficial residente en GPU. */
+void Mesh_MarkSurfaceChanged(Mesh* mesh);
 
 #ifdef __cplusplus
 }

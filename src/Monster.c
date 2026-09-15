@@ -80,6 +80,8 @@ bool Monster_CopyInto(Monster* dst, const Monster* src) {
     dst->hasHead = src->hasHead;
     dst->anatomyGraph = src->anatomyGraph;
     dst->hasAnatomyGraph = src->hasAnatomyGraph;
+    dst->surface=src->surface; dst->surfaceMapping=src->surfaceMapping; dst->hasSurface=src->hasSurface;
+    dst->growthAge=src->growthAge; dst->hasGrowthAge=src->hasGrowthAge;
     dst->lizardPhenotype = src->lizardPhenotype;
     dst->hasLizardPhenotype = src->hasLizardPhenotype;
 
@@ -451,4 +453,11 @@ static bool AddVisualTraitToList(struct VisualTrait*** list, size_t* count, size
 
 bool Monster_AddVisualTrait(Monster* monster, struct VisualTrait* trait) {
     return monster ? AddVisualTraitToList(&monster->visualTraits, &monster->visualTraitCount, &monster->visualTraitCapacity, trait) : false;
+}
+
+void Monster_SetSurface(Monster* monster,const SurfacePhenotype* surface) {
+    if(!monster || !surface)return;
+    monster->surface=*surface; SurfacePhenotype_Normalize(&monster->surface);
+    monster->hasSurface=true;
+    if(monster->hasLizardPhenotype)monster->lizardPhenotype.surface=monster->surface;
 }

@@ -482,6 +482,7 @@ static void test_lizard_appendage_mesh_visibility(void) {
         }
         TEST_ASSERT(mesh_component_count(&mesh)==1,"Apéndices desconectados de la malla corporal");
         MeshValidationResult validation=Mesh_Validate(&mesh);
+        if(!validation.valid || !validation.watertight)printf("[DEBUG] edad %.2f tier %u degenerados %zu abiertos %zu no-manifold %zu\n",ages[age],tier,validation.degenerateTriangleCount,validation.boundaryEdgeCount,validation.nonManifoldEdgeCount);
         TEST_ASSERT(validation.valid&&validation.watertight&&validation.nonManifoldEdgeCount==0,
             "El detalle local tiene grietas o triángulos inválidos");
         TEST_ASSERT(mesher.lastStats.detailSpacingRatio<=1.001f &&
@@ -530,12 +531,47 @@ static void test_lizard_larval_metamorphosis(void) {
     printf("[PASS] test_lizard_larval_metamorphosis\n");
 }
 
+static void test_lizard_seed_metamorphosis(void) {
+    LizardPhenotype sp=LizardPreset_Seed(),ap=LizardPreset_Adult();
+    TEST_ASSERT(sp.appendageDevelopment==0.0f&&sp.pigmentation==0.0f&&
+                sp.cephalicDevelopment==0.0f,"La semilla no parte de rasgos indiferenciados");
+    float axialLength=sp.trunkLength+sp.neckLength+sp.tailLength;
+    TEST_ASSERT(axialLength<0.60f,"La semilla conserva un cuerpo alargado");
+    Monster seed=Monster_Create(),adult=Monster_Create();
+    TEST_ASSERT(Lizard_BuildMonster(&seed,&sp)&&Lizard_BuildMonster(&adult,&ap),
+                "No se construyeron los extremos semilla/adulto");
+    TEST_ASSERT(seed.anatomyGraph.nodeCount==adult.anatomyGraph.nodeCount&&
+                seed.anatomyGraph.connectionCount==adult.anatomyGraph.connectionCount,
+                "La metamorfosis de semilla no conserva correspondencia anatómica");
+    Color seedColor=Monster_GetColorFromIndex(&seed,0);
+    TEST_ASSERT(seedColor.r>230&&seedColor.g>230&&seedColor.b>220,
+                "La fase de semilla no es blanca");
+    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&seed.anatomyGraph,ANATOMY_ID_FORE_LEFT_SHOULDER);
+    const AnatomyNode* hand=AnatomyGraph_FindNode(&seed.anatomyGraph,ANATOMY_ID_FORE_LEFT_HAND);
+    TEST_ASSERT(shoulder&&hand&&Vec3_Distance(shoulder->center,hand->center)<.01f,
+                "La semilla proyecta extremidades visibles");
+    for(size_t i=0;i<seed.eyeCount;++i)
+        TEST_ASSERT(Vec3_LengthSq(seed.eyes[i].scale)<1e-8f,"La semilla conserva ojos visibles");
+    MonsterAger ager=MonsterAger_Create(&seed,&adult,.5f);
+    const Monster* middle=MonsterAger_GetResultConst(&ager);
+    TEST_ASSERT(middle->lizardPhenotype.appendageDevelopment>0.0f&&
+                middle->lizardPhenotype.appendageDevelopment<1.0f,
+                "Los apéndices no germinan de forma continua desde la semilla");
+    TEST_ASSERT(AnatomyGraph_Validate(&middle->anatomyGraph),"La anatomía intermedia de semilla es inválida");
+    MonsterSDF sdf=MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(&sdf,&seed,MonsterSDF_DefaultConfig()),
+                "La fase de semilla no compila al campo SDF");
+    MonsterSDF_Free(&sdf);MonsterAger_Free(&ager);Monster_Free(&seed);Monster_Free(&adult);
+    printf("[PASS] test_lizard_seed_metamorphosis\n");
+}
+
 void run_lizard_tests(void) {
     printf("\n--- Módulo Anatomía de Lagarto ---\n");
     test_lizard_graph_topology();
     test_lizard_articulated_digits();
     test_lizard_appendage_mesh_visibility();
     test_lizard_larval_metamorphosis();
+    test_lizard_seed_metamorphosis();
     test_lizard_axial_loft_and_tail();
     test_lizard_head_semantics();
     test_lizard_tapered_jaw_has_closed_floor();

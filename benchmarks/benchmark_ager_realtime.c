@@ -16,6 +16,8 @@
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
+#include <errno.h>
 
 static double Bench_GetTimeMs(void) {
     struct timespec ts;
@@ -56,7 +58,8 @@ static unsigned Bench_VisibleDigits(const Mesh* mesh, float scale) {
     return visible;
 }
 
-int main(void) {
+int main(int argc,char** argv) {
+    bool paced=argc<2 || strcmp(argv[1],"--unpaced")!=0;
     printf("=================================================================\n");
     printf(" BENCHMARK TIEMPO REAL: Coherencia Temporal y Morphing en Ager 3D \n");
     printf("=================================================================\n");
@@ -84,7 +87,8 @@ int main(void) {
     MonsterVisualAsync_SetMorphMode(visual, true);
 
     /* Generación inicial */
-    MonsterVisualAsync_Update(visual, MonsterAger_GetResultConst(&ager), 0.0f);
+    MonsterVisualAsync_UpdateWithAppearance(visual,MonsterAger_GetGeometryResultConst(&ager),
+        MonsterAger_GetResultConst(&ager),0.0f);
     MonsterVisualAsync_Flush(visual);
 
     const size_t MAX_FRAMES = 600; /* 10 segundos @ 60 FPS */
@@ -114,26 +118,32 @@ int main(void) {
         MonsterAger_SetPerc(&ager, ageFactor);
 
         const Monster* current = MonsterAger_GetResultConst(&ager);
-        MonsterVisualAsync_Update(visual, current, dt);
+        MonsterVisualAsync_UpdateWithAppearance(visual,MonsterAger_GetGeometryResultConst(&ager),current,dt);
 
         MonsterVisualAsyncStats stats = MonsterVisualAsync_GetStats(visual);
         const Mesh* bodyMesh = MonsterVisualAsync_GetDisplayMesh(visual);
 
-        float displayedAge = stats.displayedScale > 0.0f
-            ? Lizard_AgeFromScale(stats.displayedScale)
-            : ageFactor;
-        float lag = fabsf(displayedAge - ageFactor);
+        float presentedScale=stats.presentedScale>0?stats.presentedScale:stats.displayedScale;
+        float lag = stats.geometryLag;
         ageLags[frameCount] = lag;
 
         /* Verificar dígitos cada 30 fotogramas para no ralentizar el benchmark */
         if (frameCount % 30 == 0 && bodyMesh && bodyMesh->vertexCount > 0) {
-            unsigned vis = Bench_VisibleDigits(bodyMesh, stats.displayedScale);
+            unsigned vis = Bench_VisibleDigits(bodyMesh,presentedScale);
             if (vis < minDigits) minDigits = vis;
         }
 
         double fEnd = Bench_GetTimeMs();
         frameDurationsMs[frameCount] = (float)(fEnd - fStart);
         frameCount++;
+        /* Reloj absoluto de presentación: 600 frames representan diez segundos
+         * reales. --unpaced mide exclusivamente throughput de actualización. */
+        if(paced) {
+            double deadlineMs=benchStart+frameCount*(1000.0/60.0);
+            struct timespec deadline={.tv_sec=(time_t)(deadlineMs/1000.0),
+                .tv_nsec=(long)(fmod(deadlineMs,1000.0)*1000000.0)};
+            while(clock_nanosleep(CLOCK_MONOTONIC,TIMER_ABSTIME,&deadline,NULL)==EINTR){}
+        }
     }
 
     double totalBenchMs = Bench_GetTimeMs() - benchStart;
@@ -158,7 +168,7 @@ int main(void) {
            totalBenchMs / 1000.0, effectiveFps);
     printf(" Tiempo por frame (ms): p50 = %.3f ms | p95 = %.3f ms | max = %.3f ms\n",
            p50FrameMs, p95FrameMs, maxFrameMs);
-    printf(" Desfase de edad (lag): p50 = %.4f | p95 = %.4f | p99 = %.4f | max = %.4f\n",
+    printf(" Desfase de edad geométrica (lag): p50 = %.4f | p95 = %.4f | p99 = %.4f | max = %.4f\n",
            p50Lag, p95Lag, p99Lag, maxLag);
     printf(" Extremos de dígitos mínimos observados: %u / 20\n", minDigits);
 
@@ -175,6 +185,10 @@ int main(void) {
     printf(" [ %s ] 20 dígitos/unguales preservados intactos (%u/20)\n",
            passDigits ? "PASS" : "FAIL", minDigits);
 
+    MonsterVisualAsyncStats finalStats=MonsterVisualAsync_GetStats(visual);
+    printf(" Worker: completados=%llu cancelados=%llu obsoletos_descartados=%llu coalescidos=%llu\n",
+        (unsigned long long)finalStats.completedBuildCount,(unsigned long long)finalStats.cancelledBuildCount,
+        (unsigned long long)finalStats.staleBuildDiscardedCount,(unsigned long long)finalStats.coalescedCount);
     free(ageLags);
     free(frameDurationsMs);
     MonsterVisualAsync_Free(visual);

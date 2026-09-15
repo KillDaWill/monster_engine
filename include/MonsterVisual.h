@@ -239,6 +239,9 @@ const Mesh* MonsterVisual_GetHinge(const MonsterVisual* visual, size_t index);
  * @brief Envía la malla superior, mandíbula, bisagra y ojos al renderizador.
  * @return true si se envió al menos la malla del cuerpo correctamente.
  */
+/** @brief Actualiza sólo recetas; no marca geometría sucia ni toca coordenadas. */
+void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surface);
+
 bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer);
 
 #ifdef __cplusplus

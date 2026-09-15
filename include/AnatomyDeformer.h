@@ -67,6 +67,14 @@ AnatomyDeformer* AnatomyDeformer_Create(void);
 void AnatomyDeformer_Free(AnatomyDeformer* morph);
 
 /**
+ * @brief Copia los buffers y vinculaciones de un deformador a otro.
+ * @param dst Deformador destino.
+ * @param src Deformador origen.
+ * @return true si la copia fue exitosa.
+ */
+bool AnatomyDeformer_Copy(AnatomyDeformer* dst, const AnatomyDeformer* src);
+
+/**
  * @brief Vincula una malla base al grafo anatómico de referencia.
  * @param morph Puntero al deformador.
  * @param baseMesh Malla poligonal de referencia.

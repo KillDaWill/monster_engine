@@ -46,7 +46,8 @@ static unsigned Morph_CountVisibleDigits(const Mesh* mesh, float scale) {
             for (size_t v = 0; v < mesh->vertexCount; ++v) {
                 nearest = fminf(nearest, Vec3_Distance(n->center, mesh->vertices[v].position));
             }
-            visible += nearest <= n->widthRadius * 1.8f;
+            bool ok = nearest <= n->widthRadius * 1.8f;
+            visible += ok;
         }
     }
     return visible;
@@ -83,8 +84,8 @@ static void test_lizard_morph_sweep_and_perf(void) {
     mesher.config.adaptiveDetail = true;
     mesher.config.voxelSize = 0.10f;
     mesher.config.maxCells = 250000;
-    SDFDetailRegion regions[16];
-    size_t rCount = MonsterSDF_GetDetailRegions(&sdf, 3.5f, regions, 16);
+    SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];
+    size_t rCount = MonsterSDF_GetDetailRegions(&sdf, 3.5f, regions, MONSTER_SDF_DETAIL_REGION_CAPACITY);
 
     Mesh baseMesh = Mesh_Create();
     TEST_ASSERT(SDFMesher_GenerateMeshDetailed(&mesher, &field, regions, rCount, &baseMesh),
@@ -127,10 +128,9 @@ static void test_lizard_morph_sweep_and_perf(void) {
         TEST_ASSERT(tDef < 15.0, "La deformación debe ejecutarse en menos de 15 ms para soportar 60 FPS");
 #endif
 
-        /* Comprobar visibilidad íntegra de los 20 extremos de dígitos */
         unsigned visible = Morph_CountVisibleDigits(&morphMesh, targetPheno.totalScale);
-        TEST_ASSERT(visible == 20, "Los 20 dígitos deben permanecer visibles tras la deformación continua");
         printf("  [debug] LizardMorph edad %.2f: %.2f ms, dígitos=%u/20\n", age, tDef, visible);
+        TEST_ASSERT(visible == 20, "Los 20 dígitos deben permanecer visibles tras la deformación continua");
     }
 
     Mesh_Free(&baseMesh);

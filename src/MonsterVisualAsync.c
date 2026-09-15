@@ -150,8 +150,8 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     cfg.settledMesherConfig.maxCells = 500000;
 
     cfg.morphMesherConfig = SDFMesher_DefaultConfig();
-    cfg.morphMesherConfig.voxelSize = 0.095f;
-    cfg.morphMesherConfig.maxCells = 300000;
+    cfg.morphMesherConfig.voxelSize = 0.14f;
+    cfg.morphMesherConfig.maxCells = 260000;
 
     cfg.interactiveHeadMesherConfig = SDFMesher_DefaultConfig();
     cfg.interactiveHeadMesherConfig.voxelSize = 0.024f;
@@ -164,12 +164,13 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void) {
     cfg.settledHeadMesherConfig.maxResolution = 384;
 
     cfg.morphHeadMesherConfig = SDFMesher_DefaultConfig();
-    cfg.morphHeadMesherConfig.voxelSize = 0.024f;
-    cfg.morphHeadMesherConfig.maxCells = 500000;
+    cfg.morphHeadMesherConfig.voxelSize = 0.035f;
+    cfg.morphHeadMesherConfig.maxCells = 300000;
     cfg.morphHeadMesherConfig.maxResolution = 256;
 
     cfg.sdfConfig = MonsterSDF_DefaultConfig();
     cfg.settledDelaySec = 0.15f;
+    cfg.maxGeometryAgeLag = .10f;
     return cfg;
 }
 
@@ -208,8 +209,9 @@ static void FreeMouthArray(MonsterVisualMouth* mouths, size_t count) {
 static bool WorkerShouldCancel(void* context) {
     MonsterVisualAsync* asyncMgr = (MonsterVisualAsync*)context;
     if (!asyncMgr) return true;
-    /* En movimiento sostenido se termina el snapshot en curso. Cancelarlo
-     * ante cada frame nuevo impediría publicar cualquier fase intermedia. */
+    /* En movimiento sostenido se termina el snapshot en curso para evitar
+     * bloqueos de cancelación (livelock); fuera de movimiento continuo se
+     * cancela ante una nueva solicitud pendiente para atenderla de inmediato. */
     pthread_mutex_lock(&asyncMgr->lock);
     bool cancel = asyncMgr->shouldQuit ||
         (asyncMgr->displayGeneration != 0 && !asyncMgr->continuousMotion &&
@@ -238,6 +240,14 @@ static void* WorkerThreadRoutine(void* arg) {
     Mesh workBodyMesh = Mesh_Create();
     Mesh workHeadMesh = Mesh_Create();
     LizardMorph* workerMorph = LizardMorph_Create();
+    HeadMorph* workerHeadMorph = HeadMorph_Create();
+    Monster canonicalMonster=Monster_Create();
+    LizardPhenotype canonicalPhenotype=LizardPreset_Adult();
+    bool canonicalReady=Lizard_ResolveAppearance(&canonicalMonster,&canonicalPhenotype);
+    Mesh canonicalMesh = Mesh_Create();
+    LizardMorph* canonicalMorph = LizardMorph_Create();
+    HeadMorph* canonicalHeadMorph = HeadMorph_Create();
+    bool canonicalMorphReady = false;
 
     while (1) {
         pthread_mutex_lock(&asyncMgr->lock);
@@ -256,6 +266,7 @@ static void* WorkerThreadRoutine(void* arg) {
         MonsterVisualQualityTier workTier = asyncMgr->pendingTier;
         asyncMgr->hasPendingRequest = false;
         asyncMgr->stats.isWorkerBusy = true;
+        asyncMgr->stats.workingGeometryAge=workMonster.hasGrowthAge?workMonster.growthAge:NAN;
         asyncMgr->stats.workingFingerprint=workFingerprint;
         asyncMgr->stats.workingScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
 
@@ -263,6 +274,8 @@ static void* WorkerThreadRoutine(void* arg) {
 
         /* --- TRABAJO PESADO FUERA DEL MUTEX --- */
         double tStart = GetTimeMs();
+        float sdfBuildMs=0,bodyMeshMs=0,headMeshMs=0,mappingMs=0,eyeMs=0,mouthMs=0,morphBindingMs=0,headBindingMs=0;
+        SurfaceMapperStats mappingStats={0},headMappingStats={0};
 
         SDFMesherConfig activeMesherCfg;
         SDFMesherConfig activeHeadCfg;
@@ -293,36 +306,153 @@ static void* WorkerThreadRoutine(void* arg) {
         workerMesher.config = activeMesherCfg;
         workerHeadMesher.config = activeHeadCfg;
 
+        double stageStart=GetTimeMs();
         bool buildOk = MonsterSDF_Build(&workerSdf, &workMonster, asyncMgr->config.sdfConfig);
+        sdfBuildMs=(float)(GetTimeMs()-stageStart);
         bool meshOk = false;
         bool headOk = true;
 
-        if (buildOk) {
+        if (buildOk && workTier == MONSTER_VISUAL_QUALITY_MORPH && workMonster.hasLizardPhenotype && canonicalReady) {
+            if (!canonicalMorphReady) {
+                stageStart = GetTimeMs();
+                Monster canonicalAdult = Monster_Create();
+                LizardPhenotype canonicalAdultPheno = canonicalPhenotype;
+                canonicalAdultPheno.surface = workMonster.surface;
+                canonicalAdultPheno.appendageDevelopment = 1.0f;
+                canonicalAdultPheno.cephalicDevelopment = 1.0f;
+                canonicalAdultPheno.totalScale = fmaxf(canonicalAdultPheno.totalScale, 1.0f);
+                LizardPhenotype_Normalize(&canonicalAdultPheno);
+                Lizard_ResolveAppearance(&canonicalAdult, &canonicalAdultPheno);
+
+                MonsterSDF canonicalSdf = MonsterSDF_Create();
+                MonsterSDF_Build(&canonicalSdf, &canonicalAdult, asyncMgr->config.sdfConfig);
+                SDFField field = MonsterSDF_GetField(&canonicalSdf);
+                SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];
+                size_t rCount = MonsterSDF_GetDetailRegions(&canonicalSdf, 1.6f, regions, MONSTER_SDF_DETAIL_REGION_CAPACITY);
+                for (size_t r = 0; r < rCount; ++r) {
+                    if (regions[r].targetVoxelSize < 0.004f) regions[r].targetVoxelSize = 0.004f;
+                }
+                Mesh_Clear(&canonicalMesh);
+                bool cMeshOk = SDFMesher_GenerateMeshDetailed(&workerMesher, &field, regions, rCount, &canonicalMesh);
+                sdfBuildMs += (float)(GetTimeMs() - stageStart);
+                if (cMeshOk) {
+                    stageStart = GetTimeMs();
+                    LizardMorph_Bind(canonicalMorph, &canonicalMesh, &canonicalAdult.anatomyGraph);
+                    morphBindingMs = (float)(GetTimeMs() - stageStart);
+                    stageStart = GetTimeMs();
+                    SurfaceMapper_MapMeshWithStats(&canonicalMesh, &canonicalAdult.anatomyGraph, &canonicalAdult.surfaceMapping, &mappingStats);
+                    mappingMs = (float)(GetTimeMs() - stageStart);
+                    if (canonicalAdult.hasHead && canonicalAdult.head.anatomy.attachmentBodyPartIndex < canonicalAdult.bodyPartCount) {
+                        HeadMorph_Bind(canonicalHeadMorph, &canonicalMesh, &canonicalAdult.head.anatomy,
+                                       canonicalAdult.bodyParts[canonicalAdult.head.anatomy.attachmentBodyPartIndex].positionRender);
+                        HeadMorph_MapSurface(canonicalHeadMorph, &canonicalMesh, &canonicalAdult.head.anatomy,
+                                             canonicalAdult.bodyParts[canonicalAdult.head.anatomy.attachmentBodyPartIndex].positionRender);
+                    }
+                    canonicalMorphReady = true;
+                }
+                MonsterSDF_Free(&canonicalSdf);
+                Monster_Free(&canonicalAdult);
+            }
+
+            if (canonicalMorphReady) {
+                stageStart = GetTimeMs();
+                Mesh_Clear(&workBodyMesh);
+                Mesh_ReserveVertices(&workBodyMesh, canonicalMesh.vertexCount);
+                memcpy(workBodyMesh.vertices, canonicalMesh.vertices, canonicalMesh.vertexCount * sizeof(MeshVertex));
+                workBodyMesh.vertexCount = canonicalMesh.vertexCount;
+                Mesh_ReserveIndices(&workBodyMesh, canonicalMesh.indexCount);
+                memcpy(workBodyMesh.indices, canonicalMesh.indices, canonicalMesh.indexCount * sizeof(MeshIndex));
+                workBodyMesh.indexCount = canonicalMesh.indexCount;
+                workBodyMesh.surfaceRecipe = SurfaceRecipe_Compile(&workMonster.surface);
+                workBodyMesh.hasSurface = workMonster.hasSurface;
+
+                bool defOk = LizardMorph_Deform(canonicalMorph, &workMonster.anatomyGraph, &workBodyMesh);
+                if (defOk && workMonster.hasHead && workMonster.head.anatomy.attachmentBodyPartIndex < workMonster.bodyPartCount) {
+                    HeadMorph_Deform(canonicalHeadMorph, &workBodyMesh, &workMonster.head.anatomy,
+                                     workMonster.bodyParts[workMonster.head.anatomy.attachmentBodyPartIndex].positionRender);
+                }
+                bodyMeshMs = (float)(GetTimeMs() - stageStart);
+                Mesh_Clear(&workHeadMesh);
+
+                LizardMorph_Copy(workerMorph, canonicalMorph);
+                HeadMorph_Copy(workerHeadMorph, canonicalHeadMorph);
+                meshOk = defOk;
+                headOk = true;
+            }
+        } else if (buildOk) {
             MonsterSDFBodyField bodyContext;
             SDFField field = MonsterSDF_GetBodyField(&workerSdf,&bodyContext);
             Mesh_Clear(&workBodyMesh);
             SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];
+            float sampleRate = (workTier == MONSTER_VISUAL_QUALITY_SETTLED) ? 6.0f :
+                               ((workTier == MONSTER_VISUAL_QUALITY_MORPH) ? 1.6f : 3.5f);
             size_t regionCount=MonsterSDF_GetDetailRegions(&workerSdf,
-                workTier==MONSTER_VISUAL_QUALITY_SETTLED?6.0f:3.5f,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
+                sampleRate,
+                regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
+            if (workTier == MONSTER_VISUAL_QUALITY_MORPH) {
+                for (size_t r = 0; r < regionCount; ++r) {
+                    if (regions[r].targetVoxelSize < 0.004f) {
+                        regions[r].targetVoxelSize = 0.004f;
+                    }
+                }
+            }
             if(workerSdf.axialStationCount>1) field=MonsterSDF_GetField(&workerSdf);
+            stageStart=GetTimeMs();
             meshOk = workerSdf.axialStationCount>1 ?
                 SDFMesher_GenerateMeshDetailed(&workerMesher,&field,regions,regionCount,&workBodyMesh):
                 SDFMesher_GenerateMesh(&workerMesher, &field, &workBodyMesh);
+            bodyMeshMs=(float)(GetTimeMs()-stageStart);
             Mesh_Clear(&workHeadMesh);
             if(meshOk&&workerSdf.hasPartitionedHead&&workerSdf.axialStationCount==0) {
                 MonsterSDFHeadField headContext;
                 SDFField headField=MonsterSDF_GetHeadField(&workerSdf,0,&headContext);
+                stageStart=GetTimeMs();
                 headOk=SDFMesher_GenerateMesh(&workerHeadMesher,&headField,&workHeadMesh)&&
                        Mesh_KeepLargestComponent(&workHeadMesh);
+                headMeshMs=(float)(GetTimeMs()-stageStart);
+            }
+
+            if(meshOk && headOk) {
+                bool bound=false;
+                if(workMonster.hasAnatomyGraph && workerMorph) {
+                    stageStart=GetTimeMs();
+                    bound=LizardMorph_Bind(workerMorph,&workBodyMesh,&workMonster.anatomyGraph);
+                    morphBindingMs=(float)(GetTimeMs()-stageStart);
+                }
+                stageStart=GetTimeMs();
+                /* La especie aporta el dominio adulto de referencia; el mapeador y
+                 * el deformador comparten exactamente las mismas influencias. */
+                if(!bound || !canonicalReady || !workMonster.hasLizardPhenotype ||
+                   !SurfaceMapper_MapBoundMesh(&workBodyMesh,workerMorph,
+                    &canonicalMonster.anatomyGraph,&workMonster.surfaceMapping,&mappingStats))
+                    SurfaceMapper_MapMeshWithStats(&workBodyMesh,&workMonster.anatomyGraph,&workMonster.surfaceMapping,&mappingStats);
+                SurfaceMapper_MapMeshWithStats(&workHeadMesh,&workMonster.anatomyGraph,&workMonster.surfaceMapping,&headMappingStats);
+                mappingMs=(float)(GetTimeMs()-stageStart);
+                mappingStats.verticesProcessed+=headMappingStats.verticesProcessed;
+                mappingStats.candidateTests+=headMappingStats.candidateTests;
+                mappingStats.bruteForceTests+=headMappingStats.bruteForceTests;
+                mappingStats.durationMs+=headMappingStats.durationMs;
+                mappingStats.averageCandidatesPerVertex=mappingStats.verticesProcessed?
+                    (float)mappingStats.candidateTests/(float)mappingStats.verticesProcessed:0;
+                workBodyMesh.surfaceRecipe=workHeadMesh.surfaceRecipe=SurfaceRecipe_Compile(&workMonster.surface);
+                workBodyMesh.hasSurface=workHeadMesh.hasSurface=workMonster.hasSurface;
+                stageStart=GetTimeMs();
+                if(workMonster.hasHead && workMonster.head.anatomy.attachmentBodyPartIndex<workMonster.bodyPartCount)
+                    HeadMorph_Bind(workerHeadMorph,&workBodyMesh,&workMonster.head.anatomy,
+                        workMonster.bodyParts[workMonster.head.anatomy.attachmentBodyPartIndex].positionRender);
+                if(canonicalReady && workMonster.hasLizardPhenotype)
+                    HeadMorph_MapSurface(workerHeadMorph,&workBodyMesh,&canonicalMonster.head.anatomy,
+                        canonicalMonster.bodyParts[canonicalMonster.head.anatomy.attachmentBodyPartIndex].positionRender);
+                headBindingMs=(float)(GetTimeMs()-stageStart);
             }
         }
-
         /* Generar mallas primitivas de ojos */
         MonsterVisualEyeAsync* workEyes = NULL;
         size_t workEyeCount = workMonster.eyeCount;
         bool eyeOk = true;
 
         if (meshOk && headOk && workEyeCount > 0) {
+            stageStart=GetTimeMs();
             workEyes = (MonsterVisualEyeAsync*)calloc(workEyeCount, sizeof(MonsterVisualEyeAsync));
             if (workEyes) {
                 for (size_t i = 0; i < workEyeCount; ++i) {
@@ -336,6 +466,7 @@ static void* WorkerThreadRoutine(void* arg) {
             } else {
                 eyeOk = false;
             }
+            eyeMs=(float)(GetTimeMs()-stageStart);
         }
 
         MonsterVisualMouth* workMouths = NULL;
@@ -343,6 +474,7 @@ static void* WorkerThreadRoutine(void* arg) {
         bool mouthOk = true;
 
         if (meshOk && headOk && workMouthCount > 0) {
+            stageStart=GetTimeMs();
             workMouths = (MonsterVisualMouth*)calloc(workMouthCount, sizeof(MonsterVisualMouth));
             if (!workMouths) {
                 mouthOk = false;
@@ -354,6 +486,7 @@ static void* WorkerThreadRoutine(void* arg) {
                     }
                 }
             }
+            mouthMs=(float)(GetTimeMs()-stageStart);
         }
 
         float workScale=workMonster.hasLizardPhenotype?workMonster.lizardPhenotype.totalScale:0;
@@ -361,9 +494,14 @@ static void* WorkerThreadRoutine(void* arg) {
         float durationMs = (float)(tEnd - tStart);
 
         /* --- DEPOSITAR RESULTADO EN READY BUFFER DENTRO DEL MUTEX --- */
+        double publicationStart=GetTimeMs();
         pthread_mutex_lock(&asyncMgr->lock);
 
-        if (buildOk && meshOk && headOk && eyeOk && mouthOk && !asyncMgr->shouldQuit &&
+        bool stale=asyncMgr->displayGeneration!=0 && asyncMgr->hasPendingRequest &&
+            !asyncMgr->continuousMotion &&
+            asyncMgr->config.maxGeometryAgeLag>0 &&
+            fabsf(asyncMgr->stats.targetAge-asyncMgr->stats.workingGeometryAge)>asyncMgr->config.maxGeometryAgeLag;
+        if (buildOk && meshOk && headOk && eyeOk && mouthOk && !stale && !asyncMgr->shouldQuit &&
             !(asyncMgr->displayFingerprint==asyncMgr->stats.requestedFingerprint && workFingerprint!=asyncMgr->stats.requestedFingerprint)) {
             /* Liberar readyEyes anterior */
             FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
@@ -379,6 +517,8 @@ static void* WorkerThreadRoutine(void* arg) {
             LizardMorph* tmpMorph = asyncMgr->readyMorph;
             asyncMgr->readyMorph = workerMorph;
             workerMorph = tmpMorph;
+            HeadMorph* tmpHeadMorph=asyncMgr->readyHeadMorph;
+            asyncMgr->readyHeadMorph=workerHeadMorph;workerHeadMorph=tmpHeadMorph;
 
             asyncMgr->readyEyes = workEyes;
             asyncMgr->readyEyeCount = workEyeCount;
@@ -386,6 +526,8 @@ static void* WorkerThreadRoutine(void* arg) {
             asyncMgr->readyGeneration++;
             asyncMgr->readyFingerprint = workFingerprint;
             asyncMgr->readyScale=workScale;
+            asyncMgr->readyAppendageDevelopment=workMonster.hasLizardPhenotype?
+                workMonster.lizardPhenotype.appendageDevelopment:1;
             asyncMgr->readyTier = workTier;
             FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
             asyncMgr->readyMouths = workMouths;
@@ -395,15 +537,22 @@ static void* WorkerThreadRoutine(void* arg) {
 
             asyncMgr->stats.completedBuildCount++;
             asyncMgr->stats.lastBuildDurationMs = durationMs;
+            asyncMgr->stats.sdfBuildMs=sdfBuildMs;asyncMgr->stats.bodyMeshMs=bodyMeshMs;
+            asyncMgr->stats.headMeshMs=headMeshMs;asyncMgr->stats.surfaceMappingMs=mappingMs;
+            asyncMgr->stats.eyeBuildMs=eyeMs;asyncMgr->stats.mouthBuildMs=mouthMs;
+            asyncMgr->stats.morphBindingMs=morphBindingMs;asyncMgr->stats.headBindingMs=headBindingMs;
+            asyncMgr->stats.surfaceMapper=mappingStats;
             asyncMgr->stats.activeQualityTier = workTier;
             asyncMgr->stats.bodyMesher=*SDFMesher_GetLastStats(&workerMesher);
             if(workerSdf.hasPartitionedHead&&workerSdf.axialStationCount==0)asyncMgr->stats.headMesher=*SDFMesher_GetLastStats(&workerHeadMesher);
             else memset(&asyncMgr->stats.headMesher,0,sizeof(asyncMgr->stats.headMesher));
+            asyncMgr->stats.readyPublicationMs=(float)(GetTimeMs()-publicationStart);
             asyncMgr->readyStats=asyncMgr->stats;
         } else {
             if (workEyes) FreeEyeArray(workEyes, workEyeCount);
             if (workMouths) FreeMouthArray(workMouths, workMouthCount);
             if (!meshOk) asyncMgr->stats.cancelledBuildCount++;
+            else if(stale)asyncMgr->stats.staleBuildDiscardedCount++;
         }
 
         asyncMgr->stats.isWorkerBusy = false;
@@ -411,6 +560,11 @@ static void* WorkerThreadRoutine(void* arg) {
     }
 
     LizardMorph_Free(workerMorph);
+    HeadMorph_Free(workerHeadMorph);
+    Monster_Free(&canonicalMonster);
+    Mesh_Free(&canonicalMesh);
+    LizardMorph_Free(canonicalMorph);
+    HeadMorph_Free(canonicalHeadMorph);
     Mesh_Free(&workBodyMesh);
     Mesh_Free(&workHeadMesh);
     SDFMesher_Free(&workerMesher);
@@ -433,6 +587,7 @@ MonsterVisualAsync* MonsterVisualAsync_Create(MonsterVisualAsyncConfig config) {
     asyncMgr->displayHeadMesh = Mesh_Create();
     asyncMgr->readyHeadMesh = Mesh_Create();
     asyncMgr->pendingSnapshot = Monster_Create();
+    asyncMgr->displayHeadMorph=HeadMorph_Create();asyncMgr->readyHeadMorph=HeadMorph_Create();
     asyncMgr->displayMorph = LizardMorph_Create();
     asyncMgr->readyMorph = LizardMorph_Create();
     asyncMgr->samplingPool = SDFSamplingPool_Create(0);
@@ -476,6 +631,7 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
     FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
     FreeMouthArray(asyncMgr->readyMouths, asyncMgr->readyMouthCount);
 
+    HeadMorph_Free(asyncMgr->displayHeadMorph);HeadMorph_Free(asyncMgr->readyHeadMorph);
     LizardMorph_Free(asyncMgr->displayMorph);
     LizardMorph_Free(asyncMgr->readyMorph);
 
@@ -505,8 +661,9 @@ void MonsterVisualAsync_SetMorphMode(MonsterVisualAsync* asyncMgr, bool active) 
     asyncMgr->morphMode = active;
 }
 
-bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* monster, float deltaTime) {
-    if (!asyncMgr || !monster) return false;
+bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
+    const Monster* monster,const Monster* appearance,float deltaTime) {
+    if (!asyncMgr || !monster || !appearance) return false;
 
     /* 1. Detectar movimiento y actualizar temporizador de tier de calidad */
     uint64_t baseGeomHash = ComputeMonsterFingerprint(monster, asyncMgr->config.sdfConfig, MONSTER_VISUAL_QUALITY_INTERACTIVE);
@@ -523,13 +680,18 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         activeMotionTier : MONSTER_VISUAL_QUALITY_SETTLED;
 
     uint64_t targetFingerprint = ComputeMonsterFingerprint(monster, asyncMgr->config.sdfConfig, targetTier);
+    uint64_t presentationFingerprint=ComputeMonsterFingerprint(appearance,asyncMgr->config.sdfConfig,
+        MONSTER_VISUAL_QUALITY_INTERACTIVE);
 
     bool updatedDisplay = false;
 
     pthread_mutex_lock(&asyncMgr->lock);
 
+    asyncMgr->stats.targetAge=appearance->hasGrowthAge?appearance->growthAge:NAN;
+
     /* 2. Si hay malla lista generada por el worker, swap hacia el front buffer (Display) */
     if (asyncMgr->hasReadyMesh) {
+        double publicationStart=GetTimeMs();
         FreeEyeArray(asyncMgr->displayEyes, asyncMgr->displayEyeCount);
 
         Mesh tmp = asyncMgr->displayMesh;
@@ -542,6 +704,8 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         LizardMorph* tmpMorph = asyncMgr->displayMorph;
         asyncMgr->displayMorph = asyncMgr->readyMorph;
         asyncMgr->readyMorph = tmpMorph;
+        HeadMorph* tmpHeadMorph=asyncMgr->displayHeadMorph;
+        asyncMgr->displayHeadMorph=asyncMgr->readyHeadMorph;asyncMgr->readyHeadMorph=tmpHeadMorph;
 
         asyncMgr->displayEyes = asyncMgr->readyEyes;
         asyncMgr->displayEyeCount = asyncMgr->readyEyeCount;
@@ -561,15 +725,29 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         asyncMgr->displayGeneration = asyncMgr->readyGeneration;
         asyncMgr->displayFingerprint = asyncMgr->readyFingerprint;
         asyncMgr->stats.displayedFingerprint=asyncMgr->readyFingerprint;
+        asyncMgr->stats.displayedGeometryAge=asyncMgr->readyStats.workingGeometryAge;
+        asyncMgr->stats.presentedMorphAge=asyncMgr->stats.displayedGeometryAge;
         asyncMgr->stats.displayedScale=asyncMgr->readyScale;
+        asyncMgr->stats.presentedScale=asyncMgr->readyScale;
+        asyncMgr->displayAppendageDevelopment=asyncMgr->readyAppendageDevelopment;
         asyncMgr->displayStats=asyncMgr->readyStats;
         asyncMgr->hasReadyMesh = false;
+        asyncMgr->stats.displayPublicationMs=(float)(GetTimeMs()-publicationStart);
         updatedDisplay = true;
     }
 
     /* 3. Comprobar si se requiere solicitar una nueva reconstrucción */
     bool isPendingMatch = asyncMgr->hasPendingRequest && (asyncMgr->pendingFingerprint == targetFingerprint);
     bool isDisplayMatch = (asyncMgr->displayFingerprint == targetFingerprint);
+    if(asyncMgr->displayGeneration>0) {
+        SurfaceRecipe recipe=SurfaceRecipe_Compile(&appearance->surface);
+        asyncMgr->displayMesh.surfaceRecipe=asyncMgr->displayHeadMesh.surfaceRecipe=recipe;
+        asyncMgr->displayMesh.hasSurface=asyncMgr->displayHeadMesh.hasSurface=appearance->hasSurface;
+        for(size_t i=0;i<asyncMgr->displayMouthCount;++i) {
+            asyncMgr->displayMouths[i].jaw.surfaceRecipe=asyncMgr->displayMouths[i].hinge.surfaceRecipe=recipe;
+            asyncMgr->displayMouths[i].jaw.hasSurface=asyncMgr->displayMouths[i].hinge.hasSurface=appearance->hasSurface;
+        }
+    }
 
     bool isWorkingMatch=asyncMgr->stats.isWorkerBusy && asyncMgr->stats.workingFingerprint==targetFingerprint;
     asyncMgr->stats.requestedFingerprint=targetFingerprint;
@@ -582,6 +760,7 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
             asyncMgr->stats.coalescedCount++;
         }
 
+        asyncMgr->stats.pendingGeometryAge=monster->hasGrowthAge?monster->growthAge:NAN;
         Monster_CopyInto(&asyncMgr->pendingSnapshot, monster);
         asyncMgr->pendingFingerprint = targetFingerprint;
         asyncMgr->pendingTier = targetTier;
@@ -591,42 +770,65 @@ bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* mons
         pthread_cond_signal(&asyncMgr->cond);
     }
 
-    bool allowLiveArticulation = isDisplayMatch;
+    bool presentationChanged=updatedDisplay || presentationFingerprint!=asyncMgr->lastPresentedFingerprint;
+    asyncMgr->lastPresentedFingerprint=presentationFingerprint;
+    bool allowLiveArticulation = isDisplayMatch && presentationChanged;
 
     pthread_mutex_unlock(&asyncMgr->lock);
 
-    /* Una metamorfosis puede crear superficie: deformar la topología anterior
-     * no representa el resultado del ager. Cuerpo, color y anexos pertenecen
-     * siempre al mismo snapshot publicado, también en MORPH. */
+    /* La anatomía y la jaula cefálica deforman el snapshot publicado;
+     * las nuevas ramas anatómicas aparecen mediante keyframes del worker. */
+
+    bool separatedChannels=appearance!=monster;
+    bool presentedMorph=false;
+    if(separatedChannels && presentationChanged && asyncMgr->morphMode && asyncMgr->displayGeneration>0 && appearance->hasAnatomyGraph &&
+       asyncMgr->displayMorph && LizardMorph_IsBound(asyncMgr->displayMorph) &&
+       LizardMorph_GetVertexCount(asyncMgr->displayMorph)==asyncMgr->displayMesh.vertexCount) {
+        double deformStart=GetTimeMs();
+        presentedMorph=LizardMorph_Deform(asyncMgr->displayMorph,&appearance->anatomyGraph,&asyncMgr->displayMesh);
+        if(presentedMorph && appearance->hasHead && appearance->head.anatomy.attachmentBodyPartIndex<appearance->bodyPartCount)
+            HeadMorph_Deform(asyncMgr->displayHeadMorph,&asyncMgr->displayMesh,&appearance->head.anatomy,
+                appearance->bodyParts[appearance->head.anatomy.attachmentBodyPartIndex].positionRender);
+        pthread_mutex_lock(&asyncMgr->lock);
+        asyncMgr->stats.morphDeformMs=(float)(GetTimeMs()-deformStart);
+        if(presentedMorph)asyncMgr->stats.presentedMorphAge=appearance->hasGrowthAge?appearance->growthAge:NAN;
+        if(presentedMorph)asyncMgr->stats.presentedScale=appearance->hasLizardPhenotype?appearance->lizardPhenotype.totalScale:0;
+        pthread_mutex_unlock(&asyncMgr->lock);
+    }
+    allowLiveArticulation=allowLiveArticulation||presentedMorph;
 
     /* Ojos: actualización continua de posición y escala morfológica en tiempo real */
-    if (allowLiveArticulation && monster->eyeCount > 0) {
-        if (asyncMgr->displayEyeCount < monster->eyeCount) {
+    if (allowLiveArticulation && appearance->eyeCount > 0) {
+        if (asyncMgr->displayEyeCount < appearance->eyeCount) {
             FreeEyeArray(asyncMgr->displayEyes, asyncMgr->displayEyeCount);
-            asyncMgr->displayEyes = (MonsterVisualEyeAsync*)calloc(monster->eyeCount, sizeof(MonsterVisualEyeAsync));
+            asyncMgr->displayEyes = (MonsterVisualEyeAsync*)calloc(appearance->eyeCount, sizeof(MonsterVisualEyeAsync));
             if (asyncMgr->displayEyes) {
-                for (size_t i = 0; i < monster->eyeCount; ++i) {
+                for (size_t i = 0; i < appearance->eyeCount; ++i) {
                     asyncMgr->displayEyes[i].sclera = Mesh_Create();
                     asyncMgr->displayEyes[i].iris = Mesh_Create();
                     asyncMgr->displayEyes[i].pupil = Mesh_Create();
                 }
-                asyncMgr->displayEyeCount = monster->eyeCount;
-                asyncMgr->displayEyeCapacity = monster->eyeCount;
+                asyncMgr->displayEyeCount = appearance->eyeCount;
+                asyncMgr->displayEyeCapacity = appearance->eyeCount;
             }
         }
-        if (asyncMgr->displayEyes && asyncMgr->displayEyeCount >= monster->eyeCount) {
-            MonsterVisual_UpdateEyes(asyncMgr->displayEyes, asyncMgr->displayEyeCount, monster);
+        if (asyncMgr->displayEyes && asyncMgr->displayEyeCount >= appearance->eyeCount) {
+            MonsterVisual_UpdateEyes(asyncMgr->displayEyes, asyncMgr->displayEyeCount, appearance);
         }
     }
 
     /* Mandíbula: actualización continua de articulación y escalado morfológico */
     if (allowLiveArticulation) {
-        for (size_t i = 0; i < asyncMgr->displayMouthCount && i < monster->mouthCount; ++i) {
-            MonsterVisual_UpdateMouthArticulation(&asyncMgr->displayMouths[i], &monster->mouths[i], monster);
+        for (size_t i = 0; i < asyncMgr->displayMouthCount && i < appearance->mouthCount; ++i) {
+            MonsterVisual_UpdateMouthArticulation(&asyncMgr->displayMouths[i], &appearance->mouths[i], appearance);
         }
     }
 
     return updatedDisplay;
+}
+
+bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr,const Monster* monster,float deltaTime) {
+    return MonsterVisualAsync_UpdateWithAppearance(asyncMgr,monster,monster,deltaTime);
 }
 
 const Mesh* MonsterVisualAsync_GetDisplayMesh(const MonsterVisualAsync* asyncMgr) {
@@ -711,8 +913,17 @@ MonsterVisualAsyncStats MonsterVisualAsync_GetStats(const MonsterVisualAsync* as
 
     pthread_mutex_lock((pthread_mutex_t*)&asyncMgr->lock);
     s = asyncMgr->stats;
+    s.geometryLag=fabsf(s.targetAge-s.displayedGeometryAge);
+    if(!s.isWorkerBusy)s.workingGeometryAge=NAN;
+    if(!asyncMgr->hasPendingRequest)s.pendingGeometryAge=NAN;
     if(asyncMgr->displayGeneration>0) {
         s.lastBuildDurationMs=asyncMgr->displayStats.lastBuildDurationMs;
+        s.sdfBuildMs=asyncMgr->displayStats.sdfBuildMs;s.bodyMeshMs=asyncMgr->displayStats.bodyMeshMs;
+        s.headMeshMs=asyncMgr->displayStats.headMeshMs;s.surfaceMappingMs=asyncMgr->displayStats.surfaceMappingMs;
+        s.eyeBuildMs=asyncMgr->displayStats.eyeBuildMs;s.mouthBuildMs=asyncMgr->displayStats.mouthBuildMs;
+        s.morphBindingMs=asyncMgr->displayStats.morphBindingMs;s.headBindingMs=asyncMgr->displayStats.headBindingMs;
+        s.readyPublicationMs=asyncMgr->displayStats.readyPublicationMs;
+        s.surfaceMapper=asyncMgr->displayStats.surfaceMapper;
         s.activeQualityTier=asyncMgr->displayStats.activeQualityTier;
         s.bodyMesher=asyncMgr->displayStats.bodyMesher;
         s.headMesher=asyncMgr->displayStats.headMesher;
@@ -737,6 +948,7 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
     /* Intercambiar si quedó algo en readyMesh */
     pthread_mutex_lock(&asyncMgr->lock);
     if (asyncMgr->hasReadyMesh) {
+        double publicationStart=GetTimeMs();
         FreeEyeArray(asyncMgr->displayEyes, asyncMgr->displayEyeCount);
 
         Mesh tmp = asyncMgr->displayMesh;
@@ -749,6 +961,8 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
         LizardMorph* tmpMorph = asyncMgr->displayMorph;
         asyncMgr->displayMorph = asyncMgr->readyMorph;
         asyncMgr->readyMorph = tmpMorph;
+        HeadMorph* tmpHeadMorph=asyncMgr->displayHeadMorph;
+        asyncMgr->displayHeadMorph=asyncMgr->readyHeadMorph;asyncMgr->readyHeadMorph=tmpHeadMorph;
 
         asyncMgr->displayEyes = asyncMgr->readyEyes;
         asyncMgr->displayEyeCount = asyncMgr->readyEyeCount;
@@ -768,9 +982,14 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
         asyncMgr->displayGeneration = asyncMgr->readyGeneration;
         asyncMgr->displayFingerprint = asyncMgr->readyFingerprint;
         asyncMgr->stats.displayedFingerprint=asyncMgr->readyFingerprint;
+        asyncMgr->stats.displayedGeometryAge=asyncMgr->readyStats.workingGeometryAge;
+        asyncMgr->stats.presentedMorphAge=asyncMgr->stats.displayedGeometryAge;
         asyncMgr->stats.displayedScale=asyncMgr->readyScale;
+        asyncMgr->stats.presentedScale=asyncMgr->readyScale;
+        asyncMgr->displayAppendageDevelopment=asyncMgr->readyAppendageDevelopment;
         asyncMgr->displayStats=asyncMgr->readyStats;
         asyncMgr->hasReadyMesh = false;
+        asyncMgr->stats.displayPublicationMs=(float)(GetTimeMs()-publicationStart);
     }
     pthread_mutex_unlock(&asyncMgr->lock);
 }

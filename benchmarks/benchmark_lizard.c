@@ -14,7 +14,7 @@ int main(int argc,char**argv) {
     if(!Lizard_BuildMonster(&a,&pa)||!Lizard_BuildMonster(&b,&pb))return 1;
     Monster_SetHeadOpenFactor(&a,.1f);Monster_SetHeadOpenFactor(&b,.1f);
     MonsterAger ag=MonsterAger_Create(&a,&b,0);
-    puts("age,tier,iteration,ms,cells,active,refined,distance_samples,attribute_samples,triangles,min_step,max_step,detail_ratio,budget_adjusted,detail_degraded,boundary_edges,nostril_vertices,orbit_vertices,connector_candidates,connector_exact,connector_pruned");
+    puts("age,tier,iteration,total_ms,sdf_ms,body_mesh_ms,head_mesh_ms,surface_map_ms,mouth_ms,map_candidates_per_vertex,map_tests,map_bruteforce,cells,active,refined,distance_samples,attribute_samples,triangles,min_step,max_step,detail_ratio,budget_adjusted,detail_degraded,boundary_edges,nostril_vertices,orbit_vertices,connector_candidates,connector_exact,connector_pruned");
     const float ages[]={0,.10f,.25f,.50f,.75f,.90f,1};
     for(unsigned i=0;i<7;++i) {
         MonsterAger_SetPerc(&ag,ages[i]);
@@ -26,8 +26,11 @@ int main(int argc,char**argv) {
                 MonsterVisualAsyncStats async=MonsterVisualAsync_GetStats(v);SDFMesherStats s=async.bodyMesher;
                 const Mesh* mesh=MonsterVisualAsync_GetDisplayMesh(v);MeshValidationResult validation=Mesh_Validate(mesh);
                 size_t nose=0,orbit=0;for(size_t j=0;j<mesh->vertexCount;++j){nose+=mesh->vertices[j].material==SDF_MATERIAL_NOSTRIL;orbit+=mesh->vertices[j].material==SDF_MATERIAL_EYE_SOCKET;}
-                printf("%.2f,%s,%d,%.3f,%zu,%zu,%zu,%zu,%zu,%zu,%.6f,%.6f,%.4f,%d,%d,%zu,%zu,%zu,%zu,%zu,%zu\n",
-                    ages[i],q==2?"settled":q==1?"morph":"interactive",rep,async.lastBuildDurationMs,s.cellCount,s.activeCellCount,s.refinedCellCount,
+                printf("%.2f,%s,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%.6f,%.6f,%.4f,%d,%d,%zu,%zu,%zu,%zu,%zu,%zu\n",
+                    ages[i],q==2?"settled":q==1?"morph":"interactive",rep,async.lastBuildDurationMs,
+                    async.sdfBuildMs,async.bodyMeshMs,async.headMeshMs,async.surfaceMappingMs,async.mouthBuildMs,
+                    async.surfaceMapper.averageCandidatesPerVertex,async.surfaceMapper.candidateTests,async.surfaceMapper.bruteForceTests,
+                    s.cellCount,s.activeCellCount,s.refinedCellCount,
                     s.distanceEvaluationCount,s.fullSampleEvaluationCount,s.generatedTriangleCount,s.minimumVoxelSize,s.effectiveVoxelSize,
                     s.detailSpacingRatio,s.cellBudgetAdjusted,s.detailBudgetAdjusted,validation.boundaryEdgeCount,nose,orbit,s.connectorCandidateCount,s.connectorExactEvaluationCount,s.connectorPrunedCount);
                 fflush(stdout);if(!validation.valid||!validation.watertight||nose==0||orbit==0)return 2;

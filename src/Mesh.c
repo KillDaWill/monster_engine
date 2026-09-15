@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdatomic.h>
+
+static _Atomic uint64_t nextMeshIdentity=1;
 
 typedef struct MeshEdge { MeshIndex a; MeshIndex b; } MeshEdge;
 typedef struct MeshTriangleKey { MeshIndex a; MeshIndex b; MeshIndex c; } MeshTriangleKey;
@@ -34,6 +37,8 @@ static void SortThree(MeshIndex* a, MeshIndex* b, MeshIndex* c) {
 Mesh Mesh_Create(void) {
     Mesh mesh;
     memset(&mesh, 0, sizeof(Mesh));
+    mesh.identity=atomic_fetch_add(&nextMeshIdentity,1);
+    if(!mesh.identity)mesh.identity=atomic_fetch_add(&nextMeshIdentity,1);
     return mesh;
 }
 
@@ -59,6 +64,18 @@ void Mesh_Clear(Mesh* mesh) {
     if (!mesh) return;
     mesh->vertexCount = 0;
     mesh->indexCount = 0;
+    Mesh_MarkGeometryChanged(mesh);
+    Mesh_MarkSurfaceChanged(mesh);
+}
+
+void Mesh_MarkGeometryChanged(Mesh* mesh) {
+    if (!mesh) return;
+    if (++mesh->geometryGeneration == 0) mesh->geometryGeneration = 1;
+}
+
+void Mesh_MarkSurfaceChanged(Mesh* mesh) {
+    if (!mesh) return;
+    if (++mesh->surfaceGeneration == 0) mesh->surfaceGeneration = 1;
 }
 
 bool Mesh_ReserveVertices(Mesh* mesh, size_t capacity) {
@@ -101,6 +118,8 @@ bool Mesh_AddVertex(Mesh* mesh, MeshVertex vertex, MeshIndex* outIndex) {
 
     size_t index = mesh->vertexCount;
     mesh->vertices[mesh->vertexCount++] = vertex;
+    Mesh_MarkGeometryChanged(mesh);
+    Mesh_MarkSurfaceChanged(mesh);
     if (outIndex) *outIndex = (MeshIndex)index;
     return true;
 }
@@ -121,6 +140,7 @@ bool Mesh_AddTriangle(Mesh* mesh, MeshIndex a, MeshIndex b, MeshIndex c) {
     mesh->indices[mesh->indexCount++] = a;
     mesh->indices[mesh->indexCount++] = b;
     mesh->indices[mesh->indexCount++] = c;
+    Mesh_MarkGeometryChanged(mesh);
     return true;
 }
 
@@ -279,6 +299,7 @@ bool Mesh_KeepLargestComponent(Mesh* mesh) {
         return true;
     }
     Mesh compacted = Mesh_Create();
+    compacted.surfaceRecipe=mesh->surfaceRecipe; compacted.hasSurface=mesh->hasSurface;
     if (!Mesh_ReserveVertices(&compacted, mesh->vertexCount) ||
         !Mesh_ReserveIndices(&compacted, largestTriangles * 3)) {
         Mesh_Free(&compacted); free(parent); free(triangleCounts); free(remap);
