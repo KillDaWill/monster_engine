@@ -14,7 +14,9 @@
 #include "SDFMesher.h"
 #include "Mesh.h"
 #include "MonsterVisual.h"
+#include "SurfaceMapper.h"
 #include "LizardMorph.h"
+#include "HeadMorph.h"
 #include "RenderInterfaces.h"
 #include <pthread.h>
 #include <stdbool.h>
@@ -46,6 +48,7 @@ typedef struct MonsterVisualAsyncConfig {
     SDFMesherConfig settledHeadMesherConfig; /**< Calidad local cefálica asentada. */
     SDFMesherConfig morphHeadMesherConfig;   /**< Calidad local cefálica durante MORPH. */
     MonsterSDFConfig sdfConfig;              /**< Configuración del campo SDF del monstruo */
+    float maxGeometryAgeLag; /**< Cancela snapshots obsoletos; cero desactiva el límite. */
     float settledDelaySec;                   /**< Tiempo en segundos sin cambios para escalar a SETTLED */
 } MonsterVisualAsyncConfig;
 
@@ -56,11 +59,21 @@ typedef struct MonsterVisualAsyncConfig {
 typedef struct MonsterVisualAsyncStats {
     uint64_t requestedFingerprint, workingFingerprint, displayedFingerprint; /**< Identidades de snapshots. */
     float workingScale, displayedScale; /**< Escala semántica de generación y presentación. */
+    float targetAge, presentedMorphAge, displayedGeometryAge; /**< Edades independientes; NAN si no proceden de Ager. */
+    float workingGeometryAge, pendingGeometryAge; /**< Snapshot en curso y último pendiente. */
+    float geometryLag; /**< Diferencia absoluta objetivo-geometría. */
+    float presentedScale; /**< Escala continua realmente deformada en pantalla. */
     uint64_t requestCount;                  /**< Total de solicitudes enviadas al hilo worker */
     uint64_t completedBuildCount;           /**< Reconstrucciones completadas exitosamente */
     uint64_t cancelledBuildCount;           /**< Reconstrucciones canceladas por quedar obsoletas */
+    uint64_t staleBuildDiscardedCount; /**< Construcciones terminadas fuera del límite de edad. */
     uint64_t coalescedCount;                /**< Solicitudes intermedias descartadas por coalescencia */
     float lastBuildDurationMs;              /**< Duración de la última reconstrucción en milisegundos */
+    float sdfBuildMs,bodyMeshMs,headMeshMs; /**< Etapas CPU del último snapshot. */
+    float surfaceMappingMs,eyeBuildMs,mouthBuildMs;
+    float morphBindingMs,morphDeformMs,headBindingMs;
+    float readyPublicationMs,displayPublicationMs;
+    SurfaceMapperStats surfaceMapper;       /**< Candidatos anatómicos realmente evaluados. */
     bool isWorkerBusy;                     /**< Indica si el worker está construyendo una malla activamente */
     MonsterVisualQualityTier activeQualityTier; /**< Tier de calidad usado en la malla mostrada */
     SDFMesherStats bodyMesher;              /**< Rejilla efectiva del cuerpo grueso. */
@@ -112,6 +125,8 @@ typedef struct MonsterVisualAsync {
     uint64_t readyGeneration;
     uint64_t readyFingerprint;
     float readyScale; /**< Escala del snapshot publicado. */
+    float readyAppendageDevelopment; /**< Fase topológica del snapshot listo. */
+    float displayAppendageDevelopment; /**< Fase topológica de la malla visible. */
     MonsterVisualQualityTier readyTier;
     MonsterVisualMouth* readyMouths;
     size_t readyMouthCount;
@@ -119,9 +134,12 @@ typedef struct MonsterVisualAsync {
 
     /* Control de temporización de movimiento para cambio de tier */
     uint64_t lastObservedFingerprint;
+    uint64_t lastPresentedFingerprint; /**< Evita redeformar/recrear anexos sin cambios. */
     float timeSinceLastMotionSec;
     bool continuousMotion; /**< Evita asentamientos durante una interacción sostenida. */
     bool morphMode;        /**< Utiliza el tier MORPH en lugar de INTERACTIVE durante movimiento continuo */
+    HeadMorph* displayHeadMorph; /**< Jaula cefálica publicada. */
+    HeadMorph* readyHeadMorph; /**< Jaula cefálica lista. */
     LizardMorph* displayMorph; /**< Deformador morfológico en tiempo real para display */
     LizardMorph* readyMorph;   /**< Deformador morfológico listo para transferir */
     struct SDFSamplingPool* samplingPool; /**< Pool persistente de hilos compartido con los meshers */
@@ -166,6 +184,10 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr);
  * @return true si la malla mostrada (displayMesh) fue actualizada en este fotograma.
  */
 bool MonsterVisualAsync_Update(MonsterVisualAsync* asyncMgr, const Monster* monster, float deltaTime);
+
+/** @brief Actualiza geometría cuantizada y apariencia continua por canales separados. */
+bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
+    const Monster* geometryMonster,const Monster* appearanceMonster,float deltaTime);
 
 /** @brief Mantiene el tier interactivo durante una animación; libera settled al detenerse. */
 void MonsterVisualAsync_SetContinuousMotion(MonsterVisualAsync* asyncMgr,bool active);

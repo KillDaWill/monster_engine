@@ -231,7 +231,7 @@ static MeshIndex Adaptive_Vertex(AdaptiveContext* c, uint32_t a, uint32_t b) {
     Vector3 pa=Adaptive_World(c,c->points[a].p),pb=Adaptive_World(c,c->points[b].p);
     Vector3 pos=Vec3_Add(pa,Vec3_Scale(Vec3_Sub(pb,pa),t));
     MeshIndex vertex;
-    if(!Mesh_AddVertex(c->mesh,(MeshVertex){pos,{0,0,0},COLOR_WHITE,SDF_MATERIAL_UNKNOWN},&vertex)) {
+    if(!Mesh_AddVertex(c->mesh,(MeshVertex){.position=pos,.normal={0,0,0},.color=COLOR_WHITE,.material=SDF_MATERIAL_UNKNOWN},&vertex)) {
         c->failed=true;return 0;
     }
     c->edges[slot]=(AdaptiveEdge){key,vertex,true};c->edgeCount++;
@@ -407,7 +407,7 @@ static void Adaptive_FinalizeAttributes(AdaptiveContext* c,SDFMesher* mesher) {
 
 bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     const SDFDetailRegion* regions, size_t regionCount, Mesh* mesh) {
-    if(!mesher || !field || !field->evaluate || !mesh || !regions || !regionCount ||
+    if(!mesher || !field || !field->evaluate || !mesh || (regionCount && !regions) ||
        !isfinite(mesher->config.voxelSize) || mesher->config.voxelSize<=0)return false;
     Mesh_Clear(mesh);memset(&mesher->lastStats,0,sizeof(mesher->lastStats));
     AdaptiveContext c={0};c.field=field;c.regions=regions;c.regionCount=regionCount;c.mesh=mesh;c.stats=&mesher->lastStats;

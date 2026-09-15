@@ -281,7 +281,7 @@ static void test_keep_largest_component(void) {
         {3,0,0},{4,0,0},{3,1,0},{4,1,0}
     };
     for(size_t i=0;i<sizeof(positions)/sizeof(positions[0]);++i) {
-        MeshVertex vertex={positions[i],{0,0,1},COLOR_WHITE,SDF_MATERIAL_SKIN};
+        MeshVertex vertex={.position=positions[i],.normal={0,0,1},.color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
         TEST_ASSERT(Mesh_AddVertex(&mesh,vertex,&index),"No se preparó la malla multicomponente");
     }
     TEST_ASSERT(Mesh_AddTriangle(&mesh,0,1,2)&&Mesh_AddTriangle(&mesh,3,4,5)&&Mesh_AddTriangle(&mesh,4,6,5),
@@ -292,6 +292,21 @@ static void test_keep_largest_component(void) {
     Mesh_Free(&mesh);printf("[PASS] test_keep_largest_component\n");
 }
 
+static void test_mesh_gpu_revisions(void) {
+    Mesh a=Mesh_Create(),b=Mesh_Create();
+    TEST_ASSERT(a.identity!=0&&b.identity!=0&&a.identity!=b.identity,"Identidades GPU únicas");
+    uint64_t geometry=a.geometryGeneration,surface=a.surfaceGeneration;
+    MeshVertex vertex={.position={0,0,0},.normal={0,1,0},.color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
+    TEST_ASSERT(Mesh_AddVertex(&a,vertex,NULL),"Añadir vértice para revisión");
+    TEST_ASSERT(a.geometryGeneration!=geometry&&a.surfaceGeneration!=surface,"El vértice invalida ambos canales");
+    geometry=a.geometryGeneration;surface=a.surfaceGeneration;
+    Mesh_MarkGeometryChanged(&a);
+    TEST_ASSERT(a.geometryGeneration!=geometry&&a.surfaceGeneration==surface,"Pose invalida sólo geometría");
+    Mesh_MarkSurfaceChanged(&a);
+    TEST_ASSERT(a.surfaceGeneration!=surface,"Remapeo invalida sólo superficie");
+    Mesh_Free(&a);Mesh_Free(&b);printf("[PASS] test_mesh_gpu_revisions\n");
+}
+
 void run_mesh_tests(void) {
     test_add_triangle_guards();
     test_mesh_validate();
@@ -300,4 +315,5 @@ void run_mesh_tests(void) {
     test_edge_cache_sharing();
     test_topology_audit();
     test_keep_largest_component();
+    test_mesh_gpu_revisions();
 }

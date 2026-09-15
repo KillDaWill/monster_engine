@@ -3,6 +3,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
+
+static double AgerNowMs(void) {
+    struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);
+    return (double)t.tv_sec*1000.0+(double)t.tv_nsec/1000000.0;
+}
+
+static float GeometryPerc(float perc,unsigned steps) {
+    if(!steps)return Math_Clamp01(perc);
+    float p=Math_Clamp01(perc);
+    if(p<=0 || p>=1)return p;
+    return roundf(p*(float)steps)/(float)steps;
+}
 
 void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
     if (!monster1 || !monster2) return;
@@ -115,13 +128,29 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
             &monster1->lizardPhenotype,&monster2->lizardPhenotype,perc);
         float open=monster1->head.anatomy.oralSystem.openFactor;
         open+=Math_Clamp01(perc)*(monster2->head.anatomy.oralSystem.openFactor-open);
-        if (!Lizard_BuildMonster(dst,&phenotype)) return;
+        if (!Lizard_ResolveAppearance(dst,&phenotype)) return;
+        dst->growthAge=Math_Clamp01(perc); dst->hasGrowthAge=true;
         Monster_SetHeadOpenFactor(dst,open);
         dst->angle=Math_Lerp(monster1->angle,monster2->angle,perc);
         dst->updateSpeed=Math_Lerp(monster1->updateSpeed,monster2->updateSpeed,perc);
         return;
     }
 
+    /* Los extremos conservan activación y dominio exactos. Un endpoint heredado
+     * aporta piel neutra válida, nunca un fenotipo de ceros no inicializado. */
+    float surfaceAge=isfinite(perc)?Math_Clamp01(perc):0;
+    SurfacePhenotype surface1=monster1->hasSurface?monster1->surface:SurfacePhenotype_Default();
+    SurfacePhenotype surface2=monster2->hasSurface?monster2->surface:SurfacePhenotype_Default();
+    dst->surface=SurfacePhenotype_Interpolate(&surface1,&surface2,surfaceAge);
+    dst->hasSurface=surfaceAge<=0?monster1->hasSurface:surfaceAge>=1?monster2->hasSurface:
+        monster1->hasSurface || monster2->hasSurface;
+    dst->surfaceMapping=surfaceAge<.5f?monster1->surfaceMapping:monster2->surfaceMapping;
+    dst->surfaceMapping.origin=Vec3_Lerp(monster1->surfaceMapping.origin,monster2->surfaceMapping.origin,surfaceAge);
+    float unit1=monster1->surfaceMapping.unitScale>0?monster1->surfaceMapping.unitScale:1;
+    float unit2=monster2->surfaceMapping.unitScale>0?monster2->surfaceMapping.unitScale:1;
+    dst->surfaceMapping.unitScale=Math_Lerp(unit1,unit2,surfaceAge);
+    if(surfaceAge<=0) { dst->surface=monster1->surface; dst->surfaceMapping=monster1->surfaceMapping; }
+    if(surfaceAge>=1) { dst->surface=monster2->surface; dst->surfaceMapping=monster2->surfaceMapping; }
     /* 1. Sincronizar y mezclar la paleta de colores */
     dst->colorPalette.count = 0;
     size_t paletteSize = ColorPalette_GetCount(&monster1->colorPalette);
@@ -251,7 +280,7 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
 }
 
 MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, float perc) {
-    MonsterAger ager;
+    MonsterAger ager;memset(&ager,0,sizeof(ager));
     ager.monster1 = Monster_Clone(first);
     ager.monster2 = Monster_Clone(second);
     ager.perc = Math_Clamp01(perc);
@@ -260,7 +289,15 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
         MonsterAger_NormalizeEndpoints(&ager.monster1, &ager.monster2);
 
     ager.result = Monster_Clone(&ager.monster1);
+    ager.geometryResult = Monster_Clone(&ager.monster1);
+    ager.geometrySteps=32;
+    double start=AgerNowMs();
     MonsterAger_Interpolate(&ager.monster1, &ager.monster2, ager.perc, &ager.result);
+    ager.lastInterpolationMs=AgerNowMs()-start;ager.interpolationCount=1;
+    ager.geometryPerc=GeometryPerc(ager.perc,ager.geometrySteps);
+    start=AgerNowMs();
+    MonsterAger_Interpolate(&ager.monster1,&ager.monster2,ager.geometryPerc,&ager.geometryResult);
+    ager.lastGeometryInterpolationMs=AgerNowMs()-start;ager.geometryInterpolationCount=1;
 
     return ager;
 }
@@ -268,7 +305,16 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
 void MonsterAger_SetPerc(MonsterAger* ager, float perc) {
     if (!ager) return;
     ager->perc = Math_Clamp01(perc);
+    double start=AgerNowMs();
     MonsterAger_Interpolate(&ager->monster1, &ager->monster2, ager->perc, &ager->result);
+    ager->lastInterpolationMs=AgerNowMs()-start;++ager->interpolationCount;
+    float geometryPerc=GeometryPerc(ager->perc,ager->geometrySteps);
+    ager->lastGeometryInterpolationMs=0;
+    if(fabsf(geometryPerc-ager->geometryPerc)>1e-7f) {
+        ager->geometryPerc=geometryPerc;start=AgerNowMs();
+        MonsterAger_Interpolate(&ager->monster1,&ager->monster2,geometryPerc,&ager->geometryResult);
+        ager->lastGeometryInterpolationMs=AgerNowMs()-start;++ager->geometryInterpolationCount;
+    }
 }
 
 Monster* MonsterAger_GetResult(MonsterAger* ager) {
@@ -279,9 +325,24 @@ const Monster* MonsterAger_GetResultConst(const MonsterAger* ager) {
     return ager ? &ager->result : NULL;
 }
 
+void MonsterAger_SetGeometrySteps(MonsterAger* ager,unsigned steps) {
+    if(!ager)return;
+    ager->geometrySteps=steps;
+    float p=GeometryPerc(ager->perc,steps);
+    if(fabsf(p-ager->geometryPerc)<=1e-7f)return;
+    ager->geometryPerc=p;double start=AgerNowMs();
+    MonsterAger_Interpolate(&ager->monster1,&ager->monster2,p,&ager->geometryResult);
+    ager->lastGeometryInterpolationMs=AgerNowMs()-start;++ager->geometryInterpolationCount;
+}
+
+const Monster* MonsterAger_GetGeometryResultConst(const MonsterAger* ager) {
+    return ager?&ager->geometryResult:NULL;
+}
+
 void MonsterAger_Free(MonsterAger* ager) {
     if (!ager) return;
     Monster_Free(&ager->monster1);
     Monster_Free(&ager->monster2);
     Monster_Free(&ager->result);
+    Monster_Free(&ager->geometryResult);
 }

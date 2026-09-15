@@ -43,3 +43,7 @@ __pycache__/
 /benchmarks/benchmark_animation
 
 /demos/demo_lizard_animation
+/demos/demo_lizard_surface
+
+/benchmarks/benchmark_growth
+/benchmarks/benchmark_head_morph

@@ -21,6 +21,7 @@ void run_local_detail_tests(void);
 void run_perf_optimizations_tests(void);
 void run_morph_tests(void);
 
+void run_surface_tests(void);
 int main(void) {
     printf("======================================\n");
     printf(" Ejecutando Test Suite (monster_engine)\n");
@@ -68,6 +69,7 @@ int main(void) {
     run_head_tests();
     run_lizard_tests();
     run_local_detail_tests();
+    run_surface_tests();
 
     printf("\n--- Optimizaciones de Rendimiento y Regresión ---\n");
     run_perf_optimizations_tests();

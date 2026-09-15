@@ -72,6 +72,7 @@ typedef struct MonsterSDFConnector {
     float heightB;
     AnatomyId fromId;
     AnatomyId toId;
+    bool isAttachment; /**< Unión axial al miembro; su detalle pertenece al brote, no al torso. */
     BodyConnectionKind kind;
     Color color;
     AABB3D bounds;             /**< AABB que encierra el volumen conservador del conector */
@@ -168,6 +169,7 @@ typedef struct MonsterSDFMouth {
     Vector3 neckCollarTipRadii; /**< Radios terminales, menores que el cuello corporal. */
     bool hasNasalPad; /**< Incluye almohadilla nasal diferenciada. */
     bool hasEars; /**< Incluye volúmenes auriculares. */
+    float tympanumDevelopment; /**< Peso continuo de apertura timpánica. */
     bool hasTympana;
     bool taperedMandible;
     float faceRounding;
@@ -343,8 +345,8 @@ SDFField MonsterSDF_GetField(const MonsterSDF* sdf);
  */
 size_t MonsterSDF_GetComponentBounds(const MonsterSDF* sdf, AABB3D* outBoxes, size_t capacity);
 
-/** Capacidad compartida: cuatro cabezas de siete rasgos y cuatro pares autopodio/distal. */
-#define MONSTER_SDF_DETAIL_REGION_CAPACITY (7 * 4 + 2 * 4)
+/** Capacidad compartida: cuatro cabezas de siete rasgos, cuatro miembros (distal, palma y 20 unguales). */
+#define MONSTER_SDF_DETAIL_REGION_CAPACITY 64
 
 /** @brief Deriva regiones mundiales por escala de rasgo y muestras por diámetro. */
 size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf, float samplesPerDiameter,

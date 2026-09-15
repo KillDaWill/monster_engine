@@ -33,6 +33,13 @@ typedef struct MonsterAger {
     Monster monster2; /**< Copia de la fase 2 (maduro / evolucionado) */
     float perc;       /**< Factor de interpolación [0.0 - 1.0] */
     Monster result;   /**< Monstruo mezclado resultante actualizado */
+    Monster geometryResult; /**< Snapshot cuantizado reservado para generación costosa. */
+    float geometryPerc;     /**< Edad efectiva del snapshot geométrico. */
+    unsigned geometrySteps; /**< Intervalos geométricos de 0 a 1; 0 desactiva cuantización. */
+    double lastInterpolationMs; /**< Coste de la interpolación visual más reciente. */
+    double lastGeometryInterpolationMs; /**< Coste de la última actualización geométrica. */
+    uint64_t interpolationCount;
+    uint64_t geometryInterpolationCount;
 } MonsterAger;
 
 /**
@@ -64,6 +71,12 @@ Monster* MonsterAger_GetResult(MonsterAger* ager);
  * @return Puntero a la estructura Monster mezclada.
  */
 const Monster* MonsterAger_GetResultConst(const MonsterAger* ager);
+
+/** @brief Configura la discretización exclusiva de geometría (32 por defecto). */
+void MonsterAger_SetGeometrySteps(MonsterAger* ager,unsigned steps);
+
+/** @brief Obtiene el snapshot geométrico cuantizado; la apariencia sigue en result. */
+const Monster* MonsterAger_GetGeometryResultConst(const MonsterAger* ager);
 
 /**
  * @brief Libera los recursos asignados internamente por MonsterAger.

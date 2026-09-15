@@ -76,6 +76,20 @@ static void test_connector_pruning_equivalence(void) {
         }
     }
 
+    /* Cobertura determinista de todo el dominio, no sólo de la banda superficial. */
+    uint32_t seed=12345;
+    for(unsigned i=0;i<20000;++i) {
+        float t[3];
+        for(unsigned k=0;k<3;++k){seed=1664525u*seed+1013904223u;t[k]=(seed>>8)/16777216.0f;}
+        Vector3 p=Vec3_Create(bounds.start.x+t[0]*(bounds.end.x-bounds.start.x),
+            bounds.start.y+t[1]*(bounds.end.y-bounds.start.y),
+            bounds.start.z+t[2]*(bounds.end.z-bounds.start.z));
+        float full=MonsterSDF_EvaluateDistance(&sdfUnpruned,p);
+        float pruned=MonsterSDF_EvaluateDistance(&sdfPruned,p);
+        if(fabsf(full-pruned)>=1e-6f)printf("poda: p=%g,%g,%g full=%g pruned=%g diff=%g\n",p.x,p.y,p.z,full,pruned,fabsf(full-pruned));
+        TEST_ASSERT(fabsf(full-pruned)<1e-6f,"La poda escalar debe conservar todo el campo");
+    }
+
     MonsterSDF_Free(&sdfUnpruned);
     MonsterSDF_Free(&sdfPruned);
     Monster_Free(&lizard);
@@ -266,12 +280,9 @@ static void test_visual_async_morph_settled_tiers(void) {
     MonsterVisualAsync_SetMorphMode(visual, true);
     MonsterVisualAsync_Update(visual, &lizard, 0.016f);
 
-    /* Esperar a que el worker procese (margen generoso para sanitizers) */
-    int retries = 0;
-    while (retries++ < 3000 && MonsterVisualAsync_GetDisplayGeneration(visual) == 0) {
-        usleep(10000); /* 10ms */
-        MonsterVisualAsync_Update(visual, &lizard, 0.010f);
-    }
+    /* Esta prueba comprueba selección de calidad, no una latencia de máquina.
+     * La barrera espera publicación real incluso bajo sanitizadores. */
+    MonsterVisualAsync_Flush(visual);
     TEST_ASSERT(MonsterVisualAsync_GetDisplayGeneration(visual) > 0,
                 "El worker debe completar al menos una malla");
 
@@ -284,13 +295,10 @@ static void test_visual_async_morph_settled_tiers(void) {
     /* Avanzar tiempo más allá de settledDelaySec */
     MonsterVisualAsync_Update(visual, &lizard, 0.10f);
 
-    retries = 0;
-    while (retries++ < 3000) {
-        usleep(10000); /* 10ms */
-        MonsterVisualAsync_Update(visual, &lizard, 0.010f);
-        stats = MonsterVisualAsync_GetStats(visual);
-        if (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED) break;
-    }
+    MonsterVisualAsync_Flush(visual);
+    stats = MonsterVisualAsync_GetStats(visual);
+    TEST_ASSERT(stats.displayedFingerprint==stats.requestedFingerprint,
+                "La calidad comprobada pertenece al snapshot solicitado");
 
     TEST_ASSERT(stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED,
                 "Tras el retraso de reposo debe transicionar a MONSTER_VISUAL_QUALITY_SETTLED");

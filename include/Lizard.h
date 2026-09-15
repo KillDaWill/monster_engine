@@ -8,6 +8,7 @@
 
 #include "Anatomy.h"
 #include "Head.h"
+#include "Surface.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -48,6 +49,7 @@ typedef struct LizardPhenotype {
     float pigmentation; /**< Aparición ontogenética de pigmento corporal [0,1]. */
     float cephalicDevelopment; /**< Diferenciación de cabeza, ojos y sistema oral [0,1]. */
     float eyeProportion; /**< Reserva semántica de proporción ocular ontogenética. */
+    SurfacePhenotype surface; /**< Cobertura y pigmento; separados de anatomía y pose. */
     HeadPhenotype head; /**< Fenotipo cefálico poseído. */
 } LizardPhenotype;
 
@@ -55,6 +57,8 @@ typedef struct LizardPhenotype {
 LizardPhenotype LizardPreset_Juvenile(void);
 /** @return Fenotipo larvario vermiforme, blanco y sin apéndices visibles. */
 LizardPhenotype LizardPreset_Larva(void);
+/** @return Fenotipo juvenil en forma de semilla esférica/ovoide blanca sin apéndices ni cabeza diferenciada. */
+LizardPhenotype LizardPreset_Seed(void);
 /** @return Fenotipo adulto válido con la topología compartida. */
 LizardPhenotype LizardPreset_Adult(void);
 /** Interpola dos fenotipos en espacio semántico y normaliza el resultado. */
@@ -66,6 +70,8 @@ void LizardPhenotype_Normalize(LizardPhenotype* phenotype);
 /** Resuelve el fenotipo en estaciones y conexiones explícitas. */
 bool Lizard_ResolveAnatomy(const LizardPhenotype* phenotype, AnatomyGraph* graph);
 /** Instala cabeza, ojos, boca, paleta y grafo anatómico en un Monster. */
+/** @brief Actualiza fenotipo, anatomía y apariencia sin reconstruir rig ni animaciones. */
+bool Lizard_ResolveAppearance(struct Monster* monster, const LizardPhenotype* source);
 bool Lizard_BuildMonster(struct Monster* monster, const LizardPhenotype* phenotype);
 /** Calcula la edad ontogenética inversa correspondiente a una escala corporal total. */
 float Lizard_AgeFromScale(float scale);

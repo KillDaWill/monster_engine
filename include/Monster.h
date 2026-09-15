@@ -16,6 +16,7 @@
 #include "Head.h"
 #include "Anatomy.h"
 #include "Lizard.h"
+#include "SurfaceMapper.h"
 #include "MonsterQueries.h"
 #include "Trait.h"
 #include "VisualTrait.h"
@@ -39,6 +40,9 @@ struct MonsterAnimation;
  * @brief Entidad principal que engloba paleta, partes anatómicas, rasgos y comportamiento.
  */
 typedef struct Monster {
+    SurfacePhenotype surface; /**< Apariencia editable sin reconstrucción geométrica. */
+    SurfaceMapping surfaceMapping; /**< Etiquetas y dominio de reposo. */
+    bool hasSurface;
     ColorPalette colorPalette; /**< Paleta de colores asociada al monstruo */
 
     BodyPart* bodyParts;     /**< Arreglo dinámico de partes del cuerpo */
@@ -59,6 +63,8 @@ typedef struct Monster {
     AnatomyGraph anatomyGraph; /**< Topología corporal explícita, independiente del orden de BodyPart. */
     bool hasAnatomyGraph;      /**< Activa la superficie corporal anatómica continua. */
     LizardPhenotype lizardPhenotype; /**< Autoridad semántica para envejecimiento de lagarto. */
+    float growthAge; /**< Edad del snapshot, independiente de escala y deformación. */
+    bool hasGrowthAge; /**< Edad definida por un Ager. */
     bool hasLizardPhenotype;          /**< Indica que el grafo procede del preset de lagarto. */
 
     struct MonsterAnimation* animation; /**< Estado poseído; excluido de snapshots morfológicos. */
@@ -89,6 +95,8 @@ typedef struct Monster {
  * @return Estructura Monster inicializada a valores base.
  */
 Monster Monster_Create(void);
+/** @brief Actualiza apariencia e identidad fenotípica sin tocar geometría, rig ni SDF. */
+void Monster_SetSurface(Monster* monster,const SurfacePhenotype* surface);
 
 /**
  * @brief Inicializa las partes del cuerpo y rasgos iniciales por defecto en el monstruo.

@@ -6,6 +6,7 @@
  */
 
 #include "AnatomyDeformer.h"
+#include "MathUtils.h"
 #include "AABB.h"
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,37 @@ void AnatomyDeformer_Free(AnatomyDeformer* morph) {
     free(morph->basePositions);
     free(morph->baseNormals);
     free(morph);
+}
+
+bool AnatomyDeformer_Copy(AnatomyDeformer* dst, const AnatomyDeformer* src) {
+    if (!dst || !src) return false;
+    dst->refGraph = src->refGraph;
+    dst->vertexCount = src->vertexCount;
+    if (dst->vertexCapacity < src->vertexCount) {
+        free(dst->bindings);
+        free(dst->basePositions);
+        free(dst->baseNormals);
+        dst->bindings = (AnatomyDeformerBinding*)malloc(src->vertexCount * sizeof(AnatomyDeformerBinding));
+        dst->basePositions = (Vector3*)malloc(src->vertexCount * sizeof(Vector3));
+        dst->baseNormals = (Vector3*)malloc(src->vertexCount * sizeof(Vector3));
+        dst->vertexCapacity = src->vertexCount;
+    }
+    if (src->vertexCount > 0 && dst->bindings && dst->basePositions && dst->baseNormals) {
+        memcpy(dst->bindings, src->bindings, src->vertexCount * sizeof(AnatomyDeformerBinding));
+        memcpy(dst->basePositions, src->basePositions, src->vertexCount * sizeof(Vector3));
+        memcpy(dst->baseNormals, src->baseNormals, src->vertexCount * sizeof(Vector3));
+    }
+    if (src->skinBindings && src->vertexCount > 0) {
+        if (!dst->skinBindings) dst->skinBindings = (AnatomySkinBinding*)malloc(src->vertexCount * sizeof(AnatomySkinBinding));
+        if (dst->skinBindings) memcpy(dst->skinBindings, src->skinBindings, src->vertexCount * sizeof(AnatomySkinBinding));
+    } else {
+        free(dst->skinBindings);
+        dst->skinBindings = NULL;
+    }
+    dst->bindPose = src->bindPose;
+    dst->poseBound = src->poseBound;
+    dst->isBound = src->isBound;
+    return true;
 }
 
 bool AnatomyDeformer_IsBound(const AnatomyDeformer* morph) {
@@ -79,25 +111,40 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
     morph->refGraph = *refGraph;
     morph->vertexCount = count;
 
-    /* 1. Precomputar AABB de cada conexión anatómica para poda espacial rápida */
-    AABB3D connBoxes[ANATOMY_MAX_CONNECTIONS];
+    /* 1. Precomputar datos y AABB de cada conexión anatómica para acelerar la vinculación */
+    typedef struct PrecomputedConn {
+        AABB3D box;
+        Vector3 a;
+        Vector3 ab;
+        float invAbLenSq;
+        float radA;
+        float radB;
+        bool valid;
+    } PrecomputedConn;
+    PrecomputedConn conns[ANATOMY_MAX_CONNECTIONS];
     for (size_t c = 0; c < refGraph->connectionCount; ++c) {
         const BodyConnection* conn = &refGraph->connections[c];
         const AnatomyNode* nodeA = AnatomyGraph_FindNode(refGraph, conn->fromId);
         const AnatomyNode* nodeB = AnatomyGraph_FindNode(refGraph, conn->toId);
-        if (!nodeA || !nodeB) {
-            connBoxes[c].start = Vec3_Zero();
-            connBoxes[c].end = Vec3_Zero();
+        if (!nodeA || !nodeB || refGraph->dormantConnections[c]) {
+            conns[c].valid = false;
             continue;
         }
+        conns[c].valid = true;
         float pad = fmaxf(nodeA->widthRadius, fmaxf(nodeA->heightRadius,
                     fmaxf(nodeB->widthRadius, nodeB->heightRadius))) * 2.2f;
-        connBoxes[c].start.x = fminf(nodeA->center.x, nodeB->center.x) - pad;
-        connBoxes[c].end.x   = fmaxf(nodeA->center.x, nodeB->center.x) + pad;
-        connBoxes[c].start.y = fminf(nodeA->center.y, nodeB->center.y) - pad;
-        connBoxes[c].end.y   = fmaxf(nodeA->center.y, nodeB->center.y) + pad;
-        connBoxes[c].start.z = fminf(nodeA->center.z, nodeB->center.z) - pad;
-        connBoxes[c].end.z   = fmaxf(nodeA->center.z, nodeB->center.z) + pad;
+        conns[c].box.start.x = fminf(nodeA->center.x, nodeB->center.x) - pad;
+        conns[c].box.end.x   = fmaxf(nodeA->center.x, nodeB->center.x) + pad;
+        conns[c].box.start.y = fminf(nodeA->center.y, nodeB->center.y) - pad;
+        conns[c].box.end.y   = fmaxf(nodeA->center.y, nodeB->center.y) + pad;
+        conns[c].box.start.z = fminf(nodeA->center.z, nodeB->center.z) - pad;
+        conns[c].box.end.z   = fmaxf(nodeA->center.z, nodeB->center.z) + pad;
+        conns[c].a = nodeA->center;
+        conns[c].ab = Vec3_Sub(nodeB->center, nodeA->center);
+        float abLenSq = Vec3_LengthSq(conns[c].ab);
+        conns[c].invAbLenSq = abLenSq > 1e-8f ? 1.0f / abLenSq : 0.0f;
+        conns[c].radA = (nodeA->widthRadius + nodeA->heightRadius) * 0.5f;
+        conns[c].radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
     }
 
     /* 2. Vincular cada vértice a los 2 mejores segmentos anatómicos */
@@ -113,32 +160,24 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
         float bestRad[2] = {1.0f, 1.0f};
 
         for (size_t c = 0; c < refGraph->connectionCount; ++c) {
+            const PrecomputedConn* pc = &conns[c];
+            if (!pc->valid) continue;
+
             /* Descarte por AABB */
-            if (pos.x < connBoxes[c].start.x || pos.x > connBoxes[c].end.x ||
-                pos.y < connBoxes[c].start.y || pos.y > connBoxes[c].end.y ||
-                pos.z < connBoxes[c].start.z || pos.z > connBoxes[c].end.z) {
+            if (pos.x < pc->box.start.x || pos.x > pc->box.end.x ||
+                pos.y < pc->box.start.y || pos.y > pc->box.end.y ||
+                pos.z < pc->box.start.z || pos.z > pc->box.end.z) {
                 continue;
             }
 
-            const BodyConnection* conn = &refGraph->connections[c];
-            const AnatomyNode* nodeA = AnatomyGraph_FindNode(refGraph, conn->fromId);
-            const AnatomyNode* nodeB = AnatomyGraph_FindNode(refGraph, conn->toId);
-            if (!nodeA || !nodeB) continue;
-
-            Vector3 a = nodeA->center;
-            Vector3 b = nodeB->center;
-            Vector3 ab = Vec3_Sub(b, a);
-            float abLenSq = Vec3_LengthSq(ab);
             float t = 0.0f;
-            if (abLenSq > 1e-8f) {
-                t = Vec3_Dot(Vec3_Sub(pos, a), ab) / abLenSq;
+            if (pc->invAbLenSq > 0.0f) {
+                t = Vec3_Dot(Vec3_Sub(pos, pc->a), pc->ab) * pc->invAbLenSq;
                 if (t < 0.0f) t = 0.0f;
-                if (t > 1.0f) t = 1.0f;
+                else if (t > 1.0f) t = 1.0f;
             }
-            Vector3 proj = Vec3_Add(a, Vec3_Scale(ab, t));
-            float radA = (nodeA->widthRadius + nodeA->heightRadius) * 0.5f;
-            float radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
-            float rad = (1.0f - t) * radA + t * radB;
+            Vector3 proj = Vec3_Add(pc->a, Vec3_Scale(pc->ab, t));
+            float rad = (1.0f - t) * pc->radA + t * pc->radB;
             if (rad < 1e-4f) rad = 1e-4f;
 
             float distNorm = Vec3_Distance(pos, proj) / rad;
@@ -166,25 +205,17 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
         /* Si ningún AABB coincidió (caso excepcional en márgenes), buscar en todos */
         if (bestDist[0] >= 1e8f) {
             for (size_t c = 0; c < refGraph->connectionCount; ++c) {
-                const BodyConnection* conn = &refGraph->connections[c];
-                const AnatomyNode* nodeA = AnatomyGraph_FindNode(refGraph, conn->fromId);
-                const AnatomyNode* nodeB = AnatomyGraph_FindNode(refGraph, conn->toId);
-                if (!nodeA || !nodeB) continue;
+                const PrecomputedConn* pc = &conns[c];
+                if (!pc->valid) continue;
 
-                Vector3 a = nodeA->center;
-                Vector3 b = nodeB->center;
-                Vector3 ab = Vec3_Sub(b, a);
-                float abLenSq = Vec3_LengthSq(ab);
                 float t = 0.0f;
-                if (abLenSq > 1e-8f) {
-                    t = Vec3_Dot(Vec3_Sub(pos, a), ab) / abLenSq;
+                if (pc->invAbLenSq > 0.0f) {
+                    t = Vec3_Dot(Vec3_Sub(pos, pc->a), pc->ab) * pc->invAbLenSq;
                     if (t < 0.0f) t = 0.0f;
-                    if (t > 1.0f) t = 1.0f;
+                    else if (t > 1.0f) t = 1.0f;
                 }
-                Vector3 proj = Vec3_Add(a, Vec3_Scale(ab, t));
-                float radA = (nodeA->widthRadius + nodeA->heightRadius) * 0.5f;
-                float radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
-                float rad = (1.0f - t) * radA + t * radB;
+                Vector3 proj = Vec3_Add(pc->a, Vec3_Scale(pc->ab, t));
+                float rad = (1.0f - t) * pc->radA + t * pc->radB;
                 if (rad < 1e-4f) rad = 1e-4f;
 
                 float distNorm = Vec3_Distance(pos, proj) / rad;
@@ -265,15 +296,22 @@ bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* ne
         float newRadA = (newA->widthRadius + newA->heightRadius) * 0.5f;
         float newRadB = (newB->widthRadius + newB->heightRadius) * 0.5f;
 
-        x->radScaleA = refRadA > 1e-4f ? newRadA / refRadA : 1.0f;
-        x->radScaleB = refRadB > 1e-4f ? newRadB / refRadB : 1.0f;
+        float ratioA = refRadA > 1e-4f ? newRadA / refRadA : 1.0f;
+        float ratioB = refRadB > 1e-4f ? newRadB / refRadB : 1.0f;
+        x->radScaleA = Math_Clamp(ratioA, 0.0f, 4.0f);
+        x->radScaleB = Math_Clamp(ratioB, 0.0f, 4.0f);
 
         Vector3 refDir = Vec3_Sub(refB->center, refA->center);
         float refLen = Vec3_Length(refDir);
         float newLen = Vec3_Length(x->newDir);
 
-        if (refLen > 1e-5f && newLen > 1e-5f) {
+        if (refLen > 1e-5f && newLen > 1e-6f) {
             Quaternion q=Quat_FromTo(refDir,x->newDir);
+            if (newLen < 0.005f) {
+                float blend = (newLen - 1e-6f) / (0.005f - 1e-6f);
+                blend = blend * blend * (3.0f - 2.0f * blend);
+                q = Quat_Slerp(Quat_Identity(), q, blend);
+            }
             Vector3 cx=Quat_RotateVector(q,Vec3_Create(1,0,0));
             Vector3 cy=Quat_RotateVector(q,Vec3_Create(0,1,0));
             Vector3 cz=Quat_RotateVector(q,Vec3_Create(0,0,1));
@@ -298,7 +336,7 @@ bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* ne
 
             float t = b->projT[k];
             Vector3 newProj = Vec3_Add(x->newA, Vec3_Scale(x->newDir, t));
-            float radScale = (1.0f - t) * x->radScaleA + t * x->radScaleB;
+            float radScale = Math_Clamp((1.0f - t) * x->radScaleA + t * x->radScaleB, 0.0f, 4.0f);
 
             Vector3 offset = b->localOffset[k];
             Vector3 rotNorm = baseNorm;
@@ -329,6 +367,7 @@ bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* ne
         }
     }
 
+    Mesh_MarkGeometryChanged(targetMesh);
     return true;
 }
 
@@ -387,5 +426,6 @@ bool AnatomyDeformer_DeformPose(const AnatomyDeformer* d,const Skeleton* s,const
         if(length>1e-12f) { normal.x/=length; normal.y/=length; normal.z/=length; }
         mesh->vertices[v].position=position; mesh->vertices[v].normal=normal;
     }
+    Mesh_MarkGeometryChanged(mesh);
     return true;
 }

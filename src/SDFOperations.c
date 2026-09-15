@@ -17,6 +17,9 @@ float SDF_Subtract(float body, float cutter) {
 float SDF_SmoothUnion(float a, float b, float k) {
     if (k <= 0.0001f) return Math_Min(a, b);
     float h = Math_Clamp01(0.5f + 0.5f * (b - a) / k);
+    /* Evita cancelación numérica al unir un operando sin influencia. */
+    if(h>=1.0f)return a;
+    if(h<=0.0f)return b;
     return Math_Lerp(b, a, h) - k * h * (1.0f - h);
 }
 

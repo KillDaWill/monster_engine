@@ -15,7 +15,11 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/Color.c \
+CORE_SRCS = $(SRC_DIR)/HeadMorph.c \
+            $(SRC_DIR)/Surface.c \
+            $(SRC_DIR)/SurfaceMapper.c \
+            $(SRC_DIR)/LizardSurface.c \
+            $(SRC_DIR)/Color.c \
             $(SRC_DIR)/ColorPalette.c \
             $(SRC_DIR)/Vector.c \
             $(SRC_DIR)/MathUtils.c \
@@ -65,6 +69,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/main_test.c \
+            $(TEST_DIR)/test_surface.c \
             $(TEST_DIR)/test_color.c \
             $(TEST_DIR)/test_vector.c \
             $(TEST_DIR)/test_math_utils.c \
@@ -151,7 +156,7 @@ docs:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime doc/html doc/latex
+	rm -rf benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_growth benchmarks/benchmark_head_morph doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -186,7 +191,7 @@ src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_s
 $(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSDFShader.generated.h
 
 # Etapas de animación: comparten infraestructura, cada ejecutable selecciona su controlador.
-ANIMATION_DEMOS = demos/demo_lizard_ik demos/demo_lizard_jaw demos/demo_lizard_walk
+ANIMATION_DEMOS = demos/demo_lizard_surface demos/demo_lizard_ik demos/demo_lizard_jaw demos/demo_lizard_walk
 demos: $(ANIMATION_DEMOS)
 $(ANIMATION_DEMOS): $(CORE_OBJS) $(RENDER_OBJS) demos/demo_lizard_animation.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
@@ -197,3 +202,17 @@ benchmarks/benchmark_animation: $(CORE_OBJS) benchmarks/benchmark_animation.c
 .PHONY: benchmark-animation
 benchmark-animation: benchmarks/benchmark_animation
 	./benchmarks/benchmark_animation
+
+src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py $(wildcard shaders/surface/*.glsl) shaders/monster_mesh.vert shaders/monster_surface.frag
+	python3 tools/generate_surface_shader.py
+$(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSurfaceShader.generated.h
+
+benchmarks/benchmark_growth: $(CORE_OBJS) benchmarks/benchmark_growth.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-growth
+benchmark-growth: benchmarks/benchmark_growth
+	./benchmarks/benchmark_growth
+
+benchmarks/benchmark_head_morph: $(CORE_OBJS) benchmarks/benchmark_head_morph.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@

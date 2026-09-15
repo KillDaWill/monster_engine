@@ -102,10 +102,25 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,
 
 /** @brief Espera a la GPU para medir el coste real en validaciones de rendimiento. */
 void OpenGLRenderer_Finish(void);
+/** @brief Selecciona visualización de superficie (0 normal, 1..9 diagnóstico). */
+void OpenGLRenderer_SetSurfaceDebug(Renderer3D* renderer,int mode);
+/** @brief Compila y verifica el programa; false permite detectar fallback heredado. */
+bool OpenGLRenderer_SurfaceReady(Renderer3D* renderer);
+/** @brief Consume y comunica errores GL pendientes en validaciones. */
+bool OpenGLRenderer_CheckErrors(void);
+
+/** @brief Métricas acumuladas de residencia, transferencia y dibujo de mallas. */
+typedef struct OpenGLMeshPerformanceStats {
+    uint64_t uploadCount,cacheHitCount,totalBytesUploaded;
+    double lastUploadMs;
+    float gpuRenderMs;
+} OpenGLMeshPerformanceStats;
+/** @brief Obtiene métricas del renderer de mallas sin sincronizar la GPU. */
+OpenGLMeshPerformanceStats OpenGLRenderer_GetMeshPerformanceStats(const Renderer3D* renderer);
 
 /** @brief Ventana opaca para demos sin dependencias SDL/GL en sus fuentes. */
 typedef struct OpenGLDemoWindow OpenGLDemoWindow;
-typedef struct OpenGLDemoInput { bool quit,togglePause,toggleDebug; int view; } OpenGLDemoInput;
+typedef struct OpenGLDemoInput { bool quit,togglePause,toggleDebug; int view; int surfaceSelect,surfaceAdjust; bool surfaceSeed,surfacePigment,surfaceDebugNext,surfaceToggle; } OpenGLDemoInput;
 /** @brief Crea contexto para demos; NULL si falla. */
 OpenGLDemoWindow* OpenGLDemoWindow_Create(const char* title,int width,int height);
 /** @brief Consulta entrada: Escape, espacio, D y teclas 1..4. */

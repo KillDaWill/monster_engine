@@ -171,17 +171,20 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                                        &sdf->connectorCapacity,sdf->connectorCount)) {
             MonsterSDF_Free(sdf); return false;
         }
-        for (size_t i=0;i<sdf->connectorCount;++i) {
+        sdf->connectorCount=0;
+        for (size_t i=0;i<monster->anatomyGraph.connectionCount;++i) {
+            if(monster->anatomyGraph.dormantConnections[i])continue;
             const BodyConnection* edge=&monster->anatomyGraph.connections[i];
             const AnatomyNode* a=AnatomyGraph_FindNode(&monster->anatomyGraph,edge->fromId);
             const AnatomyNode* b=AnatomyGraph_FindNode(&monster->anatomyGraph,edge->toId);
             if(!a||!b){MonsterSDF_Free(sdf);return false;}
-            MonsterSDFConnector* c=&sdf->connectors[i]; memset(c,0,sizeof(*c));
+            MonsterSDFConnector* c=&sdf->connectors[sdf->connectorCount++]; memset(c,0,sizeof(*c));
             c->a=a->center;c->b=b->center;c->ba=Vec3_Sub(b->center,a->center);
             float lengthSquared=Vec3_Dot(c->ba,c->ba);c->invBaLengthSquared=lengthSquared>1e-8f?1.0f/lengthSquared:0.0f;
             c->widthA=a->widthRadius;c->heightA=a->heightRadius;c->widthB=b->widthRadius;c->heightB=b->heightRadius;
             c->r1=Math_Min(c->widthA,c->heightA);c->r2=Math_Min(c->widthB,c->heightB);c->radiusDelta=c->r2-c->r1;
             c->fromId=edge->fromId;c->toId=edge->toId;c->kind=edge->kind;
+            c->isAttachment=a->role==ANATOMY_ROLE_AXIAL && b->role==ANATOMY_ROLE_JOINT;
             c->color=Color_Lerp(Monster_GetColorFromIndex(monster,a->colorIndex),Monster_GetColorFromIndex(monster,b->colorIndex),.5f);
             AABB_ExpandRadius(&sdf->bounds,c->a,Vec3_Create(c->widthA,c->heightA,c->widthA));
             AABB_ExpandRadius(&sdf->bounds,c->b,Vec3_Create(c->widthB,c->heightB,c->widthB));
@@ -207,6 +210,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             sdf->connectors[i].widthB=r2;sdf->connectors[i].heightB=r2;
             sdf->connectors[i].fromId=0;sdf->connectors[i].toId=0;
             sdf->connectors[i].kind=BODY_CONNECTION_LIMB_SEGMENT;
+            sdf->connectors[i].isAttachment=false;
             Color c1 = Monster_GetColorFromIndexStruct(monster, p1->color);
             Color c2 = Monster_GetColorFromIndexStruct(monster, p2->color);
             sdf->connectors[i].color = Color_Lerp(c1, c2, 0.5f);
@@ -391,6 +395,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 sdf->mouths[m].hasNasalPad=recipe->hasNasalPad;
                 sdf->mouths[m].hasEars=recipe->hasEars;
                 sdf->mouths[m].hasTympana=recipe->hasTympana;
+                sdf->mouths[m].tympanumDevelopment=recipe->tympanumDevelopment;
                 sdf->mouths[m].faceRounding=recipe->faceRounding;
                 sdf->hasPartitionedHead=true;
 #undef HEAD_LOCAL
@@ -721,7 +726,9 @@ static float MonsterSDF_EvalOrbitCavities(const MonsterSDFMouth* mouth,Vector3 p
     Vector3 rightCenter=Vec3_Add(mouth->rightOrbitCenterLocal,Vec3_Scale(mouth->rightOrbitNormal,mouth->orbitRadii.x*.18f));
     float left=MonsterSDF_EvalShallowCutter(p,leftCenter,mouth->orbitRadii,mouth->leftOrbitNormal,mouth->orbitSocketDepth);
     float right=MonsterSDF_EvalShallowCutter(p,rightCenter,mouth->orbitRadii,mouth->rightOrbitNormal,mouth->orbitSocketDepth);
-    return Math_Min(left,right);
+    float development=Math_Clamp01(mouth->cephalicDevelopment);
+    float weight=development*development*(3.0f-2.0f*development);
+    return Math_Min(left,right)+(1.0f-weight)*mouth->orbitRadii.x*2.0f;
 }
 static float MonsterSDF_EvalNostrilCavities(const MonsterSDFMouth* mouth,Vector3 p) {
     if(!mouth->anatomicalHead)return 1e6f;
@@ -732,13 +739,15 @@ static float MonsterSDF_EvalNostrilCavities(const MonsterSDFMouth* mouth,Vector3
     float depth=Math_Min(mouth->nostrilRadii.x,mouth->nostrilRadii.y)*.58f;
     float left=MonsterSDF_EvalShallowCutter(p,mouth->leftNostrilCenterLocal,mouth->nostrilRadii,leftNormal,depth);
     float right=MonsterSDF_EvalShallowCutter(p,mouth->rightNostrilCenterLocal,mouth->nostrilRadii,rightNormal,depth);
-    return Math_Min(left,right);
+    float development=Math_Clamp01(mouth->cephalicDevelopment);
+    float weight=development*development*(3.0f-2.0f*development);
+    return Math_Min(left,right)+(1.0f-weight)*mouth->nostrilRadii.x*2.0f;
 }
 static float MonsterSDF_EvalTympanumCavities(const MonsterSDFMouth* mouth,Vector3 p) {
     if(!mouth->anatomicalHead||!mouth->hasTympana)return 1e6f;
     float left=MonsterSDF_EvalShallowCutter(p,mouth->leftTympanumCenterLocal,mouth->tympanumRadii,Vec3_Create(1,0,0),mouth->tympanumDepth);
     float right=MonsterSDF_EvalShallowCutter(p,mouth->rightTympanumCenterLocal,mouth->tympanumRadii,Vec3_Create(-1,0,0),mouth->tympanumDepth);
-    return Math_Min(left,right);
+    return Math_Min(left,right)+(1.0f-mouth->tympanumDevelopment)*mouth->tympanumRadii.y*2.0f;
 }
 static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP) {
     if(mouth->lowerBeak) {
@@ -872,12 +881,15 @@ static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vect
         float k = Math_Max(mouth->headUnionSmoothness, .005f);
         float cranium = SDF_Ellipsoid(Vec3_Sub(localP, mouth->craniumCenterLocal), mouth->craniumRadii);
         float d = cranium;
-        if (dev > 0.02f) {
+        {
             float face = MonsterSDF_EvalRostrumDistance(mouth, localP);
             float skull = mouth->sweptSkull ? SDF_EllipticalSweepZ(localP, mouth->headStations, 6) : SDF_SmoothUnion(d, face, k);
-            d = Math_Lerp(cranium, skull, Math_Clamp01(dev * 1.35f));
-            float featK = k * dev;
-            if (featK > 0.001f) {
+            /* La receta resuelta ya describe una cabeza pequeña o adulta.
+             * Una segunda mezcla por edad ocultaba rasgos y no era representable
+             * por la jaula fenotípica entre keyframes. */
+            d = skull;
+            float featK = k;
+            {
                 d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftTemporalCenterLocal), mouth->temporalRadii), featK * .38f);
                 d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->rightTemporalCenterLocal), mouth->temporalRadii), featK * .38f);
                 d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftMaxillaryCenterLocal), mouth->maxillaryRadii), featK * .34f);
@@ -976,12 +988,23 @@ float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point) {
         else accumulated = SDF_SmoothUnion(accumulated, dist, sdf->config.bodySmoothness);
     }
     for (size_t i = 0; i < sdf->connectorCount; ++i) {
-        if(sdf->axialStationCount>1 && sdf->connectors[i].kind==BODY_CONNECTION_AXIAL_LOFT)continue;
-        float dist = MonsterSDF_EvalConnectorDistance(&sdf->connectors[i], point);
         const MonsterSDFConnector* conn=&sdf->connectors[i];
-        float scale=Math_Min(Math_Min(conn->widthA,conn->heightA),Math_Min(conn->widthB,conn->heightB));
-        float factor=conn->kind==BODY_CONNECTION_AXIAL_LOFT?0.0f:conn->kind==BODY_CONNECTION_LIMB_SEGMENT?.18f:.08f;
-        float localSmoothness=Math_Min(sdf->config.connectionSmoothness,scale*factor);
+        if(sdf->axialStationCount>1 && conn->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
+        /* Misma cota conservadora y mismo orden de unión que la ruta de atributos. */
+        if(sdf->config.enableConnectorPruning && hasInitial &&
+           MonsterSDF_ShouldPruneGroup(conn,point,accumulated)) {
+            if(tls_enableStats){tls_connectorCandidateCount+=conn->groupCount;tls_connectorPrunedCount+=conn->groupCount;}
+            i+=conn->groupCount-1;continue;
+        }
+        if(tls_enableStats)++tls_connectorCandidateCount;
+        float localSmoothness=conn->localSmoothness;
+        if(sdf->config.enableConnectorPruning && hasInitial &&
+           MonsterSDF_ShouldPruneConnector(conn,point,accumulated+localSmoothness)) {
+            if(tls_enableStats)++tls_connectorPrunedCount;
+            continue;
+        }
+        if(tls_enableStats)++tls_connectorExactCount;
+        float dist=MonsterSDF_EvalConnectorDistance(conn,point);
         if (!hasInitial) { accumulated = dist; hasInitial = true; }
         else accumulated = SDF_SmoothUnion(accumulated, dist, localSmoothness);
     }
@@ -1510,42 +1533,93 @@ static SDFDetailRegion MonsterSDF_Detail(const MonsterSDFMouth* mouth,
  * radios compilados incluyen el ahusamiento real del ungual más pequeño. */
 static void MonsterSDF_AppendageDetails(const MonsterSDF* sdf, float samples,
     SDFDetailRegion* regions, size_t capacity, size_t* count) {
-    if(sdf->appendageDevelopment<.20f)return;
+    /* Los brotes y sus uniones deben resolverse aunque aún no exista autopodio.
+     * La cota de detalle usa la sección real y nunca refina el torso completo. */
+    for(size_t i=0;i<sdf->connectorCount && *count<capacity;++i) {
+        const MonsterSDFConnector* c=&sdf->connectors[i];
+        if(c->kind!=BODY_CONNECTION_LIMB_SEGMENT || c->isAttachment)continue;
+        float diameter=2*Math_Min(Math_Min(c->widthA,c->heightA),Math_Min(c->widthB,c->heightB));
+        float maturity=Math_Clamp01((sdf->appendageDevelopment-.35f)/.35f);
+        maturity=maturity*maturity*(3.0f-2.0f*maturity);
+        /* Los brotes cortos necesitan más muestras de sección para conservar
+         * su unión; el requisito converge suavemente al de un miembro largo. */
+        float target=diameter/Math_Max(samples,Math_Lerp(5.0f,2.5f,maturity));
+        AABB3D bounds=c->bounds;AABB_Pad(&bounds,target);
+        regions[(*count)++]=(SDFDetailRegion){bounds,target};
+    }
     const AnatomyId wrists[4] = { ANATOMY_ID_FORE_LEFT_WRIST, ANATOMY_ID_FORE_RIGHT_WRIST,
         ANATOMY_ID_HIND_LEFT_ANKLE, ANATOMY_ID_HIND_RIGHT_ANKLE };
     const AnatomyId palms[4] = { ANATOMY_ID_FORE_LEFT_HAND, ANATOMY_ID_FORE_RIGHT_HAND,
         ANATOMY_ID_HIND_LEFT_FOOT, ANATOMY_ID_HIND_RIGHT_FOOT };
     for (int limb = 0; limb < 4; ++limb) {
-        AABB3D autopod = AABB_Empty(), distal = AABB_Empty();
-        float digitDiameter = INFINITY, distalDiameter = INFINITY;
+        AABB3D autopod = AABB_Empty(), distal = AABB_Empty(), ungualArc = AABB_Empty();
+        float shaftDiameter = INFINITY, distalDiameter = INFINITY, minUngualTarget = INFINITY;
+        bool hasIndividualCapacity = (capacity >= *count + (size_t)(6 * (4 - limb)));
         for (size_t i = 0; i < sdf->connectorCount; ++i) {
             const MonsterSDFConnector* c = &sdf->connectors[i];
             bool digit = c->kind == BODY_CONNECTION_DIGIT_SEGMENT &&
-                (c->fromId >= ANATOMY_ID_DIGIT_BASE &&
-                 c->toId >= Anatomy_DigitId((unsigned)limb, 0, 0) &&
-                 c->toId <= Anatomy_DigitId((unsigned)limb, 4, 6));
+                c->toId >= Anatomy_DigitId((unsigned)limb, 0, 0) &&
+                c->toId <= Anatomy_DigitId((unsigned)limb, 4, 6);
             bool lower = c->kind == BODY_CONNECTION_LIMB_SEGMENT &&
                 (c->toId == wrists[limb] || c->toId == palms[limb]);
             if (!digit && !lower) continue;
-            float diameter = 2 * Math_Min(Math_Min(c->widthA, c->heightA),
-                                           Math_Min(c->widthB, c->heightB));
-            AABB3D* box = digit ? &autopod : &distal;
-            AABB_ExpandPoint(box, c->bounds.start);
-            AABB_ExpandPoint(box, c->bounds.end);
-            if (digit) digitDiameter = Math_Min(digitDiameter, diameter);
-            else distalDiameter = Math_Min(distalDiameter, diameter);
+
+            if (lower) {
+                float diameter = 2 * Math_Min(Math_Min(c->widthA, c->heightA),
+                                               Math_Min(c->widthB, c->heightB));
+                AABB_ExpandPoint(&distal, c->bounds.start);
+                AABB_ExpandPoint(&distal, c->bounds.end);
+                distalDiameter = Math_Min(distalDiameter, diameter);
+                continue;
+            }
+
+            /* Para dígitos: distinguir entre el ungual terminal y las falanges del tallo/palma */
+            bool isTerminalUngual = true;
+            for (size_t k = 0; k < sdf->connectorCount; ++k) {
+                if (sdf->connectors[k].fromId == c->toId) {
+                    isTerminalUngual = false;
+                    break;
+                }
+            }
+
+            if (isTerminalUngual) {
+                float ungualDiameter = 2.0f * Math_Min(c->widthB, c->heightB);
+                if (isfinite(ungualDiameter) && ungualDiameter > 0.0f) {
+                    float target = ungualDiameter / samples;
+                    minUngualTarget = Math_Min(minUngualTarget, target);
+                    AABB_ExpandPoint(&ungualArc, c->bounds.start);
+                    AABB_ExpandPoint(&ungualArc, c->bounds.end);
+                    if (hasIndividualCapacity && *count < capacity) {
+                        AABB3D ungualBox = c->bounds;
+                        AABB_Pad(&ungualBox, target * 2.0f);
+                        regions[(*count)++] = (SDFDetailRegion){ungualBox, target};
+                    }
+                }
+            } else {
+                float diameterA = 2.0f * Math_Min(Math_Min(c->widthA,c->heightA),Math_Min(c->widthB,c->heightB));
+                AABB_ExpandPoint(&autopod, c->bounds.start);
+                AABB_ExpandPoint(&autopod, c->bounds.end);
+                shaftDiameter = Math_Min(shaftDiameter, diameterA);
+            }
         }
-        if (isfinite(digitDiameter) && *count < capacity) {
-            float target = digitDiameter / samples;
-            AABB_Pad(&autopod, target * 2);
+        if (!hasIndividualCapacity && isfinite(minUngualTarget) && *count < capacity) {
+            AABB_Pad(&ungualArc, minUngualTarget * 2.0f);
+            regions[(*count)++] = (SDFDetailRegion){ungualArc, minUngualTarget};
+        }
+        if (isfinite(shaftDiameter) && *count < capacity) {
+            float target = shaftDiameter / Math_Max(samples,2.5f);
+            AABB_Pad(&autopod, target * 2.0f);
             regions[(*count)++] = (SDFDetailRegion){autopod, target};
         }
-        if (isfinite(distalDiameter) && *count < capacity) {
+        if (samples > 3.0f && isfinite(distalDiameter) && *count < capacity) {
             float target = distalDiameter / samples;
             AABB_Pad(&distal, target * 2);
             regions[(*count)++] = (SDFDetailRegion){distal, target};
         }
     }
+    /* Las ramas dormidas no generan regiones. Las activas solicitan el detalle
+     * de su sección real: prolongar la retícula gruesa hasta la madurez ocultaba
+     * los dedos. Las cajas crecen con la anatomía sin cambiar de algoritmo. */
 }
 
 size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf,float samples,
@@ -1554,8 +1628,12 @@ size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf,float samples,
     size_t n=0;
     for(size_t i=0;i<sdf->mouthCount && n+7<=capacity;++i) {
         const MonsterSDFMouth* m=&sdf->mouths[i];
-        if(!m->anatomicalHead||m->cephalicDevelopment<.20f)continue;
-        float base=m->craniumRadii.y*.20f;
+        if(!m->anatomicalHead)continue;
+        float base=m->craniumRadii.y*(1.2f/samples);
+        /* La cota rostral impide que cabezas de hocico aplanado queden
+         * submuestreadas cuando el cráneo posterior es ancho o voluminoso. */
+        float maxHeadVoxel=Math_Max(m->faceTipRadii.y*0.65f,0.05f);
+        if(base>maxHeadVoxel)base=maxHeadVoxel;
         regions[n++]=(SDFDetailRegion){m->headBounds,base};
         float nasal=2*Math_Min(m->nostrilRadii.x,Math_Min(m->nostrilRadii.y,m->nostrilRadii.z))/samples;
         Vector3 radius=Vec3_Scale(m->nostrilRadii,1.8f);
@@ -1569,6 +1647,7 @@ size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf,float samples,
         radius=Vec3_Scale(m->tympanumRadii,1.5f);
         regions[n++]=MonsterSDF_Detail(m,m->leftTympanumCenterLocal,radius,tym);
         regions[n++]=MonsterSDF_Detail(m,m->rightTympanumCenterLocal,radius,tym);
+
     }
     MonsterSDF_AppendageDetails(sdf, samples, regions, capacity, &n);
     return n;

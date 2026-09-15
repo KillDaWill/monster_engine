@@ -91,6 +91,7 @@ uint64_t AnatomyGraph_Fingerprint(const AnatomyGraph* g) {
         const BodyConnection* e=&g->connections[i];uint64_t h=0xcbf29ce484222325ULL;
 #define HASH_EDGE(member) h=Anatomy_HashBytes(&e->member,sizeof(e->member),h)
         HASH_EDGE(id);HASH_EDGE(fromId);HASH_EDGE(toId);HASH_EDGE(kind);
+        h=Anatomy_HashBytes(&g->dormantConnections[i],sizeof(bool),h);
 #undef HASH_EDGE
         hash=Anatomy_HashBytes(&h,sizeof(h),hash);
     }

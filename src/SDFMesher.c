@@ -388,7 +388,7 @@ bool SDFMesher_GenerateMeshDetailed(
     Mesh* outMesh
 ) {
     if (!mesher || !field || !field->evaluate || !outMesh) return false;
-    if(mesher->config.adaptiveDetail && mesher->config.useAutoBounds && regions && regionCount)
+    if(mesher->config.adaptiveDetail && mesher->config.useAutoBounds)
         return SDFAdaptiveMesher_Generate(mesher,field,regions,regionCount,outMesh);
 
     Mesh_Clear(outMesh);
