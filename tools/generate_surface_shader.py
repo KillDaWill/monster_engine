@@ -8,7 +8,7 @@ def expand(path):
     text = path.read_text()
     return re.sub(r'^#include "([^"]+)"$', lambda m: expand(path.parent / m[1]), text, flags=re.M)
 output = ['/* Generado por tools/generate_surface_shader.py; editar shaders/. */']
-for name, source in [('surfaceVertexSource', 'monster_mesh.vert'), ('surfaceFragmentSource', 'monster_surface.frag')]:
+for name, source in [('surfaceVertexSource', 'monster_mesh.vert'), ('surfaceFragmentSource', 'monster_surface.frag'), ('furGuardVertexSource','fur_guard.vert'), ('furGuardFragmentSource','fur_guard.frag')]:
     output.append('static const char* const ' + name + '[] = {')
     output += [json.dumps(line + '\n') + ',' for line in expand(root / 'shaders' / source).splitlines()]
     output.append('};')

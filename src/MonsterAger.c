@@ -1,3 +1,4 @@
+#include "Creature.h"
 #include "MonsterAger.h"
 #include "MathUtils.h"
 #include <stdlib.h>
@@ -123,17 +124,23 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
     if (!monster1 || !monster2 || !dst) return;
 
     /* Una sola autoridad resuelve cuerpo, anfitrión cefálico y anclajes. */
-    if (monster1->hasLizardPhenotype && monster2->hasLizardPhenotype) {
-        LizardPhenotype phenotype=LizardPhenotype_Interpolate(
-            &monster1->lizardPhenotype,&monster2->lizardPhenotype,perc);
+    if (monster1->hasCreaturePhenotype && monster2->hasCreaturePhenotype && monster1->recipeId==monster2->recipeId && CreaturePhenotype_MorphCompatible(&monster1->phenotype,&monster2->phenotype) && AnatomyGraph_TopologyCompatible(&monster1->anatomyGraph,&monster2->anatomyGraph)) {
+        CreaturePhenotype phenotype=CreaturePhenotype_Interpolate(
+            &monster1->phenotype,&monster2->phenotype,perc);
         float open=monster1->head.anatomy.oralSystem.openFactor;
         open+=Math_Clamp01(perc)*(monster2->head.anatomy.oralSystem.openFactor-open);
-        if (!Lizard_ResolveAppearance(dst,&phenotype)) return;
+        if (!Creature_ResolveAppearance(dst,&monster1->recipe,&phenotype)) return;
         dst->growthAge=Math_Clamp01(perc); dst->hasGrowthAge=true;
         Monster_SetHeadOpenFactor(dst,open);
         dst->angle=Math_Lerp(monster1->angle,monster2->angle,perc);
         dst->updateSpeed=Math_Lerp(monster1->updateSpeed,monster2->updateSpeed,perc);
         return;
+    }
+
+    /* Topologías distintas sólo admiten selección discreta de extremos. */
+    if(monster1->hasCreaturePhenotype||monster2->hasCreaturePhenotype) {
+        Monster_CopyInto(dst,perc<.5f?monster1:monster2);
+        dst->growthAge=Math_Clamp01(perc);dst->hasGrowthAge=true;return;
     }
 
     /* Los extremos conservan activación y dominio exactos. Un endpoint heredado
@@ -252,9 +259,11 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         LERP_HEAD_FIELD(rostrumDepth); LERP_HEAD_FIELD(rostrumDorsalSlope);
         LERP_HEAD_FIELD(temporalWidth); LERP_HEAD_FIELD(temporalDepth);
         LERP_HEAD_FIELD(eyeSize); LERP_HEAD_FIELD(eyeLaterality); LERP_HEAD_FIELD(eyeForwardness);
-        LERP_HEAD_FIELD(eyeDorsality); LERP_HEAD_FIELD(eyeExposure);
+        LERP_HEAD_FIELD(eyelidCoverage); LERP_HEAD_FIELD(eyeCompression); LERP_HEAD_FIELD(eyeDorsality); LERP_HEAD_FIELD(eyeExposure);
         LERP_HEAD_FIELD(browProminence); LERP_HEAD_FIELD(snoutBluntness);
         LERP_HEAD_FIELD(jawLength); LERP_HEAD_FIELD(jawDepth); LERP_HEAD_FIELD(jawStrength);
+        LERP_HEAD_FIELD(earConcavity); LERP_HEAD_FIELD(earBaseWidth); LERP_HEAD_FIELD(earThickness);
+        LERP_HEAD_FIELD(earOutward); LERP_HEAD_FIELD(earForward);
         LERP_HEAD_FIELD(noseScale); LERP_HEAD_FIELD(earSize); LERP_HEAD_FIELD(earPointiness);
         LERP_HEAD_FIELD(cheekMass); LERP_HEAD_FIELD(beakLength); LERP_HEAD_FIELD(beakDepth);
         LERP_HEAD_FIELD(beakTaper); LERP_HEAD_FIELD(beakCurvature); LERP_HEAD_FIELD(nostrilPosition);
@@ -264,14 +273,6 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         float open=mouthCount>0?dst->mouths[0].openFactor:dst->head.anatomy.oralSystem.openFactor;
         dst->head.anatomy.oralSystem.openFactor=open;
         Monster_ResolveHead(dst); Monster_SetHeadOpenFactor(dst,open);
-    }
-
-    /* 6. El cuerpo de lagarto se interpola en semántica y se vuelve a resolver. */
-    if (monster1->hasLizardPhenotype && monster2->hasLizardPhenotype) {
-        dst->lizardPhenotype=LizardPhenotype_Interpolate(&monster1->lizardPhenotype,
-                                                         &monster2->lizardPhenotype,perc);
-        dst->hasLizardPhenotype=true;
-        dst->hasAnatomyGraph=Lizard_ResolveAnatomy(&dst->lizardPhenotype,&dst->anatomyGraph);
     }
 
     /* 7. Mezclar transformaciones globales */
@@ -285,7 +286,7 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
     ager.monster2 = Monster_Clone(second);
     ager.perc = Math_Clamp01(perc);
 
-    if(!first->hasLizardPhenotype || !second->hasLizardPhenotype)
+    if(!first->hasCreaturePhenotype || !second->hasCreaturePhenotype)
         MonsterAger_NormalizeEndpoints(&ager.monster1, &ager.monster2);
 
     ager.result = Monster_Clone(&ager.monster1);

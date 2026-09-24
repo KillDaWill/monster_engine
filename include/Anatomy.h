@@ -18,37 +18,15 @@ extern "C" {
 /** Identidad estable de un nodo o una conexión anatómica. */
 typedef uint32_t AnatomyId;
 
-/** Identidades reservadas por el preset de lagarto. */
-typedef enum LizardAnatomyId {
-    ANATOMY_ID_HEAD = 1,
-    ANATOMY_ID_NECK = 10,
-    ANATOMY_ID_PECTORAL = 20,
-    ANATOMY_ID_THORAX_ANTERIOR = 21,
-    ANATOMY_ID_THORAX_POSTERIOR = 22,
-    ANATOMY_ID_ABDOMEN = 23,
-    ANATOMY_ID_PELVIS = 24,
-    ANATOMY_ID_TAIL_BASE = 30,
-    ANATOMY_ID_TAIL_MIDDLE = 31,
-    ANATOMY_ID_TAIL_DISTAL = 32,
-    ANATOMY_ID_TAIL_TIP = 33,
-    ANATOMY_ID_FORE_LEFT_SHOULDER = 100,
-    ANATOMY_ID_FORE_LEFT_ELBOW = 101,
-    ANATOMY_ID_FORE_LEFT_WRIST = 102,
-    ANATOMY_ID_FORE_LEFT_HAND = 103,
-    ANATOMY_ID_FORE_RIGHT_SHOULDER = 120,
-    ANATOMY_ID_FORE_RIGHT_ELBOW = 121,
-    ANATOMY_ID_FORE_RIGHT_WRIST = 122,
-    ANATOMY_ID_FORE_RIGHT_HAND = 123,
-    ANATOMY_ID_HIND_LEFT_HIP = 140,
-    ANATOMY_ID_HIND_LEFT_KNEE = 141,
-    ANATOMY_ID_HIND_LEFT_ANKLE = 142,
-    ANATOMY_ID_HIND_LEFT_FOOT = 143,
-    ANATOMY_ID_HIND_RIGHT_HIP = 160,
-    ANATOMY_ID_HIND_RIGHT_KNEE = 161,
-    ANATOMY_ID_HIND_RIGHT_ANKLE = 162,
-    ANATOMY_ID_HIND_RIGHT_FOOT = 163,
-    ANATOMY_ID_DIGIT_BASE = 200
-} LizardAnatomyId;
+/** Identidades compuestas: módulo 1..65534, nodo local 1..65535. */
+AnatomyId Anatomy_MakeId(uint32_t moduleInstanceId,uint16_t localNodeId);
+typedef enum AnatomyRegion {
+    ANATOMY_REGION_UNKNOWN, ANATOMY_REGION_HEAD, ANATOMY_REGION_NECK,
+    ANATOMY_REGION_TRUNK, ANATOMY_REGION_PELVIS, ANATOMY_REGION_FORELIMB,
+    ANATOMY_REGION_HINDLIMB, ANATOMY_REGION_LIMB, ANATOMY_REGION_WING,
+    ANATOMY_REGION_TAIL, ANATOMY_REGION_DIGIT, ANATOMY_REGION_ORNAMENT
+} AnatomyRegion;
+typedef enum AnatomySide { ANATOMY_SIDE_CENTER, ANATOMY_SIDE_LEFT, ANATOMY_SIDE_RIGHT } AnatomySide;
 
 /** Papel geométrico de un nodo resuelto. */
 typedef enum AnatomyNodeRole {
@@ -61,7 +39,9 @@ typedef enum AnatomyNodeRole {
 typedef enum BodyConnectionKind {
     BODY_CONNECTION_AXIAL_LOFT,
     BODY_CONNECTION_LIMB_SEGMENT,
-    BODY_CONNECTION_DIGIT_SEGMENT
+    BODY_CONNECTION_DIGIT_SEGMENT,
+    BODY_CONNECTION_SUPPORT, /**< Unión estructural sin volumen adicional (láminas). */
+    BODY_CONNECTION_ORNAMENT_SEGMENT /**< Tramo de cuerno o espina, separado del detalle locomotor. */
 } BodyConnectionKind;
 
 /** @struct AnatomyNode
@@ -70,10 +50,16 @@ typedef enum BodyConnectionKind {
 typedef struct AnatomyNode {
     AnatomyId id; /**< Identidad estable independiente del índice de almacenamiento. */
     Vector3 center; /**< Centro mundial de la estación. */
+    Vector3 envelopeRadii; /**< Envolvente física resuelta de módulos volumétricos. */
     float widthRadius; /**< Radio transversal de la sección. */
     float heightRadius; /**< Radio vertical de la sección. */
     int colorIndex; /**< Índice de color en la paleta del monstruo. */
     AnatomyNodeRole role; /**< Papel anatómico y geométrico. */
+    AnatomyRegion region;
+    AnatomySide side;
+    uint32_t moduleInstanceId;
+    uint16_t localNodeId;
+    float development;
 } AnatomyNode;
 
 /** @struct BodyConnection
@@ -84,12 +70,16 @@ typedef struct BodyConnection {
     AnatomyId fromId; /**< Identidad de la estación de origen. */
     AnatomyId toId; /**< Identidad de la estación de destino. */
     BodyConnectionKind kind; /**< Receta geométrica de la unión. */
+    uint32_t moduleInstanceId;
+    float development;
+    float widthBulge, heightBulge; /**< Plenitud central de sección; cero conserva el cono lineal. */
+    Vector3 transverseAxis; /**< Eje transversal anatómico opcional; cero usa el marco automático. */
 } BodyConnection;
 
 /** Capacidad máxima de estaciones del grafo compacto embebido. */
-#define ANATOMY_MAX_NODES 192
+#define ANATOMY_MAX_NODES 1024
 /** Capacidad máxima de conexiones del grafo compacto embebido. */
-#define ANATOMY_MAX_CONNECTIONS 192
+#define ANATOMY_MAX_CONNECTIONS 1024
 
 /** @struct AnatomyGraph
  * @brief Grafo anatómico compacto con nodos identificados y aristas explícitas.
@@ -102,12 +92,12 @@ typedef struct AnatomyGraph {
     bool dormantConnections[ANATOMY_MAX_CONNECTIONS]; /**< Blueprint sin superficie ni influencia de vinculación. */
 } AnatomyGraph;
 
-/** @brief ID digital estable: miembro 0..3, dedo I..V (0..4), estación 0..6.
- * 0 = base metapodial, 1 = articulación metapodiofalángica, 2..6 = extremos
- * de falanges; la última falange es el ungual. Nunca depende del almacenamiento.
- * @return Identidad reservada para la estación, o cero si los índices no son válidos.
- */
-AnatomyId Anatomy_DigitId(unsigned limb, unsigned digit, unsigned station);
+/** @brief Consulta un nodo local de un módulo. @return Nodo, o NULL. */
+const AnatomyNode* AnatomyGraph_FindModuleNode(const AnatomyGraph*,uint32_t,uint16_t);
+/** @brief Consulta la primera región semántica. @return Nodo, o NULL. */
+const AnatomyNode* AnatomyGraph_FindFirstRegion(const AnatomyGraph*,AnatomyRegion);
+/** @brief Compara blueprint sin geometría ni dormancia. @return Compatibilidad. */
+bool AnatomyGraph_TopologyCompatible(const AnatomyGraph*,const AnatomyGraph*);
 
 /** Inicializa un grafo vacío. */
 void AnatomyGraph_Init(AnatomyGraph* graph);

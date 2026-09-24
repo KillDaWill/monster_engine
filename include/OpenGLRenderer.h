@@ -105,6 +105,8 @@ void OpenGLRenderer_Finish(void);
 /** @brief Selecciona visualización de superficie (0 normal, 1..9 diagnóstico). */
 void OpenGLRenderer_SetSurfaceDebug(Renderer3D* renderer,int mode);
 /** @brief Compila y verifica el programa; false permite detectar fallback heredado. */
+/** @brief Selecciona representaciones y fuerza 1..32 conchas (0=automático). */
+void OpenGLRenderer_SetFurQuality(Renderer3D*,bool shells,bool guards,int forcedShells);
 bool OpenGLRenderer_SurfaceReady(Renderer3D* renderer);
 /** @brief Consume y comunica errores GL pendientes en validaciones. */
 bool OpenGLRenderer_CheckErrors(void);
@@ -114,14 +116,32 @@ typedef struct OpenGLMeshPerformanceStats {
     uint64_t uploadCount,cacheHitCount,totalBytesUploaded;
     double lastUploadMs;
     float gpuRenderMs;
+    uint64_t furRootBuilds;
+    size_t guardCandidates;
+    int furShells;
+    float furPixels;
 } OpenGLMeshPerformanceStats;
 /** @brief Obtiene métricas del renderer de mallas sin sincronizar la GPU. */
 OpenGLMeshPerformanceStats OpenGLRenderer_GetMeshPerformanceStats(const Renderer3D* renderer);
 
 /** @brief Ventana opaca para demos sin dependencias SDL/GL en sus fuentes. */
 typedef struct OpenGLDemoWindow OpenGLDemoWindow;
-typedef struct OpenGLDemoInput { bool quit,togglePause,toggleDebug; int view; int surfaceSelect,surfaceAdjust; bool surfaceSeed,surfacePigment,surfaceDebugNext,surfaceToggle; } OpenGLDemoInput;
+typedef struct OpenGLDemoInput {
+    bool quit,togglePause,toggleDebug;
+    int view;
+    int surfaceSelect,surfaceAdjust;
+    bool surfaceSeed,surfacePigment,surfaceDebugNext,surfaceToggle;
+    int digitKey; /**< 0..9 si se pulsa una tecla numérica, o -1 */
+    bool keyR;     /**< true si se pulsa la tecla 'R' */
+    bool keyM, keyA; /**< Comparación monocroma y anatomía. */
+    bool keyG;     /**< true si se pulsa la tecla 'G' */
+    bool keyF;     /**< true si se pulsa la tecla 'F' (fur toggle) */
+    int furLengthAdjust;  /**< +1 o -1 con [ / ] */
+    int furDensityAdjust; /**< +1 o -1 con ; / ' */
+} OpenGLDemoInput;
 /** @brief Crea contexto para demos; NULL si falla. */
+/** @brief Crea una ventana con MSAA solicitado y fallback sin MSAA. */
+OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int height,int samples);
 OpenGLDemoWindow* OpenGLDemoWindow_Create(const char* title,int width,int height);
 /** @brief Consulta entrada: Escape, espacio, D y teclas 1..4. */
 OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* window);
@@ -133,6 +153,12 @@ void OpenGLDemoWindow_Free(OpenGLDemoWindow* window);
 double OpenGLDemoWindow_Time(void);
 /** @brief Líneas de depuración; no requiere recrear mallas. */
 void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color);
+/** @brief Apila una traslación en la matriz de modelo para visualización desacoplada de cuadrícula. */
+void OpenGLRenderer_PushModelTranslation(float x, float y, float z);
+/** @brief Traslación, giro y escala uniforme de un espécimen completo. */
+void OpenGLRenderer_ModelTransform(Vector3 translation, float yawDegrees, float scale, Vector3 center);
+/** @brief Restaura la matriz de modelo previa. */
+void OpenGLRenderer_PopModelMatrix(void);
 
 #ifdef __cplusplus
 }

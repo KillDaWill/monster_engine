@@ -9,6 +9,8 @@
 #define MONSTER_VISUAL_H
 
 #include "Monster.h"
+#include "Eye.h"
+#include "EyeTexture.h"
 #include "MonsterSDF.h"
 #include "SDFMesher.h"
 #include "Mesh.h"
@@ -22,12 +24,13 @@ extern "C" {
 
 /**
  * @struct MonsterVisualEye
- * @brief Mallas primitivas de globo, iris y pupila que representan un ojo.
+ * @brief Globo geométrico y apariencia independiente para un ojo.
  */
 typedef struct MonsterVisualEye {
-    Mesh sclera; /**< Malla UV-esfera de la esclerótica (base blanca) */
-    Mesh iris;   /**< Disco elipsoidal coloreado orientado hacia fuera. */
-    Mesh pupil;  /**< Pupila oscura sobre el iris. */
+    Mesh globe; /**< Única malla geométrica del ojo. */
+    Vector3 center, forward, right, up, scale;
+    Eye appearance; /**< Pigmentación y forma pupilar para el shader dedicado. */
+    uint64_t appearanceFingerprint;
 } MonsterVisualEye;
 
 /**

@@ -9,11 +9,24 @@
 #include "AnatomyDeformer.h"
 /** @brief Etiquetas por identidad: independientes del orden de nodos del grafo. */
 typedef struct SurfaceRegionTag { AnatomyId node; SurfaceRegion region; } SurfaceRegionTag;
+/** Volumen de clasificación de la cara interna de un pabellón resuelto. */
+typedef struct SurfacePinnaCoverage {
+    Vector3 center; /**< Centro del pabellón en reposo. */
+    Vector3 up; /**< Eje longitudinal resuelto. */
+    Vector3 side; /**< Eje transversal resuelto. */
+    Vector3 normal; /**< Normal dirigida hacia la abertura. */
+    float halfWidth; /**< Semianchura para clasificar la concha. */
+    float height; /**< Altura longitudinal del pabellón. */
+    float depth; /**< Alcance conservador del volumen clasificador. */
+} SurfacePinnaCoverage;
+/** @brief Datos de reposo para mapear regiones e integumento. */
 typedef struct SurfaceMapping {
-    Vector3 origin;
-    float unitScale;
-    SurfaceRegionTag tags[ANATOMY_MAX_NODES];
-    size_t tagCount;
+    Vector3 origin; /**< Origen anatómico de la receta. */
+    float unitScale; /**< Escala física de las regiones. */
+    SurfaceRegionTag tags[ANATOMY_MAX_NODES]; /**< Etiquetas por identidad. */
+    size_t tagCount; /**< Número de etiquetas válidas. */
+    SurfacePinnaCoverage pinnae[2]; /**< Clasificadores auriculares independientes. */
+    size_t pinnaCount; /**< Número de clasificadores auriculares. */
 } SurfaceMapping;
 /** @brief Métricas de una clasificación superficial completa. */
 typedef struct SurfaceMapperStats {
@@ -42,7 +55,9 @@ void SurfaceMapper_MapMeshWithStats(Mesh* mesh,const AnatomyGraph* graph,
 SurfaceCoordinate SurfaceMapper_MapPoint(Vector3 position,Vector3 normal,SDFMaterial material,
     const AnatomyGraph* graph,const SurfaceMapping* mapping);
 /** @brief Reutiliza la vinculación de deformación para fijar el dominio material
- * en una anatomía canónica; no realiza búsquedas por vértice. */
+ * en una anatomía canónica y aplica el mismo campo/máscara que el mapeo estático. */
 bool SurfaceMapper_MapBoundMesh(Mesh* mesh,const AnatomyDeformer* binding,
     const AnatomyGraph* canonical,const SurfaceMapping* mapping,SurfaceMapperStats* stats);
+/** @brief Etiqueta estaciones por región semántica. @return Dominio de reposo. */
+SurfaceMapping SurfaceMapping_FromAnatomy(const AnatomyGraph* graph,float unitScale);
 #endif

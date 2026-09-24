@@ -16,8 +16,12 @@ static void AxialControllers(ProceduralAnimator* a,const Rig* r,SkeletonPose* p)
     float activity=fminf(1,Vec3_Length(a->locomotion.velocity)*a->gait.cycleDuration/a->gait.strideLength);
     for(size_t i=0;i<r->spineCount;++i) Rotate(&r->skeleton,p,r->spine[i],Vec3_Create(0,1,0),
         a->gait.spineWave*activity*sinf(wave-(float)i*.45f));
-    for(size_t i=0;i<r->tailCount;++i) Rotate(&r->skeleton,p,r->tail[i],Vec3_Create(0,1,0),
-        -a->gait.tailCounterSwing*activity*sinf(wave-(float)i*.65f));
+    for(size_t t=0;t<r->tailCount;++t) {
+        for(size_t i=0;i<r->tails[t].jointCount;++i) {
+            Rotate(&r->skeleton,p,r->tails[t].joints[i],Vec3_Create(0,1,0),
+                -a->gait.tailCounterSwing*activity*sinf(wave-(float)i*.65f));
+        }
+    }
     int head=r->headJoint;
     if(head>=0) {
         Quaternion look=Quat_FromTo(Vec3_Create(0,0,1),a->lookDirection);

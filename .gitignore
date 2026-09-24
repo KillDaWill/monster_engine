@@ -47,3 +47,7 @@ __pycache__/
 
 /benchmarks/benchmark_growth
 /benchmarks/benchmark_head_morph
+
+/demos/demo_dog
+/demos/demo_lizard_diversity
+.opencode/

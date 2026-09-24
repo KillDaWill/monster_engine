@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /**
  * @file benchmark_ager_realtime.c
  * @brief Benchmark automatizado de coherencia temporal, lag de edad y FPS para demo_ager_3d.
@@ -7,7 +9,7 @@
  */
 
 #include "Monster.h"
-#include "Lizard.h"
+#include "Creature.h"
 #include "MonsterAger.h"
 #include "MonsterVisualAsync.h"
 #include "MathUtils.h"
@@ -35,18 +37,18 @@ static unsigned Bench_VisibleDigits(const Mesh* mesh, float scale) {
     float lo = 0, hi = 1;
     for (unsigned i = 0; i < 24; ++i) {
         float t = (lo + hi) * 0.5f;
-        LizardPhenotype p = LizardPhenotype_Interpolate(NULL, NULL, t);
-        if (p.totalScale < scale) lo = t; else hi = t;
+        CreaturePhenotype p = CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult, t);
+        if (p.axial.totalScale < scale) lo = t; else hi = t;
     }
-    LizardPhenotype p = LizardPhenotype_Interpolate(NULL, NULL, (lo + hi) * 0.5f);
+    CreaturePhenotype p = CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult, (lo + hi) * 0.5f);
     AnatomyGraph graph;
-    if (!Lizard_ResolveAnatomy(&p, &graph)) return 0;
+    if (!Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&p, &graph)) return 0;
     const unsigned formula[2][5] = {{2, 3, 4, 5, 3}, {2, 3, 4, 5, 4}};
     unsigned visible = 0;
     for (unsigned limb = 0; limb < 4; ++limb) {
         for (unsigned digit = 0; digit < 5; ++digit) {
             const AnatomyNode* n = AnatomyGraph_FindNode(&graph,
-                Anatomy_DigitId(limb, digit, formula[limb / 2][digit] + 1));
+                Anatomy_MakeId(10+(limb),Limb_DigitLocalId( digit, formula[limb / 2][digit] + 1)));
             if (!n) continue;
             float nearest = 1e6f;
             for (size_t v = 0; v < mesh->vertexCount; ++v) {
@@ -66,9 +68,9 @@ int main(int argc,char** argv) {
 
     Monster young = Monster_Create();
     Monster adult = Monster_Create();
-    LizardPhenotype juvP = LizardPreset_Juvenile();
-    LizardPhenotype adultP = LizardPreset_Adult();
-    if (!Lizard_BuildMonster(&young, &juvP) || !Lizard_BuildMonster(&adult, &adultP)) {
+    CreaturePhenotype juvP = CreatureRecipes_Lizard()->juvenile;
+    CreaturePhenotype adultP = CreatureRecipes_Lizard()->adult;
+    if (!Creature_BuildMonster(&young,CreatureRecipes_Lizard(), &juvP) || !Creature_BuildMonster(&adult,CreatureRecipes_Lizard(), &adultP)) {
         fprintf(stderr, "[ERROR] Fallo al construir fenotipos base\n");
         return 1;
     }

@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 #include "test_utils.h"
 #include "MonsterVisualAsync.h"
 #include "Monster.h"
@@ -176,20 +178,21 @@ void test_visual_async_renders_jaw_components(void) {
 
     /* Renderer falso — cuenta llamadas a renderMesh (contrato observado) */
     int renderCalls = 0;
-    Renderer3D fakeRenderer;
+    Renderer3D fakeRenderer={0};
     fakeRenderer.user_data = &renderCalls;
     fakeRenderer.beginFrame = NULL;
     fakeRenderer.endFrame = NULL;
     fakeRenderer.renderMesh = FakeRenderMeshCounter;
+    fakeRenderer.renderEye = NULL;
 
     bool renderOk = MonsterVisualAsync_Render(asyncMgr, &fakeRenderer);
     TEST_ASSERT(renderOk, "MonsterVisualAsync_Render debe retornar true con renderer válido");
 
-    int expectedCalls = 1 + 2 * (int)lizard.mouthCount + 3 * (int)lizard.eyeCount;
+    int expectedCalls = 1 + 2 * (int)lizard.mouthCount + (int)lizard.eyeCount;
     TEST_ASSERT(renderCalls == expectedCalls, "MonsterVisualAsync no renderiza mandíbula y bisagra");
 
     /* Validación explícita del faltante: sin bocas ni cabría el conteo de cuerpo+ojos */
-    int bodyPlusEyes = 1 + 3 * (int)lizard.eyeCount;
+    int bodyPlusEyes = 1 + (int)lizard.eyeCount;
     TEST_ASSERT(renderCalls != bodyPlusEyes, "Async omitió los componentes anatómicos de boca");
 
     MonsterVisualAsync_Free(asyncMgr);
@@ -282,8 +285,8 @@ void test_visual_async_growth_sweep(void) {
 }
 
 static void test_visual_async_conforming_head(void) {
-    Monster lizard=Monster_Create();LizardPhenotype phenotype=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&lizard,&phenotype),"No se construyó el adulto anatómico asíncrono");
+    Monster lizard=Monster_Create();CreaturePhenotype phenotype=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&lizard,CreatureRecipes_Lizard(),&phenotype),"No se construyó el adulto anatómico asíncrono");
     MonsterVisualAsyncConfig cfg=MonsterVisualAsync_DefaultConfig();cfg.settledDelaySec=.10f;
     MonsterVisualAsync* asyncMgr=MonsterVisualAsync_Create(cfg);
     TEST_ASSERT(asyncMgr!=NULL,"No se creó el gestor para cabeza local");
@@ -301,7 +304,7 @@ static void test_visual_async_conforming_head(void) {
                 "El tier settled no refina de forma independiente la cabeza");
     int renderCalls=0;Renderer3D renderer={0};renderer.user_data=&renderCalls;renderer.renderMesh=FakeRenderMeshCounter;
     TEST_ASSERT(MonsterVisualAsync_Render(asyncMgr,&renderer),"No se renderizó el snapshot particionado");
-    TEST_ASSERT(renderCalls==1+2*(int)lizard.mouthCount+3*(int)lizard.eyeCount,
+    TEST_ASSERT(renderCalls==1+2*(int)lizard.mouthCount+(int)lizard.eyeCount,
                 "El renderer asíncrono omitió la cabeza local o duplicó el cuerpo");
     printf("  [debug] async cabeza interactiva %.5f/%zu settled %.5f/%zu\n",
            interactive.headMesher.effectiveVoxelSize,interactive.headMesher.cellCount,
@@ -430,8 +433,8 @@ void test_bug_async_growth_displays_old_body_with_new_jaw_hinge_snapshot_mixing(
 }
 
 static void test_visual_async_single_snapshot(void) {
-    Monster m=Monster_Create();LizardPhenotype p=LizardPreset_Larva();
-    TEST_ASSERT(Lizard_BuildMonster(&m,&p),"Snapshot juvenil inválido");
+    Monster m=Monster_Create();CreaturePhenotype p=CreatureRecipes_Lizard()->larva;
+    TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p),"Snapshot juvenil inválido");
     MonsterVisualAsync* v=MonsterVisualAsync_Create(MonsterVisualAsync_DefaultConfig());
     TEST_ASSERT(v!=NULL,"No se creó el worker");
     MonsterVisualAsync_SetContinuousMotion(v,true);
@@ -442,19 +445,19 @@ static void test_visual_async_single_snapshot(void) {
     MonsterVisualAsyncStats stats=MonsterVisualAsync_GetStats(v);
     TEST_ASSERT(stats.activeQualityTier==MONSTER_VISUAL_QUALITY_MORPH,"La animación continua disparó un asentamiento");
     TEST_ASSERT(stats.requestCount==1&&stats.completedBuildCount==1,"Se repitió un snapshot ya pendiente o en ejecución");
-    TEST_ASSERT(stats.requestedFingerprint==stats.displayedFingerprint&&FLOAT_NEAR(stats.displayedScale,p.totalScale),"La telemetría no describe la malla mostrada");
+    TEST_ASSERT(stats.requestedFingerprint==stats.displayedFingerprint&&FLOAT_NEAR(stats.displayedScale,p.axial.totalScale),"La telemetría no describe la malla mostrada");
     TEST_ASSERT(Mesh_Validate(MonsterVisualAsync_GetDisplayMesh(v)).watertight,"La malla unificada presenta fronteras abiertas");
     const Mesh* shown=MonsterVisualAsync_GetDisplayMesh(v);
     Vector3 position=shown->vertices[0].position;
     float oldScale=stats.displayedScale;
-    p=LizardPreset_Adult();Lizard_BuildMonster(&m,&p);MonsterVisualAsync_Update(v,&m,0);
+    p=CreatureRecipes_Lizard()->adult;Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p);MonsterVisualAsync_Update(v,&m,0);
     stats=MonsterVisualAsync_GetStats(v);
     TEST_ASSERT(FLOAT_NEAR(stats.displayedScale,oldScale),"MORPH falseó la escala visible con la solicitud adulta");
     TEST_ASSERT(Vec3_Distance(position,shown->vertices[0].position)<1e-6f,
         "MORPH estiró la topología del gusano antes de publicar la anatomía adulta");
-    p=LizardPreset_Larva();Lizard_BuildMonster(&m,&p);MonsterVisualAsync_Update(v,&m,0);
+    p=CreatureRecipes_Lizard()->larva;Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p);MonsterVisualAsync_Update(v,&m,0);
     MonsterVisualAsync_Flush(v);stats=MonsterVisualAsync_GetStats(v);
-    TEST_ASSERT(stats.requestedFingerprint==stats.displayedFingerprint&&FLOAT_NEAR(stats.displayedScale,p.totalScale),"Una generación obsoleta sustituyó el snapshot solicitado");
+    TEST_ASSERT(stats.requestedFingerprint==stats.displayedFingerprint&&FLOAT_NEAR(stats.displayedScale,p.axial.totalScale),"Una generación obsoleta sustituyó el snapshot solicitado");
     MonsterVisualAsync_Free(v);Monster_Free(&m);
     printf("[PASS] test_visual_async_single_snapshot\n");
 }

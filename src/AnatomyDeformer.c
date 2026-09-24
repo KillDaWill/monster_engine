@@ -269,7 +269,7 @@ bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* ne
     if (!morph || !morph->isBound || !newGraph || !targetMesh) return false;
     if (targetMesh->vertexCount != morph->vertexCount || !targetMesh->vertices) return false;
 
-    if (!AnatomyGraph_Validate(newGraph)) return false;
+    if (!AnatomyGraph_Validate(newGraph)||!AnatomyGraph_TopologyCompatible(&morph->refGraph,newGraph)) return false;
     for(size_t c=0;c<morph->refGraph.connectionCount;++c) {
         const BodyConnection* edge=&morph->refGraph.connections[c];
         if(!AnatomyGraph_FindNode(newGraph,edge->fromId) || !AnatomyGraph_FindNode(newGraph,edge->toId))return false;

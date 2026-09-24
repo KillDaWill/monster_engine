@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /** @file benchmark_lizard.c
  * @brief Benchmark reproducible del preset compartido, tiers reales y detalle anatómico local.
  */
@@ -10,8 +12,8 @@
 static double now_ms(void) {struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return t.tv_sec*1000.0+t.tv_nsec/1e6;}
 int main(int argc,char**argv) {
     int repetitions=argc>1?atoi(argv[1]):3;if(repetitions<1)repetitions=1;
-    Monster a=Monster_Create(),b=Monster_Create();LizardPhenotype pa=LizardPreset_Juvenile(),pb=LizardPreset_Adult();
-    if(!Lizard_BuildMonster(&a,&pa)||!Lizard_BuildMonster(&b,&pb))return 1;
+    Monster a=Monster_Create(),b=Monster_Create();CreaturePhenotype pa=CreatureRecipes_Lizard()->juvenile,pb=CreatureRecipes_Lizard()->adult;
+    if(!Creature_BuildMonster(&a,CreatureRecipes_Lizard(),&pa)||!Creature_BuildMonster(&b,CreatureRecipes_Lizard(),&pb))return 1;
     Monster_SetHeadOpenFactor(&a,.1f);Monster_SetHeadOpenFactor(&b,.1f);
     MonsterAger ag=MonsterAger_Create(&a,&b,0);
     puts("age,tier,iteration,total_ms,sdf_ms,body_mesh_ms,head_mesh_ms,surface_map_ms,mouth_ms,map_candidates_per_vertex,map_tests,map_bruteforce,cells,active,refined,distance_samples,attribute_samples,triangles,min_step,max_step,detail_ratio,budget_adjusted,detail_degraded,boundary_edges,nostril_vertices,orbit_vertices,connector_candidates,connector_exact,connector_pruned");

@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /**
  * @file demo_ager_3d.c
  * @brief Demo visual 3D interactiva en OpenGL (SDF Mesh Pipeline) para mostrar la transición de envejecimiento/evolución (MonsterAger) de un Lagarto.
@@ -25,8 +27,8 @@
 
 static Monster Demo_CreateLizardStage(bool adult) {
     Monster lizard = Monster_Create();
-    LizardPhenotype phenotype=adult?LizardPreset_Adult():LizardPreset_Seed();
-    if(!Lizard_BuildMonster(&lizard,&phenotype))
+    CreaturePhenotype phenotype=adult?CreatureRecipes_Lizard()->adult:CreatureRecipes_Lizard()->seed;
+    if(!Creature_BuildMonster(&lizard,CreatureRecipes_Lizard(),&phenotype))
         fprintf(stderr,"[ERROR] No se pudo resolver el lagarto.\n");
     Monster_SetHeadOpenFactor(&lizard,adult?0.10f:0.0f);
     return lizard;
@@ -34,25 +36,25 @@ static Monster Demo_CreateLizardStage(bool adult) {
 
 /* Verifica los extremos de la anatomía que pertenece a la malla publicada,
  * no los de una solicitud más reciente todavía pendiente en el worker. */
-static LizardPhenotype Demo_PhenotypeAtScale(float scale) {
-    LizardPhenotype larva=LizardPreset_Seed(),adult=LizardPreset_Adult();
+static CreaturePhenotype Demo_PhenotypeAtScale(float scale) {
+    CreaturePhenotype larva=CreatureRecipes_Lizard()->seed,adult=CreatureRecipes_Lizard()->adult;
     float lo=0,hi=1;
     for(unsigned i=0;i<24;++i) {
         float t=(lo+hi)*.5f;
-        LizardPhenotype p=LizardPhenotype_Interpolate(&larva,&adult,t);
-        if(p.totalScale<scale)lo=t;else hi=t;
+        CreaturePhenotype p=CreaturePhenotype_Interpolate(&larva,&adult,t);
+        if(p.axial.totalScale<scale)lo=t;else hi=t;
     }
-    return LizardPhenotype_Interpolate(&larva,&adult,(lo+hi)*.5f);
+    return CreaturePhenotype_Interpolate(&larva,&adult,(lo+hi)*.5f);
 }
 
 static unsigned Demo_VisibleDigits(const Mesh* mesh,float scale) {
-    LizardPhenotype p=Demo_PhenotypeAtScale(scale);
-    AnatomyGraph graph;if(!Lizard_ResolveAnatomy(&p,&graph))return 0;
+    CreaturePhenotype p=Demo_PhenotypeAtScale(scale);
+    AnatomyGraph graph;if(!Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&p,&graph))return 0;
     const unsigned formula[2][5]={{2,3,4,5,3},{2,3,4,5,4}};
     unsigned visible=0;
     for(unsigned limb=0;limb<4;++limb)for(unsigned digit=0;digit<5;++digit) {
         const AnatomyNode* n=AnatomyGraph_FindNode(&graph,
-            Anatomy_DigitId(limb,digit,formula[limb/2][digit]+1));
+            Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit,formula[limb/2][digit]+1)));
         if(!n || n->widthRadius < 0.005f) continue;
         float nearest=1e6f;
         for(size_t v=0;v<mesh->vertexCount;++v)
@@ -352,7 +354,7 @@ int main(int argc, char* argv[]) {
                         float presentedScale = visible.presentedScale > 0.0f ? visible.presentedScale : visible.displayedScale;
                         (void)presentedScale;
                         float workerAge = visible.displayedScale > 0.0f
-                            ? Lizard_AgeFromScaleBetween(visible.displayedScale, larva.lizardPhenotype.totalScale, adultLizard.lizardPhenotype.totalScale)
+                            ? Creature_AgeFromScaleBetween(visible.displayedScale, larva.phenotype.axial.totalScale, adultLizard.phenotype.axial.totalScale)
                             : ageFactor;
                         float lag = fabsf(ageFactor - workerAge);
                         if (adaptiveFps && autoAnimate) {
@@ -415,9 +417,9 @@ int main(int argc, char* argv[]) {
         }
         if(captureActive&&captureView>=8) {
             const AnatomyNode* n=AnatomyGraph_FindNode(&currentMonster->anatomyGraph,
-                captureView%2?ANATOMY_ID_HIND_LEFT_FOOT:ANATOMY_ID_FORE_LEFT_HAND);
+                captureView%2?Anatomy_MakeId(12,4):Anatomy_MakeId(10,4));
             camera.target=n->center;
-            float scale=currentMonster->lizardPhenotype.totalScale;
+            float scale=currentMonster->phenotype.axial.totalScale;
             if(captureView<10){offset=Vec3_Create(0,2.6f*scale,0);camera.up=Vec3_Create(0,0,-1);}
             else offset=Vec3_Scale(Vec3_Create(1.8f,1.4f,1.2f),scale);
         }
@@ -458,8 +460,8 @@ int main(int argc, char* argv[]) {
         /* Desfase entre edad mostrada en pantalla y edad objetivo */
         float presentedScale = (cyclePrefix || stats.presentedScale <= 0.0f) ? stats.displayedScale : stats.presentedScale;
         float displayedAge = presentedScale > 0.0f
-            ? Lizard_AgeFromScaleBetween(presentedScale,
-                larva.lizardPhenotype.totalScale,adultLizard.lizardPhenotype.totalScale)
+            ? Creature_AgeFromScaleBetween(presentedScale,
+                larva.phenotype.axial.totalScale,adultLizard.phenotype.axial.totalScale)
             : ageFactor;
         float ageLag = fabsf(displayedAge - ageFactor);
         const char* tierStr = (stats.activeQualityTier == MONSTER_VISUAL_QUALITY_SETTLED)
@@ -529,9 +531,9 @@ int main(int argc, char* argv[]) {
             cycleCoverage[cycleReturning?1:0]|=1u<<(unsigned)(Math_Clamp01(displayedAge)*10);
             cycleFrames=(unsigned)generation;
             unsigned visible=Demo_VisibleDigits(bodyMesh,presentedScale);
-            LizardPhenotype visiblePhenotype=Demo_PhenotypeAtScale(presentedScale);
-            if(visiblePhenotype.appendageDevelopment<.02f)cycleFailures+=visible!=0;
-            else if(visiblePhenotype.appendageDevelopment>.92f)cycleFailures+=visible!=20;
+            CreaturePhenotype visiblePhenotype=Demo_PhenotypeAtScale(presentedScale);
+            if(visiblePhenotype.development.appendages<.02f)cycleFailures+=visible!=0;
+            else if(visiblePhenotype.development.appendages>.92f)cycleFailures+=visible!=20;
             char path[768];snprintf(path,sizeof(path),"%s-%04u.ppm",cyclePrefix,cycleFrames);
             if(!OpenGLRenderer_SavePPM(path,windowWidth,windowHeight))cycleFailures++;
             printf("[CICLO] generación=%u extremos_visibles=%u/20 escala=%.6f\n",cycleFrames,visible,presentedScale);

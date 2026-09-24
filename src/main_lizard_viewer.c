@@ -1,3 +1,4 @@
+#include "Creature.h"
 /**
  * @file main_lizard_viewer.c
  * @brief Aplicación de renderizado 3D en tiempo real con SDL2 + OpenGL (SDF Mesh Pipeline) para visualizar al monstruo Lagarto.
@@ -75,8 +76,8 @@ int main(int argc, char* argv[]) {
 
     /* 4. Construir al Monstruo Lagarto */
     Monster lizard=Monster_Create();
-    LizardPhenotype phenotype=LizardPreset_Adult();
-    if(!Lizard_BuildMonster(&lizard,&phenotype)) {
+    CreaturePhenotype phenotype=CreatureRecipes_Lizard()->adult;
+    if(!Creature_BuildMonster(&lizard,CreatureRecipes_Lizard(),&phenotype)) {
         fprintf(stderr,"[ERROR] No se pudo resolver el lagarto.\n");
         Monster_Free(&lizard);OpenGLRenderer_Destroy(&renderer);
         SDL_GL_DeleteContext(glContext);SDL_DestroyWindow(window);SDL_Quit();return 1;

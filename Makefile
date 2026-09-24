@@ -17,8 +17,9 @@ BUILD_DIR = build
 # Archivos fuente del núcleo puro (Desacoplado de Render)
 CORE_SRCS = $(SRC_DIR)/HeadMorph.c \
             $(SRC_DIR)/Surface.c \
+            $(SRC_DIR)/Fur.c \
             $(SRC_DIR)/SurfaceMapper.c \
-            $(SRC_DIR)/LizardSurface.c \
+            $(SRC_DIR)/SurfacePresets.c \
             $(SRC_DIR)/Color.c \
             $(SRC_DIR)/ColorPalette.c \
             $(SRC_DIR)/Vector.c \
@@ -40,26 +41,43 @@ CORE_SRCS = $(SRC_DIR)/HeadMorph.c \
             $(SRC_DIR)/MonsterVisualAsync.c \
             $(SRC_DIR)/BodyPart.c \
             $(SRC_DIR)/Eye.c \
+            $(SRC_DIR)/EyeTexture.c \
             $(SRC_DIR)/Mouth.c \
             $(SRC_DIR)/Head.c \
             $(SRC_DIR)/Anatomy.c \
-            $(SRC_DIR)/Lizard.c \
+            $(SRC_DIR)/CreaturePhenotype.c \
+            $(SRC_DIR)/CreatureRecipe.c \
+            $(SRC_DIR)/CreatureRecipes.c \
+            $(SRC_DIR)/Attachment.c \
+            $(SRC_DIR)/AxialBody.c \
+            $(SRC_DIR)/AxialBodySprawlingTetrapod.c \
+            $(SRC_DIR)/HeadModule.c \
+            $(SRC_DIR)/Limb.c \
+            $(SRC_DIR)/LimbReptile.c \
+            $(SRC_DIR)/LimbMammal.c \
+            $(SRC_DIR)/AxialBodyUprightTetrapod.c \
+            $(SRC_DIR)/Tail.c \
+            $(SRC_DIR)/Ornament.c \
+            $(SRC_DIR)/Creature.c \
             $(SRC_DIR)/Monster.c \
             $(SRC_DIR)/MonsterQueries.c \
             $(SRC_DIR)/MonsterAger.c \
-            $(SRC_DIR)/LizardMorph.c \
             $(SRC_DIR)/Quaternion.c \
             $(SRC_DIR)/Skeleton.c \
             $(SRC_DIR)/IK.c \
             $(SRC_DIR)/RigBuilder.c \
-            $(SRC_DIR)/LizardRig.c \
+            $(SRC_DIR)/CreatureRig.c \
             $(SRC_DIR)/AnatomyDeformer.c \
             $(SRC_DIR)/WorldInterface.c \
             $(SRC_DIR)/Locomotion.c \
             $(SRC_DIR)/ProceduralAnimator.c \
-            $(SRC_DIR)/LizardGaits.c \
+            $(SRC_DIR)/GaitPresets.c \
             $(SRC_DIR)/MonsterAnimation.c \
-            $(SRC_DIR)/AnimatedVisual.c
+            $(SRC_DIR)/AnimatedVisual.c \
+            $(SRC_DIR)/PigmentPattern.c \
+            $(SRC_DIR)/AttachmentPath.c \
+            $(SRC_DIR)/CreatureVariation.c \
+            $(SRC_DIR)/LizardVariations.c
 
 # Módulo de Renderizador OpenGL
 RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c
@@ -86,10 +104,14 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_mouth_geometry.c \
             $(TEST_DIR)/test_head.c \
             $(TEST_DIR)/test_lizard.c \
+            $(TEST_DIR)/test_creature_recipe.c \
+            $(TEST_DIR)/test_dog.c \
             $(TEST_DIR)/test_local_detail.c \
             $(TEST_DIR)/test_perf_optimizations.c \
             $(TEST_DIR)/test_morph.c \
-            $(TEST_DIR)/test_animation.c
+            $(TEST_DIR)/test_animation.c \
+            $(TEST_DIR)/test_creature_variation.c \
+            $(TEST_DIR)/test_fur.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
@@ -100,6 +122,7 @@ DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
 DEMO_MOUTH_BIN = $(DEMO_DIR)/demo_mouth_animation
 DEMO_ANIMATION_BIN = $(DEMO_DIR)/demo_lizard_animation
+DEMO_DIVERSITY_BIN = $(DEMO_DIR)/demo_lizard_diversity
 LIZARD_VIEWER_BIN = lizard_viewer
 
 .PHONY: all clean test benchmark docs demos
@@ -132,7 +155,7 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN)
+demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog
 
 $(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c $(DEMO_DIR)/demo_ager_realtime.h
 	$(CC) $(CFLAGS) $(filter %.o %.c,$^) $(GL_LIBS) -o $@
@@ -146,6 +169,9 @@ $(DEMO_MOUTH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_mouth_animation.
 $(DEMO_ANIMATION_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_lizard_animation.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
+$(DEMO_DIVERSITY_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_lizard_diversity.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
 # Ejecutar tests automáticamente
 test: $(TEST_BIN)
 	./$(TEST_BIN)
@@ -154,9 +180,14 @@ test: $(TEST_BIN)
 docs:
 	@doxygen Doxyfile || echo "Doxygen no está instalado o falló la generación."
 
+# Actualización del grafo de código para asistentes AI (Codex, OpenCode)
+.PHONY: codegraph
+codegraph:
+	./tools/update_codegraph.sh
+
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_growth benchmarks/benchmark_head_morph doc/html doc/latex
+	rm -rf demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_growth benchmarks/benchmark_head_morph doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -216,3 +247,7 @@ benchmark-growth: benchmarks/benchmark_growth
 
 benchmarks/benchmark_head_morph: $(CORE_OBJS) benchmarks/benchmark_head_morph.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+# Primer mamífero estático, sin SDL/GL fuera del backend.
+demos/demo_dog: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_dog.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@

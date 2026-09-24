@@ -78,7 +78,7 @@ vec4 scene(vec3 p) {
     }
     for(int i=0;i<tileCount;++i) {
         int c=connectorBase+(tileOffset<0?i:int(dataAt(tileOffset+i/4)[i%4]))*C_STRIDE;
-        if(axialCount>1&&C_kind(c)==0)continue;
+        if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result.w+k))continue;
         result=joinField(result,vec4(C_color(c),MonsterSDF_EvalConnectorDistance(c,p)),k);
@@ -88,7 +88,9 @@ vec4 scene(vec3 p) {
         int m=mouthBase+i*M_STRIDE;
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(!M_anatomicalHead(m))result=joinField(result,vec4(M_skinColor(m),MonsterSDF_EvalMuzzleDistance(m,local)),M_muzzleSmoothness(m));
-        result=joinField(result,vec4(M_skinColor(m),MonsterSDF_EvalUpperHeadDistance(m,local)),M_anatomicalHead(m)?M_headBodySmoothness(m):M_muzzleSmoothness(m));
+        vec3 headColor=M_skinColor(m);
+        if(M_hasNasalPad(m) && SDF_Ellipsoid(local-M_noseCenterLocal(m),M_noseRadii(m))<M_headUnionSmoothness(m)*.5) headColor=vec3(30,27,24)/255.0;
+        result=joinField(result,vec4(headColor,MonsterSDF_EvalUpperHeadDistance(m,local)),M_anatomicalHead(m)?M_headBodySmoothness(m):M_muzzleSmoothness(m));
     }
     for(int i=0;i<mouthCount;++i) {
         if(!(rayHeadActive||rayMouthActive))continue;
@@ -98,6 +100,10 @@ vec4 scene(vec3 p) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
             float entrance=SDF_RoundedSlotExtruded(local-M_entranceCenterLocal(m),ext.x,ext.y,ext.z);
             float cavity=SDF_Ellipsoid(local-M_cavityCenterLocal(m),M_cavityRadii(m));
+            if(M_sweptSkull(m)) {
+                float wall=max(ext.y*2.0,M_faceMidRadii(m).x*.12);
+                cavity=max(cavity,SDF_EllipticalSweepZ(local,M_headStations(m),6)+wall);
+            }
             float devMouth=clamp((M_cephalicDevelopment(m)-0.05)/0.25,0.0,1.0);
             float cutter=SDF_SmoothUnion(entrance,cavity,M_entranceToCavitySmoothness(m))+(1.0-devMouth)*max(r.x,max(r.y,r.z))*2.0;
             result=cutField(result,cutter,M_insideColor(m),M_rimBevel(m));
@@ -137,7 +143,7 @@ float sceneDistance(vec3 p) {
     }
     for(int i=0;i<tileCount;++i) {
         int c=connectorBase+(tileOffset<0?i:int(dataAt(tileOffset+i/4)[i%4]))*C_STRIDE;
-        if(axialCount>1&&C_kind(c)==0)continue;
+        if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result+k))continue;
         result=SDF_SmoothUnion(result,MonsterSDF_EvalConnectorDistance(c,p),k);
@@ -157,6 +163,10 @@ float sceneDistance(vec3 p) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
             float entrance=SDF_RoundedSlotExtruded(local-M_entranceCenterLocal(m),ext.x,ext.y,ext.z);
             float cavity=SDF_Ellipsoid(local-M_cavityCenterLocal(m),M_cavityRadii(m));
+            if(M_sweptSkull(m)) {
+                float wall=max(ext.y*2.0,M_faceMidRadii(m).x*.12);
+                cavity=max(cavity,SDF_EllipticalSweepZ(local,M_headStations(m),6)+wall);
+            }
             float devMouth=clamp((M_cephalicDevelopment(m)-0.05)/0.25,0.0,1.0);
             float cutter=SDF_SmoothUnion(entrance,cavity,M_entranceToCavitySmoothness(m))+(1.0-devMouth)*max(r.x,max(r.y,r.z))*2.0;
             result=SDF_SmoothSubtract(result,cutter,M_rimBevel(m));

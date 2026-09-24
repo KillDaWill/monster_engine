@@ -1,5 +1,7 @@
+#include "Creature.h"
+#include "Limb.h"
 #include "test_utils.h"
-#include "LizardSurface.h"
+#include "SurfacePresets.h"
 #include "Monster.h"
 #include "MonsterVisual.h"
 #include "MonsterVisualAsync.h"
@@ -12,10 +14,10 @@
 
 static void TestPhenotype(void) {
     for(uint32_t seed=0;seed<100;++seed) {
-        SurfacePhenotype p=LizardSurface_FromSeed(seed,1),q=LizardSurface_FromSeed(seed,1);
+        SurfacePhenotype p=SurfacePreset_ScaledReptile(seed,1),q=SurfacePreset_ScaledReptile(seed,1);
         SurfaceRecipe a=SurfaceRecipe_Compile(&p),b=SurfaceRecipe_Compile(&q);
         TEST_ASSERT(memcmp(&a,&b,sizeof(a))==0,"Recetas reproducibles desde semilla");
-        SurfacePhenotype other=LizardSurface_FromSeed(seed+1,1); b=SurfaceRecipe_Compile(&other);
+        SurfacePhenotype other=SurfacePreset_ScaledReptile(seed+1,1); b=SurfaceRecipe_Compile(&other);
         TEST_ASSERT(memcmp(&a,&b,sizeof(a))!=0,"Individuos diferentes");
         p.integument.scales.relief=NAN; p.integument.scales.size=-1;
         p.integument.scales.roughness=INFINITY; p.pigment.patternScale=NAN;
@@ -25,27 +27,27 @@ static void TestPhenotype(void) {
             TEST_ASSERT(isfinite(a.data[i][j]),"Receta sin NaN/Inf");
         TEST_ASSERT(a.data[4][0]>=.012f && a.data[6][0]>=.12f,"Rangos seguros");
     }
-    LizardPhenotype juvenile=LizardPreset_Juvenile(),adult=LizardPreset_Adult();
+    CreaturePhenotype juvenile=CreatureRecipes_Lizard()->juvenile,adult=CreatureRecipes_Lizard()->adult;
     uint32_t seed=juvenile.surface.integument.scales.seed;
     for(int i=0;i<=100;++i) {
-        LizardPhenotype p=LizardPhenotype_Interpolate(&juvenile,&adult,i*.01f);
+        CreaturePhenotype p=CreaturePhenotype_Interpolate(&juvenile,&adult,i*.01f);
         SurfaceRecipe r=SurfaceRecipe_Compile(&p.surface);
         TEST_ASSERT(r.scaleSeed==seed,"Maduración no cambia identidad celular");
         TEST_ASSERT(r.data[5][0]>=juvenile.surface.integument.scales.relief-1e-6f &&
                     r.data[5][0]<=adult.surface.integument.scales.relief+1e-6f,"Relieve ontogenético continuo");
     }
-    SurfacePhenotype skin=SurfacePhenotype_Default(),scales=LizardSurface_FromSeed(1,1);
+    SurfacePhenotype skin=SurfacePhenotype_Default(),scales=SurfacePreset_ScaledReptile(1,1);
     SurfacePhenotype mid=SurfacePhenotype_Interpolate(&skin,&scales,.5f);
     TEST_ASSERT(FLOAT_NEAR(mid.integument.coverage,.5f),"Transición piel a escamas por cobertura");
 }
 static void TestMappingAndPose(void) {
-    Monster m=Monster_Create(); LizardPhenotype p=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&m,&p),"Construir rig para dominio estable");
+    Monster m=Monster_Create(); CreaturePhenotype p=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p),"Construir rig para dominio estable");
     uint64_t rigGeneration=m.animation->rigGeneration,anatomy=AnatomyGraph_Fingerprint(&m.anatomyGraph);
     SurfacePhenotype appearance=m.surface; appearance.pigment.seed++;
     uint32_t scaleSeed=appearance.integument.scales.seed;
     Monster_SetSurface(&m,&appearance);
-    TEST_ASSERT(m.lizardPhenotype.surface.pigment.seed==appearance.pigment.seed && m.surface.integument.scales.seed==scaleSeed,"Pigmento independiente y fenotipo sincronizado");
+    TEST_ASSERT(m.phenotype.surface.pigment.seed==appearance.pigment.seed && m.surface.integument.scales.seed==scaleSeed,"Pigmento independiente y fenotipo sincronizado");
     TEST_ASSERT(m.animation->rigGeneration==rigGeneration && AnatomyGraph_Fingerprint(&m.anatomyGraph)==anatomy,"Setter no altera anatomía ni rig");
     Mesh mesh=Mesh_Create();
     SurfaceCoordinate saved[ANATOMY_MAX_NODES];
@@ -64,10 +66,10 @@ static void TestMappingAndPose(void) {
     TEST_ASSERT(unknown.region==SURFACE_REGION_UNKNOWN && unknown.blend==0,"Sin anatomía no se inventa una región");
     SurfaceCoordinate oral=SurfaceMapper_MapPoint(Vec3_Zero(),Vec3_Create(0,1,0),SDF_MATERIAL_MOUTH,&m.anatomyGraph,&m.surfaceMapping);
     TEST_ASSERT(oral.region==SURFACE_REGION_ORAL,"Tejidos orales excluidos de escamas");
-    const AnatomyNode* tail=AnatomyGraph_FindNode(&m.anatomyGraph,ANATOMY_ID_TAIL_MIDDLE);
+    const AnatomyNode* tail=AnatomyGraph_FindNode(&m.anatomyGraph,Anatomy_MakeId(20,2));
     SurfaceCoordinate t=SurfaceMapper_MapPoint(tail->center,Vec3_Create(0,1,0),SDF_MATERIAL_SKIN,&m.anatomyGraph,&m.surfaceMapping);
     TEST_ASSERT(t.region==SURFACE_REGION_TAIL,"Identidad de cola");
-    const AnatomyNode* digit=AnatomyGraph_FindNode(&m.anatomyGraph,Anatomy_DigitId(0,2,3));
+    const AnatomyNode* digit=AnatomyGraph_FindNode(&m.anatomyGraph,Anatomy_MakeId(10+(0),Limb_DigitLocalId(2,3)));
     t=SurfaceMapper_MapPoint(digit->center,Vec3_Create(0,1,0),SDF_MATERIAL_SKIN,&m.anatomyGraph,&m.surfaceMapping);
     TEST_ASSERT(t.region==SURFACE_REGION_DIGIT,"Identidad de dígito");
     /* Reordenar estaciones no debe alterar el dominio ni sus etiquetas por ID. */
@@ -92,7 +94,7 @@ static void TestMappingAndPose(void) {
 }
 static void TestAppearanceNoRebuild(void) {
     Monster m=Monster_Create(); Monster_Init(&m);
-    m.surface=LizardSurface_FromSeed(42,1); m.surfaceMapping.unitScale=1;
+    m.surface=SurfacePreset_ScaledReptile(42,1); m.surfaceMapping.unitScale=2.5f;
     SDFMesherConfig cfg=SDFMesher_DefaultConfig(); cfg.voxelSize=.3f; cfg.maxCells=10000;
     MonsterVisual* v=malloc(sizeof(*v)); TEST_ASSERT(v!=NULL,"Reserva visual"); *v=MonsterVisual_Create(cfg);
     TEST_ASSERT(MonsterVisual_RebuildNow(v,&m,MonsterSDF_DefaultConfig()),"Construcción inicial");
@@ -110,7 +112,7 @@ static void TestAppearanceNoRebuild(void) {
     TEST_ASSERT(vertices==v->mesh.vertices && indices==v->mesh.indices,"Buffers persistentes");
     TEST_ASSERT(memcmp(&coord,&vertices[0].surface,sizeof(coord))==0,"Edición no remapea");
     TEST_ASSERT(memcmp(&old,&v->mesh.surfaceRecipe,sizeof(old))!=0,"La receta sí cambia");
-    Monster clone=Monster_Clone(&m); SurfaceRecipe copied=SurfaceRecipe_Compile(&clone.surface);
+    Monster clone=Monster_Clone(&m); SurfaceRecipe copied=SurfaceRecipe_CompileScaled(&clone.surface,clone.surfaceMapping.unitScale);
     TEST_ASSERT(clone.hasSurface && memcmp(&copied,&v->mesh.surfaceRecipe,sizeof(copied))==0,"Snapshots conservan apariencia");
     Monster_Free(&clone); MonsterVisual_Free(v); free(v);
     MonsterVisualAsyncConfig asyncCfg=MonsterVisualAsync_DefaultConfig();
@@ -120,10 +122,12 @@ static void TestAppearanceNoRebuild(void) {
     MonsterVisualAsync_Update(async,&m,.016f); MonsterVisualAsync_Flush(async);
     MonsterVisualAsyncStats before=MonsterVisualAsync_GetStats(async);
     SurfaceRecipe beforeRecipe=async->displayMesh.surfaceRecipe;
+    TEST_ASSERT(FLOAT_NEAR(beforeRecipe.data[11][2],2.5f),"Async conserva escala física de sync");
     m.surface.pigment.seed++; m.surface.integument.scales.size=.1f;
     Monster_SetSurface(&m,&m.surface);
     MonsterVisualAsync_Update(async,&m,.016f); MonsterVisualAsync_Flush(async);
     MonsterVisualAsyncStats after=MonsterVisualAsync_GetStats(async);
+    TEST_ASSERT(FLOAT_NEAR(async->displayMesh.surfaceRecipe.data[11][2],2.5f),"Editar apariencia conserva escala async");
     TEST_ASSERT(before.requestCount==after.requestCount && before.completedBuildCount==after.completedBuildCount,"Edición asíncrona no encola SDF");
     TEST_ASSERT(memcmp(&beforeRecipe,&async->displayMesh.surfaceRecipe,sizeof(beforeRecipe))!=0,"Receta asíncrona actualizada");
     MonsterVisualAsync_Free(async); Monster_Free(&m);
@@ -133,7 +137,7 @@ static void TestGenericAger(void) {
     Monster_Init(&a); Monster_Init(&b); Monster_Init(&dst);
     a.surfaceMapping.origin=Vec3_Create(1,2,3); a.surfaceMapping.unitScale=1;
     b.surfaceMapping.origin=Vec3_Create(4,5,6); b.surfaceMapping.unitScale=2;
-    SurfacePhenotype surface=LizardSurface_FromSeed(9,1); Monster_SetSurface(&b,&surface);
+    SurfacePhenotype surface=SurfacePreset_ScaledReptile(9,1); Monster_SetSurface(&b,&surface);
     MonsterAger_Interpolate(&a,&b,0,&dst);
     TEST_ASSERT(!dst.hasSurface && dst.surfaceMapping.origin.x==1,"Endpoint heredado conserva ruta y dominio");
     MonsterAger_Interpolate(&a,&b,.5f,&dst);
@@ -149,8 +153,8 @@ static void TestGenericAger(void) {
 }
 static void TestGeometryAgeQuantization(void) {
     Monster young=Monster_Create(),adult=Monster_Create();
-    LizardPhenotype a=LizardPreset_Juvenile(),b=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&young,&a)&&Lizard_BuildMonster(&adult,&b),"Extremos del Ager");
+    CreaturePhenotype a=CreatureRecipes_Lizard()->juvenile,b=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&young,CreatureRecipes_Lizard(),&a)&&Creature_BuildMonster(&adult,CreatureRecipes_Lizard(),&b),"Extremos del Ager");
     MonsterAger ager=MonsterAger_Create(&young,&adult,0);MonsterAger_SetGeometrySteps(&ager,32);
     uint64_t initial=ager.geometryInterpolationCount;
     for(unsigned i=1;i<=600;++i)MonsterAger_SetPerc(&ager,(float)i/600.f);
@@ -163,9 +167,9 @@ static void TestGeometryAgeQuantization(void) {
 }
 static void TestCanonicalBinding(void) {
     AnatomyGraph canonical={0};
-    TEST_ASSERT(AnatomyGraph_AddNode(&canonical,(AnatomyNode){.id=1,.center={0,0,0},.widthRadius=1,.heightRadius=1}),"Raíz canónica");
-    TEST_ASSERT(AnatomyGraph_AddNode(&canonical,(AnatomyNode){.id=2,.center={0,0,2},.widthRadius=1,.heightRadius=1}),"Extremo canónico");
-    TEST_ASSERT(AnatomyGraph_Connect(&canonical,(BodyConnection){1,1,2,BODY_CONNECTION_LIMB_SEGMENT}),"Conexión canónica");
+    TEST_ASSERT(AnatomyGraph_AddNode(&canonical,(AnatomyNode){.id=1,.center={0,0,0},.widthRadius=1,.heightRadius=1,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f}),"Raíz canónica");
+    TEST_ASSERT(AnatomyGraph_AddNode(&canonical,(AnatomyNode){.id=2,.center={0,0,2},.widthRadius=1,.heightRadius=1,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f}),"Extremo canónico");
+    TEST_ASSERT(AnatomyGraph_Connect(&canonical,(BodyConnection){.id=1,.fromId=1,.toId=2,.kind=BODY_CONNECTION_LIMB_SEGMENT,.moduleInstanceId=0,.development=1.0f}),"Conexión canónica");
     AnatomyDeformer* binder=AnatomyDeformer_Create();
     for(unsigned age=0;age<=20;++age) {
         float radius=.2f+.04f*age,length=.5f+.1f*age;
@@ -218,15 +222,16 @@ static void TestHeadCage(void) {
     HeadMorph_Free(morph);Mesh_Free(&mesh);
 }
 static void TestDormantAppendages(void) {
-    Monster monster=Monster_Create();LizardPhenotype larva=LizardPreset_Larva(),adult=LizardPreset_Adult();
+    Monster monster=Monster_Create();CreaturePhenotype larva=CreatureRecipes_Lizard()->larva,adult=CreatureRecipes_Lizard()->adult;
     size_t previous=0;
     for(unsigned i=0;i<=40;++i) {
-        LizardPhenotype p=LizardPhenotype_Interpolate(&larva,&adult,i*.025f);
-        TEST_ASSERT(Lizard_ResolveAppearance(&monster,&p),"Resolver desarrollo");
+        CreaturePhenotype p=CreaturePhenotype_Interpolate(&larva,&adult,i*.025f);
+        TEST_ASSERT(Creature_ResolveAppearance(&monster,CreatureRecipes_Lizard(),&p),"Resolver desarrollo");
         MonsterSDF sdf=MonsterSDF_Create();
         TEST_ASSERT(MonsterSDF_Build(&sdf,&monster,MonsterSDF_DefaultConfig()),"Compilar desarrollo");
         size_t active=0;
-        for(size_t c=0;c<monster.anatomyGraph.connectionCount;++c)active+=!monster.anatomyGraph.dormantConnections[c];
+        for(size_t c=0;c<monster.anatomyGraph.connectionCount;++c)
+            if(!monster.anatomyGraph.dormantConnections[c] && monster.anatomyGraph.connections[c].kind != BODY_CONNECTION_SUPPORT)active++;
         TEST_ASSERT(sdf.connectorCount==active,"SDF sólo compila conexiones desarrolladas");
         TEST_ASSERT(active>=previous,"Emergencia progresiva");previous=active;
         if(i==0)TEST_ASSERT(active<20,"Larva sin jerarquía digital degenerada en SDF");

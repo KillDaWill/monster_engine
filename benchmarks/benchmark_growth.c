@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /** @file benchmark_growth.c
  * @brief Barrido larval real: conectividad, costes y complejidad del worker.
  */
@@ -26,8 +28,8 @@ static size_t Components(const Mesh* mesh) {
 }
 int main(int argc,char** argv) {
     Monster larva=Monster_Create(),adult=Monster_Create();
-    LizardPhenotype a=LizardPreset_Larva(),b=LizardPreset_Adult();
-    if(!Lizard_BuildMonster(&larva,&a)||!Lizard_BuildMonster(&adult,&b))return 1;
+    CreaturePhenotype a=CreatureRecipes_Lizard()->larva,b=CreatureRecipes_Lizard()->adult;
+    if(!Creature_BuildMonster(&larva,CreatureRecipes_Lizard(),&a)||!Creature_BuildMonster(&adult,CreatureRecipes_Lizard(),&b))return 1;
     MonsterAger ager=MonsterAger_Create(&larva,&adult,0);
     MonsterVisualAsync* visual=MonsterVisualAsync_Create(MonsterVisualAsync_DefaultConfig());
     if(!visual)return 1;
@@ -42,7 +44,7 @@ int main(int argc,char** argv) {
         const Mesh* mesh=MonsterVisualAsync_GetDisplayMesh(visual);MeshValidationResult v=Mesh_Validate(mesh);
         size_t components=Components(mesh);failed|=!v.valid||!v.watertight||components!=1;
         printf("%.3f,%.5f,%zu,%zu,%zu,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%zu,%zu,%zu\n",
-            age,m->lizardPhenotype.appendageDevelopment,mesh->vertexCount,mesh->indexCount/3,components,v.valid,v.watertight,
+            age,m->phenotype.development.appendages,mesh->vertexCount,mesh->indexCount/3,components,v.valid,v.watertight,
             s.lastBuildDurationMs,s.sdfBuildMs,s.bodyMeshMs,s.surfaceMappingMs,s.morphBindingMs,s.headBindingMs,s.eyeBuildMs,s.mouthBuildMs,
             s.bodyMesher.connectorCandidateCount,s.bodyMesher.connectorExactEvaluationCount,s.bodyMesher.connectorPrunedCount);
         fflush(stdout);

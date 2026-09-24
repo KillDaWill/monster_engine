@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /**
  * @file test_perf_optimizations.c
  * @brief Pruebas unitarias y de regresión para las optimizaciones de rendimiento:
@@ -10,7 +12,7 @@
 
 #include "test_utils.h"
 #include "Monster.h"
-#include "Lizard.h"
+#include "Creature.h"
 #include "MonsterSDF.h"
 #include "SDFMesher.h"
 #include "SDFSamplingPool.h"
@@ -22,8 +24,8 @@
 
 static Monster CreateTestLizard(bool adult) {
     Monster lizard = Monster_Create();
-    LizardPhenotype phenotype = adult ? LizardPreset_Adult() : LizardPreset_Juvenile();
-    Lizard_BuildMonster(&lizard, &phenotype);
+    CreaturePhenotype phenotype = adult ? CreatureRecipes_Lizard()->adult : CreatureRecipes_Lizard()->juvenile;
+    Creature_BuildMonster(&lizard,CreatureRecipes_Lizard(), &phenotype);
     Monster_SetHeadOpenFactor(&lizard, 0.10f);
     return lizard;
 }
@@ -239,8 +241,8 @@ static void test_monster_copy_into_reuse(void) {
     TEST_ASSERT(copy.bodyPartCount == young.bodyPartCount, "Conteo de partes debe coincidir");
     TEST_ASSERT(copy.eyeCount == young.eyeCount, "Conteo de ojos debe coincidir");
     TEST_ASSERT(copy.mouthCount == young.mouthCount, "Conteo de bocas debe coincidir");
-    TEST_ASSERT(copy.hasLizardPhenotype == young.hasLizardPhenotype, "Flag de fenotipo debe coincidir");
-    TEST_ASSERT(FLOAT_NEAR(copy.lizardPhenotype.totalScale, young.lizardPhenotype.totalScale),
+    TEST_ASSERT(copy.hasCreaturePhenotype == young.hasCreaturePhenotype, "Flag de fenotipo debe coincidir");
+    TEST_ASSERT(FLOAT_NEAR(copy.phenotype.axial.totalScale, young.phenotype.axial.totalScale),
                 "Escala total debe coincidir con joven");
 
     /* Guardar punteros de buffer preasignado */
@@ -251,7 +253,7 @@ static void test_monster_copy_into_reuse(void) {
     /* 2. Sobrescribir copiando el adulto en el mismo contenedor */
     bool ok2 = Monster_CopyInto(&copy, &adult);
     TEST_ASSERT(ok2, "Monster_CopyInto debe tener éxito al copiar adulto");
-    TEST_ASSERT(FLOAT_NEAR(copy.lizardPhenotype.totalScale, adult.lizardPhenotype.totalScale),
+    TEST_ASSERT(FLOAT_NEAR(copy.phenotype.axial.totalScale, adult.phenotype.axial.totalScale),
                 "Escala total debe actualizarse a la del adulto");
 
     /* Reutilización de memoria: si la capacidad era suficiente, no debe reasignar innecesariamente */
@@ -370,7 +372,7 @@ static void test_digit_candidate_culling(void) {
         cfg.bounds=AABB_Empty();cfg.voxelSize=.014f;cfg.maxResolution=160;cfg.maxCells=500000;
         for(size_t i=0;i<m.anatomyGraph.nodeCount;++i) {
             const AnatomyNode* n=&m.anatomyGraph.nodes[i];
-            if(n->id>=Anatomy_DigitId(limb,0,0)&&n->id<=Anatomy_DigitId(limb,4,6))
+            if(n->id>=Anatomy_MakeId(10+(limb),Limb_DigitLocalId(0,0))&&n->id<=Anatomy_MakeId(10+(limb),Limb_DigitLocalId(4,6)))
                 AABB_ExpandRadius(&cfg.bounds,n->center,Vec3_Create(n->widthRadius,n->widthRadius,n->widthRadius));
         }
         AABB_Pad(&cfg.bounds,.04f);

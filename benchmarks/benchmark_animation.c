@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /** @file benchmark_animation.c
  * @brief Auditoría de asignaciones, reconstrucciones y coste real de animación.
  * El enlazador intercepta llamadas; solo cuenta la sección de fotograma.
@@ -37,8 +39,8 @@ int main(int argc,char** argv) {
     bool grow=argc>1 && !strcmp(argv[1],"--morphology");
     Monster m=Monster_Create(); AnimatedVisual binding={0}; int status=1;
     MonsterVisual* v=calloc(1,sizeof(*v)); if(!v)return 1;
-    LizardPhenotype phenotype=grow?LizardPreset_Juvenile():LizardPreset_Adult();
-    if(!Lizard_BuildMonster(&m,&phenotype))goto done;
+    CreaturePhenotype phenotype=grow?CreatureRecipes_Lizard()->juvenile:CreatureRecipes_Lizard()->adult;
+    if(!Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&phenotype))goto done;
     SDFMesherConfig config=SDFMesher_DefaultConfig(); config.voxelSize=.075f; config.maxCells=1800000;
     *v=MonsterVisual_Create(config);
     if(!MonsterVisual_RebuildNow(v,&m,MonsterSDF_DefaultConfig()) || !AnimatedVisual_Bind(&binding,v,&m))goto done;
@@ -49,8 +51,8 @@ int main(int argc,char** argv) {
     for(int frame=0;frame<180;++frame) {
         if(grow && frame==90) {
             float phase=m.animation->animator.locomotion.phase;
-            phenotype=LizardPreset_Adult();
-            if(!Lizard_BuildMonster(&m,&phenotype) || AnimatedVisual_Deform(&binding,v,&m) ||
+            phenotype=CreatureRecipes_Lizard()->adult;
+            if(!Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&phenotype) || AnimatedVisual_Deform(&binding,v,&m) ||
                 AnimatedVisual_Bind(&binding,v,&m))goto done;
             if(fabsf(phase-m.animation->animator.locomotion.phase)>.00001f)goto done;
             if(!MonsterVisual_RebuildNow(v,&m,MonsterSDF_DefaultConfig()) || !AnimatedVisual_Bind(&binding,v,&m))goto done;

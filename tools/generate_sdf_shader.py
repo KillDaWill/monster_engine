@@ -57,6 +57,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
         fields.extend((t,n.strip()) for n in names.split(','))
     offset=0;code=[f'static void Pack{short}(float (*out)[4], const {typ}* in) {{']
     for t,name in fields:
+        if name in ['moduleInstanceId','isDistalLimb','development'] and typ=='MonsterSDFConnector':continue
         arr=re.fullmatch(r'(\w+)\[(\d+)\]',name)
         if t=='SDFSweepStation' and arr:
             name=arr[1];n=int(arr[2]);access.append(f'int {short}_{name}(int i) {{ return i+{offset}; }}')
@@ -86,7 +87,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
     pack.extend([f'#define {short}_STRIDE {offset}',*code,'}'])
 
 functions=[]
-for name in ['SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
+for name in ['SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
     functions.append(function('src/SDFPrimitives.c',name))
 for name in ['SDF_SmoothUnion','SDF_SmoothSubtract']:
     functions.append(function('src/SDFOperations.c',name))

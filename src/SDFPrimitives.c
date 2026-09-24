@@ -220,3 +220,59 @@ bool SDF_SweepResolveTangents(SDFSweepStation* stations,int count) {
     }
     return true;
 }
+
+/* Perfil continuo equivalente a secciones raíz, concha, escafa y ápice.
+ * El ancho conserva masa en la mitad y converge sólo en el tercio distal. */
+float SDF_CurvedPinna(Vector3 p,Vector3 shape,Vector3 up,Vector3 side,Vector3 normal,
+                      float tipFraction,float concavity,float curve,float rootRoll,
+                      float tipRoundness,float fold,float rootFlare,float marginBow,float marginAsymmetry) {
+    float h=Math_Max(fabsf(shape.y),.01f),w=Math_Max(fabsf(shape.x),.006f),th=Math_Max(fabsf(shape.z),.003f);
+    float y=Vec3_Dot(p,up),t=Math_Clamp01(y/h+.5f);
+    float centerX=w*marginBow*(.45f*sinf(3.14159265f*t)+.24f*t*t);
+    float centerZ=curve*sinf(3.14159265f*t)+fold*t*t;
+    float x=Vec3_Dot(p,side)-centerX,z=Vec3_Dot(p,normal)-centerZ;
+    float tipStart=.90f-.10f*Math_Clamp01(tipRoundness);
+    float profileT=Math_Min(t,tipStart);
+    float distal=profileT*profileT*profileT;
+    distal*=distal;
+    float flare=rootFlare*.32f*4.0f*profileT*(1.0f-profileT)*(1.0f-profileT)*(1.0f-profileT);
+    float width=w*(.76f+.34f*sinf(3.14159265f*profileT)-
+                   (.76f-Math_Clamp(tipFraction,.04f,.55f))*distal+flare);
+    float tipU=Math_Clamp01((t-tipStart)/(1.0f-tipStart));
+    float tipArc=sqrtf(Math_Max(0.0f,1.0f-tipU*tipU));
+    width*=tipArc;
+    float asym=(marginAsymmetry-.5f)*.32f*(.3f+.7f*t);
+    width*=x>=0?1.0f+asym:1.0f-asym;
+    float lateral=x/Math_Max(width,.001f);
+    float edge=Math_Clamp01((fabsf(lateral)-.70f)/.25f);
+    float thick=th*(.92f-.64f*t)+th*rootRoll*.32f*(1.0f-t)*(1.0f-t);
+    thick+=th*(.18f+.12f*rootRoll)*edge*(1.0f-t*t);
+    thick*=tipArc;
+    /* La superficie media retrocede en el centro: interior cóncavo,
+     * dorso convexo y reborde libre más grueso. */
+    float cup=th*concavity*(.65f+1.25f*(1.0f-t))*Math_Max(0.0f,1.0f-lateral*lateral);
+    float transverse=th*.18f*rootRoll*lateral*lateral*(1.0f-t);
+    float qx=fabsf(x)-width,qz=fabsf(z+cup-transverse)-thick;
+    float shell=sqrtf(Math_Max(qx,0.0f)*Math_Max(qx,0.0f)+Math_Max(qz,0.0f)*Math_Max(qz,0.0f))+
+        Math_Min(Math_Max(qx,qz),0.0f);
+    float cap=Math_Max(-y-h*.5f,y-h*.5f);
+    float body=Math_Max(shell,cap)-th*.08f;
+    if(concavity>.001f) {
+        /* La concha resta un cuenco frontal real sin atravesar la pared
+         * posterior; el margen libre conserva su cartílago redondeado. */
+        float cx=x/Math_Max(w*.73f,.002f);
+        float cy=(y+h*.23f)/Math_Max(h*.34f,.002f);
+        float cz=(z-th*.35f)/Math_Max(th*(.80f+.70f*concavity),.002f);
+        float cavity=(sqrtf(cx*cx+cy*cy+cz*cz)-1.0f)*Math_Min(w*.73f,h*.34f);
+        body=Math_Max(body,-cavity);
+    }
+    return body;
+}
+float SDF_TaperedPinna(Vector3 point,Vector3 shape,Vector3 direction,float tipFraction,float concavity) {
+    Vector3 up=Vec3_Normalize(direction);
+    Vector3 reference=fabsf(up.z)<.9f?Vec3_Create(0,0,1):Vec3_Create(1,0,0);
+    Vector3 side=Vec3_Normalize(Vec3_Cross(up,reference));
+    Vector3 normal=Vec3_Cross(side,up);
+    return SDF_CurvedPinna(point,shape,up,side,normal,tipFraction,concavity,
+                            shape.x*.05f,.25f,1.0f,0.0f,.35f,.4f,.5f);
+}

@@ -4,6 +4,13 @@ float ScaleInterior(vec2 local,vec2 other,float edgeWidth,float aa) {
     return smoothstep(0.0,edgeWidth+aa,border);
 }
 float ScaleProfile(vec2 local,vec2 other,vec3 rnd,vec4 shape,vec4 relief,float aa) {
+    if(surfaceRecipe[7].y > 0.5) {
+        float border = max(0.0, (length(other) - length(local)) * 0.5);
+        float bevelWidth = max(relief.z * 1.5, 0.04);
+        float bevel = smoothstep(0.0, bevelWidth + aa, border);
+        float plateau = 0.90 + 0.10 * bevel;
+        return bevel * plateau - (1.0 - bevel) * relief.y * 1.8;
+    }
     float inner=ScaleInterior(local,other,relief.z,aa);
     float angle=(rnd.z-.5)*shape.w*.5;
     local=mat2(cos(angle),-sin(angle),sin(angle),cos(angle))*local;

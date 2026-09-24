@@ -15,7 +15,7 @@
 #include "Mesh.h"
 #include "MonsterVisual.h"
 #include "SurfaceMapper.h"
-#include "LizardMorph.h"
+#include "AnatomyDeformer.h"
 #include "HeadMorph.h"
 #include "RenderInterfaces.h"
 #include <pthread.h>
@@ -140,8 +140,8 @@ typedef struct MonsterVisualAsync {
     bool morphMode;        /**< Utiliza el tier MORPH en lugar de INTERACTIVE durante movimiento continuo */
     HeadMorph* displayHeadMorph; /**< Jaula cefálica publicada. */
     HeadMorph* readyHeadMorph; /**< Jaula cefálica lista. */
-    LizardMorph* displayMorph; /**< Deformador morfológico en tiempo real para display */
-    LizardMorph* readyMorph;   /**< Deformador morfológico listo para transferir */
+    AnatomyDeformer* displayMorph; /**< Deformador morfológico en tiempo real para display */
+    AnatomyDeformer* readyMorph;   /**< Deformador morfológico listo para transferir */
     struct SDFSamplingPool* samplingPool; /**< Pool persistente de hilos compartido con los meshers */
 
     /* Métricas */
@@ -161,7 +161,7 @@ MonsterVisualAsyncConfig MonsterVisualAsync_DefaultConfig(void);
  * @return Configuración con el presupuesto de la superficie unificada.
  */
 SDFMesherConfig MonsterVisualAsync_ResolveBodyConfig(const MonsterVisualAsyncConfig* config,
-    MonsterVisualQualityTier tier, bool lizard);
+    MonsterVisualQualityTier tier, bool hasUnifiedAnatomy);
 
 
 /**

@@ -82,8 +82,8 @@ bool Monster_CopyInto(Monster* dst, const Monster* src) {
     dst->hasAnatomyGraph = src->hasAnatomyGraph;
     dst->surface=src->surface; dst->surfaceMapping=src->surfaceMapping; dst->hasSurface=src->hasSurface;
     dst->growthAge=src->growthAge; dst->hasGrowthAge=src->hasGrowthAge;
-    dst->lizardPhenotype = src->lizardPhenotype;
-    dst->hasLizardPhenotype = src->hasLizardPhenotype;
+    dst->phenotype = src->phenotype; dst->recipeId=src->recipeId; dst->recipe=src->recipe;
+    dst->hasCreaturePhenotype = src->hasCreaturePhenotype;
 
     /* Copiar paleta de colores */
     dst->colorPalette.count = src->colorPalette.count;
@@ -239,6 +239,8 @@ bool Monster_ResolveHead(Monster* monster) {
     if (!HeadAnatomy_Resolve(&monster->head.phenotype,attachment,radii,&resolved)) return false;
     Mouth_SetOpenFactor(&resolved.oralSystem,openFactor);
     resolved.oralSystem.insideColor=insideColor; resolved.oralSystem.lipColor=lipColor;
+    const AnatomyNode* headNode=AnatomyGraph_FindFirstRegion(&monster->anatomyGraph,ANATOMY_REGION_HEAD);
+    resolved.landmarks.headId=headNode?headNode->id:0;
     monster->head.anatomy=resolved;
 
     Monster_ClearMouths(monster);
@@ -459,5 +461,5 @@ void Monster_SetSurface(Monster* monster,const SurfacePhenotype* surface) {
     if(!monster || !surface)return;
     monster->surface=*surface; SurfacePhenotype_Normalize(&monster->surface);
     monster->hasSurface=true;
-    if(monster->hasLizardPhenotype)monster->lizardPhenotype.surface=monster->surface;
+    if(monster->hasCreaturePhenotype)monster->phenotype.surface=monster->surface;
 }
