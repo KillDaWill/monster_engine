@@ -668,6 +668,18 @@ Potential later additions:
 - local skin fold,
 - brow mass.
 
+## Implementación actual: ojos, párpados y pinna
+
+El globo ocular se conserva como una malla elipsoidal articulable. El iris, la pupila y el anillo limbar forman parte de `EyeAppearance` y de una textura RGBA determinista generada por `EyeTexture`; no añaden vértices a `MeshVertex` ni geometría superpuesta. `MonsterVisualEye` publica la base anatómica y una huella de apariencia. Esa huella permite que el renderer OpenGL comparta texturas iguales y las conserve en su caché mientras cambian la pose o el resto de la superficie. Una edición exclusivamente óptica no invalida el SDF.
+
+El renderer dispone de una ruta opcional `renderEye`. El shader calcula coordenadas esféricas desde el centro, la orientación y la escala del globo, y añade respuesta especular y de Fresnel. Los renderers que no implementen esa ruta pueden seguir dibujando el globo mediante la interfaz normal de malla.
+
+La receta de cabeza expresa la cobertura palpebral. Para el cánido, `MonsterSDF` une arcos superior e inferior segmentados mediante cápsulas con el campo periorbitario; los arcos convergen en los cantos y estrechan la abertura sin tubos flotantes. La cobertura cero mantiene intactos los reptiles que no usan párpados mamíferos.
+
+`SDF_CurvedPinna` amplía la pinna prismática: interpola una línea central curva, anchura y grosor desde la raíz hasta el ápice, una cavidad cóncava, un borde engrosado y un enrollamiento de concha en la base. Los parámetros de receta permiten plegar y dejar caer la pinna sin introducir mallas por especie.
+
+`cephalicIndex` correlaciona longitud y anchura craneales en el continuo dolicocefálico–mesocefálico–braquicefálico. Los controles de stop, raíz maxilar y masa cigomática añaden correlaciones faciales para los cánidos; las recetas existentes conservan sus proporciones al no especificar el nuevo valor.
+
 ---
 
 # 11. Nostrils Should Be Real Cavities
@@ -1956,4 +1968,3 @@ procedural animation
 ```
 
 The new head system should be used as the proving ground for this architecture before the engine expands to full limbs and locomotion.
-

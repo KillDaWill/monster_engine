@@ -80,6 +80,15 @@ bool PrimitiveMesh_GenerateEllipsoidEx(Mesh* out, Transform3D transform, unsigne
  */
 bool PrimitiveMesh_GenerateQuadraticBezierTube(Mesh* out, Vector3 p0, Vector3 p1, Vector3 p2, float radius, int curveSegments, int radialSegments, Color color);
 
+/**
+ * @brief Genera una malla de rombo / bipirámide en 3D (para pupilas en forma de diamante).
+ * @param out Malla destino.
+ * @param transform Posición, rotación y radios de la bipirámide.
+ * @param color Color RGBA.
+ * @return true si se generó exitosamente.
+ */
+bool PrimitiveMesh_GenerateDiamond(Mesh* out, Transform3D transform, Color color);
+
 #ifdef __cplusplus
 }
 #endif

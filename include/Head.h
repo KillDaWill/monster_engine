@@ -24,6 +24,31 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_AVIAN
 } HeadArchetype;
 
+/** Familias de composición que cambian la silueta, no solo su escala. */
+typedef enum HeadCranialForm {
+    HEAD_CRANIAL_STANDARD = 0,
+    HEAD_CRANIAL_SHIELD,
+    HEAD_CRANIAL_BLOCK,
+    HEAD_CRANIAL_NARROW,
+    HEAD_CRANIAL_WEDGE
+} HeadCranialForm;
+
+/** Perfiles de construcción del rostro/hocico. */
+typedef enum HeadMuzzleForm {
+    HEAD_MUZZLE_TAPERED = 0,
+    HEAD_MUZZLE_BLUNT,
+    HEAD_MUZZLE_LONG,
+    HEAD_MUZZLE_WEDGE
+} HeadMuzzleForm;
+
+/** Disposición espacial de las órbitas y ojos. */
+typedef enum HeadEyeLayout {
+    HEAD_EYES_LATERAL = 0,
+    HEAD_EYES_FORWARD,
+    HEAD_EYES_HIGH_LATERAL,
+    HEAD_EYES_LOW_LATERAL
+} HeadEyeLayout;
+
 /** Controles semánticos normalizados; no contiene coordenadas anatómicas. */
 typedef struct HeadPhenotype {
     HeadArchetype archetype; /**< Familia morfológica de la cabeza. */
@@ -41,16 +66,36 @@ typedef struct HeadPhenotype {
     float eyeLaterality; /**< Desplazamiento lateral de las órbitas. */
     float eyeForwardness; /**< Orientación frontal relativa de las órbitas. */
     float eyeDorsality; /**< Elevación dorsolateral de las órbitas. */
+    float eyelidCoverage; /**< Cobertura del globo por los párpados, independiente de su tamaño. */
+    float eyeCompression; /**< Compresión vertical de globo y apertura orbital: cero circular. */
     float eyeExposure; /**< Fracción controlada del globo expuesta fuera del socket. */
     float browProminence; /**< Desarrollo de las crestas supraorbitales bilaterales. */
     float snoutBluntness; /**< Redondez y anchura relativa de la premaxila distal. */
     float jawLength; /**< Longitud relativa de mandíbula. */
     float jawDepth; /**< Profundidad vertical de mandíbula. */
     float jawStrength; /**< Masa funcional de mandíbula y bisagra. */
-    float noseScale; /**< Escala de la almohadilla nasal. */
+    float noseScale; /**< Desarrollo de la almohadilla nasal y abertura de las narinas. */
     float earSize; /**< Tamaño relativo de oreja. */
+    float earBaseWidth; /**< Anchura normalizada de la implantación auricular. */
+    float earThickness; /**< Espesor normalizado del cartílago. */
+    float earConcavity; /**< Profundidad normalizada de la concha auricular. */
+    float earOutward; /**< Inclinación lateral de la pinna. */
+    float earForward; /**< Inclinación frontal de la abertura. */
+    float earLongitudinalCurve; /**< Curvatura de raíz a ápice. */
+    float earRootRoll; /**< Enrollamiento cartilaginoso basal. */
+    float earTipRoundness; /**< Longitud de la convergencia distal redondeada. */
+    float earFold; /**< Flexión longitudinal adicional. */
     float earPointiness; /**< Grado de apuntamiento de oreja. */
     float cheekMass; /**< Volumen relativo de mejillas. */
+    float maxillaryWidth; /**< Anchura del apoyo maxilar, independiente del hocico. */
+    float mouthWidth; /**< Separación de comisuras, independiente de la bisagra. */
+    float cephalicIndex; /**< Continuo dolico (0) a braquicéfalo (1); .5 mesocéfalo. */
+    float stopProminence; /**< Desnivel frontal entre cráneo y hocico. */
+    float zygomaticWidth; /**< Desarrollo transversal posterior de los arcos. */
+    float masseterMass; /**< Desarrollo del soporte mandibular posterior. */
+    float earRootFlare; /**< Ensanchamiento local de la concha basal. */
+    float earMarginBow; /**< Arqueamiento de los márgenes libres. */
+    float earMarginAsymmetry; /**< Diferencia entre los márgenes medial y lateral. */
     float beakLength; /**< Longitud del pico superior e inferior. */
     float beakDepth; /**< Profundidad vertical del pico. */
     float beakTaper; /**< Ahusamiento distal del pico. */
@@ -58,6 +103,9 @@ typedef struct HeadPhenotype {
     float nostrilPosition; /**< Posición longitudinal normalizada de narinas. */
     float orbitDepth; /**< Profundidad limitada de la copa orbital. */
     float tympanumSize; /**< Tamaño del tímpano externo; cero lo desactiva. */
+    HeadCranialForm cranialForm; /**< Composición del volumen craneal. */
+    HeadMuzzleForm muzzleForm; /**< Composición del hocico. */
+    HeadEyeLayout eyeLayout; /**< Composición de la disposición orbital. */
 } HeadPhenotype;
 
 /** Landmarks locales con identidad anatómica estable. */
@@ -121,6 +169,7 @@ typedef struct HeadSurfaceRecipe {
     Vector3 leftOrbitNormal; /**< Dirección exterior del socket izquierdo. */
     Vector3 rightOrbitNormal; /**< Dirección exterior del socket derecho. */
     float orbitSocketDepth; /**< Profundidad máxima del cutter orbital. */
+    float eyelidCoverage; /**< Apertura palpebral semántica compilada al SDF. */
     Vector3 noseCenter; /**< Centro de almohadilla nasal. */
     Vector3 noseRadii; /**< Radios de almohadilla nasal. */
     Vector3 leftNostrilCenter; /**< Centro del cutter nasal izquierdo. */
@@ -132,11 +181,31 @@ typedef struct HeadSurfaceRecipe {
     float tympanumDepth; /**< Profundidad limitada del tímpano. */
     Vector3 leftEarCenter; /**< Centro de oreja izquierda. */
     Vector3 rightEarCenter; /**< Centro de oreja derecha. */
-    Vector3 earRadii; /**< Radios de volúmenes auriculares. */
+    Vector3 earRadii; /**< Semiextensión conservadora de cada pabellón. */
+    Vector3 earShape; /**< Semianchura basal, altura y semiespesor. */
+    Vector3 earDirection; /**< Eje izquierdo; el derecho refleja X. */
+    Vector3 rightEarDirection; /**< Eje derecho orientable por separado. */
+    Vector3 leftEarSide; /**< Eje transversal izquierdo ortogonal. */
+    Vector3 rightEarSide; /**< Eje transversal derecho ortogonal. */
+    Vector3 leftEarNormal; /**< Normal izquierda hacia la abertura. */
+    Vector3 rightEarNormal; /**< Normal derecha hacia la abertura. */
+    float earConcavity; /**< Profundidad resuelta de la concha. */
+    float earTipFraction; /**< Fracción de anchura en la punta. */
+    float earLongitudinalCurve; /**< Desplazamiento longitudinal resuelto. */
+    float earRootRoll; /**< Enrollamiento basal resuelto. */
+    float earTipRoundness; /**< Convergencia distal resuelta. */
+    float earFold; /**< Flexión longitudinal resuelta. */
+    float earRootFlare; /**< Ensanchamiento basal resuelto. */
+    float earMarginBow; /**< Arqueamiento lateral resuelto. */
+    float earMarginAsymmetry; /**< Asimetría transversal resuelta. */
+    Vector3 cranialPostorbitalRadii; /**< Radios del tramo craneal anterior. */
+    Vector3 cranialTemporalRadii; /**< Radios del tramo temporal más ancho. */
+    Vector3 cranialOccipitalRadii; /**< Radios del tramo occipital posterior. */
     float unionSmoothness; /**< Suavidad común de uniones SDF. */
     float headBodySmoothness; /**< Suavidad local de integración cefalocervical. */
     bool hasNasalPad; /**< Activa volumen nasal diferenciado. */
     bool hasEars; /**< Activa volúmenes auriculares. */
+    bool sweptSkull; /**< Compila el cráneo mediante secciones continuas. */
     bool isBeak; /**< Indica una receta facial aviar. */
     float tympanumDevelopment; /**< Peso continuo de apertura timpánica. */
     bool hasTympana; /**< Activa aberturas timpánicas externas. */
@@ -153,8 +222,20 @@ typedef struct HeadAnatomy {
     Vector3 eyeScale; /**< Radios reales de los globos oculares separados. */
 } HeadAnatomy;
 
+/** Dimensiones medibles de la anatomía de reposo. */
+typedef struct HeadResolvedMeasurements {
+    float actualHeadLength; /**< Longitud resuelta del occipucio a la trufa. */
+    float actualMaxZygomaticWidth; /**< Mayor extensión transversal temporal o cigomática. */
+    float actualWidthLengthRatio; /**< Cociente de anchura y longitud resueltas. */
+    float muzzleRootWidth; /**< Anchura completa de la raíz del hocico. */
+    float muzzleTipWidth; /**< Anchura completa de la punta del hocico. */
+    float interEyeDistance; /**< Distancia entre centros visibles de los globos. */
+    float mouthCornerSpan; /**< Separación entre comisuras resueltas. */
+} HeadResolvedMeasurements;
+
 /** Cabeza poseíble: fenotipo fuente más anatomía de reposo resuelta. */
 typedef struct Head {
+    float development; /**< Desarrollo resuelto independiente de especie. */
     HeadPhenotype phenotype; /**< Autoridad semántica editable. */
     HeadAnatomy anatomy; /**< Anatomía de reposo resuelta. */
 } Head;
@@ -170,6 +251,9 @@ typedef enum HeadValidationError {
     HEAD_INVALID_NECK = 1u << 5
 } HeadValidationError;
 
+/** @brief Indica si el resolver admite esta familia cefálica. */
+bool Head_Supports(HeadArchetype archetype);
+
 /** @return Fenotipo predefinido de lagarto. */
 HeadPhenotype HeadPhenotype_LizardPreset(void);
 /** @return Fenotipo predefinido de cánido. */
@@ -183,6 +267,13 @@ HeadPhenotype HeadPhenotype_RandomValid(HeadArchetype archetype, uint32_t seed);
 /** Resuelve landmarks y receta SDF a partir del fenotipo y del volumen anfitrión. */
 bool HeadAnatomy_Resolve(const HeadPhenotype* phenotype, size_t attachmentBodyPartIndex,
                          Vector3 hostRadii, HeadAnatomy* anatomy);
+/** @brief Mide las proporciones resueltas sin interpretar cephalicIndex como índice físico. */
+HeadResolvedMeasurements HeadAnatomy_Measure(const HeadAnatomy* anatomy);
+/** @brief Construye un marco ortonormal auricular para una dirección y abertura 3D. */
+bool HeadPinna_BuildFrame(Vector3 direction, Vector3 opening, Vector3* up,Vector3* side,Vector3* normal);
+/** @brief Reorienta una pinna sin mover la contralateral y actualiza su caja conservadora. */
+bool HeadSurfaceRecipe_SetEarPose(HeadSurfaceRecipe* recipe,bool right,Vector3 root,
+                                  Vector3 direction,Vector3 opening);
 /** Comprueba finitud, simetría, orden y contención anatómica. */
 uint32_t HeadAnatomy_Validate(const HeadAnatomy* anatomy);
 /** Calcula un voxel visual que conserva narinas, tímpano, reborde y hendidura oral. */

@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+void run_dog_tests(void);
 void run_animation_tests(void);
 void run_color_tests(void);
 void run_vector_tests(void);
@@ -22,6 +23,10 @@ void run_perf_optimizations_tests(void);
 void run_morph_tests(void);
 
 void run_surface_tests(void);
+void run_fur_tests(void);
+void run_creature_recipe_tests(void);
+void run_creature_variation_tests(void);
+
 int main(void) {
     printf("======================================\n");
     printf(" Ejecutando Test Suite (monster_engine)\n");
@@ -67,14 +72,18 @@ int main(void) {
 
     run_mouth_geometry_tests();
     run_head_tests();
+    run_creature_recipe_tests();
+    run_dog_tests();
+    run_creature_variation_tests();
     run_lizard_tests();
     run_local_detail_tests();
     run_surface_tests();
+    run_fur_tests();
 
     printf("\n--- Optimizaciones de Rendimiento y Regresión ---\n");
     run_perf_optimizations_tests();
 
-    printf("\n--- Módulo LizardMorph ---\n");
+    printf("\n--- Módulo AnatomyDeformer ---\n");
     run_morph_tests();
 
     printf("\n======================================\n");

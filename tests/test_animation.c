@@ -1,11 +1,13 @@
+#include "Creature.h"
+#include "Limb.h"
 #include "test_utils.h"
 #include "Skeleton.h"
 #include "IK.h"
-#include "LizardRig.h"
+#include "CreatureRig.h"
 #include "Monster.h"
 #include "AnatomyDeformer.h"
 #include "MonsterAnimation.h"
-#include "LizardGaits.h"
+#include "GaitPresets.h"
 #include "SDFPrimitives.h"
 #include "SDFMesher.h"
 #include <string.h>
@@ -73,10 +75,10 @@ static void TestRigIK(void) {
     result=IK_SolveFABRIK(&s,&p,&c);
     TEST_ASSERT(result.valid && isfinite(result.error) && result.iterations<=8,"Cadena colapsada finita");
     Near(p.joints[3].worldPosition,Vec3_Zero());
-    Monster m=Monster_Create(); LizardPhenotype phenotype=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&m,&phenotype),"Crear lagarto");
+    Monster m=Monster_Create(); CreaturePhenotype phenotype=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&phenotype),"Crear lagarto");
     uint64_t fp=AnatomyGraph_Fingerprint(&m.anatomyGraph);
-    Rig rig; TEST_ASSERT(LizardRig_Build(&m,&rig),"Rig derivado de anatomía");
+    Rig rig; TEST_ASSERT(CreatureRig_Build(&m,&rig),"Rig derivado de anatomía");
     TEST_ASSERT(rig.limbCount==4 && rig.jawJoint>=0,"Cuatro miembros y mandíbula");
     SkeletonPose_Init(&p,&rig.skeleton);
     for(size_t i=0;i<m.anatomyGraph.nodeCount;++i) {
@@ -119,8 +121,8 @@ static void TestRigIK(void) {
 
 static float Slope(World* world,float x,float z) { (void)world; return .1f*x+.2f*z; }
 static void TestLocomotion(void) {
-    Monster m=Monster_Create(); LizardPhenotype phenotype=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&m,&phenotype) && m.animation,"Rig automático");
+    Monster m=Monster_Create(); CreaturePhenotype phenotype=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&phenotype) && m.animation,"Rig automático");
     MonsterAnimation* a=m.animation;
     uint64_t fp=AnatomyGraph_Fingerprint(&m.anatomyGraph);
     TEST_ASSERT(MonsterAnimation_Update(&m,0),"Pose inicial estable");
@@ -157,7 +159,7 @@ static void TestLocomotion(void) {
     Near(stopped,a->animator.locomotion.bodyPosition);
     TEST_ASSERT(fp==AnatomyGraph_Fingerprint(&m.anatomyGraph),"Locomoción no invalida anatomía");
     float phase=a->animator.locomotion.phase; Vector3 position=a->animator.locomotion.bodyPosition;
-    phenotype=LizardPreset_Juvenile(); TEST_ASSERT(Lizard_BuildMonster(&m,&phenotype),"Cambio morfológico recompila rig");
+    phenotype=CreatureRecipes_Lizard()->juvenile; TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&phenotype),"Cambio morfológico recompila rig");
     TEST_ASSERT(FLOAT_NEAR(m.animation->animator.locomotion.phase,phase),"Conserva fase al cambiar morfología");
     TEST_ASSERT(FLOAT_NEAR(m.animation->animator.locomotion.bodyPosition.x,position.x) && FLOAT_NEAR(m.animation->animator.locomotion.bodyPosition.z,position.z),"Conserva traslación horizontal");
     m.animation->animator.desiredVelocity=Vec3_Create(0,0,.2f);
@@ -175,9 +177,9 @@ static void TestLocomotion(void) {
 static SDFSample SphereSample(const void* context,Vector3 p) { (void)context; SDFSample s={0}; s.distance=Vec3_Length(p)-.5f; return s; }
 static void TestDeformer(void) {
     AnatomyGraph g; AnatomyGraph_Init(&g);
-    TEST_ASSERT(AnatomyGraph_AddNode(&g,(AnatomyNode){.id=1,.center={0,0,0},.widthRadius=.5f,.heightRadius=.5f}),"Nodo raíz");
-    TEST_ASSERT(AnatomyGraph_AddNode(&g,(AnatomyNode){.id=2,.center={1,0,0},.widthRadius=.5f,.heightRadius=.5f}),"Nodo hijo");
-    TEST_ASSERT(AnatomyGraph_Connect(&g,(BodyConnection){.id=3,.fromId=1,.toId=2}),"Conexión");
+    TEST_ASSERT(AnatomyGraph_AddNode(&g,(AnatomyNode){.id=1,.center={0,0,0},.widthRadius=.5f,.heightRadius=.5f,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f}),"Nodo raíz");
+    TEST_ASSERT(AnatomyGraph_AddNode(&g,(AnatomyNode){.id=2,.center={1,0,0},.widthRadius=.5f,.heightRadius=.5f,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f}),"Nodo hijo");
+    TEST_ASSERT(AnatomyGraph_Connect(&g,(BodyConnection){.id=3,.fromId=1,.toId=2,.kind=BODY_CONNECTION_AXIAL_LOFT,.moduleInstanceId=0,.development=1.0f}),"Conexión");
     Rig rig; TEST_ASSERT(RigBuilder_FromAnatomy(&g,1,&rig),"Rig genérico");
     SDFMesherConfig config=SDFMesher_DefaultConfig(); config.voxelSize=.1f; config.useAutoBounds=false;
     config.bounds.start=Vec3_Create(-.7f,-.7f,-.7f); config.bounds.end=Vec3_Create(.7f,.7f,.7f);

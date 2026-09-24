@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /** @file benchmark_head_morph.c
  * @brief Residuo SDF de la cabeza deformada entre keyframes de distintas edades.
  */
@@ -8,8 +10,8 @@
 #include <math.h>
 static int Compare(const void* a,const void* b){float x=*(const float*)a,y=*(const float*)b;return (x>y)-(x<y);}
 int main(void){
- Monster young=Monster_Create(),adult=Monster_Create();LizardPhenotype a=LizardPreset_Larva(),b=LizardPreset_Adult();
- Lizard_BuildMonster(&young,&a);Lizard_BuildMonster(&adult,&b);MonsterAger ager=MonsterAger_Create(&young,&adult,0);
+ Monster young=Monster_Create(),adult=Monster_Create();CreaturePhenotype a=CreatureRecipes_Lizard()->larva,b=CreatureRecipes_Lizard()->adult;
+ Creature_BuildMonster(&young,CreatureRecipes_Lizard(),&a);Creature_BuildMonster(&adult,CreatureRecipes_Lizard(),&b);MonsterAger ager=MonsterAger_Create(&young,&adult,0);
  puts("reference_age,target_age,head_samples,mean_sdf_residual,p95_sdf_residual,max_sdf_residual");
  for(unsigned i=0;i<5;++i){
   float ref=i*.2f;MonsterAger_SetPerc(&ager,ref);
@@ -19,7 +21,7 @@ int main(void){
   float* errors=malloc(v->displayMesh.vertexCount*sizeof(float));
   for(unsigned step=0;step<=3;++step){
    float target=ref+step*.025f;MonsterAger_SetPerc(&ager,target);const Monster* m=&ager.result;
-   LizardMorph_Deform(v->displayMorph,&m->anatomyGraph,&v->displayMesh);
+   AnatomyDeformer_Deform(v->displayMorph,&m->anatomyGraph,&v->displayMesh);
    HeadMorph_Deform(v->displayHeadMorph,&v->displayMesh,&m->head.anatomy,m->bodyParts[m->head.anatomy.attachmentBodyPartIndex].positionRender);
    MonsterSDF sdf=MonsterSDF_Create();MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig());
    size_t count=0;double sum=0;

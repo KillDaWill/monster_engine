@@ -12,10 +12,18 @@
 #include "Color.h"
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef enum PupilShape {
+    PUPIL_ROUND = 0,
+    PUPIL_VERTICAL,
+    PUPIL_HORIZONTAL,
+    PUPIL_DIAMOND
+} PupilShape;
 
 /**
  * @struct Eye
@@ -34,6 +42,14 @@ typedef struct Eye {
     float irisScale;      /**< Fracción visible del iris respecto al globo. */
     float pupilScale;     /**< Escala relativa de la pupila [0.0 - 1.0] respecto al ojo */
     float pupilAspect;    /**< Relación ancho/alto; menor que uno produce pupila vertical. */
+    PupilShape pupilShape; /**< Forma geométrica de la pupila. */
+    float limbalRingStrength; /**< Contraste del borde limbal [0,1]. */
+    float irisRadialNoise; /**< Variación radial determinista del iris [0,1]. */
+    float irisColorVariation; /**< Variación cromática radial [0,1]. */
+    float scleraPigmentation; /**< Pigmentación difusa de la esclerótica [0,1]. */
+    float cornealGloss; /**< Intensidad especular de la córnea [0,1]. */
+    float pupilDilation; /**< Dilatación fisiológica [0,1]; 0 contraída, 1 dilatada. */
+    uint32_t textureSeed; /**< Semilla estable de la apariencia ocular. */
 } Eye;
 
 /**

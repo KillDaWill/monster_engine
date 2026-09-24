@@ -1,0 +1,327 @@
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/HeadMorph.c -o build/HeadMorph.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Surface.c -o build/Surface.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SurfaceMapper.c -o build/SurfaceMapper.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SurfacePresets.c -o build/SurfacePresets.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Color.c -o build/Color.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/ColorPalette.c -o build/ColorPalette.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Vector.c -o build/Vector.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MathUtils.c -o build/MathUtils.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Transform3D.c -o build/Transform3D.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AABB.c -o build/AABB.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Mesh.c -o build/Mesh.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/PrimitiveMesh.c -o build/PrimitiveMesh.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SDFPrimitives.c -o build/SDFPrimitives.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SDFOperations.c -o build/SDFOperations.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SDFSampling.c -o build/SDFSampling.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SDFSamplingPool.c -o build/SDFSamplingPool.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterSDF.c -o build/MonsterSDF.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MarchingCubesTables.c -o build/MarchingCubesTables.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MarchingCubes.c -o build/MarchingCubes.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SDFMesher.c -o build/SDFMesher.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SDFAdaptiveMesher.c -o build/SDFAdaptiveMesher.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterVisual.c -o build/MonsterVisual.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterVisualAsync.c -o build/MonsterVisualAsync.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/BodyPart.c -o build/BodyPart.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Eye.c -o build/Eye.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Mouth.c -o build/Mouth.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Head.c -o build/Head.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Anatomy.c -o build/Anatomy.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreaturePhenotype.c -o build/CreaturePhenotype.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureRecipe.c -o build/CreatureRecipe.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureRecipes.c -o build/CreatureRecipes.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Attachment.c -o build/Attachment.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AxialBody.c -o build/AxialBody.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AxialBodySprawlingTetrapod.c -o build/AxialBodySprawlingTetrapod.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/HeadModule.c -o build/HeadModule.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Limb.c -o build/Limb.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/LimbReptile.c -o build/LimbReptile.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/LimbMammal.c -o build/LimbMammal.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AxialBodyUprightTetrapod.c -o build/AxialBodyUprightTetrapod.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Tail.c -o build/Tail.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Ornament.c -o build/Ornament.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Creature.c -o build/Creature.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Monster.c -o build/Monster.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterQueries.c -o build/MonsterQueries.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterAger.c -o build/MonsterAger.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Quaternion.c -o build/Quaternion.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Skeleton.c -o build/Skeleton.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/IK.c -o build/IK.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/RigBuilder.c -o build/RigBuilder.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureRig.c -o build/CreatureRig.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AnatomyDeformer.c -o build/AnatomyDeformer.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/WorldInterface.c -o build/WorldInterface.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Locomotion.c -o build/Locomotion.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/ProceduralAnimator.c -o build/ProceduralAnimator.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/GaitPresets.c -o build/GaitPresets.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterAnimation.c -o build/MonsterAnimation.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AnimatedVisual.c -o build/AnimatedVisual.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/PigmentPattern.c -o build/PigmentPattern.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AttachmentPath.c -o build/AttachmentPath.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureVariation.c -o build/CreatureVariation.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/LizardVariations.c -o build/LizardVariations.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/main_test.c -o build/main_test.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_surface.c -o build/test_surface.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_color.c -o build/test_color.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_vector.c -o build/test_vector.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_math_utils.c -o build/test_math_utils.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_transform.c -o build/test_transform.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_body_part.c -o build/test_body_part.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_monster.c -o build/test_monster.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_ager.c -o build/test_ager.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_sdf.c -o build/test_sdf.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_sdf_ray_bounds.c -o build/test_sdf_ray_bounds.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_marching_cubes.c -o build/test_marching_cubes.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_mesh.c -o build/test_mesh.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_primitive_mesh.c -o build/test_primitive_mesh.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_visual_async.c -o build/test_visual_async.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_mouth_geometry.c -o build/test_mouth_geometry.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_head.c -o build/test_head.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_lizard.c -o build/test_lizard.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_creature_recipe.c -o build/test_creature_recipe.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_dog.c -o build/test_dog.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_local_detail.c -o build/test_local_detail.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_perf_optimizations.c -o build/test_perf_optimizations.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_morph.c -o build/test_morph.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_animation.c -o build/test_animation.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_creature_variation.c -o build/test_creature_variation.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c tests/test_fur.c -o build/test_fur.o
+python3 tools/generate_sdf_shader.py
+python3 tools/generate_surface_shader.py
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o demos/demo_lizard_console.c -lm -pthread -o demos/demo_lizard_console
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/OpenGLRenderer.c -o build/OpenGLRenderer.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/main_test.o build/test_surface.o build/test_color.o build/test_vector.o build/test_math_utils.o build/test_transform.o build/test_body_part.o build/test_monster.o build/test_ager.o build/test_sdf.o build/test_sdf_ray_bounds.o build/test_marching_cubes.o build/test_mesh.o build/test_primitive_mesh.o build/test_visual_async.o build/test_mouth_geometry.o build/test_head.o build/test_lizard.o build/test_creature_recipe.o build/test_dog.o build/test_local_detail.o build/test_perf_optimizations.o build/test_morph.o build/test_animation.o build/test_creature_variation.o build/test_fur.o -lm -pthread -o run_tests
+./run_tests
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_ager_3d.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_ager_3d
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_mouth_animation.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_mouth_animation
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_lizard_animation.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_lizard_animation
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_lizard_diversity.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_lizard_diversity
+======================================
+ Ejecutando Test Suite (monster_engine)
+======================================
+
+--- Módulo Color & ColorPalette ---
+[PASS] test_color_creation_and_conversion
+[PASS] test_color_palette
+
+--- Módulo Vector ---
+[PASS] test_vectors_fixed
+[PASS] test_vector_nd
+
+--- Módulo MathUtils ---
+[PASS] test_math_grow_capacity
+[PASS] test_math_mul_size
+
+--- Módulo Transform3D ---
+Ejecutando pruebas de Transform3D (RotationBasis3D)...
+  [OK] Transform3D RotationBasis3D equivale a InverseRotateVector exactamente.
+
+--- Módulo BodyPart ---
+[PASS] test_body_part
+
+--- Módulo Monster ---
+[PASS] test_monster_lifecycle
+[PASS] test_behavior_update
+[PASS] test_monster_trait_update
+[PASS] test_bodypart_trait_update
+[PASS] test_position_lifecycle
+
+--- Módulo MonsterAger ---
+[PASS] test_monster_ager
+[TRACE] eye pupil straddle sweep (malla observable): age -> scleraFront / pupilFront / pupilRear
+[TRACE] age=0.00 eye=0 scleraFront=0.0985 pupilFront=0.1047 pupilRear=0.0965 halfDepth=0.0030 tol=0.0008
+[TRACE] age=0.00 eye=1 scleraFront=0.0985 pupilFront=0.1047 pupilRear=0.0965 halfDepth=0.0030 tol=0.0008
+[TRACE] age=0.10 eye=0 scleraFront=0.1133 pupilFront=0.1205 pupilRear=0.1110 halfDepth=0.0035 tol=0.0009
+[TRACE] age=0.10 eye=1 scleraFront=0.1133 pupilFront=0.1205 pupilRear=0.1110 halfDepth=0.0035 tol=0.0009
+[TRACE] age=0.25 eye=0 scleraFront=0.1354 pupilFront=0.1440 pupilRear=0.1327 halfDepth=0.0044 tol=0.0011
+[TRACE] age=0.25 eye=1 scleraFront=0.1354 pupilFront=0.1440 pupilRear=0.1327 halfDepth=0.0044 tol=0.0011
+[TRACE] age=0.50 eye=0 scleraFront=0.1723 pupilFront=0.1833 pupilRear=0.1689 halfDepth=0.0058 tol=0.0015
+[TRACE] age=0.50 eye=1 scleraFront=0.1723 pupilFront=0.1833 pupilRear=0.1689 halfDepth=0.0058 tol=0.0015
+[TRACE] age=0.75 eye=0 scleraFront=0.2093 pupilFront=0.2226 pupilRear=0.2050 halfDepth=0.0074 tol=0.0018
+[TRACE] age=0.75 eye=1 scleraFront=0.2093 pupilFront=0.2226 pupilRear=0.2050 halfDepth=0.0074 tol=0.0018
+[TRACE] age=0.90 eye=0 scleraFront=0.2314 pupilFront=0.2461 pupilRear=0.2268 halfDepth=0.0083 tol=0.0021
+[TRACE] age=0.90 eye=1 scleraFront=0.2314 pupilFront=0.2461 pupilRear=0.2268 halfDepth=0.0083 tol=0.0021
+[TRACE] age=1.00 eye=0 scleraFront=0.2462 pupilFront=0.2619 pupilRear=0.2412 halfDepth=0.0090 tol=0.0022
+[TRACE] age=1.00 eye=1 scleraFront=0.2462 pupilFront=0.2619 pupilRear=0.2412 halfDepth=0.0090 tol=0.0022
+[PASS] test_bug_eye_pupil_buried_behind_sclera_during_growth
+
+--- Módulo Marching Cubes (tablas) ---
+[PASS] test_all_rows_structure
+[PASS] test_used_edges_equal_active_edges
+[PASS] test_case_32_explicit
+[PASS] test_edge_endpoints
+[PASS] test_invalid_cube_index
+[PASS] test_edge_cache_info
+
+--- Módulo Mesh ---
+[PASS] test_add_triangle_guards
+[PASS] test_mesh_validate
+[PASS] test_zero_area_collinear_validation
+[PASS] test_sphere_field_pipeline
+[PASS] test_edge_cache_sharing
+[PASS] test_topology_audit
+[PASS] test_keep_largest_component
+[PASS] test_mesh_gpu_revisions
+
+--- Módulo PrimitiveMesh ---
+[PASS] test_uv_sphere_valid
+[PASS] test_uv_sphere_winding
+[PASS] test_uv_sphere_invalid_params
+[PASS] test_ellipsoid_transform
+[PASS] test_bezier_tube
+[PASS] test_inward_ellipsoid
+
+--- Módulo SDF Engine & Mesher ---
+[PASS] test_sdf_primitives_and_ops
+[PASS] test_sdf_primitives_extended
+[PASS] test_sdf_rounded_slot
+[PASS] test_monster_sdf_evaluation
+[PASS] test_sdf_mesher
+[PASS] test_monster_visual
+[PASS] test_monster_visual_eyes_fingerprint
+[PASS] test_monster_visual_generation_and_transactional
+[PASS] test_mouth_muzzle_bounds_expansion
+[PASS] test_zero_scale_eye_ager_transition
+[PASS] test_monster_visual_complete_fingerprint
+[PASS] test_lizard_mesh_stats
+[PASS] test_ager_meshes
+[PASS] test_monster_sdf_buffer_reuse
+[PASS] test_adaptive_resolution_and_budget
+[PASS] test_cached_normal_quality_and_eval_count
+[PASS] test_large_monster_regression
+[PASS] test_monster_visual_throttling
+[PASS] test_sdf_ray_bounds: 30420 muestras exteriores, cinco edades, dos recetas
+
+--- Módulo MonsterVisualAsync ---
+[PASS] test_visual_async_lifecycle_and_flush
+[PASS] test_visual_async_coalescing
+[PASS] tesgcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_lizard_animation.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_lizard_surface
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_lizard_animation.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_lizard_ik
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_lizard_animation.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_lizard_jaw
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_lizard_animation.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_lizard_walk
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/HeadMorph.o build/Surface.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_dog.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_dog
+t_visual_async_quality_tiers
+[PASS] test_visual_async_renders_jaw_components
+[TRACE] growth sweep: edad -> mandíbula/bisagra (vertexCount)
+[TRACE] age=0.00 v=[340 188]
+[TRACE] age=0.10 v=[430 178]
+[TRACE] age=0.25 v=[526 234]
+[TRACE] age=0.50 v=[752 348]
+[TRACE] age=0.75 v=[994 496]
+[TRACE] age=0.90 v=[1218 574]
+[TRACE] age=1.00 v=[1342 636]
+[PASS] test_visual_async_growth_sweep
+  [debug] async cabeza interactiva 0.00000/0 settled 0.00000/0
+[PASS] test_visual_async_conforming_head
+[PASS] test_visual_async_single_snapshot
+[PASS] test_bug_async_growth_displays_old_body_with_new_jaw_hinge_snapshot_mixing
+
+--- Módulo Boca Anatómica ---
+[PASS] test_anatomical_defaults
+[PASS] test_cavity_exterior_and_depth
+[PASS] test_material_and_debug_layers
+[PASS] test_jaw_articulation_without_body_remesh
+[PASS] test_mesh_components
+[PASS] test_body_and_dedicated_jaw_fields
+[PASS] test_deterministic_anatomy_sweep
+[PASS] test_async_multi_mouth_indexing
+[PASS] test_individual_phenotype_influence
+[PASS] test_strengthened_hinge_isosurface_and_populations
+  [debug] jaw basin: oralY=-0.1243 topY=-0.0590 beyondY=0.1439 sawEmpty=1 emptyStartY=-0.0991 reentered=0 reentryY=0.0000 reentryDist=0.0000 dCenter=0.0345 dLeft=0.0139 dRight=0.0139 hingeR=0.1144
+[PASS] test_bug_jaw_oral_basin_reenters_solid_superior_cap
+  [debug] bridge components=1 (esperado 1)
+  [debug] bridge skinVertices=444 redMismatch=0 (0.0%) skin=(255,255,255) inside=(45,8,12)
+  [debug] bridge hostMatch=444 (100.0%)
+[PASS] test_bug_soft_tissue_bridge_is_three_disconnected_red_islands
+  [debug] closed seam: lowerSeamY=-0.0590 jawTopY=-0.0590 diff=-0.0000 h=0.1560 slitHalfY=0.0590
+  [debug] jaw mesh maxY local -0.0355 vs lowerSeam -0.0590 diff 0.0236
+[PASS] test_bug_closed_jaw_does_not_share_upper_mouth_seam
+  [debug] bridge articulation: n=444 minDisp=0.0006 maxDisp=0.0871 avgDisp=0.0344 fixed<0.008=91 (20.5%) openFactor 0->1
+  [debug] skull anchor region: cnt=106 radius=0.1201 skullMin=0.0026 skullMax=0.0398 skullAvg=0.0121 pivotWorld=(0.000,-0.368,0.606)
+  [debug] closed[0]=(-0.1782,-0.4583,0.6869) open[0]=(-0.1782,-0.4848,0.6380)
+[PASS] test_bug_bridge_skull_anchor_moves_with_jaw
+[PASS] test_seam_material_and_openFactor_sweep
+[PASS] test_scale_sweep_05_1_2
+[PASS] test_rotation_and_bounds_nonzero
+  [debug] jaw thickness 0.2007 h 0.1560 norm 1.287
+[PASS] test_jaw_side_profile_thickness
+[PASS] test_basin_depth_width_no_cap
+  [debug] seam maxZ 0.0637 visibleFront 0.0692 entrance -0.5675 half 0.7075
+[PASS] test_compact_seam_bounds
+  [debug] async cuerpo interactive 0.120/250000 settled 0.080/500000 | cabeza 0.024/900000 -> 0.015/2200000
+[PASS] test_default_async_voxel_configs
+
+--- Módulo Cabeza Anatómica ---
+[PASS] test_head_presets_and_ownership
+[PASS] test_head_randomized_anatomy_sweep
+[PASS] test_head_socket_and_nostril_cutters
+[PASS] test_head_meshes_and_primitive
+[PASS] test_head_semantic_aging_and_pose
+[PASS] test_creature_recipe: etapas, IDs, copia, rig, arquetipos, múltiples colas y quimeras
+[PASS] test_dog: receta, etapas, rig, suelas, proporciones, pinnae, collar cefalocervical, arquitectura cervical y malla conexa
+[PASS] variaciones de criatura: determinismo, inmutabilidad, arquetipos de cola, ojos, ornamentos, pigmentos y 10 variantes
+
+--- Módulo Anatomía de Lagarto ---
+[PASS] test_lizard_graph_topology
+[PASS] test_lizard_articulated_digits
+  [visibilidad] edad 0.00 MORPH: 20 unguales, 4 autopodios, 85814 celdas, razón 1.000
+  [visibilidad] edad 0.00 SETTLED: 20 unguales, 4 autopodios, 244567 celdas, razón 1.000
+  [visibilidad] edad 0.10 MORPH: 20 unguales, 4 autopodios, 86507 celdas, razón 1.000
+  [visibilidad] edad 0.10 SETTLED: 20 unguales, 4 autopodios, 249698 celdas, razón 1.000
+  [visibilidad] edad 0.25 MORPH: 20 unguales, 4 autopodios, 86752 celdas, razón 1.000
+  [visibilidad] edad 0.25 SETTLED: 20 unguales, 4 autopodios, 246317 celdas, razón 1.000
+  [visibilidad] edad 0.50 MORPH: 20 unguales, 4 autopodios, 87543 celdas, razón 1.000
+  [visibilidad] edad 0.50 SETTLED: 20 unguales, 4 autopodios, 255102 celdas, razón 1.000
+  [visibilidad] edad 0.75 MORPH: 20 unguales, 4 autopodios, 99072 celdas, razón 1.000
+  [visibilidad] edad 0.75 SETTLED: 20 unguales, 4 autopodios, 272770 celdas, razón 1.000
+  [visibilidad] edad 0.90 MORPH: 20 unguales, 4 autopodios, 107850 celdas, razón 1.000
+  [visibilidad] edad 0.90 SETTLED: 20 unguales, 4 autopodios, 298943 celdas, razón 1.000
+  [visibilidad] edad 1.00 MORPH: 20 unguales, 4 autopodios, 94431 celdas, razón 1.000
+  [visibilidad] edad 1.00 SETTLED: 20 unguales, 4 autopodios, 266008 celdas, razón 1.000
+[PASS] test_lizard_appendage_mesh_visibility
+[PASS] test_lizard_larval_metamorphosis
+[PASS] test_lizard_seed_metamorphosis
+[PASS] test_lizard_axial_loft_and_tail
+[PASS] test_lizard_head_semantics
+  [debug] mandíbula cerrada: v=3262 comp=1 boundary=0 nonManifold=0 bounds=[-0.820 -0.743 -1.171]-[0.820 0.718 1.640] mesh=[-0.722 -0.232 -0.305]-[0.722 -0.104 1.410]
+[PASS] test_lizard_tapered_jaw_has_closed_floor
+  [debug] topología cabeza juvenil: válida=1 componentes=1 bordes=0 noManifold=0 degenerados=0
+  [debug] juvenil cuerpo 82x55x149 voxel=0.05976 celdas=671990 ajuste=0 | cabeza 112x80x149 voxel=0.00897 celdas=1335040 ajuste=0 bordes=0
+  [debug] topología cabeza adulta: válida=1 componentes=1 bordes=4 noManifold=0 degenerados=0
+  [debug] adulto cuerpo 89x50x183 voxel=0.08246 celdas=814350 ajuste=1 | cabeza 126x89x187 voxel=0.01373 celdas=2097018 ajuste=1 bordes=4
+[PASS] test_lizard_local_head_field_quality
+  [debug] edad frágil 0.15: cuerpo=1/95161 cabeza=1/10883
+  [debug] edad frágil 0.35: cuerpo=1/95564 cabeza=1/14980
+  [debug] edad frágil 0.55: cuerpo=1/92985 cabeza=1/21624
+  [debug] edad frágil 0.75: cuerpo=1/103558 cabeza=1/28956
+[PASS] test_lizard_aging_and_mesh_sweep
+[PASS] test_local_cavities
+[PASS] test_growth_ownership
+[PASS] superficie: determinismo, límites, regiones, marcha estable, edición sin reconstrucción
+[PASS] pelaje: fenotipo, determinismo, flujo anatómico, máscara, desacoplo de malla y pose
+
+--- Optimizaciones de Rendimiento y Regresión ---
+  [TEST] test_connector_pruning_equivalence...
+[PASS] test_juvenile_connector_bounds (58318 muestras superficiales)
+[PASS] test_digit_candidate_culling
+  [TEST] test_parallel_serial_determinism...
+  [TEST] test_component_bounds_and_cell_skipping...
+  [TEST] test_monster_copy_into_reuse...
+  [TEST] test_visual_async_morph_settled_tiers...
+
+--- Módulo AnatomyDeformer ---
+[PASS] test_visual_sdf_posed_mouth_bounds
+[PASS] test_lizard_morph_lifecycle
+  [debug] AnatomyDeformer bind: 34851 vértices en 13.6 ms
+  [debug] AnatomyDeformer edad 0.00: 1.11 ms, dígitos=20/20
+  [debug] AnatomyDeformer edad 0.15: 1.40 ms, dígitos=20/20
+  [debug] AnatomyDeformer edad 0.35: 1.34 ms, dígitos=20/20
+  [debug] AnatomyDeformer edad 0.50: 1.33 ms, dígitos=20/20
+  [debug] AnatomyDeformer edad 0.70: 1.35 ms, dígitos=20/20
+  [debug] AnatomyDeformer edad 0.85: 1.34 ms, dígitos=20/20
+  [debug] AnatomyDeformer edad 1.00: 1.31 ms, dígitos=20/20
+[PASS] test_lizard_morph_sweep_and_perf
+[PASS] test_lizard_morph_eye_and_jaw_growth
+
+======================================
+ ¡TODAS LAS SUITES PASARON CON ÉXITO! 
+======================================

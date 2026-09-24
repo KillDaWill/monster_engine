@@ -275,5 +275,68 @@ bool PrimitiveMesh_GenerateUVSphere(Mesh* out, Vector3 center, float radius, uns
     return PrimitiveMesh_GenerateEllipsoid(out, t, segments, rings, color);
 }
 
+bool PrimitiveMesh_GenerateDiamond(Mesh* out, Transform3D transform, Color color) {
+    if (!out) return false;
+    if (transform.scale.x <= 0.0f || transform.scale.y <= 0.0f || transform.scale.z <= 0.0f) return false;
+
+    Mesh_Clear(out);
+
+    Vector3 localVerts[6] = {
+        {0.0f, 0.0f, 1.0f},  /* 0: Front (+Z) */
+        {0.0f, 1.0f, 0.0f},  /* 1: Top (+Y) */
+        {1.0f, 0.0f, 0.0f},  /* 2: Right (+X) */
+        {0.0f, -1.0f, 0.0f}, /* 3: Bottom (-Y) */
+        {-1.0f, 0.0f, 0.0f}, /* 4: Left (-X) */
+        {0.0f, 0.0f, -1.0f}  /* 5: Back (-Z) */
+    };
+
+    Vector3 invRadii = Vec3_Create(
+        1.0f / transform.scale.x,
+        1.0f / transform.scale.y,
+        1.0f / transform.scale.z
+    );
+
+    for (size_t i = 0; i < 6; ++i) {
+        Vector3 localPos = Vec3_Create(
+            localVerts[i].x * transform.scale.x,
+            localVerts[i].y * transform.scale.y,
+            localVerts[i].z * transform.scale.z
+        );
+        Vector3 worldPos = Vec3_Add(transform.position, Transform3D_RotateVector(transform.rotation, localPos));
+
+        Vector3 normalScaled = Vec3_Normalize(Vec3_Create(
+            localVerts[i].x * invRadii.x,
+            localVerts[i].y * invRadii.y,
+            localVerts[i].z * invRadii.z
+        ));
+        Vector3 worldNormal = Vec3_Normalize(Transform3D_RotateVector(transform.rotation, normalScaled));
+
+        MeshVertex v = {
+            .position = worldPos,
+            .normal = worldNormal,
+            .color = color,
+            .material = SDF_MATERIAL_SKIN
+        };
+        if (!Mesh_AddVertex(out, v, NULL)) return false;
+    }
+
+    /* 8 caras de la bipirámide */
+    const MeshIndex tris[8][3] = {
+        {0, 2, 1}, /* Front Right Top */
+        {0, 3, 2}, /* Front Bottom Right */
+        {0, 4, 3}, /* Front Left Bottom */
+        {0, 1, 4}, /* Front Top Left */
+        {5, 1, 2}, /* Back Top Right */
+        {5, 2, 3}, /* Back Right Bottom */
+        {5, 3, 4}, /* Back Bottom Left */
+        {5, 4, 1}  /* Back Left Top */
+    };
+
+    for (size_t i = 0; i < 8; ++i) {
+        if (!Mesh_AddTriangle(out, tris[i][0], tris[i][1], tris[i][2])) return false;
+    }
+
+    return true;
+}
 
 #undef RING_VERTEX

@@ -1,15 +1,17 @@
+#include "Creature.h"
+#include "Limb.h"
 #include "test_utils.h"
 #include "Monster.h"
 #include "../src/MonsterSDFRayBounds.h"
 #include <string.h>
 
 void run_sdf_ray_bounds_tests(void) {
-    LizardPhenotype larva=LizardPreset_Larva(),adult=LizardPreset_Adult();
+    CreaturePhenotype larva=CreatureRecipes_Lizard()->larva,adult=CreatureRecipes_Lizard()->adult;
     unsigned checked=0;
     for(int phase=0;phase<=4;++phase) {
         Monster monster=Monster_Create();
-        LizardPhenotype phenotype=LizardPhenotype_Interpolate(&larva,&adult,phase*.25f);
-        TEST_ASSERT(Lizard_BuildMonster(&monster,&phenotype),"Resolver anatomía de cotas GPU");
+        CreaturePhenotype phenotype=CreaturePhenotype_Interpolate(&larva,&adult,phase*.25f);
+        TEST_ASSERT(Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&phenotype),"Resolver anatomía de cotas GPU");
         MonsterSDF sdf=MonsterSDF_Create();
         TEST_ASSERT(MonsterSDF_Build(&sdf,&monster,MonsterSDF_DefaultConfig()),"Compilar cotas GPU");
         for(int swept=0;swept<2;++swept)for(size_t i=0;i<sdf.mouthCount;++i) {

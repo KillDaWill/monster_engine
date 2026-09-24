@@ -37,6 +37,9 @@ typedef AABB3D (*SDFBoundsFn)(const void* context);
 typedef struct SDFDetailRegion {
     AABB3D bounds; /**< Región que contiene el rasgo. */
     float targetVoxelSize; /**< Espaciado máximo deseado dentro de la región. */
+    /** @brief Objetivo local opcional según la sección del propietario; cero fuera de su influencia. */
+    float (*localTarget)(const void* context,AABB3D cell,float minimumTarget);
+    const void* context; /**< Propietario inmutable durante la extracción. */
 } SDFDetailRegion;
 
 /** @brief Firma para consultar cajas envolventes (AABB) de componentes individuales de un campo. */

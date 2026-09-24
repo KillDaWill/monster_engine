@@ -16,12 +16,21 @@ typedef struct LimbRig {
     bool walking;
     float soleHeight;
 } LimbRig;
+#define RIG_MAX_TAILS 8
+#define RIG_MAX_TAIL_JOINTS 32
+typedef struct TailRig {
+    uint32_t moduleInstanceId;
+    int joints[RIG_MAX_TAIL_JOINTS];
+    size_t jointCount;
+} TailRig;
 typedef struct Rig {
     Skeleton skeleton;
     LimbRig limbs[RIG_MAX_LIMBS]; size_t limbCount;
     int headJoint,neckJoint,jawJoint,pelvisJoint;
-    int spine[RIG_MAX_AXIAL_JOINTS],tail[RIG_MAX_AXIAL_JOINTS];
-    size_t spineCount,tailCount;
+    int spine[RIG_MAX_AXIAL_JOINTS];
+    size_t spineCount;
+    TailRig tails[RIG_MAX_TAILS];
+    size_t tailCount;
     float maxJawAngle;
 } Rig;
 /** @brief Orienta las aristas desde rootId; rechaza ciclos/desconexiones y ordena padres primero. */

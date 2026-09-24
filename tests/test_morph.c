@@ -1,13 +1,15 @@
+#include "Creature.h"
+#include "Limb.h"
 /**
  * @file test_morph.c
- * @brief Pruebas unitarias para el módulo de deformación morfológica continua LizardMorph.
+ * @brief Pruebas unitarias para el módulo de deformación morfológica continua AnatomyDeformer.
  * @author Monster Engine Team
  * @date 2026
  */
 
 #include "test_utils.h"
-#include "LizardMorph.h"
-#include "Lizard.h"
+#include "AnatomyDeformer.h"
+#include "Creature.h"
 #include "Monster.h"
 #include "MonsterSDF.h"
 #include "SDFMesher.h"
@@ -29,18 +31,18 @@ static unsigned Morph_CountVisibleDigits(const Mesh* mesh, float scale) {
     float lo = 0, hi = 1;
     for (unsigned i = 0; i < 24; ++i) {
         float t = (lo + hi) * 0.5f;
-        LizardPhenotype p = LizardPhenotype_Interpolate(NULL, NULL, t);
-        if (p.totalScale < scale) lo = t; else hi = t;
+        CreaturePhenotype p = CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult, t);
+        if (p.axial.totalScale < scale) lo = t; else hi = t;
     }
-    LizardPhenotype p = LizardPhenotype_Interpolate(NULL, NULL, (lo + hi) * 0.5f);
+    CreaturePhenotype p = CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult, (lo + hi) * 0.5f);
     AnatomyGraph graph;
-    if (!Lizard_ResolveAnatomy(&p, &graph)) return 0;
+    if (!Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&p, &graph)) return 0;
     const unsigned formula[2][5] = {{2, 3, 4, 5, 3}, {2, 3, 4, 5, 4}};
     unsigned visible = 0;
     for (unsigned limb = 0; limb < 4; ++limb) {
         for (unsigned digit = 0; digit < 5; ++digit) {
             const AnatomyNode* n = AnatomyGraph_FindNode(&graph,
-                Anatomy_DigitId(limb, digit, formula[limb / 2][digit] + 1));
+                Anatomy_MakeId(10+(limb),Limb_DigitLocalId( digit, formula[limb / 2][digit] + 1)));
             if (!n) continue;
             float nearest = 1e6f;
             for (size_t v = 0; v < mesh->vertexCount; ++v) {
@@ -54,27 +56,27 @@ static unsigned Morph_CountVisibleDigits(const Mesh* mesh, float scale) {
 }
 
 static void test_lizard_morph_lifecycle(void) {
-    LizardMorph* morph = LizardMorph_Create();
-    TEST_ASSERT(morph != NULL, "LizardMorph_Create debe retornar un puntero no nulo");
-    TEST_ASSERT(!LizardMorph_IsBound(morph), "Un morph recién creado no debe estar vinculado");
-    TEST_ASSERT(LizardMorph_GetVertexCount(morph) == 0, "Conteo de vértices inicial debe ser 0");
+    AnatomyDeformer* morph = AnatomyDeformer_Create();
+    TEST_ASSERT(morph != NULL, "AnatomyDeformer_Create debe retornar un puntero no nulo");
+    TEST_ASSERT(!AnatomyDeformer_IsBound(morph), "Un morph recién creado no debe estar vinculado");
+    TEST_ASSERT(AnatomyDeformer_GetVertexCount(morph) == 0, "Conteo de vértices inicial debe ser 0");
 
     Mesh emptyMesh = Mesh_Create();
     AnatomyGraph emptyGraph;
     AnatomyGraph_Init(&emptyGraph);
 
-    TEST_ASSERT(!LizardMorph_Bind(morph, &emptyMesh, &emptyGraph), "No debe vincular malla vacía");
-    TEST_ASSERT(!LizardMorph_Deform(morph, &emptyGraph, &emptyMesh), "No debe deformar sin vinculación");
+    TEST_ASSERT(!AnatomyDeformer_Bind(morph, &emptyMesh, &emptyGraph), "No debe vincular malla vacía");
+    TEST_ASSERT(!AnatomyDeformer_Deform(morph, &emptyGraph, &emptyMesh), "No debe deformar sin vinculación");
 
     Mesh_Free(&emptyMesh);
-    LizardMorph_Free(morph);
+    AnatomyDeformer_Free(morph);
     printf("[PASS] test_lizard_morph_lifecycle\n");
 }
 
 static void test_lizard_morph_sweep_and_perf(void) {
     Monster m = Monster_Create();
-    LizardPhenotype juvP = LizardPreset_Juvenile();
-    TEST_ASSERT(Lizard_BuildMonster(&m, &juvP), "Construcción de lagarto juvenil");
+    CreaturePhenotype juvP = CreatureRecipes_Lizard()->juvenile;
+    TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(), &juvP), "Construcción de lagarto juvenil");
 
     MonsterSDF sdf = MonsterSDF_Create();
     TEST_ASSERT(MonsterSDF_Build(&sdf, &m, MonsterSDF_DefaultConfig()), "Construcción SDF");
@@ -92,13 +94,13 @@ static void test_lizard_morph_sweep_and_perf(void) {
                 "Generación de malla base adaptativa");
     TEST_ASSERT(baseMesh.vertexCount > 5000, "La malla base debe tener geometría sustancial");
 
-    LizardMorph* morph = LizardMorph_Create();
+    AnatomyDeformer* morph = AnatomyDeformer_Create();
     double tBind0 = Morph_GetTimeMs();
-    TEST_ASSERT(LizardMorph_Bind(morph, &baseMesh, &m.anatomyGraph), "Vinculación de malla base");
+    TEST_ASSERT(AnatomyDeformer_Bind(morph, &baseMesh, &m.anatomyGraph), "Vinculación de malla base");
     double tBind = Morph_GetTimeMs() - tBind0;
-    TEST_ASSERT(LizardMorph_IsBound(morph), "El deformador debe quedar marcado como vinculado");
-    TEST_ASSERT(LizardMorph_GetVertexCount(morph) == baseMesh.vertexCount, "Conteo de vértices debe coincidir");
-    printf("  [debug] LizardMorph bind: %zu vértices en %.1f ms\n", baseMesh.vertexCount, tBind);
+    TEST_ASSERT(AnatomyDeformer_IsBound(morph), "El deformador debe quedar marcado como vinculado");
+    TEST_ASSERT(AnatomyDeformer_GetVertexCount(morph) == baseMesh.vertexCount, "Conteo de vértices debe coincidir");
+    printf("  [debug] AnatomyDeformer bind: %zu vértices en %.1f ms\n", baseMesh.vertexCount, tBind);
 
     Mesh morphMesh = Mesh_Create();
     morphMesh.vertices = (MeshVertex*)malloc(baseMesh.vertexCount * sizeof(MeshVertex));
@@ -114,12 +116,12 @@ static void test_lizard_morph_sweep_and_perf(void) {
     float ages[] = {0.0f, 0.15f, 0.35f, 0.50f, 0.70f, 0.85f, 1.0f};
     for (size_t i = 0; i < sizeof(ages) / sizeof(ages[0]); ++i) {
         float age = ages[i];
-        LizardPhenotype targetPheno = LizardPhenotype_Interpolate(NULL, NULL, age);
+        CreaturePhenotype targetPheno = CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult, age);
         AnatomyGraph targetGraph;
-        TEST_ASSERT(Lizard_ResolveAnatomy(&targetPheno, &targetGraph), "Resolución de anatomía destino");
+        TEST_ASSERT(Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&targetPheno, &targetGraph), "Resolución de anatomía destino");
 
         double tDef0 = Morph_GetTimeMs();
-        TEST_ASSERT(LizardMorph_Deform(morph, &targetGraph, &morphMesh), "Deformación O(V) en tiempo real");
+        TEST_ASSERT(AnatomyDeformer_Deform(morph, &targetGraph, &morphMesh), "Deformación O(V) en tiempo real");
         double tDef = Morph_GetTimeMs() - tDef0;
 
         /* El presupuesto se verifica en release; instrumentar accesos de memoria
@@ -128,14 +130,14 @@ static void test_lizard_morph_sweep_and_perf(void) {
         TEST_ASSERT(tDef < 15.0, "La deformación debe ejecutarse en menos de 15 ms para soportar 60 FPS");
 #endif
 
-        unsigned visible = Morph_CountVisibleDigits(&morphMesh, targetPheno.totalScale);
-        printf("  [debug] LizardMorph edad %.2f: %.2f ms, dígitos=%u/20\n", age, tDef, visible);
+        unsigned visible = Morph_CountVisibleDigits(&morphMesh, targetPheno.axial.totalScale);
+        printf("  [debug] AnatomyDeformer edad %.2f: %.2f ms, dígitos=%u/20\n", age, tDef, visible);
         TEST_ASSERT(visible == 20, "Los 20 dígitos deben permanecer visibles tras la deformación continua");
     }
 
     Mesh_Free(&baseMesh);
     Mesh_Free(&morphMesh);
-    LizardMorph_Free(morph);
+    AnatomyDeformer_Free(morph);
     SDFMesher_Free(&mesher);
     MonsterSDF_Free(&sdf);
     Monster_Free(&m);
@@ -144,12 +146,12 @@ static void test_lizard_morph_sweep_and_perf(void) {
 
 static void test_lizard_morph_eye_and_jaw_growth(void) {
     Monster young = Monster_Create();
-    LizardPhenotype pYoung = LizardPreset_Juvenile();
-    TEST_ASSERT(Lizard_BuildMonster(&young, &pYoung), "Construcción lagarto joven");
+    CreaturePhenotype pYoung = CreatureRecipes_Lizard()->juvenile;
+    TEST_ASSERT(Creature_BuildMonster(&young,CreatureRecipes_Lizard(), &pYoung), "Construcción lagarto joven");
 
     Monster adult = Monster_Create();
-    LizardPhenotype pAdult = LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&adult, &pAdult), "Construcción lagarto adulto");
+    CreaturePhenotype pAdult = CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&adult,CreatureRecipes_Lizard(), &pAdult), "Construcción lagarto adulto");
 
     MonsterAger ager = MonsterAger_Create(&young, &adult, 0.0f);
     MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
@@ -249,8 +251,8 @@ static void test_visual_sdf_posed_mouth_bounds(void) {
     const float ages[]={0,.25f,.5f,1};
     const float openings[]={0,.1f,1};
     Monster first=Monster_Create(),last=Monster_Create();
-    LizardPhenotype a=LizardPreset_Larva(),b=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&first,&a)&&Lizard_BuildMonster(&last,&b),"Extremos visuales inválidos");
+    CreaturePhenotype a=CreatureRecipes_Lizard()->larva,b=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&first,CreatureRecipes_Lizard(),&a)&&Creature_BuildMonster(&last,CreatureRecipes_Lizard(),&b),"Extremos visuales inválidos");
     MonsterAger ager=MonsterAger_Create(&first,&last,0);
     MonsterSDF sdf=MonsterSDF_Create();
     for(size_t age=0;age<4;++age)for(size_t opening=0;opening<3;++opening) {

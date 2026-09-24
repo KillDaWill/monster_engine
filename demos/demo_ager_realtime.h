@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /** @file demo_ager_realtime.h
  * @brief Reproducción continua del ager mediante el campo SDF compilado por fotograma.
  */
@@ -25,9 +27,9 @@ static void Demo_RealtimeCamera(ICamera* camera,const Monster* monster,int view,
         else offset=Vec3_Create(2.8f,1.8f,2.8f);
     }
     if(view>=8&&monster->hasAnatomyGraph) {
-        const AnatomyNode* n=AnatomyGraph_FindNode(&monster->anatomyGraph,view%2?ANATOMY_ID_HIND_LEFT_FOOT:ANATOMY_ID_FORE_LEFT_HAND);
+        const AnatomyNode* n=AnatomyGraph_FindNode(&monster->anatomyGraph,view%2?Anatomy_MakeId(12,4):Anatomy_MakeId(10,4));
         if(n)camera->target=n->center;
-        float scale=monster->hasLizardPhenotype?monster->lizardPhenotype.totalScale:1;
+        float scale=monster->hasCreaturePhenotype?monster->phenotype.axial.totalScale:1;
         if(view<10){offset=Vec3_Create(0,2.6f*scale,0);camera->up=Vec3_Create(0,0,-1);}
         else offset=Vec3_Scale(Vec3_Create(1.8f,1.4f,1.2f),scale);
     }
@@ -76,7 +78,7 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
         MonsterAger_SetPerc(ager,age);const Monster* monster=MonsterAger_GetResultConst(ager);
         if(!MonsterSDF_Build(&sdf,monster,MonsterSDF_DefaultConfig())){error=1;break;}
         if(monster->eyeCount>eyeCapacity) {
-            for(size_t i=0;i<eyeCapacity;++i){Mesh_Free(&eyes[i].sclera);Mesh_Free(&eyes[i].iris);Mesh_Free(&eyes[i].pupil);}
+            for(size_t i=0;i<eyeCapacity;++i)Mesh_Free(&eyes[i].globe);
             free(eyes);eyeCapacity=monster->eyeCount;eyes=calloc(eyeCapacity,sizeof(*eyes));
             if(!eyes){error=1;break;}
         }
@@ -86,7 +88,10 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
         renderer->beginFrame(renderer);
         if(!OpenGLRenderer_BeginSDFFrame(renderer,camera,width,height,!nativeScale&&!capturePrefix)||
            !OpenGLRenderer_RenderSDF(renderer,&sdf,camera,width,height)){error=1;break;}
-        for(size_t i=0;i<monster->eyeCount;++i){renderer->renderMesh(renderer,&eyes[i].sclera);renderer->renderMesh(renderer,&eyes[i].iris);renderer->renderMesh(renderer,&eyes[i].pupil);}
+        for(size_t i=0;i<monster->eyeCount;++i){
+            if(renderer->renderEye)renderer->renderEye(renderer,&eyes[i]);
+            else renderer->renderMesh(renderer,&eyes[i].globe);
+        }
         OpenGLRenderer_EndSDFFrame(renderer,width,height);renderer->endFrame(renderer);
         if(capturePrefix&&ready&&++captureFrames>=3) {
             captureFrames=0;snprintf(path,sizeof(path),"%s-%s.ppm",capturePrefix,names[captureView]);
@@ -154,7 +159,7 @@ static int Demo_RunRealtime(SDL_Window* window,Renderer3D* renderer,ICamera* cam
     }
     if(csv)fclose(csv);
     free(times);
-    for(size_t i=0;i<eyeCapacity;++i){Mesh_Free(&eyes[i].sclera);Mesh_Free(&eyes[i].iris);Mesh_Free(&eyes[i].pupil);}
+    for(size_t i=0;i<eyeCapacity;++i)Mesh_Free(&eyes[i].globe);
     free(eyes);MonsterSDF_Free(&sdf);return error;
 }
 #endif

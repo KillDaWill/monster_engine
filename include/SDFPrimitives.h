@@ -28,6 +28,18 @@ float SDF_EllipticalSweepZ(Vector3 p, const SDFSweepStation* stations, int count
 bool SDF_SweepResolveTangents(SDFSweepStation* stations,int count);
 
 
+/** @brief Pinna triangular redondeada orientada; campo conservador 1-Lipschitz.
+ * @param point Posición relativa al centro del pabellón.
+ * @param shape Semianchura basal, altura, semiespesor.
+ * @param direction Eje unitario de base a punta.
+ * @param tipFraction Anchura distal relativa.
+ * @param concavity Profundidad de concha normalizada. @return Distancia conservadora. */
+float SDF_TaperedPinna(Vector3 point, Vector3 shape, Vector3 direction, float tipFraction, float concavity);
+/** @brief Lámina auricular curva; los tres ejes ortonormales vienen de la anatomía resuelta. */
+float SDF_CurvedPinna(Vector3 point,Vector3 shape,Vector3 up,Vector3 side,Vector3 normal,
+                      float tipFraction,float concavity,float longitudinalCurve,float rootRoll,
+                      float tipRoundness,float fold,float rootFlare,float marginBow,float marginAsymmetry);
+
 /**
  * @brief SDF de una esfera centrada en el origen.
  */

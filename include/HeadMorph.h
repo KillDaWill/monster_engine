@@ -19,4 +19,6 @@ bool HeadMorph_Bind(HeadMorph* morph,const Mesh* mesh,const HeadAnatomy* head,Ve
 bool HeadMorph_Deform(const HeadMorph* morph,Mesh* mesh,const HeadAnatomy* head,Vector3 origin);
 /** @brief Expresa la superficie en la jaula canónica reutilizando sus influencias. */
 bool HeadMorph_MapSurface(const HeadMorph* morph,Mesh* mesh,const HeadAnatomy* head,Vector3 origin);
+/** @brief Variante que conserva origen y escala del dominio canónico. */
+bool HeadMorph_MapSurfaceDomain(const HeadMorph*,Mesh*,const HeadAnatomy*,Vector3 origin,Vector3 mapOrigin,float unitScale);
 #endif

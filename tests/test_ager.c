@@ -2,6 +2,7 @@
 #include "MonsterAger.h"
 #include "MonsterVisual.h"
 #include "Eye.h"
+#include "EyeTexture.h"
 #include "MathUtils.h"
 #include "Vector.h"
 #include "Transform3D.h"
@@ -116,7 +117,7 @@ void test_bug_eye_pupil_buried_behind_sclera_during_growth(void) {
     MonsterAger ager = MonsterAger_Create(&young, &adult, 0.0f);
     const float ages[] = {0.00f, 0.10f, 0.25f, 0.50f, 0.75f, 0.90f, 1.00f};
     const size_t ageCount = sizeof(ages)/sizeof(ages[0]);
-    printf("[TRACE] eye pupil straddle sweep (malla observable): age -> scleraFront / pupilFront / pupilRear\n");
+    printf("[TRACE] eye globe and appearance sweep: age -> globe vertices / material fingerprint\n");
     for (size_t ai = 0; ai < ageCount; ++ai) {
         float age = ages[ai];
         MonsterAger_SetPerc(&ager, age);
@@ -135,41 +136,12 @@ void test_bug_eye_pupil_buried_behind_sclera_during_growth(void) {
             const Eye* eye = &cur->eyes[ei];
             Vector3 partPos = Vec3_Zero();
             if (eye->bodyPartIndex < cur->bodyPartCount) partPos = cur->bodyParts[eye->bodyPartIndex].positionRender;
-            Vector3 eyePos = Vec3_Add(partPos, eye->offset);
-            Vector3 forward = Transform3D_RotateVector(eye->rotation, Vec3_Create(0.0f, 0.0f, 1.0f));
-
-            const Mesh* sclera = MonsterVisual_GetEyeSclera(&visual, ei);
-            const Mesh* pupil = MonsterVisual_GetEyePupil(&visual, ei);
-            TEST_ASSERT(sclera && sclera->vertexCount > 0, "Malla de esclerótica vacía");
-            TEST_ASSERT(pupil && pupil->vertexCount > 0, "Malla de pupila vacía");
-
-            /* Extremos proyectados sobre el eje forward respecto a eyePos */
-            float scleraFront = -1e30f;
-            for (size_t vi = 0; vi < sclera->vertexCount; ++vi) {
-                float d = Vec3_Dot(Vec3_Sub(sclera->vertices[vi].position, eyePos), forward);
-                if (d > scleraFront) scleraFront = d;
-            }
-            float pupilFront = -1e30f;
-            float pupilRear = 1e30f;
-            for (size_t vi = 0; vi < pupil->vertexCount; ++vi) {
-                float d = Vec3_Dot(Vec3_Sub(pupil->vertices[vi].position, eyePos), forward);
-                if (d > pupilFront) pupilFront = d;
-                if (d < pupilRear) pupilRear = d;
-            }
-            /* Pupila halfDepth derivada de la transform real (escala Z de la pupila) */
-            Vector3 eyeRadii = Vec3_Scale(eye->scale, 0.5f);
-            float pr = Math_Min(eyeRadii.x, eyeRadii.y) * Math_Clamp01(eye->pupilScale) * 0.5f;
-            pr = Math_Max(pr, 0.01f);
-            float halfDepth = pr * 0.2f;
-            float tol = halfDepth * 0.25f;
-            if (tol < 0.0005f) tol = 0.0005f;
-            if (tol > scleraFront * 0.02f) tol = scleraFront * 0.02f;
-            if (tol < 0.0005f) tol = 0.0005f;
-
-            printf("[TRACE] age=%.2f eye=%zu scleraFront=%.4f pupilFront=%.4f pupilRear=%.4f halfDepth=%.4f tol=%.4f\n",
-                   age, ei, scleraFront, pupilFront, pupilRear, halfDepth, tol);
-            TEST_ASSERT(pupilRear + tol < scleraFront, "REGRESIÓN BUG: pupila debe permanecer ligeramente dentro de esclerótica (rear < front) durante crecimiento");
-            TEST_ASSERT(pupilFront > scleraFront + tol, "REGRESIÓN BUG: pupila enterrada/ocluida detrás de esclerótica durante crecimiento — pupil does not straddle sclera front (malla observable)");
+            (void)partPos;
+            const Mesh* globe = MonsterVisual_GetEyeSclera(&visual, ei);
+            TEST_ASSERT(globe && globe->vertexCount>0&&Mesh_Validate(globe).valid,"Globo tridimensional válido durante el crecimiento");
+            TEST_ASSERT(MonsterVisual_GetEyeIris(&visual,ei)==NULL&&MonsterVisual_GetEyePupil(&visual,ei)==NULL,"Iris y pupila siguen siendo material, no mallas");
+            TEST_ASSERT(EyeTexture_Fingerprint(eye)!=0,"Apariencia ocular con huella válida");
+            printf("[TRACE] age=%.2f eye=%zu globeVertices=%zu material=%llu\n",age,ei,globe->vertexCount,(unsigned long long)EyeTexture_Fingerprint(eye));
         }
         MonsterVisual_Free(&visual);
     }

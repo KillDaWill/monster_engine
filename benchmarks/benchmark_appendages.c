@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 #include "MonsterVisualAsync.h"
 #include "MonsterAger.h"
 #include <stdio.h>
@@ -16,7 +18,7 @@ int main(int argc,char** argv){
  float ages[]={0,.1,.25,.5,.75,.9,1};
  puts("age,tier,prune,cull,nodes,inside,visible,ms,cells,refined,min,max,triangles,candidates,exact,pruned,ratio");
  for(int a=0;a<7;a++)for(int tier=0;tier<2;tier++)for(int mode=0;mode<modes;mode++){
- Monster m=Monster_Create(); LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,ages[a]);Lizard_BuildMonster(&m,&p);
+ Monster m=Monster_Create(); CreaturePhenotype p=CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult,ages[a]);Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p);
  MonsterSDF sdf=MonsterSDF_Create();MonsterSDFConfig sc=MonsterSDF_DefaultConfig();sc.enableConnectorPruning=mode!=1;MonsterSDF_Build(&sdf,&m,sc);
  MonsterVisualAsyncConfig ac=MonsterVisualAsync_DefaultConfig();
  SDFMesherConfig cfg=MonsterVisualAsync_ResolveBodyConfig(&ac,

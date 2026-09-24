@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /** @file demo_lizard_animation.c
  * @brief Etapas aisladas IK, mandíbula y marcha sobre una malla SDF persistente.
  */
@@ -5,7 +7,7 @@
 #include "MonsterAnimation.h"
 #include "AnimatedVisual.h"
 #include "OpenGLRenderer.h"
-#include "LizardSurface.h"
+#include "SurfacePresets.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,9 +88,9 @@ int main(int argc,char** argv) {
         if(!OpenGLRenderer_SurfaceReady(&renderer)) { OpenGLRenderer_Destroy(&renderer); OpenGLDemoWindow_Free(window); return 1; }
         OpenGLRenderer_SetSurfaceDebug(&renderer,surfaceDebug);
     }
-    Monster monster=Monster_Create(); LizardPhenotype juvenile=LizardPreset_Juvenile(),adult=LizardPreset_Adult();
-    juvenile.surface=LizardSurface_FromSeed(seed,0); adult.surface=LizardSurface_FromSeed(seed,1);
-    LizardPhenotype phenotype=LizardPhenotype_Interpolate(&juvenile,&adult,age);
+    Monster monster=Monster_Create(); CreaturePhenotype juvenile=CreatureRecipes_Lizard()->juvenile,adult=CreatureRecipes_Lizard()->adult;
+    juvenile.surface=SurfacePreset_ScaledReptile(seed,0); adult.surface=SurfacePreset_ScaledReptile(seed,1);
+    CreaturePhenotype phenotype=CreaturePhenotype_Interpolate(&juvenile,&adult,age);
     ScalePhenotype* scales=&phenotype.surface.integument.scales;
     if(size>=0)scales->size=size;
     if(relief>=0)scales->relief=relief;
@@ -99,7 +101,7 @@ int main(int argc,char** argv) {
     if(smooth)phenotype.surface.integument.type=INTEGUMENT_SMOOTH_SKIN;
     MonsterVisual* visual=calloc(1,sizeof(*visual)); AnimatedVisual binding={0};
     int status=1;
-    if(!visual || !Lizard_BuildMonster(&monster,&phenotype))goto cleanup;
+    if(!visual || !Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&phenotype))goto cleanup;
     SDFMesherConfig cfg=SDFMesher_DefaultConfig(); cfg.voxelSize=.075f; cfg.maxCells=1800000;
     *visual=MonsterVisual_Create(cfg);
     if(!MonsterVisual_RebuildNow(visual,&monster,MonsterSDF_DefaultConfig()) || !AnimatedVisual_Bind(&binding,visual,&monster))goto cleanup;
@@ -128,8 +130,8 @@ int main(int argc,char** argv) {
                 const char* names[8]={"tamaño","aspecto","redondez","irregularidad","relieve","quilla","rugosidad","pigmento"};
                 float steps[8]={.01f,.1f,.05f,.05f,.002f,.05f,.05f,.05f};
                 *values[selected]+=input.surfaceAdjust*steps[selected];
-                if(input.surfaceSeed)monster.surface=LizardSurface_FromSeed(++seed,age);
-                if(input.surfacePigment)monster.surface.pigment=LizardSurface_FromSeed(++seed,age).pigment;
+                if(input.surfaceSeed)monster.surface=SurfacePreset_ScaledReptile(++seed,age);
+                if(input.surfacePigment)monster.surface.pigment=SurfacePreset_ScaledReptile(++seed,age).pigment;
                 if(input.surfaceToggle)monster.surface.integument.type=monster.surface.integument.type==INTEGUMENT_SCALES?INTEGUMENT_SMOOTH_SKIN:INTEGUMENT_SCALES;
                 SurfacePhenotype_Normalize(&monster.surface);
                 if(input.surfaceDebugNext)surfaceDebug=(surfaceDebug+1)%10;
@@ -141,7 +143,7 @@ int main(int argc,char** argv) {
         double now=OpenGLDemoWindow_Time();
         float dt=frames?1.0f/60.0f:fminf(.05f,(float)(now-last)); last=now;
         if(paused)dt=0;
-        if(editSweep && frame%30==0)monster.surface=LizardSurface_FromSeed(++seed,age);
+        if(editSweep && frame%30==0)monster.surface=SurfacePreset_ScaledReptile(++seed,age);
         Monster_SetSurface(&monster,&monster.surface);
         monster.hasSurface=!legacy;
         animTime+=dt; float t=animTime;

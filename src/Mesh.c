@@ -164,6 +164,7 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
         if (v->material != SDF_MATERIAL_SKIN && v->material != SDF_MATERIAL_MOUTH &&
             v->material != SDF_MATERIAL_LIP && v->material != SDF_MATERIAL_EYE_SOCKET &&
             v->material != SDF_MATERIAL_NOSTRIL && v->material != SDF_MATERIAL_TYMPANUM &&
+            v->material != SDF_MATERIAL_NASAL_PAD &&
             v->material != SDF_MATERIAL_UNKNOWN) {
             ++result.invalidMaterialCount;
         }
@@ -328,4 +329,24 @@ bool Mesh_TriangleHasArea(Vector3 a,Vector3 b,Vector3 c) {
     Vector3 cross=Vec3_Cross(ab,ac);
     float longest=fmaxf(Vec3_LengthSq(ab),fmaxf(Vec3_LengthSq(ac),Vec3_LengthSq(bc)));
     return longest>0 && Vec3_LengthSq(cross)>longest*longest*1e-12f;
+}
+
+bool Mesh_ComponentStatistics(const Mesh* mesh,size_t* count,size_t* largest,size_t* second) {
+    if(!mesh||!count||!largest||!second)return false;
+    *count=*largest=*second=0;
+    size_t* parent=malloc(mesh->vertexCount*sizeof(*parent));
+    size_t* triangles=calloc(mesh->vertexCount,sizeof(*triangles));
+    if(!parent||!triangles){free(parent);free(triangles);return false;}
+    for(size_t i=0;i<mesh->vertexCount;++i)parent[i]=i;
+    for(size_t i=0;i+2<mesh->indexCount;i+=3) {
+        for(size_t j=0;j<3;++j)if(mesh->indices[i+j]>=mesh->vertexCount){free(parent);free(triangles);return false;}
+        for(size_t j=1;j<3;++j)parent[Mesh_ComponentRoot(parent,mesh->indices[i+j])]=Mesh_ComponentRoot(parent,mesh->indices[i]);
+    }
+    for(size_t i=0;i+2<mesh->indexCount;i+=3)++triangles[Mesh_ComponentRoot(parent,mesh->indices[i])];
+    for(size_t i=0;i<mesh->vertexCount;++i)if(triangles[i]) {
+        ++*count;
+        if(triangles[i]>*largest){*second=*largest;*largest=triangles[i];}
+        else if(triangles[i]>*second)*second=triangles[i];
+    }
+    free(parent);free(triangles);return true;
 }

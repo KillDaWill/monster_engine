@@ -119,7 +119,7 @@ bool HeadMorph_Bind(HeadMorph* m,const Mesh* mesh,const HeadAnatomy* head,Vector
     }
     return true;
 }
-static bool Apply(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 origin,bool material) {
+static bool Apply(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 origin,bool material,Vector3 mapOrigin,float unitScale) {
     if(!m || !mesh || !head || mesh->vertexCount!=m->vertices)return false;
     HeadFrame current[CAGE_COUNT];Frames(head,origin,current);
     Vector3 scales[CAGE_COUNT];
@@ -137,8 +137,12 @@ static bool Apply(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 
         }
         MeshVertex* vertex=&mesh->vertices[b->vertex];
         if(material) {
-            vertex->surface.position=Vec3_Lerp(vertex->surface.position,position,b->blend);
+            vertex->surface.position=Vec3_Lerp(vertex->surface.position,Vec3_Scale(Vec3_Sub(position,mapOrigin),1.0f/fmaxf(unitScale,1e-6f)),b->blend);
             vertex->surface.normal=Vec3_Normalize(Vec3_Lerp(vertex->surface.normal,Vec3_Normalize(normal),b->blend));
+            Vector3 sn=vertex->surface.normal;
+            Vector3 tangent=Vec3_Sub(vertex->surface.flowDirection,Vec3_Scale(sn,Vec3_Dot(sn,vertex->surface.flowDirection)));
+            if(Vec3_LengthSq(tangent)<1e-10f)tangent=Vec3_Cross(sn,fabsf(sn.y)<.9f?Vec3_Create(0,1,0):Vec3_Create(1,0,0));
+            vertex->surface.flowDirection=Vec3_Normalize(tangent);
             vertex->surface.ventral=fmaxf(0,fminf(1,.5f-.7f*vertex->surface.normal.y));
         } else {
             vertex->position=Vec3_Lerp(vertex->position,position,b->blend);
@@ -150,8 +154,12 @@ static bool Apply(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 
 }
 
 bool HeadMorph_Deform(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 origin) {
-    return Apply(m,mesh,head,origin,false);
+    return Apply(m,mesh,head,origin,false,Vec3_Zero(),1);
 }
 bool HeadMorph_MapSurface(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 origin) {
-    return Apply(m,mesh,head,origin,true);
+    return Apply(m,mesh,head,origin,true,Vec3_Zero(),1);
+}
+
+bool HeadMorph_MapSurfaceDomain(const HeadMorph* m,Mesh* mesh,const HeadAnatomy* head,Vector3 origin,Vector3 mapOrigin,float unitScale) {
+    return Apply(m,mesh,head,origin,true,mapOrigin,unitScale);
 }

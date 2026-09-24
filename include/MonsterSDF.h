@@ -70,8 +70,12 @@ typedef struct MonsterSDFConnector {
     float heightA;
     float widthB;
     float heightB;
+    float widthBulge, heightBulge; /**< Perfil muscular compilado. */
     AnatomyId fromId;
     AnatomyId toId;
+    uint32_t moduleInstanceId;
+    bool isHeadNeck, isDistalLimb;
+    float development;
     bool isAttachment; /**< Unión axial al miembro; su detalle pertenece al brote, no al torso. */
     BodyConnectionKind kind;
     Color color;
@@ -149,6 +153,7 @@ typedef struct MonsterSDFMouth {
     Vector3 leftOrbitNormal;
     Vector3 rightOrbitNormal;
     float orbitSocketDepth;
+    float eyelidCoverage;
     Vector3 noseCenterLocal; /**< Centro de almohadilla nasal. */
     Vector3 noseRadii; /**< Radios de almohadilla nasal. */
     Vector3 leftNostrilCenterLocal; /**< Cutter de narina izquierda. */
@@ -160,12 +165,19 @@ typedef struct MonsterSDFMouth {
     float tympanumDepth;
     Vector3 leftEarCenterLocal; /**< Centro auricular izquierdo. */
     Vector3 rightEarCenterLocal; /**< Centro auricular derecho. */
-    Vector3 earRadii; /**< Radios auriculares. */
+    Vector3 earRadii; /**< Semiextensión conservadora auricular. */
+    Vector3 earShape, earDirection, rightEarDirection;
+    Vector3 leftEarSide, rightEarSide, leftEarNormal, rightEarNormal;
+    float earTipFraction, earConcavity;
+    float earLongitudinalCurve,earRootRoll,earTipRoundness,earFold;
+    float earRootFlare,earMarginBow,earMarginAsymmetry;
     float headUnionSmoothness; /**< Suavidad de la receta de cabeza. */
     float headBodySmoothness; /**< Suavidad local de la transición cefalocervical. */
     Vector3 neckCollarRootLocal; /**< Inicio occipital del collar local. */
+    Vector3 neckCollarMidLocal; /**< Estación intermedia de la transición cervical. */
     Vector3 neckCollarTipLocal; /**< Extremo del collar enterrado en el cuello corporal. */
     Vector3 neckCollarRootRadii; /**< Radios occipitales del collar. */
+    Vector3 neckCollarMidRadii; /**< Radios intermedios del collar. */
     Vector3 neckCollarTipRadii; /**< Radios terminales, menores que el cuello corporal. */
     bool hasNasalPad; /**< Incluye almohadilla nasal diferenciada. */
     bool hasEars; /**< Incluye volúmenes auriculares. */
@@ -245,7 +257,8 @@ struct MonsterSDF {
     size_t mouthCount;
     size_t mouthCapacity; /**< Capacidad reservada del buffer mouths */
 
-    SDFSweepStation axialStations[16]; /**< Receta axial continua del lagarto. */
+#define MONSTER_SDF_MAX_AXIAL_STATIONS 24
+    SDFSweepStation axialStations[MONSTER_SDF_MAX_AXIAL_STATIONS]; /**< Receta axial continua del tronco. */
     int axialStationCount; /**< Cero conserva la ruta heredada. */
     float appendageDevelopment; /**< Desarrollo compilado usado para presupuestar detalle local. */
     MonsterSDFConfig config;

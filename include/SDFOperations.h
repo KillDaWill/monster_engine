@@ -25,6 +25,7 @@ typedef enum SDFMaterial {
     SDF_MATERIAL_EYE_SOCKET,
     SDF_MATERIAL_NOSTRIL,
     SDF_MATERIAL_TYMPANUM,
+    SDF_MATERIAL_NASAL_PAD, /**< Almohadilla nasal pigmentada. */
     SDF_MATERIAL_UNKNOWN
 } SDFMaterial;
 

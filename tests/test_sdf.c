@@ -9,7 +9,9 @@
 #include "ColorPalette.h"
 #include "Monster.h"
 #include "MonsterAger.h"
+#include "EyeTexture.h"
 #include <math.h>
+#include <string.h>
 
 void test_sdf_primitives_and_ops(void) {
     Vector3 pointOutside = Vec3_Create(2.0f, 0.0f, 0.0f);
@@ -443,22 +445,19 @@ void test_monster_visual_eyes_fingerprint(void) {
     TEST_ASSERT(MonsterVisual_RebuildNow(&visual, &lizard, MonsterSDF_DefaultConfig()), "RebuildNow falló");
 
     TEST_ASSERT(MonsterVisual_GetEyeCount(&visual) == 2, "eyeCount incorrecto");
-    const Mesh* sclera = MonsterVisual_GetEyeSclera(&visual, 0);
-    const Mesh* pupil = MonsterVisual_GetEyePupil(&visual, 0);
-    TEST_ASSERT(sclera != NULL && sclera->vertexCount > 0, "esclerótica vacía");
-    TEST_ASSERT(pupil != NULL && pupil->vertexCount > 0, "pupila vacía");
-    TEST_ASSERT(Mesh_Validate(sclera).valid && Mesh_Validate(pupil).valid, "malla de ojo inválida");
-
-    float scleraRadius = 0.5f * Math_Max(0.3f, Math_Max(0.28f, 0.001f));
-    float pupilDiameter = 0.0f;
-    for (size_t i = 0; i < pupil->vertexCount; ++i) {
-        for (size_t j = i + 1; j < pupil->vertexCount; ++j) {
-            pupilDiameter = Math_Max(pupilDiameter, Vec3_Length(Vec3_Sub(pupil->vertices[i].position, pupil->vertices[j].position)));
-        }
-    }
-    TEST_ASSERT(pupilDiameter < 2.0f * scleraRadius, "pupila no menor que esclerótica");
-    TEST_ASSERT(pupil->vertices[0].color.r == 20 && pupil->vertices[0].color.g == 20 &&
-                pupil->vertices[0].color.b == 20, "color de pupila incorrecto");
+    const Mesh* globe = MonsterVisual_GetEyeSclera(&visual, 0);
+    TEST_ASSERT(globe != NULL && globe->vertexCount > 0, "globo ocular vacío");
+    TEST_ASSERT(Mesh_Validate(globe).valid, "malla de globo inválida");
+    TEST_ASSERT(MonsterVisual_GetEyeIris(&visual,0)==NULL&&MonsterVisual_GetEyePupil(&visual,0)==NULL,
+                "El iris y la pupila se representan en el material ocular");
+    unsigned char texA[64*64*4],texB[64*64*4];
+    TEST_ASSERT(EyeTexture_Generate(&lizard.eyes[0],64,texA,sizeof(texA))&&
+                EyeTexture_Generate(&lizard.eyes[0],64,texB,sizeof(texB)),"Generar textura procedural");
+    TEST_ASSERT(memcmp(texA,texB,sizeof(texA))==0,"Textura ocular determinista con semilla fija");
+    uint64_t eyeFp=EyeTexture_Fingerprint(&lizard.eyes[0]);
+    lizard.eyes[0].pupilShape=PUPIL_VERTICAL;
+    TEST_ASSERT(EyeTexture_Fingerprint(&lizard.eyes[0])!=eyeFp,"Cambiar la pupila invalida la huella del material");
+    lizard.eyes[0].pupilShape=PUPIL_ROUND;
 
     size_t bodyVertsBefore = MonsterVisual_GetMesh(&visual)->vertexCount;
 
@@ -567,10 +566,10 @@ static void test_zero_scale_eye_ager_transition(void) {
     TEST_ASSERT(MonsterVisual_RebuildNow(&visual, current, MonsterSDF_DefaultConfig()), "Rebuild falló a edad 1.0");
     TEST_ASSERT(MonsterVisual_GetEyeCount(&visual) == 1, "Conteo lógico de ojos debe ser 1 a edad 1.0");
     const Mesh* scleraFull = MonsterVisual_GetEyeSclera(&visual, 0);
-    const Mesh* pupilFull = MonsterVisual_GetEyePupil(&visual, 0);
     TEST_ASSERT(scleraFull != NULL && scleraFull->vertexCount > 0, "Malla de ojo a edad 1.0 debe ser no vacía");
     TEST_ASSERT(Mesh_Validate(scleraFull).valid, "Esclerótica a edad 1.0 debe ser válida");
-    TEST_ASSERT(Mesh_Validate(pupilFull).valid, "Pupila a edad 1.0 debe ser válida");
+    TEST_ASSERT(MonsterVisual_GetEyeIris(&visual,0)==NULL&&MonsterVisual_GetEyePupil(&visual,0)==NULL,
+                "Iris y pupila del ojo adulto están en la textura");
 
     MonsterVisual_Free(&visual);
     MonsterAger_Free(&ager);
@@ -635,10 +634,11 @@ void test_monster_visual_complete_fingerprint(void) {
         gen++;
 
         /* 6. eye.pupilScale */
+        uint64_t before=visual.eyes[0].appearanceFingerprint;
         eye->pupilScale *= 0.5f;
         MonsterVisual_Update(&visual, &lizard, 0.016f, 0.0f, MonsterSDF_DefaultConfig());
-        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen + 1, "eye.pupilScale debe incrementar generación");
-        gen++;
+        TEST_ASSERT(MonsterVisual_GetGeneration(&visual) == gen, "El cambio de apariencia ocular no reconstruye el SDF");
+        TEST_ASSERT(visual.eyes[0].appearanceFingerprint!=before,"El cambio pupilar invalida solo la textura");
     }
 
     /* 7. SDF voxelSize */

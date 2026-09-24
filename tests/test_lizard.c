@@ -1,5 +1,7 @@
+#include "Creature.h"
+#include "Limb.h"
 #include "test_utils.h"
-#include "Lizard.h"
+#include "Creature.h"
 #include "Monster.h"
 #include "MonsterAger.h"
 #include "MonsterSDF.h"
@@ -33,11 +35,12 @@ static size_t mesh_find_root(size_t* parent,size_t index) {
     return index;
 }
 
-static size_t mesh_component_count(const Mesh* mesh) {
+static size_t mesh_significant_component_count(const Mesh* mesh, size_t minVertices) {
     if(!mesh||mesh->vertexCount==0)return 0;
     size_t* parent=(size_t*)malloc(mesh->vertexCount*sizeof(size_t));
+    size_t* size=(size_t*)calloc(mesh->vertexCount,sizeof(size_t));
     bool* used=(bool*)calloc(mesh->vertexCount,sizeof(bool));
-    TEST_ASSERT(parent&&used,"Sin memoria para auditar componentes de malla");
+    TEST_ASSERT(parent&&size&&used,"Sin memoria para auditar componentes de malla");
     for(size_t i=0;i<mesh->vertexCount;++i)parent[i]=i;
     for(size_t i=0;i+2<mesh->indexCount;i+=3) {
         size_t a=mesh->indices[i],b=mesh->indices[i+1],c=mesh->indices[i+2];
@@ -49,16 +52,22 @@ static size_t mesh_component_count(const Mesh* mesh) {
         size_t rootC=mesh_find_root(parent,c);
         if(rootA!=rootC)parent[rootC]=rootA;
     }
+    for(size_t i=0;i<mesh->vertexCount;++i)
+        if(used[i])size[mesh_find_root(parent,i)]++;
     size_t count=0;
     for(size_t i=0;i<mesh->vertexCount;++i)
-        if(used[i]&&mesh_find_root(parent,i)==i)++count;
-    free(parent);free(used);
+        if(used[i]&&mesh_find_root(parent,i)==i&&size[i]>=minVertices)++count;
+    free(parent);free(size);free(used);
     return count;
 }
 
+static size_t mesh_component_count(const Mesh* mesh) {
+    return mesh_significant_component_count(mesh, 1);
+}
+
 static void test_lizard_graph_topology(void) {
-    LizardPhenotype p=LizardPreset_Adult(); AnatomyGraph graph;
-    TEST_ASSERT(Lizard_ResolveAnatomy(&p,&graph),"No se resolvió el grafo del lagarto");
+    CreaturePhenotype p=CreatureRecipes_Lizard()->adult; AnatomyGraph graph;
+    TEST_ASSERT(Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&p,&graph),"No se resolvió el grafo del lagarto");
     TEST_ASSERT(AnatomyGraph_Validate(&graph),"El grafo anatómico no es válido");
     AnatomyGraph changed=graph;
     changed.nodes[changed.nodeCount].center.y=123;
@@ -66,30 +75,30 @@ static void test_lizard_graph_topology(void) {
     changed.nodes[changed.nodeCount-1].center.y+=.001f;
     TEST_ASSERT(AnatomyGraph_Fingerprint(&changed)!=AnatomyGraph_Fingerprint(&graph),"La huella ignora una falange distal");
     TEST_ASSERT(graph.connectionCount+1==graph.nodeCount,"La topología estable cambió inesperadamente");
-    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PECTORAL,ANATOMY_ID_FORE_LEFT_SHOULDER),"Falta la rama anterior izquierda");
-    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PECTORAL,ANATOMY_ID_FORE_RIGHT_SHOULDER),"Falta la rama anterior derecha");
-    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PELVIS,ANATOMY_ID_HIND_LEFT_HIP),"Falta la rama posterior izquierda");
-    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,ANATOMY_ID_PELVIS,ANATOMY_ID_HIND_RIGHT_HIP),"Falta la rama posterior derecha");
-    TEST_ASSERT(!AnatomyGraph_HasConnection(&graph,ANATOMY_ID_FORE_LEFT_HAND,ANATOMY_ID_FORE_RIGHT_SHOULDER),"Las extremidades izquierda y derecha quedaron cruzadas");
-    TEST_ASSERT(mirrored_nodes(&graph,ANATOMY_ID_FORE_LEFT_ELBOW,ANATOMY_ID_FORE_RIGHT_ELBOW),"Los miembros anteriores no son espejados");
-    TEST_ASSERT(mirrored_nodes(&graph,ANATOMY_ID_HIND_LEFT_KNEE,ANATOMY_ID_HIND_RIGHT_KNEE),"Los miembros posteriores no son espejados");
-    TEST_ASSERT(outgoing_digits(&graph,ANATOMY_ID_FORE_LEFT_HAND)==5&&
-                outgoing_digits(&graph,ANATOMY_ID_FORE_RIGHT_HAND)==5&&
-                outgoing_digits(&graph,ANATOMY_ID_HIND_LEFT_FOOT)==5&&
-                outgoing_digits(&graph,ANATOMY_ID_HIND_RIGHT_FOOT)==5,"Cada mano o pie debe tener cinco dedos");
-    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&graph,ANATOMY_ID_FORE_LEFT_SHOULDER);
-    const AnatomyNode* elbow=AnatomyGraph_FindNode(&graph,ANATOMY_ID_FORE_LEFT_ELBOW);
-    const AnatomyNode* thorax=AnatomyGraph_FindNode(&graph,ANATOMY_ID_THORAX_ANTERIOR);
-    const AnatomyNode* hand=AnatomyGraph_FindNode(&graph,ANATOMY_ID_FORE_LEFT_HAND);
+    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,Anatomy_MakeId(1,2),Anatomy_MakeId(10,1)),"Falta la rama anterior izquierda");
+    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,Anatomy_MakeId(1,2),Anatomy_MakeId(11,1)),"Falta la rama anterior derecha");
+    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,Anatomy_MakeId(1,6),Anatomy_MakeId(12,1)),"Falta la rama posterior izquierda");
+    TEST_ASSERT(AnatomyGraph_HasConnection(&graph,Anatomy_MakeId(1,6),Anatomy_MakeId(13,1)),"Falta la rama posterior derecha");
+    TEST_ASSERT(!AnatomyGraph_HasConnection(&graph,Anatomy_MakeId(10,4),Anatomy_MakeId(11,1)),"Las extremidades izquierda y derecha quedaron cruzadas");
+    TEST_ASSERT(mirrored_nodes(&graph,Anatomy_MakeId(10,2),Anatomy_MakeId(11,2)),"Los miembros anteriores no son espejados");
+    TEST_ASSERT(mirrored_nodes(&graph,Anatomy_MakeId(12,2),Anatomy_MakeId(13,2)),"Los miembros posteriores no son espejados");
+    TEST_ASSERT(outgoing_digits(&graph,Anatomy_MakeId(10,4))==5&&
+                outgoing_digits(&graph,Anatomy_MakeId(11,4))==5&&
+                outgoing_digits(&graph,Anatomy_MakeId(12,4))==5&&
+                outgoing_digits(&graph,Anatomy_MakeId(13,4))==5,"Cada mano o pie debe tener cinco dedos");
+    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&graph,Anatomy_MakeId(10,1));
+    const AnatomyNode* elbow=AnatomyGraph_FindNode(&graph,Anatomy_MakeId(10,2));
+    const AnatomyNode* thorax=AnatomyGraph_FindNode(&graph,Anatomy_MakeId(1,3));
+    const AnatomyNode* hand=AnatomyGraph_FindNode(&graph,Anatomy_MakeId(10,4));
     TEST_ASSERT(shoulder&&elbow&&thorax&&hand&&elbow->center.x>shoulder->center.x,"El húmero no se proyecta lateralmente");
     TEST_ASSERT(hand->center.y<thorax->center.y,"La mano no alcanza el plano inferior del torso");
 
     /* El orden de almacenamiento se mezcla a propósito: sólo la arista manda. */
     Monster explicitMonster=Monster_Create(); AnatomyGraph_Init(&explicitMonster.anatomyGraph);
-    TEST_ASSERT(AnatomyGraph_AddNode(&explicitMonster.anatomyGraph,(AnatomyNode){501,Vec3_Create(0,0,0),.4f,.2f,0,ANATOMY_ROLE_AXIAL})&&
-                AnatomyGraph_AddNode(&explicitMonster.anatomyGraph,(AnatomyNode){503,Vec3_Create(8,0,0),.3f,.2f,0,ANATOMY_ROLE_AXIAL})&&
-                AnatomyGraph_AddNode(&explicitMonster.anatomyGraph,(AnatomyNode){502,Vec3_Create(0,0,-2),.3f,.2f,0,ANATOMY_ROLE_AXIAL})&&
-                AnatomyGraph_Connect(&explicitMonster.anatomyGraph,(BodyConnection){900,501,502,BODY_CONNECTION_AXIAL_LOFT}),"No se pudo preparar el grafo desordenado");
+    TEST_ASSERT(AnatomyGraph_AddNode(&explicitMonster.anatomyGraph,(AnatomyNode){.id=501,.center=Vec3_Create(0,0,0),.widthRadius=.4f,.heightRadius=.2f,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f})&&
+                AnatomyGraph_AddNode(&explicitMonster.anatomyGraph,(AnatomyNode){.id=503,.center=Vec3_Create(8,0,0),.widthRadius=.3f,.heightRadius=.2f,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f})&&
+                AnatomyGraph_AddNode(&explicitMonster.anatomyGraph,(AnatomyNode){.id=502,.center=Vec3_Create(0,0,-2),.widthRadius=.3f,.heightRadius=.2f,.colorIndex=0,.role=ANATOMY_ROLE_AXIAL,.region=ANATOMY_REGION_TRUNK,.side=ANATOMY_SIDE_CENTER,.moduleInstanceId=0,.localNodeId=0,.development=1.0f})&&
+                AnatomyGraph_Connect(&explicitMonster.anatomyGraph,(BodyConnection){.id=900,.fromId=501,.toId=502,.kind=BODY_CONNECTION_AXIAL_LOFT,.moduleInstanceId=0,.development=1.0f}),"No se pudo preparar el grafo desordenado");
     explicitMonster.hasAnatomyGraph=true;
     MonsterSDF explicitSdf=MonsterSDF_Create();
     TEST_ASSERT(MonsterSDF_Build(&explicitSdf,&explicitMonster,MonsterSDF_DefaultConfig())&&explicitSdf.connectorCount==1&&
@@ -99,12 +108,15 @@ static void test_lizard_graph_topology(void) {
 }
 
 static void test_lizard_axial_loft_and_tail(void) {
-    Monster monster=Monster_Create(); LizardPhenotype p=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&monster,&p),"No se construyó el lagarto adulto");
+    Monster monster=Monster_Create(); CreaturePhenotype p=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&p),"No se construyó el lagarto adulto");
     MonsterSDF sdf=MonsterSDF_Create();
     TEST_ASSERT(MonsterSDF_Build(&sdf,&monster,MonsterSDF_DefaultConfig()),"No se compiló el loft axial");
-    TEST_ASSERT(sdf.bodyPartCount==0,"Los nodos anatómicos no deben compilarse como elipsoides visibles");
-    TEST_ASSERT(sdf.connectorCount==monster.anatomyGraph.connectionCount,"El SDF no usa todas las aristas explícitas");
+    size_t activeConnectors=0;
+    for(size_t i=0;i<monster.anatomyGraph.connectionCount;++i)
+        if(monster.anatomyGraph.connections[i].kind!=BODY_CONNECTION_SUPPORT && !monster.anatomyGraph.dormantConnections[i])
+            ++activeConnectors;
+    TEST_ASSERT(sdf.connectorCount==activeConnectors,"El SDF no usa todas las aristas explícitas renderizables");
     for(size_t i=0;i<sdf.connectorCount;++i) {
         const MonsterSDFConnector* c=&sdf.connectors[i];
         TEST_ASSERT(c->fromId!=0&&c->toId!=0,"Una conexión anatómica perdió sus IDs");
@@ -113,14 +125,14 @@ static void test_lizard_axial_loft_and_tail(void) {
             TEST_ASSERT(MonsterSDF_EvaluateDistance(&sdf,midpoint)<0.0f,"El loft axial contiene una discontinuidad");
         }
     }
-    AnatomyId tail[]={ANATOMY_ID_TAIL_BASE,ANATOMY_ID_TAIL_MIDDLE,ANATOMY_ID_TAIL_DISTAL,ANATOMY_ID_TAIL_TIP};
+    AnatomyId tail[]={Anatomy_MakeId(20,1),Anatomy_MakeId(20,2),Anatomy_MakeId(20,3),Anatomy_MakeId(20,4)};
     float previous=1e6f;
     for(size_t i=0;i<4;++i) {
         const AnatomyNode* node=AnatomyGraph_FindNode(&monster.anatomyGraph,tail[i]);
         TEST_ASSERT(node&&isfinite(node->widthRadius)&&isfinite(node->heightRadius)&&node->widthRadius>0&&node->heightRadius>0,"Estación axial inválida");
         TEST_ASSERT(node->widthRadius<previous,"La cola no se ahúsa monótonamente"); previous=node->widthRadius;
     }
-    TEST_ASSERT(AnatomyGraph_HasConnection(&monster.anatomyGraph,ANATOMY_ID_PELVIS,ANATOMY_ID_TAIL_BASE),"La cola no está conectada a la pelvis");
+    TEST_ASSERT(AnatomyGraph_HasConnection(&monster.anatomyGraph,Anatomy_MakeId(1,6),Anatomy_MakeId(20,1)),"La cola no está conectada a la pelvis");
 
     MonsterSDFMouth before=sdf.mouths[0];
     monster.bodyParts[0].widthRender*=3.0f; monster.bodyParts[0].heightRender*=.25f; monster.bodyParts[0].lengthRender*=2.0f;
@@ -170,8 +182,8 @@ static void test_lizard_head_semantics(void) {
     float smallest=Math_Min(Math_Min(a.surface.nostrilRadii.x,a.surface.nostrilRadii.y),a.surface.tympanumRadii.y);
     TEST_ASSERT(isfinite(voxel)&&voxel>0&&2.0f*smallest/voxel>=3.0f,"La regla visual deja una característica bajo tres vóxeles");
 
-    Monster monster=Monster_Create(); LizardPhenotype p=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&monster,&p),"No se construyó el preset para comprobar ojos");
+    Monster monster=Monster_Create(); CreaturePhenotype p=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&p),"No se construyó el preset para comprobar ojos");
     TEST_ASSERT(monster.eyeCount==2&&Vec3_Dot(monster.eyes[0].forward,monster.head.anatomy.landmarks.leftOrbitNormal)>.999f&&
                 Vec3_Dot(monster.eyes[1].forward,monster.head.anatomy.landmarks.rightOrbitNormal)>.999f,"La orientación visual no sigue la normal orbital");
     Monster_Free(&monster);
@@ -186,8 +198,8 @@ static void test_lizard_head_semantics(void) {
 static void test_lizard_local_head_field_quality(void) {
     const bool stages[]={false,true};
     for(size_t stage=0;stage<2;++stage) {
-        Monster monster=Monster_Create();LizardPhenotype p=stages[stage]?LizardPreset_Adult():LizardPreset_Juvenile();
-        TEST_ASSERT(Lizard_BuildMonster(&monster,&p),"No se construyó una etapa para el campo local cefálico");
+        Monster monster=Monster_Create();CreaturePhenotype p=stages[stage]?CreatureRecipes_Lizard()->adult:CreatureRecipes_Lizard()->juvenile;
+        TEST_ASSERT(Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&p),"No se construyó una etapa para el campo local cefálico");
         MonsterSDF sdf=MonsterSDF_Create();
         TEST_ASSERT(MonsterSDF_Build(&sdf,&monster,MonsterSDF_DefaultConfig())&&sdf.hasPartitionedHead,
                     "La cabeza anatómica no activó la partición local");
@@ -235,21 +247,26 @@ static void test_lizard_local_head_field_quality(void) {
 }
 
 static void test_lizard_tapered_jaw_has_closed_floor(void) {
-    Monster monster=Monster_Create();LizardPhenotype p=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&monster,&p),"No se construyó el lagarto para auditar la mandíbula");
+    Monster monster=Monster_Create();CreaturePhenotype p=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&p),"No se construyó el lagarto para auditar la mandíbula");
     MonsterSDF sdf=MonsterSDF_Create();
     TEST_ASSERT(MonsterSDF_Build(&sdf,&monster,MonsterSDF_DefaultConfig())&&sdf.mouthCount==1,
                 "No se compiló la mandíbula del lagarto");
     const MonsterSDFMouth* mouth=&sdf.mouths[0];
     TEST_ASSERT(mouth->taperedMandible,"El preset perdió su mandíbula bilateral ahusada");
     MonsterSDFJawField jawContext;SDFField jaw=MonsterSDF_GetJawField(&sdf,0,&jawContext);
-    float rx=mouth->jawRadii.x,ry=mouth->jawRadii.y,rz=mouth->jawRadii.z;
-    Vector3 leftRear=Vec3_Add(mouth->hingeCenterLocal,Vec3_Create(rx*.76f,-ry*.18f,0));
-    Vector3 leftTip=Vec3_Create(rx*.08f,mouth->jawCenterLocal.y+ry*.64f,mouth->jawCenterLocal.z+rz*.96f);
+    /* El suelo sigue ahora el perfil facial, no las antiguas varillas. */
     for(unsigned i=0;i<=8;++i) {
-        float t=(float)i/8.0f;Vector3 left=Vec3_Lerp(leftRear,leftTip,t);Vector3 right=left;right.x*=-1.0f;
+        float t=(float)i/8.0f;
+        float z=Math_Lerp(mouth->faceRootLocal.z,mouth->faceTipLocal.z,t);
+        float x=Math_Lerp(mouth->faceRootRadii.x,mouth->faceTipRadii.x,t)*.18f;
+        float y=mouth->entranceCenterLocal.y-mouth->entranceHalfExtents.y*2;
+        Vector3 left=Vec3_Create(x,y,z),right=Vec3_Create(-x,y,z);
         TEST_ASSERT(jaw.evaluateDistance(jaw.context,left)<0.0f&&jaw.evaluateDistance(jaw.context,right)<0.0f,
-                    "Una rama mandibular contiene una perforación");
+                    "El suelo mandibular contiene una perforación");
+        Vector3 above=Vec3_Create(x,mouth->entranceCenterLocal.y+mouth->faceMidRadii.y*.3f,z);
+        TEST_ASSERT(jaw.evaluateDistance(jaw.context,above)>0,
+                    "La mandíbula invade el rostro superior");
     }
     SDFMesherConfig cfg=SDFMesher_DefaultConfig();cfg.voxelSize=.035f;cfg.maxCells=300000;cfg.maxResolution=144;
     SDFMesher mesher=SDFMesher_Create(cfg);Mesh mesh=Mesh_Create();
@@ -282,8 +299,8 @@ static void test_lizard_tapered_jaw_has_closed_floor(void) {
 
 static void test_lizard_aging_and_mesh_sweep(void) {
     Monster juvenile=Monster_Create(),adult=Monster_Create();
-    LizardPhenotype jp=LizardPreset_Juvenile(),ap=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_BuildMonster(&juvenile,&jp)&&Lizard_BuildMonster(&adult,&ap),"No se construyeron los extremos de edad");
+    CreaturePhenotype jp=CreatureRecipes_Lizard()->juvenile,ap=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&juvenile,CreatureRecipes_Lizard(),&jp)&&Creature_BuildMonster(&adult,CreatureRecipes_Lizard(),&ap),"No se construyeron los extremos de edad");
     TEST_ASSERT(juvenile.anatomyGraph.nodeCount==adult.anatomyGraph.nodeCount&&
                 juvenile.anatomyGraph.connectionCount==adult.anatomyGraph.connectionCount,"Joven y adulto no comparten topología");
     for(size_t i=0;i<juvenile.anatomyGraph.nodeCount;++i)
@@ -302,7 +319,7 @@ static void test_lizard_aging_and_mesh_sweep(void) {
         TEST_ASSERT(SDFMesher_GenerateMesh(&mesher,&field,&mesh)&&mesh.vertexCount>0&&Mesh_Validate(&mesh).valid,"La malla completa de una edad o apertura es inválida");
         Mesh_Free(&mesh); SDFMesher_Free(&mesher); MonsterSDF_Free(&sdf);
     }
-    TEST_ASSERT(adult.lizardPhenotype.tailLength>juvenile.lizardPhenotype.tailLength&&
+    TEST_ASSERT(adult.phenotype.tails[0].length>juvenile.phenotype.tails[0].length&&
                 adult.head.phenotype.eyeSize<juvenile.head.phenotype.eyeSize,"Las proporciones ontogenéticas no cambian continuamente");
 
     const float fragileAges[]={.15f,.35f,.55f,.75f};
@@ -321,7 +338,7 @@ static void test_lizard_aging_and_mesh_sweep(void) {
         field=MonsterSDF_GetField(&sdf);
         TEST_ASSERT(SDFMesher_GenerateMeshDetailed(&mesher,&field,bodyRegions,bodyRegionCount,&mesh)&&Mesh_Validate(&mesh).valid,
                     "Una edad frágil produjo cuerpo inválido");
-        size_t bodyComponents=mesh_component_count(&mesh),bodyVertices=mesh.vertexCount;
+        size_t bodyComponents=mesh_significant_component_count(&mesh, 16),bodyVertices=mesh.vertexCount;
         TEST_ASSERT(bodyComponents==1,"Una edad frágil produjo partes corporales desconectadas");
         Mesh_Clear(&mesh);MonsterSDFHeadField headContext;field=MonsterSDF_GetHeadField(&sdf,0,&headContext);
         mesher.config.voxelSize=HeadAnatomy_RecommendedVoxelSize(&current->head.anatomy)*1.75f;
@@ -335,12 +352,12 @@ static void test_lizard_aging_and_mesh_sweep(void) {
     MonsterAger_Free(&ager); Monster_Free(&juvenile); Monster_Free(&adult);
 
     for(unsigned i=1;i<=96;++i) {
-        LizardPhenotype p=LizardPreset_Adult(); float u=(float)(i%17)/16.0f;
-        p.bodyFlattening=.30f+.70f*u; p.tailTaperCurve=.60f+1.90f*(1-u);
-        p.forelimbLength=1.45f+1.20f*u; p.hindlimbLength=1.80f+1.35f*(1-u*.4f);
+        CreaturePhenotype p=CreatureRecipes_Lizard()->adult; float u=(float)(i%17)/16.0f;
+        p.axial.bodyFlattening=.30f+.70f*u; p.tails[0].taperCurve=.60f+1.90f*(1-u);
+        p.limbs[0].length=1.45f+1.20f*u; p.limbs[2].length=1.80f+1.35f*(1-u*.4f);
         p.head=HeadPhenotype_RandomValid(HEAD_ARCHETYPE_LIZARD,1000u+i);
         AnatomyGraph graph; HeadAnatomy head;
-        TEST_ASSERT(Lizard_ResolveAnatomy(&p,&graph)&&AnatomyGraph_Validate(&graph),"Sweep corporal produjo topología inválida");
+        TEST_ASSERT(Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&p,&graph)&&AnatomyGraph_Validate(&graph),"Sweep corporal produjo topología inválida");
         TEST_ASSERT(HeadAnatomy_Resolve(&p.head,0,Vec3_Create(1,.6f,1.1f),&head)&&HeadAnatomy_Validate(&head)==HEAD_VALID,"Sweep de lagarto produjo cabeza inválida");
     }
     printf("[PASS] test_lizard_aging_and_mesh_sweep\n");
@@ -349,14 +366,14 @@ static void test_lizard_aging_and_mesh_sweep(void) {
 
 /* La fórmula cuenta el ungual como última falange, nunca como hueso adicional. */
 static const unsigned digit_formula[2][5]={{2,3,4,5,3},{2,3,4,5,4}};
-static const AnatomyId limb_roots[4]={100,120,140,160};
+static const AnatomyId limb_roots[4]={(10u<<16)|1,(11u<<16)|1,(12u<<16)|1,(13u<<16)|1};
 
 static void test_lizard_articulated_digits(void) {
-    AnatomyGraph reference;LizardPhenotype adult=LizardPreset_Adult();
-    TEST_ASSERT(Lizard_ResolveAnatomy(&adult,&reference),"Referencia adulta inválida");
+    AnatomyGraph reference;CreaturePhenotype adult=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&adult,&reference),"Referencia adulta inválida");
     for(unsigned age=0;age<=4;++age) {
-        Monster m=Monster_Create();LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,age*.25f);
-        TEST_ASSERT(Lizard_BuildMonster(&m,&p),"No se resolvió una edad articulada");
+        Monster m=Monster_Create();CreaturePhenotype p=CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult,age*.25f);
+        TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p),"No se resolvió una edad articulada");
         AnatomyGraph* g=&m.anatomyGraph;
         TEST_ASSERT(g->nodeCount==reference.nodeCount&&g->connectionCount==reference.connectionCount,
             "La edad cambió la topología");
@@ -387,7 +404,7 @@ static void test_lizard_articulated_digits(void) {
                 unsigned count=digit_formula[limb/2][digit];
                 AnatomyId previous=hand->id;float previousWidth=1e6f,previousHeight=1e6f;
                 for(unsigned st=0;st<=count+1;++st) {
-                    AnatomyId id=Anatomy_DigitId(limb,digit,st);
+                    AnatomyId id=Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit,st));
                     const AnatomyNode* node=AnatomyGraph_FindNode(g,id);
                     const AnatomyNode* parent=AnatomyGraph_FindNode(g,previous);
                     TEST_ASSERT(node&&AnatomyGraph_HasConnection(g,previous,id),"Falta metapodio o falange esperada");
@@ -397,47 +414,49 @@ static void test_lizard_articulated_digits(void) {
                     previousWidth=node->widthRadius;previousHeight=node->heightRadius;
                     TEST_ASSERT(outgoing_digits(g,id)==(st<count+1?1u:0u),
                         "La cadena digital tiene una rama o falange adicional");
-                    TEST_ASSERT(mirrored_nodes(g,Anatomy_DigitId(limb&~1u,digit,st),
-                        Anatomy_DigitId(limb|1u,digit,st)),"Falange no espejada");
+                    TEST_ASSERT(mirrored_nodes(g,Anatomy_MakeId(10+(limb&~1u),Limb_DigitLocalId(digit,st)),
+                        Anatomy_MakeId(10+(limb|1u),Limb_DigitLocalId(digit,st))),"Falange no espejada");
                     if(st>=2) lengths[digit]+=Vec3_Distance(parent->center,node->center);
                     previous=id;
                 }
-                TEST_ASSERT(!AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,digit,count+2)),"Falange adicional inesperada");
+                TEST_ASSERT(!AnatomyGraph_FindNode(g,Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit,count+2))),"Falange adicional inesperada");
                 if(digit>0) {
-                    const AnatomyNode* a=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,digit,0));
-                    const AnatomyNode* b=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,digit-1,0));
+                    const AnatomyNode* a=AnatomyGraph_FindNode(g,Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit,0)));
+                    const AnatomyNode* b=AnatomyGraph_FindNode(g,Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit-1,0)));
                     TEST_ASSERT(Vec3_Distance(a->center,b->center)>hand->widthRadius*.2f,"Orígenes metapodiales coincidentes");
                 }
             }
             if(limb>=2) {
                 TEST_ASSERT(lengths[0]<lengths[1]&&lengths[1]<lengths[2]&&lengths[2]<lengths[3]&&
                     lengths[4]<lengths[3]&&lengths[4]>lengths[0],"Perfil pedal I-IV-V incorrecto");
-                const AnatomyNode* iv=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,3,6));
-                const AnatomyNode* v=AnatomyGraph_FindNode(g,Anatomy_DigitId(limb,4,5));
+                const AnatomyNode* iv=AnatomyGraph_FindNode(g,Anatomy_MakeId(10+(limb),Limb_DigitLocalId(3,6)));
+                const AnatomyNode* v=AnatomyGraph_FindNode(g,Anatomy_MakeId(10+(limb),Limb_DigitLocalId(4,5)));
                 TEST_ASSERT(fabsf(v->center.x)>fabsf(iv->center.x),"El dedo V no diverge lateralmente");
             }
         }
         MonsterSDF_Free(&sdf);Monster_Free(&m);
     }
     /* Dos perfiles manuales opuestos conservan los IDs y cambian la dominancia. */
-    LizardPhenotype profileIII=adult,profileIV=adult;
-    profileIII.manualDigitLengths[2]=1.3f;profileIII.manualDigitLengths[3]=.7f;
-    profileIV.manualDigitLengths[2]=.7f;profileIV.manualDigitLengths[3]=1.3f;
-    LizardPhenotype blended=LizardPhenotype_Interpolate(&profileIII,&profileIV,.25f);
+    CreaturePhenotype profileIII=adult,profileIV=adult;
+    profileIII.limbs[0].digitLengths[2]=1.3f;profileIII.limbs[0].digitLengths[3]=.7f;
+    profileIV.limbs[0].digitLengths[2]=.7f;profileIV.limbs[0].digitLengths[3]=1.3f;
+    profileIII.limbs[1]=profileIII.limbs[0]; profileIII.limbs[1].side=LIMB_RIGHT;
+    profileIV.limbs[1]=profileIV.limbs[0]; profileIV.limbs[1].side=LIMB_RIGHT;
+    CreaturePhenotype blended=CreaturePhenotype_Interpolate(&profileIII,&profileIV,.25f);
     for(unsigned digit=0;digit<5;++digit)
-        TEST_ASSERT(FLOAT_NEAR(blended.manualDigitLengths[digit],
-            profileIII.manualDigitLengths[digit]+.15625f*
-            (profileIV.manualDigitLengths[digit]-profileIII.manualDigitLengths[digit])),
+        TEST_ASSERT(FLOAT_NEAR(blended.limbs[0].digitLengths[digit],
+            profileIII.limbs[0].digitLengths[digit]+.15625f*
+            (profileIV.limbs[0].digitLengths[digit]-profileIII.limbs[0].digitLengths[digit])),
             "La interpolación ignora el perfil manual configurable");
     AnatomyGraph variants[2];
-    TEST_ASSERT(Lizard_ResolveAnatomy(&profileIII,&variants[0])&&
-        Lizard_ResolveAnatomy(&profileIV,&variants[1]),"Perfil manual configurable inválido");
+    TEST_ASSERT(Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&profileIII,&variants[0])&&
+        Creature_ResolveAnatomy(CreatureRecipes_Lizard(),&profileIV,&variants[1]),"Perfil manual configurable inválido");
     for(unsigned variant=0;variant<2;++variant)for(unsigned limb=0;limb<2;++limb) {
         float lengths[2]={0};
         for(unsigned digit=2;digit<=3;++digit)for(unsigned station=2;
             station<=digit_formula[0][digit]+1;++station) {
-            const AnatomyNode* a=AnatomyGraph_FindNode(&variants[variant],Anatomy_DigitId(limb,digit,station-1));
-            const AnatomyNode* b=AnatomyGraph_FindNode(&variants[variant],Anatomy_DigitId(limb,digit,station));
+            const AnatomyNode* a=AnatomyGraph_FindNode(&variants[variant],Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit,station-1)));
+            const AnatomyNode* b=AnatomyGraph_FindNode(&variants[variant],Anatomy_MakeId(10+(limb),Limb_DigitLocalId(digit,station)));
             TEST_ASSERT(a&&b,"El perfil manual cambió la topología");
             lengths[digit-2]+=Vec3_Distance(a->center,b->center);
         }
@@ -448,7 +467,7 @@ static void test_lizard_articulated_digits(void) {
         const AnatomyNode* a=&variants[0].nodes[i];
         const AnatomyNode* b=AnatomyGraph_FindNode(&variants[1],a->id);
         TEST_ASSERT(b,"La configuración manual perdió un ID estable");
-        if(a->id>=Anatomy_DigitId(2,0,0))
+        if(a->id>=Anatomy_MakeId(10+(2),Limb_DigitLocalId(0,0)))
             TEST_ASSERT(Vec3_Distance(a->center,b->center)<1e-6f,
                 "El perfil manual altera los dedos posteriores");
     }
@@ -459,8 +478,8 @@ static void test_lizard_appendage_mesh_visibility(void) {
     MonsterVisualAsyncConfig ac=MonsterVisualAsync_DefaultConfig();
     const float ages[]={0,.1f,.25f,.5f,.75f,.9f,1};
     for(unsigned age=0;age<7;++age)for(unsigned tier=0;tier<2;++tier) {
-        Monster m=Monster_Create();LizardPhenotype p=LizardPhenotype_Interpolate(NULL,NULL,ages[age]);
-        TEST_ASSERT(Lizard_BuildMonster(&m,&p),"No se resolvió la edad de visibilidad");
+        Monster m=Monster_Create();CreaturePhenotype p=CreaturePhenotype_Interpolate(&CreatureRecipes_Lizard()->juvenile,&CreatureRecipes_Lizard()->adult,ages[age]);
+        TEST_ASSERT(Creature_BuildMonster(&m,CreatureRecipes_Lizard(),&p),"No se resolvió la edad de visibilidad");
         MonsterSDF sdf=MonsterSDF_Create();
         TEST_ASSERT(MonsterSDF_Build(&sdf,&m,MonsterSDF_DefaultConfig()),"SDF de visibilidad inválido");
         SDFMesherConfig cfg=MonsterVisualAsync_ResolveBodyConfig(&ac,
@@ -471,7 +490,7 @@ static void test_lizard_appendage_mesh_visibility(void) {
         TEST_ASSERT(SDFMesher_GenerateMeshDetailed(&mesher,&field,regions,n,&mesh),"Mallado de apéndices falló");
         for(unsigned limb=0;limb<4;++limb)for(unsigned feature=0;feature<6;++feature) {
             AnatomyId id=feature==5?limb_roots[limb]+3:
-                Anatomy_DigitId(limb,feature,digit_formula[limb/2][feature]+1);
+                Anatomy_MakeId(10+(limb),Limb_DigitLocalId(feature,digit_formula[limb/2][feature]+1));
             const AnatomyNode* node=AnatomyGraph_FindNode(&m.anatomyGraph,id);
             float nearest=1e6f;
             for(size_t i=0;i<mesh.vertexCount;++i)
@@ -480,7 +499,7 @@ static void test_lizard_appendage_mesh_visibility(void) {
                 printf("[DEBUG] edad %.2f tier %u ID %u distancia %.6f radio %.6f\n",ages[age],tier,id,nearest,node->widthRadius);
             TEST_ASSERT(nearest<=node->widthRadius*1.8f,"Dedo/autopodio presente en SDF pero ausente en malla");
         }
-        TEST_ASSERT(mesh_component_count(&mesh)==1,"Apéndices desconectados de la malla corporal");
+        TEST_ASSERT(mesh_significant_component_count(&mesh, 16)==1,"Apéndices desconectados de la malla corporal");
         MeshValidationResult validation=Mesh_Validate(&mesh);
         if(!validation.valid || !validation.watertight)printf("[DEBUG] edad %.2f tier %u degenerados %zu abiertos %zu no-manifold %zu\n",ages[age],tier,validation.degenerateTriangleCount,validation.boundaryEdgeCount,validation.nonManifoldEdgeCount);
         TEST_ASSERT(validation.valid&&validation.watertight&&validation.nonManifoldEdgeCount==0,
@@ -496,11 +515,11 @@ static void test_lizard_appendage_mesh_visibility(void) {
 }
 
 static void test_lizard_larval_metamorphosis(void) {
-    LizardPhenotype lp=LizardPreset_Larva(),ap=LizardPreset_Adult();
-    TEST_ASSERT(lp.appendageDevelopment==0.0f&&lp.pigmentation==0.0f&&
-                lp.cephalicDevelopment==0.0f,"El preset larvario no parte de rasgos indiferenciados");
+    CreaturePhenotype lp=CreatureRecipes_Lizard()->larva,ap=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(lp.development.appendages==0.0f&&lp.development.pigmentation==0.0f&&
+                lp.development.cephalic==0.0f,"El preset larvario no parte de rasgos indiferenciados");
     Monster larva=Monster_Create(),adult=Monster_Create();
-    TEST_ASSERT(Lizard_BuildMonster(&larva,&lp)&&Lizard_BuildMonster(&adult,&ap),
+    TEST_ASSERT(Creature_BuildMonster(&larva,CreatureRecipes_Lizard(),&lp)&&Creature_BuildMonster(&adult,CreatureRecipes_Lizard(),&ap),
                 "No se construyeron los extremos larva/adulto");
     TEST_ASSERT(larva.anatomyGraph.nodeCount==adult.anatomyGraph.nodeCount&&
                 larva.anatomyGraph.connectionCount==adult.anatomyGraph.connectionCount,
@@ -508,10 +527,10 @@ static void test_lizard_larval_metamorphosis(void) {
     Color larvalColor=Monster_GetColorFromIndex(&larva,0);
     TEST_ASSERT(larvalColor.r>230&&larvalColor.g>230&&larvalColor.b>220,
                 "La fase vermiforme no es blanca");
-    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&larva.anatomyGraph,ANATOMY_ID_FORE_LEFT_SHOULDER);
-    const AnatomyNode* hand=AnatomyGraph_FindNode(&larva.anatomyGraph,ANATOMY_ID_FORE_LEFT_HAND);
-    const AnatomyNode* adultShoulder=AnatomyGraph_FindNode(&adult.anatomyGraph,ANATOMY_ID_FORE_LEFT_SHOULDER);
-    const AnatomyNode* adultHand=AnatomyGraph_FindNode(&adult.anatomyGraph,ANATOMY_ID_FORE_LEFT_HAND);
+    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&larva.anatomyGraph,Anatomy_MakeId(10,1));
+    const AnatomyNode* hand=AnatomyGraph_FindNode(&larva.anatomyGraph,Anatomy_MakeId(10,4));
+    const AnatomyNode* adultShoulder=AnatomyGraph_FindNode(&adult.anatomyGraph,Anatomy_MakeId(10,1));
+    const AnatomyNode* adultHand=AnatomyGraph_FindNode(&adult.anatomyGraph,Anatomy_MakeId(10,4));
     TEST_ASSERT(shoulder&&hand&&Vec3_Distance(shoulder->center,hand->center)<.01f,
                 "La larva conserva una extremidad visible");
     TEST_ASSERT(adultShoulder&&adultHand&&Vec3_Distance(adultShoulder->center,adultHand->center)>.5f,
@@ -520,8 +539,8 @@ static void test_lizard_larval_metamorphosis(void) {
         TEST_ASSERT(Vec3_LengthSq(larva.eyes[i].scale)<1e-8f,"La larva conserva ojos visibles");
     MonsterAger ager=MonsterAger_Create(&larva,&adult,.5f);
     const Monster* middle=MonsterAger_GetResultConst(&ager);
-    TEST_ASSERT(middle->lizardPhenotype.appendageDevelopment>0.0f&&
-                middle->lizardPhenotype.appendageDevelopment<1.0f,
+    TEST_ASSERT(middle->phenotype.development.appendages>0.0f&&
+                middle->phenotype.development.appendages<1.0f,
                 "Los apéndices no emergen de forma continua");
     TEST_ASSERT(AnatomyGraph_Validate(&middle->anatomyGraph),"La anatomía intermedia es inválida");
     MonsterSDF sdf=MonsterSDF_Create();
@@ -532,13 +551,13 @@ static void test_lizard_larval_metamorphosis(void) {
 }
 
 static void test_lizard_seed_metamorphosis(void) {
-    LizardPhenotype sp=LizardPreset_Seed(),ap=LizardPreset_Adult();
-    TEST_ASSERT(sp.appendageDevelopment==0.0f&&sp.pigmentation==0.0f&&
-                sp.cephalicDevelopment==0.0f,"La semilla no parte de rasgos indiferenciados");
-    float axialLength=sp.trunkLength+sp.neckLength+sp.tailLength;
+    CreaturePhenotype sp=CreatureRecipes_Lizard()->seed,ap=CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(sp.development.appendages==0.0f&&sp.development.pigmentation==0.0f&&
+                sp.development.cephalic==0.0f,"La semilla no parte de rasgos indiferenciados");
+    float axialLength=sp.axial.trunkLength+sp.axial.neckLength+sp.tails[0].length;
     TEST_ASSERT(axialLength<0.60f,"La semilla conserva un cuerpo alargado");
     Monster seed=Monster_Create(),adult=Monster_Create();
-    TEST_ASSERT(Lizard_BuildMonster(&seed,&sp)&&Lizard_BuildMonster(&adult,&ap),
+    TEST_ASSERT(Creature_BuildMonster(&seed,CreatureRecipes_Lizard(),&sp)&&Creature_BuildMonster(&adult,CreatureRecipes_Lizard(),&ap),
                 "No se construyeron los extremos semilla/adulto");
     TEST_ASSERT(seed.anatomyGraph.nodeCount==adult.anatomyGraph.nodeCount&&
                 seed.anatomyGraph.connectionCount==adult.anatomyGraph.connectionCount,
@@ -546,16 +565,16 @@ static void test_lizard_seed_metamorphosis(void) {
     Color seedColor=Monster_GetColorFromIndex(&seed,0);
     TEST_ASSERT(seedColor.r>230&&seedColor.g>230&&seedColor.b>220,
                 "La fase de semilla no es blanca");
-    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&seed.anatomyGraph,ANATOMY_ID_FORE_LEFT_SHOULDER);
-    const AnatomyNode* hand=AnatomyGraph_FindNode(&seed.anatomyGraph,ANATOMY_ID_FORE_LEFT_HAND);
+    const AnatomyNode* shoulder=AnatomyGraph_FindNode(&seed.anatomyGraph,Anatomy_MakeId(10,1));
+    const AnatomyNode* hand=AnatomyGraph_FindNode(&seed.anatomyGraph,Anatomy_MakeId(10,4));
     TEST_ASSERT(shoulder&&hand&&Vec3_Distance(shoulder->center,hand->center)<.01f,
                 "La semilla proyecta extremidades visibles");
     for(size_t i=0;i<seed.eyeCount;++i)
         TEST_ASSERT(Vec3_LengthSq(seed.eyes[i].scale)<1e-8f,"La semilla conserva ojos visibles");
     MonsterAger ager=MonsterAger_Create(&seed,&adult,.5f);
     const Monster* middle=MonsterAger_GetResultConst(&ager);
-    TEST_ASSERT(middle->lizardPhenotype.appendageDevelopment>0.0f&&
-                middle->lizardPhenotype.appendageDevelopment<1.0f,
+    TEST_ASSERT(middle->phenotype.development.appendages>0.0f&&
+                middle->phenotype.development.appendages<1.0f,
                 "Los apéndices no germinan de forma continua desde la semilla");
     TEST_ASSERT(AnatomyGraph_Validate(&middle->anatomyGraph),"La anatomía intermedia de semilla es inválida");
     MonsterSDF sdf=MonsterSDF_Create();

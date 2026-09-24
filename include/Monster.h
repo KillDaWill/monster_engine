@@ -15,7 +15,7 @@
 #include "Mouth.h"
 #include "Head.h"
 #include "Anatomy.h"
-#include "Lizard.h"
+#include "CreatureRecipe.h"
 #include "SurfaceMapper.h"
 #include "MonsterQueries.h"
 #include "Trait.h"
@@ -62,10 +62,12 @@ typedef struct Monster {
 
     AnatomyGraph anatomyGraph; /**< Topología corporal explícita, independiente del orden de BodyPart. */
     bool hasAnatomyGraph;      /**< Activa la superficie corporal anatómica continua. */
-    LizardPhenotype lizardPhenotype; /**< Autoridad semántica para envejecimiento de lagarto. */
+    CreatureRecipeId recipeId;
+    CreatureRecipe recipe; /**< Copia del blueprint para recetas externas y snapshots autónomos. */
+    CreaturePhenotype phenotype; /**< Autoridad semántica para envejecimiento de lagarto. */
     float growthAge; /**< Edad del snapshot, independiente de escala y deformación. */
     bool hasGrowthAge; /**< Edad definida por un Ager. */
-    bool hasLizardPhenotype;          /**< Indica que el grafo procede del preset de lagarto. */
+    bool hasCreaturePhenotype;          /**< Indica que el grafo procede del preset de lagarto. */
 
     struct MonsterAnimation* animation; /**< Estado poseído; excluido de snapshots morfológicos. */
 

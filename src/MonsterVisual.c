@@ -72,7 +72,12 @@ static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, Mo
         h = HashBytes(&m->cheeks, sizeof(Vector3), h); h = HashBytes(&m->brows, sizeof(Vector3), h);
     }
     h = HashBytes(&monster->eyeCount, sizeof(size_t), h);
-    for (size_t i=0;i<monster->eyeCount;++i) h=HashBytes(&monster->eyes[i],sizeof(Eye),h);
+    for (size_t i=0;i<monster->eyeCount;++i) {
+        const Eye* e=&monster->eyes[i];
+        h=HashBytes(&e->bodyPartIndex,sizeof(e->bodyPartIndex),h);
+        h=HashBytes(&e->offset,sizeof(e->offset),h);h=HashBytes(&e->rotation,sizeof(e->rotation),h);
+        h=HashBytes(&e->forward,sizeof(e->forward),h);h=HashBytes(&e->scale,sizeof(e->scale),h);
+    }
     h = HashBytes(&monster->colorPalette.count, sizeof(size_t), h);
     h = HashBytes(monster->colorPalette.colors, monster->colorPalette.count*sizeof(Color), h);
     return h;
@@ -85,9 +90,9 @@ static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth, const Monst
     float c = cosf(angle), s = sinf(angle);
 
     float scaleX = 1.0f, scaleY = 1.0f, scaleZ = 1.0f;
-    if (monster && monster->hasLizardPhenotype && vm->baseScale > 1e-4f) {
-        float factor = monster->lizardPhenotype.totalScale / vm->baseScale;
-        factor *= monster->lizardPhenotype.cephalicDevelopment;
+    if (monster && monster->hasCreaturePhenotype && vm->baseScale > 1e-4f) {
+        float factor = monster->phenotype.axial.totalScale / vm->baseScale;
+        factor *= monster->phenotype.development.cephalic;
         scaleX = factor;
         scaleY = factor;
         scaleZ = factor;
@@ -189,27 +194,15 @@ bool MonsterVisual_UpdateEyes(MonsterVisualEye* eyes, size_t eyeCount, const Mon
     if (!eyes || eyeCount < monster->eyeCount) return false;
     for (size_t i = 0; i < monster->eyeCount; ++i) {
         const Eye* e = &monster->eyes[i];
-        if (e->scale.x <= 1e-4f || e->scale.y <= 1e-4f || e->scale.z <= 1e-4f) {
-            Mesh_Clear(&eyes[i].sclera);
-            Mesh_Clear(&eyes[i].iris);
-            Mesh_Clear(&eyes[i].pupil);
-            continue;
-        }
+        if (e->scale.x <= 1e-4f || e->scale.y <= 1e-4f || e->scale.z <= 1e-4f) { Mesh_Clear(&eyes[i].globe); continue; }
         Vector3 base = e->bodyPartIndex < monster->bodyPartCount ? monster->bodyParts[e->bodyPartIndex].positionRender : Vec3_Zero();
         Vector3 p = Vec3_Add(base, e->offset), r = e->scale, f = Vec3_Normalize(e->forward);
         if (Vec3_LengthSq(f) < 1e-6f) f = Transform3D_RotateVector(e->rotation, Vec3_Create(0, 0, 1));
         Transform3D st = Transform3D_Create(p, e->rotation, r);
-        float irisRadius = Math_Max(Math_Min(r.x, r.y) * Math_Clamp(e->irisScale, .25f, .96f), .008f);
-        float irisDepth = Math_Max(r.z * .075f, .004f);
-        Transform3D it = Transform3D_Create(Vec3_Add(p, Vec3_Scale(f, r.z - irisDepth * .55f)), e->rotation, Vec3_Create(irisRadius, irisRadius, irisDepth));
-        float pupilHeight = Math_Max(irisRadius * Math_Clamp(e->pupilScale, .08f, .90f), .004f);
-        float pupilWidth = pupilHeight * Math_Clamp(e->pupilAspect, .12f, 1.0f), pupilDepth = Math_Max(irisDepth * .55f, .002f);
-        Transform3D pt = Transform3D_Create(Vec3_Add(p, Vec3_Scale(f, r.z + pupilDepth * .15f)), e->rotation, Vec3_Create(pupilWidth, pupilHeight, pupilDepth));
-        if (!PrimitiveMesh_GenerateEllipsoid(&eyes[i].sclera, st, 18, 14, e->scleraColor) ||
-            !PrimitiveMesh_GenerateEllipsoid(&eyes[i].iris, it, 16, 10, e->irisColor) ||
-            !PrimitiveMesh_GenerateEllipsoid(&eyes[i].pupil, pt, 12, 8, e->pupilColor)) {
-            return false;
-        }
+        if (!PrimitiveMesh_GenerateEllipsoid(&eyes[i].globe, st, 32, 24, e->scleraColor)) return false;
+        eyes[i].center=p;eyes[i].forward=f;eyes[i].right=Transform3D_RotateVector(e->rotation,Vec3_Create(1,0,0));
+        eyes[i].up=Transform3D_RotateVector(e->rotation,Vec3_Create(0,1,0));eyes[i].scale=r;
+        eyes[i].appearance=*e;eyes[i].appearanceFingerprint=EyeTexture_Fingerprint(e);
     }
     return true;
 }
@@ -223,15 +216,11 @@ static bool GenerateEyes(const Monster* monster, MonsterVisualEye** output) {
     MonsterVisualEye* eyes = (MonsterVisualEye*)calloc(monster->eyeCount, sizeof(*eyes));
     if (!eyes) return false;
     for (size_t i = 0; i < monster->eyeCount; ++i) {
-        eyes[i].sclera = Mesh_Create();
-        eyes[i].iris = Mesh_Create();
-        eyes[i].pupil = Mesh_Create();
+        eyes[i].globe = Mesh_Create();
     }
     if (!MonsterVisual_UpdateEyes(eyes, monster->eyeCount, monster)) {
         for (size_t j = 0; j < monster->eyeCount; ++j) {
-            Mesh_Free(&eyes[j].sclera);
-            Mesh_Free(&eyes[j].iris);
-            Mesh_Free(&eyes[j].pupil);
+            Mesh_Free(&eyes[j].globe);
         }
         free(eyes);
         *output = NULL;
@@ -240,7 +229,7 @@ static bool GenerateEyes(const Monster* monster, MonsterVisualEye** output) {
     *output = eyes;
     return true;
 }
-static void FreeEyes(MonsterVisualEye* eyes,size_t count){if(!eyes)return;for(size_t i=0;i<count;++i){Mesh_Free(&eyes[i].sclera);Mesh_Free(&eyes[i].iris);Mesh_Free(&eyes[i].pupil);}free(eyes);}
+static void FreeEyes(MonsterVisualEye* eyes,size_t count){if(!eyes)return;for(size_t i=0;i<count;++i)Mesh_Free(&eyes[i].globe);free(eyes);}
 void MonsterVisual_UpdateMouthArticulation(MonsterVisualMouth* vm, const Mouth* source, const Monster* monster) {
     if (!vm || !source || !monster) return;
     Mouth m = *source; Mouth_Normalize(&m);
@@ -269,7 +258,7 @@ static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* so
     vm->baseJawLength = m.jawLength;
     vm->baseJawWidth = m.jawWidth;
     vm->baseJawThickness = m.jawThickness;
-    vm->baseScale = monster->hasLizardPhenotype ? monster->lizardPhenotype.totalScale : 1.0f;
+    vm->baseScale = monster->hasCreaturePhenotype ? monster->phenotype.axial.totalScale : 1.0f;
 
     MonsterSDFJawField jawContext;
     SDFField jawField=MonsterSDF_GetJawField(sdf,mouthIndex,&jawContext);
@@ -317,7 +306,7 @@ static bool BuildMouthFromSdfWithMeshers(MonsterVisualMouth* vm, const Mouth* so
                 if(v->material==SDF_MATERIAL_SKIN)v->surface.region=v->surface.secondaryRegion=SURFACE_REGION_HEAD;
             }
         }
-        vm->jaw.surfaceRecipe=vm->hinge.surfaceRecipe=SurfaceRecipe_Compile(&monster->surface);
+        vm->jaw.surfaceRecipe=vm->hinge.surfaceRecipe=SurfaceRecipe_CompileScaled(&monster->surface,monster->surfaceMapping.unitScale);
         vm->jaw.hasSurface=vm->hinge.hasSurface=monster->hasSurface;
     }
     TransformJaw(vm, &m, monster);
@@ -349,7 +338,7 @@ static bool RebuildMouthsOnly(MonsterVisual* visual, const Monster* monster) {
     MonsterSDF_Free(&snapshot);return true;
 }
 MonsterVisual MonsterVisual_Create(SDFMesherConfig cfg) { MonsterVisual v; memset(&v, 0, sizeof(v)); v.sdf=MonsterSDF_Create(); v.stagingSdf=MonsterSDF_Create(); v.mesher=SDFMesher_Create(cfg); SDFMesherConfig hc=SDFMesher_DefaultConfig();hc.voxelSize=.018f;hc.maxCells=1800000;hc.maxResolution=320;v.headMesher=SDFMesher_Create(hc); v.mesh=Mesh_Create(); v.stagingMesh=Mesh_Create();v.headMesh=Mesh_Create();v.stagingHeadMesh=Mesh_Create(); v.isDirty=true; return v; }
-void MonsterVisual_Free(MonsterVisual* v) { if (!v) return; MonsterSDF_Free(&v->sdf); MonsterSDF_Free(&v->stagingSdf); SDFMesher_Free(&v->mesher);SDFMesher_Free(&v->headMesher); Mesh_Free(&v->mesh); Mesh_Free(&v->stagingMesh);Mesh_Free(&v->headMesh);Mesh_Free(&v->stagingHeadMesh); for(size_t i=0;i<v->eyeCount;++i){Mesh_Free(&v->eyes[i].sclera);Mesh_Free(&v->eyes[i].iris);Mesh_Free(&v->eyes[i].pupil);} free(v->eyes); for(size_t i=0;i<v->mouthCount;++i)MonsterVisualMouth_Free(&v->mouths[i]); free(v->mouths); memset(v,0,sizeof(*v)); }
+void MonsterVisual_Free(MonsterVisual* v) { if (!v) return; MonsterSDF_Free(&v->sdf); MonsterSDF_Free(&v->stagingSdf); SDFMesher_Free(&v->mesher);SDFMesher_Free(&v->headMesher); Mesh_Free(&v->mesh); Mesh_Free(&v->stagingMesh);Mesh_Free(&v->headMesh);Mesh_Free(&v->stagingHeadMesh); FreeEyes(v->eyes,v->eyeCount); for(size_t i=0;i<v->mouthCount;++i)MonsterVisualMouth_Free(&v->mouths[i]); free(v->mouths); memset(v,0,sizeof(*v)); }
 void MonsterVisual_MarkDirty(MonsterVisual* v) { if (v) v->isDirty=true; }
 uint64_t MonsterVisual_GetGeneration(const MonsterVisual* v) { return v ? v->rebuildGeneration : 0; }
 uint64_t MonsterVisual_GetMouthVisualGeneration(const MonsterVisual* v) { return v ? v->mouthVisualGeneration : 0; }
@@ -357,13 +346,14 @@ bool MonsterVisual_RebuildNow(MonsterVisual* v, const Monster* monster, MonsterS
     if (!v || !monster || !MonsterSDF_Build(&v->stagingSdf, monster, cfg)) return false;
     MonsterSDFBodyField bodyContext;SDFField field=MonsterSDF_GetBodyField(&v->stagingSdf,&bodyContext); Mesh_Clear(&v->stagingMesh);
     SDFDetailRegion regions[MONSTER_SDF_DETAIL_REGION_CAPACITY];size_t regionCount=MonsterSDF_GetDetailRegions(&v->stagingSdf,6,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
-    if(v->stagingSdf.axialStationCount>1) {
+    if(monster->hasAnatomyGraph) {
         field=MonsterSDF_GetField(&v->stagingSdf);
         v->mesher.config.adaptiveDetail=true;
-        if(!SDFMesher_GenerateMeshDetailed(&v->mesher,&field,regions,regionCount,&v->stagingMesh))return false;
+        if(!SDFMesher_GenerateMeshDetailed(&v->mesher,&field,regions,regionCount,&v->stagingMesh)||
+           !Mesh_KeepLargestComponent(&v->stagingMesh))return false;
     } else if (!SDFMesher_GenerateMesh(&v->mesher,&field,&v->stagingMesh)) return false;
     Mesh_Clear(&v->stagingHeadMesh);
-    if(v->stagingSdf.hasPartitionedHead && v->stagingSdf.axialStationCount==0) {
+    if(v->stagingSdf.hasPartitionedHead && !monster->hasAnatomyGraph) {
         float recommended=monster->hasHead?HeadAnatomy_RecommendedVoxelSize(&monster->head.anatomy):.018f;
         v->headMesher.config.voxelSize=Math_Min(.018f,recommended*1.25f);
         MonsterSDFHeadField headContext;SDFField headField=MonsterSDF_GetHeadField(&v->stagingSdf,0,&headContext);
@@ -387,15 +377,21 @@ bool MonsterVisual_RebuildNow(MonsterVisual* v, const Monster* monster, MonsterS
     v->mouthVisualFingerprint=HashMouth(monster);v->mouthVisualGeneration++;
     v->geometryFingerprint=HashBody(v,monster,cfg); v->hasFingerprint=true; v->isDirty=false;
     MonsterVisual_SetSurface(v,monster->hasSurface?&monster->surface:NULL);
+    float unit=monster->surfaceMapping.unitScale>1e-4f?monster->surfaceMapping.unitScale:1.0f;
+    v->mesh.surfaceRecipe.data[11][2]=unit;
+    v->headMesh.surfaceRecipe.data[11][2]=unit;
+    MonsterVisual_SetSurface(v,monster->hasSurface?&monster->surface:NULL);
     v->updateTimer=0; v->rebuildGeneration++; return true;
 }
-bool MonsterVisual_Update(MonsterVisual* v,const Monster* m,float dt,float interval,MonsterSDFConfig cfg){if(!v||!m)return false;MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);v->updateTimer+=dt;uint64_t body=HashBody(v,m,cfg);if(v->isDirty||v->mesh.vertexCount==0||body!=v->geometryFingerprint){if(interval>0&&v->mesh.vertexCount>0&&v->updateTimer<interval)return false;return MonsterVisual_RebuildNow(v,m,cfg);}if(HashMouth(m)!=v->mouthVisualFingerprint&&!RebuildMouthsOnly(v,m))return false;for(size_t i=0;i<v->mouthCount;++i)MonsterVisual_UpdateMouthArticulation(&v->mouths[i],&m->mouths[i],m);return false;}
-const Mesh* MonsterVisual_GetMesh(const MonsterVisual* v){return v?&v->mesh:NULL;}const Mesh* MonsterVisual_GetHeadMesh(const MonsterVisual* v){return v?&v->headMesh:NULL;} size_t MonsterVisual_GetEyeCount(const MonsterVisual* v){return v?v->eyeCount:0;} const Mesh* MonsterVisual_GetEyeSclera(const MonsterVisual* v,size_t i){return v&&i<v->eyeCount?&v->eyes[i].sclera:NULL;} const Mesh* MonsterVisual_GetEyeIris(const MonsterVisual* v,size_t i){return v&&i<v->eyeCount?&v->eyes[i].iris:NULL;} const Mesh* MonsterVisual_GetEyePupil(const MonsterVisual* v,size_t i){return v&&i<v->eyeCount?&v->eyes[i].pupil:NULL;} size_t MonsterVisual_GetMouthCount(const MonsterVisual* v){return v?v->mouthCount:0;} const Mesh* MonsterVisual_GetJaw(const MonsterVisual* v,size_t i){return v&&i<v->mouthCount?&v->mouths[i].jaw:NULL;} const Mesh* MonsterVisual_GetHinge(const MonsterVisual* v,size_t i){return v&&i<v->mouthCount?&v->mouths[i].hinge:NULL;}
-bool MonsterVisual_Render(const MonsterVisual* v,Renderer3D* r){if(!v||!r||!r->renderMesh)return false;r->renderMesh(r,&v->mesh);r->renderMesh(r,&v->headMesh);for(size_t i=0;i<v->mouthCount;++i){r->renderMesh(r,&v->mouths[i].jaw);r->renderMesh(r,&v->mouths[i].hinge);}for(size_t i=0;i<v->eyeCount;++i){r->renderMesh(r,&v->eyes[i].sclera);r->renderMesh(r,&v->eyes[i].iris);r->renderMesh(r,&v->eyes[i].pupil);}return true;}
+bool MonsterVisual_Update(MonsterVisual* v,const Monster* m,float dt,float interval,MonsterSDFConfig cfg){if(!v||!m)return false;MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);v->updateTimer+=dt;uint64_t body=HashBody(v,m,cfg);if(v->isDirty||v->mesh.vertexCount==0||body!=v->geometryFingerprint){if(interval>0&&v->mesh.vertexCount>0&&v->updateTimer<interval)return false;return MonsterVisual_RebuildNow(v,m,cfg);}for(size_t i=0;i<v->eyeCount&&i<m->eyeCount;++i){v->eyes[i].appearance=m->eyes[i];v->eyes[i].appearanceFingerprint=EyeTexture_Fingerprint(&m->eyes[i]);}if(HashMouth(m)!=v->mouthVisualFingerprint&&!RebuildMouthsOnly(v,m))return false;for(size_t i=0;i<v->mouthCount;++i)MonsterVisual_UpdateMouthArticulation(&v->mouths[i],&m->mouths[i],m);return false;}
+const Mesh* MonsterVisual_GetMesh(const MonsterVisual* v){return v?&v->mesh:NULL;}const Mesh* MonsterVisual_GetHeadMesh(const MonsterVisual* v){return v?&v->headMesh:NULL;} size_t MonsterVisual_GetEyeCount(const MonsterVisual* v){return v?v->eyeCount:0;} const Mesh* MonsterVisual_GetEyeSclera(const MonsterVisual* v,size_t i){return v&&i<v->eyeCount?&v->eyes[i].globe:NULL;} const Mesh* MonsterVisual_GetEyeIris(const MonsterVisual* v,size_t i){(void)v;(void)i;return NULL;} const Mesh* MonsterVisual_GetEyePupil(const MonsterVisual* v,size_t i){(void)v;(void)i;return NULL;} size_t MonsterVisual_GetMouthCount(const MonsterVisual* v){return v?v->mouthCount:0;} const Mesh* MonsterVisual_GetJaw(const MonsterVisual* v,size_t i){return v&&i<v->mouthCount?&v->mouths[i].jaw:NULL;} const Mesh* MonsterVisual_GetHinge(const MonsterVisual* v,size_t i){return v&&i<v->mouthCount?&v->mouths[i].hinge:NULL;}
+bool MonsterVisual_Render(const MonsterVisual* v,Renderer3D* r){if(!v||!r||!r->renderMesh)return false;r->renderMesh(r,&v->mesh);r->renderMesh(r,&v->headMesh);for(size_t i=0;i<v->mouthCount;++i){r->renderMesh(r,&v->mouths[i].jaw);r->renderMesh(r,&v->mouths[i].hinge);}for(size_t i=0;i<v->eyeCount;++i){if(r->renderEye)r->renderEye(r,&v->eyes[i]);else r->renderMesh(r,&v->eyes[i].globe);}return true;}
 
 void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surface) {
     if(!visual)return;
+    float preservedUnit=visual->mesh.surfaceRecipe.data[11][2];
     SurfaceRecipe recipe=SurfaceRecipe_Compile(surface);
+    if(preservedUnit>1e-4f) recipe.data[11][2]=preservedUnit;
     visual->mesh.surfaceRecipe=visual->headMesh.surfaceRecipe=recipe;
     visual->mesh.hasSurface=visual->headMesh.hasSurface=surface!=NULL;
     for(size_t i=0;i<visual->mouthCount;++i) {

@@ -11,10 +11,13 @@
 #include "Vector.h"
 #include "Color.h"
 #include "Mesh.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct MonsterVisualEye;
 
 /**
  * @struct ICamera
@@ -45,6 +48,9 @@ typedef struct Renderer3D {
 
     /** Callback para renderizar una malla 3D (Mesh) */
     void (*renderMesh)(struct Renderer3D* self, const Mesh* mesh);
+
+    /** Ruta ocular opcional; NULL conserva el renderizado de mallas clásico. */
+    void (*renderEye)(struct Renderer3D* self, const struct MonsterVisualEye* eye);
 } Renderer3D;
 
 #ifdef __cplusplus

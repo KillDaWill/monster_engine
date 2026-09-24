@@ -132,6 +132,8 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh);
  * @return true si la malla quedó intacta o compactada; false por memoria.
  */
 bool Mesh_KeepLargestComponent(Mesh* mesh);
+/** @brief Cuenta componentes sin modificar ni eliminar geometría. */
+bool Mesh_ComponentStatistics(const Mesh* mesh,size_t* count,size_t* largestTriangles,size_t* secondTriangles);
 
 /** @brief Comprueba área relativa a las aristas, sin eliminar triángulos pequeños válidos. */
 bool Mesh_TriangleHasArea(Vector3 a, Vector3 b, Vector3 c);

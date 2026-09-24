@@ -63,13 +63,21 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     E(leftBrowCenterLocal,browRadii);E(rightBrowCenterLocal,browRadii);
     E(leftOrbitRimCenterLocal,orbitRimRadii);E(rightOrbitRimCenterLocal,orbitRimRadii);
     if(m.hasNasalPad){E(noseCenterLocal,noseRadii);}
-    if(m.hasEars){E(leftEarCenterLocal,earRadii);E(rightEarCenterLocal,earRadii);}
+    if(m.hasEars){
+        Vector3 ear=Vec3_Add(m.earRadii,Vec3_Create(level,level,level));
+        AABB_ExpandRadius(&head,m.leftEarCenterLocal,ear);
+        AABB_ExpandRadius(&head,m.rightEarCenterLocal,ear);
+    }
 #undef E
-    float collarMin=fmaxf(.0001f,fminf(fminf(m.neckCollarRootRadii.x,m.neckCollarRootRadii.y),fminf(m.neckCollarTipRadii.x,m.neckCollarTipRadii.y)));
-    float collarMax=fmaxf(fmaxf(m.neckCollarRootRadii.x,m.neckCollarRootRadii.y),fmaxf(m.neckCollarTipRadii.x,m.neckCollarTipRadii.y));
+    float collarMin=fmaxf(.0001f,fminf(fminf(m.neckCollarRootRadii.x,m.neckCollarRootRadii.y),
+        fminf(fminf(m.neckCollarMidRadii.x,m.neckCollarMidRadii.y),fminf(m.neckCollarTipRadii.x,m.neckCollarTipRadii.y))));
+    float collarMax=fmaxf(fmaxf(m.neckCollarRootRadii.x,m.neckCollarRootRadii.y),
+        fmaxf(fmaxf(m.neckCollarMidRadii.x,m.neckCollarMidRadii.y),fmaxf(m.neckCollarTipRadii.x,m.neckCollarTipRadii.y)));
     float radius=collarMax*(1.f+level/collarMin);
     Vector3 r=Vec3_Create(radius,radius,radius);
-    AABB_ExpandRadius(&head,m.neckCollarRootLocal,r);AABB_ExpandRadius(&head,m.neckCollarTipLocal,r);
+    AABB_ExpandRadius(&head,m.neckCollarRootLocal,r);
+    AABB_ExpandRadius(&head,m.neckCollarMidLocal,r);
+    AABB_ExpandRadius(&head,m.neckCollarTipLocal,r);
     if(m.sweptSkull)for(int i=0;i<5;++i) {
         const SDFSweepStation *a=&m.headStations[i],*b=&m.headStations[i+1];
         float h=b->center.z-a->center.z,w0,w1,v0,v1,y0,y1;

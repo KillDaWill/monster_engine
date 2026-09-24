@@ -1,3 +1,5 @@
+#include "Creature.h"
+#include "Limb.h"
 /**
  * @file demo_mouth_animation.c
  * @brief Demo visual 3D de la mandíbula SDF y su tejido gular articulado.
@@ -23,8 +25,8 @@
 
 static Monster Demo_CreateAnatomicalLizard(void) {
     Monster monster = Monster_Create();
-    LizardPhenotype phenotype=LizardPreset_Adult();
-    if(!Lizard_BuildMonster(&monster,&phenotype))
+    CreaturePhenotype phenotype=CreatureRecipes_Lizard()->adult;
+    if(!Creature_BuildMonster(&monster,CreatureRecipes_Lizard(),&phenotype))
         fprintf(stderr,"[ERROR] No se pudo resolver el lagarto.\n");
     Monster_SetHeadOpenFactor(&monster,0.18f);
     /* El grafo completo permanece resuelto, pero el estudio cefálico no lo

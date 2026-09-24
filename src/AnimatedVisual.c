@@ -13,7 +13,7 @@ static bool CopyMesh(Mesh* dst,const Mesh* src) {
 void AnimatedVisual_Free(AnimatedVisual* a) {
     if(!a)return;
     AnatomyDeformer_Free(a->body); Mesh_Free(&a->headBase);
-    for(size_t i=0;i<a->eyeCount;++i) { Mesh_Free(&a->eyeBases[i].sclera); Mesh_Free(&a->eyeBases[i].iris); Mesh_Free(&a->eyeBases[i].pupil); }
+    for(size_t i=0;i<a->eyeCount;++i) Mesh_Free(&a->eyeBases[i].globe);
     free(a->eyeBases); memset(a,0,sizeof(*a));
 }
 bool AnimatedVisual_Bind(AnimatedVisual* a,const MonsterVisual* v,const Monster* m) {
@@ -27,8 +27,8 @@ bool AnimatedVisual_Bind(AnimatedVisual* a,const MonsterVisual* v,const Monster*
         if(!next.eyeBases) { AnimatedVisual_Free(&next); return false; }
         next.eyeCount=v->eyeCount;
         for(size_t i=0;i<v->eyeCount;++i) {
-            if(!CopyMesh(&next.eyeBases[i].sclera,&v->eyes[i].sclera) || !CopyMesh(&next.eyeBases[i].iris,&v->eyes[i].iris) ||
-                !CopyMesh(&next.eyeBases[i].pupil,&v->eyes[i].pupil)) { AnimatedVisual_Free(&next); return false; }
+            next.eyeBases[i]=v->eyes[i];next.eyeBases[i].globe=Mesh_Create();
+            if(!CopyMesh(&next.eyeBases[i].globe,&v->eyes[i].globe)) { AnimatedVisual_Free(&next); return false; }
         }
     }
     SkeletonPose_Init(&next.restPose,&m->animation->rig.skeleton);
@@ -56,9 +56,12 @@ bool AnimatedVisual_Deform(const AnimatedVisual* a,MonsterVisual* v,const Monste
     Vector3 rest=a->restPose.joints[head].worldPosition,target=p->joints[head].worldPosition;
     RigidMesh(&v->headMesh,&a->headBase,q,rest,target);
     for(size_t i=0;i<v->eyeCount;++i) {
-        RigidMesh(&v->eyes[i].sclera,&a->eyeBases[i].sclera,q,rest,target);
-        RigidMesh(&v->eyes[i].iris,&a->eyeBases[i].iris,q,rest,target);
-        RigidMesh(&v->eyes[i].pupil,&a->eyeBases[i].pupil,q,rest,target);
+        RigidMesh(&v->eyes[i].globe,&a->eyeBases[i].globe,q,rest,target);
+        Vector3 center=a->eyeBases[i].center;
+        v->eyes[i].center=Vec3_Add(Quat_RotateVector(q,center),Vec3_Sub(target,Quat_RotateVector(q,rest)));
+        v->eyes[i].forward=Quat_RotateVector(q,a->eyeBases[i].forward);
+        v->eyes[i].right=Quat_RotateVector(q,a->eyeBases[i].right);v->eyes[i].up=Quat_RotateVector(q,a->eyeBases[i].up);
+        v->eyes[i].appearance=a->eyeBases[i].appearance;v->eyes[i].appearanceFingerprint=a->eyeBases[i].appearanceFingerprint;
     }
     for(size_t i=0;i<v->mouthCount && i<m->mouthCount;++i) {
         Mouth mouth=m->mouths[i];

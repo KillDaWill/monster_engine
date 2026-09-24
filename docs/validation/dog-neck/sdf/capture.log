@@ -1,0 +1,20 @@
+Cabeza: cráneo=(1.083 0.678 1.430), hocico=0.712, raíz=0.640, punta=0.293, oreja=(0.398 0.513 0.076)
+Perro: nodos=109, vértices=81238, componentes=1, segundo=0
+pata 0 suelo=-0.000000 soleHeight=0.0960
+pata 1 suelo=-0.000000 soleHeight=0.0960
+pata 2 suelo=-0.000000 soleHeight=0.0960
+pata 3 suelo=-0.000000 soleHeight=0.0960
+
+=== Monster Engine | Perro Digitígrado con Pelaje Procedural ===
+Controles de cámara y visualización:
+  1: lateral | 2: frontal | 3: tres cuartos | 4: superior
+  5: primer plano cabeza/trufa | 6: primer plano cola
+  F / S: alternar pelaje / piel lisa sin remallar
+  [ / ]: disminuir / aumentar longitud del pelaje (guardLength)
+  ; / ': disminuir / aumentar densidad del pelaje
+  Arriba / Abajo (+/-): ajustar longitud de pelaje
+  TAB: ciclar modo diagnóstico de superficie (0..18)
+  Espacio: rotar espécimen | A: overlay anatomía | Escape: salir
+
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+Paridad CPU/GPU orejas, cuello y músculos (1525 puntos): error máximo 0.00000054
