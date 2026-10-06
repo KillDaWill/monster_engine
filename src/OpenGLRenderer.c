@@ -2,9 +2,12 @@
 #include "OpenGLRenderer.h"
 #include "MonsterSDF.h"
 #include "MonsterVisual.h"
+#include "Monster.h"
+#include "SurfaceMapper.h"
 #include "EyeTexture.h"
 #include "MathUtils.h"
 #include "Fur.h"
+#include "MarchingCubesTables.h"
 #include <string.h>
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
@@ -39,7 +42,23 @@ static void OpenGL_RenderEyeCallback(Renderer3D*,const struct MonsterVisualEye*)
  * ============================================================ */
 
 typedef struct OpenGLRendererData {
+    struct {
+        GLuint sampleProgram,classifyProgram,emitProgram,finalizeProgram,resetProgram,prepareProgram,validateProgram,intervalProgram,renderProgram;
+        GLuint samples,cases,tables,command,vertices,validation,intervalValidation,vao;
+        GLuint* timestamps[4];unsigned queryCapacity[4],timingSlabs[4];
+        uint64_t timingGeneration[4];bool pending[4];unsigned frame;GLsync frameFences[2];
+        size_t sampleCapacity,cellCapacity,vertexCapacity;
+        GpuSDFSurfaceStats stats;
+    } compute;
+    struct {
+        GLuint releaseProgram,sampleProgram,classifyProgram,allocateProgram,persistProgram,emitProgram,rootProgram,statisticsProgram;
+        GLuint bank1,scratch,bricks,jobs,draws,allocator,links,indices,edges,metrics[4];
+        size_t bank1Capacity,scratchCapacity,brickCapacity,jobCapacity,drawCapacity,allocatorCapacity,linkCapacity,indexCapacity,edgeBytes;
+        unsigned brickCells,pageCapacity,sampleSlots,bankSize,batchSize,edgeCapacity;bool initialized;
+    } sparse;
+    struct {int partBase,connectorBase,mouthBase,axialBase,tileDataBase,columns;} scene;
     bool wireframe;
+    struct {bool enabled;float maxStep;unsigned steps;} reference;
     GLuint sdfProgram, sdfBuffer, sdfTexture;
     GLuint surfaceProgram,guardProgram;
     GLuint eyeProgram;
@@ -52,6 +71,13 @@ typedef struct OpenGLRendererData {
     struct { GLint recipe,pigmentSeed,furSeed,debug,visibility,geometry,surface,coverage; } guard;
     GLint surfaceRecipeLocation,pigmentSeedLocation,scaleSeedLocation,furSeedLocation,surfaceDebugLocation;
     GLint shellFractionLocation,furPassLocation,shellCountLocation;
+    MorphHandoffSet handoffs;
+    int handoffPass;
+    AABB3D traceRegions[16];
+    size_t traceRegionCount;
+    GLuint handoffBuffer,handoffTexture;
+    SurfaceMorphDomain materialDomain;
+    GLuint materialBuffer,materialTexture;
     int surfaceDebug;
     bool surfaceFailed;
     struct {
@@ -59,6 +85,7 @@ typedef struct OpenGLRendererData {
         GLint partBase,partCount,connectorBase,connectorCount,mouthBase,mouthCount,axialBase,axialCount;
         GLint bodySmoothness,tileDataBase,tileColumns,cameraPosition,cameraForward,cameraRight,cameraUp;
         GLint boundsMin,boundsMax,viewportSize,tanHalfFov,aspectRatio,hitTolerance,viewProjection;
+        GLint surfaceRecipe,pigmentSeed,scaleSeed,furSeed,sdfHasSurface,sdfFurEnabled;
     } uniforms;
     float (*sdfData)[4];
     size_t sdfCapacity,sdfCount;
@@ -91,6 +118,128 @@ void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled) {
     }
 }
 
+/* API antigua conservada solo para llamadas vacías de otros demostradores. */
+void OpenGLRenderer_SetMeshClipRegions(Renderer3D* renderer,const AABB3D* bounds,size_t count) {
+    (void)bounds;(void)count;
+    OpenGLRenderer_SetMorphHandoffs(renderer,NULL,-1);
+}
+
+bool OpenGLRenderer_SetMorphHandoffs(Renderer3D* renderer,const MorphHandoffSet* set,int pass) {
+    if(!renderer||!renderer->user_data)return false;
+    OpenGLRendererData* d=renderer->user_data;
+    size_t total=0;
+    if(set) {
+        if(set->count>MORPH_HANDOFF_MAX_INTERFACES)return false;
+        for(size_t i=0;i<set->count;++i) {
+            if(set->interfaces[i].segmentCount>MORPH_HANDOFF_MAX_SEGMENTS)return false;
+            total+=set->interfaces[i].segmentCount;
+        }
+        if(total>MORPH_HANDOFF_GPU_SEGMENTS)return false;
+        d->handoffs=*set;
+    } else MorphHandoffSet_Init(&d->handoffs);
+    d->handoffPass=pass;
+    return true;
+}
+
+bool OpenGLRenderer_SetMorphSurfaceDomain(Renderer3D* renderer,const Monster* current,const Monster* reference) {
+    if(!renderer||!renderer->user_data)return false;
+    OpenGLRendererData* d=renderer->user_data;
+    if(!current||!reference) {d->materialDomain.count=0;return true;}
+    if(!SurfaceMapper_BuildMorphDomain(&d->materialDomain,&current->anatomyGraph,
+        &reference->anatomyGraph,&reference->surfaceMapping))return false;
+    if(!d->materialBuffer)glGenBuffers(1,&d->materialBuffer);
+    if(!d->materialTexture)glGenTextures(1,&d->materialTexture);
+    glBindBuffer(GL_TEXTURE_BUFFER,d->materialBuffer);
+    size_t segmentBytes=d->materialDomain.count*sizeof(d->materialDomain.data[0]);
+    size_t nodeBytes=d->materialDomain.nodeCount*sizeof(d->materialDomain.nodes[0]);
+    glBufferData(GL_TEXTURE_BUFFER,segmentBytes+nodeBytes,NULL,GL_STREAM_DRAW);
+    glBufferSubData(GL_TEXTURE_BUFFER,0,segmentBytes,d->materialDomain.data);
+    glBufferSubData(GL_TEXTURE_BUFFER,segmentBytes,nodeBytes,d->materialDomain.nodes);
+    glActiveTexture(GL_TEXTURE4);glBindTexture(GL_TEXTURE_BUFFER,d->materialTexture);
+    glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->materialBuffer);
+    glActiveTexture(GL_TEXTURE0);glBindBuffer(GL_TEXTURE_BUFFER,0);
+    return true;
+}
+
+static void UploadMorphMaterial(OpenGLRendererData* d,GLuint program) {
+    glUniform1i(glGetUniformLocation(program,"morphMaterialCount"),(GLint)d->materialDomain.count);
+    glUniform1i(glGetUniformLocation(program,"morphMaterialData"),4);
+    GLfloat mv[16],rotation[9];glGetFloatv(GL_MODELVIEW_MATRIX,mv);
+    for(int c=0;c<3;++c)for(int r=0;r<3;++r)rotation[c*3+r]=mv[c*4+r];
+    glUniformMatrix3fv(glGetUniformLocation(program,"morphWorldToView"),1,GL_FALSE,rotation);
+    glUniform1i(glGetUniformLocation(program,"sdfSurfaceDebug"),d->surfaceDebug);
+}
+
+static void UploadHandoffs(OpenGLRendererData* d,GLuint program) {
+    float origins[16][4],normals[16][4],meta[16][4],workMin[16][3],workMax[16][3];
+    GLint retire[16];
+    float segments[2*MORPH_HANDOFF_GPU_SEGMENTS][4];
+    UploadMorphMaterial(d,program);
+    size_t cursor=0;
+    for(size_t i=0;i<d->handoffs.count;++i) {
+        const MorphHandoffInterface* h=&d->handoffs.interfaces[i];
+        retire[i]=h->retireOnly;
+        AABB3D bounds=MorphHandoff_WorkBounds(h);
+        workMin[i][0]=bounds.start.x;workMin[i][1]=bounds.start.y;workMin[i][2]=bounds.start.z;
+        workMax[i][0]=bounds.end.x;workMax[i][1]=bounds.end.y;workMax[i][2]=bounds.end.z;
+        origins[i][0]=h->origin.x;origins[i][1]=h->origin.y;origins[i][2]=h->origin.z;origins[i][3]=h->radius;
+        normals[i][0]=h->normal.x;normals[i][1]=h->normal.y;normals[i][2]=h->normal.z;normals[i][3]=h->hardClipOffset;
+        meta[i][0]=h->blendWidth;meta[i][1]=h->active?h->transitionFactor:0;
+        meta[i][2]=(float)cursor;meta[i][3]=(float)h->segmentCount;
+        for(size_t j=0;j<h->segmentCount;++j,++cursor) {
+            const MorphHandoffSegment* s=&h->segments[j];
+            float* a=segments[2*cursor],*b=segments[2*cursor+1];
+            a[0]=s->a.x;a[1]=s->a.y;a[2]=s->a.z;a[3]=s->radius;
+            b[0]=s->b.x;b[1]=s->b.y;b[2]=s->b.z;b[3]=0;
+        }
+    }
+    glUniform1i(glGetUniformLocation(program,"handoffCount"),(GLint)d->handoffs.count);
+    glUniform1i(glGetUniformLocation(program,"handoffPass"),d->handoffPass);
+    glUniform1i(glGetUniformLocation(program,"handoffDebug"),d->surfaceDebug);
+    if(d->handoffs.count) {
+        glUniform1iv(glGetUniformLocation(program,"handoffRetire"),(GLsizei)d->handoffs.count,retire);
+        glUniform3fv(glGetUniformLocation(program,"handoffWorkMin"),(GLsizei)d->handoffs.count,&workMin[0][0]);
+        glUniform3fv(glGetUniformLocation(program,"handoffWorkMax"),(GLsizei)d->handoffs.count,&workMax[0][0]);
+        glUniform4fv(glGetUniformLocation(program,"handoffOrigin"),(GLsizei)d->handoffs.count,&origins[0][0]);
+        glUniform4fv(glGetUniformLocation(program,"handoffNormal"),(GLsizei)d->handoffs.count,&normals[0][0]);
+        glUniform4fv(glGetUniformLocation(program,"handoffMeta"),(GLsizei)d->handoffs.count,&meta[0][0]);
+    }
+    if(cursor) {
+        if(!d->handoffBuffer)glGenBuffers(1,&d->handoffBuffer);
+        if(!d->handoffTexture)glGenTextures(1,&d->handoffTexture);
+        glBindBuffer(GL_TEXTURE_BUFFER,d->handoffBuffer);
+        glBufferData(GL_TEXTURE_BUFFER,2*cursor*sizeof(*segments),segments,GL_STREAM_DRAW);
+        glActiveTexture(GL_TEXTURE3);glBindTexture(GL_TEXTURE_BUFFER,d->handoffTexture);
+        glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->handoffBuffer);
+        glUniform1i(glGetUniformLocation(program,"handoffSegments"),3);
+        glActiveTexture(GL_TEXTURE0);glBindBuffer(GL_TEXTURE_BUFFER,0);
+    }
+}
+
+void OpenGLRenderer_SetSDFReference(Renderer3D* renderer,bool enabled,float maxStep,unsigned steps) {
+    if(!renderer||!renderer->user_data)return;
+    OpenGLRendererData* d=renderer->user_data;
+    d->reference.enabled=enabled;
+    d->reference.maxStep=isfinite(maxStep)&&maxStep>0?maxStep:0;
+    d->reference.steps=steps>=256&&steps<=65536?steps:512;
+}
+
+bool OpenGLRenderer_SaveDepth(const char* path,int width,int height,const ICamera* camera) {
+    if(!path||!camera||width<=0||height<=0)return false;
+    size_t count=(size_t)width*height;float* depth=malloc(count*sizeof(float));
+    if(!depth)return false;
+    glReadPixels(0,0,width,height,GL_DEPTH_COMPONENT,GL_FLOAT,depth);
+    if(!OpenGLRenderer_CheckErrors()){free(depth);return false;}
+    for(size_t i=0;i<count;++i) {
+        float z=depth[i]*2-1,n=camera->nearPlane,f=camera->farPlane;
+        depth[i]=depth[i]>=1?INFINITY:2*n*f/(f+n-z*(f-n));
+    }
+    FILE* out=fopen(path,"wb");bool ok=false;
+    if(out) {fprintf(out,"Pf\n%d %d\n-1.0\n",width,height);
+        ok=fwrite(depth,sizeof(float),count,out)==count;fclose(out);}
+    free(depth);return ok;
+}
+
 bool OpenGLRenderer_SavePPM(const char* path, int width, int height) {
     if (!path || width <= 0 || height <= 0) return false;
     size_t rowBytes=(size_t)width*3u,total=rowBytes*(size_t)height;
@@ -99,6 +248,7 @@ bool OpenGLRenderer_SavePPM(const char* path, int width, int height) {
     GLint previousPack=4;glGetIntegerv(GL_PACK_ALIGNMENT,&previousPack);
     glPixelStorei(GL_PACK_ALIGNMENT,1);glReadBuffer(GL_BACK);glFinish();
     glReadPixels(0,0,width,height,GL_RGB,GL_UNSIGNED_BYTE,pixels);
+    if(!OpenGLRenderer_CheckErrors()){free(pixels);return false;}
     glPixelStorei(GL_PACK_ALIGNMENT,previousPack);
     FILE* file=fopen(path,"wb");
     bool ok=file&&fprintf(file,"P6\n%d %d\n255\n",width,height)>0;
@@ -205,7 +355,11 @@ static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
     }
 
     OpenGLRendererData* data=self?self->user_data:NULL;
-    if(!data || !mesh || (!mesh->hasSurface && data->surfaceDebug!=10) || !RenderSurfaceMesh(data,mesh))OpenGLRenderer_RenderMesh(mesh);
+    if(data&&data->handoffs.count) {
+        /* Nunca mostrar la representación sin propiedad si falla el shader. */
+        if(!mesh||!mesh->hasSurface||!RenderSurfaceMesh(data,mesh))
+            fprintf(stderr,"[Cesión] No se pudo dibujar la malla con propiedad compartida.\n");
+    } else if(!data || !mesh || (!mesh->hasSurface && data->surfaceDebug!=10) || !RenderSurfaceMesh(data,mesh))OpenGLRenderer_RenderMesh(mesh);
 
     if (wireframe) {
         glPolygonMode(GL_FRONT, previousPolygonMode[0]);
@@ -218,8 +372,30 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
 
     if (renderer->user_data) {
         OpenGLRendererData* data=renderer->user_data;
+        GLuint programs[]={data->compute.sampleProgram,data->compute.classifyProgram,
+            data->compute.emitProgram,data->compute.finalizeProgram,data->compute.resetProgram,data->compute.prepareProgram,data->compute.validateProgram,data->compute.intervalProgram,data->compute.renderProgram};
+        for(size_t i=0;i<sizeof(programs)/sizeof(*programs);++i)if(programs[i])glDeleteProgram(programs[i]);
+        GLuint buffers[]={data->compute.samples,data->compute.cases,data->compute.tables,
+            data->compute.command,data->compute.vertices,data->compute.validation,data->compute.intervalValidation};
+        glDeleteBuffers(7,buffers);
+        GLuint sparsePrograms[]={data->sparse.releaseProgram,data->sparse.sampleProgram,data->sparse.classifyProgram,
+            data->sparse.allocateProgram,data->sparse.persistProgram,data->sparse.emitProgram,data->sparse.rootProgram,data->sparse.statisticsProgram};
+        for(size_t i=0;i<sizeof(sparsePrograms)/sizeof(*sparsePrograms);++i)if(sparsePrograms[i])glDeleteProgram(sparsePrograms[i]);
+        GLuint sparseBuffers[]={data->sparse.bank1,data->sparse.scratch,data->sparse.bricks,data->sparse.jobs,
+            data->sparse.draws,data->sparse.allocator,data->sparse.links,data->sparse.indices,data->sparse.edges};glDeleteBuffers(9,sparseBuffers);
+        glDeleteBuffers(4,data->sparse.metrics);
+        if(data->compute.vao)glDeleteVertexArrays(1,&data->compute.vao);
+        for(unsigned i=0;i<2;++i)if(data->compute.frameFences[i])glDeleteSync(data->compute.frameFences[i]);
+        for(int i=0;i<4;++i) {
+            if(data->compute.queryCapacity[i])glDeleteQueries((GLsizei)data->compute.queryCapacity[i],data->compute.timestamps[i]);
+            free(data->compute.timestamps[i]);
+        }
         if(data->eyeProgram)glDeleteProgram(data->eyeProgram);
         for(unsigned i=0;i<EYE_TEXTURE_CACHE_CAPACITY;++i)if(data->eyeTextures[i].texture)glDeleteTextures(1,&data->eyeTextures[i].texture);
+        if(data->materialBuffer)glDeleteBuffers(1,&data->materialBuffer);
+        if(data->materialTexture)glDeleteTextures(1,&data->materialTexture);
+        if(data->handoffBuffer)glDeleteBuffers(1,&data->handoffBuffer);
+        if(data->handoffTexture)glDeleteTextures(1,&data->handoffTexture);
         if(data->guardProgram)glDeleteProgram(data->guardProgram);
         if(data->surfaceProgram)glDeleteProgram(data->surfaceProgram);
         for(unsigned i=0;i<GPU_MESH_CACHE_CAPACITY;++i) {
@@ -423,6 +599,12 @@ static bool InitSDFProgram(OpenGLRendererData* d) {
     d->uniforms.aspectRatio=glGetUniformLocation(p,"aspectRatio");
     d->uniforms.hitTolerance=glGetUniformLocation(p,"hitTolerance");
     d->uniforms.viewProjection=glGetUniformLocation(p,"viewProjection");
+    d->uniforms.surfaceRecipe=glGetUniformLocation(p,"surfaceRecipe");
+    d->uniforms.pigmentSeed=glGetUniformLocation(p,"pigmentSeed");
+    d->uniforms.scaleSeed=glGetUniformLocation(p,"scaleSeed");
+    d->uniforms.furSeed=glGetUniformLocation(p,"furSeed");
+    d->uniforms.sdfHasSurface=glGetUniformLocation(p,"sdfHasSurface");
+    d->uniforms.sdfFurEnabled=glGetUniformLocation(p,"sdfFurEnabled");
     if(!d->sdfBuffer)glGenBuffers(1,&d->sdfBuffer);
     if(!d->sdfTexture)glGenTextures(1,&d->sdfTexture);
     fprintf(stdout,"[SDF GPU] %s | %s\n",glGetString(GL_RENDERER),glGetString(GL_VERSION));
@@ -430,16 +612,18 @@ static bool InitSDFProgram(OpenGLRendererData* d) {
 }
 static void UniformVector(GLint location,Vector3 v){glUniform3f(location,v.x,v.y,v.z);}
 
-bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const ICamera* camera,int width,int height) {
-    if(!renderer||!renderer->user_data||!sdf||!camera||width<=0||height<=0)return false;
-    OpenGLRendererData* d=renderer->user_data;
-    float displayAspect=(float)width/height;
-    if(d->sdfFrameActive){width=d->sdfWidth;height=d->sdfHeight;}
-    if(!d->sdfProgram&&!InitSDFProgram(d))return false;
-    Vector3 forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
-    Vector3 right=Vec3_Normalize(Vec3_Cross(forward,camera->up)),up=Vec3_Cross(right,forward);
-    float tangent=tanf(camera->fov*.00872664626f),aspect=displayAspect;
-    int columns=(width+15)/16,rows=(height+15)/16;
+static bool UploadSDFScene(OpenGLRendererData* d,const MonsterSDF* sdf,
+    const ICamera* camera,int width,int height) {
+    if(!d->sdfBuffer)glGenBuffers(1,&d->sdfBuffer);
+    if(!d->sdfTexture)glGenTextures(1,&d->sdfTexture);
+    Vector3 forward=Vec3_Zero(),right=Vec3_Zero(),up=Vec3_Zero();
+    float tangent=1,aspect=1;
+    if(camera) {
+        forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
+        right=Vec3_Normalize(Vec3_Cross(forward,camera->up));up=Vec3_Cross(right,forward);
+        tangent=tanf(camera->fov*.00872664626f);aspect=(float)width/height;
+    }
+    int columns=camera?(width+15)/16:0,rows=camera?(height+15)/16:0;
     size_t tiles=(size_t)columns*rows,stride=sdf->connectorCount+1;
     if(tiles*stride>d->tileCapacity){int* indices=realloc(d->tileIndices,tiles*stride*sizeof(int));if(!indices)return false;d->tileIndices=indices;d->tileCapacity=tiles*stride;}
     for(size_t tile=0;tile<tiles;++tile)d->tileIndices[tile*stride]=0;
@@ -452,6 +636,7 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const I
     for(size_t i=0;i<sdf->mouthCount;++i)
         remainingSmoothness+=sdf->mouths[i].anatomicalHead?sdf->mouths[i].headBodySmoothness:2*sdf->mouths[i].muzzleSmoothness;
     for(size_t i=0;i<sdf->connectorCount;++i) {
+        if(!camera)break;
         const MonsterSDFConnector* c=&sdf->connectors[i];
         if(sdf->axialStationCount>1&&c->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
         remainingSmoothness-=c->localSmoothness;
@@ -500,25 +685,776 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const I
     d->sdfCount=count;
     glBindBuffer(GL_TEXTURE_BUFFER,d->sdfBuffer);glBufferData(GL_TEXTURE_BUFFER,count*sizeof(*d->sdfData),d->sdfData,GL_STREAM_DRAW);
     glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_BUFFER,d->sdfTexture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->sdfBuffer);
+    d->scene.partBase=(int)partBase;d->scene.connectorBase=(int)connectorBase;
+    d->scene.mouthBase=(int)mouthBase;d->scene.axialBase=(int)axialBase;
+    d->scene.tileDataBase=(int)tileDataBase;d->scene.columns=columns;
+    return true;
+}
+
+#include "MonsterSDFCompute.generated.h"
+#include "SDFInterval.h"
+
+bool OpenGLRenderer_SupportsComputeSurface(Renderer3D* r) {
+    if(!r||!r->user_data)return false;
+    GLint major=0,minor=0;glGetIntegerv(GL_MAJOR_VERSION,&major);glGetIntegerv(GL_MINOR_VERSION,&minor);
+    return major>4||(major==4&&minor>=3);
+}
+static GLuint LinkComputeSource(const char* const* source,size_t count) {
+    GLuint shader=CompileShader(GL_COMPUTE_SHADER,source,count);if(!shader)return 0;
+    GLuint p=glCreateProgram();glAttachShader(p,shader);glLinkProgram(p);glDeleteShader(shader);
+    GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);
+    if(!ok) {char log[4096];glGetProgramInfoLog(p,sizeof(log),NULL,log);
+        fprintf(stderr,"[SDF compute] %s\n",log);glDeleteProgram(p);return 0;}
+    return p;
+}
+static bool InitComputeSurface(OpenGLRendererData* d) {
+    if(d->compute.renderProgram)return true;
+#define LINK(member,source) do {d->compute.member=LinkComputeSource(source,sizeof(source)/sizeof(*source));if(!d->compute.member)return false;} while(0)
+    LINK(sampleProgram,sdfSampleSource);LINK(classifyProgram,sdfClassifySource);
+    LINK(emitProgram,sdfEmitSource);LINK(finalizeProgram,sdfFinalizeSource);
+    LINK(resetProgram,sdfResetSource);LINK(prepareProgram,sdfPrepareSource);LINK(validateProgram,sdfValidateSource);
+#undef LINK
+    GLuint vs=CompileShader(GL_VERTEX_SHADER,sdfMeshVertexSource,sizeof(sdfMeshVertexSource)/sizeof(*sdfMeshVertexSource));
+    GLuint fs=CompileShader(GL_FRAGMENT_SHADER,sdfMeshFragmentSource,sizeof(sdfMeshFragmentSource)/sizeof(*sdfMeshFragmentSource));
+    if(!vs||!fs) {if(vs)glDeleteShader(vs);if(fs)glDeleteShader(fs);return false;}
+    GLuint p=glCreateProgram();glAttachShader(p,vs);glAttachShader(p,fs);glLinkProgram(p);
+    glDeleteShader(vs);glDeleteShader(fs);GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);
+    if(!ok) {char log[4096];glGetProgramInfoLog(p,sizeof(log),NULL,log);
+        fprintf(stderr,"[SDF mesh GLSL] %s\n",log);glDeleteProgram(p);return false;}
+    d->compute.renderProgram=p;
+    glGenBuffers(1,&d->compute.tables);glGenBuffers(1,&d->compute.command);
+    glGenVertexArrays(1,&d->compute.vao);
+    int tables[4096+24+24];memcpy(tables,MARCHING_CUBES_TRI_TABLE,4096*sizeof(int));
+    memcpy(tables+4096,MARCHING_CUBES_EDGE_ENDPOINTS,24*sizeof(int));
+    memcpy(tables+4096+24,MARCHING_CUBES_CORNER_OFFSETS,24*sizeof(int));
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.tables);
+    glBufferData(GL_SHADER_STORAGE_BUFFER,sizeof(tables),tables,GL_STATIC_DRAW);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.command);
+    glBufferData(GL_SHADER_STORAGE_BUFFER,9*sizeof(GLuint),NULL,GL_DYNAMIC_DRAW);
+    fprintf(stdout,"[SDF compute] %s | %s; extracción experimental sin readback\n",glGetString(GL_RENDERER),glGetString(GL_VERSION));
+    return true;
+}
+static void BindSceneProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sdf) {
+    glUseProgram(p);glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_BUFFER,d->sdfTexture);
+#define INT(name,value) glUniform1i(glGetUniformLocation(p,#name),(GLint)(value))
+    INT(sceneData,0);INT(partBase,d->scene.partBase);INT(partCount,sdf->bodyPartCount);
+    INT(connectorBase,d->scene.connectorBase);INT(connectorCount,sdf->connectorCount);
+    INT(mouthBase,d->scene.mouthBase);INT(mouthCount,sdf->mouthCount);
+    INT(axialBase,d->scene.axialBase);INT(axialCount,sdf->axialStationCount);
+    glUniform1f(glGetUniformLocation(p,"bodySmoothness"),sdf->config.bodySmoothness);
+    INT(sdfHasSurface,sdf->hasSurface);INT(sdfFurEnabled,!d->disableShells||!d->disableGuards);
+#undef INT
+    if(sdf->hasSurface) {
+        glUniform4fv(glGetUniformLocation(p,"surfaceRecipe"),SURFACE_RECIPE_ROWS,&sdf->surfaceRecipe.data[0][0]);
+        glUniform1ui(glGetUniformLocation(p,"pigmentSeed"),sdf->surfaceRecipe.pigmentSeed);
+        glUniform1ui(glGetUniformLocation(p,"scaleSeed"),sdf->surfaceRecipe.scaleSeed);
+        glUniform1ui(glGetUniformLocation(p,"furSeed"),sdf->surfaceRecipe.furSeed);
+    }
+}
+static bool ComputeBuffer(GLuint* buffer,size_t* capacity,size_t bytes) {
+    GLint64 limit=0;glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE,&limit);
+    if(bytes>(size_t)limit) {fprintf(stderr,"[SDF compute] SSBO excede límite: %zu > %lld\n",bytes,(long long)limit);return false;}
+    if(!*buffer)glGenBuffers(1,buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,*buffer);
+    if(bytes>*capacity) {glBufferData(GL_SHADER_STORAGE_BUFFER,bytes,NULL,GL_DYNAMIC_DRAW);*capacity=bytes;}
+    return true;
+}
+static void BindGridProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sdf,const GpuSDFSurfaceGrid* g) {
+    BindSceneProgram(d,p,sdf);
+    glUniform3ui(glGetUniformLocation(p,"gridCells"),g->cells[0],g->cells[1],g->cells[2]);
+    UniformVector(glGetUniformLocation(p,"gridOrigin"),g->origin);
+    glUniform1f(glGetUniformLocation(p,"gridStep"),g->voxelSize);
+    glUniform1i(glGetUniformLocation(p,"refinementSteps"),(GLint)g->refinementSteps);
+    glUniform1ui(glGetUniformLocation(p,"vertexCapacity"),(GLuint)(d->compute.vertexCapacity/(8*sizeof(float))));
+}
+static bool ReserveComputeTimers(OpenGLRendererData* d,unsigned slot,unsigned count) {
+    if(d->compute.queryCapacity[slot]>=count)return true;
+    unsigned previous=d->compute.queryCapacity[slot];
+    GLuint* ids=realloc(d->compute.timestamps[slot],count*sizeof(*ids));
+    if(!ids)return false;
+    d->compute.timestamps[slot]=ids;
+    glGenQueries((GLsizei)(count-previous),ids+previous);
+    d->compute.queryCapacity[slot]=count;
+    return true;
+}
+static void BindSlabProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sdf,
+    const GpuSDFSurfaceGrid* g,GLuint z,GLuint depth) {
+    BindGridProgram(d,p,sdf,g);
+    glUniform1ui(glGetUniformLocation(p,"sampleCornerBase"),z*(g->cells[0]+1)*(g->cells[1]+1));
+    glUniform1ui(glGetUniformLocation(p,"slabCellBase"),z*g->cells[0]*g->cells[1]);
+    glUniform1ui(glGetUniformLocation(p,"slabCellCount"),depth*g->cells[0]*g->cells[1]);
+    glUniform1ui(glGetUniformLocation(p,"sampleEndZ"),z+depth);
+}
+static void CollectComputeTimers(OpenGLRendererData* d) {
+    for(unsigned slot=0;slot<4;++slot)if(d->compute.pending[slot]) {
+        GLuint* q=d->compute.timestamps[slot];unsigned slabs=d->compute.timingSlabs[slot];
+        unsigned last=6*slabs+1;GLint ready=0;
+        glGetQueryObjectiv(q[last],GL_QUERY_RESULT_AVAILABLE,&ready);
+        if(!ready)continue;
+        if(d->compute.timingGeneration[slot]>d->compute.stats.timingGeneration) {
+            double stages[3]={0};GLuint64 first=0,end=0;
+            for(unsigned slab=0;slab<slabs;++slab)for(unsigned stage=0;stage<3;++stage) {
+                GLuint64 a,b;unsigned index=6*slab+2*stage;
+                glGetQueryObjectui64v(q[index],GL_QUERY_RESULT,&a);
+                glGetQueryObjectui64v(q[index+1],GL_QUERY_RESULT,&b);
+                if(!index)first=a;
+                stages[stage]+=(b-a)*1e-6;
+            }
+            GLuint64 renderBegin;
+            glGetQueryObjectui64v(q[last-1],GL_QUERY_RESULT,&renderBegin);
+            glGetQueryObjectui64v(q[last],GL_QUERY_RESULT,&end);
+            if(d->sparse.initialized) {
+                GLuint counters[9];glBindBuffer(GL_COPY_READ_BUFFER,d->sparse.metrics[slot]);
+                glGetBufferSubData(GL_COPY_READ_BUFFER,0,sizeof(counters),counters);
+                d->compute.stats.activeBricks=counters[2];d->compute.stats.residentSampleBricks=counters[3];
+                d->compute.stats.updatedEdges=counters[4];d->compute.stats.publishedIndices=counters[5];
+                d->compute.stats.reusedSamples=counters[6];d->compute.stats.uniqueEdges=counters[7];d->compute.stats.exactNormals=counters[8];
+            }
+            d->compute.stats.timingGeneration=d->compute.timingGeneration[slot];
+            d->compute.stats.samplingGPUms=stages[0];
+            d->compute.stats.classificationGPUms=stages[1];
+            d->compute.stats.emissionGPUms=stages[2];
+            d->compute.stats.renderGPUms=(end-renderBegin)*1e-6;
+            d->compute.stats.totalGPUms=(end-first)*1e-6;
+        }
+        d->compute.pending[slot]=false;
+    }
+}
+bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
+    const GpuSDFSurfaceGrid* grid,const ICamera* camera) {
+    if(!OpenGLRenderer_SupportsComputeSurface(r)||!sdf||!grid||!camera||
+       !GpuSDFSurfaceGrid_Contains(grid,sdf->bounds))return false;
+    OpenGLRendererData* d=r->user_data;
+    GLint maxGroups[3];
+    for(GLuint axis=0;axis<3;++axis)glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT,axis,&maxGroups[axis]);
+    if((grid->cells[0]+8)/8>(GLuint)maxGroups[0]||
+       (grid->cells[1]+4)/4>(GLuint)maxGroups[1]) {
+        fprintf(stderr,"[GPU SUPERFICIE] Despacho de muestras excede límites de la GPU\n");return false;
+    }
+    if(!InitComputeSurface(d))return false;
+    unsigned fenceSlot=d->compute.frame%2;
+    if(d->compute.frameFences[fenceSlot]) {
+        // Acotar frames pendientes sin descargar geometría ni falsear los FPS.
+        GLenum wait;glFlush();
+        do {
+            wait=glClientWaitSync(d->compute.frameFences[fenceSlot],0,0);
+            if(wait==GL_TIMEOUT_EXPIRED)SDL_Delay(1);
+        } while(wait==GL_TIMEOUT_EXPIRED);
+        if(wait==GL_WAIT_FAILED)return false;
+        glDeleteSync(d->compute.frameFences[fenceSlot]);d->compute.frameFences[fenceSlot]=NULL;
+    }
+    double begin=RendererNowMs();
+    if(!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    d->compute.stats.uploadCPUms=RendererNowMs()-begin;
+    GLint64 limit;glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE,&limit);
+    size_t scratchLimit=(size_t)limit/sizeof(float);
+    if(scratchLimit>32000000u)scratchLimit=32000000u;
+    GpuSDFSurfacePlan plan;
+    if(!GpuSDFSurfaceGrid_PlanDense(grid,scratchLimit,(size_t)limit/(2*sizeof(GLuint)),128,&plan)) {
+        fprintf(stderr,"[GPU SUPERFICIE] No cabe una franja densa completa en los buffers GPU\n");return false;
+    }
+    size_t maxVertices=grid->cellCount*15;
+    // Presupuesto explícito de salida: el desbordamiento produce un cuadro rojo.
+    size_t outputLimit=(size_t)limit<64u*1024u*1024u?(size_t)limit:64u*1024u*1024u;
+    if(maxVertices>outputLimit/(8*sizeof(float)))maxVertices=outputLimit/(8*sizeof(float));
+    if(!ComputeBuffer(&d->compute.samples,&d->compute.sampleCapacity,plan.maxSamples*sizeof(float))||
+       !ComputeBuffer(&d->compute.cases,&d->compute.cellCapacity,plan.maxCells*2*sizeof(GLuint))||
+       !ComputeBuffer(&d->compute.vertices,&d->compute.vertexCapacity,maxVertices*8*sizeof(float)))return false;
+    GLuint buffers[]={d->compute.samples,d->compute.cases,d->compute.tables,d->compute.command,d->compute.vertices};
+    for(int i=0;i<5;++i)glBindBufferBase(GL_SHADER_STORAGE_BUFFER,i+1,buffers[i]);
+    glUseProgram(d->compute.resetProgram);
+    glUniform1i(glGetUniformLocation(d->compute.resetProgram,"resetSurface"),1);glDispatchCompute(1,1,1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    CollectComputeTimers(d);unsigned slot=d->compute.frame%4;
+    bool timing=!d->compute.pending[slot]&&ReserveComputeTimers(d,slot,6*plan.slabCount+2);
+    GLuint* q=d->compute.timestamps[slot];
+#define STAMP(i) do {if(timing)glQueryCounter(q[i],GL_TIMESTAMP);} while(0)
+    // Todas las celdas se extraen una vez; solo el plano limítrofe se remuestrea.
+    for(GLuint slab=0,z=0;z<grid->cells[2];++slab,z+=plan.slabDepth) {
+        GLuint depth=grid->cells[2]-z;if(depth>plan.slabDepth)depth=plan.slabDepth;
+        glUseProgram(d->compute.resetProgram);
+        glUniform1i(glGetUniformLocation(d->compute.resetProgram,"resetSurface"),0);glDispatchCompute(1,1,1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        BindSlabProgram(d,d->compute.sampleProgram,sdf,grid,z,depth);STAMP(6*slab);
+        for(GLuint plane=z;plane<=z+depth;plane+=16) {
+            GLuint planes=z+depth+1-plane;if(planes>16)planes=16;
+            glUniform1ui(glGetUniformLocation(d->compute.sampleProgram,"sampleZOffset"),plane);
+            glDispatchCompute((grid->cells[0]+8)/8,(grid->cells[1]+4)/4,(planes+3)/4);
+            glFlush();
+        }
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);STAMP(6*slab+1);
+        BindSlabProgram(d,d->compute.classifyProgram,sdf,grid,z,depth);STAMP(6*slab+2);
+        GLuint count=depth*grid->cells[0]*grid->cells[1];
+        GLuint groups=(count+127)/128;
+        glDispatchCompute(groups>65535?65535:groups,(groups+65534)/65535,1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glUseProgram(d->compute.prepareProgram);glDispatchCompute(1,1,1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT|GL_COMMAND_BARRIER_BIT);STAMP(6*slab+3);
+        BindSlabProgram(d,d->compute.emitProgram,sdf,grid,z,depth);STAMP(6*slab+4);
+        glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER,d->compute.command);
+        glDispatchComputeIndirect(6*sizeof(GLuint));glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER,0);glFlush();
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);STAMP(6*slab+5);
+    }
+    glUseProgram(d->compute.finalizeProgram);glDispatchCompute(1,1,1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT|GL_COMMAND_BARRIER_BIT);
+    BindSceneProgram(d,d->compute.renderProgram,sdf);UploadMorphMaterial(d,d->compute.renderProgram);
+    Vector3 f=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
+    Vector3 right=Vec3_Normalize(Vec3_Cross(f,camera->up)),up=Vec3_Cross(right,f);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraPosition"),camera->position);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraForward"),f);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraRight"),right);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraUp"),up);
+    glBindVertexArray(d->compute.vao);glBindBuffer(GL_DRAW_INDIRECT_BUFFER,d->compute.command);STAMP(6*plan.slabCount);
+    glDrawArraysIndirect(GL_TRIANGLES,0);STAMP(6*plan.slabCount+1);
+    glBindVertexArray(0);glBindBuffer(GL_DRAW_INDIRECT_BUFFER,0);glUseProgram(0);
+    if(timing) {d->compute.pending[slot]=true;
+        d->compute.timingGeneration[slot]=d->compute.stats.generation+1;
+        d->compute.timingSlabs[slot]=plan.slabCount;}
+    d->compute.frameFences[fenceSlot]=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);
+    if(!d->compute.frameFences[fenceSlot])return false;
+    ++d->compute.frame;++d->compute.stats.generation;
+    d->compute.stats.samples=plan.updatedSamples;d->compute.stats.cells=grid->cellCount;
+    d->compute.stats.slabs=plan.slabCount;
+    d->compute.stats.gpuBytes=d->compute.sampleCapacity+d->compute.cellCapacity+d->compute.vertexCapacity;
+#undef STAMP
+    return OpenGLRenderer_CheckErrors();
+}
+static bool InitSparseSurface(OpenGLRendererData* d,const GpuSDFSurfaceCache* cache) {
+    if(d->sparse.initialized)return d->sparse.brickCells==cache->brickCells;
+    if(!InitComputeSurface(d))return false;
+#define LINK(member,source) do {d->sparse.member=LinkComputeSource(source,sizeof(source)/sizeof(*source));if(!d->sparse.member)return false;} while(0)
+    LINK(releaseProgram,sdfSparseReleaseSource);LINK(sampleProgram,sdfSparseSampleSource);
+    LINK(classifyProgram,sdfSparseClassifySource);LINK(allocateProgram,sdfSparseAllocateSource);
+    LINK(persistProgram,sdfSparsePersistSource);LINK(emitProgram,sdfSparseEmitSource);LINK(rootProgram,sdfSparseRootSource);LINK(statisticsProgram,sdfSparseStatisticsSource);
+#undef LINK
+    d->sparse.brickCells=cache->brickCells;d->sparse.batchSize=512;
+    d->sparse.edgeCapacity=2097152;d->sparse.pageCapacity=5461;d->sparse.sampleSlots=cache->brickCells==16?8192:32768;
+    size_t side=cache->brickCells+3,samples=side*side*side*d->sparse.sampleSlots;
+    GLint64 limit;glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE,&limit);
+    d->sparse.bankSize=(unsigned)((size_t)limit/sizeof(float));
+    if(d->sparse.bankSize>32000000u)d->sparse.bankSize=32000000u;
+    if(samples>2u*(size_t)d->sparse.bankSize)return false;
+    size_t bank0=samples<d->sparse.bankSize?samples:d->sparse.bankSize;
+    size_t bank1=samples-bank0;if(!bank1)bank1=1;
+    const GpuSDFSurfaceGrid* g=&cache->grid;size_t metadata=1;
+    for(unsigned axis=0;axis<3;++axis)metadata*=(g->cells[axis]+cache->brickCells-1)/cache->brickCells;
+    size_t batch=d->sparse.batchSize,cells=cache->brickCells*cache->brickCells*cache->brickCells;
+    if(!ComputeBuffer(&d->compute.samples,&d->compute.sampleCapacity,bank0*sizeof(float))||
+       !ComputeBuffer(&d->sparse.bank1,&d->sparse.bank1Capacity,bank1*sizeof(float))||
+       !ComputeBuffer(&d->sparse.scratch,&d->sparse.scratchCapacity,batch*side*side*side*sizeof(float))||
+       !ComputeBuffer(&d->compute.cases,&d->compute.cellCapacity,batch*cells*sizeof(GLuint))||
+       !ComputeBuffer(&d->compute.vertices,&d->compute.vertexCapacity,d->sparse.edgeCapacity*8u*sizeof(float))||
+       !ComputeBuffer(&d->sparse.bricks,&d->sparse.brickCapacity,metadata*8*sizeof(GLuint))||
+       !ComputeBuffer(&d->sparse.jobs,&d->sparse.jobCapacity,metadata*sizeof(GpuSDFBrickJob))||
+       !ComputeBuffer(&d->sparse.draws,&d->sparse.drawCapacity,d->sparse.pageCapacity*5*sizeof(GLuint))||
+       !ComputeBuffer(&d->sparse.allocator,&d->sparse.allocatorCapacity,(4+d->sparse.pageCapacity+d->sparse.sampleSlots)*sizeof(GLuint))||
+       !ComputeBuffer(&d->sparse.links,&d->sparse.linkCapacity,d->sparse.pageCapacity*sizeof(GLuint))||
+       !ComputeBuffer(&d->sparse.indices,&d->sparse.indexCapacity,d->sparse.pageCapacity*384u*sizeof(GLuint))||
+       !ComputeBuffer(&d->sparse.edges,&d->sparse.edgeBytes,d->sparse.edgeCapacity*16u*sizeof(GLuint)))return false;
+    GLuint* initial=calloc(metadata,8*sizeof(GLuint));if(!initial)return false;
+    for(size_t i=0;i<metadata;++i){initial[8*i]=UINT32_MAX;initial[8*i+3]=UINT32_MAX;}
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.bricks);glBufferSubData(GL_SHADER_STORAGE_BUFFER,0,metadata*8*sizeof(GLuint),initial);free(initial);
+    GLuint zero=0;glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.draws);
+    glClearBufferData(GL_SHADER_STORAGE_BUFFER,GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT,&zero);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.edges);
+    glClearBufferData(GL_SHADER_STORAGE_BUFFER,GL_R32UI,GL_RED_INTEGER,GL_UNSIGNED_INT,&zero);
+    size_t count=4+d->sparse.pageCapacity+d->sparse.sampleSlots;
+    initial=calloc(count,sizeof(GLuint));if(!initial)return false;
+    initial[0]=d->sparse.pageCapacity;initial[1]=d->sparse.sampleSlots;
+    for(unsigned i=0;i<d->sparse.pageCapacity;++i)initial[4+i]=i;
+    for(unsigned i=0;i<d->sparse.sampleSlots;++i)initial[4+d->sparse.pageCapacity+i]=i;
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.allocator);glBufferSubData(GL_SHADER_STORAGE_BUFFER,0,count*sizeof(GLuint),initial);free(initial);
+    GLuint command[10]={0,1,0,0,0,0,0,0,0,0};glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.command);glBufferData(GL_SHADER_STORAGE_BUFFER,sizeof(command),command,GL_DYNAMIC_DRAW);
+    glGenBuffers(4,d->sparse.metrics);
+    for(unsigned i=0;i<4;++i){glBindBuffer(GL_COPY_WRITE_BUFFER,d->sparse.metrics[i]);glBufferData(GL_COPY_WRITE_BUFFER,9*sizeof(GLuint),NULL,GL_STREAM_READ);}
+    d->sparse.initialized=true;
+    return OpenGLRenderer_CheckErrors();
+}
+static void BindSparseProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sdf,
+    const GpuSDFSurfaceCache* cache,unsigned base,unsigned count) {
+    BindGridProgram(d,p,sdf,&cache->grid);
+#define UINT(name,value) glUniform1ui(glGetUniformLocation(p,#name),(GLuint)(value))
+    UINT(brickCells,cache->brickCells);UINT(jobCount,count);UINT(jobBase,base);
+    UINT(pageCapacity,d->sparse.pageCapacity);UINT(sampleSlotCapacity,d->sparse.sampleSlots);
+    UINT(sampleBankSize,d->sparse.bankSize);UINT(generation,cache->generation);UINT(edgeCapacity,d->sparse.edgeCapacity);
+    glUniform1i(glGetUniformLocation(p,"cachedNormals"),cache->cachedNormals);
+#undef UINT
+}
+static void DispatchSparse(unsigned count,unsigned workgroup) {
+    if(!count)return;
+    GLuint groups=(count+workgroup-1)/workgroup;
+    glDispatchCompute(groups>65535?65535:groups,(groups+65534)/65535,1);
+}
+bool OpenGLRenderer_RenderGpuSparseSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
+    GpuSDFSurfaceCache* cache,const ICamera* camera) {
+    if(!OpenGLRenderer_SupportsComputeSurface(r)||!sdf||!cache||!camera)return false;
+    OpenGLRendererData* d=r->user_data;
+    if(cache->grid.sampleCount>UINT32_MAX/3u||!InitSparseSurface(d,cache))return false;
+    unsigned fenceSlot=d->compute.frame%2;
+    if(d->compute.frameFences[fenceSlot]) {
+        GLenum wait;glFlush();do {wait=glClientWaitSync(d->compute.frameFences[fenceSlot],0,0);if(wait==GL_TIMEOUT_EXPIRED)SDL_Delay(1);}while(wait==GL_TIMEOUT_EXPIRED);
+        if(wait==GL_WAIT_FAILED)return false;
+        glDeleteSync(d->compute.frameFences[fenceSlot]);d->compute.frameFences[fenceSlot]=NULL;
+    }
+    // La publicación anterior consume estos mismos buffers: ordenar sus lecturas
+    // antes de las escrituras del nuevo cuadro, sin esperar desde la CPU.
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT|GL_COMMAND_BARRIER_BIT|
+        GL_ELEMENT_ARRAY_BARRIER_BIT|GL_BUFFER_UPDATE_BARRIER_BIT);
+    bool diagnostic=getenv("MONSTER_SPARSE_GPU_DIAGNOSTIC")!=NULL;
+#define DIAG(stage) do{if(diagnostic){fprintf(stderr,"[GPU DIAG] gen=%llu stage=%s\n",(unsigned long long)cache->generation,stage);fflush(stderr);glFinish();}}while(0)
+    double begin=RendererNowMs();
+    if(!GpuSDFSurfaceCache_Update(cache,sdf)||!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    if(cache->nextSlot*8u*sizeof(GLuint)>d->sparse.brickCapacity)return false;
+    GLuint buffers[]={d->compute.samples,d->compute.cases,d->compute.tables,d->compute.command,d->compute.vertices,
+        d->sparse.scratch,d->sparse.bricks,d->sparse.jobs,d->sparse.draws,d->sparse.allocator,d->sparse.links,d->sparse.bank1,d->sparse.indices,d->sparse.edges};
+    for(unsigned i=0;i<14;++i)glBindBufferBase(GL_SHADER_STORAGE_BUFFER,i+1,buffers[i]);
+    GLuint zeroCounters[4]={0};glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.command);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER,5*sizeof(GLuint),(cache->dirtyCount?4:3)*sizeof(GLuint),zeroCounters);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER,9*sizeof(GLuint),sizeof(GLuint),zeroCounters);
+    CollectComputeTimers(d);unsigned slot=d->compute.frame%4;
+    bool timing=!d->compute.pending[slot]&&ReserveComputeTimers(d,slot,8);
+    GLuint* q=d->compute.timestamps[slot];
+    // Los retiros preceden al reuso de slots; sólo se transfieren identificadores.
+    if(cache->retiredCount) {
+        GpuSDFBrickJob* retired=calloc(cache->retiredCount,sizeof(*retired));if(!retired)return false;
+        for(size_t i=0;i<cache->retiredCount;++i)retired[i].slot=cache->retired[i];
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.jobs);glBufferSubData(GL_SHADER_STORAGE_BUFFER,0,cache->retiredCount*sizeof(*retired),retired);free(retired);
+        BindSparseProgram(d,d->sparse.releaseProgram,sdf,cache,0,(unsigned)cache->retiredCount);
+        glUniform1i(glGetUniformLocation(d->sparse.releaseProgram,"retireOnly"),1);DispatchSparse((unsigned)cache->retiredCount,64);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    }
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.jobs);
+    if(cache->dirtyCount)glBufferSubData(GL_SHADER_STORAGE_BUFFER,0,cache->dirtyCount*sizeof(*cache->dirty),cache->dirty);
+    BindSparseProgram(d,d->sparse.releaseProgram,sdf,cache,0,(unsigned)cache->dirtyCount);
+    glUniform1i(glGetUniformLocation(d->sparse.releaseProgram,"retireOnly"),0);DispatchSparse((unsigned)cache->dirtyCount,64);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    DIAG("release");
+    d->compute.stats.uploadCPUms=RendererNowMs()-begin;
+    unsigned side=cache->brickCells+3,n=side*side*side,cells=cache->brickCells*cache->brickCells*cache->brickCells;
+    // Pares de consultas por lote: cada etapa se mide sin glFinish ni readback de geometría.
+    unsigned batches=(unsigned)((cache->dirtyCount+d->sparse.batchSize-1)/d->sparse.batchSize);
+    if(!batches)batches=1;
+    timing=!d->compute.pending[slot]&&ReserveComputeTimers(d,slot,6*batches+2);q=d->compute.timestamps[slot];
+#define STAMP(i) do{if(timing)glQueryCounter(q[i],GL_TIMESTAMP);}while(0)
+    for(unsigned batch=0,base=0;batch<batches;++batch,base+=d->sparse.batchSize) {
+        unsigned count=cache->dirtyCount>base?(unsigned)(cache->dirtyCount-base):0;if(count>d->sparse.batchSize)count=d->sparse.batchSize;
+        STAMP(6*batch);BindSparseProgram(d,d->sparse.sampleProgram,sdf,cache,base,count);DispatchSparse(count*n,64);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);DIAG("sample");STAMP(6*batch+1);
+        STAMP(6*batch+2);BindSparseProgram(d,d->sparse.classifyProgram,sdf,cache,base,count);DispatchSparse(count*cells,128);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        BindSparseProgram(d,d->sparse.allocateProgram,sdf,cache,base,count);
+        glUniform1i(glGetUniformLocation(d->sparse.allocateProgram,"allocatePass"),0);DispatchSparse(count,64);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glUniform1i(glGetUniformLocation(d->sparse.allocateProgram,"allocatePass"),1);DispatchSparse(count,64);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);DIAG("classify+allocate");STAMP(6*batch+3);
+        STAMP(6*batch+4);BindSparseProgram(d,d->sparse.persistProgram,sdf,cache,base,count);DispatchSparse(count*n,128);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        BindSparseProgram(d,d->sparse.emitProgram,sdf,cache,base,count);DispatchSparse(count*cells,64);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        if(batch+1==batches&&cache->dirtyCount){BindSparseProgram(d,d->sparse.rootProgram,sdf,cache,0,0);
+            DispatchSparse(d->sparse.edgeCapacity,64);glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);}
+        DIAG("emit+root");STAMP(6*batch+5);glFlush();
+    }
+    BindSparseProgram(d,d->sparse.statisticsProgram,sdf,cache,0,0);
+    glUniform1ui(glGetUniformLocation(d->sparse.statisticsProgram,"metadataCount"),cache->nextSlot);
+    glUniform1i(glGetUniformLocation(d->sparse.statisticsProgram,"statisticsPass"),0);
+    DispatchSparse(cache->nextSlot>d->sparse.pageCapacity?cache->nextSlot:d->sparse.pageCapacity,128);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    if(cache->dirtyCount){glUniform1i(glGetUniformLocation(d->sparse.statisticsProgram,"statisticsPass"),1);
+        DispatchSparse(d->sparse.pageCapacity*384u,128);glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glUniform1i(glGetUniformLocation(d->sparse.statisticsProgram,"statisticsPass"),2);
+        DispatchSparse(d->sparse.edgeCapacity,128);glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glUniform1i(glGetUniformLocation(d->sparse.statisticsProgram,"statisticsPass"),3);
+        DispatchSparse(d->sparse.edgeCapacity,128);glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);}
+    DIAG("statistics");
+    // Publicación completa antes de cualquier draw; las páginas limpias nunca se reescriben.
+    glUseProgram(d->compute.finalizeProgram);glDispatchCompute(1,1,1);
+    // Los índices se consumen como EBO y la telemetría usa copias de buffers.
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT|GL_COMMAND_BARRIER_BIT|
+        GL_ELEMENT_ARRAY_BARRIER_BIT|GL_BUFFER_UPDATE_BARRIER_BIT);
+    GpuSDFSurfaceCache_Commit(cache,cache->generation);
+    BindSceneProgram(d,d->compute.renderProgram,sdf);UploadMorphMaterial(d,d->compute.renderProgram);
+    Vector3 f=Vec3_Normalize(Vec3_Sub(camera->target,camera->position)),right=Vec3_Normalize(Vec3_Cross(f,camera->up)),up=Vec3_Cross(right,f);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraPosition"),camera->position);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraForward"),f);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraRight"),right);
+    UniformVector(glGetUniformLocation(d->compute.renderProgram,"cameraUp"),up);
+    glBindVertexArray(d->compute.vao);STAMP(6*batches);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER,d->sparse.draws);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,d->sparse.indices);
+    glMultiDrawElementsIndirect(GL_TRIANGLES,GL_UNSIGNED_INT,NULL,(GLsizei)d->sparse.pageCapacity,0);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER,d->compute.command);glDrawArraysIndirect(GL_TRIANGLES,0);
+    if(timing){glBindBuffer(GL_COPY_READ_BUFFER,d->sparse.allocator);glBindBuffer(GL_COPY_WRITE_BUFFER,d->sparse.metrics[slot]);
+        glCopyBufferSubData(GL_COPY_READ_BUFFER,GL_COPY_WRITE_BUFFER,0,0,4*sizeof(GLuint));
+        glBindBuffer(GL_COPY_READ_BUFFER,d->compute.command);
+        glCopyBufferSubData(GL_COPY_READ_BUFFER,GL_COPY_WRITE_BUFFER,5*sizeof(GLuint),4*sizeof(GLuint),5*sizeof(GLuint));}
+    STAMP(6*batches+1);
+    glBindVertexArray(0);glBindBuffer(GL_DRAW_INDIRECT_BUFFER,0);glUseProgram(0);
+    if(timing){d->compute.pending[slot]=true;d->compute.timingGeneration[slot]=d->compute.stats.generation+1;d->compute.timingSlabs[slot]=batches;}
+    d->compute.frameFences[fenceSlot]=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);if(!d->compute.frameFences[fenceSlot])return false;
+    ++d->compute.frame;++d->compute.stats.generation;
+    d->compute.stats.samples=cache->dirtyCount*n;d->compute.stats.cells=cache->dirtyCount*cells;d->compute.stats.slabs=batches;
+    d->compute.stats.candidateBricks=cache->residentCount;d->compute.stats.dirtyBricks=cache->dirtyCount;d->compute.stats.newBricks=cache->newCount;
+
+    d->compute.stats.gpuBytes=d->compute.sampleCapacity+d->sparse.bank1Capacity+d->sparse.scratchCapacity+d->compute.cellCapacity+
+        d->compute.vertexCapacity+d->sparse.brickCapacity+d->sparse.jobCapacity+d->sparse.drawCapacity+d->sparse.allocatorCapacity+d->sparse.linkCapacity+d->sparse.indexCapacity+d->sparse.edgeBytes;
+#undef DIAG
+#undef STAMP
+    return OpenGLRenderer_CheckErrors();
+}
+
+bool OpenGLRenderer_SaveSparseSDFDiagnostics(Renderer3D* r,const GpuSDFSurfaceCache* cache,const char* path) {
+    if(!r||!r->user_data||!cache||!path)return false;
+    OpenGLRendererData* d=r->user_data;if(!d->sparse.initialized)return false;
+    GLuint allocator[4],command[10];GLuint (*bricks)[8]=malloc(cache->nextSlot*sizeof(*bricks));
+    if(!bricks)return false;
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.allocator);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,sizeof(allocator),allocator);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.command);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,sizeof(command),command);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.bricks);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,cache->nextSlot*sizeof(*bricks),bricks);
+    // Auditoría explícita: propiedad única de páginas y samples, sin readback en reproducción.
+    GLuint* links=malloc(d->sparse.linkCapacity),*pool=malloc(d->sparse.allocatorCapacity);
+    unsigned char* pageOwners=calloc(d->sparse.pageCapacity,1),*sampleOwners=calloc(d->sparse.sampleSlots,1);
+    if(!links||!pool||!pageOwners||!sampleOwners){free(bricks);free(links);free(pool);free(pageOwners);free(sampleOwners);return false;}
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.links);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,d->sparse.linkCapacity,links);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.allocator);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,d->sparse.allocatorCapacity,pool);
+    unsigned integrityErrors=0,ownedPages=0,ownedSamples=0,ownedBricks=0;
+    for(size_t slot=0;slot<cache->nextSlot;++slot){
+        GLuint page=bricks[slot][0],pages=bricks[slot][1],sample=bricks[slot][3];
+        if(pages>d->sparse.pageCapacity){++integrityErrors;continue;}
+        if(pages)++ownedBricks;
+        for(unsigned step=0;step<pages;++step){
+            if(page>=d->sparse.pageCapacity||pageOwners[page]){++integrityErrors;break;}
+            pageOwners[page]=1;++ownedPages;page=links[page];
+        }
+        if(page!=UINT32_MAX)++integrityErrors;
+        if(sample!=UINT32_MAX){if(sample>=d->sparse.sampleSlots||sampleOwners[sample])++integrityErrors;
+            else{sampleOwners[sample]=1;++ownedSamples;}}
+    }
+    if(allocator[0]>d->sparse.pageCapacity||allocator[1]>d->sparse.sampleSlots)++integrityErrors;
+    else{
+        for(unsigned i=0;i<allocator[0];++i){GLuint page=pool[4+i];
+            if(page>=d->sparse.pageCapacity||pageOwners[page])++integrityErrors;else pageOwners[page]=1;}
+        for(unsigned i=0;i<allocator[1];++i){GLuint sample=pool[4+d->sparse.pageCapacity+i];
+            if(sample>=d->sparse.sampleSlots||sampleOwners[sample])++integrityErrors;else sampleOwners[sample]=1;}
+    }
+    if(ownedPages+allocator[0]!=d->sparse.pageCapacity||ownedSamples+allocator[1]!=d->sparse.sampleSlots||
+       ownedBricks!=allocator[2]||ownedSamples!=allocator[3])++integrityErrors;
+    free(links);free(pool);free(pageOwners);free(sampleOwners);
+    FILE* out=fopen(path,"w");if(!out){free(bricks);return false;}
+    fprintf(out,"{\"generation\":%llu,\"origin\":[%.9g,%.9g,%.9g],\"voxel\":%.9g,\"brick_cells\":%u,\"candidate_bricks\":%zu,\"dirty_bricks\":%zu,\"sampled\":%zu,\"active_bricks\":%u,\"resident_sample_bricks\":%u,\"unique_edges\":%u,\"updated_edges\":%u,\"indices\":%u,\"reused_samples\":%u,\"overflow\":%u,\"exact_normals\":%u,\"published_bricks\":[",
+        (unsigned long long)cache->generation,cache->grid.origin.x,cache->grid.origin.y,cache->grid.origin.z,cache->grid.voxelSize,
+        cache->brickCells,cache->residentCount,cache->dirtyCount,cache->dirtyCount*(cache->brickCells+3)*(cache->brickCells+3)*(cache->brickCells+3),
+        allocator[2],allocator[3],command[8],command[5],command[6],command[7],command[4],command[9]);
+    bool first=true;
+    for(size_t i=0;i<cache->spatial->brickCount;++i){const MorphSpatialBrick* b=&cache->spatial->bricks[i];
+        if(b->resident&&bricks[b->gpuSlot][1]>0){fprintf(out,"%s[%d,%d,%d]",first?"":",",b->bx,b->by,b->bz);first=false;}}
+    fprintf(out,"],\"allocator_integrity_errors\":%u,\"owned_pages\":%u,\"free_pages\":%u,\"owned_samples\":%u,\"free_samples\":%u}\n",integrityErrors,ownedPages,allocator[0],ownedSamples,allocator[1]);free(bricks);return fclose(out)==0&&OpenGLRenderer_CheckErrors();
+}
+
+GpuSDFSurfaceStats OpenGLRenderer_GetGpuSDFSurfaceStats(const Renderer3D* r) {
+    return r&&r->user_data?((OpenGLRendererData*)r->user_data)->compute.stats:(GpuSDFSurfaceStats){0};
+}
+typedef struct SurfaceAuditEdge {uint64_t a,b;int direction;} SurfaceAuditEdge;
+static int CompareSurfaceAuditEdges(const void* lhs,const void* rhs) {
+    const SurfaceAuditEdge* a=lhs;const SurfaceAuditEdge* b=rhs;
+    if(a->a!=b->a)return a->a<b->a?-1:1;
+    return a->b==b->b?0:(a->b<b->b?-1:1);
+}
+static uint64_t SurfaceAuditVertexId(const float* vertex) {
+    uint32_t a,b;memcpy(&a,vertex+3,sizeof(a));memcpy(&b,vertex+7,sizeof(b));
+    return ((uint64_t)a<<32)|b;
+}
+static bool ReadGpuSurfaceTriangles(Renderer3D* r,float (**result)[8],size_t* resultCount) {
+    if(!r||!r->user_data||!result||!resultCount)return false;
+    OpenGLRendererData* d=r->user_data;GLuint command[5];
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.command);
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,sizeof(command),command);
+    if(command[4]) {fprintf(stderr,"[GPU GEOMETRÍA] desbordamiento de capacidad\n");return false;}
+    size_t count=command[0];float (*v)[8]=NULL;
+    if(d->sparse.initialized) {
+        GLuint (*draws)[5]=malloc(d->sparse.pageCapacity*sizeof(*draws));
+        GLuint* indices=malloc(d->sparse.indexCapacity);
+        float (*allVertices)[8]=malloc(d->compute.vertexCapacity);
+        if(!draws||!indices||!allVertices){free(draws);free(indices);free(allVertices);return false;}
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.draws);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,d->sparse.drawCapacity,draws);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.indices);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,d->sparse.indexCapacity,indices);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.vertices);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,d->compute.vertexCapacity,allVertices);
+        count=0;for(unsigned p=0;p<d->sparse.pageCapacity;++p)count+=draws[p][0];
+        v=malloc(count*sizeof(*v));if(!v){free(draws);free(indices);free(allVertices);return false;}
+        size_t cursor=0;
+        for(unsigned p=0;p<d->sparse.pageCapacity;++p)for(unsigned j=0;j<draws[p][0];++j) {
+            GLuint index=indices[draws[p][2]+j];
+            if(index>=d->sparse.edgeCapacity){free(draws);free(indices);free(allVertices);free(v);return false;}
+            memcpy(v[cursor++],allVertices[index],sizeof(*v));
+        }
+        free(draws);free(indices);free(allVertices);
+    } else {
+        if(!count||count*8*sizeof(float)>d->compute.vertexCapacity)return false;
+        v=malloc(count*sizeof(*v));if(!v)return false;
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.vertices);
+        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,count*sizeof(*v),v);
+    }
+    if(!count){free(v);return false;}
+    *result=v;*resultCount=count;return true;
+}
+bool OpenGLRenderer_ValidateGpuSurface(Renderer3D* r,const MonsterSDF* sdf) {
+    if(!sdf)return false;
+    size_t count=0;float (*v)[8]=NULL;if(!ReadGpuSurfaceTriangles(r,&v,&count))return false;
+    float vertexError=0,triangleError=0;size_t opposed=0,degenerate=0;
+    size_t step=(count/3)/512+1;
+    for(size_t tri=0;tri<count/3;tri+=step) {
+        Vector3 p[3];
+        for(int j=0;j<3;++j) {float* a=v[tri*3+j];p[j]=Vec3_Create(a[0],a[1],a[2]);
+            vertexError=fmaxf(vertexError,fabsf(MonsterSDF_EvaluateVisualDistance(sdf,p[j])));}
+        Vector3 center=Vec3_Scale(Vec3_Add(Vec3_Add(p[0],p[1]),p[2]),1.f/3);
+        triangleError=fmaxf(triangleError,fabsf(MonsterSDF_EvaluateVisualDistance(sdf,center)));
+    }
+    for(size_t tri=0;tri<count/3;++tri) {
+        Vector3 p[3],normal=Vec3_Create(0,0,0);
+        for(int j=0;j<3;++j) {float* a=v[tri*3+j];p[j]=Vec3_Create(a[0],a[1],a[2]);normal=Vec3_Add(normal,Vec3_Create(a[4],a[5],a[6]));}
+        Vector3 cross=Vec3_Cross(Vec3_Sub(p[1],p[0]),Vec3_Sub(p[2],p[0]));
+        if(Vec3_Dot(cross,cross)<1e-16f)++degenerate;
+        else if(Vec3_Dot(cross,normal)<0)++opposed;
+    }
+    SurfaceAuditEdge* edges=malloc(count*sizeof(*edges));
+    if(!edges){free(v);return false;}
+    size_t edgeCount=0,collapsed=0;
+    for(size_t tri=0;tri<count/3;++tri) {
+        uint64_t ids[3];for(int j=0;j<3;++j)ids[j]=SurfaceAuditVertexId(v[3*tri+j]);
+        if(ids[0]==ids[1]||ids[1]==ids[2]||ids[2]==ids[0]) {++collapsed;continue;}
+        for(int j=0;j<3;++j) {
+            uint64_t a=ids[j],b=ids[(j+1)%3];int dir=a<b?1:-1;
+            edges[edgeCount++]=(SurfaceAuditEdge){a<b?a:b,a<b?b:a,dir};
+        }
+    }
+    qsort(edges,edgeCount,sizeof(*edges),CompareSurfaceAuditEdges);
+    size_t boundary=0,nonManifold=0,orientation=0;
+    for(size_t i=0;i<edgeCount;) {
+        size_t j=i+1;int winding=edges[i].direction;
+        while(j<edgeCount&&edges[j].a==edges[i].a&&edges[j].b==edges[i].b)winding+=edges[j++].direction;
+        if(j-i==1)++boundary;
+        else if(j-i>2)++nonManifold;
+        else if(winding)++orientation;
+        i=j;
+    }
+    printf("[GPU TOPOLOGÍA] fronteras=%zu no_manifold=%zu orientación=%zu colapsados=%zu aristas=%zu\n",
+        boundary,nonManifold,orientation,collapsed,edgeCount);
+    free(edges);
+    printf("[GPU GEOMETRÍA] vertices=%zu residual_vertice_max=%.9f residual_centro_max=%.9f opuestos=%zu degenerados=%zu\n",
+        count,vertexError,triangleError,opposed,degenerate);
+    free(v);return OpenGLRenderer_CheckErrors();
+}
+
+typedef struct SurfaceSignatureTriangle {uint64_t ids[3];} SurfaceSignatureTriangle;
+typedef struct SurfaceSignatureVertex {uint64_t id;float values[6];} SurfaceSignatureVertex;
+static int CompareSignatureTriangles(const void* a,const void* b){
+    const SurfaceSignatureTriangle* x=a;const SurfaceSignatureTriangle* y=b;
+    for(unsigned j=0;j<3;++j)if(x->ids[j]!=y->ids[j])return x->ids[j]<y->ids[j]?-1:1;
+    return 0;
+}
+static int CompareSignatureVertices(const void* a,const void* b){
+    uint64_t x=((const SurfaceSignatureVertex*)a)->id,y=((const SurfaceSignatureVertex*)b)->id;
+    return x==y?0:x<y?-1:1;
+}
+static uint64_t SurfaceSignatureHash(uint64_t hash,const void* data,size_t bytes){
+    const unsigned char* p=data;for(size_t i=0;i<bytes;++i){hash^=p[i];hash*=1099511628211ULL;}return hash;
+}
+bool OpenGLRenderer_ExportGpuSurfaceSignature(Renderer3D* r,const char* path){
+    size_t count=0;float (*v)[8]=NULL;if(!path||!ReadGpuSurfaceTriangles(r,&v,&count))return false;
+    SurfaceSignatureTriangle* triangles=malloc((count/3)*sizeof(*triangles));
+    SurfaceSignatureVertex* vertices=malloc(count*sizeof(*vertices));
+    if(!triangles||!vertices){free(v);free(triangles);free(vertices);return false;}
+    for(size_t i=0;i<count;++i){vertices[i].id=SurfaceAuditVertexId(v[i]);
+        memcpy(vertices[i].values,v[i],3*sizeof(float));memcpy(vertices[i].values+3,v[i]+4,3*sizeof(float));}
+    for(size_t i=0;i<count/3;++i){uint64_t ids[3]={vertices[3*i].id,vertices[3*i+1].id,vertices[3*i+2].id};
+        unsigned first=ids[1]<ids[0]?1:0;if(ids[2]<ids[first])first=2;
+        for(unsigned j=0;j<3;++j)triangles[i].ids[j]=ids[(first+j)%3];}
+    qsort(triangles,count/3,sizeof(*triangles),CompareSignatureTriangles);
+    qsort(vertices,count,sizeof(*vertices),CompareSignatureVertices);
+    uint64_t th=1469598103934665603ULL,ph=th,nh=th;size_t unique=0,inconsistent=0;
+    for(size_t i=0;i<count/3;++i)th=SurfaceSignatureHash(th,triangles[i].ids,sizeof(triangles[i].ids));
+    for(size_t i=0;i<count;++i){if(i&&vertices[i].id==vertices[i-1].id){if(memcmp(vertices[i].values,vertices[i-1].values,sizeof(vertices[i].values)))++inconsistent;continue;}
+        ++unique;ph=SurfaceSignatureHash(ph,&vertices[i].id,sizeof(vertices[i].id));ph=SurfaceSignatureHash(ph,vertices[i].values,3*sizeof(float));
+        nh=SurfaceSignatureHash(nh,&vertices[i].id,sizeof(vertices[i].id));nh=SurfaceSignatureHash(nh,vertices[i].values+3,3*sizeof(float));
+        vertices[unique-1]=vertices[i];}
+    char binaryPath[1024];int pathLength=snprintf(binaryPath,sizeof(binaryPath),"%s.vertices.bin",path);
+    bool binaryOK=false;
+    if(pathLength>0&&(size_t)pathLength<sizeof(binaryPath)){
+        FILE* binary=fopen(binaryPath,"wb");uint64_t vertexCount=unique;
+        if(binary){binaryOK=fwrite(&vertexCount,sizeof(vertexCount),1,binary)==1&&fwrite(vertices,sizeof(*vertices),unique,binary)==unique;
+            if(fclose(binary)!=0)binaryOK=false;}}
+    FILE* out=fopen(path,"w");bool ok=false;
+    if(out){fprintf(out,"{\"triangles\":%zu,\"unique_edges\":%zu,\"inconsistent_shared_values\":%zu,\"triangle_hash\":\"%016llx\",\"position_hash\":\"%016llx\",\"normal_hash\":\"%016llx\"}\n",
+        count/3,unique,inconsistent,(unsigned long long)th,(unsigned long long)ph,(unsigned long long)nh);ok=fclose(out)==0;}
+    free(v);free(triangles);free(vertices);return ok&&binaryOK&&OpenGLRenderer_CheckErrors();
+}
+
+bool OpenGLRenderer_ValidateComputeSDF(Renderer3D* r,const MonsterSDF* sdf,
+    const Vector3* points,size_t count,float* error) {
+    if(!OpenGLRenderer_SupportsComputeSurface(r)||!sdf||!points||!count||count>65536||!error)return false;
+    OpenGLRendererData* d=r->user_data;
+    if(!InitComputeSurface(d)||!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    float (*values)[4]=malloc(count*sizeof(*values));if(!values)return false;
+    for(size_t i=0;i<count;++i) {values[i][0]=points[i].x;values[i][1]=points[i].y;values[i][2]=points[i].z;values[i][3]=NAN;}
+    if(!d->compute.validation)glGenBuffers(1,&d->compute.validation);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.validation);
+    glBufferData(GL_SHADER_STORAGE_BUFFER,count*sizeof(*values),values,GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,6,d->compute.validation);
+    BindSceneProgram(d,d->compute.validateProgram,sdf);
+    glUniform1ui(glGetUniformLocation(d->compute.validateProgram,"validationCount"),(GLuint)count);
+    glDispatchCompute((GLuint)((count+63)/64),1,1);glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+    // Lectura reservada al diagnóstico explícito; nunca se usa en el render normal.
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.validation);glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,count*sizeof(*values),values);
+    *error=0;for(size_t i=0;i<count;++i) {
+        float e=fabsf(values[i][3]-MonsterSDF_EvaluateVisualDistance(sdf,points[i]));
+        if(!isfinite(e)){free(values);return false;}*error=fmaxf(*error,e);
+    }
+    free(values);glUseProgram(0);return OpenGLRenderer_CheckErrors();
+}
+
+bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* r,const MonsterSDF* sdf,float* error) {
+    if(!OpenGLRenderer_SupportsComputeSurface(r)||!sdf||!error)return false;
+    *error=0;
+    if(!sdf->mouthCount)return true;
+    const MonsterSDFMouth* m=&sdf->mouths[0];OpenGLRendererData* d=r->user_data;
+    if(!InitComputeSurface(d)||!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    if(!d->compute.intervalProgram)d->compute.intervalProgram=LinkComputeSource(sdfIntervalValidateSource,
+        sizeof(sdfIntervalValidateSource)/sizeof(*sdfIntervalValidateSource));
+    if(!d->compute.intervalProgram)return false;
+    enum {COUNT=512};float probes[COUNT][12]={{0}};
+    for(unsigned i=0;i<COUNT;++i) {
+        float t=((i*97u)%509u)/508.f,x=((i*193u)%503u)/502.f,z=((i*251u)%499u)/498.f;
+        Vector3 center=Vec3_Add(Vec3_Scale(m->earDirection,m->earShape.y*(1.4f*t-.7f)),
+            Vec3_Add(Vec3_Scale(m->leftEarSide,m->earShape.x*(2.2f*x-1.1f)),Vec3_Scale(m->leftEarNormal,m->earShape.z*(4*z-2))));
+        if(i%5==0)center=Vec3_Scale(m->earDirection,m->earShape.y*.5f);
+        float radius=i%3==0?0:.0005f+(i%31)*.002f;Vector3 half=Vec3_Create(radius,radius,radius);
+        Vector3 lo=Vec3_Sub(center,half),hi=Vec3_Add(center,half);
+        probes[i][0]=lo.x;probes[i][1]=lo.y;probes[i][2]=lo.z;
+        probes[i][4]=hi.x;probes[i][5]=hi.y;probes[i][6]=hi.z;
+    }
+    if(!d->compute.intervalValidation)glGenBuffers(1,&d->compute.intervalValidation);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.intervalValidation);
+    glBufferData(GL_SHADER_STORAGE_BUFFER,sizeof(probes),probes,GL_DYNAMIC_READ);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER,8,d->compute.intervalValidation);
+    BindSceneProgram(d,d->compute.intervalProgram,sdf);
+    glUniform1ui(glGetUniformLocation(d->compute.intervalProgram,"intervalProbeCount"),COUNT);
+    glUniform1i(glGetUniformLocation(d->compute.intervalProgram,"intervalMouth"),d->scene.mouthBase);
+    bool ok=true;*error=0;
+    Vector3 rshape=m->earShape,a=Vec3_Create(.2f,-.3f,.1f),b=Vec3_Create(-.4f,.8f,-.5f);
+    for(int recipe=0;recipe<8;++recipe) {
+        if(recipe==7&&!sdf->connectorCount)continue;
+        glUniform1i(glGetUniformLocation(d->compute.intervalProgram,"intervalRecipe"),recipe);
+        glUniform1i(glGetUniformLocation(d->compute.intervalProgram,"intervalConnector"),d->scene.connectorBase);
+        glDispatchCompute(COUNT/64,1,1);glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT|GL_SHADER_STORAGE_BARRIER_BIT);
+        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,sizeof(probes),probes);
+        bool contained=true;float recipeError=0;
+        for(unsigned i=0;i<COUNT;++i) {
+            AABB3D box={Vec3_Create(probes[i][0],probes[i][1],probes[i][2]),Vec3_Create(probes[i][4],probes[i][5],probes[i][6])};
+            SDFInterval cpu=SDF_CurvedPinnaInterval(box,rshape,m->earDirection,m->leftEarSide,m->leftEarNormal,
+                m->earTipFraction,m->earConcavity,m->earLongitudinalCurve,m->earRootRoll,m->earTipRoundness,
+                m->earFold,m->earRootFlare,m->earMarginBow,m->earMarginAsymmetry);
+            if(recipe==1)cpu=SDF_EllipsoidInterval(box,rshape);
+            if(recipe==2)cpu=SDF_CapsuleInterval(box,a,b,rshape.x);
+            if(recipe==3)cpu=SDF_RoundedSlotInterval(box,rshape.x,rshape.y,rshape.z);
+            if(recipe==4)cpu=SDF_SmoothUnionInterval(SDF_EllipsoidInterval(box,rshape),SDF_CapsuleInterval(box,a,b,rshape.x),.04f);
+            if(recipe==5)cpu=SDF_SmoothSubtractInterval(SDF_EllipsoidInterval(box,rshape),SDF_RoundedSlotInterval(box,rshape.x,rshape.y,rshape.z),.04f);
+            if(recipe==6)cpu=SDF_EllipticalSweepInterval(box,m->headStations,6);
+            MonsterSDFConnector connector={0};MonsterSDF field={0};
+            if(recipe==7) {
+                connector=sdf->connectors[0];connector.isHeadNeck=false;
+                field.connectors=&connector;field.connectorCount=1;
+                cpu=SDF_ConnectorInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
+                    connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.widthBulge,connector.heightBulge);
+            }
+            float lo=INFINITY,hi=-INFINITY;
+            for(unsigned corner=0;corner<9;++corner) {
+                Vector3 p=corner==8?Vec3_Scale(Vec3_Add(box.start,box.end),.5f):Vec3_Create(corner&1?box.end.x:box.start.x,
+                    corner&2?box.end.y:box.start.y,corner&4?box.end.z:box.start.z);
+                float v=SDF_CurvedPinna(p,rshape,m->earDirection,m->leftEarSide,m->leftEarNormal,
+                    m->earTipFraction,m->earConcavity,m->earLongitudinalCurve,m->earRootRoll,m->earTipRoundness,
+                    m->earFold,m->earRootFlare,m->earMarginBow,m->earMarginAsymmetry);
+                if(recipe==1)v=SDF_Ellipsoid(p,rshape);
+                if(recipe==2)v=SDF_Capsule(p,a,b,rshape.x);
+                if(recipe==3)v=SDF_RoundedSlotExtruded(p,rshape.x,rshape.y,rshape.z);
+                if(recipe==4)v=SDF_SmoothUnion(SDF_Ellipsoid(p,rshape),SDF_Capsule(p,a,b,rshape.x),.04f);
+                if(recipe==5)v=SDF_SmoothSubtract(SDF_Ellipsoid(p,rshape),SDF_RoundedSlotExtruded(p,rshape.x,rshape.y,rshape.z),.04f);
+                if(recipe==6)v=SDF_EllipticalSweepZ(p,m->headStations,6);
+                if(recipe==7)v=MonsterSDF_EvaluateDistance(&field,p);
+                lo=fminf(lo,v);hi=fmaxf(hi,v);
+                if(!(v>=probes[i][8]&&v<=probes[i][9])) {
+                    if(contained)fprintf(stderr,"Intervalo receta=%d caja=%u CPU=%g GPU=[%g,%g] escalares=[%g,%g]\n",recipe,i,v,probes[i][8],probes[i][9],probes[i][10],probes[i][11]);
+                    contained=false;
+                }
+            }
+            if(!(probes[i][10]>=cpu.lo&&probes[i][11]<=cpu.hi&&
+                 probes[i][10]>=probes[i][8]&&probes[i][11]<=probes[i][9]))contained=false;
+            recipeError=fmaxf(recipeError,fmaxf(fabsf(lo-probes[i][10]),fabsf(hi-probes[i][11])));
+        }
+        *error=fmaxf(*error,recipeError);ok=ok&&contained;
+        printf("[INTERVALOS SDF] receta=%d cajas=%u muestras=%u error=%.9f %s\n",recipe,COUNT,COUNT*9,recipeError,contained?"PASS":"FAILED");
+    }
+    glUseProgram(0);return ok&&OpenGLRenderer_CheckErrors();
+}
+
+bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,const ICamera* camera,int width,int height,AABB3D regionBounds) {
+    if(!renderer||!renderer->user_data||!sdf||!camera||width<=0||height<=0)return false;
+    if(regionBounds.start.x>=regionBounds.end.x||
+       regionBounds.start.y>=regionBounds.end.y||
+       regionBounds.start.z>=regionBounds.end.z)return true;
+    OpenGLRendererData* d=renderer->user_data;
+    float displayAspect=(float)width/height;
+    if(d->sdfFrameActive){width=d->sdfWidth;height=d->sdfHeight;}
+    if(!d->sdfProgram&&!InitSDFProgram(d))return false;
+    Vector3 forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
+    Vector3 right=Vec3_Normalize(Vec3_Cross(forward,camera->up)),up=Vec3_Cross(right,forward);
+    float tangent=tanf(camera->fov*.00872664626f),aspect=displayAspect;
+    if(!UploadSDFScene(d,sdf,d->reference.enabled?NULL:camera,width,height))return false;
+    int partBase=d->scene.partBase,connectorBase=d->scene.connectorBase;
+    int mouthBase=d->scene.mouthBase,axialBase=d->scene.axialBase;
+    int tileDataBase=d->scene.tileDataBase,columns=d->scene.columns;
     GLuint p=d->sdfProgram;glUseProgram(p);
+    UploadHandoffs(d,p);
+    glUniform1i(glGetUniformLocation(p,"referenceTrace"),d->reference.enabled);
+    glUniform1i(glGetUniformLocation(p,"referenceSteps"),(GLint)d->reference.steps);
+    glUniform1f(glGetUniformLocation(p,"referenceMaxStep"),d->reference.maxStep);
+    float traceMin[16][3],traceMax[16][3];
+    size_t traceCount=d->traceRegionCount?d->traceRegionCount:1;
+    for(size_t i=0;i<traceCount;++i) {
+        AABB3D box=d->traceRegionCount?d->traceRegions[i]:regionBounds;
+        traceMin[i][0]=box.start.x;traceMin[i][1]=box.start.y;traceMin[i][2]=box.start.z;
+        traceMax[i][0]=box.end.x;traceMax[i][1]=box.end.y;traceMax[i][2]=box.end.z;
+    }
+    glUniform1i(glGetUniformLocation(p,"traceRegionCount"),(GLint)traceCount);
+    glUniform3fv(glGetUniformLocation(p,"traceRegionMin"),(GLsizei)traceCount,&traceMin[0][0]);
+    glUniform3fv(glGetUniformLocation(p,"traceRegionMax"),(GLsizei)traceCount,&traceMax[0][0]);
 #define UI(name,value) glUniform1i(d->uniforms.name,(GLint)(value))
 #define UF(name,value) glUniform1f(d->uniforms.name,(float)(value))
     UI(validationMode,0);
+    UI(sdfHasSurface,sdf->hasSurface);
+    UI(sdfFurEnabled,!d->disableShells||!d->disableGuards);
+    if(sdf->hasSurface) {
+        glUniform4fv(d->uniforms.surfaceRecipe,SURFACE_RECIPE_ROWS,
+            &sdf->surfaceRecipe.data[0][0]);
+        glUniform1ui(d->uniforms.pigmentSeed,sdf->surfaceRecipe.pigmentSeed);
+        glUniform1ui(d->uniforms.scaleSeed,sdf->surfaceRecipe.scaleSeed);
+        glUniform1ui(d->uniforms.furSeed,sdf->surfaceRecipe.furSeed);
+    }
     UI(sceneData,0);UI(partBase,partBase);UI(partCount,sdf->bodyPartCount);UI(connectorBase,connectorBase);UI(connectorCount,sdf->connectorCount);
     UI(mouthBase,mouthBase);UI(mouthCount,sdf->mouthCount);UI(axialBase,axialBase);UI(axialCount,sdf->axialStationCount);
     UF(bodySmoothness,sdf->config.bodySmoothness);
     UI(tileDataBase,tileDataBase);UI(tileColumns,columns);
     UniformVector(d->uniforms.cameraPosition,camera->position);UniformVector(d->uniforms.cameraForward,forward);UniformVector(d->uniforms.cameraRight,right);UniformVector(d->uniforms.cameraUp,up);
-    UniformVector(d->uniforms.boundsMin,sdf->bounds.start);UniformVector(d->uniforms.boundsMax,sdf->bounds.end);
+    /* La caja del llamador limita trabajo, sin perder su collar de influencia. */
+    Vector3 bStart=regionBounds.start,bEnd=regionBounds.end;
+    UniformVector(d->uniforms.boundsMin,bStart);UniformVector(d->uniforms.boundsMax,bEnd);
     glUniform2f(d->uniforms.viewportSize,(float)width,(float)height);
     UF(tanHalfFov,tanf(camera->fov*.00872664626f));UF(aspectRatio,displayAspect);
     UF(hitTolerance,.001f);
     GLfloat mv[16],projection[16],vp[16];glGetFloatv(GL_MODELVIEW_MATRIX,mv);glGetFloatv(GL_PROJECTION_MATRIX,projection);
     for(int c=0;c<4;++c)for(int r=0;r<4;++r){float sum=0;for(int k=0;k<4;++k)sum+=projection[k*4+r]*mv[c*4+k];vp[c*4+r]=sum;}
     glUniformMatrix4fv(d->uniforms.viewProjection,1,GL_FALSE,vp);
-    float pad=sdf->config.bodySmoothness+0.08f;
-    Vector3 bStart=Vec3_Sub(sdf->bounds.start,Vec3_Create(pad,pad,pad));
-    Vector3 bEnd=Vec3_Add(sdf->bounds.end,Vec3_Create(pad,pad,pad));
     float sMinX=(float)width,sMaxX=0.0f,sMinY=(float)height,sMaxY=0.0f;
     bool cameraInsideOrNear=false;
     for(int corner=0;corner<8;++corner) {
@@ -542,13 +1478,51 @@ bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const I
             applyScissor=true;
         }
     }
-    if(applyScissor){glEnable(GL_SCISSOR_TEST);glScissor(scX,scY,scW,scH);}
-    glBegin(GL_TRIANGLES);glVertex2f(-1,-1);glVertex2f(3,-1);glVertex2f(-1,3);glEnd();
-    if(applyScissor){glDisable(GL_SCISSOR_TEST);}
+    if(d->reference.enabled) {
+        // Bandas de framebuffer para acotar cada kernel gráfico del oráculo.
+        glEnable(GL_SCISSOR_TEST);
+        GLint columns=d->reference.maxStep>0?32:scW;
+        for(GLint y=scY;y<scY+scH;y+=4) {
+            GLsizei rows=scY+scH-y;if(rows>4)rows=4;
+            for(GLint x=scX;x<scX+scW;x+=columns) {
+                GLsizei cols=scX+scW-x;if(cols>columns)cols=columns;
+                glScissor(x,y,cols,rows);
+                glBegin(GL_TRIANGLES);glVertex2f(-1,-1);glVertex2f(3,-1);glVertex2f(-1,3);glEnd();
+                glFlush();
+            }
+            // Sólo el oráculo de convergencia: drenar cada banda evita lotes largos.
+            if(d->reference.maxStep>0)glFinish();
+        }
+        glDisable(GL_SCISSOR_TEST);
+    } else {
+        if(applyScissor){glEnable(GL_SCISSOR_TEST);glScissor(scX,scY,scW,scH);}
+        glBegin(GL_TRIANGLES);glVertex2f(-1,-1);glVertex2f(3,-1);glVertex2f(-1,3);glEnd();
+        if(applyScissor){glDisable(GL_SCISSOR_TEST);}
+    }
     glUseProgram(0);glBindTexture(GL_TEXTURE_BUFFER,0);glBindBuffer(GL_TEXTURE_BUFFER,0);
 #undef UI
 #undef UF
     return true;
+}
+
+bool OpenGLRenderer_RenderSDFRegions(Renderer3D* renderer,const MonsterSDF* sdf,
+    const ICamera* camera,int width,int height,const AABB3D* boxes,size_t count) {
+    if(!renderer||!renderer->user_data||!boxes||!count||count>16)return false;
+    OpenGLRendererData* d=renderer->user_data;
+    AABB3D bounds=AABB_Empty();
+    for(size_t i=0;i<count;++i) {
+        d->traceRegions[i]=boxes[i];
+        AABB_ExpandPoint(&bounds,boxes[i].start);AABB_ExpandPoint(&bounds,boxes[i].end);
+    }
+    d->traceRegionCount=count;
+    bool ok=OpenGLRenderer_RenderSDFRegion(renderer,sdf,camera,width,height,bounds);
+    d->traceRegionCount=0;
+    return ok;
+}
+
+bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,const ICamera* camera,int width,int height) {
+    if(!sdf)return false;
+    return OpenGLRenderer_RenderSDFRegion(renderer,sdf,camera,width,height,sdf->bounds);
 }
 void OpenGLRenderer_Finish(void){glFinish();}
 
@@ -647,7 +1621,10 @@ float OpenGLRenderer_GetSDFResolutionScale(const Renderer3D* renderer){return re
 
 bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,const Vector3* points,size_t count,float* maxError) {
     if(!renderer||!renderer->user_data||!sdf||!points||count==0||count>4096||!maxError)return false;
-    OpenGLRendererData* d=renderer->user_data;if(!d->sdfProgram)return false;
+    OpenGLRendererData* d=renderer->user_data;
+    if(!d->sdfProgram&&!InitSDFProgram(d))return false;
+    if(!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    BindSceneProgram(d,d->sdfProgram,sdf);
     size_t total=d->sdfCount+count;
     if(total>d->sdfCapacity){float (*data)[4]=realloc(d->sdfData,total*sizeof(*data));if(!data)return false;d->sdfData=data;d->sdfCapacity=total;}
     for(size_t i=0;i<count;++i)PackVector(d->sdfData[d->sdfCount+i],points[i]);
@@ -862,6 +1839,7 @@ static void DrawGuards(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh,flo
     glUniform4fv(d->guard.recipe,SURFACE_RECIPE_ROWS,&mesh->surfaceRecipe.data[0][0]);
     glUniform1ui(d->guard.pigmentSeed,mesh->surfaceRecipe.pigmentSeed);glUniform1ui(d->guard.furSeed,mesh->surfaceRecipe.furSeed);
     glUniform1i(d->guard.debug,d->surfaceDebug);glUniform1f(d->guard.visibility,visibility);
+    UploadHandoffs(d,d->guardProgram);
     glBindVertexArray(cache->rootVao);glDisable(GL_CULL_FACE);
     GLint samples=0;glGetIntegerv(GL_SAMPLES,&samples);
     GLboolean a2c=glIsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE),a2one=glIsEnabled(GL_SAMPLE_ALPHA_TO_ONE);
@@ -950,6 +1928,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     glUniform1ui(d->scaleSeedLocation,mesh->surfaceRecipe.scaleSeed);
     if(d->furSeedLocation>=0)glUniform1ui(d->furSeedLocation,mesh->surfaceRecipe.furSeed);
     glUniform1i(d->surfaceDebugLocation,d->surfaceDebug);
+    UploadHandoffs(d,d->surfaceProgram);
 
     glBindBuffer(GL_ARRAY_BUFFER,cached->surfaceVbo);
     size_t offsets[6]={
@@ -1031,7 +2010,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     return true;
 }
 void OpenGLRenderer_SetSurfaceDebug(Renderer3D* r,int mode) {
-    if(r && r->user_data)((OpenGLRendererData*)r->user_data)->surfaceDebug=mode>=0&&mode<=22?mode:0;
+    if(r && r->user_data)((OpenGLRendererData*)r->user_data)->surfaceDebug=mode>=0&&mode<=25?mode:0;
 }
 void OpenGLRenderer_SetFurQuality(Renderer3D* r,bool shells,bool guards,int forcedShells) {
     if(!r||!r->user_data)return;

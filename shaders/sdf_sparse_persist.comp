@@ -1,0 +1,4 @@
+layout(local_size_x=128) in;
+void main(){uint i=invocation(),n=sampleCount();if(i>=jobCount*n)return;
+    uint job=i/n,slot=jobs[job+jobBase].w,s=bricks[slot].sampleSlot;
+    if(s!=0xffffffffu)storeValue(s*n+i%n,scratch[i]);}

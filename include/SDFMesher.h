@@ -73,6 +73,12 @@ typedef struct SDFMesherStats {
     size_t candidateNodeCount;            /**< Nodos requeridos muestreados */
     size_t skippedCellCount;              /**< Celdas no candidatas ignoradas sin procesar */
     size_t skippedNodeCount;              /**< Nodos vacíos saltados sin evaluación escalar */
+    float adaptiveClassificationMs; /**< Construcción y clasificación del octree. */
+    float adaptiveContourMs; /**< Extracción de contornos y muestreo compartido. */
+    float adaptiveAttributesMs; /**< Atributos finales de los vértices. */
+    size_t cellRangeQueryCount; /**< Consultas conservadoras de rango por celda. */
+    size_t detailRegionTestCount; /**< Pruebas de solapamiento de regiones locales. */
+    size_t detailNodeTestCount; /**< Pruebas de nodos de la jerarquía de detalle. */
 } SDFMesherStats;
 
 struct SDFSamplingPool;
@@ -154,6 +160,23 @@ bool SDFMesher_GenerateMesh(
 /** @brief Extrae una única rejilla conformante con detalle local opcional y presupuesto global. */
 bool SDFMesher_GenerateMeshDetailed(SDFMesher* mesher, const SDFField* field,
     const SDFDetailRegion* regions, size_t regionCount, Mesh* outMesh);
+
+/**
+ * @brief Genera la malla de una subregión espacial AABB específica sin recalcular autobounds.
+ * @param mesher Instancia del mesher.
+ * @param field Campo SDF a evaluar.
+ * @param region Bounding box de la región a remallar.
+ * @param voxelSize Tamaño de celda voxel deseado (0 = usar el de mesher->config).
+ * @param outMesh Malla de salida donde escribir la geometría resultante.
+ * @return true si la generación tuvo éxito.
+ */
+bool SDFMesher_MeshRegion(
+    SDFMesher* mesher,
+    const SDFField* field,
+    AABB3D region,
+    float voxelSize,
+    Mesh* outMesh
+);
 
 /**
  * @brief Asigna un pool de hilos prestado (borrowed) para muestreo paralelo. El mesher NO libera este pool.

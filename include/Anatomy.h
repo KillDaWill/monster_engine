@@ -18,6 +18,14 @@ extern "C" {
 /** Identidad estable de un nodo o una conexión anatómica. */
 typedef uint32_t AnatomyId;
 
+/** Sección elíptica resuelta y tangentes por unidad longitudinal. */
+typedef struct AnatomySweepStation {
+    Vector3 center;
+    float width, height;
+    float widthSlope, heightSlope, centerSlope;
+} AnatomySweepStation;
+#define ANATOMY_MAX_SWEEP_STATIONS 64
+
 /** Identidades compuestas: módulo 1..65534, nodo local 1..65535. */
 AnatomyId Anatomy_MakeId(uint32_t moduleInstanceId,uint16_t localNodeId);
 typedef enum AnatomyRegion {
@@ -85,6 +93,8 @@ typedef struct BodyConnection {
  * @brief Grafo anatómico compacto con nodos identificados y aristas explícitas.
  */
 typedef struct AnatomyGraph {
+    AnatomySweepStation axialProfile[ANATOMY_MAX_SWEEP_STATIONS]; /**< Perfil explícito de una metamorfosis resuelta. */
+    size_t axialProfileCount; /**< Cero delega el perfil al módulo axial original. */
     AnatomyNode nodes[ANATOMY_MAX_NODES]; /**< Estaciones resueltas. */
     size_t nodeCount; /**< Número de estaciones activas. */
     BodyConnection connections[ANATOMY_MAX_CONNECTIONS]; /**< Aristas declaradas. */

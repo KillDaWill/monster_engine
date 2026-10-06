@@ -58,6 +58,13 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
  */
 void MonsterAger_SetPerc(MonsterAger* ager, float perc);
 
+/** @brief Avanza el reloj visual con retroalimentación de la geometría publicada.
+ * @param ager Interpolador. @param deltaPerc Incremento solicitado, positivo o negativo.
+ * @param geometryAge Edad de la malla visible. @param maxLag Máxima extrapolación permitida.
+ * @return Edad presentada; no bloquea esperando al trabajador.
+ */
+float MonsterAger_AdvanceWithGeometry(MonsterAger* ager,float deltaPerc,float geometryAge,float maxLag);
+
 /**
  * @brief Obtiene un puntero mutable al monstruo mezclado resultante.
  * @param ager Puntero al ager.

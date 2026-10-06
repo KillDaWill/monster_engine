@@ -1,0 +1,6 @@
+layout(local_size_x=1) in;
+void main() {
+    // Compactar trabajo GPU; la rejilla densa sigue muestreándose por completo.
+    uint groups=(activeCount+63u)/64u;
+    dispatchX=min(groups,65535u);dispatchY=(groups+65534u)/65535u;dispatchZ=1u;
+}

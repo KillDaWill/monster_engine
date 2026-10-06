@@ -1,4 +1,5 @@
 #include "Creature.h"
+#include "CreatureMorph.h"
 #include "MonsterAger.h"
 #include "MathUtils.h"
 #include <stdlib.h>
@@ -16,6 +17,18 @@ static float GeometryPerc(float perc,unsigned steps) {
     float p=Math_Clamp01(perc);
     if(p<=0 || p>=1)return p;
     return roundf(p*(float)steps)/(float)steps;
+}
+
+float MonsterAger_AdvanceWithGeometry(MonsterAger* ager,float deltaPerc,float geometryAge,float maxLag) {
+    if(!ager)return 0;
+    if(!isfinite(deltaPerc)||!isfinite(geometryAge)||!isfinite(maxLag)||maxLag<=0)return ager->perc;
+    float direction=deltaPerc<0?-1:1;
+    float lag=fmaxf(0,direction*(ager->perc-geometryAge));
+    float remaining=fmaxf(0,maxLag-lag);
+    float gain=Math_Clamp01(remaining/(maxLag*.5f));
+    float step=fminf(fabsf(deltaPerc)*gain,remaining);
+    MonsterAger_SetPerc(ager,ager->perc+direction*step);
+    return ager->perc;
 }
 
 void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
@@ -120,6 +133,7 @@ void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
     }
 }
 
+
 void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, float perc, Monster* dst) {
     if (!monster1 || !monster2 || !dst) return;
 
@@ -137,7 +151,12 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         return;
     }
 
-    /* Topologías distintas sólo admiten selección discreta de extremos. */
+    /* Inter-especies: cuando ambas entidades poseen fenotipo biológico modular */
+    if (monster1->hasCreaturePhenotype && monster2->hasCreaturePhenotype) {
+        if (CreatureMorph_Interpolate(monster1, monster2, perc, dst)) return;
+    }
+
+    /* Topologías distintas de modelos heredados sólo admiten selección discreta de extremos. */
     if(monster1->hasCreaturePhenotype||monster2->hasCreaturePhenotype) {
         Monster_CopyInto(dst,perc<.5f?monster1:monster2);
         dst->growthAge=Math_Clamp01(perc);dst->hasGrowthAge=true;return;

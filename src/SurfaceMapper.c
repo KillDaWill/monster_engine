@@ -275,7 +275,7 @@ bool SurfaceMapper_MapBoundMesh(Mesh* mesh,const AnatomyDeformer* binder,
     for(size_t v=0;v<mesh->vertexCount;++v) {
         const AnatomyDeformerBinding* b=&binder->bindings[v];
         Vector3 p=Vec3_Zero(),normal=Vec3_Zero();
-        for(unsigned k=0;k<2;++k) {
+        for(unsigned k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
             if(b->weight[k]<=0)continue;
             const MaterialTransform* t=&transforms[b->connIndex[k]];
             float radius=t->ra+(t->rb-t->ra)*b->projT[k];
@@ -310,4 +310,52 @@ SurfaceMapping SurfaceMapping_FromAnatomy(const AnatomyGraph* g,float scale) {
         map.tags[map.tagCount++]=(SurfaceRegionTag){g->nodes[i].id,region};
     }
     return map;
+}
+
+bool SurfaceMapper_BuildMorphDomain(SurfaceMorphDomain* domain,const AnatomyGraph* current,
+    const AnatomyGraph* reference,const SurfaceMapping* mapping) {
+    if(!domain||!current||!reference||!mapping||!isfinite(mapping->unitScale)||mapping->unitScale<=0)return false;
+    domain->count=0;
+    MapSegment segments[ANATOMY_MAX_CONNECTIONS];
+    for(size_t i=0;i<current->connectionCount;++i) {
+        const BodyConnection* e=&current->connections[i];
+        if(current->dormantConnections[i]||e->kind==BODY_CONNECTION_SUPPORT)continue;
+        const AnatomyNode* a=AnatomyGraph_FindNode(current,e->fromId);
+        const AnatomyNode* b=AnatomyGraph_FindNode(current,e->toId);
+        const AnatomyNode* ra=AnatomyGraph_FindNode(reference,e->fromId);
+        const AnatomyNode* rb=AnatomyGraph_FindNode(reference,e->toId);
+        if(!a||!b||!ra||!rb)return false;
+        Quaternion q=Quat_FromTo(Vec3_Sub(b->center,a->center),Vec3_Sub(rb->center,ra->center));
+        Vector3 rp[2]={Vec3_Scale(Vec3_Sub(ra->center,mapping->origin),1/mapping->unitScale),
+            Vec3_Scale(Vec3_Sub(rb->center,mapping->origin),1/mapping->unitScale)};
+        size_t index=domain->count++;
+        segments[index]=(MapSegment){a->center,Vec3_Sub(b->center,a->center),0,
+            (a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,0,0};
+        float (*data)[4]=domain->data[index];
+        Vector3 points[4]={a->center,b->center,rp[0],rp[1]};
+        float radii[4]={(a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,
+            (ra->widthRadius+ra->heightRadius)*.5f/mapping->unitScale,
+            (rb->widthRadius+rb->heightRadius)*.5f/mapping->unitScale};
+        for(int j=0;j<4;++j) {
+            data[j][0]=points[j].x;data[j][1]=points[j].y;data[j][2]=points[j].z;data[j][3]=radii[j];
+        }
+        data[4][0]=q.x;data[4][1]=q.y;data[4][2]=q.z;data[4][3]=q.w;
+        data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:Region(mapping,rb->id));
+        data[5][1]=data[5][2]=data[5][3]=0;
+    }
+    if(!domain->count)return false;
+    MapAcceleration accel;BuildAcceleration(&accel,segments,domain->count);
+    float ordered[ANATOMY_MAX_CONNECTIONS][6][4];
+    for(size_t i=0;i<domain->count;++i)
+        memcpy(ordered[i],domain->data[accel.order[i]],sizeof(ordered[i]));
+    memcpy(domain->data,ordered,domain->count*sizeof(ordered[0]));
+    domain->nodeCount=accel.nodeCount;
+    for(size_t i=0;i<accel.nodeCount;++i) {
+        const MapNode* n=&accel.nodes[i];float (*rows)[4]=domain->nodes[i];
+        rows[0][0]=n->lo.x;rows[0][1]=n->lo.y;rows[0][2]=n->lo.z;rows[0][3]=n->maxRadius;
+        rows[1][0]=n->hi.x;rows[1][1]=n->hi.y;rows[1][2]=n->hi.z;rows[1][3]=0;
+        rows[2][0]=(float)n->left;rows[2][1]=(float)n->right;
+        rows[2][2]=(float)n->begin;rows[2][3]=(float)n->count;
+    }
+    return true;
 }

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#define CAGE_COUNT 24
+#define CAGE_COUNT 26
 /* Los índices describen funciones anatómicas, no IDs específicos de especie. */
 typedef struct HeadFrame {Vector3 center,radius;} HeadFrame;
 typedef struct HeadBinding {
@@ -45,7 +45,9 @@ static void Frames(const HeadAnatomy* head,Vector3 origin,HeadFrame frames[CAGE_
         {l->mandibularSymphysis,chinRadii},
         {l->leftJawHinge,hingeRadii},{l->rightJawHinge,hingeRadii},
         {jawMidLeft,jawMidRadii},{jawMidRight,jawMidRadii},
-        {throatCenter,throatRadii}};
+        {throatCenter,throatRadii},
+        {Vec3_Add(r->leftEarCenter,Vec3_Scale(r->earDirection,r->earShape.y*.5f)),r->earRadii},
+        {Vec3_Add(r->rightEarCenter,Vec3_Scale(r->rightEarDirection,r->earShape.y*.5f)),r->earRadii}};
     values[12].radius.x=values[13].radius.x=fmaxf(r->orbitSocketDepth,1e-5f);
     values[16].radius.x=values[17].radius.x=fmaxf(r->tympanumDepth,1e-5f);
     for(unsigned i=0;i<CAGE_COUNT;++i){frames[i]=values[i];frames[i].center=Vec3_Add(values[i].center,origin);}

@@ -1,0 +1,10 @@
+layout(local_size_x=128) in;
+void main(){uint i=invocation(),n=cellCount();if(i>=jobCount*n)return;
+    uint job=i/n,id=i%n,slot=jobs[job+jobBase].w;uvec3 p=uvec3(id%brickCells,(id/brickCells)%brickCells,id/(brickCells*brickCells));
+    if(any(greaterThanEqual(jobs[job+jobBase].xyz+p,gridCells))){cases[i]=0u;return;}
+    uint mask=0u;float nearest=1e30;
+    for(int c=0;c<8;++c){float d=sampleValue(job,p+cornerOffset(c));if(d<0.0)mask|=1u<<c;nearest=min(nearest,abs(d));}
+    cases[i]=mask;
+    if(nearest<3.0*gridStep)atomicOr(bricks[slot].nearSurface,1u);
+    uint count=0u;while(count<15u&&mcTables[int(mask)*16+int(count)]>=0)++count;
+    if(count>0u){atomicAdd(bricks[slot].count,count);atomicOr(bricks[slot].nearSurface,1u);}}

@@ -1,4 +1,5 @@
 #include "Creature.h"
+#include "CreatureRecipes.h"
 #include "Limb.h"
 #include "test_utils.h"
 #include "MonsterVisualAsync.h"
@@ -462,6 +463,87 @@ static void test_visual_async_single_snapshot(void) {
     printf("[PASS] test_visual_async_single_snapshot\n");
 }
 
+static void test_visual_async_worker_delays(void) {
+    Monster lizard = BuildLizard();
+    MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
+    cfg.interactiveMesherConfig.voxelSize = 0.0f;
+    cfg.interactiveMesherConfig.resolutionX = 12;
+    cfg.interactiveMesherConfig.resolutionY = 12;
+    cfg.interactiveMesherConfig.resolutionZ = 12;
+
+    MonsterVisualAsync* visual = MonsterVisualAsync_Create(cfg);
+    TEST_ASSERT(visual != NULL, "Fallo al crear gestor asíncrono");
+
+    const unsigned delays[] = {0, 20, 50, 100, 250};
+    for (size_t d = 0; d < sizeof(delays) / sizeof(delays[0]); ++d) {
+        MonsterVisualAsync_SetWorkerDelay(visual, delays[d]);
+        BodyPart* head = Monster_GetHead(&lizard);
+        if (head) head->positionRender.x += 0.02f * (float)(d + 1);
+        MonsterVisualAsync_Update(visual, &lizard, 0.016f);
+        MonsterVisualAsync_Flush(visual);
+        const Mesh* mesh = MonsterVisualAsync_GetDisplayMesh(visual);
+        TEST_ASSERT(mesh != NULL && mesh->vertexCount > 0, "Malla nula o vacía tras delay de worker");
+        TEST_ASSERT(Mesh_Validate(mesh).valid, "Geometría inválida tras worker delay");
+    }
+
+    MonsterVisualAsync_Free(visual);
+    Monster_Free(&lizard);
+    printf("[PASS] test_visual_async_worker_delays\n");
+}
+
+static void test_visual_async_scrubbing_stress(void) {
+    Monster dog = Monster_Create();
+    Monster lizard = Monster_Create();
+    CreaturePhenotype dogP = CreatureRecipes_Dog()->adult;
+    CreaturePhenotype lizardP = CreatureRecipes_Lizard()->adult;
+    TEST_ASSERT(Creature_BuildMonster(&dog, CreatureRecipes_Dog(), &dogP), "Fallo perro");
+    TEST_ASSERT(Creature_BuildMonster(&lizard, CreatureRecipes_Lizard(), &lizardP), "Fallo lagarto");
+    MonsterAger ager = MonsterAger_Create(&dog, &lizard, 0.0f);
+    MonsterAger_SetGeometrySteps(&ager, 20);
+
+    MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
+    MonsterVisualAsync* visual = MonsterVisualAsync_Create(cfg);
+    TEST_ASSERT(visual != NULL, "Fallo al crear visual");
+    MonsterVisualAsync_SetMorphMode(visual, true);
+    MonsterVisualAsync_SetContinuousMotion(visual, true);
+    MonsterVisualAsync_SetMorphEndpoints(visual, &dog, &lizard);
+
+    /* Generación inicial para asentar el front buffer */
+    MonsterVisualAsync_UpdateWithAppearance(visual,
+        MonsterAger_GetGeometryResultConst(&ager),
+        MonsterAger_GetResultConst(&ager), 0.0f);
+    MonsterVisualAsync_Flush(visual);
+
+    /* Secuencia de scrubbing rápido con saltos arbitrarios hacia adelante y atrás */
+    const float scrubSequence[] = {0.0f, 0.70f, 0.20f, 0.95f, 0.10f, 0.85f, 0.40f, 1.0f, 0.0f, 0.50f};
+    for (size_t s = 0; s < sizeof(scrubSequence) / sizeof(scrubSequence[0]); ++s) {
+        float target = scrubSequence[s];
+        MonsterAger_SetPerc(&ager, target);
+        MonsterVisualAsync_UpdateWithAppearance(visual,
+            MonsterAger_GetGeometryResultConst(&ager),
+            MonsterAger_GetResultConst(&ager), 0.016f);
+    }
+    MonsterVisualAsync_Flush(visual);
+    MonsterVisualAsyncStats stats = MonsterVisualAsync_GetStats(visual);
+    TEST_ASSERT(stats.completedBuildCount > 0, "No se completó ninguna construcción");
+    TEST_ASSERT(stats.coalescedCount > 0 || stats.requestCount >= sizeof(scrubSequence)/sizeof(scrubSequence[0]), "Telemetría de solicitudes o coalescencia inválida");
+    TEST_ASSERT(isfinite(stats.visualAge) || isfinite(stats.presentedMorphAge), "visualAge inválida");
+
+    const Mesh* mesh = MonsterVisualAsync_GetDisplayMesh(visual);
+    TEST_ASSERT(mesh != NULL && mesh->vertexCount > 0, "Malla resultante de scrubbing vacía");
+    for (size_t i = 0; i < mesh->vertexCount; ++i) {
+        TEST_ASSERT(isfinite(mesh->vertices[i].position.x) &&
+                    isfinite(mesh->vertices[i].position.y) &&
+                    isfinite(mesh->vertices[i].position.z), "NaN o Inf detectado en vértice tras scrubbing");
+    }
+
+    MonsterVisualAsync_Free(visual);
+    MonsterAger_Free(&ager);
+    Monster_Free(&dog);
+    Monster_Free(&lizard);
+    printf("[PASS] test_visual_async_scrubbing_stress\n");
+}
+
 void run_visual_async_tests(void) {
     test_visual_async_lifecycle_and_flush();
     test_visual_async_coalescing();
@@ -471,4 +553,6 @@ void run_visual_async_tests(void) {
     test_visual_async_conforming_head();
     test_visual_async_single_snapshot();
     test_bug_async_growth_displays_old_body_with_new_jaw_hinge_snapshot_mixing();
+    test_visual_async_worker_delays();
+    test_visual_async_scrubbing_stress();
 }

@@ -1,11 +1,14 @@
 #include "test_utils.h"
 #include "Mesh.h"
+#include "MeshPatch.h"
+#include "MorphSurfaceTracker.h"
 #include "MathUtils.h"
 #include "SDFMesher.h"
 #include "SDFPrimitives.h"
 #include "SDFOperations.h"
 #include "AABB.h"
 #include <math.h>
+#include <string.h>
 
 /* ============================================================
  * Contexto SDF genérico: esfera simple (sin Monster)
@@ -307,6 +310,135 @@ static void test_mesh_gpu_revisions(void) {
     Mesh_Free(&a);Mesh_Free(&b);printf("[PASS] test_mesh_gpu_revisions\n");
 }
 
+static void test_local_patch_stitch(void) {
+    Mesh body=Mesh_Create(),patch=Mesh_Create();MeshIndex ignored;
+    const Vector3 points[]={{0,0,0},{1,0,0},{0,1,0},{0,0,-1}};
+    for(size_t i=0;i<4;++i) {
+        MeshVertex vertex={.position=points[i],.normal={0,0,1},
+            .color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
+        TEST_ASSERT(Mesh_AddVertex(&body,vertex,&ignored),"No se construyó la referencia del parche");
+    }
+    TEST_ASSERT(Mesh_AddTriangle(&body,0,1,2)&&
+        Mesh_AddTriangle(&body,1,0,3)&&Mesh_AddTriangle(&body,2,1,3)&&
+        Mesh_AddTriangle(&body,0,2,3),"No se cerró la referencia del parche");
+    Mesh cut=Mesh_Create();uint8_t* selected=NULL;size_t inside=0;
+    AABB3D box=AABB_FromMinMax(Vec3_Create(.13f,-.21f,-.41f),
+        Vec3_Create(.71f,.67f,.11f));
+    TEST_ASSERT(MeshPatch_CutBox(&body,box,&cut,&selected,&inside),
+        "El recorte compartido de los planos del parche falló");
+    MeshValidationResult cutAudit=Mesh_Validate(&cut);
+    TEST_ASSERT(cutAudit.valid&&cutAudit.watertight&&cutAudit.boundaryEdgeCount==0&&
+        cut.vertexCount>body.vertexCount&&inside>0&&inside<cut.indexCount/3&&
+        body.vertexCount==4&&body.indexCount==12,
+        "El recorte abrió grietas o alteró la malla original");
+    free(selected);Mesh_Free(&cut);
+    for(size_t i=0;i<3;++i) {
+        MeshVertex vertex={.position=Vec3_Add(points[i],Vec3_Create(0,0,.2f)),
+            .normal={0,0,1},.color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
+        TEST_ASSERT(Mesh_AddVertex(&patch,vertex,&ignored),"No se construyó el parche local");
+    }
+    MeshVertex center={.position={.33f,.33f,.35f},.normal={0,0,1},
+        .color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
+    TEST_ASSERT(Mesh_AddVertex(&patch,center,&ignored),"No se añadió la topología nueva");
+    TEST_ASSERT(Mesh_AddTriangle(&patch,0,1,3)&&
+        Mesh_AddTriangle(&patch,1,2,3)&&Mesh_AddTriangle(&patch,2,0,3),
+        "No se trianguló el parche con topología interior nueva");
+    Mesh insidePatch=Mesh_Create();
+    AABB3D patchBox=AABB_FromMinMax(Vec3_Create(.1f,-.1f,.15f),
+        Vec3_Create(.8f,.8f,.4f));
+    TEST_ASSERT(MeshPatch_ExtractInsideBox(&patch,patchBox,&insidePatch)&&
+        insidePatch.indexCount>0&&patch.indexCount==9,
+        "No se recortó la superficie abierta sin alterar su origen");
+    for(size_t i=0;i<insidePatch.vertexCount;++i) {
+        Vector3 p=insidePatch.vertices[i].position;
+        TEST_ASSERT(p.x>=patchBox.start.x-1e-6f&&
+            p.x<=patchBox.end.x+1e-6f&&
+            p.y>=patchBox.start.y-1e-6f&&
+            p.y<=patchBox.end.y+1e-6f&&
+            p.z>=patchBox.start.z-1e-6f&&
+            p.z<=patchBox.end.z+1e-6f,
+            "El parche exacto salió de los planos compartidos");
+    }
+    Mesh_Free(&insidePatch);
+    uint8_t remove[]={1,0,0,0};
+    uint64_t identity=body.identity;size_t triangles=body.indexCount;
+    TEST_ASSERT(!MeshPatch_Replace(&body,remove,&patch,.01f,NULL,NULL),
+        "Se aceptó un parche separado más allá del halo seguro");
+    TEST_ASSERT(body.identity==identity&&body.indexCount==triangles,
+        "Un parche rechazado modificó la malla publicada");
+    MeshPatchTransfer transfer={0};
+    TEST_ASSERT(!MeshPatch_ReplaceWithTransfer(&body,remove,&patch,.01f,
+        NULL,NULL,&transfer)&&!transfer.oldVertexOfNew&&transfer.vertexCount==0,
+        "Una costura rechazada modificó la procedencia de los vértices");
+    Mesh welded=Mesh_Create();
+    TEST_ASSERT(Mesh_ReserveVertices(&welded,body.vertexCount)&&
+        Mesh_ReserveIndices(&welded,body.indexCount),
+        "No se reservó la malla de prueba para el borde compartido");
+    memcpy(welded.vertices,body.vertices,body.vertexCount*sizeof(*body.vertices));
+    memcpy(welded.indices,body.indices,body.indexCount*sizeof(*body.indices));
+    welded.vertexCount=body.vertexCount;welded.indexCount=body.indexCount;
+    TEST_ASSERT(!MeshPatch_Replace(&welded,remove,&patch,.01f,NULL,NULL),
+        "El borde compartido aceptó una separación fuera del halo");
+    SphereFieldContext sphere;
+    SDFField field=SphereField_Create(&sphere,1.0f);
+    MeshPatchValidation check={.field=&field,.maximumResidual=.001f};
+    TEST_ASSERT(!MeshPatch_Replace(&welded,remove,&patch,1.5f,&check,NULL)&&
+        welded.indexCount==triangles,
+        "Una costura distante del campo exacto alteró la malla publicada");
+    TEST_ASSERT(MeshPatch_Replace(&welded,remove,&patch,1.5f,NULL,NULL),
+        "El borde compartido no cerró la sustitución local");
+    MeshValidationResult weldedAudit=Mesh_Validate(&welded);
+    TEST_ASSERT(weldedAudit.valid&&weldedAudit.watertight&&
+        weldedAudit.isolatedVertexCount==0,
+        "El borde compartido dejó grietas, caras inválidas o vértices huérfanos");
+    MorphSurfaceTracker audited={0};
+    TEST_ASSERT(MorphSurfaceTracker_Bind(&audited,&welded,.25f),
+        "No se vinculó el rastreador al parche reconstruido");
+    MorphSurfaceTracker_AuditQuality(&audited,&welded);
+    TEST_ASSERT(audited.stats.valid&&audited.stats.watertight&&
+        audited.stats.opposedTriangles>0,
+        "El reanclaje ocultó las caras opuestas en sus contadores");
+    MorphSurfaceTracker_Free(&audited);
+    TEST_ASSERT(body.identity==identity&&body.indexCount==triangles,
+        "La sustitución de prueba alteró el original");
+    Mesh refined=Mesh_Create();
+    const Vector3 refinedPoints[]={{0,0,.2f},{.5f,0,.2f},{1,0,.2f},
+        {0,1,.2f},{.33f,.33f,.35f}};
+    for(size_t i=0;i<5;++i) {
+        MeshVertex vertex={.position=refinedPoints[i],.normal={0,0,1},
+            .color=COLOR_WHITE,.material=SDF_MATERIAL_SKIN};
+        TEST_ASSERT(Mesh_AddVertex(&refined,vertex,&ignored),
+            "No se construyó el parche con borde refinado");
+    }
+    TEST_ASSERT(Mesh_AddTriangle(&refined,0,1,4)&&
+        Mesh_AddTriangle(&refined,1,2,4)&&
+        Mesh_AddTriangle(&refined,2,3,4)&&
+        Mesh_AddTriangle(&refined,3,0,4),
+        "No se trianguló el borde con diferente densidad");
+    MeshPatchValidation preserveOld={.hasBoundaryBlend=true,.boundaryBlend=0};
+    TEST_ASSERT(MeshPatch_ReplaceWithTransfer(&body,remove,&refined,1.5f,
+        &preserveOld,NULL,&transfer),
+        "La costura de borde refinado y de menor densidad falló");
+    size_t retained=0,created=0;
+    for(size_t i=0;i<transfer.vertexCount;++i) {
+        if(transfer.oldVertexOfNew[i]==UINT32_MAX)created++;
+        else {
+            TEST_ASSERT(transfer.oldVertexOfNew[i]<4,
+                "La procedencia de un vértice conservado es inválida");
+            retained++;
+        }
+    }
+    TEST_ASSERT(transfer.vertexCount==body.vertexCount&&retained>0&&created>0,
+        "La costura no distinguió vértices conservados de los nuevos");
+    MeshValidationResult refinedAudit=Mesh_Validate(&body);
+    TEST_ASSERT(refinedAudit.valid&&refinedAudit.watertight&&
+        refinedAudit.isolatedVertexCount==0,
+        "La costura refinada abrió una grieta o dejó una cara inválida");
+    MeshPatchTransfer_Free(&transfer);
+    Mesh_Free(&body);Mesh_Free(&patch);Mesh_Free(&welded);Mesh_Free(&refined);
+    printf("[PASS] test_local_patch_stitch\n");
+}
+
 void run_mesh_tests(void) {
     test_add_triangle_guards();
     test_mesh_validate();
@@ -316,4 +448,5 @@ void run_mesh_tests(void) {
     test_topology_audit();
     test_keep_largest_component();
     test_mesh_gpu_revisions();
+    test_local_patch_stitch();
 }

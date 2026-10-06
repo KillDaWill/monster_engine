@@ -23,6 +23,7 @@ out vec3 posedFlowOut,restFlowOut;
 out float shellDelta;
 out float fragShellFraction;
 out float fragIntegumentMask;
+out vec3 worldPosition,ownershipRoot,ownershipNormal;
 
 vec3 RotateFromTo(vec3 fromDir, vec3 toDir, vec3 v) {
     vec3 c = cross(fromDir, toDir);
@@ -33,6 +34,7 @@ vec3 RotateFromTo(vec3 fromDir, vec3 toDir, vec3 v) {
 }
 
 void main() {
+    ownershipRoot=gl_Vertex.xyz;ownershipNormal=normalize(gl_Normal);
     restCoord = materialCoord;
     restNormal = materialNormal;
     vertexColor = gl_Color;
@@ -81,10 +83,12 @@ void main() {
         float h = height;
         vec3 disp = FurCurveOffset(nGeom,posedFlow,furLen,lay,surfaceRecipe[9].x,0.0,0.0,.5,h) * vertexIntegumentMask;
         vec4 finalVertex = vec4(gl_Vertex.xyz + disp, 1.0);
+        worldPosition = finalVertex.xyz;
         gl_Position = gl_ModelViewProjectionMatrix * finalVertex;
         viewPosition = (gl_ModelViewMatrix * finalVertex).xyz;
         viewNormal = normalize(gl_NormalMatrix * nGeom);
     } else {
+        worldPosition = gl_Vertex.xyz;
         gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
         viewPosition = (gl_ModelViewMatrix * gl_Vertex).xyz;
         viewNormal = normalize(gl_NormalMatrix * gl_Normal);

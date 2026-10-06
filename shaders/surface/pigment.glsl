@@ -59,9 +59,9 @@ vec3 EvaluatePigment(vec3 p, float underside, vec4 params, uint seed) {
     color = surfaceRecipe[0].rgb;
     for (int i = 0; i < 4; ++i) {
         if (i >= layerCount) break;
-        vec4 layerCol = surfaceRecipe[30 + 3 * i];
-        vec4 layerParam = surfaceRecipe[31 + 3 * i];
-        vec4 layerDir = surfaceRecipe[32 + 3 * i];
+        vec4 layerCol = surfaceRecipe[34 + 3 * i];
+        vec4 layerParam = surfaceRecipe[35 + 3 * i];
+        vec4 layerDir = surfaceRecipe[36 + 3 * i];
         uint layerSeed = seed ^ uint(layerParam.w) ^ uint(i * 101);
         float sampleVal = SamplePigmentPattern(int(layerParam.x + 0.5), p, layerParam.y, layerParam.z, layerDir.xyz, layerSeed);
         float blend = clamp(sampleVal * layerCol.a, 0.0, 1.0);

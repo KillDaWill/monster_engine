@@ -28,6 +28,19 @@ typedef struct SurfaceMapping {
     SurfacePinnaCoverage pinnae[2]; /**< Clasificadores auriculares independientes. */
     size_t pinnaCount; /**< Número de clasificadores auriculares. */
 } SurfaceMapping;
+/** @brief Campo material común para productores explícitos e implícitos.
+ * Filas: extremos actuales, extremos canónicos, rotación y región semántica.
+ */
+typedef struct SurfaceMorphDomain {
+    float data[ANATOMY_MAX_CONNECTIONS][6][4];
+    float nodes[2*ANATOMY_MAX_CONNECTIONS][3][4];
+    size_t count,nodeCount;
+} SurfaceMorphDomain;
+/** @brief Compila el dominio usando identidades anatómicas homólogas.
+ * @return false ante datos inválidos; no depende de los triángulos publicados.
+ */
+bool SurfaceMapper_BuildMorphDomain(SurfaceMorphDomain*,const AnatomyGraph*,
+    const AnatomyGraph*,const SurfaceMapping*);
 /** @brief Métricas de una clasificación superficial completa. */
 typedef struct SurfaceMapperStats {
     size_t verticesProcessed;

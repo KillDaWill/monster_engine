@@ -1,0 +1,20 @@
+uniform int allocatePass;
+layout(local_size_x=64) in;
+void main(){uint job=invocation();if(job>=jobCount)return;uint slot=jobs[job+jobBase].w;
+    if(allocatePass==0){
+        if(bricks[slot].nearSurface!=0u)bricks[slot].farAge=0u;
+        else{if(bricks[slot].farAge==0u)bricks[slot].farAge=generation;
+            if(generation-bricks[slot].farAge>3u)releaseSamples(slot);}
+        return;
+    }
+    uint count=bricks[slot].count;
+    if(count>0u){uint pages=(count+PAGE_VERTICES-1u)/PAGE_VERTICES,first=reservePages(pages);
+        if(first!=0xffffffffu){bricks[slot].head=pool[first];bricks[slot].pages=pages;atomicAdd(liveBricks,1u);
+            for(uint i=0u;i<pages;++i){uint page=pool[first+i];nextPage[page]=i+1u<pages?pool[first+i+1u]:0xffffffffu;
+                draws[page]=Draw(min(PAGE_VERTICES,count-i*PAGE_VERTICES),1u,page*PAGE_VERTICES,0u,0u);}}
+    }
+    if(bricks[slot].nearSurface!=0u&&bricks[slot].sampleSlot==0xffffffffu){
+        uint allocatedSample=reserveSample();bricks[slot].sampleSlot=allocatedSample;if(allocatedSample!=0xffffffffu)atomicAdd(liveSamples,1u);}
+    // El contador de emisión se reinicia después de reservar la salida completa.
+    bricks[slot].pad0=0u;
+}

@@ -7,6 +7,13 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+static double Adaptive_NowMs(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC,&t);
+    return (double)t.tv_sec*1000.0+(double)t.tv_nsec/1000000.0;
+}
 
 /* La retícula entera reserva un bit para centros de caras y celdas. Las
  * interfaces comparten muestras y aristas incluso entre niveles distintos. */
@@ -14,6 +21,10 @@ typedef struct AdaptivePoint { uint32_t p[3]; float distance; MeshIndex vertex; 
 typedef struct AdaptiveCell { uint32_t p[3], size, child; bool candidate; } AdaptiveCell;
 typedef struct AdaptiveEdge { uint64_t key; MeshIndex vertex; bool occupied; } AdaptiveEdge;
 typedef struct AdaptiveContour { MeshIndex a,b; Vector3 outward; bool used; } AdaptiveContour;
+typedef struct AdaptiveRegionNode {
+    AABB3D bounds;
+    size_t begin,end,left,right;
+} AdaptiveRegionNode;
 
 struct SDFAdaptiveWorkspace {
     AdaptiveCell* cells;
@@ -68,6 +79,8 @@ typedef struct AdaptiveContext {
     size_t contourCount,contourCapacity;
     MeshIndex* polygon;
     size_t polygonCapacity;
+    AdaptiveRegionNode* regionNodes;
+    size_t regionNodeCount;
     bool (*shouldCancel)(void* cancelContext);
     void* cancelContext;
     bool failed, exhausted, cancelled;
@@ -101,6 +114,36 @@ static AABB3D Adaptive_Box(const AdaptiveContext* c, const AdaptiveCell* cell) {
     Vector3 lo=Adaptive_World(c,cell->p);
     float size=cell->size*c->unit;
     return (AABB3D){lo,Vec3_Add(lo,Vec3_Create(size,size,size))};
+}
+static size_t Adaptive_BuildRegionNode(AdaptiveContext* c,size_t begin,size_t end) {
+    size_t index=c->regionNodeCount++;
+    AdaptiveRegionNode* node=&c->regionNodes[index];
+    *node=(AdaptiveRegionNode){.begin=begin,.end=end};
+    if(end-begin==1) {node->bounds=c->regions[begin].bounds;return index;}
+    size_t middle=begin+(end-begin)/2;
+    size_t left=Adaptive_BuildRegionNode(c,begin,middle);
+    size_t right=Adaptive_BuildRegionNode(c,middle,end);
+    node=&c->regionNodes[index];node->left=left;node->right=right;
+    node->bounds=c->regionNodes[left].bounds;
+    AABB_ExpandPoint(&node->bounds,c->regionNodes[right].bounds.start);
+    AABB_ExpandPoint(&node->bounds,c->regionNodes[right].bounds.end);
+    return index;
+}
+static void Adaptive_QueryRegionNode(AdaptiveContext* c,size_t index,AABB3D box,float* target) {
+    const AdaptiveRegionNode* node=&c->regionNodes[index];
+    c->stats->detailNodeTestCount++;
+    if(!Adaptive_Overlaps(box,node->bounds))return;
+    if(node->end-node->begin>1) {
+        Adaptive_QueryRegionNode(c,node->left,box,target);
+        Adaptive_QueryRegionNode(c,node->right,box,target);
+        return;
+    }
+    const SDFDetailRegion* r=&c->regions[node->begin];
+    c->stats->detailRegionTestCount++;
+    if(isfinite(r->targetVoxelSize) && r->targetVoxelSize>0) {
+        float local=r->localTarget?r->localTarget(r->context,box,r->targetVoxelSize):r->targetVoxelSize;
+        if(isfinite(local)&&local>0)*target=fminf(*target,local);
+    }
 }
 static bool Adaptive_RehashPoints(AdaptiveContext* c, size_t size) {
     uint32_t* table=calloc(size,sizeof(*table));
@@ -160,18 +203,14 @@ static void Adaptive_Build(AdaptiveContext* c, uint32_t index) {
     if(!candidate){c->stats->skippedCellCount++;return;}
     if(c->field->getCellRange) {
         float lo,hi;
+        c->stats->cellRangeQueryCount++;
         if(c->field->getCellRange(c->field->context,box,&lo,&hi) &&
            (lo>c->iso || hi<c->iso)) {
             c->cells[index].candidate=false;c->stats->skippedCellCount++;return;
         }
     }
     float target=c->base;
-    for(size_t r=0;r<c->regionCount;++r)
-        if(isfinite(c->regions[r].targetVoxelSize) && c->regions[r].targetVoxelSize>0 &&
-           Adaptive_Overlaps(box,c->regions[r].bounds)) {
-            float local=c->regions[r].localTarget?c->regions[r].localTarget(c->regions[r].context,box,c->regions[r].targetVoxelSize):c->regions[r].targetVoxelSize;
-            if(isfinite(local)&&local>0)target=fminf(target,local);
-        }
+    if(c->regionNodeCount)Adaptive_QueryRegionNode(c,0,box,&target);
     if(cell.size>2 && cell.size*c->unit>target*(1+1e-5f)) {
         size_t totalLeaves=1+7*((c->cellCount-1)/8);
         if(totalLeaves+7>c->budget){
@@ -520,6 +559,11 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     c.budget=mesher->config.maxCells?mesher->config.maxCells:500000;
     c.shouldCancel=mesher->config.shouldCancel;
     c.cancelContext=mesher->config.cancelContext;
+    if(regionCount) {
+        c.regionNodes=malloc((2*regionCount-1)*sizeof(*c.regionNodes));
+        if(!c.regionNodes)return false;
+        Adaptive_BuildRegionNode(&c,0,regionCount);
+    }
 
     /* Reutilización de espacio de trabajo persistente */
     if(!mesher->adaptiveWorkspace) {
@@ -551,7 +595,7 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
         if(isfinite(regions[i].targetVoxelSize)&&regions[i].targetVoxelSize>0)minTarget=fminf(minTarget,regions[i].targetVoxelSize);
     unsigned depth=0;float step=minTarget;
     while(step<span && depth<19){step*=2.0f;depth++;}
-    if(step<span)return false;
+    if(step<span){free(c.regionNodes);return false;}
     c.rootSize=1u<<(depth+1);c.unit=minTarget*.5f;
     if(field->getComponentBounds) {
         size_t capacity=sizeof(c.boxes)/sizeof(c.boxes[0]);
@@ -561,6 +605,7 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     c.stats->minimumVoxelSize=INFINITY;c.stats->requestedVoxelSize=c.base;
     MonsterSDF_EnableThreadStats(true);MonsterSDF_ResetThreadStats();
     if(!Adaptive_Grow((void**)&c.cells,&c.cellCapacity,1,sizeof(*c.cells)))c.failed=true;
+    double classificationStart=Adaptive_NowMs();
     if(!c.failed) {
         c.cells[0]=(AdaptiveCell){{0,0,0},c.rootSize,0,false};c.cellCount=1;
         /* Orden por anchura: se completa la retícula corporal antes de gastar
@@ -568,6 +613,8 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
         for(size_t i=0;i<c.cellCount && !c.failed && !c.cancelled;++i)
             Adaptive_Build(&c,(uint32_t)i);
     }
+    c.stats->adaptiveClassificationMs=(float)(Adaptive_NowMs()-classificationStart);
+    double contourStart=Adaptive_NowMs();
     if(!c.failed && !c.cancelled)for(size_t i=0;i<c.cellCount && !c.failed;++i) {
         if((i & 0xff)==0 && c.shouldCancel && c.shouldCancel(c.cancelContext)) {
             c.cancelled=true;break;
@@ -577,9 +624,12 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
         Adaptive_ContourCell(&c,&cell);
         if(mesh->indexCount>before)c.stats->activeCellCount++;
     }
+    c.stats->adaptiveContourMs=(float)(Adaptive_NowMs()-contourStart);
     MonsterSDF_GetThreadStats(&c.stats->connectorCandidateCount,&c.stats->connectorExactEvaluationCount,&c.stats->connectorPrunedCount);
     MonsterSDF_EnableThreadStats(false);
+    double attributesStart=Adaptive_NowMs();
     if(!c.failed && !c.cancelled)Adaptive_FinalizeAttributes(&c,mesher);
+    c.stats->adaptiveAttributesMs=(float)(Adaptive_NowMs()-attributesStart);
     c.stats->cellCount=c.cellCount?1+7*((c.cellCount-1)/8):0;c.stats->candidateCellCount=c.leaves;c.stats->candidateNodeCount=c.pointCount;
     c.stats->gridPointCount=c.pointCount;c.stats->fieldEvaluationCount=c.stats->distanceEvaluationCount+c.stats->fullSampleEvaluationCount;
     c.stats->generatedVertexCount=mesh->vertexCount;c.stats->generatedTriangleCount=mesh->indexCount/3;
@@ -607,6 +657,7 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
         free(c.cells);free(c.points);free(c.pointTable);free(c.edges);
         free(c.contours);free(c.polygon);
     }
-    if(c.failed || c.cancelled){Mesh_Clear(mesh);return false;}
+    if(c.failed || c.cancelled){free(c.regionNodes);Mesh_Clear(mesh);return false;}
+    free(c.regionNodes);
     return true;
 }

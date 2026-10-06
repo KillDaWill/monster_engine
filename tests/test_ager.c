@@ -1,4 +1,8 @@
 #include "test_utils.h"
+#include "Creature.h"
+#include "CreatureMorph.h"
+#include <stdlib.h>
+#include "CreatureRecipes.h"
 #include "MonsterAger.h"
 #include "MonsterVisual.h"
 #include "Eye.h"
@@ -53,6 +57,15 @@ void test_monster_ager(void) {
     MonsterAger_SetPerc(&ager, 1.0f);
     result = MonsterAger_GetResultConst(&ager);
     TEST_ASSERT(FLOAT_NEAR(result->bodyParts[0].width, 3.0f), "Width interpolation at 100% failed");
+
+    /* El reloj limita extrapolación en ambos sentidos, sin bloquear el hilo visual. */
+    MonsterAger_SetPerc(&ager,.5f);
+    TEST_ASSERT(MonsterAger_AdvanceWithGeometry(&ager,1,.5f,.05f)<=.550001f,"Límite de avance con geometría atrasada");
+    float stopped=ager.perc;
+    TEST_ASSERT(FLOAT_NEAR(MonsterAger_AdvanceWithGeometry(&ager,.1f,.5f,.05f),stopped),"No acumular desfase");
+    TEST_ASSERT(MonsterAger_AdvanceWithGeometry(&ager,-1,.5f,.05f)>=.449999f,"Límite de retroceso");
+    stopped=ager.perc;
+    TEST_ASSERT(FLOAT_NEAR(MonsterAger_AdvanceWithGeometry(&ager,NAN,.5f,.05f),stopped),"Rechazar tiempo no finito");
 
     MonsterAger_Free(&ager);
     Monster_Free(&young);
@@ -151,7 +164,133 @@ void test_bug_eye_pupil_buried_behind_sclera_during_growth(void) {
     printf("[PASS] test_bug_eye_pupil_buried_behind_sclera_during_growth\n");
 }
 
+void test_ager_cross_species_morph_dog_to_lizard(void) {
+    Monster dog = Monster_Create();
+    const CreatureRecipe* dogRecipe = CreatureRecipes_Dog();
+    CreaturePhenotype dogPhenotype = dogRecipe->adult;
+    TEST_ASSERT(Creature_BuildMonster(&dog, dogRecipe, &dogPhenotype), "Construcción de perro adulto falló");
+
+    Monster lizard = Monster_Create();
+    const CreatureRecipe* lizardRecipe = CreatureRecipes_Lizard();
+    CreaturePhenotype lizardPhenotype = lizardRecipe->adult;
+    TEST_ASSERT(Creature_BuildMonster(&lizard, lizardRecipe, &lizardPhenotype), "Construcción de lagarto adulto falló");
+
+    MonsterAger ager = MonsterAger_Create(&dog, &lizard, 0.0f);
+    const float testAges[] = {0.0f, 0.20f, 0.50f, 0.80f, 1.0f};
+    const size_t testCount = sizeof(testAges)/sizeof(testAges[0]);
+
+    for (size_t i = 0; i < testCount; ++i) {
+        float age = testAges[i];
+        MonsterAger_SetPerc(&ager, age);
+        const Monster* m = MonsterAger_GetResultConst(&ager);
+        TEST_ASSERT(m != NULL, "Resultado del ager no debe ser NULL en metamorfosis inter-especies");
+        TEST_ASSERT(m->hasCreaturePhenotype, "El resultado debe conservar fenotipo biológico");
+        TEST_ASSERT(AnatomyGraph_Validate(&m->anatomyGraph), "Grafo anatómico debe ser válido en cualquier fase de la metamorfosis");
+
+        /* Verificación de la transición de cobertura: Pelo -> Piel desnuda -> Escamas */
+        if (age < 0.45f) {
+            TEST_ASSERT(m->surface.integument.type == INTEGUMENT_FUR, "Fase temprana debe ser pelaje");
+            TEST_ASSERT(m->surface.integument.coverage <= 1.0f && m->surface.integument.coverage >= 0.0f, "Cobertura de pelaje acotada");
+        } else if (age >= 0.45f && age < 0.55f) {
+            TEST_ASSERT(m->surface.integument.type == INTEGUMENT_SMOOTH_SKIN, "Fase intermedia debe ser piel desnuda");
+            TEST_ASSERT(m->surface.integument.coverage == 0.0f, "Piel desnuda intermedia no debe tener cobertura");
+        } else {
+            TEST_ASSERT(m->surface.integument.type == INTEGUMENT_SCALES, "Fase tardía debe ser escamas");
+            TEST_ASSERT(m->surface.integument.coverage <= 1.0f && m->surface.integument.coverage >= 0.0f, "Cobertura de escamas acotada");
+        }
+
+        /* Verificación de continuidad de escala, cola y miembros */
+        TEST_ASSERT(m->anatomyGraph.nodeCount >= 100, "Conteo suficiente de nodos anatómicos");
+    }
+
+    /* Verificación de continuidad métrica alrededor de t=0.50 (sin popping ni saltos bruscos) */
+    Vector3 prevNeck = Vec3_Zero(), prevElbow = Vec3_Zero(), prevPelvis = Vec3_Zero();
+    for (float t = 0.40f; t <= 0.60f; t += 0.02f) {
+        MonsterAger_SetPerc(&ager, t);
+        const Monster* m = MonsterAger_GetResultConst(&ager);
+        const AnatomyNode* neck = AnatomyGraph_FindFirstRegion(&m->anatomyGraph, ANATOMY_REGION_NECK);
+        const AnatomyNode* elbow = AnatomyGraph_FindModuleNode(&m->anatomyGraph, 10, 2);
+        const AnatomyNode* pelvis = AnatomyGraph_FindFirstRegion(&m->anatomyGraph, ANATOMY_REGION_PELVIS);
+        TEST_ASSERT(neck && elbow && pelvis, "Nodos semánticos principales deben existir durante la metamorfosis");
+
+        if (t > 0.405f) {
+            float dNeck = Vec3_Distance(neck->center, prevNeck);
+            float dElbow = Vec3_Distance(elbow->center, prevElbow);
+            float dPelvis = Vec3_Distance(pelvis->center, prevPelvis);
+            /* Para un paso dt=0.02, el desplazamiento debe ser continuo y acotado (< 0.25 unidades) */
+            TEST_ASSERT(dNeck < 0.25f, "El cuello debe desplazarse suavemente sin saltos discontinuos");
+            TEST_ASSERT(dElbow < 0.25f, "El codo debe rotar suavemente sin saltos discontinuos");
+            TEST_ASSERT(dPelvis < 0.25f, "La pelvis debe descender suavemente sin saltos discontinuos");
+        }
+        prevNeck = neck->center;
+        prevElbow = elbow->center;
+        prevPelvis = pelvis->center;
+    }
+
+    MonsterAger_Free(&ager);
+    Monster_Free(&dog);
+    Monster_Free(&lizard);
+    printf("[PASS] test_ager_cross_species_morph_dog_to_lizard\n");
+}
+
+static void test_resolved_morph_continuity(void) {
+    Monster a=Monster_Create(),b=Monster_Create(),previous=Monster_Create(),current=Monster_Create(),reverse=Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(&a,CreatureRecipes_Dog(),&CreatureRecipes_Dog()->adult),"Perro de referencia");
+    TEST_ASSERT(Creature_BuildMonster(&b,CreatureRecipes_Lizard(),&CreatureRecipes_Lizard()->adult),"Lagarto de referencia");
+    TEST_ASSERT(CreatureMorph_Interpolate(&a,&b,0,&previous),"Inicio resuelto");
+    float maxStep=0,maxHeadStep=0;
+    for(unsigned i=1;i<=100;++i) {
+        float t=(float)i/100;
+        TEST_ASSERT(CreatureMorph_Interpolate(&a,&b,t,&current),"Interpolación resuelta");
+        TEST_ASSERT(CreatureMorph_Interpolate(&b,&a,1-t,&reverse),"Interpolación reversible");
+        TEST_ASSERT(AnatomyGraph_Validate(&current.anatomyGraph),"Grafo y perfil finitos");
+        TEST_ASSERT(AnatomyGraph_TopologyCompatible(&previous.anatomyGraph,&current.anatomyGraph),"Blueprint estable incluso en extremos y al 50 por ciento");
+        for(size_t j=0;j<current.anatomyGraph.nodeCount;++j) {
+            const AnatomyNode* n=&current.anatomyGraph.nodes[j];
+            const AnatomyNode* p=AnatomyGraph_FindNode(&previous.anatomyGraph,n->id);
+            const AnatomyNode* r=AnatomyGraph_FindNode(&reverse.anatomyGraph,n->id);
+            float step=Vec3_Distance(n->center,p->center);maxStep=fmaxf(maxStep,step);
+            TEST_ASSERT(step<.25f,"Ninguna rama aparece mediante un salto");
+            TEST_ASSERT(r && Vec3_Distance(n->center,r->center)<.001f,"Correspondencia independiente del sentido de transición");
+        }
+        const HeadSurfaceRecipe* ear=&current.head.anatomy.surface;
+        Vector3 earRoot=Vec3_Sub(ear->leftEarCenter,Vec3_Scale(ear->earDirection,ear->earShape.y*.5f));
+        TEST_ASSERT(Vec3_Distance(earRoot,current.head.anatomy.landmarks.leftEarBase)<.0001f,"La contracción auricular conserva la inserción, no el centro elevado");
+        float step=Vec3_Distance(current.head.anatomy.surface.faceTip,previous.head.anatomy.surface.faceTip);
+        maxHeadStep=fmaxf(maxHeadStep,step);
+        TEST_ASSERT(step<.10f,"Hocico resuelto continuo");
+        TEST_ASSERT(Monster_CopyInto(&previous,&current),"Snapshot anterior");
+    }
+    /* Cruce fino del antiguo umbral: comprobar el campo visible, no solo nodos. */
+    MonsterSDF before=MonsterSDF_Create(),after=MonsterSDF_Create();
+    TEST_ASSERT(CreatureMorph_Interpolate(&a,&b,.4999f,&previous),"Antes del umbral");
+    TEST_ASSERT(CreatureMorph_Interpolate(&a,&b,.5001f,&current),"Después del umbral");
+    TEST_ASSERT(MonsterSDF_Build(&before,&previous,MonsterSDF_DefaultConfig()),"Campo anterior");
+    TEST_ASSERT(MonsterSDF_Build(&after,&current,MonsterSDF_DefaultConfig()),"Campo posterior");
+    float maxField[2]={0,0},maxSurface=0;
+    for(int pass=0;pass<2;++pass) {
+        float epsilon=pass?.00001f:.0001f;
+        TEST_ASSERT(CreatureMorph_Interpolate(&a,&b,.5f-epsilon,&previous),"Campo fino anterior");
+        TEST_ASSERT(CreatureMorph_Interpolate(&a,&b,.5f+epsilon,&current),"Campo fino posterior");
+        TEST_ASSERT(MonsterSDF_Build(&before,&previous,MonsterSDF_DefaultConfig()),"Campo anterior fino");
+        TEST_ASSERT(MonsterSDF_Build(&after,&current,MonsterSDF_DefaultConfig()),"Campo posterior fino");
+        for(int x=-5;x<=5;++x)for(int y=-1;y<=7;++y)for(int z=-25;z<=7;++z) {
+            Vector3 p={(float)x*.4f,(float)y*.4f,(float)z*.4f};
+            float d0=MonsterSDF_EvaluateDistance(&before,p),d1=MonsterSDF_EvaluateDistance(&after,p);
+            float delta=fabsf(d0-d1);maxField[pass]=fmaxf(maxField[pass],delta);
+            if(!pass && fminf(fabsf(d0),fabsf(d1))<.15f)maxSurface=fmaxf(maxSurface,delta);
+        }
+    }
+    TEST_ASSERT(maxField[1]<maxField[0]*.2f+.00001f,"El salto del campo converge a cero al reducir el paso temporal");
+    TEST_ASSERT(maxSurface<.005f,"La superficie visible no cambia de receta al 50 por ciento");
+    printf("[MORPH] 101 edades: paso nodal %.6f cefálico %.6f campo %.6f -> %.6f superficie %.6f\n",maxStep,maxHeadStep,maxField[0],maxField[1],maxSurface);
+    MonsterSDF_Free(&before);MonsterSDF_Free(&after);
+    Monster_Free(&a);Monster_Free(&b);Monster_Free(&previous);Monster_Free(&current);Monster_Free(&reverse);
+}
+
 void run_ager_tests(void) {
+    test_resolved_morph_continuity();
     test_monster_ager();
     test_bug_eye_pupil_buried_behind_sclera_during_growth();
+    test_ager_cross_species_morph_dog_to_lizard();
 }
