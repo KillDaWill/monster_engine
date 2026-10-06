@@ -1,0 +1,464 @@
+[
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.00-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000596 raymarch=0.000000596 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1052112"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000316 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.00-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000596 raymarch=0.000000596 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1052112"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000316 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.00-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000596 raymarch=0.000000596 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1052112"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000316 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.10-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1061676"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.10-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1061676"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.10-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1061676"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.20-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1085892"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000402 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000045 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.20-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1085892"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000402 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000045 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.20-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1085892"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000402 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000045 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.35-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000358 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1153692"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000045 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.35-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000358 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1153692"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000045 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.35-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000358 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1153692"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000045 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.50-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000596 raymarch=0.000000596 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1270632"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000047 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000004 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000019 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.50-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000596 raymarch=0.000000596 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1270632"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000047 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000004 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000019 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.50-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000596 raymarch=0.000000596 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1270632"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000047 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000004 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000019 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.65-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=8 aristas=1406580"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.65-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=8 aristas=1406580"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.65-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=8 aristas=1406580"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.80-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1525560"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.80-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1525560"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.80-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1525560"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.90-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000715 raymarch=0.000000715 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1577748"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000015 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.90-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000715 raymarch=0.000000715 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1577748"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000015 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a0.90-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000715 raymarch=0.000000715 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1577748"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000022 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000015 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a1.00-v3.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1601208"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a1.00-v4.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1601208"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  },
+  {
+    "log": "build/gpu-sdf-validation/interval-final0175/gpu-sdf-mesh-a1.00-v7.log",
+    "parity": [
+      "[PARIDAD COMPUTE] puntos=655 compute=0.000000477 raymarch=0.000000477 PASS"
+    ],
+    "topology": [
+      "[GPU TOPOLOG\u00cdA] fronteras=0 no_manifold=0 orientaci\u00f3n=0 colapsados=0 aristas=1601208"
+    ],
+    "intervals": [
+      "[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS",
+      "[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000015 PASS",
+      "[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000030 PASS"
+    ]
+  }
+]

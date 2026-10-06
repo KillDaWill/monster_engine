@@ -1,0 +1,121 @@
+========================================================================
+   MONSTER ENGINE 3D: METAMORFOSIS EXTREMA (MonsterAger Inter-Especies) 
+        Cánido Digitígrado con Pelaje  --->  Lagarto Cuadrúpedo con Escamas
+========================================================================
+
+ Concepto de la prueba:
+  1. Biología paramétrica: Se pasa de un tetrápodo erecto mamífero a un
+     tetrápodo reptil de andadura baja (sprawling), articulando patas y dedos.
+  2. Superficie progresiva: El pelaje canino se acorta y reduce su densidad (0% -> 45%),
+     revelando piel desnuda intermedia (45% -> 55%) donde la anatomía se reorganiza;
+     luego brotan las escamas (55% -> 100%) ganando relieve, quilla y pigmento.
+  3. Superficie persistente: el cuerpo se deforma continuamente mientras
+     la corrección SDF asíncrona actualiza su geometría de referencia.
+
+ Controles interactivos:
+  - ESPACIO                  : Alternar metamorfosis automática (oscilación fluida)
+  - FLECHA DERECHA / ARRIBA  : Avanzar metamorfosis hacia Lagarto (+perc)
+  - FLECHA IZQUIERDA / ABAJO : Retroceder metamorfosis hacia Perro (-perc)
+  - 0                        : Fijar a 0% (Perro 100% con pelaje completo)
+  - 1                        : Fijar a 25% (Pérdida y afinamiento de pelo)
+  - 2                        : Fijar a 50% (Piel desnuda intermedia y cambio esquelético)
+  - 3                        : Fijar a 75% (Escamas incipientes y pigmento verde)
+  - 4                        : Fijar a 100% (Lagarto 100% con escamas desarrolladas)
+  - F1..F5                   : Cámaras (lateral, frontal, 3/4, cabeza, cola)
+  - --view=6                 : Vista superior para validación automática
+  - --view=7                 : Primer plano de autopodio posterior
+  - --view=8                 : Vista posterior para validación automática
+  - R                        : Pausar / reanudar giro de órbita de cámara
+  - A                        : Alternar overlay del grafo esquelético / anatómico
+  - --no-fur                 : Captura anatómica sin pelaje
+  - E / --exact-sdf          : Comparar SDF exacto con pigmento y material procedural
+  - --local-patches          : Probar la reparación topológica local validada
+  - C                        : Alternar visualización wireframe de chunks volumétricos
+  - B                        : Alternar visualización de región de fallback SDF (AABB)
+  - L                        : Ciclar inyección de latencia del worker (0, 50, 250, 1000, 3000 ms)
+  - M                        : Alternar remallado incremental por chunks en worker
+  - Rueda de ratón           : Zoom de cámara in / out
+  - ESCAPE                   : Salir
+========================================================================
+
+[INICIALIZACIÓN] Construyendo espécimen 1: Perro Adulto (Canis)...
+[INICIALIZACIÓN] Construyendo espécimen 2: Lagarto Adulto (Lacerta)...
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[CICLO] 0 edad=0.00000 geometria=0.00000 presentada=0.00000 build=0.0 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=0
+[CICLO] 1 edad=0.25128 geometria=0.00000 presentada=0.25128 build=1276.8 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=25027 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.061 -0.333 -0.803]-[0.964 2.967 0.429] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-0.938 -0.361 -0.803]-[-0.062 2.967 0.436] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[-0.115 -0.391 -4.357]-[1.033 3.297 -2.728] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-1.033 -0.445 -4.357]-[0.115 3.297 -2.728] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.772 2.029 -6.804]-[0.772 3.896 -2.946] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-0.880 1.557 -4.475]-[0.880 3.961 0.936] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-0.899 2.963 0.007]-[0.899 4.441 2.293] estado=LOCAL_SDF
+[CICLO] 2 edad=0.49236 geometria=0.00000 presentada=0.49236 build=1276.8 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=25027 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.106 -0.541 -1.389]-[1.247 2.054 0.225] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-1.247 -0.605 -1.389]-[-0.106 2.054 0.225] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[-0.043 -0.706 -5.529]-[1.613 2.287 -3.643] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-1.469 -0.823 -5.529]-[0.043 2.287 -3.643] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.787 1.008 -9.198]-[0.787 2.778 -3.808] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-0.943 0.774 -5.451]-[0.943 2.702 0.317] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-0.982 1.630 -0.675]-[0.982 3.002 1.812] estado=LOCAL_SDF
+[CICLO] 3 edad=0.51072 geometria=0.00000 presentada=0.51072 build=1276.8 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=25027 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.110 -0.558 -1.438]-[1.290 1.978 0.208] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-1.290 -0.622 -1.438]-[-0.110 1.978 0.208] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[-0.038 -0.731 -5.651]-[1.665 2.203 -3.718] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-1.527 -0.848 -5.651]-[0.038 2.203 -3.718] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.795 0.916 -9.397]-[0.795 2.692 -3.873] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-0.948 0.709 -5.532]-[0.948 2.597 0.265] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-0.993 1.519 -0.732]-[0.993 2.899 1.775] estado=LOCAL_SDF
+[CICLO] 4 edad=0.75120 geometria=0.25000 presentada=0.75120 build=949.3 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=26552 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.155 -0.757 -2.020]-[1.798 1.071 0.005] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-1.798 -0.791 -2.020]-[-0.155 1.071 0.005] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[0.028 -1.004 -7.115]-[2.219 1.204 -4.622] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-2.219 -1.071 -7.115]-[-0.028 1.204 -4.622] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.894 -0.183 -11.865]-[0.894 1.664 -4.646] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-1.011 -0.069 -6.503]-[1.011 1.555 -0.350] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-1.117 0.191 -1.412]-[1.117 1.674 1.337] estado=LOCAL_SDF
+[CICLO] 5 edad=1.00000 geometria=0.25000 presentada=1.00000 build=949.3 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=26552 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.175 -0.848 -2.294]-[2.037 0.643 -0.091] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-2.037 -0.848 -2.294]-[-0.175 0.643 -0.091] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[0.059 -1.124 -7.804]-[2.545 0.734 -5.048] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-2.545 -1.124 -7.804]-[-0.059 0.734 -5.048] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.940 -0.700 -13.122]-[0.940 1.180 -5.010] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-1.040 -0.453 -6.960]-[1.040 1.079 -0.640] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-1.175 -0.434 -1.731]-[1.175 1.098 1.130] estado=LOCAL_SDF
+[CICLO] 6 edad=0.74836 geometria=0.70000 presentada=0.74836 build=1248.9 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=0
+[CICLO] 7 edad=0.49684 geometria=0.70000 presentada=0.49684 build=1248.9 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=26797 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.107 -0.545 -1.401]-[1.258 2.036 0.220] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-1.258 -0.609 -1.401]-[-0.107 2.036 0.220] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[-0.042 -0.712 -5.559]-[1.626 2.266 -3.661] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-1.483 -0.829 -5.559]-[0.042 2.266 -3.661] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.789 0.986 -9.246]-[0.789 2.757 -3.824] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-0.944 0.759 -5.471]-[0.944 2.676 0.304] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-0.985 1.603 -0.689]-[0.985 2.977 1.803] estado=LOCAL_SDF
+[CICLO] 8 edad=0.24748 geometria=0.70000 presentada=0.24748 build=1248.9 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=26797 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[0.059 -0.330 -0.796]-[0.961 2.979 0.431] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-0.936 -0.358 -0.796]-[-0.061 2.979 0.438] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[-0.116 -0.387 -4.343]-[1.028 3.311 -2.716] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-1.028 -0.439 -4.343]-[0.116 3.311 -2.716] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.773 2.041 -6.773]-[0.773 3.911 -2.934] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-0.879 1.567 -4.463]-[0.879 3.977 0.944] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-0.900 2.980 0.016]-[0.900 4.460 2.300] estado=LOCAL_SDF
+[CICLO] 9 edad=0.00000 geometria=0.55000 presentada=0.00000 build=727.9 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=31426 regiones_SDF=7
+[FALLBACK] tipo=0 módulo=10 caja=[-0.016 -0.231 -0.524]-[0.842 3.402 0.530] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=11 caja=[-0.842 -0.231 -0.524]-[0.016 3.402 0.530] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=12 caja=[-0.156 -0.231 -3.908]-[0.866 3.785 -2.286] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=13 caja=[-0.866 -0.231 -3.908]-[0.156 3.785 -2.286] estado=LOCAL_SDF
+[FALLBACK] tipo=0 módulo=20 caja=[-0.800 2.466 -5.663]-[0.800 4.463 -2.500] estado=LOCAL_SDF
+[FALLBACK] tipo=1 módulo=1 caja=[-0.850 1.930 -4.010]-[0.850 4.561 1.231] estado=LOCAL_SDF
+[FALLBACK] tipo=2 módulo=2 caja=[-0.931 3.598 0.332]-[0.931 5.155 2.541] estado=LOCAL_SDF
+[SALIDA] Cerrando demo y liberando recursos...
+[FIN] Ejecución finalizada correctamente.

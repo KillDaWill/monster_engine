@@ -1,0 +1,58 @@
+========================================================================
+   MONSTER ENGINE 3D: METAMORFOSIS EXTREMA (MonsterAger Inter-Especies) 
+        Cánido Digitígrado con Pelaje  --->  Lagarto Cuadrúpedo con Escamas
+========================================================================
+
+ Concepto de la prueba:
+  1. Biología paramétrica: Se pasa de un tetrápodo erecto mamífero a un
+     tetrápodo reptil de andadura baja (sprawling), articulando patas y dedos.
+  2. Superficie progresiva: El pelaje canino se acorta y reduce su densidad (0% -> 45%),
+     revelando piel desnuda intermedia (45% -> 55%) donde la anatomía se reorganiza;
+     luego brotan las escamas (55% -> 100%) ganando relieve, quilla y pigmento.
+  3. Superficie persistente: el cuerpo se deforma continuamente mientras
+     la corrección SDF asíncrona actualiza su geometría de referencia.
+
+ Controles interactivos:
+  - ESPACIO                  : Alternar metamorfosis automática (oscilación fluida)
+  - FLECHA DERECHA / ARRIBA  : Avanzar metamorfosis hacia Lagarto (+perc)
+  - FLECHA IZQUIERDA / ABAJO : Retroceder metamorfosis hacia Perro (-perc)
+  - 0                        : Fijar a 0% (Perro 100% con pelaje completo)
+  - 1                        : Fijar a 25% (Pérdida y afinamiento de pelo)
+  - 2                        : Fijar a 50% (Piel desnuda intermedia y cambio esquelético)
+  - 3                        : Fijar a 75% (Escamas incipientes y pigmento verde)
+  - 4                        : Fijar a 100% (Lagarto 100% con escamas desarrolladas)
+  - F1..F5                   : Cámaras (lateral, frontal, 3/4, cabeza, cola)
+  - --view=6                 : Vista superior para validación automática
+  - --view=7                 : Primer plano de autopodio posterior
+  - --view=8                 : Vista posterior para validación automática
+  - R                        : Pausar / reanudar giro de órbita de cámara
+  - A                        : Alternar overlay del grafo esquelético / anatómico
+  - --no-fur                 : Captura anatómica sin pelaje
+  - E / --exact-sdf          : Comparar SDF exacto con pigmento y material procedural
+  - --local-patches          : Probar la reparación topológica local validada
+  - C                        : Alternar visualización wireframe de chunks volumétricos
+  - B                        : Alternar visualización de región de fallback SDF (AABB)
+  - L                        : Ciclar inyección de latencia del worker (0, 50, 250, 1000, 3000 ms)
+  - M                        : Alternar remallado incremental por chunks en worker
+  - Rueda de ratón           : Zoom de cámara in / out
+  - ESCAPE                   : Salir
+========================================================================
+
+[INICIALIZACIÓN] Construyendo espécimen 1: Perro Adulto (Canis)...
+[INICIALIZACIÓN] Construyendo espécimen 2: Lagarto Adulto (Lacerta)...
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[ESTRÉS] frame=30 modo=burst edad=0.00000 regiones=5
+[ESTRÉS] frame=40 modo=burst edad=0.33333 regiones=5
+[ESTRÉS] frame=50 modo=burst edad=0.66667 regiones=5
+[ESTRÉS] frame=60 modo=burst edad=1.00000 regiones=5
+[ESTRÉS] frame=70 modo=burst edad=0.66667 regiones=5
+[ESTRÉS] frame=80 modo=burst edad=0.33333 regiones=5
+[ESTRÉS] frame=90 modo=burst edad=0.00000 regiones=5
+[ESTRÉS] frame=100 modo=burst edad=0.33333 regiones=5
+[ESTRÉS] frame=110 modo=burst edad=0.66667 regiones=5
+[ESTRÉS] frame=120 modo=burst edad=0.00000 regiones=5
+[ESTRÉS] frame=130 modo=burst edad=0.33333 regiones=5
+[ESTRÉS] frame=140 modo=burst edad=0.66667 regiones=5
+[ESTRÉS] frame=150 modo=burst edad=1.00000 regiones=5
+[SALIDA] Cerrando demo y liberando recursos...
+[FIN] Ejecución finalizada correctamente.

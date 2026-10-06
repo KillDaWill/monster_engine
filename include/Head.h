@@ -142,6 +142,12 @@ typedef struct HeadLandmarks {
 typedef struct HeadSurfaceRecipe {
     Vector3 craniumCenter; /**< Centro del volumen craneal. */
     Vector3 craniumRadii; /**< Radios del volumen craneal. */
+    Vector3 neckCollarRoot; /**< Inserción occipital resuelta, independiente del arquetipo durante la metamorfosis. */
+    float neckCollarPenetration; /**< Fracción resuelta de inserción cervical. */
+    Vector3 neckCollarRadii; /**< Sección resuelta de la unión cefalocervical. */
+    Vector3 cranialPostorbitalCenter; /**< Estación anterior del perfil craneal. */
+    Vector3 cranialTemporalCenter; /**< Estación temporal del perfil craneal. */
+    Vector3 cranialOccipitalCenter; /**< Estación posterior del perfil craneal. */
     Vector3 faceRoot; /**< Centro del extremo proximal del rostro. */
     Vector3 faceMid; /**< Centro de la sección nasal intermedia. */
     Vector3 faceTip; /**< Centro del extremo distal del rostro. */

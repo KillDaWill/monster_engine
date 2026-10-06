@@ -41,6 +41,7 @@ void AnatomyDeformer_Free(AnatomyDeformer* morph) {
 
 bool AnatomyDeformer_Copy(AnatomyDeformer* dst, const AnatomyDeformer* src) {
     if (!dst || !src) return false;
+    if (dst == src) return true;
     dst->refGraph = src->refGraph;
     dst->vertexCount = src->vertexCount;
     if (dst->vertexCapacity < src->vertexCount) {
@@ -52,13 +53,18 @@ bool AnatomyDeformer_Copy(AnatomyDeformer* dst, const AnatomyDeformer* src) {
         dst->baseNormals = (Vector3*)malloc(src->vertexCount * sizeof(Vector3));
         dst->vertexCapacity = src->vertexCount;
     }
+    if (src->vertexCount > 0 && (!dst->bindings || !dst->basePositions || !dst->baseNormals)) {
+        dst->vertexCapacity=0; dst->vertexCount=0; dst->isBound=false; dst->poseBound=false; return false;
+    }
     if (src->vertexCount > 0 && dst->bindings && dst->basePositions && dst->baseNormals) {
         memcpy(dst->bindings, src->bindings, src->vertexCount * sizeof(AnatomyDeformerBinding));
         memcpy(dst->basePositions, src->basePositions, src->vertexCount * sizeof(Vector3));
         memcpy(dst->baseNormals, src->baseNormals, src->vertexCount * sizeof(Vector3));
     }
     if (src->skinBindings && src->vertexCount > 0) {
-        if (!dst->skinBindings) dst->skinBindings = (AnatomySkinBinding*)malloc(src->vertexCount * sizeof(AnatomySkinBinding));
+        free(dst->skinBindings);
+        dst->skinBindings = (AnatomySkinBinding*)malloc(src->vertexCount * sizeof(AnatomySkinBinding));
+        if (!dst->skinBindings) { dst->isBound=false; dst->poseBound=false; return false; }
         if (dst->skinBindings) memcpy(dst->skinBindings, src->skinBindings, src->vertexCount * sizeof(AnatomySkinBinding));
     } else {
         free(dst->skinBindings);
@@ -78,7 +84,8 @@ size_t AnatomyDeformer_GetVertexCount(const AnatomyDeformer* morph) {
     return (morph && morph->isBound) ? morph->vertexCount : 0;
 }
 
-bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const AnatomyGraph* refGraph) {
+bool AnatomyDeformer_Bind(AnatomyDeformer* morph,const Mesh* baseMesh,
+    const AnatomyGraph* refGraph) {
     if (!morph || !baseMesh || !refGraph) return false;
     if (baseMesh->vertexCount == 0 || !baseMesh->vertices || refGraph->connectionCount == 0) return false;
 
@@ -111,9 +118,8 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
     morph->refGraph = *refGraph;
     morph->vertexCount = count;
 
-    /* 1. Precomputar datos y AABB de cada conexión anatómica para acelerar la vinculación */
+    /* 1. Precomputar datos de cada conexión anatómica para acelerar la vinculación */
     typedef struct PrecomputedConn {
-        AABB3D box;
         Vector3 a;
         Vector3 ab;
         float invAbLenSq;
@@ -126,19 +132,11 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
         const BodyConnection* conn = &refGraph->connections[c];
         const AnatomyNode* nodeA = AnatomyGraph_FindNode(refGraph, conn->fromId);
         const AnatomyNode* nodeB = AnatomyGraph_FindNode(refGraph, conn->toId);
-        if (!nodeA || !nodeB || refGraph->dormantConnections[c]) {
+        if (!nodeA || !nodeB || refGraph->dormantConnections[c] || (conn->kind==BODY_CONNECTION_SUPPORT && nodeA->region!=ANATOMY_REGION_ORNAMENT && nodeB->region!=ANATOMY_REGION_ORNAMENT)) {
             conns[c].valid = false;
             continue;
         }
         conns[c].valid = true;
-        float pad = fmaxf(nodeA->widthRadius, fmaxf(nodeA->heightRadius,
-                    fmaxf(nodeB->widthRadius, nodeB->heightRadius))) * 2.2f;
-        conns[c].box.start.x = fminf(nodeA->center.x, nodeB->center.x) - pad;
-        conns[c].box.end.x   = fmaxf(nodeA->center.x, nodeB->center.x) + pad;
-        conns[c].box.start.y = fminf(nodeA->center.y, nodeB->center.y) - pad;
-        conns[c].box.end.y   = fmaxf(nodeA->center.y, nodeB->center.y) + pad;
-        conns[c].box.start.z = fminf(nodeA->center.z, nodeB->center.z) - pad;
-        conns[c].box.end.z   = fmaxf(nodeA->center.z, nodeB->center.z) + pad;
         conns[c].a = nodeA->center;
         conns[c].ab = Vec3_Sub(nodeB->center, nodeA->center);
         float abLenSq = Vec3_LengthSq(conns[c].ab);
@@ -147,125 +145,144 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
         conns[c].radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
     }
 
-    /* 2. Vincular cada vértice a los 2 mejores segmentos anatómicos */
-    for (size_t v = 0; v < count; ++v) {
-        Vector3 pos = baseMesh->vertices[v].position;
-        morph->basePositions[v] = pos;
-        morph->baseNormals[v] = baseMesh->vertices[v].normal;
-
-        float bestDist[2] = {1e9f, 1e9f};
-        uint16_t bestIdx[2] = {0, 0};
-        float bestT[2] = {0.0f, 0.0f};
-        Vector3 bestProj[2] = {Vec3_Zero(), Vec3_Zero()};
-        float bestRad[2] = {1.0f, 1.0f};
-
-        for (size_t c = 0; c < refGraph->connectionCount; ++c) {
-            const PrecomputedConn* pc = &conns[c];
-            if (!pc->valid) continue;
-
-            /* Descarte por AABB */
-            if (pos.x < pc->box.start.x || pos.x > pc->box.end.x ||
-                pos.y < pc->box.start.y || pos.y > pc->box.end.y ||
-                pos.z < pc->box.start.z || pos.z > pc->box.end.z) {
-                continue;
-            }
-
-            float t = 0.0f;
-            if (pc->invAbLenSq > 0.0f) {
-                t = Vec3_Dot(Vec3_Sub(pos, pc->a), pc->ab) * pc->invAbLenSq;
-                if (t < 0.0f) t = 0.0f;
-                else if (t > 1.0f) t = 1.0f;
-            }
-            Vector3 proj = Vec3_Add(pc->a, Vec3_Scale(pc->ab, t));
-            float rad = (1.0f - t) * pc->radA + t * pc->radB;
-            if (rad < 1e-4f) rad = 1e-4f;
-
-            float distNorm = Vec3_Distance(pos, proj) / rad;
-            if (distNorm < bestDist[0]) {
-                bestDist[1] = bestDist[0];
-                bestIdx[1] = bestIdx[0];
-                bestT[1] = bestT[0];
-                bestProj[1] = bestProj[0];
-                bestRad[1] = bestRad[0];
-
-                bestDist[0] = distNorm;
-                bestIdx[0] = (uint16_t)c;
-                bestT[0] = t;
-                bestProj[0] = proj;
-                bestRad[0] = rad;
-            } else if (distNorm < bestDist[1]) {
-                bestDist[1] = distNorm;
-                bestIdx[1] = (uint16_t)c;
-                bestT[1] = t;
-                bestProj[1] = proj;
-                bestRad[1] = rad;
+    /* El vecino de corte tiene peso cero. Cambiar el conjunto de vecinos no
+     * produce saltos de influencia entre vértices adyacentes de una articulación. */
+    for(size_t v=0;v<count;++v) {
+        Vector3 pos=baseMesh->vertices[v].position;
+        morph->basePositions[v]=pos;morph->baseNormals[v]=baseMesh->vertices[v].normal;
+        float distance[ANATOMY_MORPH_INFLUENCES+1];
+        uint16_t indices[ANATOMY_MORPH_INFLUENCES+1]={0};
+        for(int k=0;k<=ANATOMY_MORPH_INFLUENCES;++k)distance[k]=INFINITY;
+        for(size_t c=0;c<refGraph->connectionCount;++c) {
+            const PrecomputedConn* pc=&conns[c];if(!pc->valid)continue;
+            float t=Math_Clamp01(Vec3_Dot(Vec3_Sub(pos,pc->a),pc->ab)*pc->invAbLenSq);
+            Vector3 proj=Vec3_Add(pc->a,Vec3_Scale(pc->ab,t));
+            float rad=fmaxf(Math_Lerp(pc->radA,pc->radB,t),1e-6f);
+            float d=Vec3_LengthSq(Vec3_Sub(pos,proj))/(rad*rad);
+            for(int k=0;k<=ANATOMY_MORPH_INFLUENCES;++k)if(d<distance[k]) {
+                for(int j=ANATOMY_MORPH_INFLUENCES;j>k;--j){distance[j]=distance[j-1];indices[j]=indices[j-1];}
+                distance[k]=d;indices[k]=(uint16_t)c;break;
             }
         }
-
-        /* Si ningún AABB coincidió (caso excepcional en márgenes), buscar en todos */
-        if (bestDist[0] >= 1e8f) {
-            for (size_t c = 0; c < refGraph->connectionCount; ++c) {
-                const PrecomputedConn* pc = &conns[c];
-                if (!pc->valid) continue;
-
-                float t = 0.0f;
-                if (pc->invAbLenSq > 0.0f) {
-                    t = Vec3_Dot(Vec3_Sub(pos, pc->a), pc->ab) * pc->invAbLenSq;
-                    if (t < 0.0f) t = 0.0f;
-                    else if (t > 1.0f) t = 1.0f;
-                }
-                Vector3 proj = Vec3_Add(pc->a, Vec3_Scale(pc->ab, t));
-                float rad = (1.0f - t) * pc->radA + t * pc->radB;
-                if (rad < 1e-4f) rad = 1e-4f;
-
-                float distNorm = Vec3_Distance(pos, proj) / rad;
-                if (distNorm < bestDist[0]) {
-                    bestDist[1] = bestDist[0];
-                    bestIdx[1] = bestIdx[0];
-                    bestT[1] = bestT[0];
-                    bestProj[1] = bestProj[0];
-                    bestRad[1] = bestRad[0];
-
-                    bestDist[0] = distNorm;
-                    bestIdx[0] = (uint16_t)c;
-                    bestT[0] = t;
-                    bestProj[0] = proj;
-                    bestRad[0] = rad;
-                } else if (distNorm < bestDist[1]) {
-                    bestDist[1] = distNorm;
-                    bestIdx[1] = (uint16_t)c;
-                    bestT[1] = t;
-                    bestProj[1] = proj;
-                    bestRad[1] = rad;
-                }
-            }
+        if(!isfinite(distance[0])){morph->isBound=false;return false;}
+        AnatomyDeformerBinding* bind=&morph->bindings[v];memset(bind,0,sizeof(*bind));
+        float sum=0;
+        float cutoff=isfinite(distance[ANATOMY_MORPH_INFLUENCES])?distance[ANATOMY_MORPH_INFLUENCES]:INFINITY;
+        for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
+            if(!isfinite(distance[k]))continue;
+            const PrecomputedConn* pc=&conns[indices[k]];
+            float t=Math_Clamp01(Vec3_Dot(Vec3_Sub(pos,pc->a),pc->ab)*pc->invAbLenSq);
+            bind->connIndex[k]=indices[k];bind->projT[k]=t;
+            bind->refRadius[k]=fmaxf(Math_Lerp(pc->radA,pc->radB,t),1e-6f);
+            bind->localOffset[k]=Vec3_Sub(pos,Vec3_Add(pc->a,Vec3_Scale(pc->ab,t)));
+            float support=isfinite(cutoff)?fmaxf(0,1-distance[k]/fmaxf(cutoff,1e-6f)):1;
+            bind->weight[k]=support*support/(distance[k]*distance[k]+1e-4f);sum+=bind->weight[k];
         }
-
-        AnatomyDeformerBinding* b = &morph->bindings[v];
-        b->connIndex[0] = bestIdx[0];
-        b->connIndex[1] = bestIdx[1];
-        b->projT[0] = bestT[0];
-        b->projT[1] = bestT[1];
-        b->refRadius[0] = bestRad[0];
-        b->refRadius[1] = bestRad[1];
-        b->localOffset[0] = Vec3_Sub(pos, bestProj[0]);
-        b->localOffset[1] = Vec3_Sub(pos, bestProj[1]);
-
-        float w0 = 1.0f / (powf(bestDist[0], 4.0f) + 1e-4f);
-        float w1 = 1.0f / (powf(bestDist[1], 4.0f) + 1e-4f);
-        if (bestDist[0] > 0.0f && bestDist[1] / bestDist[0] > 2.5f) {
-            w1 = 0.0f;
-        }
-        float sumW = w0 + w1;
-        b->weight[0] = w0 / sumW;
-        b->weight[1] = w1 / sumW;
+        if(sum<1e-12f){bind->weight[0]=1;sum=1;}
+        for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k)bind->weight[k]/=sum;
     }
 
     morph->isBound = true;
     return true;
 }
 
-bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* newGraph, Mesh* targetMesh) {
+bool AnatomyDeformer_Reanchor(AnatomyDeformer* morph,const Mesh* mesh,
+    const AnatomyGraph* newGraph,const uint32_t* oldVertexOfNew,
+    size_t* newlyBoundVertices) {
+    if(newlyBoundVertices)*newlyBoundVertices=0;
+    if(!AnatomyDeformer_IsBound(morph)||!mesh||!mesh->vertices||
+       !mesh->vertexCount||!newGraph||!oldVertexOfNew||
+       !AnatomyGraph_Validate(newGraph)||
+       !AnatomyGraph_TopologyCompatible(&morph->refGraph,newGraph))return false;
+
+    /* La compatibilidad permite permutar conexiones: traducir por identidad,
+     * nunca reutilizar ciegamente el índice numérico del grafo antiguo. */
+    uint16_t connectionMap[ANATOMY_MAX_CONNECTIONS];
+    for(size_t old=0;old<morph->refGraph.connectionCount;++old) {
+        const BodyConnection* source=&morph->refGraph.connections[old];
+        size_t found=newGraph->connectionCount;
+        for(size_t next=0;next<newGraph->connectionCount;++next) {
+            const BodyConnection* target=&newGraph->connections[next];
+            if(source->id==target->id&&source->fromId==target->fromId&&
+               source->toId==target->toId&&source->kind==target->kind&&
+               source->moduleInstanceId==target->moduleInstanceId) {
+                found=next;break;
+            }
+        }
+        if(found==newGraph->connectionCount)return false;
+        connectionMap[old]=(uint16_t)found;
+    }
+
+    size_t newCount=0;
+    for(size_t i=0;i<mesh->vertexCount;++i)
+        newCount+=oldVertexOfNew[i]>=morph->vertexCount;
+    Mesh newMesh=Mesh_Create();
+    AnatomyDeformer* fresh=NULL;
+    if(newCount) {
+        if(!Mesh_ReserveVertices(&newMesh,newCount))return false;
+        for(size_t i=0;i<mesh->vertexCount;++i)
+            if(oldVertexOfNew[i]>=morph->vertexCount)
+                newMesh.vertices[newMesh.vertexCount++]=mesh->vertices[i];
+        fresh=AnatomyDeformer_Create();
+        if(!fresh||!AnatomyDeformer_Bind(fresh,&newMesh,newGraph)) {
+            Mesh_Free(&newMesh);AnatomyDeformer_Free(fresh);return false;
+        }
+    }
+    AnatomyDeformerBinding* bindings=malloc(mesh->vertexCount*sizeof(*bindings));
+    Vector3* positions=malloc(mesh->vertexCount*sizeof(*positions));
+    Vector3* normals=malloc(mesh->vertexCount*sizeof(*normals));
+    if(!bindings||!positions||!normals) {
+        free(bindings);free(positions);free(normals);
+        Mesh_Free(&newMesh);AnatomyDeformer_Free(fresh);return false;
+    }
+    size_t freshIndex=0;
+    bool valid=true;
+    for(size_t i=0;i<mesh->vertexCount;++i) {
+        Vector3 position=mesh->vertices[i].position;
+        positions[i]=position;normals[i]=mesh->vertices[i].normal;
+        uint32_t old=oldVertexOfNew[i];
+        if(old>=morph->vertexCount) {
+            bindings[i]=fresh->bindings[freshIndex++];
+            continue;
+        }
+        AnatomyDeformerBinding binding=morph->bindings[old];
+        for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
+            if(binding.weight[k]<=0)continue;
+            uint16_t sourceIndex=binding.connIndex[k];
+            if(sourceIndex>=morph->refGraph.connectionCount){valid=false;break;}
+            uint16_t targetIndex=connectionMap[sourceIndex];
+            const BodyConnection* conn=&newGraph->connections[targetIndex];
+            const AnatomyNode* a=AnatomyGraph_FindNode(newGraph,conn->fromId);
+            const AnatomyNode* b=AnatomyGraph_FindNode(newGraph,conn->toId);
+            if(!a||!b){valid=false;break;}
+            Vector3 axis=Vec3_Sub(b->center,a->center);
+            float lengthSquared=Vec3_Dot(axis,axis);
+            float t=lengthSquared>1e-8f?
+                Math_Clamp01(Vec3_Dot(Vec3_Sub(position,a->center),axis)/lengthSquared):0.0f;
+            Vector3 projection=Vec3_Add(a->center,Vec3_Scale(axis,t));
+            float radiusA=(a->widthRadius+a->heightRadius)*.5f;
+            float radiusB=(b->widthRadius+b->heightRadius)*.5f;
+            binding.connIndex[k]=targetIndex;
+            binding.projT[k]=t;
+            binding.refRadius[k]=fmaxf(Math_Lerp(radiusA,radiusB,t),1e-6f);
+            binding.localOffset[k]=Vec3_Sub(position,projection);
+        }
+        if(!valid)break;
+        bindings[i]=binding;
+    }
+    Mesh_Free(&newMesh);AnatomyDeformer_Free(fresh);
+    if(!valid){free(bindings);free(positions);free(normals);return false;}
+    free(morph->bindings);free(morph->basePositions);free(morph->baseNormals);
+    free(morph->skinBindings);morph->skinBindings=NULL;
+    morph->bindings=bindings;morph->basePositions=positions;morph->baseNormals=normals;
+    morph->vertexCount=morph->vertexCapacity=mesh->vertexCount;
+    morph->refGraph=*newGraph;morph->poseBound=false;morph->isBound=true;
+    if(newlyBoundVertices)*newlyBoundVertices=newCount;
+    return true;
+}
+
+bool AnatomyDeformer_DeformMasked(const AnatomyDeformer* morph,
+    const AnatomyGraph* newGraph,Mesh* targetMesh,const uint8_t* frozenVertices) {
     if (!morph || !morph->isBound || !newGraph || !targetMesh) return false;
     if (targetMesh->vertexCount != morph->vertexCount || !targetMesh->vertices) return false;
 
@@ -324,12 +341,13 @@ bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* ne
 
     /* 2. Deformar vértices y actualizar normales */
     for (size_t v = 0; v < morph->vertexCount; ++v) {
+        if(frozenVertices&&frozenVertices[v])continue;
         const AnatomyDeformerBinding* b = &morph->bindings[v];
         Vector3 newPos = Vec3_Zero();
         Vector3 newNorm = Vec3_Zero();
         Vector3 baseNorm = morph->baseNormals[v];
 
-        for (int k = 0; k < 2; ++k) {
+        for (int k = 0; k < ANATOMY_MORPH_INFLUENCES; ++k) {
             if (b->weight[k] <= 0.0f) continue;
             uint16_t cIdx = b->connIndex[k];
             const ConnTransform* x = &xforms[cIdx];
@@ -371,6 +389,115 @@ bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* ne
     return true;
 }
 
+bool AnatomyDeformer_Deform(const AnatomyDeformer* morph,
+    const AnatomyGraph* newGraph,Mesh* targetMesh) {
+    return AnatomyDeformer_DeformMasked(morph,newGraph,targetMesh,NULL);
+}
+
+bool AnatomyDeformer_AnchorFrozenVertices(const AnatomyDeformer* morph,
+    const AnatomyGraph* newGraph,const Mesh* certifiedMesh,
+    Mesh* targetMesh,const uint8_t* frozenMask) {
+    if (!morph || !morph->isBound || !newGraph || !certifiedMesh || !targetMesh || !frozenMask) return false;
+    if (certifiedMesh->vertexCount != morph->vertexCount || targetMesh->vertexCount != morph->vertexCount) return false;
+    if (!certifiedMesh->vertices || !targetMesh->vertices) return false;
+
+    typedef struct AnchorTransform {
+        Vector3 refA;
+        Vector3 newA;
+        Vector3 rotRow[3];
+        bool valid;
+    } AnchorTransform;
+
+    AnchorTransform xforms[ANATOMY_MAX_CONNECTIONS];
+    for (size_t c = 0; c < morph->refGraph.connectionCount; ++c) {
+        const BodyConnection* connRef = &morph->refGraph.connections[c];
+        const AnatomyNode* refA = AnatomyGraph_FindNode(&morph->refGraph, connRef->fromId);
+        const AnatomyNode* refB = AnatomyGraph_FindNode(&morph->refGraph, connRef->toId);
+        const AnatomyNode* newA = AnatomyGraph_FindNode(newGraph, connRef->fromId);
+        const AnatomyNode* newB = AnatomyGraph_FindNode(newGraph, connRef->toId);
+
+        AnchorTransform* x = &xforms[c];
+        x->valid = false;
+        if (!refA || !newA) continue;
+
+        x->refA = refA->center;
+        x->newA = newA->center;
+        x->rotRow[0] = Vec3_Create(1.0f, 0.0f, 0.0f);
+        x->rotRow[1] = Vec3_Create(0.0f, 1.0f, 0.0f);
+        x->rotRow[2] = Vec3_Create(0.0f, 0.0f, 1.0f);
+
+        if (refB && newB) {
+            Vector3 refDir = Vec3_Sub(refB->center, refA->center);
+            Vector3 newDir = Vec3_Sub(newB->center, newA->center);
+            float refLen = Vec3_Length(refDir);
+            float newLen = Vec3_Length(newDir);
+            if (refLen > 1e-5f && newLen > 1e-6f) {
+                Quaternion q = Quat_FromTo(refDir, newDir);
+                Vector3 cx = Quat_RotateVector(q, Vec3_Create(1.0f, 0.0f, 0.0f));
+                Vector3 cy = Quat_RotateVector(q, Vec3_Create(0.0f, 1.0f, 0.0f));
+                Vector3 cz = Quat_RotateVector(q, Vec3_Create(0.0f, 0.0f, 1.0f));
+                x->rotRow[0] = Vec3_Create(cx.x, cy.x, cz.x);
+                x->rotRow[1] = Vec3_Create(cx.y, cy.y, cz.y);
+                x->rotRow[2] = Vec3_Create(cx.z, cy.z, cz.z);
+            }
+        }
+        x->valid = true;
+    }
+
+    for (size_t v = 0; v < morph->vertexCount; ++v) {
+        if (!frozenMask[v]) continue;
+
+        const AnatomyDeformerBinding* b = &morph->bindings[v];
+        Vector3 certPos = certifiedMesh->vertices[v].position;
+        Vector3 certNorm = certifiedMesh->vertices[v].normal;
+
+        Vector3 accumPos = Vec3_Zero();
+        Vector3 accumNorm = Vec3_Zero();
+        float totalWeight = 0.0f;
+
+        for (int k = 0; k < ANATOMY_MORPH_INFLUENCES; ++k) {
+            if (b->weight[k] <= 0.0f) continue;
+            uint16_t cIdx = b->connIndex[k];
+            if (cIdx >= morph->refGraph.connectionCount) continue;
+            const AnchorTransform* x = &xforms[cIdx];
+            if (!x->valid) continue;
+
+            Vector3 delta = Vec3_Sub(certPos, x->refA);
+            Vector3 rotDelta = Vec3_Create(
+                Vec3_Dot(x->rotRow[0], delta),
+                Vec3_Dot(x->rotRow[1], delta),
+                Vec3_Dot(x->rotRow[2], delta)
+            );
+            Vector3 rotNorm = Vec3_Create(
+                Vec3_Dot(x->rotRow[0], certNorm),
+                Vec3_Dot(x->rotRow[1], certNorm),
+                Vec3_Dot(x->rotRow[2], certNorm)
+            );
+
+            Vector3 pAnchored = Vec3_Add(x->newA, rotDelta);
+            accumPos = Vec3_Add(accumPos, Vec3_Scale(pAnchored, b->weight[k]));
+            accumNorm = Vec3_Add(accumNorm, Vec3_Scale(rotNorm, b->weight[k]));
+            totalWeight += b->weight[k];
+        }
+
+        if (totalWeight > 1e-5f) {
+            float invWeight = 1.0f / totalWeight;
+            targetMesh->vertices[v].position = Vec3_Scale(accumPos, invWeight);
+            float normLenSq = Vec3_LengthSq(accumNorm);
+            if (normLenSq > 1e-6f) {
+                targetMesh->vertices[v].normal = Vec3_Normalize(accumNorm);
+            } else {
+                targetMesh->vertices[v].normal = certNorm;
+            }
+        } else {
+            targetMesh->vertices[v].position = certPos;
+            targetMesh->vertices[v].normal = certNorm;
+        }
+    }
+
+    return true;
+}
+
 bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const AnatomyGraph* rest,const Skeleton* s) {
     if (!d || !Skeleton_Validate(s) || !AnatomyDeformer_Bind(d,mesh,rest) ||
         !SkeletonPose_Init(&d->bindPose,s)) return false;
@@ -378,7 +505,7 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
     if(!skin)return false;
     for(size_t v=0;v<mesh->vertexCount;++v) {
         const AnatomyDeformerBinding* binding=&d->bindings[v];
-        for(int k=0;k<2;++k) {
+        for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
             const BodyConnection* c=&rest->connections[binding->connIndex[k]];
             int a=Skeleton_FindJoint(s,c->fromId),b=Skeleton_FindJoint(s,c->toId);
             if(a<0 || b<0) { free(skin); return false; }
@@ -410,7 +537,7 @@ bool AnatomyDeformer_DeformPose(const AnatomyDeformer* d,const Skeleton* s,const
     for(size_t v=0;v<d->vertexCount;++v) {
         Vector3 position=Vec3_Zero(),normal=Vec3_Zero();
         const AnatomySkinBinding* b=&d->skinBindings[v];
-        for(int k=0;k<4;++k) {
+        for(int k=0;k<2*ANATOMY_MORPH_INFLUENCES;++k) {
             if(b->weights[k]<=0)continue;
             int j=b->joints[k];
             Vector3 bp=d->basePositions[v],bn=d->baseNormals[v];

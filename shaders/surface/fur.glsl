@@ -26,13 +26,13 @@ vec3 FurPlane(vec2 q,vec2 flow,float h,vec4 p0,vec4 p1,vec4 p2,uint seed) {
     under=mix(under,6.0*3.14159*radius*radius,filtered)*p1.w*(1.0-smoothstep(.9,1.05,uh));
     return vec3(under,guard,r.z);
 }
-FurSample EvaluateFurStrands(vec3 p,vec3 restN,vec3 n,vec3 flow,float h,vec4 p0,vec4 p1,vec4 p2,uint seed) {
+FurSample EvaluateFurStrands(vec3 p,vec3 restN,vec3 n,vec3 flow,vec3 restFlow,float h,vec4 p0,vec4 p1,vec4 p2,uint seed) {
     vec3 w=pow(abs(normalize(restN)),vec3(4));w/=max(dot(w,vec3(1)),.0001);
     // Mezcla continua: ninguna proyección ganadora, identidad en reposo.
     vec3 q=p*180.0;
-    vec3 a=FurPlane(q.yz,normalize(restFlowOut.yz+vec2(.00001)),h,p0,p1,p2,seed);
-    vec3 b=FurPlane(q.xz,normalize(restFlowOut.xz+vec2(.00001)),h,p0,p1,p2,seed^0x231u);
-    vec3 c=FurPlane(q.xy,normalize(restFlowOut.xy+vec2(.00001)),h,p0,p1,p2,seed^0x732u);
+    vec3 a=FurPlane(q.yz,normalize(restFlow.yz+vec2(.00001)),h,p0,p1,p2,seed);
+    vec3 b=FurPlane(q.xz,normalize(restFlow.xz+vec2(.00001)),h,p0,p1,p2,seed^0x231u);
+    vec3 c=FurPlane(q.xy,normalize(restFlow.xy+vec2(.00001)),h,p0,p1,p2,seed^0x732u);
     vec3 f=a*w.x+b*w.y+c*w.z;
     vec3 tangent=normalize(FurCurveDerivative(n,flow,p0.w,p1.x,p1.y,p1.z,f.z,h));
     return FurSample(f.x+f.y,f.x,f.y,f.z,tangent);

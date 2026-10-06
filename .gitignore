@@ -50,4 +50,7 @@ __pycache__/
 
 /demos/demo_dog
 /demos/demo_lizard_diversity
+/demos/demo_morph_dog_lizard
+/benchmarks/benchmark_morph_dynamic
+/benchmarks/benchmark_gpu_sparse_surface
 .opencode/

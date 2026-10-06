@@ -1,0 +1,386 @@
+[
+  {
+    "gpu": "nv",
+    "age": 0.0,
+    "voxel": 0.035,
+    "log": "interval-complete-nv-0.log",
+    "recipes": [
+      {
+        "recipe": 0,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3.16e-07,
+        "containment_pass": true
+      },
+      {
+        "recipe": 1,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 2,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 6e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 3,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 4,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 5,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 6,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 9.7e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 7,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 7.15e-07,
+        "containment_pass": true
+      }
+    ]
+  },
+  {
+    "gpu": "nv",
+    "age": 0.5,
+    "voxel": 0.035,
+    "log": "interval-complete-nv-.5.log",
+    "recipes": [
+      {
+        "recipe": 0,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 4.7e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 1,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.2e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 2,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 3,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 4e-09,
+        "containment_pass": true
+      },
+      {
+        "recipe": 4,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.9e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 5,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.2e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 6,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 6e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 7,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3.58e-07,
+        "containment_pass": true
+      }
+    ]
+  },
+  {
+    "gpu": "nv",
+    "age": 1.0,
+    "voxel": 0.035,
+    "log": "interval-complete-nv-1.log",
+    "recipes": [
+      {
+        "recipe": 0,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 1,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 2,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 3,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 7e-09,
+        "containment_pass": true
+      },
+      {
+        "recipe": 4,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 5,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 6,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 7,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.38e-07,
+        "containment_pass": true
+      }
+    ]
+  },
+  {
+    "gpu": "mesa",
+    "age": 0.0,
+    "voxel": 0.035,
+    "log": "interval-complete-mesa-0.log",
+    "recipes": [
+      {
+        "recipe": 0,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 5.63e-07,
+        "containment_pass": true
+      },
+      {
+        "recipe": 1,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 2,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 6e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 3,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 7e-09,
+        "containment_pass": true
+      },
+      {
+        "recipe": 4,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 5,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 6,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 9.7e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 7,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 7.15e-07,
+        "containment_pass": true
+      }
+    ]
+  },
+  {
+    "gpu": "mesa",
+    "age": 0.5,
+    "voxel": 0.035,
+    "log": "interval-complete-mesa-.5.log",
+    "recipes": [
+      {
+        "recipe": 0,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 4.8e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 1,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.2e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 2,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 3,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 4e-09,
+        "containment_pass": true
+      },
+      {
+        "recipe": 4,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.2e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 5,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.2e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 6,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 6e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 7,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 3.58e-07,
+        "containment_pass": true
+      }
+    ]
+  },
+  {
+    "gpu": "mesa",
+    "age": 1.0,
+    "voxel": 0.035,
+    "log": "interval-complete-mesa-1.log",
+    "recipes": [
+      {
+        "recipe": 0,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 2.584e-06,
+        "containment_pass": true
+      },
+      {
+        "recipe": 1,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 2,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.7e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 3,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 7e-09,
+        "containment_pass": true
+      },
+      {
+        "recipe": 4,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 5,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 6,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 4.5e-08,
+        "containment_pass": true
+      },
+      {
+        "recipe": 7,
+        "boxes": 512,
+        "scalar_points": 4608,
+        "cpu_gpu_scalar_max_difference": 1.79e-07,
+        "containment_pass": true
+      }
+    ]
+  }
+]

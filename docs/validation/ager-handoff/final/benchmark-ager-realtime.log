@@ -1,0 +1,20 @@
+=================================================================
+ BENCHMARK TIEMPO REAL: Coherencia Temporal y Morphing en Ager 3D 
+=================================================================
+
+--- RESULTADOS DEL BENCHMARK (600 fotogramas simulados) ---
+ Duración total simulación: 10.00 s | FPS promedio de actualización: 60.0
+ Tiempo por frame (ms): p50 = 2.289 ms | p95 = 3.467 ms | max = 5.002 ms
+ Desfase de edad geométrica (lag): p50 = 0.0079 | p95 = 0.0187 | p99 = 0.0217 | max = 0.0221
+ Extremos de dígitos mínimos observados: 20 / 20
+
+--- CRITERIOS DE ACEPTACIÓN ---
+ [ PASS ] p95 lag <= 0.02 (obtenido: 0.0187)
+ [ PASS ] max lag <= 0.04 (obtenido: 0.0221)
+ [ PASS ] render/update >= 30 FPS (p95 = 3.47 ms, equivalente a 288.4 FPS)
+ [ PASS ] 20 dígitos/unguales preservados intactos (20/20)
+ Worker: completados=65 cancelados=0 obsoletos_descartados=0 coalescidos=0
+
+=========================================================
+ ¡BENCHMARK DE COHERENCIA TEMPORAL SUPERADO CON ÉXITO!   
+=========================================================

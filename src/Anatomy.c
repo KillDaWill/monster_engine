@@ -50,7 +50,15 @@ bool AnatomyGraph_HasConnection(const AnatomyGraph* graph, AnatomyId fromId, Ana
 
 bool AnatomyGraph_Validate(const AnatomyGraph* graph) {
     if (!graph || graph->nodeCount == 0 || graph->connectionCount == 0 ||
-        graph->nodeCount>ANATOMY_MAX_NODES || graph->connectionCount>ANATOMY_MAX_CONNECTIONS) return false;
+        graph->nodeCount>ANATOMY_MAX_NODES || graph->connectionCount>ANATOMY_MAX_CONNECTIONS ||
+        graph->axialProfileCount>ANATOMY_MAX_SWEEP_STATIONS) return false;
+    for(size_t i=0;i<graph->axialProfileCount;++i) {
+        const AnatomySweepStation* s=&graph->axialProfile[i];
+        if(!isfinite(s->center.x)||!isfinite(s->center.y)||!isfinite(s->center.z)||
+           !isfinite(s->width)||!isfinite(s->height)||s->width<=0||s->height<=0||
+           !isfinite(s->widthSlope)||!isfinite(s->heightSlope)||!isfinite(s->centerSlope)||
+           (i && s->center.z>=graph->axialProfile[i-1].center.z))return false;
+    }
     for(size_t i=0;i<graph->nodeCount;++i) {
         const AnatomyNode* n=&graph->nodes[i];
         if(!n->id||!isfinite(n->center.x)||!isfinite(n->center.y)||!isfinite(n->center.z)||
@@ -110,6 +118,12 @@ static uint64_t Anatomy_HashBytes(const void* data,size_t count,uint64_t hash) {
 uint64_t AnatomyGraph_Fingerprint(const AnatomyGraph* g) {
     if(!g||g->nodeCount>ANATOMY_MAX_NODES||g->connectionCount>ANATOMY_MAX_CONNECTIONS)return 0;
     uint64_t hash=0xcbf29ce484222325ULL;
+    hash=Anatomy_HashBytes(&g->axialProfileCount,sizeof(g->axialProfileCount),hash);
+    for(size_t i=0;i<g->axialProfileCount && i<ANATOMY_MAX_SWEEP_STATIONS;++i) {
+        const AnatomySweepStation* s=&g->axialProfile[i];
+        const float values[]={s->center.x,s->center.y,s->center.z,s->width,s->height,s->widthSlope,s->heightSlope,s->centerSlope};
+        hash=Anatomy_HashBytes(values,sizeof(values),hash);
+    }
     hash=Anatomy_HashBytes(&g->nodeCount,sizeof(g->nodeCount),hash);
     hash=Anatomy_HashBytes(&g->connectionCount,sizeof(g->connectionCount),hash);
     for(size_t i=0;i<g->nodeCount;++i) {

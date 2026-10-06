@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 
 def function(path,name):
     s=(ROOT/path).read_text()
-    m=re.search(r'(?:static\s+)?(?:inline\s+)?(?:float|void)\s+'+name+r'\s*\([^;]*?\)\s*\{',s)
+    m=re.search(r'(?:static\s+)?(?:inline\s+)?(?:float|void|SDFInterval)\s+'+name+r'\s*\([^;]*?\)\s*\{',s)
     if not m: raise ValueError(name)
     start=s.index('{',m.start());depth=1;i=start+1
     while depth:
@@ -57,7 +57,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
         fields.extend((t,n.strip()) for n in names.split(','))
     offset=0;code=[f'static void Pack{short}(float (*out)[4], const {typ}* in) {{']
     for t,name in fields:
-        if name in ['moduleInstanceId','isDistalLimb','development'] and typ=='MonsterSDFConnector':continue
+        if name in ['isDistalLimb','development'] and typ=='MonsterSDFConnector':continue
         arr=re.fullmatch(r'(\w+)\[(\d+)\]',name)
         if t=='SDFSweepStation' and arr:
             name=arr[1];n=int(arr[2]);access.append(f'int {short}_{name}(int i) {{ return i+{offset}; }}')
@@ -78,7 +78,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
                 access.append(f'vec3 {short}_{name}_{edge}(int i) {{ return dataAt(i+{offset+j}).xyz; }}')
                 code.append(f'    PackVector(out[{offset+j}], in->{name}.{edge});')
             offset+=2
-        elif t in ['float','bool','size_t','AnatomyId','BodyConnectionKind']:
+        elif t in ['float','bool','size_t','AnatomyId','BodyConnectionKind','AnatomyRegion','uint32_t']:
             gt='float' if t=='float' else 'bool' if t=='bool' else 'int'
             access.append(f'{gt} {short}_{name}(int i) {{ return {gt}(dataAt(i+{offset}).x); }}')
             code.append(f'    out[{offset}][0]=(float)in->{name};');offset+=1
@@ -87,7 +87,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
     pack.extend([f'#define {short}_STRIDE {offset}',*code,'}'])
 
 functions=[]
-for name in ['SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
+for name in ['SDF_SinHalfTurn','SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
     functions.append(function('src/SDFPrimitives.c',name))
 for name in ['SDF_SmoothUnion','SDF_SmoothSubtract']:
     functions.append(function('src/SDFOperations.c',name))
@@ -125,9 +125,75 @@ def translate(s):
     s=re.sub(r'conn->(\w+)',r'C_\1(conn)',s)
     if '->' in s:raise ValueError(s)
     return s
-shader=prefix+'\n'.join(access)+'\n'+prototypes+'\n'.join(map(translate,functions))+sweep+'\n'.join(map(translate,heads))+'\n'+(ROOT/'shaders/monster_sdf_trace.glsl').read_text()
-# Fragmentos pequeños evitan exceder el mínimo C99 de longitud de literal.
-version,shader=shader.split("\n",1)
-chunks=[version+"\n"]+[shader[i:i+2000] for i in range(0,len(shader),2000)]
-pack+=['static const char* const sdfFragmentSource[] = {',*(json.dumps(c)+',' for c in chunks),'};']
+surface_modules=['hash','scales','pigment','fur_curve','fur','bump','lighting','evaluate']
+surface='uniform vec4 surfaceRecipe[46];\nuniform uint pigmentSeed,scaleSeed,furSeed;\nuniform int sdfHasSurface,sdfFurEnabled;\n'
+surface+='\n'.join(re.sub(r'^#include .*\n','',
+    (ROOT/f'shaders/surface/{name}.glsl').read_text(),flags=re.M) for name in surface_modules)
+domain=(ROOT/'shaders/surface/morph_domain.glsl').read_text()
+handoff=(ROOT/'shaders/morph_handoff.glsl').read_text()+'\n'+domain
+core=prefix.split("\n",1)[1]+'\n'.join(access)+'\n'+prototypes+'\n'.join(map(translate,functions))+sweep+'\n'.join(map(translate,heads))+'\n'+(ROOT/'shaders/sdf_scene.glsl').read_text()
+material=(ROOT/'shaders/sdf_surface_material.glsl').read_text()
+shader=prefix.split("\n",1)[0]+'\n'+core+'\n'+surface+'\n'+handoff+'\nuniform vec3 cameraPosition,cameraForward,cameraRight,cameraUp;\n'+material+'\n'+(ROOT/'shaders/monster_sdf_trace.glsl').read_text()
+def embed(name,source):
+    version,body=source.split("\n",1)
+    chunks=[version+"\n"]+[body[i:i+2000] for i in range(0,len(body),2000)]
+    return ['static const char* const '+name+'[] = {',*(json.dumps(c)+',' for c in chunks),'};']
+pack+=embed('sdfFragmentSource',shader)
 (ROOT/'src/MonsterSDFShader.generated.h').write_text('\n'.join(pack)+'\n')
+compute=['/* Generado; editar shaders/ o el generador. */']
+for name,file,scene in [('sdfSampleSource','sdf_surface_sample.comp',True),('sdfClassifySource','sdf_surface_classify.comp',False),('sdfEmitSource','sdf_surface_emit.comp',True),('sdfFinalizeSource','sdf_surface_finalize.comp',False),('sdfPrepareSource','sdf_surface_prepare.comp',False), ('sdfResetSource','sdf_surface_reset.comp',False),('sdfValidateSource','sdf_surface_validate.comp',True)]:
+    compute+=embed(name,'#version 430 compatibility\n'+(core if scene else '')+(ROOT/'shaders/sdf_surface_common.glsl').read_text()+(ROOT/'shaders'/file).read_text())
+for stage, scene in [('Release',False),('Sample',True),('Classify',False),('Allocate',False),('Persist',False),('Emit',False),('Root',True),('Statistics',False)]:
+    source=(ROOT/('shaders/sdf_sparse_'+stage.lower()+'.comp')).read_text()
+    layout=re.search(r'layout\(local_size_x=\d+\) in;',source)[0]
+    compute+=embed('sdfSparse'+stage+'Source','#version 430 compatibility\n'+layout+'\n'+(core if scene else '')+(ROOT/'shaders/sdf_sparse_common.glsl').read_text()+source.replace(layout,''))
+# Intervalos nuevos: sólo los shaders compute 4.30 necesitan double y next-float.
+def interval_translate(source):
+    source=translate(source)
+    source=re.sub(r'\(SDFInterval\)\{([^{}]*)\}',r'SDFInterval(\1)',source)
+    # Conversiones C explícitas: preservar la agrupación del operando, no usar regex codiciosa.
+    while True:
+        match=re.search(r'\((float|double)\)\s*',source)
+        if not match:break
+        begin=match.end();end=begin
+        if source[begin]=='(':
+            depth=1;end=begin+1
+            while depth:
+                depth+=(source[end]=='(')-(source[end]==')');end+=1
+        else:
+            atom=re.match(r'\w+(?:\.\w+)*',source[begin:])
+            if not atom:raise ValueError(source[begin:begin+80])
+            end=begin+atom.end()
+            if end<len(source) and source[end]=='(':
+                depth=1;end+=1
+                while depth:
+                    depth+=(source[end]=='(')-(source[end]==')');end+=1
+        source=source[:match.start()]+match[1]+'('+source[begin:end]+')'+source[end:]
+    return source
+interval_prefix='''struct SDFInterval {float lo;float hi;};
+struct AABB3D {vec3 start;vec3 end;};
+#define INFINITY uintBitsToFloat(0x7f800000u)
+#define fmin min
+#define fmax max
+#define fminf min
+#define fmaxf max
+float IntervalNextToward(float value,float toward) {
+    if(isnan(value)||value==toward)return value;
+    if(value==0)return uintBitsToFloat(toward<0?0x80000001u:1u);
+    uint bits=floatBitsToUint(value);
+    return uintBitsToFloat((value<toward)==(value>0)?bits+1u:bits-1u);
+}
+#define nextafterf IntervalNextToward
+'''
+interval_names=['Interval_Pad','Interval_Constant','Interval_Add','Interval_Subtract','Interval_Multiply',
+    'Interval_Scale','Interval_Min','Interval_Max','Interval_Clamp','Interval_Divide','Interval_Absolute',
+    'Interval_Square','Interval_Sqrt','Interval_SinHalfTurn','Interval_Project','SDF_CurvedPinnaInterval',
+    'Interval_Lerp','Interval_Length','Interval_Component','Interval_Hull','SDF_EllipsoidInterval',
+    'SDF_CapsuleInterval','SDF_RoundedSlotInterval','SDF_SmoothUnionInterval','SDF_SmoothSubtractInterval',
+    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_ConnectorInterval']
+interval_code=interval_prefix+'\n'.join(interval_translate(function('src/SDFInterval.c',name)) for name in interval_names)
+compute+=embed('sdfIntervalValidateSource','#version 430 compatibility\n'+core+interval_code+
+    (ROOT/'shaders/sdf_interval_validate.comp').read_text())
+compute+=embed('sdfMeshVertexSource','#version 430 compatibility\n'+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
+compute+=embed('sdfMeshFragmentSource','#version 430 compatibility\n'+core+surface+domain+'\nuniform vec3 cameraPosition,cameraForward,cameraRight,cameraUp;\n'+material+(ROOT/'shaders/sdf_surface_mesh.frag').read_text())
+(ROOT/'src/MonsterSDFCompute.generated.h').write_text('\n'.join(compute)+'\n')

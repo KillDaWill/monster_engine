@@ -8,30 +8,36 @@ Monster Engine: procedural monster simulation in idiomatic C (gcc, `-Wall -Wextr
 
 - `make test` — build + run the unit test binary `run_tests` (core + tests only, links `-lm`, **no GL needed**). This is the fast verification loop.
 - `make all` — everything, including Doxygen docs.
-- `make demos` — `demos/demo_ager_3d` (GL) and `demos/demo_lizard_console` (console, no GL).
+- `make demos` — builds all demos: `demo_ager_3d` (GL), `demo_lizard_console` (console, no GL), `demo_dog` (GL), `demo_morph_dog_lizard` (GL metamorfosis inter-especies), etc.
+- `make visual-morph-ownership` — prueba de regresión visual y correspondencia morfológica exacta vs diferida.
+- `make visual-ager-sparse` — validación anatómica de campo disperso.
 - `make docs` — Doxygen from `include src README.md` into `doc/html`; prints a warning (not failure) if doxygen is missing.
 - `make clean` — removes `build/`, all binaries, `doc/html`, `doc/latex`.
 - `make codegraph` — sincroniza/actualiza el grafo de conocimiento para Codex y OpenCode (`tools/update_codegraph.sh`).
-- GL targets (`lizard_viewer`, `demo_ager_3d`) require SDL2/GL dev libraries; on headless machines build only core/test targets.
+- GL targets (`lizard_viewer`, `demo_ager_3d`, `demo_dog`, `demo_morph_dog_lizard`) require SDL2/GL dev libraries; on headless machines build only core/test targets.
 - Root-level `run_tests` / `run_demo` are gitignored **build artifacts**, not sources. `run_demo` is stale (no Makefile target builds it).
 
 ## Architecture — the one rule that matters
 
 - **`src/OpenGLRenderer.c` is the ONLY file allowed to include SDL/GL headers.** Everything else in `CORE_SRCS` must stay render-agnostic: `make test` links core objects with only `-lm`, so any GL dependency in a core module breaks the test build.
 - Module pattern: `include/X.h` + `src/X.c`, `Module_Action` naming (`Color_FromRGB`, `Monster_Create`), functions take/return structs (pass-by-value or pointer), Doxygen annotations (`@file`, `@brief`, `@param`, `@return`) on every header.
-- Entrypoints: `src/main_lizard_viewer.c` (SDL2+OpenGL SDF viewer); console/GL demos in `demos/`.
+- Entrypoints: `src/main_lizard_viewer.c` (SDL2+OpenGL SDF viewer); console/GL demos en `demos/`.
 - Header-only interfaces to respect when extending: `RenderInterfaces.h` (`MonsterRenderer` VTable, `ICamera`), `Trait.h` / `VisualTrait.h` (polymorphic traits), `WorldInterface.h`.
-- SDF pipeline layering: `SDFPrimitives/SDFOperations/SDFSampling` → `MonsterSDF` (creature) → `MarchingCubes` → `SDFMesher` → `MonsterVisual` (mesh gen).
+- SDF pipeline layering: `SDFPrimitives/SDFOperations/SDFSampling` → `MonsterSDF` (creature) → `MarchingCubes` → `SDFMesher` / `SDFAdaptiveMesher` → `MonsterVisual` / `MonsterVisualAsync` (mesh gen).
+- Dynamic morphing & handoff layering: `CreatureMorph` / `MorphModuleState` → `MorphHandoff` (volumen/uniones continuas) → `MorphSpatialCache` (sparse bricks 3D) → `MorphChunkManager` / `MeshPatch` (remallado local) → `MorphSurfaceTracker` / `MorphSurfacePatcher` (superficies y pigmentos).
+- GPU Compute & shaders: shaders en `shaders/` (compute `.comp`, fragment `.frag`, vertex `.vert`). Los scripts `tools/generate_sdf_shader.py` y `tools/generate_surface_shader.py` generan automáticamente `MonsterSDFShader.generated.h`, `MonsterSDFCompute.generated.h` y `MonsterSurfaceShader.generated.h`. **Nunca editar los archivos `.generated.h` a mano.**
 
 ## Makefile gotchas
 
 - **New source files are NOT auto-discovered.** Add new files to `CORE_SRCS` (core) or `RENDER_SRCS` (GL-only) in the Makefile, or they silently won't link.
+- New test suites must be added to `TEST_SRCS` in the Makefile, declare and call `run_x_tests()` from `tests/main_test.c`.
 
 ## Tests — custom framework, no runner
 
 - `tests/test_*.c` use `TEST_ASSERT(cond, msg)` and `FLOAT_NEAR(a, b)` (tolerance 0.001) from `tests/test_utils.h`. A failure prints `[FAIL]` and `exit(1)`; no pass/fail counting.
 - Adding a suite requires **three steps**: create `tests/test_x.c` exposing `run_x_tests(void)`, add it to `TEST_SRCS` in the Makefile, and declare + call `run_x_tests()` from `tests/main_test.c`.
 - No test filtering: the single binary runs all suites. No fixtures, no external services.
+
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph

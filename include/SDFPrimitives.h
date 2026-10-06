@@ -9,6 +9,7 @@
 #define MONSTER_SDF_PRIMITIVES_H
 
 #include "Vector.h"
+#include "Anatomy.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -16,11 +17,7 @@ extern "C" {
 #endif
 
 /** @brief Estación de barrido sobre Z con sección elíptica y derivadas por unidad Z. */
-typedef struct SDFSweepStation {
-    Vector3 center; /**< Centro de la sección. */
-    float width, height; /**< Semiejes lateral y vertical. */
-    float widthSlope, heightSlope, centerSlope; /**< Tangentes de Hermite. */
-} SDFSweepStation;
+typedef AnatomySweepStation SDFSweepStation;
 
 /** @brief Evalúa un barrido de estaciones ordenadas de mayor a menor Z, cerrado en extremos. */
 float SDF_EllipticalSweepZ(Vector3 p, const SDFSweepStation* stations, int count);
@@ -28,13 +25,20 @@ float SDF_EllipticalSweepZ(Vector3 p, const SDFSweepStation* stations, int count
 bool SDF_SweepResolveTangents(SDFSweepStation* stations,int count);
 
 
-/** @brief Pinna triangular redondeada orientada; campo conservador 1-Lipschitz.
+/** @brief Pinna orientada; su campo implícito no garantiza una constante Lipschitz unitaria.
  * @param point Posición relativa al centro del pabellón.
  * @param shape Semianchura basal, altura, semiespesor.
  * @param direction Eje unitario de base a punta.
  * @param tipFraction Anchura distal relativa.
  * @param concavity Profundidad de concha normalizada. @return Distancia conservadora. */
 float SDF_TaperedPinna(Vector3 point, Vector3 shape, Vector3 direction, float tipFraction, float concavity);
+/** @brief Seno de media vuelta con aritmética compartida C/GLSL.
+ * @param angle Ángulo entre cero y pi; fuera del dominio se satura.
+ * @return Aproximación float cuyo error absoluto está acotado por 0,000008.
+ * La reducción a [0,pi/2] y la serie de grado 11 permiten propagar intervalos
+ * sin depender de la precisión indefinida de las trigonométricas GLSL.
+ */
+float SDF_SinHalfTurn(float angle);
 /** @brief Lámina auricular curva; los tres ejes ortonormales vienen de la anatomía resuelta. */
 float SDF_CurvedPinna(Vector3 point,Vector3 shape,Vector3 up,Vector3 side,Vector3 normal,
                       float tipFraction,float concavity,float longitudinalCurve,float rootRoll,

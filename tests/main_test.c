@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+void run_gpu_sdf_surface_tests(void);
 void run_dog_tests(void);
 void run_animation_tests(void);
 void run_color_tests(void);
@@ -21,11 +22,16 @@ void run_lizard_tests(void);
 void run_local_detail_tests(void);
 void run_perf_optimizations_tests(void);
 void run_morph_tests(void);
+void run_morph_spatial_cache_tests(void);
+void run_morph_chunk_manager_tests(void);
+void run_morph_cross_tests(void);
 
 void run_surface_tests(void);
 void run_fur_tests(void);
 void run_creature_recipe_tests(void);
 void run_creature_variation_tests(void);
+
+void run_morph_handoff_tests(void);
 
 int main(void) {
     printf("======================================\n");
@@ -56,6 +62,7 @@ int main(void) {
 
     printf("\n--- Módulo Marching Cubes (tablas) ---\n");
     run_marching_cubes_tests();
+    run_gpu_sdf_surface_tests();
 
     printf("\n--- Módulo Mesh ---\n");
     run_mesh_tests();
@@ -85,6 +92,10 @@ int main(void) {
 
     printf("\n--- Módulo AnatomyDeformer ---\n");
     run_morph_tests();
+    run_morph_handoff_tests();
+    run_morph_spatial_cache_tests();
+    run_morph_chunk_manager_tests();
+    run_morph_cross_tests();
 
     printf("\n======================================\n");
     printf(" ¡TODAS LAS SUITES PASARON CON ÉXITO! \n");

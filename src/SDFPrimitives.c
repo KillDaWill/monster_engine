@@ -223,20 +223,35 @@ bool SDF_SweepResolveTangents(SDFSweepStation* stations,int count) {
 
 /* Perfil continuo equivalente a secciones raíz, concha, escafa y ápice.
  * El ancho conserva masa en la mitad y converge sólo en el tercio distal. */
+/* Error: resto de Taylor <=(pi/2)^13/13! <6e-8; reducción y 16
+ * operaciones float, incluida la contracción permitida en GLSL, quedan
+ * holgadamente dentro de 8e-6. Se comparte la receta, no una tabla GPU. */
+float SDF_SinHalfTurn(float angle) {
+    float pi=3.14159265f;
+    float a=Math_Clamp(angle,0.0f,pi);
+    float x=Math_Min(a,pi-a),q=x*x;
+    float polynomial=-1.0f/39916800.0f;
+    polynomial=1.0f/362880.0f+q*polynomial;
+    polynomial=-1.0f/5040.0f+q*polynomial;
+    polynomial=1.0f/120.0f+q*polynomial;
+    polynomial=-1.0f/6.0f+q*polynomial;
+    polynomial=1.0f+q*polynomial;
+    return x*polynomial;
+}
 float SDF_CurvedPinna(Vector3 p,Vector3 shape,Vector3 up,Vector3 side,Vector3 normal,
                       float tipFraction,float concavity,float curve,float rootRoll,
                       float tipRoundness,float fold,float rootFlare,float marginBow,float marginAsymmetry) {
     float h=Math_Max(fabsf(shape.y),.01f),w=Math_Max(fabsf(shape.x),.006f),th=Math_Max(fabsf(shape.z),.003f);
     float y=Vec3_Dot(p,up),t=Math_Clamp01(y/h+.5f);
-    float centerX=w*marginBow*(.45f*sinf(3.14159265f*t)+.24f*t*t);
-    float centerZ=curve*sinf(3.14159265f*t)+fold*t*t;
+    float centerX=w*marginBow*(.45f*SDF_SinHalfTurn(3.14159265f*t)+.24f*t*t);
+    float centerZ=curve*SDF_SinHalfTurn(3.14159265f*t)+fold*t*t;
     float x=Vec3_Dot(p,side)-centerX,z=Vec3_Dot(p,normal)-centerZ;
     float tipStart=.90f-.10f*Math_Clamp01(tipRoundness);
     float profileT=Math_Min(t,tipStart);
     float distal=profileT*profileT*profileT;
     distal*=distal;
     float flare=rootFlare*.32f*4.0f*profileT*(1.0f-profileT)*(1.0f-profileT)*(1.0f-profileT);
-    float width=w*(.76f+.34f*sinf(3.14159265f*profileT)-
+    float width=w*(.76f+.34f*SDF_SinHalfTurn(3.14159265f*profileT)-
                    (.76f-Math_Clamp(tipFraction,.04f,.55f))*distal+flare);
     float tipU=Math_Clamp01((t-tipStart)/(1.0f-tipStart));
     float tipArc=sqrtf(Math_Max(0.0f,1.0f-tipU*tipU));

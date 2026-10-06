@@ -1,0 +1,131 @@
+========================================================================
+   MONSTER ENGINE 3D: METAMORFOSIS EXTREMA (MonsterAger Inter-Especies) 
+        Cánido Digitígrado con Pelaje  --->  Lagarto Cuadrúpedo con Escamas
+========================================================================
+
+ Concepto de la prueba:
+  1. Biología paramétrica: Se pasa de un tetrápodo erecto mamífero a un
+     tetrápodo reptil de andadura baja (sprawling), articulando patas y dedos.
+  2. Superficie progresiva: El pelaje canino se acorta y reduce su densidad (0% -> 45%),
+     revelando piel desnuda intermedia (45% -> 55%) donde la anatomía se reorganiza;
+     luego brotan las escamas (55% -> 100%) ganando relieve, quilla y pigmento.
+  3. Superficie persistente: el cuerpo se deforma continuamente mientras
+     la corrección SDF asíncrona actualiza su geometría de referencia.
+
+ Controles interactivos:
+  - ESPACIO                  : Alternar metamorfosis automática (oscilación fluida)
+  - FLECHA DERECHA / ARRIBA  : Avanzar metamorfosis hacia Lagarto (+perc)
+  - FLECHA IZQUIERDA / ABAJO : Retroceder metamorfosis hacia Perro (-perc)
+  - 0                        : Fijar a 0% (Perro 100% con pelaje completo)
+  - 1                        : Fijar a 25% (Pérdida y afinamiento de pelo)
+  - 2                        : Fijar a 50% (Piel desnuda intermedia y cambio esquelético)
+  - 3                        : Fijar a 75% (Escamas incipientes y pigmento verde)
+  - 4                        : Fijar a 100% (Lagarto 100% con escamas desarrolladas)
+  - F1..F5                   : Cámaras (lateral, frontal, 3/4, cabeza, cola)
+  - --view=6                 : Vista superior para validación automática
+  - --view=7                 : Primer plano de autopodio posterior
+  - --view=8                 : Vista posterior para validación automática
+  - R                        : Pausar / reanudar giro de órbita de cámara
+  - A                        : Alternar overlay del grafo esquelético / anatómico
+  - --no-fur                 : Captura anatómica sin pelaje
+  - E / --exact-sdf          : Comparar SDF exacto con pigmento y material procedural
+  - --local-patches          : Probar la reparación topológica local validada
+  - C                        : Alternar visualización wireframe de chunks volumétricos
+  - B                        : Alternar visualización de región de fallback SDF (AABB)
+  - L                        : Ciclar inyección de latencia del worker (0, 50, 250, 1000, 3000 ms)
+  - M                        : Alternar remallado incremental por chunks en worker
+  - Rueda de ratón           : Zoom de cámara in / out
+  - ESCAPE                   : Salir
+========================================================================
+
+[INICIALIZACIÓN] Construyendo espécimen 1: Perro Adulto (Canis)...
+[INICIALIZACIÓN] Construyendo espécimen 2: Lagarto Adulto (Lacerta)...
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[CICLO] 0 edad=0.00000 geometria=0.00000 presentada=0.00000 build=839.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=0
+[CICLO] 1 edad=0.20544 geometria=0.00000 presentada=0.20544 build=839.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.889 -1.228 -1.644]-[1.853 4.027 1.385] origen=[0.417 2.738 -0.178] banda=0.0327 visualAge=0.20544 certAge=0.00000 targetAge=0.20544 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-1.838 -1.248 -1.644]-[0.871 4.027 1.391] origen=[-0.417 2.738 -0.178] banda=0.0327 visualAge=0.20544 certAge=0.00000 targetAge=0.20544 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.105 -1.315 -5.189]-[1.958 4.424 -1.615] origen=[0.372 2.948 -3.590] banda=0.0482 visualAge=0.20544 certAge=0.00000 targetAge=0.20544 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-1.958 -1.353 -5.189]-[1.105 4.424 -1.615] origen=[-0.372 2.948 -3.590] banda=0.0482 visualAge=0.20544 certAge=0.00000 targetAge=0.20544 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.605 1.273 -7.408]-[1.605 4.894 -1.985] origen=[0.000 3.289 -3.938] banda=0.0419 visualAge=0.20544 certAge=0.00000 targetAge=0.20544 estado=2 transición=1.000
+[CICLO] 2 edad=0.35400 geometria=0.00000 presentada=0.35400 build=839.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.853 -1.348 -1.964]-[1.997 3.542 1.281] origen=[0.442 2.247 -0.468] banda=0.0347 visualAge=0.35400 certAge=0.00000 targetAge=0.35400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-1.954 -1.395 -1.964]-[0.853 3.542 1.287] origen=[-0.442 2.247 -0.468] banda=0.0347 visualAge=0.35400 certAge=0.00000 targetAge=0.35400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.075 -1.500 -5.772]-[2.173 3.890 -2.098] origen=[0.408 2.407 -4.061] banda=0.0510 visualAge=0.35400 certAge=0.00000 targetAge=0.35400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-2.162 -1.589 -5.772]-[1.075 3.890 -2.098] origen=[-0.408 2.407 -4.061] banda=0.0510 visualAge=0.35400 certAge=0.00000 targetAge=0.35400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.573 0.834 -8.731]-[1.573 4.253 -2.488] origen=[0.000 2.680 -4.354] banda=0.0539 visualAge=0.35400 certAge=0.00000 targetAge=0.35400 estado=2 transición=1.000
+[CICLO] 3 edad=0.50808 geometria=0.05000 presentada=0.50808 build=540.3 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.830 -1.495 -2.370]-[2.223 2.929 1.149] origen=[0.472 1.627 -0.835] banda=0.0371 visualAge=0.50808 certAge=0.05000 targetAge=0.50808 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.223 -1.559 -2.370]-[0.830 2.929 1.149] origen=[-0.472 1.627 -0.835] banda=0.0371 visualAge=0.50808 certAge=0.05000 targetAge=0.50808 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.037 -1.719 -6.625]-[2.649 3.214 -2.709] origen=[0.454 1.723 -4.657] banda=0.0545 visualAge=0.50808 certAge=0.05000 targetAge=0.50808 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-2.510 -1.835 -6.625]-[1.037 3.214 -2.709] origen=[-0.454 1.723 -4.657] banda=0.0545 visualAge=0.50808 certAge=0.05000 targetAge=0.50808 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.618 0.106 -10.404]-[1.618 3.528 -3.039] origen=[0.000 1.910 -4.879] banda=0.0691 visualAge=0.50808 certAge=0.05000 targetAge=0.50808 estado=2 transición=1.000
+[CICLO] 4 edad=0.65436 geometria=0.05000 presentada=0.65436 build=540.3 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.808 -1.631 -2.753]-[2.558 2.351 1.026] origen=[0.501 1.041 -1.180] banda=0.0395 visualAge=0.65436 certAge=0.05000 targetAge=0.65436 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.558 -1.684 -2.753]-[0.808 2.351 1.026] origen=[-0.501 1.041 -1.180] banda=0.0395 visualAge=0.65436 certAge=0.05000 targetAge=0.65436 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.001 -1.909 -7.579]-[2.966 2.577 -3.285] origen=[0.497 1.078 -5.219] banda=0.0578 visualAge=0.65436 certAge=0.05000 targetAge=0.65436 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-2.966 -2.009 -7.579]-[1.001 2.577 -3.285] origen=[-0.497 1.078 -5.219] banda=0.0578 visualAge=0.65436 certAge=0.05000 targetAge=0.65436 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.714 -0.603 -11.981]-[1.714 2.898 -3.538] origen=[0.000 1.184 -5.374] banda=0.0834 visualAge=0.65436 certAge=0.05000 targetAge=0.65436 estado=2 transición=1.000
+[CICLO] 5 edad=0.80400 geometria=0.05000 presentada=0.80400 build=540.3 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.790 -1.742 -3.069]-[2.835 1.872 0.923] origen=[0.525 0.557 -1.467] banda=0.0414 visualAge=0.80400 certAge=0.05000 targetAge=0.80400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.835 -1.765 -3.069]-[0.790 1.872 0.923] origen=[-0.525 0.557 -1.467] banda=0.0414 visualAge=0.80400 certAge=0.05000 targetAge=0.80400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-0.972 -2.056 -8.368]-[3.344 2.049 -3.762] origen=[0.533 0.545 -5.684] banda=0.0605 visualAge=0.80400 certAge=0.05000 targetAge=0.80400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-3.344 -2.102 -8.368]-[0.972 2.049 -3.762] origen=[-0.533 0.545 -5.684] banda=0.0605 visualAge=0.80400 certAge=0.05000 targetAge=0.80400 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.829 -1.246 -13.423]-[1.829 2.421 -3.951] origen=[0.000 0.583 -5.784] banda=0.0952 visualAge=0.80400 certAge=0.05000 targetAge=0.80400 estado=2 transición=1.000
+[CICLO] 6 edad=1.00000 geometria=0.45000 presentada=1.00000 build=550.8 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.780 -1.804 -3.250]-[2.993 1.599 0.865] origen=[0.539 0.280 -1.630] banda=0.0425 visualAge=1.00000 certAge=0.45000 targetAge=1.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.993 -1.804 -3.250]-[0.780 1.599 0.865] origen=[-0.539 0.280 -1.630] banda=0.0425 visualAge=1.00000 certAge=0.45000 targetAge=1.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-0.955 -2.138 -8.818]-[3.559 1.748 -4.034] origen=[0.553 0.240 -5.950] banda=0.0621 visualAge=1.00000 certAge=0.45000 targetAge=1.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-3.559 -2.138 -8.818]-[0.955 1.748 -4.034] origen=[-0.553 0.240 -5.950] banda=0.0621 visualAge=1.00000 certAge=0.45000 targetAge=1.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.894 -1.654 -14.256]-[1.894 2.168 -4.124] origen=[0.000 0.240 -6.018] banda=0.1020 visualAge=1.00000 certAge=0.45000 targetAge=1.00000 estado=2 transición=1.000
+[CICLO] 7 edad=0.79780 geometria=0.85000 presentada=0.79780 build=780.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.791 -1.738 -3.059]-[2.825 1.888 0.927] origen=[0.524 0.573 -1.457] banda=0.0414 visualAge=0.79780 certAge=0.85000 targetAge=0.79780 estado=0 transición=0.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.825 -1.762 -3.059]-[0.791 1.888 0.927] origen=[-0.524 0.573 -1.457] banda=0.0414 visualAge=0.79780 certAge=0.85000 targetAge=0.79780 estado=0 transición=0.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-0.973 -2.052 -8.341]-[3.331 2.067 -3.746] origen=[0.532 0.563 -5.669] banda=0.0604 visualAge=0.79780 certAge=0.85000 targetAge=0.79780 estado=0 transición=0.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-3.331 -2.100 -8.341]-[0.973 2.067 -3.746] origen=[-0.532 0.563 -5.669] banda=0.0604 visualAge=0.79780 certAge=0.85000 targetAge=0.79780 estado=0 transición=0.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.825 -1.221 -13.374]-[1.825 2.436 -3.937] origen=[0.000 0.603 -5.770] banda=0.0948 visualAge=0.79780 certAge=0.85000 targetAge=0.79780 estado=0 transición=0.000
+[CICLO] 8 edad=0.64684 geometria=0.85000 presentada=0.64684 build=780.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.809 -1.625 -2.734]-[2.541 2.379 1.032] origen=[0.500 1.070 -1.164] banda=0.0394 visualAge=0.64684 certAge=0.85000 targetAge=0.64684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.541 -1.679 -2.734]-[0.809 2.379 1.032] origen=[-0.500 1.070 -1.164] banda=0.0394 visualAge=0.64684 certAge=0.85000 targetAge=0.64684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.003 -1.900 -7.532]-[2.951 2.608 -3.257] origen=[0.495 1.110 -5.192] banda=0.0576 visualAge=0.64684 certAge=0.85000 targetAge=0.64684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-2.944 -2.002 -7.532]-[1.003 2.608 -3.257] origen=[-0.495 1.110 -5.192] banda=0.0576 visualAge=0.64684 certAge=0.85000 targetAge=0.64684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.707 -0.569 -11.904]-[1.707 2.927 -3.514] origen=[0.000 1.219 -5.350] banda=0.0827 visualAge=0.64684 certAge=0.85000 targetAge=0.64684 estado=2 transición=1.000
+[CICLO] 9 edad=0.49684 geometria=0.85000 presentada=0.49684 build=780.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.832 -1.484 -2.340]-[2.197 2.975 1.159] origen=[0.470 1.673 -0.807] banda=0.0370 visualAge=0.49684 certAge=0.85000 targetAge=0.49684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-2.197 -1.548 -2.340]-[0.832 2.975 1.159] origen=[-0.470 1.673 -0.807] banda=0.0370 visualAge=0.49684 certAge=0.85000 targetAge=0.49684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.040 -1.703 -6.550]-[2.617 3.265 -2.663] origen=[0.450 1.774 -4.612] banda=0.0542 visualAge=0.49684 certAge=0.85000 targetAge=0.49684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-2.473 -1.819 -6.550]-[1.040 3.265 -2.663] origen=[-0.450 1.774 -4.612] banda=0.0542 visualAge=0.49684 certAge=0.85000 targetAge=0.49684 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.613 0.162 -10.278]-[1.613 3.581 -3.000] origen=[0.000 1.968 -4.840] banda=0.0679 visualAge=0.49684 certAge=0.85000 targetAge=0.49684 estado=2 transición=1.000
+[CICLO] 10 edad=0.34408 geometria=0.85000 presentada=0.34408 build=780.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.854 -1.339 -1.940]-[1.986 3.579 1.289] origen=[0.440 2.285 -0.446] banda=0.0345 visualAge=0.34408 certAge=0.85000 targetAge=0.34408 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-1.942 -1.384 -1.940]-[0.854 3.579 1.295] origen=[-0.440 2.285 -0.446] banda=0.0345 visualAge=0.34408 certAge=0.85000 targetAge=0.34408 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.077 -1.486 -5.726]-[2.147 3.930 -2.061] origen=[0.405 2.448 -4.025] banda=0.0508 visualAge=0.34408 certAge=0.85000 targetAge=0.34408 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-2.147 -1.572 -5.726]-[1.077 3.930 -2.061] origen=[-0.405 2.448 -4.025] banda=0.0508 visualAge=0.34408 certAge=0.85000 targetAge=0.34408 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.576 0.872 -8.630]-[1.576 4.302 -2.450] origen=[0.000 2.726 -4.322] banda=0.0530 visualAge=0.34408 certAge=0.85000 targetAge=0.34408 estado=2 transición=1.000
+[CICLO] 11 edad=0.19348 geometria=0.85000 presentada=0.19348 build=780.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.894 -1.220 -1.623]-[1.844 4.058 1.391] origen=[0.416 2.770 -0.159] banda=0.0326 visualAge=0.19348 certAge=0.85000 targetAge=0.19348 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-1.831 -1.238 -1.623]-[0.872 4.058 1.398] origen=[-0.416 2.770 -0.159] banda=0.0326 visualAge=0.19348 certAge=0.85000 targetAge=0.19348 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.107 -1.303 -5.156]-[1.945 4.459 -1.584] origen=[0.369 2.983 -3.559] banda=0.0480 visualAge=0.19348 certAge=0.85000 targetAge=0.19348 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-1.945 -1.337 -5.156]-[1.107 4.459 -1.584] origen=[-0.369 2.983 -3.559] banda=0.0480 visualAge=0.19348 certAge=0.85000 targetAge=0.19348 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.607 1.300 -7.322]-[1.607 4.935 -1.953] origen=[0.000 3.329 -3.912] banda=0.0411 visualAge=0.19348 certAge=0.85000 targetAge=0.19348 estado=2 transición=1.000
+[CICLO] 12 edad=0.00000 geometria=0.55000 presentada=0.00000 build=476.5 descartes=0
+[PROPIEDAD] malla=SEMÁNTICA triángulos_ocultos=0 regiones_SDF=5
+[FALLBACK] tipo=0 módulo=10 chunk=0 caja=[-0.938 -1.154 -1.446]-[1.764 4.325 1.452] origen=[0.402 3.040 0.000] banda=0.0315 visualAge=0.00000 certAge=0.55000 targetAge=0.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=11 chunk=0 caja=[-1.764 -1.154 -1.446]-[0.938 4.325 1.452] origen=[-0.402 3.040 0.000] banda=0.0315 visualAge=0.00000 certAge=0.55000 targetAge=0.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=12 chunk=0 caja=[-1.123 -1.199 -4.876]-[1.833 4.752 -1.318] origen=[0.349 3.280 -3.300] banda=0.0465 visualAge=0.00000 certAge=0.55000 targetAge=0.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=13 chunk=0 caja=[-1.833 -1.199 -4.876]-[1.123 4.752 -1.318] origen=[-0.349 3.280 -3.300] banda=0.0465 visualAge=0.00000 certAge=0.55000 targetAge=0.00000 estado=2 transición=1.000
+[FALLBACK] tipo=0 módulo=20 chunk=0 caja=[-1.624 1.534 -6.595]-[1.624 5.287 -1.676] origen=[0.000 3.663 -3.683] banda=0.0345 visualAge=0.00000 certAge=0.55000 targetAge=0.00000 estado=2 transición=1.000
+[SALIDA] Cerrando demo y liberando recursos...
+[FIN] Ejecución finalizada correctamente.

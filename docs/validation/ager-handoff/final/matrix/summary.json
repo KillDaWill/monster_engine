@@ -1,0 +1,653 @@
+[
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay0-view2",
+    "render_gpu_ms": {
+      "p50": 40.200500000000005,
+      "p95": 56.50135,
+      "p99": 66.60203,
+      "max": 78.078
+    },
+    "render_cpu_ms": {
+      "p50": 1.205,
+      "p95": 15.9596,
+      "p99": 18.324480000000005,
+      "max": 6777.059
+    },
+    "presentation_ms": {
+      "p50": 2.424,
+      "p95": 4.282399999999999,
+      "p99": 5.696680000000002,
+      "max": 7.37
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.198,
+      "p95": 0.35275000000000006,
+      "p99": 0.7614899999999997,
+      "max": 4738.397
+    },
+    "frames": 483,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay0-view9",
+    "render_gpu_ms": {
+      "p50": 48.548500000000004,
+      "p95": 70.33125,
+      "p99": 73.64075,
+      "max": 75.714
+    },
+    "render_cpu_ms": {
+      "p50": 1.168,
+      "p95": 15.9075,
+      "p99": 19.287920000000025,
+      "max": 84.434
+    },
+    "presentation_ms": {
+      "p50": 2.296,
+      "p95": 4.2837,
+      "p99": 5.872420000000001,
+      "max": 8.097
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.195,
+      "p95": 0.3772999999999982,
+      "p99": 0.728959999999999,
+      "max": 55.133
+    },
+    "frames": 427,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay0-view1",
+    "render_gpu_ms": {
+      "p50": 51.0995,
+      "p95": 70.33155,
+      "p99": 73.94229,
+      "max": 80.501
+    },
+    "render_cpu_ms": {
+      "p50": 1.029,
+      "p95": 2.512,
+      "p99": 18.579999999999973,
+      "max": 86.415
+    },
+    "presentation_ms": {
+      "p50": 2.443,
+      "p95": 4.5375,
+      "p99": 5.91469999999999,
+      "max": 8.625
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.20350000000000001,
+      "p95": 0.42674999999999985,
+      "p99": 1.12209,
+      "max": 57.323
+    },
+    "frames": 411,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay0-view8",
+    "render_gpu_ms": {
+      "p50": 59.097,
+      "p95": 78.1357,
+      "p99": 82.69085999999999,
+      "max": 89.221
+    },
+    "render_cpu_ms": {
+      "p50": 0.982,
+      "p95": 3.556,
+      "p99": 21.304399999999994,
+      "max": 104.801
+    },
+    "presentation_ms": {
+      "p50": 2.323,
+      "p95": 4.647,
+      "p99": 5.706999999999998,
+      "max": 6.529
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.212,
+      "p95": 0.47175,
+      "p99": 0.8179500000000022,
+      "max": 69.018
+    },
+    "frames": 381,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay0-view3",
+    "render_gpu_ms": {
+      "p50": 43.987,
+      "p95": 62.5324,
+      "p99": 64.06542,
+      "max": 64.934
+    },
+    "render_cpu_ms": {
+      "p50": 1.198,
+      "p95": 9.427999999999997,
+      "p99": 17.3971,
+      "max": 91.08
+    },
+    "presentation_ms": {
+      "p50": 2.465,
+      "p95": 4.574299999999999,
+      "p99": 5.652080000000001,
+      "max": 7.8
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.217,
+      "p95": 0.446,
+      "p99": 1.1145999999999963,
+      "max": 62.153
+    },
+    "frames": 439,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay500-view2",
+    "render_gpu_ms": {
+      "p50": 46.619,
+      "p95": 55.6635,
+      "p99": 65.54189999999998,
+      "max": 76.365
+    },
+    "render_cpu_ms": {
+      "p50": 1.105,
+      "p95": 14.112499999999999,
+      "p99": 17.315989999999996,
+      "max": 97.249
+    },
+    "presentation_ms": {
+      "p50": 2.493,
+      "p95": 4.3035000000000005,
+      "p99": 5.05907,
+      "max": 7.578
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.193,
+      "p95": 0.4178999999999999,
+      "p99": 0.7474999999999994,
+      "max": 64.046
+    },
+    "frames": 432,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay500-view9",
+    "render_gpu_ms": {
+      "p50": 54.726,
+      "p95": 68.24444999999999,
+      "p99": 74.3343,
+      "max": 77.778
+    },
+    "render_cpu_ms": {
+      "p50": 1.125,
+      "p95": 11.018299999999996,
+      "p99": 17.70912,
+      "max": 70.065
+    },
+    "presentation_ms": {
+      "p50": 2.43,
+      "p95": 4.316499999999997,
+      "p99": 5.606700000000001,
+      "max": 7.587
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.209,
+      "p95": 0.43665000000000015,
+      "p99": 0.6493200000000002,
+      "max": 47.946
+    },
+    "frames": 395,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay500-view1",
+    "render_gpu_ms": {
+      "p50": 55.253,
+      "p95": 68.12239999999998,
+      "p99": 74.20034,
+      "max": 76.54
+    },
+    "render_cpu_ms": {
+      "p50": 1.073,
+      "p95": 2.1410499999999986,
+      "p99": 20.718019999999992,
+      "max": 68.21
+    },
+    "presentation_ms": {
+      "p50": 2.4625000000000004,
+      "p95": 4.273199999999999,
+      "p99": 5.476009999999999,
+      "max": 7.306
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.21,
+      "p95": 0.40974999999999995,
+      "p99": 0.6994500000000003,
+      "max": 45.304
+    },
+    "frames": 388,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay500-view8",
+    "render_gpu_ms": {
+      "p50": 61.658,
+      "p95": 78.805,
+      "p99": 84.91279,
+      "max": 89.251
+    },
+    "render_cpu_ms": {
+      "p50": 1.035,
+      "p95": 2.1256,
+      "p99": 18.055879999999902,
+      "max": 72.678
+    },
+    "presentation_ms": {
+      "p50": 2.444,
+      "p95": 4.296199999999999,
+      "p99": 5.354159999999998,
+      "max": 6.113
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.201,
+      "p95": 0.516,
+      "p99": 1.0327999999999966,
+      "max": 48.892
+    },
+    "frames": 349,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay500-view3",
+    "render_gpu_ms": {
+      "p50": 48.353,
+      "p95": 61.784000000000006,
+      "p99": 63.34804,
+      "max": 66.346
+    },
+    "render_cpu_ms": {
+      "p50": 1.0305,
+      "p95": 2.2267499999999996,
+      "p99": 15.537969999999959,
+      "max": 69.425
+    },
+    "presentation_ms": {
+      "p50": 2.464,
+      "p95": 4.1636999999999995,
+      "p99": 5.46714,
+      "max": 10.03
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.205,
+      "p95": 0.468,
+      "p99": 0.9392000000000073,
+      "max": 46.263
+    },
+    "frames": 418,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay3000-view2",
+    "render_gpu_ms": {
+      "p50": 47.109,
+      "p95": 55.65749999999999,
+      "p99": 60.14376,
+      "max": 62.492
+    },
+    "render_cpu_ms": {
+      "p50": 1.0775000000000001,
+      "p95": 4.942,
+      "p99": 14.597350000000004,
+      "max": 65.755
+    },
+    "presentation_ms": {
+      "p50": 2.164,
+      "p95": 3.08975,
+      "p99": 3.4834,
+      "max": 4.081
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.214,
+      "p95": 0.3996,
+      "p99": 0.63312,
+      "max": 45.119
+    },
+    "frames": 416,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay3000-view9",
+    "render_gpu_ms": {
+      "p50": 51.4645,
+      "p95": 66.401,
+      "p99": 70.02048,
+      "max": 74.162
+    },
+    "render_cpu_ms": {
+      "p50": 1.084,
+      "p95": 3.5835,
+      "p99": 5.788500000000002,
+      "max": 72.966
+    },
+    "presentation_ms": {
+      "p50": 2.139,
+      "p95": 3.1275,
+      "p99": 3.5504000000000047,
+      "max": 4.797
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.21,
+      "p95": 0.41940000000000005,
+      "p99": 0.7120000000000031,
+      "max": 48.047
+    },
+    "frames": 391,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay3000-view1",
+    "render_gpu_ms": {
+      "p50": 52.814,
+      "p95": 65.4141,
+      "p99": 69.70568000000002,
+      "max": 75.516
+    },
+    "render_cpu_ms": {
+      "p50": 1.108,
+      "p95": 3.2737999999999996,
+      "p99": 4.454119999999989,
+      "max": 71.639
+    },
+    "presentation_ms": {
+      "p50": 2.115,
+      "p95": 3.198399999999999,
+      "p99": 4.545399999999973,
+      "max": 10.393
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.228,
+      "p95": 0.516,
+      "p99": 0.8965999999999955,
+      "max": 48.689
+    },
+    "frames": 385,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay3000-view8",
+    "render_gpu_ms": {
+      "p50": 59.1855,
+      "p95": 80.60849999999999,
+      "p99": 82.83349999999999,
+      "max": 90.188
+    },
+    "render_cpu_ms": {
+      "p50": 1.097,
+      "p95": 3.3177999999999996,
+      "p99": 5.110719999999977,
+      "max": 70.014
+    },
+    "presentation_ms": {
+      "p50": 2.123,
+      "p95": 3.2532,
+      "p99": 3.9751199999999995,
+      "max": 5.318
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.2235,
+      "p95": 0.46599999999999975,
+      "p99": 0.8708199999999982,
+      "max": 46.303
+    },
+    "frames": 337,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/cycle-delay3000-view3",
+    "render_gpu_ms": {
+      "p50": 47.722,
+      "p95": 60.141949999999994,
+      "p99": 61.872730000000004,
+      "max": 67.042
+    },
+    "render_cpu_ms": {
+      "p50": 1.127,
+      "p95": 3.1437999999999997,
+      "p99": 3.981860000000003,
+      "max": 70.891
+    },
+    "presentation_ms": {
+      "p50": 2.168,
+      "p95": 3.2322999999999995,
+      "p99": 3.6393800000000014,
+      "max": 4.434
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.223,
+      "p95": 0.42819999999999997,
+      "p99": 0.7094800000000007,
+      "max": 46.704
+    },
+    "frames": 403,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/burst-delay0-view3",
+    "render_gpu_ms": {
+      "p50": 51.620999999999995,
+      "p95": 62.43855,
+      "p99": 65.34698999999999,
+      "max": 70.075
+    },
+    "render_cpu_ms": {
+      "p50": 1.4380000000000002,
+      "p95": 4.7139999999999915,
+      "p99": 27.634849999999968,
+      "max": 100.539
+    },
+    "presentation_ms": {
+      "p50": 2.983,
+      "p95": 4.820549999999997,
+      "p99": 7.017559999999993,
+      "max": 9.355
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.2765,
+      "p95": 0.58025,
+      "p99": 2.300570000000003,
+      "max": 65.138
+    },
+    "frames": 160,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/scrub-delay0-view3",
+    "render_gpu_ms": {
+      "p50": 50.760999999999996,
+      "p95": 56.546,
+      "p99": 58.78729000000002,
+      "max": 61.785
+    },
+    "render_cpu_ms": {
+      "p50": 1.233,
+      "p95": 3.3670999999999993,
+      "p99": 39.70978999999995,
+      "max": 114.196
+    },
+    "presentation_ms": {
+      "p50": 0.0965,
+      "p95": 4.525799999999998,
+      "p99": 6.424379999999996,
+      "max": 7.444
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.291,
+      "p95": 0.8588000000000012,
+      "p99": 2.6639100000000027,
+      "max": 76.179
+    },
+    "frames": 160,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/burst-delay500-view3",
+    "render_gpu_ms": {
+      "p50": 51.032,
+      "p95": 61.71765,
+      "p99": 66.50499,
+      "max": 67.254
+    },
+    "render_cpu_ms": {
+      "p50": 1.1915,
+      "p95": 3.4795999999999996,
+      "p99": 31.97867999999998,
+      "max": 79.091
+    },
+    "presentation_ms": {
+      "p50": 2.6265,
+      "p95": 5.481549999999997,
+      "p99": 6.699979999999998,
+      "max": 8.063
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.226,
+      "p95": 0.5180499999999997,
+      "p99": 0.9335999999999991,
+      "max": 48.458
+    },
+    "frames": 160,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/scrub-delay500-view3",
+    "render_gpu_ms": {
+      "p50": 49.867000000000004,
+      "p95": 55.793350000000004,
+      "p99": 61.44972,
+      "max": 61.452
+    },
+    "render_cpu_ms": {
+      "p50": 1.206,
+      "p95": 2.9356499999999874,
+      "p99": 34.250479999999904,
+      "max": 94.899
+    },
+    "presentation_ms": {
+      "p50": 0.0955,
+      "p95": 3.2556499999999984,
+      "p99": 4.0069599999999985,
+      "max": 5.546
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.262,
+      "p95": 0.6829999999999989,
+      "p99": 1.7210399999999981,
+      "max": 63.85
+    },
+    "frames": 160,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/burst-delay3000-view3",
+    "render_gpu_ms": {
+      "p50": 48.408,
+      "p95": 76.944,
+      "p99": 80.4688,
+      "max": 85.192
+    },
+    "render_cpu_ms": {
+      "p50": 1.2675,
+      "p95": 3.8036,
+      "p99": 11.637229999999953,
+      "max": 70.534
+    },
+    "presentation_ms": {
+      "p50": 2.034,
+      "p95": 4.084149999999998,
+      "p99": 5.4316699999999996,
+      "max": 6.091
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.24,
+      "p95": 0.5273,
+      "p99": 1.9212599999999886,
+      "max": 49.215
+    },
+    "frames": 160,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  },
+  {
+    "prefix": "docs/validation/ager-handoff/final/matrix/scrub-delay3000-view3",
+    "render_gpu_ms": {
+      "p50": 49.24,
+      "p95": 73.9465,
+      "p99": 76.93324000000001,
+      "max": 77.296
+    },
+    "render_cpu_ms": {
+      "p50": 1.1035,
+      "p95": 2.9328999999999996,
+      "p99": 19.758979999999994,
+      "max": 67.384
+    },
+    "presentation_ms": {
+      "p50": 0.092,
+      "p95": 2.5154499999999946,
+      "p99": 3.760369999999999,
+      "max": 4.187
+    },
+    "exact_sdf_submit_ms": {
+      "p50": 0.266,
+      "p95": 0.5784999999999999,
+      "p99": 0.7269199999999997,
+      "max": 44.422
+    },
+    "frames": 160,
+    "maximum_regions": 5,
+    "captures": 13,
+    "returncode": 0
+  }
+]

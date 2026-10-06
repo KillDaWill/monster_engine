@@ -15,7 +15,16 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/HeadMorph.c \
+CORE_SRCS = $(SRC_DIR)/SDFInterval.c \
+            $(SRC_DIR)/GpuSDFSurfaceCache.c \
+            $(SRC_DIR)/CreatureMorph.c \
+            $(SRC_DIR)/MorphModuleState.c \
+            $(SRC_DIR)/MorphHandoff.c \
+            $(SRC_DIR)/MorphSpatialCache.c \
+            $(SRC_DIR)/MorphChunkManager.c \
+            $(SRC_DIR)/MorphSurfaceTracker.c \
+            $(SRC_DIR)/MorphSurfacePatcher.c \
+            $(SRC_DIR)/HeadMorph.c \
             $(SRC_DIR)/Surface.c \
             $(SRC_DIR)/Fur.c \
             $(SRC_DIR)/SurfaceMapper.c \
@@ -27,6 +36,7 @@ CORE_SRCS = $(SRC_DIR)/HeadMorph.c \
             $(SRC_DIR)/Transform3D.c \
             $(SRC_DIR)/AABB.c \
             $(SRC_DIR)/Mesh.c \
+            $(SRC_DIR)/MeshPatch.c \
             $(SRC_DIR)/PrimitiveMesh.c \
             $(SRC_DIR)/SDFPrimitives.c \
             $(SRC_DIR)/SDFOperations.c \
@@ -87,6 +97,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/main_test.c \
+            $(TEST_DIR)/test_gpu_sdf_surface.c \
             $(TEST_DIR)/test_surface.c \
             $(TEST_DIR)/test_color.c \
             $(TEST_DIR)/test_vector.c \
@@ -109,8 +120,12 @@ TEST_SRCS = $(TEST_DIR)/main_test.c \
             $(TEST_DIR)/test_local_detail.c \
             $(TEST_DIR)/test_perf_optimizations.c \
             $(TEST_DIR)/test_morph.c \
+            $(TEST_DIR)/test_morph_handoff.c \
             $(TEST_DIR)/test_animation.c \
             $(TEST_DIR)/test_creature_variation.c \
+            $(TEST_DIR)/test_morph_spatial_cache.c \
+            $(TEST_DIR)/test_morph_chunk_manager.c \
+            $(TEST_DIR)/test_morph_cross.c \
             $(TEST_DIR)/test_fur.c
 
 TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
@@ -123,9 +138,10 @@ DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
 DEMO_MOUTH_BIN = $(DEMO_DIR)/demo_mouth_animation
 DEMO_ANIMATION_BIN = $(DEMO_DIR)/demo_lizard_animation
 DEMO_DIVERSITY_BIN = $(DEMO_DIR)/demo_lizard_diversity
+DEMO_MORPH_BIN = $(DEMO_DIR)/demo_morph_dog_lizard
 LIZARD_VIEWER_BIN = lizard_viewer
 
-.PHONY: all clean test benchmark docs demos
+.PHONY: all clean test benchmark docs demos visual-morph-ownership
 
 all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
 
@@ -155,7 +171,17 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog
+demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN)
+
+$(DEMO_MORPH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_morph_dog_lizard.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+# Compara la silueta final retardada con el campo exacto del mismo snapshot.
+visual-morph-ownership: $(DEMO_MORPH_BIN)
+	@mkdir -p $(BUILD_DIR)/morph-ownership
+	./$(DEMO_MORPH_BIN) --validate-cycle=$(BUILD_DIR)/morph-ownership/delayed --worker-delay=3000 --view=3 --no-fur
+	./$(DEMO_MORPH_BIN) --age=1 --exact-sdf --capture-prefix=$(BUILD_DIR)/morph-ownership/exact --view=3 --no-fur
+	python3 tools/verify_morph_ownership.py $(BUILD_DIR)/morph-ownership/exact.ppm $(BUILD_DIR)/morph-ownership/delayed-06.ppm
 
 $(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c $(DEMO_DIR)/demo_ager_realtime.h
 	$(CC) $(CFLAGS) $(filter %.o %.c,$^) $(GL_LIBS) -o $@
@@ -187,7 +213,7 @@ codegraph:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_growth benchmarks/benchmark_head_morph doc/html doc/latex
+	rm -rf $(DEMO_MORPH_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -212,14 +238,23 @@ benchmark-appendages: benchmarks/benchmark_appendages
 benchmarks/benchmark_ager_realtime: $(CORE_OBJS) benchmarks/benchmark_ager_realtime.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
+benchmarks/benchmark_morph_dynamic: $(CORE_OBJS) benchmarks/benchmark_morph_dynamic.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+benchmarks/benchmark_gpu_sparse_surface: $(CORE_OBJS) benchmarks/benchmark_gpu_sparse_surface.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
 .PHONY: benchmark-ager-realtime
 benchmark-ager-realtime: benchmarks/benchmark_ager_realtime
 	./benchmarks/benchmark_ager_realtime
 
-src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_sdf_trace.glsl src/MonsterSDF.c src/SDFPrimitives.c src/SDFOperations.c include/MonsterSDF.h
+src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_sdf_trace.glsl shaders/sdf_scene.glsl shaders/sdf_surface_material.glsl $(wildcard shaders/sdf_surface_*) $(wildcard shaders/sdf_sparse_*) shaders/sdf_interval_validate.comp shaders/morph_handoff.glsl $(wildcard shaders/surface/*.glsl) src/MonsterSDF.c src/SDFPrimitives.c src/SDFOperations.c src/SDFInterval.c include/SDFInterval.h include/MonsterSDF.h
 	python3 tools/generate_sdf_shader.py
 
-$(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSDFShader.generated.h
+src/MonsterSDFCompute.generated.h: src/MonsterSDFShader.generated.h
+	@test -f $@ || python3 tools/generate_sdf_shader.py
+
+$(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSDFShader.generated.h src/MonsterSDFCompute.generated.h
 
 # Etapas de animación: comparten infraestructura, cada ejecutable selecciona su controlador.
 ANIMATION_DEMOS = demos/demo_lizard_surface demos/demo_lizard_ik demos/demo_lizard_jaw demos/demo_lizard_walk
@@ -234,7 +269,7 @@ benchmarks/benchmark_animation: $(CORE_OBJS) benchmarks/benchmark_animation.c
 benchmark-animation: benchmarks/benchmark_animation
 	./benchmarks/benchmark_animation
 
-src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py $(wildcard shaders/surface/*.glsl) shaders/monster_mesh.vert shaders/monster_surface.frag
+src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py $(wildcard shaders/surface/*.glsl) shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl
 	python3 tools/generate_surface_shader.py
 $(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSurfaceShader.generated.h
 
@@ -251,3 +286,8 @@ benchmarks/benchmark_head_morph: $(CORE_OBJS) benchmarks/benchmark_head_morph.c
 # Primer mamífero estático, sin SDL/GL fuera del backend.
 demos/demo_dog: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_dog.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+# Regresión anatómica del campo disperso: no oculta fallos regionales.
+.PHONY: visual-ager-sparse
+visual-ager-sparse: demos/demo_morph_dog_lizard
+	python3 tools/validate_ager_features.py --mode=gpu-sdf-sparse --history --out=build/ager-sparse-validation

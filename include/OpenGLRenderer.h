@@ -10,11 +10,48 @@
 
 #include "RenderInterfaces.h"
 #include "Mesh.h"
+#include "MorphHandoff.h"
 #include "MonsterSDF.h"
+#include "GpuSDFSurfaceCache.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** @brief Comprueba OpenGL 4.3 y límites de cómputo de la GPU actual. */
+bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);
+/** @brief Extrae y dibuja directamente el SDF actual; sin readback normal. */
+bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D*,const MonsterSDF*,const GpuSDFSurfaceGrid*,const ICamera*);
+/** @brief Actualiza bricks afectados y dibuja páginas GPU persistentes.
+ * @param cache Control espacial puro C de la rejilla fija.
+ * @return false ante error; nunca cambia a un backend alternativo.
+ */
+bool OpenGLRenderer_RenderGpuSparseSDFSurface(Renderer3D*,const MonsterSDF*,GpuSDFSurfaceCache*,const ICamera*);
+/** @brief Consulta tiempos GPU recogidos asíncronamente, sin esperar. */
+GpuSDFSurfaceStats OpenGLRenderer_GetGpuSDFSurfaceStats(const Renderer3D*);
+/** @brief Guarda metadatos de publicación para una captura diagnóstica; descarga explícita.
+ * @param renderer Backend. @param cache Control espacial. @param path Archivo JSON.
+ * @return false ante error de lectura o escritura.
+ */
+bool OpenGLRenderer_SaveSparseSDFDiagnostics(Renderer3D* renderer,const GpuSDFSurfaceCache* cache,const char* path);
+/** @brief Exporta firmas ordenadas de triángulos y aristas; descarga sólo de diagnóstico.
+ * @param renderer Backend. @param path JSON de equivalencia completa.
+ * @return false ante error.
+ */
+bool OpenGLRenderer_ExportGpuSurfaceSignature(Renderer3D* renderer,const char* path);
+/** @brief Auditoría explícita de salida GPU; no se invoca en presentación normal. */
+bool OpenGLRenderer_ValidateGpuSurface(Renderer3D*,const MonsterSDF*);
+/** @brief Diagnóstico explícito de contención CPU/GLSL para las recetas de pabellón.
+ * @param renderer Backend propietario de buffers de diagnóstico.
+ * @param sdf Escena actual con parámetros anatómicos resueltos.
+ * @param error Diferencia máxima observada entre extremos escalares CPU/GLSL.
+ * @return true si los intervalos contienen las muestras cruzadas de ambos evaluadores.
+ */
+bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* renderer,const MonsterSDF* sdf,float* error);
+/** @brief Paridad de diagnóstico; readback explícito de muestras compute. */
+bool OpenGLRenderer_ValidateComputeSDF(Renderer3D*,const MonsterSDF*,const Vector3*,size_t,float*);
+
+
 
 /**
  * @brief Crea e inicializa una instancia de Renderer3D respaldada por el pipeline de OpenGL.
@@ -37,6 +74,19 @@ void OpenGLRenderer_SetupCamera(ICamera* camera, int width, int height);
  */
 void OpenGLRenderer_RenderMesh(const Mesh* mesh);
 
+/** @brief Excluye de malla, conchas y pelos las cajas con representación SDF.
+ * @param renderer Backend propietario.
+ * @param bounds Cajas mundiales de propiedad SDF; NULL desactiva el recorte.
+ * @param count Cantidad de cajas, máximo 32.
+ */
+/** @brief Carga propiedad anatómica compartida; pass=-1 para malla/SDF completo.
+ * @return false ante exceso de soporte, sin truncamiento silencioso.
+ */
+/** @brief Instala dominio material anatómico canónico para mesh y SDF. */
+bool OpenGLRenderer_SetMorphSurfaceDomain(Renderer3D*,const struct Monster*,const struct Monster*);
+bool OpenGLRenderer_SetMorphHandoffs(Renderer3D*,const MorphHandoffSet*,int pass);
+void OpenGLRenderer_SetMeshClipRegions(Renderer3D* renderer,const AABB3D* bounds,size_t count);
+
 /**
  * @brief Activa/desactiva el modo wireframe (contornos de triángulos).
  *
@@ -47,14 +97,28 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh);
  */
 void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled);
 
-/**
- * @brief Guarda el framebuffer posterior como imagen PPM, invirtiendo el eje Y.
+/** @brief Configura el trazador de referencia, preservando la ruta heredada.
+ * @param renderer Backend propietario del estado.
+ * @param enabled Activa escena completa y detección de cruce con raíz acotada.
+ * @param maxStep Paso máximo opcional; cero mantiene el avance por el campo.
+ * @param steps Límite de iteraciones del diagnóstico, entre 256 y 65536.
+ */
+void OpenGLRenderer_SetSDFReference(Renderer3D* renderer,bool enabled,float maxStep,unsigned steps);
+/** @brief Captura profundidad lineal de diagnóstico en PFM.
+ * @param path Ruta de salida.
+ * @param width Anchura del framebuffer.
+ * @param height Altura del framebuffer.
+ * @param camera Cámara que define los planos cercano y lejano.
+ * @return true si se leyó y escribió el framebuffer completo.
+ */
+bool OpenGLRenderer_SaveDepth(const char* path,int width,int height,const ICamera* camera);
+/** @brief Guarda el framebuffer posterior en PPM, invirtiendo el eje Y.
  * @param path Ruta de salida.
  * @param width Ancho del viewport.
  * @param height Alto del viewport.
  * @return true si se leyó y escribió la imagen completa.
  */
-bool OpenGLRenderer_SavePPM(const char* path, int width, int height);
+bool OpenGLRenderer_SavePPM(const char* path,int width,int height);
 
 /**
  * @brief Libera los recursos del contexto del renderizador OpenGL y limpia sus callbacks.
@@ -72,6 +136,21 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer);
  */
 bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,
     const ICamera* camera,int width,int height);
+
+/** @brief Dibuja el campo SDF acotado a una región AABB espacial mediante scissoring GPU y filtrado de tiles.
+ * @param renderer Backend OpenGL.
+ * @param sdf Campo compilado.
+ * @param camera Cámara de proyección.
+ * @param width Anchura del framebuffer.
+ * @param height Altura del framebuffer.
+ * @param regionBounds Bounding box que acota la región local a renderizar.
+ * @return true si se renderizó con éxito.
+ */
+/** @brief Traza una unión de cajas locales en un solo pase, conservando el SDF completo. */
+bool OpenGLRenderer_RenderSDFRegions(Renderer3D*,const MonsterSDF*,const ICamera*,int,int,
+    const AABB3D*,size_t);
+bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,
+    const ICamera* camera,int width,int height,AABB3D regionBounds);
 
 /** @brief Inicia un fotograma SDF con resolución espacial adaptada al presupuesto GPU.
  * @param renderer Backend propietario del framebuffer y las consultas temporales.

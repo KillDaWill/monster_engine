@@ -1,0 +1,56 @@
+{
+  "device": "AMD Renoir Mesa 25.2.8 GL4.6",
+  "voxel": 0.035,
+  "refinement": 2,
+  "frames": 40,
+  "steady_frames": 32,
+  "completed_distinct_query_generations": 32,
+  "pending_limit": 2,
+  "last_submission_generation": 40,
+  "last_timing_generation": 38,
+  "cpu_thread_ms": {
+    "p50": 4.35625,
+    "p95": 4.76044,
+    "p99": 4.898867,
+    "max": 4.9405
+  },
+  "wall_frame_ms": {
+    "p50": 1871.18955,
+    "p95": 1881.01064,
+    "p99": 1882.904065,
+    "max": 1883.4678
+  },
+  "gpu": {
+    "sampling_gpu_ms": {
+      "p50": 625.93255,
+      "p95": 630.373085,
+      "p99": 631.188913,
+      "max": 631.523
+    },
+    "classification_gpu_ms": {
+      "p50": 6.9419,
+      "p95": 7.414335,
+      "p99": 7.520069,
+      "max": 7.5418
+    },
+    "emission_gpu_ms": {
+      "p50": 1205.51505,
+      "p95": 1212.1410099999998,
+      "p99": 1213.270346,
+      "max": 1213.4946
+    },
+    "render_gpu_ms": {
+      "p50": 29.373199999999997,
+      "p95": 30.829539999999998,
+      "p99": 30.853531,
+      "max": 30.8566
+    },
+    "total_gpu_ms": {
+      "p50": 1867.79065,
+      "p95": 1875.5391399999999,
+      "p99": 1877.2343740000001,
+      "max": 1877.6295
+    }
+  },
+  "limitations": "Prueba est\u00e1tica de 40 frames con 8 de calentamiento; no certifica p99 de ciclos X\u2192Y. Validaci\u00f3n NVIDIA concurrente en otra GPU; CPU y bus compartidos."
+}

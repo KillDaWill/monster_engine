@@ -15,6 +15,7 @@ out vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;
 out vec4 vertexColor,profileA,profileB;
 out float ventral,skinMask,fragShellFraction,fragIntegumentMask,shellDelta;
 out float ribbonSide,ribbonFade;
+out vec3 worldPosition,ownershipRoot,ownershipNormal;
 #include "surface/hash.glsl"
 #include "surface/fur_curve.glsl"
 vec3 Rest(int i) {return vec3(texelFetch(surfaceData,i*15).r,texelFetch(surfaceData,i*15+1).r,texelFetch(surfaceData,i*15+2).r);}
@@ -25,7 +26,9 @@ void main() {
     vec3 pa=ga.xyz,pb=gb.xyz,pc=gc.xyz;
     vec3 na=vec3(ga.w,texelFetch(geometryData,ia*2+1).xy),nb=vec3(gb.w,texelFetch(geometryData,ib*2+1).xy),nc=vec3(gc.w,texelFetch(geometryData,ic*2+1).xy);
     vec3 pos=pa*rootBarycentric.x+pb*rootBarycentric.y+pc*rootBarycentric.z;
+    ownershipRoot=pos;
     vec3 n=normalize(na*rootBarycentric.x+nb*rootBarycentric.y+nc*rootBarycentric.z);
+    ownershipNormal=n;
     // Jacobiano del triángulo: transporta también el giro alrededor de la normal.
     vec3 e1=Rest(ib)-Rest(ia),e2=Rest(ic)-Rest(ia);
     float aa=dot(e1,e1),ab=dot(e1,e2),bb=dot(e2,e2),det=max(aa*bb-ab*ab,1e-16);
@@ -48,6 +51,7 @@ void main() {
     ribbonSide=float(gl_VertexID%2)*2.0-1.0;
     float width=.0015*p0.z*surfaceRecipe[11].z*(1.0-h)*(1.0-h);
     vp+=side*ribbonSide*width;
+    worldPosition=pos+offset+side*ribbonSide*width;
     float threshold=guardVisibility*clamp(p0.y*.25*surfaceRecipe[10].y*profileB.y,0.0,1.0);
     ribbonFade=smoothstep(rootRandom.x-.025,rootRandom.x+.025,threshold)*surfaceRecipe[11].w;
     if(threshold<=0.0)ribbonFade=0.0;

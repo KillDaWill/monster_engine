@@ -1,0 +1,731 @@
+[
+  {
+    "age": 0.0,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.5794267088486242,
+    "depth_world": {
+      "p50": 0.0031099319458007812,
+      "p95": 0.09607028961181466,
+      "p99": 1.6639529418945316,
+      "max": 1.8693885803222656
+    },
+    "normal_degrees": {
+      "p50": 0.27405181640405446,
+      "p95": 92.4767445768385,
+      "p99": 142.34341452635292,
+      "max": 179.3724797896009
+    },
+    "missing_regions": 11,
+    "extra_regions": 1,
+    "missing_pixels": 511,
+    "extra_pixels": 148,
+    "color_mae_255": 1.701099882300418,
+    "exact_capture_wall_s": 2.9468125450075604,
+    "mesh_capture_wall_s": 2.728708466005628,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 0.0,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.2581333655931632,
+    "depth_world": {
+      "p50": 0.0015578269958496094,
+      "p95": 0.053950214385986295,
+      "p99": 1.7452982568740845,
+      "max": 2.748718738555908
+    },
+    "normal_degrees": {
+      "p50": 0.3662881616272557,
+      "p95": 83.1078657789455,
+      "p99": 141.13508517430662,
+      "max": 179.56941856671995
+    },
+    "missing_regions": 14,
+    "extra_regions": 2,
+    "missing_pixels": 2449,
+    "extra_pixels": 463,
+    "color_mae_255": 2.205504166994834,
+    "exact_capture_wall_s": 1.5973314230068354,
+    "mesh_capture_wall_s": 2.5185402990027796,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 0.0,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.508497932935232,
+    "depth_world": {
+      "p50": 0.0010361671447753906,
+      "p95": 0.008686804771423338,
+      "p99": 0.020451893806457525,
+      "max": 0.1881732940673828
+    },
+    "normal_degrees": {
+      "p50": 0.5549266522206411,
+      "p95": 11.978566997496083,
+      "p99": 51.00062937367062,
+      "max": 166.92529220977585
+    },
+    "missing_regions": 9,
+    "extra_regions": 0,
+    "missing_pixels": 805,
+    "extra_pixels": 16,
+    "color_mae_255": 1.383827077581275,
+    "exact_capture_wall_s": 1.477596780998283,
+    "mesh_capture_wall_s": 2.4231903279869584,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.1,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.421163817937392,
+    "depth_world": {
+      "p50": 0.003177642822265625,
+      "p95": 0.0661545753479003,
+      "p99": 1.6599107551574723,
+      "max": 1.8737077713012695
+    },
+    "normal_degrees": {
+      "p50": 0.25971285427956425,
+      "p95": 79.26475081105245,
+      "p99": 140.95394286333536,
+      "max": 178.5759398711715
+    },
+    "missing_regions": 6,
+    "extra_regions": 2,
+    "missing_pixels": 438,
+    "extra_pixels": 154,
+    "color_mae_255": 1.7154279498668745,
+    "exact_capture_wall_s": 1.484923986994545,
+    "mesh_capture_wall_s": 2.879286019000574,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 0.1,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.1923671285475075,
+    "depth_world": {
+      "p50": 0.0015821456909179688,
+      "p95": 0.0524907112121582,
+      "p99": 1.7549649238586427,
+      "max": 2.8611717224121094
+    },
+    "normal_degrees": {
+      "p50": 0.34731307562683256,
+      "p95": 81.36632823695541,
+      "p99": 139.19053975706822,
+      "max": 179.56716711815434
+    },
+    "missing_regions": 21,
+    "extra_regions": 3,
+    "missing_pixels": 2294,
+    "extra_pixels": 476,
+    "color_mae_255": 2.208607612583373,
+    "exact_capture_wall_s": 1.4672861830040347,
+    "mesh_capture_wall_s": 2.9589028749905992,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 0.1,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.4967160289482488,
+    "depth_world": {
+      "p50": 0.001010894775390625,
+      "p95": 0.008374214172363281,
+      "p99": 0.02131652832031242,
+      "max": 0.29723310470581055
+    },
+    "normal_degrees": {
+      "p50": 0.4506777450029311,
+      "p95": 12.02671664732946,
+      "p99": 55.35713036741589,
+      "max": 142.04971785697447
+    },
+    "missing_regions": 10,
+    "extra_regions": 2,
+    "missing_pixels": 811,
+    "extra_pixels": 39,
+    "color_mae_255": 1.518748919993088,
+    "exact_capture_wall_s": 1.5271855830069399,
+    "mesh_capture_wall_s": 2.862041283995495,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.2,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.4216299432310209,
+    "depth_world": {
+      "p50": 0.0033092498779296875,
+      "p95": 0.036263465881347656,
+      "p99": 1.5792850494384765,
+      "max": 1.8689661026000977
+    },
+    "normal_degrees": {
+      "p50": 0.19417721319551418,
+      "p95": 29.30729456631179,
+      "p99": 133.91615661723708,
+      "max": 178.04037433137424
+    },
+    "missing_regions": 5,
+    "extra_regions": 0,
+    "missing_pixels": 456,
+    "extra_pixels": 135,
+    "color_mae_255": 1.681144920816964,
+    "exact_capture_wall_s": 1.5924206420022529,
+    "mesh_capture_wall_s": 2.9474262849980732,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 0.2,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.9522102288975104,
+    "depth_world": {
+      "p50": 0.0017271041870117188,
+      "p95": 0.035756468772888184,
+      "p99": 1.7595445632934572,
+      "max": 2.9091291427612305
+    },
+    "normal_degrees": {
+      "p50": 0.3411574510697994,
+      "p95": 63.11935520880473,
+      "p99": 127.02468785333836,
+      "max": 179.02080466189855
+    },
+    "missing_regions": 18,
+    "extra_regions": 2,
+    "missing_pixels": 2111,
+    "extra_pixels": 120,
+    "color_mae_255": 2.302665333712536,
+    "exact_capture_wall_s": 1.5421593509963714,
+    "mesh_capture_wall_s": 3.061043763998896,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 0.2,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.3287990427608791,
+    "depth_world": {
+      "p50": 0.0009131431579589844,
+      "p95": 0.00813357830047607,
+      "p99": 0.017356057167053223,
+      "max": 0.31824827194213867
+    },
+    "normal_degrees": {
+      "p50": 0.44953863839397934,
+      "p95": 10.74281530309219,
+      "p99": 44.515340196758245,
+      "max": 146.23985439678836
+    },
+    "missing_regions": 11,
+    "extra_regions": 3,
+    "missing_pixels": 795,
+    "extra_pixels": 49,
+    "color_mae_255": 1.3567355969704706,
+    "exact_capture_wall_s": 1.6579439279885264,
+    "mesh_capture_wall_s": 2.925382785993861,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.35,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.422316828330229,
+    "depth_world": {
+      "p50": 0.0036916732788085938,
+      "p95": 0.031093406677246097,
+      "p99": 1.6161259078979548,
+      "max": 1.871450424194336
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 16.995067023634164,
+      "p99": 137.08264224890644,
+      "max": 177.95893249731103
+    },
+    "missing_regions": 4,
+    "extra_regions": 1,
+    "missing_pixels": 416,
+    "extra_pixels": 172,
+    "color_mae_255": 2.3166310864639823,
+    "exact_capture_wall_s": 1.5305029709998053,
+    "mesh_capture_wall_s": 3.0594783189881127,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.35,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.7363139344018934,
+    "depth_world": {
+      "p50": 0.0020449161529541016,
+      "p95": 0.02251644134521484,
+      "p99": 1.7399225997924792,
+      "max": 4.093146324157715
+    },
+    "normal_degrees": {
+      "p50": 0.31831136732555076,
+      "p95": 22.829217136024504,
+      "p99": 127.42561740312449,
+      "max": 179.5514541434393
+    },
+    "missing_regions": 20,
+    "extra_regions": 2,
+    "missing_pixels": 1654,
+    "extra_pixels": 82,
+    "color_mae_255": 2.403767844705661,
+    "exact_capture_wall_s": 1.4637202300073113,
+    "mesh_capture_wall_s": 3.146827149001183,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.35,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.096317648587664,
+    "depth_world": {
+      "p50": 0.0008335113525390625,
+      "p95": 0.007661485671997058,
+      "p99": 0.016725807189941377,
+      "max": 0.21982955932617188
+    },
+    "normal_degrees": {
+      "p50": 0.44733782545594475,
+      "p95": 9.03132487454848,
+      "p99": 45.78571645951406,
+      "max": 130.68749793888796
+    },
+    "missing_regions": 14,
+    "extra_regions": 3,
+    "missing_pixels": 850,
+    "extra_pixels": 78,
+    "color_mae_255": 1.4531627627340666,
+    "exact_capture_wall_s": 1.6061522849922767,
+    "mesh_capture_wall_s": 3.1204529169917805,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.5,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.651684046506053,
+    "depth_world": {
+      "p50": 0.0043926239013671875,
+      "p95": 0.03050994873046875,
+      "p99": 1.7061712741851807,
+      "max": 2.2716426849365234
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 10.561049521393048,
+      "p99": 133.15590757397166,
+      "max": 177.831996867484
+    },
+    "missing_regions": 7,
+    "extra_regions": 0,
+    "missing_pixels": 506,
+    "extra_pixels": 183,
+    "color_mae_255": 1.115723362420579,
+    "exact_capture_wall_s": 1.5706022489903262,
+    "mesh_capture_wall_s": 3.2179122870002175,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.5,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.9904617468763179,
+    "depth_world": {
+      "p50": 0.0024976730346679688,
+      "p95": 0.016581559181213346,
+      "p99": 0.12122339248657177,
+      "max": 4.248654842376709
+    },
+    "normal_degrees": {
+      "p50": 0.30736590428966104,
+      "p95": 8.519216877296493,
+      "p99": 110.16948758870444,
+      "max": 179.36452820478053
+    },
+    "missing_regions": 17,
+    "extra_regions": 1,
+    "missing_pixels": 2242,
+    "extra_pixels": 83,
+    "color_mae_255": 1.0562788816508473,
+    "exact_capture_wall_s": 1.4592609749961412,
+    "mesh_capture_wall_s": 3.212165584001923,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.5,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.6899223651075117,
+    "depth_world": {
+      "p50": 0.0010433197021484375,
+      "p95": 0.006848335266113281,
+      "p99": 0.01560120105743408,
+      "max": 1.0047402381896973
+    },
+    "normal_degrees": {
+      "p50": 0.397312947347773,
+      "p95": 5.494756649293985,
+      "p99": 27.685318119785684,
+      "max": 154.4568583078103
+    },
+    "missing_regions": 12,
+    "extra_regions": 1,
+    "missing_pixels": 821,
+    "extra_pixels": 105,
+    "color_mae_255": 0.5713021036521322,
+    "exact_capture_wall_s": 1.5354772800055798,
+    "mesh_capture_wall_s": 3.2170563230029074,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.65,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.6244236879195433,
+    "depth_world": {
+      "p50": 0.0052204132080078125,
+      "p95": 0.02911853790283203,
+      "p99": 0.15585060119628846,
+      "max": 2.972715377807617
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 6.234182744835419,
+      "p99": 110.76726962695547,
+      "max": 173.0488580707919
+    },
+    "missing_regions": 2,
+    "extra_regions": 0,
+    "missing_pixels": 490,
+    "extra_pixels": 190,
+    "color_mae_255": 0.9528908962871228,
+    "exact_capture_wall_s": 1.508289760997286,
+    "mesh_capture_wall_s": 3.354617953998968,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.65,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.9162936855413409,
+    "depth_world": {
+      "p50": 0.0029850006103515625,
+      "p95": 0.015388774871826168,
+      "p99": 0.05287550926208482,
+      "max": 2.3928446769714355
+    },
+    "normal_degrees": {
+      "p50": 0.3737921846575303,
+      "p95": 7.175307069189405,
+      "p99": 104.55444568667579,
+      "max": 173.3450376473426
+    },
+    "missing_regions": 29,
+    "extra_regions": 0,
+    "missing_pixels": 2158,
+    "extra_pixels": 96,
+    "color_mae_255": 1.0134489224040666,
+    "exact_capture_wall_s": 1.4859035550034605,
+    "mesh_capture_wall_s": 3.371468839002773,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.65,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.5281051796345827,
+    "depth_world": {
+      "p50": 0.0012240409851074219,
+      "p95": 0.007200312614440915,
+      "p99": 0.017270245552062982,
+      "max": 1.3085508346557617
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 3.1822742982916714,
+      "p99": 20.378097079443233,
+      "max": 155.18327400815153
+    },
+    "missing_regions": 12,
+    "extra_regions": 1,
+    "missing_pixels": 851,
+    "extra_pixels": 154,
+    "color_mae_255": 0.37618111830728973,
+    "exact_capture_wall_s": 1.5929980469954899,
+    "mesh_capture_wall_s": 3.3389228700107196,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.8,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.6160510281797411,
+    "depth_world": {
+      "p50": 0.006344795227050781,
+      "p95": 0.03283386230468743,
+      "p99": 1.6604267120361316,
+      "max": 2.626556396484375
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 4.951384636184076,
+      "p99": 131.82102135783904,
+      "max": 172.24822937411443
+    },
+    "missing_regions": 1,
+    "extra_regions": 1,
+    "missing_pixels": 459,
+    "extra_pixels": 220,
+    "color_mae_255": 1.2517437969212408,
+    "exact_capture_wall_s": 1.5189834069897188,
+    "mesh_capture_wall_s": 3.4229062340018572,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.8,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.8211260283189088,
+    "depth_world": {
+      "p50": 0.003379344940185547,
+      "p95": 0.017372524738311718,
+      "p99": 2.0383857297897348,
+      "max": 2.478213310241699
+    },
+    "normal_degrees": {
+      "p50": 0.41315057481558887,
+      "p95": 8.204144888772031,
+      "p99": 133.47044194220211,
+      "max": 176.0901454740759
+    },
+    "missing_regions": 42,
+    "extra_regions": 4,
+    "missing_pixels": 2022,
+    "extra_pixels": 126,
+    "color_mae_255": 1.626244327613409,
+    "exact_capture_wall_s": 1.4330763609905262,
+    "mesh_capture_wall_s": 3.4542196549882647,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.8,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.6083885302255387,
+    "depth_world": {
+      "p50": 0.0018506050109863281,
+      "p95": 0.009938716888427734,
+      "p99": 0.02340517044067375,
+      "max": 2.6533193588256836
+    },
+    "normal_degrees": {
+      "p50": 8.537736462515939e-07,
+      "p95": 1.900665099586829,
+      "p99": 7.164766913252186,
+      "max": 151.45308009739603
+    },
+    "missing_regions": 22,
+    "extra_regions": 0,
+    "missing_pixels": 1007,
+    "extra_pixels": 154,
+    "color_mae_255": 0.6401980271101012,
+    "exact_capture_wall_s": 1.5755201809952268,
+    "mesh_capture_wall_s": 3.476116298988927,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.9,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.6415314607009268,
+    "depth_world": {
+      "p50": 0.006896018981933594,
+      "p95": 0.03454370498657226,
+      "p99": 1.6088515853881833,
+      "max": 2.117940902709961
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 4.653955177711213,
+      "p99": 136.02374460346613,
+      "max": 172.8473684805674
+    },
+    "missing_regions": 2,
+    "extra_regions": 0,
+    "missing_pixels": 453,
+    "extra_pixels": 236,
+    "color_mae_255": 1.604786357911055,
+    "exact_capture_wall_s": 1.5907084319915157,
+    "mesh_capture_wall_s": 3.4837636379961623,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.9,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.9823729706341592,
+    "depth_world": {
+      "p50": 0.0035333633422851562,
+      "p95": 0.020083379745483354,
+      "p99": 2.06291365623474,
+      "max": 2.518615245819092
+    },
+    "normal_degrees": {
+      "p50": 0.41758779045391126,
+      "p95": 9.798614347074976,
+      "p99": 139.64810709454446,
+      "max": 173.93996260686944
+    },
+    "missing_regions": 47,
+    "extra_regions": 1,
+    "missing_pixels": 2523,
+    "extra_pixels": 88,
+    "color_mae_255": 2.4655424421358747,
+    "exact_capture_wall_s": 1.4898936050012708,
+    "mesh_capture_wall_s": 3.5137771390000125,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 0.9,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.6240692149492943,
+    "depth_world": {
+      "p50": 0.002071857452392578,
+      "p95": 0.010739803314208984,
+      "p99": 0.024516563415527437,
+      "max": 2.431950569152832
+    },
+    "normal_degrees": {
+      "p50": 8.537736462515939e-07,
+      "p95": 1.8370698553995661,
+      "p99": 6.807498161783405,
+      "max": 138.4406764430804
+    },
+    "missing_regions": 30,
+    "extra_regions": 0,
+    "missing_pixels": 983,
+    "extra_pixels": 161,
+    "color_mae_255": 1.1144907567515145,
+    "exact_capture_wall_s": 1.5549937110044993,
+    "mesh_capture_wall_s": 3.5158813469897723,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 1.0,
+    "view": 3,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.6661531533666722,
+    "depth_world": {
+      "p50": 0.007145404815673828,
+      "p95": 0.03541603088378886,
+      "p99": 1.5954561901092537,
+      "max": 2.167928695678711
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 4.520133013281108,
+      "p99": 137.68271846727882,
+      "max": 172.46685875109654
+    },
+    "missing_regions": 1,
+    "extra_regions": 0,
+    "missing_pixels": 465,
+    "extra_pixels": 238,
+    "color_mae_255": 1.76313167831606,
+    "exact_capture_wall_s": 1.5315064280002844,
+    "mesh_capture_wall_s": 3.2632230680028442,
+    "gate_pixel_pass": false
+  },
+  {
+    "age": 1.0,
+    "view": 4,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 1.0934663067572135,
+    "depth_world": {
+      "p50": 0.0035858154296875,
+      "p95": 0.020064353942871094,
+      "p99": 2.0508411073684694,
+      "max": 2.5044174194335938
+    },
+    "normal_degrees": {
+      "p50": 0.4194051793480069,
+      "p95": 10.94325687253335,
+      "p99": 140.1580870041011,
+      "max": 173.15480828258796
+    },
+    "missing_regions": 48,
+    "extra_regions": 1,
+    "missing_pixels": 2858,
+    "extra_pixels": 87,
+    "color_mae_255": 2.8069964687303695,
+    "exact_capture_wall_s": 1.513901389989769,
+    "mesh_capture_wall_s": 3.3597967280074954,
+    "gate_pixel_pass": true
+  },
+  {
+    "age": 1.0,
+    "view": 7,
+    "voxel": 0.035,
+    "refinement": 2,
+    "silhouette_xor_percent": 0.6547428936442031,
+    "depth_world": {
+      "p50": 0.002151966094970703,
+      "p95": 0.01111745834350586,
+      "p99": 0.025234260559082178,
+      "max": 2.3709845542907715
+    },
+    "normal_degrees": {
+      "p50": 1.2074182697257333e-06,
+      "p95": 1.7942290738289537,
+      "p99": 6.366227277726461,
+      "max": 137.9333413206423
+    },
+    "missing_regions": 31,
+    "extra_regions": 0,
+    "missing_pixels": 1004,
+    "extra_pixels": 185,
+    "color_mae_255": 1.3807829247247458,
+    "exact_capture_wall_s": 1.5633783359953668,
+    "mesh_capture_wall_s": 3.3088000870047836,
+    "gate_pixel_pass": true
+  }
+]

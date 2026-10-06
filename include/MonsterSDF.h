@@ -16,8 +16,10 @@
 #include "SDFSampling.h"
 #include "Anatomy.h"
 #include "SDFPrimitives.h"
+#include "Surface.h"
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,6 +76,7 @@ typedef struct MonsterSDFConnector {
     AnatomyId fromId;
     AnatomyId toId;
     uint32_t moduleInstanceId;
+    AnatomyRegion region; /**< Identidad del tejido resuelto; independiente del color. */
     bool isHeadNeck, isDistalLimb;
     float development;
     bool isAttachment; /**< Unión axial al miembro; su detalle pertenece al brote, no al torso. */
@@ -88,11 +91,20 @@ typedef struct MonsterSDFConnector {
     float localSmoothness;     /**< Suavizado local de unión suave precalculado */
 } MonsterSDFConnector;
 
+/** Jerarquía de intervalos contiguos: conserva el orden de mezcla SDF. */
+typedef struct MonsterSDFConnectorNode {
+    AABB3D bounds;
+    float lowerBoundScale, smoothnessSum;
+    size_t begin, end, left, right;
+    bool hasEligible;
+} MonsterSDFConnectorNode;
+
 /**
  * @struct MonsterSDFMouth
  * @brief Snapshot compilado de una cavidad bucal con rotación matricial e invariantes precálculadas.
  */
 typedef struct MonsterSDFMouth {
+    uint32_t moduleInstanceId; /**< Módulo cefálico resuelto; cero si no existe grafo. */
     Vector3 center;
     AABB3D visualBounds; /**< Caja mundial conservadora de mandíbula y costura articuladas. */
     Vector3 visualJawPivot; /**< Pivote de articulación del snapshot visual. */
@@ -245,6 +257,8 @@ typedef enum MonsterHeadDebugMode {
  *       lee la misma instancia (Build reutiliza los buffers internos en sitio).
  */
 struct MonsterSDF {
+    SurfaceRecipe surfaceRecipe; /**< Apariencia del mismo snapshot que certifica el campo. */
+    bool hasSurface; /**< La ruta implícita puede compartir pigmento e integumento. */
     MonsterSDFBodyPart* bodyParts;
     size_t bodyPartCount;
     size_t bodyPartCapacity; /**< Capacidad reservada del buffer bodyParts */
@@ -252,12 +266,14 @@ struct MonsterSDF {
     MonsterSDFConnector* connectors;
     size_t connectorCount;
     size_t connectorCapacity; /**< Capacidad reservada del buffer connectors */
+    MonsterSDFConnectorNode* connectorNodes; /**< Jerarquía conservadora compilada por snapshot. */
+    size_t connectorNodeCount, connectorNodeCapacity;
 
     MonsterSDFMouth* mouths;
     size_t mouthCount;
     size_t mouthCapacity; /**< Capacidad reservada del buffer mouths */
 
-#define MONSTER_SDF_MAX_AXIAL_STATIONS 24
+#define MONSTER_SDF_MAX_AXIAL_STATIONS ANATOMY_MAX_SWEEP_STATIONS
     SDFSweepStation axialStations[MONSTER_SDF_MAX_AXIAL_STATIONS]; /**< Receta axial continua del tronco. */
     int axialStationCount; /**< Cero conserva la ruta heredada. */
     float appendageDevelopment; /**< Desarrollo compilado usado para presupuestar detalle local. */
@@ -322,6 +338,36 @@ SDFSample MonsterSDF_EvaluateWrapper(const void* context, Vector3 point);
  */
 float MonsterSDF_EvaluateDistance(const MonsterSDF* sdf, Vector3 point);
 
+/** @brief Construye una vista prestada de un módulo usando conectores filtrados.
+ * La vista no posee memoria y no debe pasarse a MonsterSDF_Free.
+ * @param source Campo completo compilado.
+ * @param moduleId Identidad semántica del módulo.
+ * @param view Salida prestada.
+ * @param connectors Buffer del llamador para conectores filtrados.
+ * @param capacity Capacidad de connectors.
+ * @return true si el módulo contiene conectores y cabe en el buffer.
+ */
+bool MonsterSDF_BuildModuleView(const MonsterSDF* source,uint32_t moduleId,
+    MonsterSDF* view,MonsterSDFConnector* connectors,size_t capacity);
+/** @brief Crea una vista prestada del barrido axial, sin cabeza ni apéndices.
+ * @param source Campo completo compilado.
+ * @param view Vista de salida sin propiedad sobre los buffers.
+ * @return true si el campo contiene estaciones axiales.
+ */
+bool MonsterSDF_BuildAxialView(const MonsterSDF* source,MonsterSDF* view);
+/** @brief Crea una vista prestada de la cabeza anatómica y su collar local.
+ * @param source Campo completo compilado.
+ * @param view Vista de salida sin propiedad sobre los buffers.
+ * @return true si el campo contiene cabeza anatómica.
+ */
+bool MonsterSDF_BuildHeadView(const MonsterSDF* source,MonsterSDF* view);
+/** @brief Evalúa conectores candidatos en orden original; la lista debe provenir del compilador conservador. */
+float MonsterSDF_EvaluateDistanceCandidates(const MonsterSDF* sdf,Vector3 point,
+    const uint16_t* connectorIndices,size_t count);
+/** @brief Compila candidatos conservadores para un bloque espacial completo. */
+size_t MonsterSDF_CompileConnectorCandidates(const MonsterSDF* sdf,AABB3D box,
+    uint16_t* outIndices,size_t capacity);
+
 /** @brief Campo corporal más mandíbula y bisagra articuladas del mismo snapshot.
  * @param sdf Geometría compilada del fotograma.
  * @param point Punto mundial.
@@ -379,6 +425,19 @@ void MonsterSDF_ResetThreadStats(void);
  * @brief Obtiene los contadores de poda acumulados en el hilo actual.
  */
 void MonsterSDF_GetThreadStats(size_t* outCandidate, size_t* outExact, size_t* outPruned);
+
+/** @brief Semilla de superficie actual; identidad independiente de una malla previa. */
+typedef struct MonsterSDFSurfaceFeature {
+    uint64_t id,fingerprint;
+    AABB3D bounds;
+    uint32_t moduleId;
+} MonsterSDFSurfaceFeature;
+/** @brief Enumera features actuales para siembra y dirty por subnivel espacial.
+ * @param sdf Campo visual actual. @param out Salida opcional; NULL consulta capacidad.
+ * @param capacity Capacidad de salida. @param band Margen de banda y halo.
+ * @return Número necesario, o SIZE_MAX ante capacidad insuficiente/datos inválidos.
+ */
+size_t MonsterSDF_CollectSurfaceFeatures(const MonsterSDF* sdf,MonsterSDFSurfaceFeature* out,size_t capacity,float band);
 
 #ifdef __cplusplus
 }

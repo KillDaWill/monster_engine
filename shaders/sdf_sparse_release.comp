@@ -1,0 +1,6 @@
+layout(local_size_x=64) in;
+void main(){uint i=invocation();if(i>=jobCount)return;uint slot=jobs[i+jobBase].w;
+    // Los samples dirty ya no representan el SDF actual. Reciclarlos antes de
+    // reservar la nueva banda evita retener simultáneamente varias edades.
+    // Los bricks clean mantienen sus muestras y sus páginas sin cambios.
+    releasePages(slot);releaseSamples(slot);bricks[slot].farAge=0u;}

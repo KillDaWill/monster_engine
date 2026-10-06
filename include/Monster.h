@@ -67,6 +67,7 @@ typedef struct Monster {
     CreaturePhenotype phenotype; /**< Autoridad semántica para envejecimiento de lagarto. */
     float growthAge; /**< Edad del snapshot, independiente de escala y deformación. */
     bool hasGrowthAge; /**< Edad definida por un Ager. */
+    bool hasResolvedMorph; /**< La anatomía interpolada es autoritativa; no reconstruir desde una receta extrema. */
     bool hasCreaturePhenotype;          /**< Indica que el grafo procede del preset de lagarto. */
 
     struct MonsterAnimation* animation; /**< Estado poseído; excluido de snapshots morfológicos. */

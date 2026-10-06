@@ -1,0 +1,11 @@
+=================================================================
+ BENCHMARK: Resistencia a Latencia Extrema del Worker (0-3000 ms)
+=================================================================
+workerDelay=   0 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=940.2
+workerDelay=  20 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=948.8
+workerDelay=  50 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=1019.1
+workerDelay= 100 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=1092.7
+workerDelay= 250 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=1389.8
+workerDelay= 500 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=1886.3
+workerDelay=1000 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=2892.5
+workerDelay=3000 ms | completed=  3 coalesced= 18 staleDiscarded=  0 | clones=  2 validations=  6 bytesCopied=  2545024 | fallbacks=60 duration=0.960 s | thin=399 opposed=6 | totalMs=6879.7

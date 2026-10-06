@@ -1,0 +1,54 @@
+[
+  {
+    "capture": "band-debug-00.ppm",
+    "boundary_red_pixels": 0
+  },
+  {
+    "capture": "band-debug-01.ppm",
+    "boundary_red_pixels": 0
+  },
+  {
+    "capture": "band-debug-02.ppm",
+    "boundary_red_pixels": 14
+  },
+  {
+    "capture": "band-debug-03.ppm",
+    "boundary_red_pixels": 116
+  },
+  {
+    "capture": "band-debug-04.ppm",
+    "boundary_red_pixels": 103
+  },
+  {
+    "capture": "band-debug-05.ppm",
+    "boundary_red_pixels": 79
+  },
+  {
+    "capture": "band-debug-06.ppm",
+    "boundary_red_pixels": 39
+  },
+  {
+    "capture": "band-debug-07.ppm",
+    "boundary_red_pixels": 78
+  },
+  {
+    "capture": "band-debug-08.ppm",
+    "boundary_red_pixels": 0
+  },
+  {
+    "capture": "band-debug-09.ppm",
+    "boundary_red_pixels": 116
+  },
+  {
+    "capture": "band-debug-10.ppm",
+    "boundary_red_pixels": 14
+  },
+  {
+    "capture": "band-debug-11.ppm",
+    "boundary_red_pixels": 8
+  },
+  {
+    "capture": "band-debug-12.ppm",
+    "boundary_red_pixels": 5
+  }
+]

@@ -388,7 +388,8 @@ bool SDFMesher_GenerateMeshDetailed(
     Mesh* outMesh
 ) {
     if (!mesher || !field || !field->evaluate || !outMesh) return false;
-    if(mesher->config.adaptiveDetail && mesher->config.useAutoBounds)
+    if(mesher->config.adaptiveDetail && (mesher->config.useAutoBounds ||
+        (regions && regionCount)))
         return SDFAdaptiveMesher_Generate(mesher,field,regions,regionCount,outMesh);
 
     Mesh_Clear(outMesh);
@@ -887,3 +888,32 @@ bool SDFMesher_GenerateMeshDetailed(
 
     return true;
 }
+
+bool SDFMesher_MeshRegion(
+    SDFMesher* mesher,
+    const SDFField* field,
+    AABB3D region,
+    float voxelSize,
+    Mesh* outMesh
+) {
+    if (!mesher || !field || !outMesh) return false;
+    SDFMesherConfig origConfig = mesher->config;
+
+    mesher->config.useAutoBounds = false;
+    mesher->config.bounds = region;
+    if (voxelSize > 0.0001f) {
+        mesher->config.voxelSize = voxelSize;
+    }
+
+    Vector3 size = Vec3_Sub(region.end, region.start);
+    float step = (mesher->config.voxelSize > 0.0001f) ? mesher->config.voxelSize : 0.05f;
+    int maxR = mesher->config.maxResolution > 0 ? mesher->config.maxResolution : 128;
+    mesher->config.resolutionX = Math_Clamp((int)roundf(size.x / step), 2, maxR);
+    mesher->config.resolutionY = Math_Clamp((int)roundf(size.y / step), 2, maxR);
+    mesher->config.resolutionZ = Math_Clamp((int)roundf(size.z / step), 2, maxR);
+
+    bool ok = SDFMesher_GenerateMesh(mesher, field, outMesh);
+    mesher->config = origConfig;
+    return ok;
+}
+

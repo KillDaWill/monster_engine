@@ -117,6 +117,7 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
     /* 1. Resolver el grafo anatómico como única fuente de verdad geométrica */
     if (!Creature_ResolveAnatomy(recipe, &p, &monster->anatomyGraph)) return false;
     monster->hasAnatomyGraph = true;
+    monster->hasResolvedMorph = false;
     monster->surface = p.surface;
     monster->hasSurface = true;
     monster->surfaceMapping = SurfaceMapping_FromAnatomy(&monster->anatomyGraph, p.axial.totalScale);

@@ -1,0 +1,58 @@
+layout(local_size_x=64) in;
+struct IntervalProbe {vec4 low;vec4 high;vec4 result;};
+layout(std430,binding=8) buffer IntervalProbes {IntervalProbe intervalProbes[];};
+uniform uint intervalProbeCount;
+uniform int intervalMouth,intervalRecipe,intervalConnector;
+float intervalScalar(vec3 p,int m) {
+    vec3 r=M_earShape(m),a=vec3(.2,-.3,.1),b=vec3(-.4,.8,-.5);
+    if(intervalRecipe==0)return SDF_CurvedPinna(p,r,M_earDirection(m),M_leftEarSide(m),M_leftEarNormal(m),
+        M_earTipFraction(m),M_earConcavity(m),M_earLongitudinalCurve(m),M_earRootRoll(m),M_earTipRoundness(m),
+        M_earFold(m),M_earRootFlare(m),M_earMarginBow(m),M_earMarginAsymmetry(m));
+    if(intervalRecipe==7)return MonsterSDF_EvalConnectorDistance(intervalConnector,p);
+    if(intervalRecipe==6)return SDF_EllipticalSweepZ(p,M_headStations(m),6);
+    if(intervalRecipe==1)return SDF_Ellipsoid(p,r);
+    if(intervalRecipe==2)return SDF_Capsule(p,a,b,r.x);
+    if(intervalRecipe==3)return SDF_RoundedSlotExtruded(p,r.x,r.y,r.z);
+    if(intervalRecipe==4)return SDF_SmoothUnion(SDF_Ellipsoid(p,r),SDF_Capsule(p,a,b,r.x),.04);
+    return SDF_SmoothSubtract(SDF_Ellipsoid(p,r),SDF_RoundedSlotExtruded(p,r.x,r.y,r.z),.04);
+}
+void main() {
+    uint i=gl_GlobalInvocationID.x;if(i>=intervalProbeCount)return;
+    AABB3D box=AABB3D(intervalProbes[i].low.xyz,intervalProbes[i].high.xyz);
+    int m=intervalMouth;
+    SDFInterval interval=SDF_CurvedPinnaInterval(box,M_earShape(m),M_earDirection(m),M_leftEarSide(m),M_leftEarNormal(m),
+        M_earTipFraction(m),M_earConcavity(m),M_earLongitudinalCurve(m),M_earRootRoll(m),M_earTipRoundness(m),
+        M_earFold(m),M_earRootFlare(m),M_earMarginBow(m),M_earMarginAsymmetry(m));
+    vec3 r=M_earShape(m),a=vec3(.2,-.3,.1),b=vec3(-.4,.8,-.5);
+    if(intervalRecipe==1)interval=SDF_EllipsoidInterval(box,r);
+    if(intervalRecipe==2)interval=SDF_CapsuleInterval(box,a,b,r.x);
+    if(intervalRecipe==3)interval=SDF_RoundedSlotInterval(box,r.x,r.y,r.z);
+    if(intervalRecipe==4)interval=SDF_SmoothUnionInterval(SDF_EllipsoidInterval(box,r),SDF_CapsuleInterval(box,a,b,r.x),.04);
+    if(intervalRecipe==5)interval=SDF_SmoothSubtractInterval(SDF_EllipsoidInterval(box,r),SDF_RoundedSlotInterval(box,r.x,r.y,r.z),.04);
+    if(intervalRecipe==6) {
+        int base=M_headStations(m);interval=SDFInterval(INFINITY,-INFINITY);
+        for(int j=0;j<5;++j) {
+            vec4 ac=dataAt(base+2*j),bc=dataAt(base+2*(j+1));
+            vec4 ar=dataAt(base+2*j+1),br=dataAt(base+2*(j+1)+1);
+            AABB3D piece=box;
+            if(j<4)piece.start.z=max(piece.start.z,bc.z);
+            if(j>0)piece.end.z=min(piece.end.z,ac.z);
+            if(piece.start.z>piece.end.z)continue;
+            interval=Interval_Hull(interval,SDF_SweepSegmentInterval(piece,ac.xyz,bc.xyz,ac.w,bc.w,ar.x,br.x,
+                ar.y,br.y,ar.z,br.z,ar.w,br.w,dataAt(base).z,dataAt(base+10).z));
+        }
+    }
+    if(intervalRecipe==7) {
+        int c=intervalConnector;
+        interval=SDF_ConnectorInterval(box,C_a(c),C_forward(c),C_side(c),C_up(c),C_length(c),
+            C_widthA(c),C_widthB(c),C_heightA(c),C_heightB(c),C_widthBulge(c),C_heightBulge(c));
+    }
+    float lo=1e30,hi=-1e30;
+    for(int corner=0;corner<9;++corner) {
+        vec3 p=corner==8?(box.start+box.end)*.5:vec3((corner&1)!=0?box.end.x:box.start.x,
+            (corner&2)!=0?box.end.y:box.start.y,(corner&4)!=0?box.end.z:box.start.z);
+        float v=intervalScalar(p,m);
+        lo=min(lo,v);hi=max(hi,v);
+    }
+    intervalProbes[i].result=vec4(interval.lo,interval.hi,lo,hi);
+}

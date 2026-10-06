@@ -82,6 +82,7 @@ bool Monster_CopyInto(Monster* dst, const Monster* src) {
     dst->hasAnatomyGraph = src->hasAnatomyGraph;
     dst->surface=src->surface; dst->surfaceMapping=src->surfaceMapping; dst->hasSurface=src->hasSurface;
     dst->growthAge=src->growthAge; dst->hasGrowthAge=src->hasGrowthAge;
+    dst->hasResolvedMorph=src->hasResolvedMorph;
     dst->phenotype = src->phenotype; dst->recipeId=src->recipeId; dst->recipe=src->recipe;
     dst->hasCreaturePhenotype = src->hasCreaturePhenotype;
 

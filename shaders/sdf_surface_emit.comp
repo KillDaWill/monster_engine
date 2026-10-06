@@ -1,0 +1,42 @@
+layout(local_size_x=64) in;
+vec3 edgeRoot(vec3 a,vec3 b,float da,float db) {
+    float t=clamp(da/(da-db),0.0,1.0);vec3 p=mix(a,b,t);
+    for(int i=0;i<refinementSteps;++i) {
+        float d=sceneDistance(p);
+        if((d<0.0)==(da<0.0)) {a=p;da=d;}else {b=p;db=d;}
+        float denominator=da-db;
+        t=abs(denominator)>1e-12?clamp(da/denominator,0.0,1.0):.5;
+        p=mix(a,b,t);
+    }
+    return p;
+}
+void main() {
+    uint local=(gl_WorkGroupID.y*gl_NumWorkGroups.x+gl_WorkGroupID.x)*gl_WorkGroupSize.x+gl_LocalInvocationID.x;
+    if(local>=activeCount)return;
+    uvec2 cellCase=activeCases[local];uint id=cellCase.x,mask=cellCase.y;
+    int row=int(mask)*16,count=0;
+    while(count<15&&mcTables[row+count]>=0)++count;
+    if(count==0)return;
+    uint base=atomicAdd(drawCount,uint(count));
+    if(base>=vertexCapacity||uint(count)>vertexCapacity-base) {atomicOr(overflow,1u);return;}
+    MonsterSDFUseCompleteScene();uvec3 cell=cellCoord(id);
+    vec3 positions[12],normals[12];uvec2 edgeIds[12];bool ready[12];
+    for(int e=0;e<12;++e)ready[e]=false;
+    for(int k=0;k<count;++k) {
+        int edge=mcTables[row+k];
+        if(!ready[edge]) {
+            int ca=mcTables[4096+2*edge],cb=mcTables[4096+2*edge+1];
+            uvec3 a=cell+cornerOffset(ca),b=cell+cornerOffset(cb);
+            // Orden global de extremos: idéntico en ambos lados de una frontera.
+            if(cornerIndex(a)>cornerIndex(b)) {uvec3 swap=a;a=b;b=swap;}
+            positions[edge]=edgeRoot(gridPoint(a),gridPoint(b),samples[sampleIndex(a)],samples[sampleIndex(b)]);
+            normals[edge]=MonsterSDFGradient(positions[edge],.00065);
+            uint ia=cornerIndex(a),ib=cornerIndex(b);
+            // Las raíces exactamente situadas en una esquina comparten identidad.
+            if(all(equal(positions[edge],gridPoint(a))))ib=ia;
+            else if(all(equal(positions[edge],gridPoint(b))))ia=ib;
+            edgeIds[edge]=uvec2(ia,ib);ready[edge]=true;
+        }
+        vertices[base+uint(k)]=SurfaceVertex(vec4(positions[edge],uintBitsToFloat(edgeIds[edge].x)),vec4(normals[edge],uintBitsToFloat(edgeIds[edge].y)));
+    }
+}

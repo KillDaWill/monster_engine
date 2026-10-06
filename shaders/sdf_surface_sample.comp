@@ -1,0 +1,5 @@
+layout(local_size_x=8,local_size_y=4,local_size_z=4) in;
+void main() {
+    uvec3 p=gl_GlobalInvocationID+uvec3(0,0,sampleZOffset);if(any(greaterThan(p,gridCells))||p.z>sampleEndZ)return;
+    MonsterSDFUseCompleteScene();samples[sampleIndex(p)]=monsterSDFScene(gridPoint(p)).distance;
+}

@@ -1,0 +1,272 @@
+{
+  "refinement-0": {
+    "recorded_cpu_frames": 40,
+    "completed_distinct_query_generations": 1,
+    "max_timing_generation": 1,
+    "last_submission_generation": 40,
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop, NVIDIA 580.173.02, GL4.6",
+    "sampling_ms": {
+      "p50": 39.1885,
+      "p95": 39.1885,
+      "p99": 39.1885,
+      "max": 39.1885
+    },
+    "classification_ms": {
+      "p50": 0.3359,
+      "p95": 0.3359,
+      "p99": 0.3359,
+      "max": 0.3359
+    },
+    "emission_ms": {
+      "p50": 180.31,
+      "p95": 180.31,
+      "p99": 180.31,
+      "max": 180.31
+    },
+    "raster_ms": {
+      "p50": 2.7648,
+      "p95": 2.7648,
+      "p99": 2.7648,
+      "max": 2.7648
+    },
+    "sum_stage_gpu_ms": {
+      "p50": 222.59920000000002,
+      "p95": 222.59920000000002,
+      "p99": 222.59920000000002,
+      "max": 222.59920000000002
+    },
+    "cpu_thread_ms": {
+      "p50": 1.3049,
+      "p95": 3.5198899999999997,
+      "p99": 4.603586000000002
+    },
+    "frame_wall_ms": {
+      "p50": 1.30625,
+      "p95": 3.52107,
+      "p99": 4.605193000000002
+    },
+    "upload_cpu_ms": {
+      "p50": 0.013399999999999999,
+      "p95": 0.18254499999999985,
+      "p99": 2.1680490000000034
+    },
+    "percentiles_certified": false,
+    "limitations": "Queries completadas limitadas; CPU mide env\u00edo, no generaci\u00f3n presentada. Cola GPU sin acotar. No certificado como percentiles completos de frame ni latencia visual."
+  },
+  "refinement-1": {
+    "recorded_cpu_frames": 40,
+    "completed_distinct_query_generations": 1,
+    "max_timing_generation": 1,
+    "last_submission_generation": 40,
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop, NVIDIA 580.173.02, GL4.6",
+    "sampling_ms": {
+      "p50": 30.293,
+      "p95": 30.293,
+      "p99": 30.293,
+      "max": 30.293
+    },
+    "classification_ms": {
+      "p50": 0.2703,
+      "p95": 0.2703,
+      "p99": 0.2703,
+      "max": 0.2703
+    },
+    "emission_ms": {
+      "p50": 176.6461,
+      "p95": 176.6461,
+      "p99": 176.6461,
+      "max": 176.6461
+    },
+    "raster_ms": {
+      "p50": 2.772,
+      "p95": 2.772,
+      "p99": 2.772,
+      "max": 2.772
+    },
+    "sum_stage_gpu_ms": {
+      "p50": 209.98139999999998,
+      "p95": 209.98139999999998,
+      "p99": 209.98139999999998,
+      "max": 209.98139999999998
+    },
+    "cpu_thread_ms": {
+      "p50": 1.4969000000000001,
+      "p95": 3.081695,
+      "p99": 3.6773510000000007
+    },
+    "frame_wall_ms": {
+      "p50": 1.4985,
+      "p95": 3.0830599999999997,
+      "p99": 3.678551000000001
+    },
+    "upload_cpu_ms": {
+      "p50": 0.01575,
+      "p95": 0.14353999999999983,
+      "p99": 1.1610510000000016
+    },
+    "percentiles_certified": false,
+    "limitations": "Queries completadas limitadas; CPU mide env\u00edo, no generaci\u00f3n presentada. Cola GPU sin acotar. No certificado como percentiles completos de frame ni latencia visual."
+  },
+  "refinement-2": {
+    "recorded_cpu_frames": 40,
+    "completed_distinct_query_generations": 1,
+    "max_timing_generation": 1,
+    "last_submission_generation": 40,
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop, NVIDIA 580.173.02, GL4.6",
+    "sampling_ms": {
+      "p50": 30.2674,
+      "p95": 30.2674,
+      "p99": 30.2674,
+      "max": 30.2674
+    },
+    "classification_ms": {
+      "p50": 0.2744,
+      "p95": 0.2744,
+      "p99": 0.2744,
+      "max": 0.2744
+    },
+    "emission_ms": {
+      "p50": 206.9494,
+      "p95": 206.9494,
+      "p99": 206.9494,
+      "max": 206.9494
+    },
+    "raster_ms": {
+      "p50": 2.7935,
+      "p95": 2.7935,
+      "p99": 2.7935,
+      "max": 2.7935
+    },
+    "sum_stage_gpu_ms": {
+      "p50": 240.2847,
+      "p95": 240.2847,
+      "p99": 240.2847,
+      "max": 240.2847
+    },
+    "cpu_thread_ms": {
+      "p50": 1.1493,
+      "p95": 3.2258299999999993,
+      "p99": 3.9536910000000005
+    },
+    "frame_wall_ms": {
+      "p50": 1.1503999999999999,
+      "p95": 3.2270399999999992,
+      "p99": 3.9549290000000004
+    },
+    "upload_cpu_ms": {
+      "p50": 0.01355,
+      "p95": 0.14238499999999982,
+      "p99": 1.6965320000000028
+    },
+    "percentiles_certified": false,
+    "limitations": "Queries completadas limitadas; CPU mide env\u00edo, no generaci\u00f3n presentada. Cola GPU sin acotar. No certificado como percentiles completos de frame ni latencia visual."
+  },
+  "refinement-3": {
+    "recorded_cpu_frames": 40,
+    "completed_distinct_query_generations": 1,
+    "max_timing_generation": 1,
+    "last_submission_generation": 40,
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop, NVIDIA 580.173.02, GL4.6",
+    "sampling_ms": {
+      "p50": 30.2531,
+      "p95": 30.2531,
+      "p99": 30.2531,
+      "max": 30.2531
+    },
+    "classification_ms": {
+      "p50": 0.2621,
+      "p95": 0.2621,
+      "p99": 0.2621,
+      "max": 0.2621
+    },
+    "emission_ms": {
+      "p50": 238.3493,
+      "p95": 238.3493,
+      "p99": 238.3493,
+      "max": 238.3493
+    },
+    "raster_ms": {
+      "p50": 2.8201,
+      "p95": 2.8201,
+      "p99": 2.8201,
+      "max": 2.8201
+    },
+    "sum_stage_gpu_ms": {
+      "p50": 271.68460000000005,
+      "p95": 271.68460000000005,
+      "p99": 271.68460000000005,
+      "max": 271.68460000000005
+    },
+    "cpu_thread_ms": {
+      "p50": 1.2795,
+      "p95": 2.9430199999999993,
+      "p99": 3.4593210000000005
+    },
+    "frame_wall_ms": {
+      "p50": 1.28735,
+      "p95": 2.9444099999999995,
+      "p99": 3.4606830000000004
+    },
+    "upload_cpu_ms": {
+      "p50": 0.01295,
+      "p95": 0.14739999999999986,
+      "p99": 1.1693290000000018
+    },
+    "percentiles_certified": false,
+    "limitations": "Queries completadas limitadas; CPU mide env\u00edo, no generaci\u00f3n presentada. Cola GPU sin acotar. No certificado como percentiles completos de frame ni latencia visual."
+  },
+  "profile-accepted-code": {
+    "recorded_cpu_frames": 90,
+    "completed_distinct_query_generations": 6,
+    "max_timing_generation": 75,
+    "last_submission_generation": 90,
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop, NVIDIA 580.173.02, GL4.6",
+    "sampling_ms": {
+      "p50": 36.544,
+      "p95": 37.582575,
+      "p99": 37.613075,
+      "max": 37.6207
+    },
+    "classification_ms": {
+      "p50": 0.2719,
+      "p95": 0.27415,
+      "p99": 0.27435,
+      "max": 0.2744
+    },
+    "emission_ms": {
+      "p50": 304.94055000000003,
+      "p95": 313.16835000000003,
+      "p99": 315.08487,
+      "max": 315.564
+    },
+    "raster_ms": {
+      "p50": 4.273149999999999,
+      "p95": 4.659225,
+      "p99": 4.661685,
+      "max": 4.6623
+    },
+    "sum_stage_gpu_ms": {
+      "p50": 345.3128,
+      "p95": 354.302725,
+      "p99": 356.464785,
+      "max": 357.0053
+    },
+    "cpu_thread_ms": {
+      "p50": 1.0627499999999999,
+      "p95": 2.9748,
+      "p99": 3.977625
+    },
+    "frame_wall_ms": {
+      "p50": 1.064,
+      "p95": 2.986875,
+      "p99": 3.98915
+    },
+    "upload_cpu_ms": {
+      "p50": 0.0136,
+      "p95": 0.042825,
+      "p99": 0.394875
+    },
+    "percentiles_certified": false,
+    "limitations": "Queries completadas limitadas; CPU mide env\u00edo, no generaci\u00f3n presentada. Cola GPU sin acotar. No certificado como percentiles completos de frame ni latencia visual."
+  }
+}

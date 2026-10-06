@@ -1,0 +1,5 @@
+layout(local_size_x=1) in;
+void main() {
+    // Un overflow muestra una señal roja; nunca una criatura parcialmente emitida.
+    if(overflow!=0u)drawCount=3u;
+}

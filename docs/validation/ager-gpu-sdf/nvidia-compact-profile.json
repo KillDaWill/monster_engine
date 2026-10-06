@@ -1,0 +1,55 @@
+{
+  "device": "NVIDIA RTX 3050 Laptop 580.173.02 GL4.6",
+  "voxel": 0.0175,
+  "refinement": 2,
+  "age": 0.5,
+  "frames": 80,
+  "steady_frames": 72,
+  "completed_distinct_query_generations": 72,
+  "pending_limit": 2,
+  "wall_frame_ms": {
+    "p50": 2223.14055,
+    "p95": 2228.5190549999998,
+    "p99": 2229.7362970000004,
+    "max": 2230.5452
+  },
+  "cpu_thread_ms": {
+    "p50": 2223.0919,
+    "p95": 2228.480585,
+    "p99": 2229.677845,
+    "max": 2230.4805
+  },
+  "gpu": {
+    "sampling_gpu_ms": {
+      "p50": 1806.3206,
+      "p95": 1810.4583650000002,
+      "p99": 1810.99306,
+      "max": 1811.1734
+    },
+    "classification_gpu_ms": {
+      "p50": 15.85565,
+      "p95": 15.895795,
+      "p99": 15.902877,
+      "max": 15.9109
+    },
+    "emission_gpu_ms": {
+      "p50": 390.27250000000004,
+      "p95": 392.525855,
+      "p99": 392.813643,
+      "max": 392.8965
+    },
+    "render_gpu_ms": {
+      "p50": 9.9108,
+      "p95": 10.061020000000001,
+      "p99": 10.092269,
+      "max": 10.0966
+    },
+    "total_gpu_ms": {
+      "p50": 2223.63645,
+      "p95": 2228.1743500000002,
+      "p99": 2228.88643,
+      "max": 2229.4026
+    }
+  },
+  "limitations": "Prueba est\u00e1tica de 80 frames, ocho de calentamiento; no valida latencia de scrub ni p99 de ciclos completos."
+}

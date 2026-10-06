@@ -1,0 +1,5 @@
+layout(local_size_x=64) in;
+void main(){uint i=invocation(),n=sampleCount();if(i>=jobCount*n)return;
+    uint job=i/n,id=i%n,s=side();uvec3 p=uvec3(id%s,(id/s)%s,id/(s*s));
+    ivec3 g=ivec3(jobs[job+jobBase].xyz)+ivec3(p)-ivec3(1);
+    MonsterSDFUseCompleteScene();scratch[i]=sceneDistance(gridPoint(g));}

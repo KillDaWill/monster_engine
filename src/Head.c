@@ -350,6 +350,19 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(!HeadSurfaceRecipe_SetEarPose(r,false,l->leftEarBase,leftUp,Vec3_Create(0,0,1))||
        !HeadSurfaceRecipe_SetEarPose(r,true,l->rightEarBase,rightUp,Vec3_Create(0,0,1)))return false;
 
+    bool canid=p.archetype==HEAD_ARCHETYPE_CANID;
+    r->neckCollarPenetration=canid?.35f:.25f;
+    r->neckCollarRoot=Vec3_Add(r->craniumCenter,Vec3_Create(0,-skullR.y*(canid?.10f:.08f),-skullR.z*(canid?.28f:.35f)));
+    float collarX=skullR.x*(canid?.72f:.70f),collarY=skullR.y*(canid?.76f:.74f);
+    r->neckCollarRadii=Vec3_Create(collarX,collarY,Math_Min(collarX,collarY));
+    r->cranialPostorbitalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,0,skullR.z*.05f));
+    r->cranialTemporalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,0,-skullR.z*.45f));
+    r->cranialOccipitalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,-skullR.y*.08f,-skullR.z*.85f));
+    if(p.cranialForm==HEAD_CRANIAL_SHIELD) {
+        r->cranialPostorbitalCenter.z=r->craniumCenter.z-skullR.z*.18f;
+        r->cranialTemporalCenter.z=r->craniumCenter.z-skullR.z*.55f;
+        r->cranialTemporalRadii.x=skullR.x*.94f;
+    }
     r->unionSmoothness=Math_Min(skullR.x,skullR.y)*.10f;r->headBodySmoothness=Math_Min(r->unionSmoothness,Math_Min(skullR.y,skullR.z)*.10f);r->hasNasalPad=p.archetype==HEAD_ARCHETYPE_CANID;r->hasEars=p.archetype==HEAD_ARCHETYPE_CANID;r->isBeak=p.archetype==HEAD_ARCHETYPE_AVIAN;r->sweptSkull=p.archetype!=HEAD_ARCHETYPE_AVIAN;r->hasTympana=p.archetype==HEAD_ARCHETYPE_LIZARD;
     float tymWeight=Math_Clamp01(p.tympanumSize/.20f);
     r->tympanumDevelopment=tymWeight*tymWeight*(3.0f-2.0f*tymWeight);

@@ -22,23 +22,25 @@
 extern "C" {
 #endif
 
+#define ANATOMY_MORPH_INFLUENCES 4
+
 /**
  * @struct AnatomyDeformerBinding
- * @brief Vinculación de un vértice a dos conexiones anatómicas dominantes.
+ * @brief Vinculación de un vértice a conexiones anatómicas con pesos de soporte continuo.
  */
 typedef struct AnatomyDeformerBinding {
-    uint16_t connIndex[2];  /**< Índices de conexiones en el AnatomyGraph. */
-    float weight[2];        /**< Pesos normalizados de influencia (suma = 1.0). */
-    float projT[2];         /**< Proyección paramétrica t en el segmento [0, 1]. */
-    Vector3 localOffset[2]; /**< Desplazamiento local relativo a la proyección de referencia. */
-    float refRadius[2];     /**< Radio medio de la sección en la pose de referencia. */
+    uint16_t connIndex[ANATOMY_MORPH_INFLUENCES];  /**< Índices de conexiones en el AnatomyGraph. */
+    float weight[ANATOMY_MORPH_INFLUENCES];        /**< Pesos normalizados de influencia (suma = 1.0). */
+    float projT[ANATOMY_MORPH_INFLUENCES];         /**< Proyección paramétrica t en el segmento [0, 1]. */
+    Vector3 localOffset[ANATOMY_MORPH_INFLUENCES]; /**< Desplazamiento local relativo a la proyección de referencia. */
+    float refRadius[ANATOMY_MORPH_INFLUENCES];     /**< Radio medio de la sección en la pose de referencia. */
 } AnatomyDeformerBinding;
 
 /**
  * @struct AnatomySkinBinding
- * @brief Hasta cuatro influencias articulares, derivadas de dos conexiones.
+ * @brief Influencias articulares derivadas de las conexiones anatómicas.
  */
-typedef struct AnatomySkinBinding { int joints[4]; float weights[4]; } AnatomySkinBinding;
+typedef struct AnatomySkinBinding { int joints[2*ANATOMY_MORPH_INFLUENCES]; float weights[2*ANATOMY_MORPH_INFLUENCES]; } AnatomySkinBinding;
 
 /** @brief Bases inmutables y buffers persistentes de deformación. */
 typedef struct AnatomyDeformer {
@@ -84,6 +86,19 @@ bool AnatomyDeformer_Copy(AnatomyDeformer* dst, const AnatomyDeformer* src);
 bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const AnatomyGraph* refGraph);
 
 /**
+ * @brief Reancla una malla cosida conservando influencias de vértices intactos.
+ *
+ * Los índices UINT32_MAX, o superiores al recuento anterior, se vinculan
+ * mediante una búsqueda anatómica completa. Para los demás se transportan
+ * conexiones y pesos semánticos y se recalcula únicamente su marco local.
+ * Requiere grafos topológicamente compatibles; el fallo deja el deformador
+ * anterior intacto. El mapa tiene una entrada por vértice de `mesh`.
+ */
+bool AnatomyDeformer_Reanchor(AnatomyDeformer* morph,const Mesh* mesh,
+    const AnatomyGraph* newGraph,const uint32_t* oldVertexOfNew,
+    size_t* newlyBoundVertices);
+
+/**
  * @brief Deforma una malla en tiempo real según un nuevo grafo anatómico.
  * @param morph Deformador con malla previamente vinculada.
  * @param newGraph Grafo anatómico destino resuelto a la edad actual.
@@ -91,6 +106,23 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph, const Mesh* baseMesh, const An
  * @return true si la deformación fue exitosa.
  */
 bool AnatomyDeformer_Deform(const AnatomyDeformer* morph, const AnatomyGraph* newGraph, Mesh* targetMesh);
+/** @brief Deforma sólo vértices no congelados; conserva la interfaz certificada. */
+bool AnatomyDeformer_DeformMasked(const AnatomyDeformer* morph,
+    const AnatomyGraph* newGraph,Mesh* targetMesh,const uint8_t* frozenVertices);
+
+/** @brief Ancla cinemáticamente vértices congelados al marco local de su articulación proximal.
+ * Permite que extremidades en transición topológica acompañen el movimiento del animal
+ * sin desgarrar la malla ni quedar flotando en coordenadas absolutas obsoletas.
+ * @param morph Deformador vinculado con el grafo de referencia certificado.
+ * @param newGraph Grafo anatómico actual de la criatura.
+ * @param certifiedMesh Malla del snapshot certificado de referencia.
+ * @param targetMesh Malla objetivo donde se actualizarán los vértices congelados.
+ * @param frozenMask Máscara por vértice (distinto de cero = congelado).
+ * @return true si el anclaje fue exitoso.
+ */
+bool AnatomyDeformer_AnchorFrozenVertices(const AnatomyDeformer* morph,
+    const AnatomyGraph* newGraph,const Mesh* certifiedMesh,
+    Mesh* targetMesh,const uint8_t* frozenMask);
 
 /**
  * @brief Consulta si el deformador tiene una vinculación activa válida.

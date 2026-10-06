@@ -1,0 +1,49 @@
+layout(local_size_x=64) in;
+vec3 cornerGradient(uint job,uvec3 p){
+    return vec3(sampleValue(job,p+uvec3(1,0,0))-sampleValue(job,p-uvec3(1,0,0)),
+                sampleValue(job,p+uvec3(0,1,0))-sampleValue(job,p-uvec3(0,1,0)),
+                sampleValue(job,p+uvec3(0,0,1))-sampleValue(job,p-uvec3(0,0,1)))/(2.0*gridStep);
+}
+float cornerCurvature(uint job,uvec3 p){
+    float d=sampleValue(job,p);vec3 second=vec3(
+        sampleValue(job,p+uvec3(1,0,0))-2.0*d+sampleValue(job,p-uvec3(1,0,0)),
+        sampleValue(job,p+uvec3(0,1,0))-2.0*d+sampleValue(job,p-uvec3(0,1,0)),
+        sampleValue(job,p+uvec3(0,0,1))-2.0*d+sampleValue(job,p-uvec3(0,0,1)))/gridStep;
+    return max(abs(second.x),max(abs(second.y),abs(second.z)));
+}
+uint globalEdge(uint job,uvec3 local,uvec3 cell,int edge){
+    int ca=mcTables[4096+2*edge],cb=mcTables[4096+2*edge+1];uvec3 oa=cornerOffset(ca),ob=cornerOffset(cb),a=cell+oa,b=cell+ob;
+    if(cornerIndex(a)>cornerIndex(b)){uvec3 swap=a;a=b;b=swap;swap=oa;oa=ob;ob=swap;}
+    uint axis=a.x!=b.x?0u:a.y!=b.y?1u:2u,key=cornerIndex(a)*3u+axis+1u;
+    uint home=(key*2654435761u)&(edgeCapacity-1u),index=home,firstRetired=0xffffffffu;
+    for(uint probe=0u;probe<edgeCapacity;++probe){
+        uint old=atomicAdd(edges[index].key,0u),found=0xffffffffu;
+        if(old==key)found=index;
+        else if(old==0xffffffffu){if(firstRetired==0xffffffffu)firstRetired=index;}
+        else if(old==0u){
+            uint target=firstRetired!=0xffffffffu?firstRetired:index;
+            uint expected=firstRetired!=0xffffffffu?0xffffffffu:0u;
+            uint previousKey=atomicCompSwap(edges[target].key,expected,key);
+            if(previousKey==expected||previousKey==key)found=target;
+            else{index=home;firstRetired=0xffffffffu;continue;}
+        }
+        if(found!=0xffffffffu){uint previous=atomicMax(edges[found].version,generation);
+            if(previous<generation){edges[found].d0=sampleValue(job,local+oa);edges[found].d1=sampleValue(job,local+ob);
+                edges[found].g0=vec4(cornerGradient(job,local+oa),cornerCurvature(job,local+oa));edges[found].g1=vec4(cornerGradient(job,local+ob),cornerCurvature(job,local+ob));}
+            return found;}
+        index=(index+1u)&(edgeCapacity-1u);
+    }
+    atomicOr(overflow,8u);return 0u;
+}
+void main(){uint i=invocation(),n=cellCount();if(i>=jobCount*n)return;
+    uint job=i/n,id=i%n,mask=cases[i],slot=jobs[job+jobBase].w;
+    if(mask==0u||mask==255u||bricks[slot].pages==0u)return;
+    uint count=0u;int row=int(mask)*16;while(count<15u&&mcTables[row+int(count)]>=0)++count;
+    uint base=atomicAdd(bricks[slot].pad0,count);uvec3 local=uvec3(id%brickCells,(id/brickCells)%brickCells,id/(brickCells*brickCells));
+    uvec3 cell=jobs[job+jobBase].xyz+local;
+    uint edgeIndices[12];bool ready[12];for(int e=0;e<12;++e)ready[e]=false;
+    for(uint k=0u;k<count;++k){int edge=mcTables[row+int(k)];if(!ready[edge]){edgeIndices[edge]=globalEdge(job,local,cell,edge);ready[edge]=true;}
+        uint index=base+k,page=bricks[slot].head;for(uint p=0u;p<index/PAGE_VERTICES;++p){if(page>=pageCapacity){atomicOr(overflow,16u);return;}page=nextPage[page];}
+        if(page>=pageCapacity){atomicOr(overflow,4u);return;}
+        indices[page*PAGE_VERTICES+index%PAGE_VERTICES]=edgeIndices[edge];}
+}
