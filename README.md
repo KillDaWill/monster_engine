@@ -1,6 +1,14 @@
 # Monster Engine (C Core)
 
-Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico de cualquier librería de renderizado**, desarrollado en C idiomático.
+[![Language: C](https://img.shields.io/badge/Language-C99%20%2F%20C11-00599C.svg?logo=c)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![Compiler: GCC / Clang](https://img.shields.io/badge/Compiler-GCC%20%7C%20Clang-orange.svg)](Makefile)
+[![Flags: -Wall -Wextra -Wpedantic -O2](https://img.shields.io/badge/Flags--Wall%20-Wextra%20-Wpedantic%20-O2-blue.svg)](Makefile)
+[![Dependencies: Pure C / Zero external](https://img.shields.io/badge/Dependencies-Zero%20(Pure%20C%20%2B%20libm)-brightgreen.svg)](AGENTS.md)
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624.svg?logo=linux&logoColor=black)](README.md)
+[![Graphics: OpenGL 4.6 + GLSL Compute / SDL2](https://img.shields.io/badge/Graphics-OpenGL%204.6%20%2B%20GLSL%20Compute%20%2F%20SDL2-5586A4.svg?logo=opengl)](shaders/)
+[![Tests: 100% Passing](https://img.shields.io/badge/Tests-100%25%20Passing-success.svg)](tests/)
+
+Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico de cualquier librería de renderizado**, desarrollado en C idiomático con aceleración por Compute Shaders en GPU, metamorfosis ontogénica e inteligencia artificial animal continua.
 
 ## 🚀 Arquitectura General
 
@@ -57,6 +65,20 @@ La geometría de los monstruos se define mediante **Signed Distance Fields (SDF)
 
 - **`RenderInterfaces` & `OpenGLRenderer` (`include/RenderInterfaces.h`, `include/OpenGLRenderer.h`)**: Arquitectura agnóstica de dibujado (`MonsterRenderer` VTable y `ICamera`) implementada actualmente mediante OpenGL y SDL2 (renderizado atómico de triángulos, modo wireframe y shaders de superficie).
 - **`GpuSDFSurfaceCache` (`include/GpuSDFSurfaceCache.h`)**: Evaluación por compute shaders (`GLSL`) de campos SDF dispersos y extracción acelerada de superficies.
+
+### 🧠 Inteligencia Artificial Modular, Navegación y Conducta Animal
+
+- **`CreatureMind` (`include/CreatureMind.h`)**: Mente modular desacoplada de la anatomía física; coordina necesidades biológicas, percepción sensorial, memoria, selección de metas y control motor continuo.
+- **`BrainProfile` (`include/BrainProfile.h`)**: Perfiles de personalidad inmutables y reutilizables (`balanced`, `social`, `aggressive`, `solitary`, `waterless`).
+- **`CreatureNeeds` (`include/CreatureNeeds.h`)**: Integración dinámica de urgencias fisiológicas (sed, hambre, energía, compañía) con curvas de satisfacción.
+- **`AIWorld` (`include/AIWorld.h`)**: Registro espacial agnóstico de entidades, visibilidad geométrica, recursos (estanque de agua, comida) y contención de interacción.
+- **`CreaturePerception` (`include/CreaturePerception.h`)**: Campo de visión cónico y memoria individual de recursos conocidos con tiempo de expiración.
+- **`CreatureDecision` (`include/CreatureDecision.h`)**: Selección de metas por función de utilidad con compromiso mínimo para suprimir la oscilación de decisiones.
+- **`CreatureNavigation` (`include/CreatureNavigation.h`)**: Navegación en plano XZ mediante búsqueda A*, reutilización de trayectorias, llegada suave y detección de estancamiento.
+- **`CreatureMotor` (`include/CreatureMotor.h`)**: Conversión continua de intenciones a rumbo angular, aceleración y maniobras de marcha atrás.
+- **`CreatureActions` (`include/CreatureActions.h`)**: Máquina de estados persistente para búsqueda, aproximación, bebida en orilla, descanso y evasión.
+- **`AnatomicalReach` (`include/AnatomicalReach.h`)**: Cinemática inversa cervical (CCD acotado) que orienta el landmark oral exacto al recurso sin desplazar los apoyos plantares ni el tórax.
+- **`CreatureBoundary` (`include/CreatureBoundary.h`)**: Contención y colisión volumétrica continua contra los límites del escenario y obstáculos.
 
 
 ---
@@ -115,9 +137,10 @@ make clean
 
 5. **Metamorfosis Extrema Inter-Especies (`demos/demo_morph_dog_lizard`)**:
    Prueba el `MonsterAger` al extremo conectando dos especies biológicamente dispares: un Perro digitígrado con pelaje (`CreatureRecipes_Dog()`) y un Lagarto de andadura baja con escamas (`CreatureRecipes_Lizard()`).
+   El arranque normal y `--sdf` usan `sdf-raymarch`: trazado GPU por píxel del campo actual, sin extracción de una rejilla volumétrica. `--surface-mode=exact-sdf` activa el trazado de referencia para diagnóstico. `gpu-sdf-dense`, `gpu-sdf-sparse` y `legacy-handoff` requieren selección explícita con `--surface-mode=...`.
    - El pelaje canino se acorta y reduce su densidad hasta desaparecer en la primera mitad (0% a 45%).
    - Se atraviesa una fase de piel desnuda intermedia (45% a 55%) donde se repliegan las orejas, el tórax se aplana y las patas se abren hacia los lados (*sprawl*).
-   - El Ager interpola anatomía resuelta mediante IDs semánticos; las ramas ausentes se contraen hacia su ancestro compartido. La reproducción adapta su velocidad al desfase de la malla publicada, conservando la resolución.
+   - El Ager interpola anatomía resuelta mediante IDs semánticos; las ramas ausentes se contraen hacia su ancestro compartido. El SDF interactivo utiliza la edad actual; `--legacy-lag` conserva el control experimental por desfase de malla.
    - En la segunda mitad (55% a 100%), brotan las escamas reptilianas ganando relieve y quilla junto con la paleta de pigmentos esmeralda y amarilla.
    - **ESPACIO**: Alternar metamorfosis automática (oscilación fluida de ida y vuelta).
    - **Flechas DERECHA / IZQUIERDA**: Control manual fino del porcentaje de metamorfosis.
@@ -133,11 +156,56 @@ make clean
    ```
    El [informe de metamorfosis](docs/AGER_MORPH_REPORT.md) describe la implementación, validación y límites de correspondencia.
 
+6. **Estudio Isométrico con IA y Navegación (`demos/demo_game_scene`)**:
+   Simulación 3D continua donde un Cánido (`CreatureRecipes_Dog`) y un Lagarto (`CreatureRecipes_Lizard`) conviven en una plataforma con un estanque de agua central, gobernados por el núcleo de inteligencia artificial animal desacoplado:
+   - **Ciclo Fisiológico y Sed**: Las criaturas exploran el entorno, perciben visualmente el estanque y, al incrementarse su urgencia de hidratación, planifican su trayectoria y se desplazan hacia la orilla.
+   - **Biomecánica Oral Cervical**: Al alcanzar la orilla, la cabeza desciende mediante cinemática inversa anatómica (`AnatomicalReach`), alineando el morro al agua sin desplazar los apoyos plantares ni fracturar el tórax, finalizando con un retroceso de despeje.
+   - **Metamorfosis Ontogénica en Tiempo Real (Tecla T)**: El lagarto muta dinámicamente entre cualquiera de sus 10 variantes fenotípicas mediante `MonsterAger`, actualizando en caliente campos SDF, escamas y pigmentos.
+   - **Controles Interactivos**:
+     - **ESPACIO**: Pausar / reanudar simulación.
+     - **T**: Mutación aleatoria del lagarto a otra variante anatómica (`MonsterAger`).
+     - **F**: Activar / desactivar pelaje procedural del cánido.
+     - **B**: Alternar visualización de cajas envolventes de colisión (`CreatureBoundary`).
+     - **1, 2, 3, 4**: Orientaciones axiales de cámara isométrica (45°, 135°, 225°, 315°).
+     - **Flechas IZQUIERDA / DERECHA**: Rotación continua orbital de la cámara.
+     - **Flechas ARRIBA / ABAJO (+ / -)**: Zoom ortogonal (acercar / alejar).
+     - **R**: Reiniciar posiciones de las criaturas y resincronizar mentes.
+   ```bash
+   ./demos/demo_game_scene
+   # Simulación con perfiles específicos de personalidad:
+   ./demos/demo_game_scene --dog-brain=social --lizard-brain=waterless
+   # Validación headless determinista:
+   ./demos/demo_game_scene --headless --validate-ai --seed=42 --fixed-dt=.016666667 --frames=1800 --cycles=0
+   ```
+
+---
+
+## ⚡ Benchmarks de Rendimiento
+
+El motor cuenta con bancos de pruebas y herramientas de perfilado sin dependencias gráficas para medir el rendimiento de los subsistemas críticos:
+
+```bash
+# Benchmark de evaluación implícita y mallado SDF (CPU)
+make benchmark
+
+# Benchmark de inteligencia animal pura (percepción, utilidad, A* y motricidad)
+make benchmark-ai
+
+# Benchmark de alcance anatómico cervical y bebida orillera
+make benchmark-interactions
+
+# Benchmark de memoria y coste de animación procedural
+make benchmark-animation
+
+# Benchmark de coherencia temporal y deformación en tiempo real (MonsterAger)
+make benchmark-ager-realtime
+```
+
 ---
 
 ## 🧪 Pruebas Unitarias
 
-La suite de pruebas unitarias (`tests/test_*.c`) cubre colores, vectores, partes del cuerpo, monstruo, envejecimiento, pipeline SDF, anatomía oral, materiales, auditoría topológica, tablas de Marching Cubes, mallas primitivas y el pipeline completo (SDF → Mesh → Visual). Se ejecuta con:
+La suite de pruebas unitarias (`tests/test_*.c`) cubre colores, álgebra vectorial, partes del cuerpo, entidad monstruo, envejecimiento, pipeline SDF, anatomía oral, cinemática inversa (IK), esqueletos, navegación A*, perfiles de cerebro, necesidades, percepción, acciones persistentes, shaders, tablas de Marching Cubes y el pipeline completo (SDF → Mesh → Visual). Se ejecuta sin requerir contexto OpenGL ni librerías de ventana:
 
 ```bash
 make test
@@ -145,7 +213,23 @@ make test
 
 ---
 
-## 📖 Documentación Doxygen para Futuros Agentes
+## 📁 Estructura del Repositorio
+
+```text
+monster_engine/
+├── include/       # Cabeceras públicas (API en C puro, anotaciones Doxygen completas)
+├── src/           # Núcleo procedimental puro desacoplado (solo OpenGLRenderer.c enlaza GL)
+├── shaders/       # GLSL Shaders (Compute .comp, Vertex .vert, Fragment .frag) para SDF y pelaje
+├── demos/         # Demostraciones interactivas 3D y por consola (demo_game_scene, morph, etc.)
+├── tests/         # Suite exhaustiva de pruebas unitarias (100% C puro, sin GL, solo -lm)
+├── benchmarks/    # Benchmarks de rendimiento en CPU y GPU (AI, SDF, Animación, Cinemática)
+├── tools/         # Generadores de shaders (.generated.h), scripts de validación y profiling
+└── docs/          # Informes técnicos exhaustivos, arquitectura e investigaciones empíricas
+```
+
+---
+
+## 📖 Documentación Doxygen para Desarrolladores
 
 Toda la base de código utiliza anotaciones en formato Doxygen (`@file`, `@brief`, `@param`, `@return`, `@struct`).
 
@@ -153,9 +237,21 @@ Para actualizar o consultar la documentación HTML:
 1. Ejecuta `make docs` o `doxygen Doxyfile`.
 2. Abre `doc/html/index.html` en el navegador.
 
+---
+
 ## 📚 Documentación Técnica e Informes de Arquitectura
 
 El directorio `docs/` incluye informes exhaustivos de diseño, optimización y validación del motor:
+
+- **Inteligencia Artificial y Conducta Animal**:
+  - [Arquitectura de IA Modular](docs/CREATURE_AI_ARCHITECTURE.md): Personalidades (`BrainProfile`), estados de mente (`CreatureMind`), necesidades y máquina de estados.
+  - [Interacciones Orales y Límites Anatómicos](docs/ANATOMICAL_INTERACTIONS.md): Cinemática cervical asistida (`AnatomicalReach`), aproximación y bebida funcional en orilla.
+  - [Contención y Navegación de Escena](docs/GAME_SCENE_BOUNDARIES.md): Volúmenes de contención (`CreatureBoundary`), evitación de obstáculos y navegación A*.
+  - [Frecuencia de Ager y Navegación](docs/GAME_SCENE_AGER_PACING.md): Pacing temporal, presupuesto por frame y desacoplamiento de locomoción.
+  - [Mutación Continua y Rendimiento](docs/GAME_SCENE_MUTATION_PERFORMANCE.md): Rendimiento de deformación en tiempo real durante transiciones de variantes.
+  - [Crecimiento de Accesorios y Continuidad](docs/GAME_SCENE_GROWTH_CONTINUITY.md): Conservación de rasgos fenotípicos y continuidad de pigmentos.
+  - [Marcha y Giros Procedurales](docs/GAME_SCENE_PROCEDURAL_ANIMATION.md): Cinemática inversa de patas (`IK`), apoyo cuadrúpedo y sincronización de zancada.
+  - [Estrategia de Optimización de Game Scene](docs/GAME_SCENE_AGER_OPTIMIZATION_ANALYSIS_2026-10-08.md): Auditoría de contacto y estructuración persistente de aceleración.
 
 - **Superficies y Apariencia Procedural**:
   - [Arquitectura de Superficies Procedurales](docs/PROCEDURAL_SURFACES.md): Controles, API de materiales, coordenadas en reposo y shaders.
@@ -169,8 +265,10 @@ El directorio `docs/` incluye informes exhaustivos de diseño, optimización y v
   - [Corrección de Transferencia y Cesión Geométrica](docs/AGER_VISUAL_HANDOFF_REPAIR.md): Uniones asintóticas y conservación de volumen en apéndices.
   - [Auditoría de Seguridad y Memoria en Morphing](docs/AGER_MORPH_SAFETY_AUDIT.md): Invariantes topológicos, límites de recursos y robustez matemática.
   - [Optimizaciones de Rendimiento en Morphing](docs/AGER_MORPH_OPTIMIZATION_REPORT.md): Benchmarks, SIMD/hilos y aceleración temporal.
+  - [Diagnóstico de Arquitectura 2026-10-06](docs/AGER_DIAGNOSTIC_2026-10-06.md): Auditoría de trazado GPU, cesión de malla y primera raíz propietaria.
+  - [Reparación del Diagnóstico 2026-10-06](docs/AGER_DIAGNOSTIC_REPAIR_2026-10-06.md): Poda conservadora, cola de raíces y caché densa estática.
+  - [Reparación Interactiva 2026-10-06](docs/AGER_INTERACTIVE_REPAIR_2026-10-06.md): Restauración de raymarch interactivo y solución de regresiones de FPS.
 
 - **Aceleración por GPU y Rendimiento**:
   - [Extracción de Superficie SDF en GPU](docs/AGER_GPU_SDF_SURFACE.md): Compute shaders GLSL, buffers SSBO y caché dispersa en GPU.
   - [Informe de Rendimiento del Ager](docs/AGER_PERFORMANCE.md): Perfilado por etapas, residencia GPU y deformación continua.
-

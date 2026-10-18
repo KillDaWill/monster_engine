@@ -1,0 +1,7 @@
+{
+  "default_vs_sdf": {
+    "ppm_identical": true,
+    "depth_identical": true
+  },
+  "unknown_option_exit_code": 2
+}

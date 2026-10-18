@@ -1,0 +1,36 @@
+VAR 0 lip -0.093040 angle 0.174533 scale 1.000000 jaw_y -0.171417 0.078377
+ station0 y -0.057233 z 1.238824 h 0.115885
+ station1 y -0.021397 z 0.676951 h 0.131670
+ station2 y -0.017614 z 0.068254 h 0.176083
+ station3 y 0.000000 z -0.060060 h 0.202560
+ station4 y 0.000000 z -0.397728 h 0.193753
+ station5 y -0.017614 z -0.667863 h 0.136508
+ voxel 0.075 components 2 triangles 352 largest 328 second 24
+ voxel 0.015 components 1 triangles 19268 largest 19268 second 0
+VAR 1 lip -0.233435 angle 0.174533 scale 1.000000 jaw_y -0.436229 0.202794
+ voxel 0.075 components 1 triangles 1512 largest 1512 second 0
+ voxel 0.015 components 1 triangles 38244 largest 38244 second 0
+VAR 2 lip -0.107526 angle 0.174533 scale 1.000000 jaw_y -0.199413 0.091887
+ voxel 0.075 components 1 triangles 1332 largest 1332 second 0
+ voxel 0.015 components 1 triangles 31004 largest 31004 second 0
+VAR 3 lip -0.167856 angle 0.174533 scale 1.000000 jaw_y -0.314331 0.146475
+ voxel 0.075 components 1 triangles 2608 largest 2608 second 0
+ voxel 0.015 components 1 triangles 63512 largest 63512 second 0
+VAR 4 lip -0.234742 angle 0.174533 scale 1.000000 jaw_y -0.479197 0.244455
+ voxel 0.075 components 1 triangles 3108 largest 3108 second 0
+ voxel 0.015 components 1 triangles 73384 largest 73384 second 0
+VAR 5 lip -0.185037 angle 0.174533 scale 1.000000 jaw_y -0.339809 0.154772
+ voxel 0.075 components 1 triangles 768 largest 768 second 0
+ voxel 0.015 components 1 triangles 19500 largest 19500 second 0
+VAR 6 lip -0.103501 angle 0.174533 scale 1.000000 jaw_y -0.209001 0.105500
+ voxel 0.075 components 1 triangles 904 largest 904 second 0
+ voxel 0.015 components 1 triangles 24952 largest 24952 second 0
+VAR 7 lip -0.107526 angle 0.174533 scale 1.000000 jaw_y -0.199413 0.091887
+ voxel 0.075 components 1 triangles 1324 largest 1324 second 0
+ voxel 0.015 components 1 triangles 30936 largest 30936 second 0
+VAR 8 lip -0.277600 angle 0.174533 scale 1.000000 jaw_y -0.519840 0.242241
+ voxel 0.075 components 1 triangles 1572 largest 1572 second 0
+ voxel 0.015 components 1 triangles 42324 largest 42324 second 0
+VAR 9 lip -0.057228 angle 0.174533 scale 1.000000 jaw_y -0.102206 0.044978
+ voxel 0.075 components 0 triangles 0 largest 0 second 0
+ voxel 0.015 components 1 triangles 12752 largest 12752 second 0

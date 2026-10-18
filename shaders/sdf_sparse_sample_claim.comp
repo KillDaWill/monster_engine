@@ -1,0 +1,13 @@
+layout(local_size_x=128) in;
+void main() {
+    uint i=invocation(),n=sampleCount();if(i>=jobCount*n)return;
+    uint job=i/n,id=i%n,s=side();uvec3 p=uvec3(id%s,(id/s)%s,id/(s*s));
+    if((jobs[job+jobBase].w&0x80000000u)!=0u)return;
+    ivec3 g=ivec3(jobs[job+jobBase].xyz)+ivec3(p)-ivec3(1);
+    if(all(greaterThanEqual(g,ivec3(0)))&&all(lessThanEqual(g,ivec3(gridCells)))) {
+        if(atomicExchange(sampleVersions[pointAddress(uvec3(g))],generation)==generation)return;
+    }
+    uint queued=atomicAdd(uniqueSampleCount,1u);
+    if(queued>=jobCount*n){atomicOr(overflow,32u);return;}
+    SampleOrdinal(queued)=i;
+}

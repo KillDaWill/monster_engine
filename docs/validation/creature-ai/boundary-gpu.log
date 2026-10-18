@@ -1,0 +1,61 @@
+=================================================================
+ Monster Engine | Demo Visual del Juego: Escena Ortogonal
+=================================================================
+ Controles de cámara y escena:
+   1..4: Cuatro ángulos isométricos axiales (NE, NW, SW, SE)
+   Q / E: Rotación isométrica suave de la vista
+   W / S / A / D: Desplazar objetivo de cámara por el plano
+   + / - (Z / X): Zoom ortogonal (acercar / alejar)
+   F: Alternar pelaje procedural del perro
+   T: Mutar aleatoriamente el lagarto (MonsterAger)
+   D: Mostrar/ocultar límites del plano y vectores
+   Espacio: Pausar / reanudar simulación
+   Escape: Salir
+=================================================================
+
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=4
+[Escenario] Plano 3D generado con 13440 vértices y 6720 triángulos.
+[Criatura] Perro preparado (80881 vértices).
+[Criatura] Lagarto GPU preparado: Emerald Climber (voxel 0.075).
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02; extracción experimental sin readback
+[SKINNING] frame=29 vertices=80881 posicion=0.000000000 normal=0.000000179
+[PARIDAD] frame=29 error=0.000000954
+[MUTACIÓN] Metamorfosis iniciada: 'Emerald Climber' -> 'Blue Runner' (3.0s con MonsterAger)
+[SKINNING] frame=75 vertices=80881 posicion=0.000000000 normal=0.000000179
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001073
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000002146
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001252
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000805
+[MUESTRAS SDF] bricks=250 puntos=4250 error=0.000000387
+[PARIDAD] frame=75 error=0.000000536
+[SKINNING] frame=120 vertices=80881 posicion=0.000000000 normal=0.000000206
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000002623
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001997
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000003338
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000298
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000358
+[MUESTRAS SDF] bricks=79 puntos=1343 error=0.000000000
+[PARIDAD] frame=120 error=0.000000477
+[SKINNING] frame=165 vertices=80881 posicion=0.000000000 normal=0.000000206
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001073
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001729
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000715
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000417
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001431
+[MUESTRAS SDF] bricks=66 puntos=1122 error=0.000000000
+[PARIDAD] frame=165 error=0.000001192
+[MUTACIÓN] Metamorfosis completada con éxito a 'Blue Runner'!
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000894
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000002384
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000343
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000001281
+[MUESTRAS SDF] bricks=234 puntos=3978 error=0.000001848
+[SKINNING] frame=210 vertices=80881 posicion=0.000000000 normal=0.000000179
+[PARIDAD] frame=210 error=0.000000954
+[SKINNING] frame=239 vertices=80881 posicion=0.000000000 normal=0.000000206
+[AI PERFORMANCE] mean_ms=0.071404 max_ms=0.099186 frames=240
+[OBJETIVOS] llegadas=0 recuperaciones=0 sin_avance_max=0.4333
+[NAVEGACION] perro_recorrido=3.0017 lagarto_recorrido=2.4706 bloqueo_max=0.4500 correccion_total=2.1975 avance_perro=2.8080 avance_lagarto=1.1296 segundos=4.0000
+[CONTACTO] escape_max=0.00000191 correccion_objetivo_max=0.00000 rad
+Simulación finalizada tras 240 frames.

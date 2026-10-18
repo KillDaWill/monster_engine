@@ -13,6 +13,22 @@
 #include <stdlib.h>
 
 static void TestPhenotype(void) {
+    SurfacePhenotype source=SurfacePreset_ScaledReptile(42,1),target=source;
+    source.pigment.layerCount=target.pigment.layerCount=1;
+    source.pigment.layers[0]=(PigmentLayer){.pattern=PIGMENT_PATTERN_SPOTS,.strength=.8f,.seed=12,.scale=2};
+    target.pigment.layers[0]=(PigmentLayer){.pattern=PIGMENT_PATTERN_BANDS,.strength=.6f,.seed=91,.scale=1};
+    SurfacePhenotype before=SurfacePhenotype_Interpolate(&source,&target,.499f);
+    SurfacePhenotype after=SurfacePhenotype_Interpolate(&source,&target,.501f);
+    TEST_ASSERT(before.pigment.layerCount==2 && after.pigment.layerCount==2,"Ambos patrones conviven al cruzar mitad de Ager");
+    for(int i=0;i<2;++i) {
+        TEST_ASSERT(before.pigment.layers[i].pattern==after.pigment.layers[i].pattern &&
+            before.pigment.layers[i].seed==after.pigment.layers[i].seed,"Patrones no cambian de identidad en mitad del morph");
+        TEST_ASSERT(fabsf(before.pigment.layers[i].strength-after.pigment.layers[i].strength)<.002f,"Opacidad continua");
+    }
+    SurfacePhenotype end=SurfacePhenotype_Interpolate(&source,&target,1);
+    TEST_ASSERT(end.pigment.layerCount==1 && FLOAT_NEAR(end.pigment.layers[0].strength,.6f),"Destino conserva su patrón completo");
+    SurfacePhenotype same=SurfacePhenotype_Interpolate(&source,&source,.5f);
+    TEST_ASSERT(same.pigment.layerCount==1 && FLOAT_NEAR(same.pigment.layers[0].strength,.8f),"Una capa homóloga conserva su opacidad sin duplicarse");
     for(uint32_t seed=0;seed<100;++seed) {
         SurfacePhenotype p=SurfacePreset_ScaledReptile(seed,1),q=SurfacePreset_ScaledReptile(seed,1);
         SurfaceRecipe a=SurfaceRecipe_Compile(&p),b=SurfaceRecipe_Compile(&q);
@@ -36,6 +52,35 @@ static void TestPhenotype(void) {
         TEST_ASSERT(r.data[5][0]>=juvenile.surface.integument.scales.relief-1e-6f &&
                     r.data[5][0]<=adult.surface.integument.scales.relief+1e-6f,"Relieve ontogenético continuo");
     }
+    /* Cuatro capas por extremo y semillas distintas: no se pierde una familia
+     * ni se reindexa el destino al terminar. También cubre patrón implícito. */
+    SurfacePhenotype richA=SurfacePreset_ScaledReptile(0xffe01234u,1),richB=SurfacePreset_ScaledReptile(0xabcd9876u,1);
+    richA.pigment.layerCount=richB.pigment.layerCount=SURFACE_MAX_PIGMENT_LAYERS;
+    richB.integument.type=INTEGUMENT_PLATES;
+    for(size_t i=0;i<SURFACE_MAX_PIGMENT_LAYERS;++i) {
+        richA.pigment.layers[i]=(PigmentLayer){.pattern=PIGMENT_PATTERN_SPOTS,.strength=.7f,.seed=11u+(uint32_t)i,.scale=1,.color={20,160,80,255}};
+        richB.pigment.layers[i]=(PigmentLayer){.pattern=PIGMENT_PATTERN_BANDS,.strength=.9f,.seed=91u+(uint32_t)i,.scale=2,.color={180,40,20,255}};
+    }
+    for(int frame=1;frame<100;++frame) {
+        SurfacePhenotype blend=SurfacePhenotype_Interpolate(&richA,&richB,frame/100.f);
+        SurfaceRecipe packed=SurfaceRecipe_Compile(&blend);
+        size_t bank=SURFACE_RECIPE_TRANSITION_BASE+2+SURFACE_RECIPE_PIGMENT_BANK_ROWS;
+        TEST_ASSERT(packed.data[bank+4][1]==4,"Las cuatro capas del destino participan incluso con ocho capas totales");
+        TEST_ASSERT((uint32_t)packed.data[bank+4][2]==(richB.pigment.seed&0xffffu)&&
+            (uint32_t)packed.data[bank+4][3]==(richB.pigment.seed>>16),"Semilla completa del destino desde el primer frame");
+        for(size_t i=0;i<4;++i) {
+            TEST_ASSERT(FLOAT_NEAR(packed.data[bank+5+3*i][3],.9f),"Composición completa del campo destino, sin desaparición en mitad");
+            TEST_ASSERT(packed.data[bank+6+3*i][3]==richB.pigment.layers[i].seed,"Índice y semilla de cada capa inmutables");
+        }
+        TEST_ASSERT(FLOAT_NEAR(packed.data[7][1],frame/100.f),"Escamas se transforman en placas sin umbral discreto");
+    }
+    SurfacePhenotype implicit=SurfacePhenotype_Default();
+    implicit.pigment.patternStrength=1;implicit.pigment.seed=0xfedc7654u;
+    SurfacePhenotype implicitBlend=SurfacePhenotype_Interpolate(&implicit,&richB,.99999f);
+    SurfaceRecipe packed=SurfaceRecipe_Compile(&implicitBlend);
+    TEST_ASSERT(packed.data[52][1]==0,"El campo de patrón implícito conserva su ruta de evaluación");
+    SurfacePhenotype adultEnd=SurfacePhenotype_Interpolate(&implicit,&richB,1);
+    TEST_ASSERT(!adultEnd.transition.active&&adultEnd.pigment.seed==richB.pigment.seed,"Extremo adulto exacto, sin estado transitorio retenido");
     SurfacePhenotype skin=SurfacePhenotype_Default(),scales=SurfacePreset_ScaledReptile(1,1);
     SurfacePhenotype mid=SurfacePhenotype_Interpolate(&skin,&scales,.5f);
     TEST_ASSERT(FLOAT_NEAR(mid.integument.coverage,.5f),"Transición piel a escamas por cobertura");

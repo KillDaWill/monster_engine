@@ -1,0 +1,25 @@
+=================================================================
+ Monster Engine | Demo Visual del Juego: Escena Ortogonal
+=================================================================
+ Controles de cámara y escena:
+   1..4: Cuatro ángulos isométricos axiales (NE, NW, SW, SE)
+   Q / E: Rotación isométrica suave de la vista
+   W / S / A / D: Desplazar objetivo de cámara por el plano
+   + / - (Z / X): Zoom ortogonal (acercar / alejar)
+   F: Alternar pelaje procedural del perro
+   T: Mutar aleatoriamente el lagarto (MonsterAger)
+   D: Mostrar/ocultar límites del plano y vectores
+   Espacio: Pausar / reanudar simulación
+   Escape: Salir
+=================================================================
+
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=4
+[Escenario] Plano 3D generado con 13440 vértices y 6720 triángulos.
+[Criatura] Perro preparado (84918 vértices).
+[Criatura] Lagarto GPU preparado: Emerald Climber (voxel 0.075).
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02; extracción experimental sin readback
+[OBJETIVOS] llegadas=1 recuperaciones=0 sin_avance_max=0.5167
+[NAVEGACION] perro_recorrido=19.4256 lagarto_recorrido=10.6034 bloqueo_max=0.3500 correccion_total=3.8844 avance_perro=19.0987 avance_lagarto=7.8400 segundos=19.9999
+[CONTACTO] escape_max=0.00000191 correccion_objetivo_max=0.25741 rad
+Simulación finalizada tras 1200 frames.

@@ -13,6 +13,7 @@
 #include "MorphHandoff.h"
 #include "MonsterSDF.h"
 #include "GpuSDFSurfaceCache.h"
+#include "AnatomyDeformer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,6 +21,18 @@ extern "C" {
 
 /** @brief Comprueba OpenGL 4.3 y límites de cómputo de la GPU actual. */
 bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);
+/** @brief Publica skinning GPU de una malla vinculada con dominio de superficie; NULL desactiva la selección.
+ * @param renderer Backend. @param mesh Malla propietaria. @param binding Bases e influencias.
+ * @param skeleton Esqueleto. @param pose Pose actual. @param generation Generación de vinculación.
+ * @return false ante incompatibilidad o fallo; no sustituye la malla por otra representación. */
+bool OpenGLRenderer_SetMeshSkinning(Renderer3D* renderer,const Mesh* mesh,const AnatomyDeformer* binding,
+    const Skeleton* skeleton,const SkeletonPose* pose,uint64_t generation);
+/** @brief Compara todos los vértices GPU publicados con el skinning CPU de referencia.
+ * @param renderer Backend. @param mesh Malla dibujada. @param binding Vinculación.
+ * @param skeleton Esqueleto. @param pose Misma pose. @param positionError Error máximo de posición.
+ * @param normalError Error máximo de normal. @return Resultado de la lectura de diagnóstico. */
+bool OpenGLRenderer_ValidateMeshSkinning(Renderer3D* renderer,const Mesh* mesh,const AnatomyDeformer* binding,
+    const Skeleton* skeleton,const SkeletonPose* pose,float* positionError,float* normalError);
 /** @brief Extrae y dibuja directamente el SDF actual; sin readback normal. */
 bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D*,const MonsterSDF*,const GpuSDFSurfaceGrid*,const ICamera*);
 /** @brief Actualiza bricks afectados y dibuja páginas GPU persistentes.
@@ -27,6 +40,16 @@ bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D*,const MonsterSDF*,const GpuS
  * @return false ante error; nunca cambia a un backend alternativo.
  */
 bool OpenGLRenderer_RenderGpuSparseSDFSurface(Renderer3D*,const MonsterSDF*,GpuSDFSurfaceCache*,const ICamera*);
+/** @brief Transporta la superficie GPU de reposo mediante la pose actual, sin remuestrear el SDF.
+ * @param renderer Backend propietario. @param monster Anatomía y animación actuales; NULL desactiva la pose.
+ * @return false si la pose no corresponde a la anatomía de reposo.
+ */
+bool OpenGLRenderer_SetGpuSurfacePose(Renderer3D* renderer,const struct Monster* monster);
+/** @brief Comprueba el shader real de pose craneal/mandibular mediante captura GPU.
+ * Sólo diagnóstico: no usar en el camino normal de cada frame.
+ * @param renderer Contexto activo. @param monster Criatura con pose publicada.
+ * @return true si las muestras conservan su articulación y normales válidas. */
+bool OpenGLRenderer_ValidateCranialPose(Renderer3D* renderer,const struct Monster* monster);
 /** @brief Consulta tiempos GPU recogidos asíncronamente, sin esperar. */
 GpuSDFSurfaceStats OpenGLRenderer_GetGpuSDFSurfaceStats(const Renderer3D*);
 /** @brief Guarda metadatos de publicación para una captura diagnóstica; descarga explícita.
@@ -67,6 +90,15 @@ Renderer3D OpenGLRenderer_Create(ICamera* camera);
  * @param height Alto del viewport.
  */
 void OpenGLRenderer_SetupCamera(ICamera* camera, int width, int height);
+
+/**
+ * @brief Configura la matriz de proyección ortogonal (axonométrica/isométrica) e iluminación en OpenGL.
+ * @param camera Puntero a la cámara con posición, objetivo y vector vertical.
+ * @param orthoHeight Altura visible total del volumen ortogonal en unidades mundiales.
+ * @param width Ancho del viewport.
+ * @param height Alto del viewport.
+ */
+void OpenGLRenderer_SetupCameraOrtho(ICamera* camera, float orthoHeight, int width, int height);
 
 /**
  * @brief Dibuja una malla 3D (Mesh) directamente mediante el pipeline de OpenGL.
@@ -195,6 +227,7 @@ typedef struct OpenGLMeshPerformanceStats {
     uint64_t uploadCount,cacheHitCount,totalBytesUploaded;
     double lastUploadMs;
     float gpuRenderMs;
+    uint64_t gpuTimingGeneration; /**< Frame 1-based de la última consulta completada. */
     uint64_t furRootBuilds;
     size_t guardCandidates;
     int furShells;
@@ -215,6 +248,7 @@ typedef struct OpenGLDemoInput {
     bool keyM, keyA; /**< Comparación monocroma y anatomía. */
     bool keyG;     /**< true si se pulsa la tecla 'G' */
     bool keyF;     /**< true si se pulsa la tecla 'F' (fur toggle) */
+    bool keyT;     /**< true si se pulsa la tecla 'T' (mutación de criatura) */
     int furLengthAdjust;  /**< +1 o -1 con [ / ] */
     int furDensityAdjust; /**< +1 o -1 con ; / ' */
 } OpenGLDemoInput;
@@ -228,8 +262,14 @@ OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* window);
 void OpenGLDemoWindow_Swap(OpenGLDemoWindow* window);
 /** @brief Destruye contexto y ventana. */
 void OpenGLDemoWindow_Free(OpenGLDemoWindow* window);
+/** @brief Actualiza el título de la ventana. */
+void OpenGLDemoWindow_SetTitle(OpenGLDemoWindow* window, const char* title);
 /** @brief Reloj monótono en segundos. */
 double OpenGLDemoWindow_Time(void);
+/** @brief Duerme hasta completar el periodo del fotograma; sin espera activa ni recuperación en ráfaga.
+ * @param frameStart Inicio monótono del fotograma. @param maxFPS Límite positivo de frecuencia.
+ * @return Segundos de espera efectiva. */
+double OpenGLDemoWindow_LimitFPS(double frameStart,double maxFPS);
 /** @brief Líneas de depuración; no requiere recrear mallas. */
 void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color);
 /** @brief Apila una traslación en la matriz de modelo para visualización desacoplada de cuadrícula. */
@@ -238,6 +278,8 @@ void OpenGLRenderer_PushModelTranslation(float x, float y, float z);
 void OpenGLRenderer_ModelTransform(Vector3 translation, float yawDegrees, float scale, Vector3 center);
 /** @brief Restaura la matriz de modelo previa. */
 void OpenGLRenderer_PopModelMatrix(void);
+/** @brief Dibuja un indicador superpuesto (HUD) en 2D con los FPS y tiempo de fotograma. */
+void OpenGLRenderer_DrawHUD(int width, int height, float fps, float frameTimeMs);
 
 #ifdef __cplusplus
 }

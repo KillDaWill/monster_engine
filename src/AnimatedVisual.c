@@ -32,6 +32,11 @@ bool AnimatedVisual_Bind(AnimatedVisual* a,const MonsterVisual* v,const Monster*
         }
     }
     SkeletonPose_Init(&next.restPose,&m->animation->rig.skeleton);
+    const Rig* rig=&m->animation->rig;
+    if(rig->cranialCollar>0&&!AnatomyDeformer_BindCranium(next.body,&rig->skeleton,
+        rig->headJoint,rig->cranialAttachment,rig->cranialAxis,rig->cranialCollar,&v->sdf)) {
+        AnimatedVisual_Free(&next);return false;
+    }
     next.rigGeneration=m->animation->rigGeneration;
     next.generation=v->rebuildGeneration; next.restFingerprint=m->animation->restFingerprint; next.bound=true;
     AnimatedVisual_Free(a); *a=next; return true;
@@ -45,12 +50,12 @@ static void RigidMesh(Mesh* mesh,const Mesh* base,Quaternion q,Vector3 rest,Vect
         mesh->vertices[i].normal=(Vector3){x.x*n.x+y.x*n.y+z.x*n.z,x.y*n.x+y.y*n.y+z.y*n.z,x.z*n.x+y.z*n.y+z.z*n.z};
     }
 }
-bool AnimatedVisual_Deform(const AnimatedVisual* a,MonsterVisual* v,const Monster* m) {
+static bool DeformVisual(const AnimatedVisual* a,MonsterVisual* v,const Monster* m,bool body) {
     if(!a || !v || !m || !m->animation || !a->bound || a->generation!=v->rebuildGeneration ||
        a->restFingerprint!=m->animation->restFingerprint || a->rigGeneration!=m->animation->rigGeneration || a->eyeCount!=v->eyeCount)return false;
     MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);
     const MonsterAnimation* animation=m->animation; const Rig* rig=&animation->rig; const SkeletonPose* p=&animation->pose;
-    if(!AnatomyDeformer_DeformPose(a->body,&rig->skeleton,p,&v->mesh))return false;
+    if(body&&!AnatomyDeformer_DeformPose(a->body,&rig->skeleton,p,&v->mesh))return false;
     int head=rig->headJoint; if(head<0)return true;
     Quaternion q=Quat_Multiply(p->joints[head].worldRotation,Quat_Inverse(a->restPose.joints[head].worldRotation));
     Vector3 rest=a->restPose.joints[head].worldPosition,target=p->joints[head].worldPosition;
@@ -67,7 +72,8 @@ bool AnimatedVisual_Deform(const AnimatedVisual* a,MonsterVisual* v,const Monste
         Mouth mouth=m->mouths[i];
         if(rig->jawJoint>=0 && rig->maxJawAngle>0) {
             Quaternion jaw=p->joints[rig->jawJoint].localRotation;
-            float angle=2*atan2f(jaw.x,jaw.w);
+            Vector3 axis=rig->skeleton.joints[rig->jawJoint].constraint.hingeAxis;
+            float angle=2*atan2f(jaw.x*axis.x+jaw.y*axis.y+jaw.z*axis.z,jaw.w);
             mouth.openFactor=fmaxf(0,fminf(1,angle/rig->maxJawAngle));
         }
         MonsterVisual_UpdateMouthArticulation(&v->mouths[i],&mouth,m);
@@ -75,4 +81,11 @@ bool AnimatedVisual_Deform(const AnimatedVisual* a,MonsterVisual* v,const Monste
         RigidMesh(&v->mouths[i].hinge,&v->mouths[i].hinge,q,rest,target);
     }
     return true;
+}
+
+bool AnimatedVisual_Deform(const AnimatedVisual* a,MonsterVisual* v,const Monster* m) {
+    return DeformVisual(a,v,m,true);
+}
+bool AnimatedVisual_DeformRigid(const AnimatedVisual* a,MonsterVisual* v,const Monster* m) {
+    return DeformVisual(a,v,m,false);
 }

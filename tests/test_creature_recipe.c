@@ -40,6 +40,19 @@ void run_creature_recipe_tests(void) {
                     n->region != ANATOMY_REGION_UNKNOWN, "Metadatos ausentes");
     }
 
+    /* Índices densos, identidades compuestas y colisiones de hash. */
+    AnatomyGraphIndex index;
+    b=a;b.nodeCount=ANATOMY_MAX_NODES;
+    for(size_t i=0;i<b.nodeCount;++i)b.nodes[i].id=Anatomy_MakeId((uint32_t)i+1,7);
+    TEST_ASSERT(AnatomyGraphIndex_Build(&index,&b),"Índice completo sin asignaciones");
+    for(size_t i=0;i<b.nodeCount;++i)
+        TEST_ASSERT(AnatomyGraphIndex_Find(&index,b.nodes[i].id)==(int)i,"Identidades repetidas entre módulos no colisionan");
+    TEST_ASSERT(AnatomyGraphIndex_Find(&index,0)<0&&AnatomyGraphIndex_Find(&index,Anatomy_MakeId(65534,7))<0,
+        "Consulta ausente termina con la tabla medio llena");
+    b.nodes[1].id=b.nodes[0].id;
+    TEST_ASSERT(!AnatomyGraphIndex_Build(&index,&b)&&AnatomyGraphIndex_Find(&index,b.nodes[0].id)<0,
+        "Índice fallido no publica identidades ambiguas");
+
     /* 3. Compatibilidad topológica entre etapas ontogenéticas */
     for (unsigned stage = 0; stage < 4; ++stage) {
         TEST_ASSERT(Creature_ResolveAnatomy(recipe, CreatureRecipe_GetStage(recipe, (CreatureStage)stage), &b) &&

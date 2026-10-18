@@ -1,0 +1,13 @@
+{
+  "frames": 537,
+  "mean_ms": 23.651756052141526,
+  "p95_ms": 28.837,
+  "p99_ms": 33.034,
+  "max_ms": 33.7,
+  "over_30fps": 3,
+  "max_gpu_bytes": 273876804,
+  "overflow": 0,
+  "allocator_errors": 0,
+  "edge_reference_errors": 0,
+  "inconsistent_shared_values": 0
+}

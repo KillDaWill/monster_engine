@@ -1,0 +1,48 @@
+========================================================================
+   MONSTER ENGINE 3D: METAMORFOSIS EXTREMA (MonsterAger Inter-Especies) 
+        Cánido Digitígrado con Pelaje  --->  Lagarto Cuadrúpedo con Escamas
+========================================================================
+
+ Concepto de la prueba:
+  1. Biología paramétrica: Se pasa de un tetrápodo erecto mamífero a un
+     tetrápodo reptil de andadura baja (sprawling), articulando patas y dedos.
+  2. Superficie progresiva: El pelaje canino se acorta y reduce su densidad (0% -> 45%),
+     revelando piel desnuda intermedia (45% -> 55%) donde la anatomía se reorganiza;
+     luego brotan las escamas (55% -> 100%) ganando relieve, quilla y pigmento.
+  3. Campo actual GPU: modo gpu-sdf-sparse, resolución 0.017500, bricks 16.
+
+ Controles interactivos:
+  - ESPACIO                  : Alternar metamorfosis automática (oscilación fluida)
+  - FLECHA DERECHA / ARRIBA  : Avanzar metamorfosis hacia Lagarto (+perc)
+  - FLECHA IZQUIERDA / ABAJO : Retroceder metamorfosis hacia Perro (-perc)
+  - 0                        : Fijar a 0% (Perro 100% con pelaje completo)
+  - 1                        : Fijar a 25% (Pérdida y afinamiento de pelo)
+  - 2                        : Fijar a 50% (Piel desnuda intermedia y cambio esquelético)
+  - 3                        : Fijar a 75% (Escamas incipientes y pigmento verde)
+  - 4                        : Fijar a 100% (Lagarto 100% con escamas desarrolladas)
+  - F1..F5                   : Cámaras (lateral, frontal, 3/4, cabeza, cola)
+  - --view=6                 : Vista superior para validación automática
+  - --view=7                 : Primer plano de autopodio posterior
+  - --view=8                 : Vista posterior para validación automática
+  - R                        : Pausar / reanudar giro de órbita de cámara
+  - A                        : Alternar overlay del grafo esquelético / anatómico
+  - --no-fur                 : Captura anatómica sin pelaje
+  - E / --exact-sdf          : Comparar SDF exacto con pigmento y material procedural
+  - --local-patches          : Probar la reparación topológica local validada
+  - C                        : Alternar visualización wireframe de chunks volumétricos
+  - B                        : Alternar visualización de región de fallback SDF (AABB)
+  - L                        : Ciclar inyección de latencia del worker (0, 50, 250, 1000, 3000 ms)
+  - M                        : Alternar remallado incremental por chunks en worker
+  - Rueda de ratón           : Zoom de cámara in / out
+  - ESCAPE                   : Salir
+========================================================================
+
+[SUPERFICIE] gpu-sdf-sparse | SPARSE | voxel=0.017500 | timestep=REALTIME 0.000000
+[INICIALIZACIÓN] Construyendo espécimen 1: Perro Adulto (Canis)...
+[INICIALIZACIÓN] Construyendo espécimen 2: Lagarto Adulto (Lacerta)...
+[REJILLA GPU] origen=[-3.6925 -2.2925 -14.1225] paso=0.0175 celdas=422×489×1011 muestras=209757240 refinamiento=2
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[PARIDAD COMPUTE] puntos=655 compute=0.000045300 raymarch=0.000045300 PASS
+[GPU TOPOLOGÍA] fronteras=0 no_manifold=0 orientación=0 colapsados=0 aristas=1153692
+[GPU GEOMETRÍA] vertices=1153692 residual_vertice_max=0.000516136 residual_centro_max=0.001964071 opuestos=108 degenerados=314

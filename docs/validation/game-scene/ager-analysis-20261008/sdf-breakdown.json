@@ -1,0 +1,30 @@
+{
+  "nodes": {
+    "mean": 315.0,
+    "max": 315.0
+  },
+  "connections": {
+    "mean": 314.0,
+    "max": 314.0
+  },
+  "sdf_connectors": {
+    "mean": 310.0,
+    "max": 310.0
+  },
+  "axial_prepass_ms": {
+    "mean": 9.280302706896551,
+    "max": 11.069325
+  },
+  "connectors_ms": {
+    "mean": 0.15755326436781608,
+    "max": 0.208321
+  },
+  "head_and_bounds_ms": {
+    "mean": 0.02214798275862069,
+    "max": 0.040189
+  },
+  "sdf_total_ms": {
+    "mean": 9.460003954022989,
+    "max": 11.267647
+  }
+}

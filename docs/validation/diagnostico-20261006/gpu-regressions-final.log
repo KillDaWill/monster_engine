@@ -1,0 +1,15 @@
+./build/validate_morph_gpu_regressions
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[PARIDAD] edad=0.00 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PARIDAD] edad=0.10 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PARIDAD] edad=0.20 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=0.35 puntos=2334 compute=4.08292e-05 fragment=4.08292e-05
+[PARIDAD] edad=0.50 puntos=2334 compute=1.43051e-06 fragment=1.43051e-06
+[PARIDAD] edad=0.65 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=0.80 puntos=2334 compute=1.19209e-06 fragment=1.19209e-06
+[PARIDAD] edad=0.90 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=1.00 puntos=2334 compute=4.76837e-07 fragment=4.76837e-07
+[PARIDAD] edad=0.50 puntos=2334 compute=1.43051e-06 fragment=1.43051e-06
+[PARIDAD] edad=0.00 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PASS] Raíz propietaria posterior y caché densa GPU

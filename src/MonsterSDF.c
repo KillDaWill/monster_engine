@@ -9,9 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 
 static void MonsterSDF_ResolveVisualBounds(MonsterSDF* sdf,size_t index);
 static bool MonsterSDF_BuildConnectorNodes(MonsterSDF* sdf);
+static void MonsterSDF_CompileSubtractionBounds(MonsterSDF* sdf);
 
 MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
     return (MonsterSDFConfig){
@@ -70,6 +72,7 @@ void MonsterSDF_Free(MonsterSDF* sdf) {
     sdf->appendageDevelopment=1.0f;
     sdf->axialStationCount=0;
     sdf->hasSurface=false;
+    sdf->hasSubtractionBounds=false;
 }
 
 static bool MonsterSDF_EnsureCapacity(void** buffer, size_t elementSize, size_t* capacity, size_t needed) {
@@ -82,6 +85,49 @@ static bool MonsterSDF_EnsureCapacity(void** buffer, size_t elementSize, size_t*
     return true;
 }
 
+/* Envolvente del subnivel del mismo campo elíptico, conservando la
+ * anisotropía. Usar el radio mayor en todos los ejes o un padding isotrópico
+ * convierte una membrana fina en trabajo volumétrico innecesario. */
+static AABB3D MonsterSDF_ConnectorSublevelBounds(const MonsterSDFConnector* c,float level) {
+    AABB3D box=AABB_Empty();
+    if(c->length<1e-6f) {
+        RayBounds_Ellipsoid(&box,c->a,Vec3_Create(c->widthA,c->heightA,c->widthA),level);
+    } else {
+        double w=fmax(.0001,fmax(c->widthA,c->widthB)+fmax(c->widthBulge,0));
+        double h=fmax(.0001,fmax(c->heightA,c->heightB)+fmax(c->heightBulge,0));
+        /* La razón entre perfiles Bézier con denominador positivo está
+         * acotada por las razones de sus controles. No combinar el radio
+         * mínimo de la punta con el máximo de la raíz: hincharía un brote. */
+        double wc=(c->widthA+c->widthB)*.5+2*c->widthBulge;
+        double hc=(c->heightA+c->heightB)*.5+2*c->heightBulge;
+        double wh=w/.0001,hw=h/.0001;
+        if(c->heightA>0&&c->heightB>0&&hc>0)
+            wh=fmax(1,fmax(fmax(c->widthA/c->heightA,c->widthB/c->heightB),wc/hc));
+        if(c->widthA>0&&c->widthB>0&&wc>0)
+            hw=fmax(1,fmax(fmax(c->heightA/c->widthA,c->heightB/c->widthB),hc/wc));
+        w+=fmax(level,0)*wh;h+=fmax(level,0)*hw;
+        double r=fmin(fmax(.0001,fmax(c->widthA,c->widthB)+fmax(c->widthBulge,0)),
+            fmax(.0001,fmax(c->heightA,c->heightB)+fmax(c->heightBulge,0)))+fmax(level,0);
+        Vector3 u=c->up,f=c->forward,t=c->side;
+        double x[3]={(double)u.y*f.z-(double)u.z*f.y,(double)u.z*f.x-(double)u.x*f.z,(double)u.x*f.y-(double)u.y*f.x};
+        double y[3]={(double)f.y*t.z-(double)f.z*t.y,(double)f.z*t.x-(double)f.x*t.z,(double)f.x*t.y-(double)f.y*t.x};
+        double z[3]={(double)t.y*u.z-(double)t.z*u.y,(double)t.z*u.x-(double)t.x*u.z,(double)t.x*u.y-(double)t.y*u.x};
+        double det=t.x*x[0]+t.y*x[1]+t.z*x[2];
+        if(fabs(det)<1e-6) {
+            box=c->bounds;AABB_Pad(&box,level/fmaxf(c->distanceLowerBoundScale,.0001f));return box;
+        }
+        float extent[3];
+        for(int j=0;j<3;++j)extent[j]=(float)(sqrt(x[j]*x[j]*w*w+y[j]*y[j]*h*h+z[j]*z[j]*r*r)/fabs(det));
+        Vector3 end={(float)(c->a.x+c->length*z[0]/det),(float)(c->a.y+c->length*z[1]/det),(float)(c->a.z+c->length*z[2]/det)};
+        Vector3 radii={extent[0],extent[1],extent[2]};
+        AABB_ExpandRadius(&box,c->a,radii);AABB_ExpandRadius(&box,end,radii);
+    }
+    Vector3 size=AABB_Size(box);
+    float scale=fmaxf(fmaxf(fabsf(c->a.x),fabsf(c->a.y)),fmaxf(fabsf(c->a.z),c->length));
+    scale=fmaxf(scale,fmaxf(size.x,fmaxf(size.y,size.z)));
+    AABB_Pad(&box,1e-5f*(1+scale));return box;
+}
+
 static size_t MonsterSDF_BuildConnectorNode(MonsterSDF* sdf,size_t begin,size_t end) {
     size_t index=sdf->connectorNodeCount++;
     MonsterSDFConnectorNode* node=&sdf->connectorNodes[index];
@@ -89,9 +135,11 @@ static size_t MonsterSDF_BuildConnectorNode(MonsterSDF* sdf,size_t begin,size_t 
         .lowerBoundScale=INFINITY};
     if(end-begin==1) {
         const MonsterSDFConnector* c=&sdf->connectors[begin];
-        node->hasEligible=!c->isHeadNeck;
+        node->hasEligible=!c->isHeadNeck &&
+            !(sdf->axialStationCount>1 && c->kind==BODY_CONNECTION_AXIAL_LOFT);
         if(node->hasEligible) {
             node->bounds=c->bounds;
+            node->positiveBounds=MonsterSDF_ConnectorSublevelBounds(c,c->localSmoothness+.0003f);
             node->lowerBoundScale=c->distanceLowerBoundScale;
             node->smoothnessSum=c->localSmoothness;
         }
@@ -106,7 +154,7 @@ static size_t MonsterSDF_BuildConnectorNode(MonsterSDF* sdf,size_t begin,size_t 
     const MonsterSDFConnectorNode* b=&sdf->connectorNodes[right];
     node->hasEligible=a->hasEligible||b->hasEligible;
     if(a->hasEligible) {
-        node->bounds=a->bounds;
+        node->bounds=a->bounds;node->positiveBounds=a->positiveBounds;
         node->lowerBoundScale=a->lowerBoundScale;
         node->smoothnessSum=a->smoothnessSum;
     }
@@ -114,10 +162,12 @@ static size_t MonsterSDF_BuildConnectorNode(MonsterSDF* sdf,size_t begin,size_t 
         if(a->hasEligible) {
             AABB_ExpandPoint(&node->bounds,b->bounds.start);
             AABB_ExpandPoint(&node->bounds,b->bounds.end);
+            AABB_ExpandPoint(&node->positiveBounds,b->positiveBounds.start);
+            AABB_ExpandPoint(&node->positiveBounds,b->positiveBounds.end);
             node->lowerBoundScale=fminf(node->lowerBoundScale,b->lowerBoundScale);
             node->smoothnessSum+=b->smoothnessSum;
         } else {
-            node->bounds=b->bounds;
+            node->bounds=b->bounds;node->positiveBounds=b->positiveBounds;
             node->lowerBoundScale=b->lowerBoundScale;
             node->smoothnessSum=b->smoothnessSum;
         }
@@ -127,6 +177,7 @@ static size_t MonsterSDF_BuildConnectorNode(MonsterSDF* sdf,size_t begin,size_t 
 
 static bool MonsterSDF_BuildConnectorNodes(MonsterSDF* sdf) {
     sdf->connectorNodeCount=0;
+    sdf->connectorNodesUseAxial=sdf->axialStationCount>1;
     if(!sdf->connectorCount)return true;
     if(!MonsterSDF_EnsureCapacity((void**)&sdf->connectorNodes,sizeof(*sdf->connectorNodes),
         &sdf->connectorNodeCapacity,2*sdf->connectorCount-1))return false;
@@ -170,6 +221,7 @@ static void MonsterSDF_GetBasinParams(const MonsterSDFMouth* mouth, Vector3* out
 
 bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig config) {
     if (!sdf) return false;
+    sdf->hasSubtractionBounds=false;
     sdf->hasSurface=monster&&monster->hasSurface;
     if(monster) sdf->surfaceRecipe=SurfaceRecipe_CompileScaled(&monster->surface,
         monster->surfaceMapping.unitScale);
@@ -227,21 +279,27 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
     /* 2. Conectores: grafo explícito o compatibilidad secuencial heredada. */
     if(monster->hasAnatomyGraph) {
         const AnatomyGraph* g=&monster->anatomyGraph;
-        const AnatomyNode* start=NULL; size_t count=0; bool linear=true;
+        if(g->connectionCount>ANATOMY_MAX_CONNECTIONS)return false;
+        AnatomyGraphIndex index;
+        if(!AnatomyGraphIndex_Build(&index,g))return false;
+        unsigned incoming[ANATOMY_MAX_NODES]={0},outgoing[ANATOMY_MAX_NODES]={0};
+        /* Resolver cada arista una sola vez, antes de contar grados axiales.
+         * Los ornamentos no multiplican las búsquedas de la cadena corporal. */
+        for(size_t j=0;j<g->connectionCount;++j) {
+            const BodyConnection* e=&g->connections[j];
+            int from=AnatomyGraphIndex_Find(&index,e->fromId),to=AnatomyGraphIndex_Find(&index,e->toId);
+            if(from<0||to<0){MonsterSDF_Free(sdf);return false;}
+            if(e->kind!=BODY_CONNECTION_AXIAL_LOFT||g->nodes[from].region==ANATOMY_REGION_HEAD||
+               g->nodes[to].region==ANATOMY_REGION_HEAD)continue;
+            ++outgoing[from];++incoming[to];
+        }
+        const AnatomyNode* start=NULL;size_t count=0;bool linear=true;
         for(size_t i=0;i<g->nodeCount;++i) {
             const AnatomyNode* n=&g->nodes[i];
             if(n->role!=ANATOMY_ROLE_AXIAL||n->region==ANATOMY_REGION_HEAD)continue;
-            ++count; unsigned incoming=0,outgoing=0;
-            for(size_t j=0;j<g->connectionCount;++j) {
-                const BodyConnection* e=&g->connections[j];
-                const AnatomyNode* from=AnatomyGraph_FindNode(g,e->fromId);
-                const AnatomyNode* to=AnatomyGraph_FindNode(g,e->toId);
-                if(!from||!to){MonsterSDF_Free(sdf);return false;}
-                if(e->kind!=BODY_CONNECTION_AXIAL_LOFT||from->region==ANATOMY_REGION_HEAD||to->region==ANATOMY_REGION_HEAD)continue;
-                incoming+=e->toId==n->id;outgoing+=e->fromId==n->id;
-            }
-            if(incoming>1||outgoing>1)linear=false;
-            if(!incoming){if(start)linear=false;start=n;}
+            ++count;
+            if(incoming[i]>1||outgoing[i]>1)linear=false;
+            if(!incoming[i]){if(start)linear=false;start=n;}
         }
         if (g->axialProfileCount > 1 && g->axialProfileCount <= MONSTER_SDF_MAX_AXIAL_STATIONS) {
             sdf->axialStationCount = (int)g->axialProfileCount;
@@ -363,22 +421,25 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 c->widthA = c->heightA = thickness;
                 c->widthB = c->heightB = thickness;
             }
-            if (ornamentSupport && (a->region==ANATOMY_REGION_HEAD || b->region==ANATOMY_REGION_HEAD)) {
-                /* La cabeza ya tiene un barrido resuelto. Reutilizar su radio
-                 * como sección del soporte creaba lóbulos orientados hacia
-                 * cada cuerno. La unión pertenece a la raíz del ornamento. */
+            if (ornamentSupport && ((a->region==ANATOMY_REGION_ORNAMENT)!=
+                                     (b->region==ANATOMY_REGION_ORNAMENT))) {
+                /* El anfitrión ya tiene su volumen resuelto. El tejido de
+                 * unión pertenece a la raíz del brote; usar el radio completo
+                 * del cuerpo engordaba la unión y propagaba cada espina por
+                 * todo el torso, incluso con desarrollo casi nulo. */
                 const AnatomyNode* root = a->region==ANATOMY_REGION_ORNAMENT ? a : b;
                 const AnatomyNode* host = root==a ? b : a;
                 float radius = Math_Max(root->widthRadius, root->heightRadius);
                 Vector3 inward = Vec3_Normalize(Vec3_Sub(host->center, root->center));
-                Vector3 anchor = Vec3_Add(root->center, Vec3_Scale(inward, radius*2.0f));
+                Vector3 anchor = host->region==ANATOMY_REGION_HEAD?
+                    Vec3_Add(root->center,Vec3_Scale(inward,radius*2.0f)):host->center;
                 if (root==a) { c->b=anchor; c->widthB=root->widthRadius; c->heightB=root->heightRadius; }
                 else { c->a=anchor; c->widthA=root->widthRadius; c->heightA=root->heightRadius; }
             }
             c->ba=Vec3_Sub(c->b,c->a);
             float lengthSquared=Vec3_Dot(c->ba,c->ba);c->invBaLengthSquared=lengthSquared>1e-8f?1.0f/lengthSquared:0.0f;
             c->r1=Math_Min(c->widthA,c->heightA);c->r2=Math_Min(c->widthB,c->heightB);c->radiusDelta=c->r2-c->r1;
-            c->fromId=edge->fromId;c->toId=edge->toId;c->kind=edge->kind;
+            c->fromId=edge->fromId;c->toId=edge->toId;c->connectionId=edge->id;c->kind=edge->kind;
             c->moduleInstanceId=edge->moduleInstanceId;c->region=b->region; c->development=edge->development;
             c->isHeadNeck=(a->region==ANATOMY_REGION_HEAD&&b->region==ANATOMY_REGION_NECK)||
                 (b->region==ANATOMY_REGION_HEAD&&a->region==ANATOMY_REGION_NECK);
@@ -453,6 +514,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                                    Math_Max(c->a.y, c->b.y) + maxR,
                                    Math_Max(c->a.z, c->b.z) + maxR);
         c->bounds = AABB_FromMinMax(bmin, bmax);
+        c->bounds = MonsterSDF_ConnectorSublevelBounds(c,0);
         if (c->widthBulge!=0 || c->heightBulge!=0) {
             AABB_ExpandPoint(&sdf->bounds,bmin);AABB_ExpandPoint(&sdf->bounds,bmax);
         }
@@ -891,6 +953,17 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         m->headStations[4]=(SDFSweepStation){.center=Vec3_Add(origin,profile->cranialTemporalCenter),.width=profile->cranialTemporalRadii.x,.height=profile->cranialTemporalRadii.y};
         m->headStations[5]=(SDFSweepStation){.center=Vec3_Add(origin,profile->cranialOccipitalCenter),.width=profile->cranialOccipitalRadii.x,.height=profile->cranialOccipitalRadii.y};
         if(!SDF_SweepResolveTangents(m->headStations,6)){MonsterSDF_Free(sdf);return false;}
+        /* El maxilar aporta anchura y longitud; la profundidad procede de la
+         * mandíbula resuelta. Recortar y escalar el cráneo dejaba un suelo casi
+         * nulo al cruzar su curva con el plano oral en hocicos aplanados. */
+        float lip=m->entranceCenterLocal.y-m->entranceHalfExtents.y;
+        for(int j=0;j<6;++j) {
+            m->jawStations[j]=m->headStations[j];
+            m->jawStations[j].center.y=lip-m->jawRadii.y;
+            m->jawStations[j].height=m->jawRadii.y;
+            m->jawStations[j].centerSlope=0;m->jawStations[j].heightSlope=0;
+        }
+
     }
     for(size_t i=0;i<sdf->mouthCount;++i) {
         MonsterSDFMouth* m=&sdf->mouths[i];
@@ -903,6 +976,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         }
         m->visualJawBoundRadius=(r+0.25f)*Math_Max(m->visualJawScale,0.20f)+0.10f;
         MonsterSDF_ResolveVisualBounds(sdf,i);
+        m->positiveHeadBounds=RayBounds_PackedMouth(m,m->headBodySmoothness,.001f).headBounds;
     }
     float pad = config.boundsPadding + config.bodySmoothness;
     AABB_Pad(&sdf->bounds, pad);
@@ -921,7 +995,50 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         if(AABB_Size(sdf->bodyBounds).x<=0.0f)sdf->bodyBounds=sdf->bounds;
         else AABB_Pad(&sdf->bodyBounds,pad);
     }
+    MonsterSDF_CompileSubtractionBounds(sdf);
     return true;
+}
+
+/* Una resta suave aumenta como máximo k/4 sobre max(cuerpo,-cutter).
+ * Fuera del subnivel L de todos los cutters, un cuerpo ya menor que -L
+ * permanece interior tras todas las restas. Las uniones de cabeza sólo
+ * disminuyen el campo. Este certificado nunca aproxima la geometría. */
+static void MonsterSDF_CompileSubtractionBounds(MonsterSDF* sdf) {
+    if(!sdf->mouthCount)return;
+    double budget=0;
+    for(size_t i=0;i<sdf->mouthCount;++i) {
+        const MonsterSDFMouth* m=&sdf->mouths[i];
+        if(!m->anatomicalHead||!isfinite(m->tympanumDevelopment)||
+           m->tympanumDevelopment<0||m->tympanumDevelopment>1)return;
+        budget+=fmax(m->rimBevel,0)*.25+fmax(m->headUnionSmoothness,0)*
+            (m->hasTympana?.14:.10)*.25;
+    }
+    double rounding=1e-5*fmax(1,Vec3_Length(AABB_Size(sdf->bounds)));
+    double level=budget+2*rounding+.0002;
+    AABB3D all=AABB_Empty();
+    for(size_t i=0;i<sdf->mouthCount;++i) {
+        const MonsterSDFMouth* m=&sdf->mouths[i];AABB3D local=AABB_Empty();
+        float q=nextafterf((float)(level+fmax(m->entranceToCavitySmoothness,0)*.25),INFINITY);
+        float hw=fmaxf(m->entranceHalfExtents.x,.0001f),hh=fmaxf(m->entranceHalfExtents.y,.0001f);
+        Vector3 slot={fmaxf(hw,hh)+q,hh+q,fmaxf(m->entranceHalfExtents.z,.0001f)+q};
+        AABB_ExpandRadius(&local,m->entranceCenterLocal,slot);
+        RayBounds_Ellipsoid(&local,m->cavityCenterLocal,m->cavityRadii,q);
+        q=nextafterf((float)level,INFINITY);
+        Vector3 left=Vec3_Add(m->leftOrbitCenterLocal,Vec3_Scale(m->leftOrbitNormal,m->orbitRadii.x*.18f));
+        Vector3 right=Vec3_Add(m->rightOrbitCenterLocal,Vec3_Scale(m->rightOrbitNormal,m->orbitRadii.x*.18f));
+        RayBounds_Ellipsoid(&local,left,m->orbitRadii,q);RayBounds_Ellipsoid(&local,right,m->orbitRadii,q);
+        RayBounds_Ellipsoid(&local,m->leftNostrilCenterLocal,m->nostrilRadii,q);
+        RayBounds_Ellipsoid(&local,m->rightNostrilCenterLocal,m->nostrilRadii,q);
+        if(m->hasTympana) {
+            RayBounds_Ellipsoid(&local,m->leftTympanumCenterLocal,m->tympanumRadii,q);
+            RayBounds_Ellipsoid(&local,m->rightTympanumCenterLocal,m->tympanumRadii,q);
+        }
+        AABB3D world=RayBounds_World(m,local);AABB_Pad(&world,(float)rounding);
+        AABB_ExpandPoint(&all,world.start);AABB_ExpandPoint(&all,world.end);
+    }
+    sdf->subtractionBounds=all;sdf->subtractionLevel=level;
+    sdf->subtractionBudget=budget;sdf->subtractionRoundoff=rounding;
+    sdf->hasSubtractionBounds=true;
 }
 
 static inline float MonsterSDF_EvalBodyPartDistance(const MonsterSDFBodyPart* part, Vector3 point) {
@@ -1030,15 +1147,10 @@ static float MonsterSDF_EvalTympanumCavities(const MonsterSDFMouth* mouth,Vector
 }
 static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP) {
     if (mouth->sweptSkull) {
-        /* La mandíbula comparte el contorno facial resuelto. El plano oral
-         * separa las dos piezas sin sustituir el rostro por dos varillas. */
+        /* Perfil propio con el espesor anatómico: conserva la anchura facial
+         * y no depende del tamaño de vóxel ni de la forma del cráneo superior. */
         float lip=mouth->entranceCenterLocal.y-mouth->entranceHalfExtents.y;
-        float depthScale=Math_Clamp(mouth->jawRadii.y*2.0f / Math_Max(mouth->faceRootRadii.y,.0001f),.4f,1.4f);
-        Vector3 jawPoint=localP;
-        jawPoint.y=lip+(localP.y-lip)/depthScale;
-        /* La profundidad cambia bajo el labio, sin añadir una bolsa gular
-         * ni desplazar la superficie de contacto con el maxilar. */
-        float envelope=SDF_EllipticalSweepZ(jawPoint,mouth->headStations,6)*Math_Min(depthScale,1.0f);
+        float envelope=SDF_EllipticalSweepZ(localP,mouth->jawStations,6);
         float oralPlane=localP.y-lip;
         float rearPlane=mouth->hingeCenterLocal.z-localP.z;
         return Math_Max(envelope,Math_Max(oralPlane,rearPlane));
@@ -1212,11 +1324,15 @@ static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vect
     if (mouth->anatomicalHead) {
         float dev = mouth->cephalicDevelopment;
         float k = Math_Max(mouth->headUnionSmoothness, .005f);
-        float cranium = SDF_Ellipsoid(Vec3_Sub(localP, mouth->craniumCenterLocal), mouth->craniumRadii);
-        float d = cranium;
+        float d;
         {
-            float face = MonsterSDF_EvalRostrumDistance(mouth, localP);
-            float skull = mouth->sweptSkull ? SDF_EllipticalSweepZ(localP, mouth->headStations, 6) : SDF_SmoothUnion(d, face, k);
+            float skull;
+            if(mouth->sweptSkull)skull=SDF_EllipticalSweepZ(localP,mouth->headStations,6);
+            else {
+                float cranium=SDF_Ellipsoid(Vec3_Sub(localP,mouth->craniumCenterLocal),mouth->craniumRadii);
+                float face=MonsterSDF_EvalRostrumDistance(mouth,localP);
+                skull=SDF_SmoothUnion(cranium,face,k);
+            }
             /* La receta resuelta ya describe una cabeza pequeña o adulta.
              * Una segunda mezcla por edad ocultaba rasgos y no era representable
              * por la jaula fenotípica entre keyframes. */
@@ -1627,14 +1743,9 @@ static AABB3D MonsterSDF_GetJawBoundsWrapper(const void* context) {
     if (mouth->sweptSkull) {
         AABB3D envelope=AABB_FromMinMax(minJ,maxJ);
         for (int i=0; i<6; ++i) {
-            const SDFSweepStation* station=&mouth->headStations[i];
-            float lip=mouth->entranceCenterLocal.y-mouth->entranceHalfExtents.y;
-            float depthScale=Math_Clamp(mouth->jawRadii.y*2.0f/Math_Max(mouth->faceRootRadii.y,.0001f),.4f,1.4f);
-            Vector3 center=station->center;
-            center.y=lip+(center.y-lip)*depthScale;
+            const SDFSweepStation* station=&mouth->jawStations[i];
             float radius=Math_Max(station->width,station->height);
-            AABB_ExpandRadius(&envelope,center,
-                Vec3_Create(radius,radius*depthScale,radius));
+            AABB_ExpandRadius(&envelope,station->center,Vec3_Create(radius,radius,radius));
         }
         return envelope;
     }
@@ -1805,9 +1916,15 @@ AABB3D MonsterSDF_GetBoundsWrapper(const void* context) { return MonsterSDF_GetB
 /* Intervalos de las mismas recetas elípticas que evalúa el campo. Se conserva
  * la dependencia desconocida ensanchando el intervalo, nunca mediante un
  * supuesto sobre la derivada de una distancia aproximada. */
+/* Min/max de intervalos: conservar el tratamiento de NaN sin llamadas a
+ * libm por cada coeficiente. No modifica la evaluación escalar del SDF. */
+static inline double Range_Min(double a,double b) {return isnan(b)?a:(a<b?a:b);}
+static inline double Range_Max(double a,double b) {return isnan(b)?a:(a>b?a:b);}
+static inline float Range_MinF(float a,float b) {return isnan(b)?a:(a<b?a:b);}
+static inline float Range_MaxF(float a,float b) {return isnan(b)?a:(a>b?a:b);}
 typedef struct MonsterSDFRange { double lo, hi; } MonsterSDFRange;
 static MonsterSDFRange MonsterSDF_Range(double a,double b) {
-    return (MonsterSDFRange){fmin(a,b),fmax(a,b)};
+    return (MonsterSDFRange){Range_Min(a,b),Range_Max(a,b)};
 }
 static MonsterSDFRange MonsterSDF_ProjectRange(Vector3 center,Vector3 half,Vector3 basis) {
     double mid=(double)center.x*basis.x+(double)center.y*basis.y+(double)center.z*basis.z;
@@ -1818,37 +1935,37 @@ static MonsterSDFRange MonsterSDF_RangeSubtract(MonsterSDFRange a,MonsterSDFRang
     return (MonsterSDFRange){a.lo-b.hi,a.hi-b.lo};
 }
 static MonsterSDFRange MonsterSDF_RangeSquareRatio(MonsterSDFRange a,MonsterSDFRange radius) {
-    double lower=a.lo<=0 && a.hi>=0?0:fmin(fabs(a.lo),fabs(a.hi));
-    double upper=fmax(fabs(a.lo),fabs(a.hi));
+    double lower=a.lo<=0 && a.hi>=0?0:Range_Min(fabs(a.lo),fabs(a.hi));
+    double upper=Range_Max(fabs(a.lo),fabs(a.hi));
     lower/=radius.hi;upper/=radius.lo;
     return (MonsterSDFRange){lower*lower,upper*upper};
 }
 static MonsterSDFRange MonsterSDF_EllipticRange(MonsterSDFRange x,MonsterSDFRange y,
     MonsterSDFRange z,MonsterSDFRange w,MonsterSDFRange h) {
-    w.lo=fmax(w.lo,.0001);w.hi=fmax(w.hi,.0001);
-    h.lo=fmax(h.lo,.0001);h.hi=fmax(h.hi,.0001);
-    MonsterSDFRange r={fmin(w.lo,h.lo),fmin(w.hi,h.hi)};
+    w.lo=Range_Max(w.lo,.0001);w.hi=Range_Max(w.hi,.0001);
+    h.lo=Range_Max(h.lo,.0001);h.hi=Range_Max(h.hi,.0001);
+    MonsterSDFRange r={Range_Min(w.lo,h.lo),Range_Min(w.hi,h.hi)};
     MonsterSDFRange xx=MonsterSDF_RangeSquareRatio(x,w), yy=MonsterSDF_RangeSquareRatio(y,h),
         zz=MonsterSDF_RangeSquareRatio(z,r);
     double lo=sqrt(xx.lo+yy.lo+zz.lo)-1,hi=sqrt(xx.hi+yy.hi+zz.hi)-1;
-    return (MonsterSDFRange){fmin(lo*r.lo,lo*r.hi),fmax(hi*r.lo,hi*r.hi)};
+    return (MonsterSDFRange){Range_Min(lo*r.lo,lo*r.hi),Range_Max(hi*r.lo,hi*r.hi)};
 }
 static double MonsterSDF_ClampDouble(double v,double lo,double hi) {
-    return fmax(lo,fmin(hi,v));
+    return Range_Max(lo,Range_Min(hi,v));
 }
 static MonsterSDFRange MonsterSDF_EllipsoidRange(Vector3 center,Vector3 half,Vector3 radii) {
-    radii.x=fmaxf(radii.x,.0001f);radii.y=fmaxf(radii.y,.0001f);radii.z=fmaxf(radii.z,.0001f);
+    radii.x=Range_MaxF(radii.x,.0001f);radii.y=Range_MaxF(radii.y,.0001f);radii.z=Range_MaxF(radii.z,.0001f);
     MonsterSDFRange x=MonsterSDF_RangeSquareRatio((MonsterSDFRange){center.x-half.x,center.x+half.x},(MonsterSDFRange){radii.x,radii.x});
     MonsterSDFRange y=MonsterSDF_RangeSquareRatio((MonsterSDFRange){center.y-half.y,center.y+half.y},(MonsterSDFRange){radii.y,radii.y});
     MonsterSDFRange z=MonsterSDF_RangeSquareRatio((MonsterSDFRange){center.z-half.z,center.z+half.z},(MonsterSDFRange){radii.z,radii.z});
     double lo=sqrt(x.lo+y.lo+z.lo)-1,hi=sqrt(x.hi+y.hi+z.hi)-1;
-    double minimum=fmin(radii.x,fmin(radii.y,radii.z)),maximum=fmax(radii.x,fmax(radii.y,radii.z));
+    double minimum=Range_Min(radii.x,Range_Min(radii.y,radii.z)),maximum=Range_Max(radii.x,Range_Max(radii.y,radii.z));
     /* k0/k1 permanece entre los radios extremos, incluso junto al centro. */
     double k1lo=sqrt(x.lo/(radii.x*radii.x)+y.lo/(radii.y*radii.y)+z.lo/(radii.z*radii.z));
     double k1hi=sqrt(x.hi/(radii.x*radii.x)+y.hi/(radii.y*radii.y)+z.hi/(radii.z*radii.z));
-    if(k1hi>1e-6)minimum=fmax(minimum,(lo+1)/k1hi);
-    if(k1lo>1e-6)maximum=fmin(maximum,(hi+1)/k1lo);
-    return (MonsterSDFRange){fmin(lo*minimum,lo*maximum),fmax(hi*minimum,hi*maximum)};
+    if(k1hi>1e-6)minimum=Range_Max(minimum,(lo+1)/k1hi);
+    if(k1lo>1e-6)maximum=Range_Min(maximum,(hi+1)/k1lo);
+    return (MonsterSDFRange){Range_Min(lo*minimum,lo*maximum),Range_Max(hi*minimum,hi*maximum)};
 }
 /* Extremos exactos del perfil cuadrático, incluida su estación crítica. */
 static MonsterSDFRange MonsterSDF_ProfileRange(double a,double b,double bulge,double ta,double tb) {
@@ -1859,10 +1976,10 @@ static MonsterSDFRange MonsterSDF_ProfileRange(double a,double b,double bulge,do
         double t=.5+(b-a)/(8*bulge);
         if (t>ta && t<tb) {
             double v=a+(b-a)*t+4*bulge*t*(1-t);
-            range.lo=fmin(range.lo,v);range.hi=fmax(range.hi,v);
+            range.lo=Range_Min(range.lo,v);range.hi=Range_Max(range.hi,v);
         }
     }
-    range.lo=fmax(.0001,range.lo);range.hi=fmax(.0001,range.hi);
+    range.lo=Range_Max(.0001,range.lo);range.hi=Range_Max(.0001,range.hi);
     return range;
 }
 static MonsterSDFRange MonsterSDF_ConnectorRange(const MonsterSDFConnector* connector,
@@ -1888,14 +2005,14 @@ static MonsterSDFRange MonsterSDF_HermiteRange(double a,double b,double da,doubl
     double p0=((aa*lo+bb)*lo+cc)*lo+a,p3=((aa*hi+bb)*hi+cc)*hi+a;
     double p1=p0+(hi-lo)*(3*aa*lo*lo+2*bb*lo+cc)/3;
     double p2=p3-(hi-lo)*(3*aa*hi*hi+2*bb*hi+cc)/3;
-    return (MonsterSDFRange){fmin(fmin(p0,p1),fmin(p2,p3)),fmax(fmax(p0,p1),fmax(p2,p3))};
+    return (MonsterSDFRange){Range_Min(Range_Min(p0,p1),Range_Min(p2,p3)),Range_Max(Range_Max(p0,p1),Range_Max(p2,p3))};
 }
 static MonsterSDFRange MonsterSDF_StationsRange(const SDFSweepStation* stations,int count,AABB3D box) {
     MonsterSDFRange result={INFINITY,-INFINITY};
     for(int i=0;i<count-1;++i) {
         const SDFSweepStation *a=&stations[i],*b=&stations[i+1];
-        double lower=i==count-2?box.start.z:fmax(box.start.z,b->center.z);
-        double upper=i==0?box.end.z:fmin(box.end.z,a->center.z);
+        double lower=i==count-2?box.start.z:Range_Max(box.start.z,b->center.z);
+        double upper=i==0?box.end.z:Range_Min(box.end.z,a->center.z);
         if(lower>upper)continue;
         double span=b->center.z-a->center.z;
         double ta=MonsterSDF_ClampDouble((upper-a->center.z)/span,0,1);
@@ -1911,12 +2028,12 @@ static MonsterSDFRange MonsterSDF_StationsRange(const SDFSweepStation* stations,
         MonsterSDFRange range=MonsterSDF_EllipticRange(
             MonsterSDF_RangeSubtract((MonsterSDFRange){box.start.x,box.end.x},cx),
             MonsterSDF_RangeSubtract((MonsterSDFRange){box.start.y,box.end.y},cy),z,w,h);
-        result.lo=fmin(result.lo,range.lo);result.hi=fmax(result.hi,range.hi);
+        result.lo=Range_Min(result.lo,range.lo);result.hi=Range_Max(result.hi,range.hi);
     }
     return result;
 }
 static double MonsterSDF_RangeSmoothMin(double a,double b,double k) {
-    if(k<=.0001 || fabs(a-b)>=k)return fmin(a,b);
+    if(k<=.0001 || fabs(a-b)>=k)return Range_Min(a,b);
     double h=MonsterSDF_ClampDouble(.5+.5*(b-a)/k,0,1);
     return b+(a-b)*h-k*h*(1-h);
 }
@@ -1935,9 +2052,9 @@ size_t MonsterSDF_CompileConnectorCandidates(const MonsterSDF* sdf,AABB3D box,
         if(c->isHeadNeck || (hasAxial && c->kind==BODY_CONNECTION_AXIAL_LOFT))continue;
         bool skip=false;
         if(hasAxial && sdf->config.enableConnectorPruning && c->distanceLowerBoundScale>0) {
-            double dx=fmax(0,fmax(c->bounds.start.x-box.end.x,box.start.x-c->bounds.end.x));
-            double dy=fmax(0,fmax(c->bounds.start.y-box.end.y,box.start.y-c->bounds.end.y));
-            double dz=fmax(0,fmax(c->bounds.start.z-box.end.z,box.start.z-c->bounds.end.z));
+            double dx=Range_Max(0,Range_Max(c->bounds.start.x-box.end.x,box.start.x-c->bounds.end.x));
+            double dy=Range_Max(0,Range_Max(c->bounds.start.y-box.end.y,box.start.y-c->bounds.end.y));
+            double dz=Range_Max(0,Range_Max(c->bounds.start.z-box.end.z,box.start.z-c->bounds.end.z));
             if(dx>0 || dy>0 || dz>0)
                 skip=sqrt(dx*dx+dy*dy+dz*dz)*c->distanceLowerBoundScale>
                     upper+c->localSmoothness+1e-4;
@@ -1968,15 +2085,15 @@ static MonsterSDFRange MonsterSDF_CapsuleRange(Vector3 center,Vector3 half,
     Vector3 ca=Vec3_Lerp(a,b,t.lo),cb=Vec3_Lerp(a,b,t.hi);
     Vector3 r0=Vec3_Lerp(ra,rb,t.lo),r1=Vec3_Lerp(ra,rb,t.hi);
     MonsterSDFRange x=MonsterSDF_RangeSquareRatio(
-        (MonsterSDFRange){center.x-half.x-fmax(ca.x,cb.x),center.x+half.x-fmin(ca.x,cb.x)},MonsterSDF_Range(fmax(r0.x,.0001),fmax(r1.x,.0001)));
+        (MonsterSDFRange){center.x-half.x-Range_Max(ca.x,cb.x),center.x+half.x-Range_Min(ca.x,cb.x)},MonsterSDF_Range(Range_Max(r0.x,.0001),Range_Max(r1.x,.0001)));
     MonsterSDFRange y=MonsterSDF_RangeSquareRatio(
-        (MonsterSDFRange){center.y-half.y-fmax(ca.y,cb.y),center.y+half.y-fmin(ca.y,cb.y)},MonsterSDF_Range(fmax(r0.y,.0001),fmax(r1.y,.0001)));
+        (MonsterSDFRange){center.y-half.y-Range_Max(ca.y,cb.y),center.y+half.y-Range_Min(ca.y,cb.y)},MonsterSDF_Range(Range_Max(r0.y,.0001),Range_Max(r1.y,.0001)));
     MonsterSDFRange z=MonsterSDF_RangeSquareRatio(
-        (MonsterSDFRange){center.z-half.z-fmax(ca.z,cb.z),center.z+half.z-fmin(ca.z,cb.z)},MonsterSDF_Range(fmax(r0.z,.0001),fmax(r1.z,.0001)));
-    double rmin=fmax(.0001,fmin(fmin(r0.x,r1.x),fmin(fmin(r0.y,r1.y),fmin(r0.z,r1.z))));
-    double rmax=fmax(.0001,fmax(fmax(r0.x,r1.x),fmax(fmax(r0.y,r1.y),fmax(r0.z,r1.z))));
+        (MonsterSDFRange){center.z-half.z-Range_Max(ca.z,cb.z),center.z+half.z-Range_Min(ca.z,cb.z)},MonsterSDF_Range(Range_Max(r0.z,.0001),Range_Max(r1.z,.0001)));
+    double rmin=Range_Max(.0001,Range_Min(Range_Min(r0.x,r1.x),Range_Min(Range_Min(r0.y,r1.y),Range_Min(r0.z,r1.z))));
+    double rmax=Range_Max(.0001,Range_Max(Range_Max(r0.x,r1.x),Range_Max(Range_Max(r0.y,r1.y),Range_Max(r0.z,r1.z))));
     double lo=sqrt(x.lo+y.lo+z.lo)-1,hi=sqrt(x.hi+y.hi+z.hi)-1;
-    MonsterSDFRange d={fmin(lo*rmin,lo*rmax),fmax(hi*rmin,hi*rmax)};
+    MonsterSDFRange d={Range_Min(lo*rmin,lo*rmax),Range_Max(hi*rmin,hi*rmax)};
     d=MonsterSDF_UnionRange(d,MonsterSDF_EllipsoidRange(Vec3_Sub(center,a),half,ra),0);
     return MonsterSDF_UnionRange(d,MonsterSDF_EllipsoidRange(Vec3_Sub(center,b),half,rb),0);
 }
@@ -2008,21 +2125,21 @@ static MonsterSDFRange MonsterSDF_CollarRange(const MonsterSDFMouth* m,Vector3 c
 /* La misma composición de tejido craneal, propagando extremos monótonos.
  * El AABB local contiene toda la celda rotada, no solamente sus vértices. */
 static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector3 center,Vector3 half) {
-    double k=fmax(m->headUnionSmoothness,.005);
+    double k=Range_Max(m->headUnionSmoothness,.005);
     MonsterSDFRange d;
     if(m->sweptSkull) d=MonsterSDF_StationsRange(m->headStations,6,(AABB3D){Vec3_Sub(center,half),Vec3_Add(center,half)});
     else {
         d=MonsterSDF_EllipsoidRange(Vec3_Sub(center,m->craniumCenterLocal),half,m->craniumRadii);
         MonsterSDFRange rear=MonsterSDF_CapsuleRange(center,half,m->faceRootLocal,m->faceMidLocal,m->faceRootRadii,m->faceMidRadii);
         MonsterSDFRange front=MonsterSDF_CapsuleRange(center,half,m->faceMidLocal,m->faceTipLocal,m->faceMidRadii,m->faceTipRadii);
-        d=MonsterSDF_UnionRange(d,MonsterSDF_UnionRange(rear,front,fmax(m->faceRounding,0)),k);
+        d=MonsterSDF_UnionRange(d,MonsterSDF_UnionRange(rear,front,Range_Max(m->faceRounding,0)),k);
     }
     Vector3 centers[]={m->leftTemporalCenterLocal,m->rightTemporalCenterLocal,m->leftMaxillaryCenterLocal,m->rightMaxillaryCenterLocal,m->cheekCenterLocal,m->cheekCenterLocal};
     centers[5].x*=-1;
     Vector3 radii[]={m->temporalRadii,m->temporalRadii,m->maxillaryRadii,m->maxillaryRadii,m->cheekRadii,m->cheekRadii};
     const double weights[]={.38,.38,.34,.34,.42,.42};
     for(int i=0;i<6;++i)d=MonsterSDF_UnionRange(d,MonsterSDF_EllipsoidRange(Vec3_Sub(center,centers[i]),half,radii[i]),k*weights[i]);
-    double rimK=fmax(m->headUnionSmoothness*.24,.002);
+    double rimK=Range_Max(m->headUnionSmoothness*.24,.002);
     MonsterSDFRange rim=MonsterSDF_EllipsoidRange(Vec3_Sub(center,m->leftOrbitRimCenterLocal),half,m->orbitRimRadii);
     rim=MonsterSDF_UnionRange(rim,MonsterSDF_EllipsoidRange(Vec3_Sub(center,m->rightOrbitRimCenterLocal),half,m->orbitRimRadii),rimK);
     rim=MonsterSDF_UnionRange(rim,MonsterSDF_EllipsoidRange(Vec3_Sub(center,m->leftBrowCenterLocal),half,m->browRadii),rimK);
@@ -2033,11 +2150,11 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
     if(m->hasEars) {
         /* La cota local incorpora la escala de la resta elipsoidal de concha
          * y el desplazamiento máximo de la línea media del pabellón. */
-        double cupScale=fmin(m->earShape.x*.73,m->earShape.y*.34)/
-                        fmax(m->earShape.z*(.80+.70*m->earConcavity),.002);
+        double cupScale=Range_Min(m->earShape.x*.73,m->earShape.y*.34)/
+                        Range_Max(m->earShape.z*(.80+.70*m->earConcavity),.002);
         double bendScale=(fabs(m->earLongitudinalCurve)+fabs(m->earFold)+
                           m->earShape.x*.69*fabs(m->earMarginBow)) /
-                         fmax(m->earShape.y,.01);
+                         Range_Max(m->earShape.y,.01);
         double radius=Vec3_Length(half)*(2.0+cupScale+3.2*bendScale);
         double left=SDF_CurvedPinna(Vec3_Sub(center,m->leftEarCenterLocal),m->earShape,m->earDirection,m->leftEarSide,m->leftEarNormal,m->earTipFraction,m->earConcavity,m->earLongitudinalCurve,m->earRootRoll,m->earTipRoundness,m->earFold,m->earRootFlare,m->earMarginBow,m->earMarginAsymmetry);
         double right=SDF_CurvedPinna(Vec3_Sub(center,m->rightEarCenterLocal),m->earShape,m->rightEarDirection,m->rightEarSide,m->rightEarNormal,m->earTipFraction,m->earConcavity,m->earLongitudinalCurve,m->earRootRoll,m->earTipRoundness,m->earFold,m->earRootFlare,-m->earMarginBow,1.0f-m->earMarginAsymmetry);
@@ -2050,30 +2167,30 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
         double side=m->entranceHalfExtents.x+m->rimBevel-fabs(center.x);
         double sideMin=side-half.x,sideMax=side+half.x;
         if(fabs(center.x)<half.x)sideMax=m->entranceHalfExtents.x+m->rimBevel;
-        d.lo=fmax(d.lo,fmin(oral-half.y,fmin(rear-half.z,sideMin)));
-        d.hi=fmax(d.hi,fmin(oral+half.y,fmin(rear+half.z,sideMax)));
+        d.lo=Range_Max(d.lo,Range_Min(oral-half.y,Range_Min(rear-half.z,sideMin)));
+        d.hi=Range_Max(d.hi,Range_Min(oral+half.y,Range_Min(rear+half.z,sideMax)));
     }
     return d;
 }
 static MonsterSDFRange MonsterSDF_ShallowRange(Vector3 center,Vector3 half,Vector3 origin,Vector3 radii,Vector3 normal,float depth) {
     Vector3 relative=Vec3_Sub(center,origin);
     MonsterSDFRange d=MonsterSDF_EllipsoidRange(relative,half,radii),plane=MonsterSDF_ProjectRange(relative,half,normal);
-    return (MonsterSDFRange){fmax(d.lo,-plane.hi-fmax(depth,.001)),fmax(d.hi,-plane.lo-fmax(depth,.001))};
+    return (MonsterSDFRange){Range_Max(d.lo,-plane.hi-Range_Max(depth,.001)),Range_Max(d.hi,-plane.lo-Range_Max(depth,.001))};
 }
 static MonsterSDFRange MonsterSDF_HeadCuttersRange(const MonsterSDFMouth* m,Vector3 center,Vector3 half,MonsterSDFRange d) {
     double radius=Vec3_Length(half);
     float slot=SDF_RoundedSlotExtruded(Vec3_Sub(center,m->entranceCenterLocal),m->entranceHalfExtents.x,m->entranceHalfExtents.y,m->entranceHalfExtents.z);
     MonsterSDFRange cavity=MonsterSDF_EllipsoidRange(Vec3_Sub(center,m->cavityCenterLocal),half,m->cavityRadii);
     if (m->sweptSkull) {
-        double wall=fmax(m->entranceHalfExtents.y*2,m->faceMidRadii.x*.12);
+        double wall=Range_Max(m->entranceHalfExtents.y*2,m->faceMidRadii.x*.12);
         MonsterSDFRange envelope=MonsterSDF_StationsRange(m->headStations,6,
             (AABB3D){Vec3_Sub(center,half),Vec3_Add(center,half)});
-        cavity.lo=fmax(cavity.lo,envelope.lo+wall);
-        cavity.hi=fmax(cavity.hi,envelope.hi+wall);
+        cavity.lo=Range_Max(cavity.lo,envelope.lo+wall);
+        cavity.hi=Range_Max(cavity.hi,envelope.hi+wall);
     }
     cavity=MonsterSDF_UnionRange((MonsterSDFRange){slot-radius,slot+radius},cavity,m->entranceToCavitySmoothness);
     double dev=MonsterSDF_ClampDouble((m->cephalicDevelopment-.05)/.25,0,1);
-    cavity=MonsterSDF_OffsetRange(cavity,(1-dev)*fmax(m->hostRadii.x,fmax(m->hostRadii.y,m->hostRadii.z))*2);
+    cavity=MonsterSDF_OffsetRange(cavity,(1-dev)*Range_Max(m->hostRadii.x,Range_Max(m->hostRadii.y,m->hostRadii.z))*2);
     d=MonsterSDF_SubtractRange(d,cavity,m->rimBevel);
     dev=MonsterSDF_ClampDouble(m->cephalicDevelopment,0,1);double weight=dev*dev*(3-2*dev);
     Vector3 left=Vec3_Add(m->leftOrbitCenterLocal,Vec3_Scale(m->leftOrbitNormal,m->orbitRadii.x*.18f));
@@ -2082,7 +2199,7 @@ static MonsterSDFRange MonsterSDF_HeadCuttersRange(const MonsterSDFMouth* m,Vect
         MonsterSDF_ShallowRange(center,half,right,m->orbitRadii,m->rightOrbitNormal,m->orbitSocketDepth),0);
     d=MonsterSDF_SubtractRange(d,MonsterSDF_OffsetRange(cavity,(1-weight)*m->orbitRadii.x*2),m->headUnionSmoothness*.06);
     Vector3 ln=Vec3_Normalize(Vec3_Create(1,.78f,.12f)),rn=ln;rn.x*=-1;
-    float depth=fminf(m->nostrilRadii.x,m->nostrilRadii.y)*.58f;
+    float depth=Range_MinF(m->nostrilRadii.x,m->nostrilRadii.y)*.58f;
     cavity=MonsterSDF_UnionRange(MonsterSDF_ShallowRange(center,half,m->leftNostrilCenterLocal,m->nostrilRadii,ln,depth),
         MonsterSDF_ShallowRange(center,half,m->rightNostrilCenterLocal,m->nostrilRadii,rn,depth),0);
     d=MonsterSDF_SubtractRange(d,MonsterSDF_OffsetRange(cavity,(1-weight)*m->nostrilRadii.x*2),m->headUnionSmoothness*.04);
@@ -2104,11 +2221,22 @@ static void MonsterSDF_AccumulateConnectorRange(const MonsterSDF* sdf,size_t nod
     AABB3D box,Vector3 center,Vector3 half,MonsterSDFRange* accumulated,bool* hasInitial) {
     const MonsterSDFConnectorNode* node=&sdf->connectorNodes[nodeIndex];
     if(!node->hasEligible)return;
+    const AABB3D* positive=&node->positiveBounds;
+    if(box.end.x<positive->start.x||box.start.x>positive->end.x||
+       box.end.y<positive->start.y||box.start.y>positive->end.y||
+       box.end.z<positive->start.z||box.start.z>positive->end.z) {
+        /* Cada hoja vale al menos E+k: conserva cualquier lower<=E y
+         * nunca aumenta el upper de una unión. Sólo consultar el intervalo
+         * detallado de las ramas que pueden cambiar la clasificación. */
+        if(!*hasInitial){*accumulated=(MonsterSDFRange){.0003,FLT_MAX};*hasInitial=true;}
+        else accumulated->lo=Range_Min(accumulated->lo,.0003);
+        return;
+    }
     if(*hasInitial && node->lowerBoundScale>0) {
         const AABB3D* b=&node->bounds;
-        double dx=fmax(0,fmax(b->start.x-box.end.x,box.start.x-b->end.x));
-        double dy=fmax(0,fmax(b->start.y-box.end.y,box.start.y-b->end.y));
-        double dz=fmax(0,fmax(b->start.z-box.end.z,box.start.z-b->end.z));
+        double dx=Range_Max(0,Range_Max(b->start.x-box.end.x,box.start.x-b->end.x));
+        double dy=Range_Max(0,Range_Max(b->start.y-box.end.y,box.start.y-b->end.y));
+        double dz=Range_Max(0,Range_Max(b->start.z-box.end.z,box.start.z-b->end.z));
         double cutoff=accumulated->hi+node->smoothnessSum+1e-5;
         if((dx>0 || dy>0 || dz>0) &&
             (cutoff<0 || sqrt(dx*dx+dy*dy+dz*dz)*node->lowerBoundScale>cutoff))return;
@@ -2127,16 +2255,107 @@ static void MonsterSDF_AccumulateConnectorRange(const MonsterSDF* sdf,size_t nod
         accumulated->hi=MonsterSDF_RangeSmoothMin(accumulated->hi,range.hi,connector->localSmoothness);
     }
 }
+/* Cota positiva de rangos contiguos sin resolver secciones elípticas.
+ * Sólo sirve si cada hoja está fuera de su soporte. Una intersección con
+ * cualquier soporte devuelve "desconocido" y conserva la ruta completa. */
+static bool MonsterSDF_PositiveConnectorBound(const MonsterSDF* sdf,size_t index,AABB3D box,double* lower) {
+    const MonsterSDFConnectorNode* node=&sdf->connectorNodes[index];
+    if(!node->hasEligible)return true;
+    double dx=Range_Max(0,Range_Max(node->bounds.start.x-box.end.x,box.start.x-node->bounds.end.x));
+    double dy=Range_Max(0,Range_Max(node->bounds.start.y-box.end.y,box.start.y-node->bounds.end.y));
+    double dz=Range_Max(0,Range_Max(node->bounds.start.z-box.end.z,box.start.z-node->bounds.end.z));
+    double distance=sqrt(dx*dx+dy*dy+dz*dz)*node->lowerBoundScale;
+    if((dx>0||dy>0||dz>0)&&distance>*lower+node->smoothnessSum+1e-5)return true;
+    if(node->end-node->begin>1) {
+        return MonsterSDF_PositiveConnectorBound(sdf,node->left,box,lower)&&
+            MonsterSDF_PositiveConnectorBound(sdf,node->right,box,lower);
+    }
+    const MonsterSDFConnector* c=&sdf->connectors[node->begin];
+    if(sdf->axialStationCount>1&&c->kind==BODY_CONNECTION_AXIAL_LOFT)return true;
+    if(!(dx>0||dy>0||dz>0)||node->lowerBoundScale<=0)return false;
+    *lower=MonsterSDF_RangeSmoothMin(*lower,distance,c->localSmoothness);
+    return *lower>1e-5;
+}
+/* smin(a,b,k) >= E si a>=E y b>=E+k. Los soportes compilados
+ * permiten mantener ese invariante por todo el árbol sin raíces ni perfiles. */
+static bool MonsterSDF_OutsidePositiveConnectors(const MonsterSDF* sdf,size_t index,AABB3D box) {
+    const MonsterSDFConnectorNode* node=&sdf->connectorNodes[index];
+    if(!node->hasEligible)return true;
+    const AABB3D* b=&node->positiveBounds;
+    if(box.end.x<b->start.x||box.start.x>b->end.x||box.end.y<b->start.y||
+       box.start.y>b->end.y||box.end.z<b->start.z||box.start.z>b->end.z)return true;
+    if(node->end-node->begin==1)return false;
+    return MonsterSDF_OutsidePositiveConnectors(sdf,node->left,box)&&
+        MonsterSDF_OutsidePositiveConnectors(sdf,node->right,box);
+}
+static bool MonsterSDF_FarFromPositiveHeads(const MonsterSDF* sdf,AABB3D box) {
+    for(size_t i=0;i<sdf->mouthCount;++i) {
+        const AABB3D* b=&sdf->mouths[i].positiveHeadBounds;Vector3 size=AABB_Size(*b);
+        if(size.x<=0||size.y<=0||size.z<=0||
+           !(box.end.x<b->start.x||box.start.x>b->end.x||box.end.y<b->start.y||
+             box.start.y>b->end.y||box.end.z<b->start.z||box.start.z>b->end.z))return false;
+    }
+    return true;
+}
+
 static bool MonsterSDF_GetCellRangeWrapper(const void* context,AABB3D box,float* minimum,float* maximum) {
     const MonsterSDF* sdf=(const MonsterSDF*)context;
     if(!sdf || sdf->bodyPartCount || (!sdf->connectorCount && sdf->axialStationCount<2))return false;
+    if(sdf->connectorCount && !sdf->connectorNodeCount)return false;
     for(size_t i=0;i<sdf->mouthCount;++i)
         if(!sdf->mouths[i].anatomicalHead)return false;
     Vector3 center=Vec3_Scale(Vec3_Add(box.start,box.end),.5f),half=Vec3_Scale(AABB_Size(box),.5f);
     bool hasInitial=sdf->axialStationCount>1;
+    bool hierarchyCompatible=hasInitial==sdf->connectorNodesUseAxial;
     MonsterSDFRange accumulated=hasInitial?MonsterSDF_StationsRange(sdf->axialStations,sdf->axialStationCount,box):(MonsterSDFRange){1e6,1e6};
-    if(sdf->connectorNodeCount)
+    bool farHeads=MonsterSDF_FarFromPositiveHeads(sdf,box);
+    double axialMargin=1e-5*Range_Max(1,Range_Max(fabs(accumulated.lo),fabs(accumulated.hi)));
+    if(hierarchyCompatible&&(!hasInitial||accumulated.lo>.0003+axialMargin)&&farHeads&&
+       (!sdf->connectorNodeCount||MonsterSDF_OutsidePositiveConnectors(sdf,0,box))) {
+        *minimum=.0002f;*maximum=FLT_MAX;return true;
+    }
+    if(hasInitial&&hierarchyCompatible&&accumulated.lo>1e-5&&farHeads) {
+        double lower=accumulated.lo;
+        if(!sdf->connectorNodeCount||MonsterSDF_PositiveConnectorBound(sdf,0,box,&lower)) {
+            for(size_t i=0;i<sdf->mouthCount;++i)
+                lower=MonsterSDF_RangeSmoothMin(lower,sdf->mouths[i].headBodySmoothness,sdf->mouths[i].headBodySmoothness);
+            double margin=1e-5*Range_Max(1,fabs(lower));
+            if(lower>margin){*minimum=(float)(lower-margin);*maximum=FLT_MAX;return true;}
+        }
+    }
+    if(sdf->connectorNodeCount&&hierarchyCompatible)
         MonsterSDF_AccumulateConnectorRange(sdf,0,box,center,half,&accumulated,&hasInitial);
+    else for(size_t i=0;i<sdf->connectorCount;++i) {
+        const MonsterSDFConnector* c=&sdf->connectors[i];
+        if(c->isHeadNeck||(sdf->axialStationCount>1&&c->kind==BODY_CONNECTION_AXIAL_LOFT))continue;
+        MonsterSDFRange range=MonsterSDF_ConnectorRange(c,center,half);
+        if(!hasInitial){accumulated=range;hasInitial=true;}
+        else accumulated=MonsterSDF_UnionRange(accumulated,range,c->localSmoothness);
+    }
+    if(sdf->hasSubtractionBounds && (accumulated.hi < -sdf->subtractionLevel ||
+        (farHeads && accumulated.lo<=0 && accumulated.hi>=0))) {
+        const AABB3D* cuts=&sdf->subtractionBounds;
+        if(box.end.x<cuts->start.x||box.start.x>cuts->end.x||box.end.y<cuts->start.y||
+           box.start.y>cuts->end.y||box.end.z<cuts->start.z||box.start.z>cuts->end.z) {
+            double upper=fmax(accumulated.hi,-sdf->subtractionLevel)+
+                sdf->subtractionBudget+sdf->subtractionRoundoff;
+            /* Una celda corporal incierta lejos de cabeza y cutters sigue
+             * incierta: evitar resolver recetas que no certifican su signo. */
+            if(upper<-.0001 || (farHeads && accumulated.lo<=0 && accumulated.hi>=0)) {
+                *minimum=-FLT_MAX;*maximum=(float)upper;return true;
+            }
+        }
+    }
+    /* Lejos del soporte de cabeza, el subnivel cefálico no puede crear una
+     * superficie en un intervalo corporal ya positivo. Las restas tampoco
+     * reducen el campo. Certificar primero evita resolver todas las cavidades. */
+    if(accumulated.lo>0) {
+        double lower=accumulated.lo;
+        for(size_t i=0;i<sdf->mouthCount;++i)
+            lower=MonsterSDF_RangeSmoothMin(lower,sdf->mouths[i].headBodySmoothness,sdf->mouths[i].headBodySmoothness);
+        double margin=1e-5*Range_Max(1,fabs(lower));
+        if(farHeads && lower>margin) {*minimum=(float)(lower-margin);*maximum=FLT_MAX;return true;}
+    }
     for(size_t i=0;i<sdf->mouthCount;++i) {
         const MonsterSDFMouth* m=&sdf->mouths[i];Vector3 local,extent;
         MonsterSDF_LocalCell(m,center,half,&local,&extent);
@@ -2148,7 +2367,7 @@ static bool MonsterSDF_GetCellRangeWrapper(const void* context,AABB3D box,float*
         accumulated=MonsterSDF_HeadCuttersRange(m,local,extent,accumulated);
     }
     /* Redondeo exterior frente a las operaciones float de la evaluación escalar. */
-    double margin=1e-5*fmax(1,fmax(fabs(accumulated.lo),fabs(accumulated.hi)));
+    double margin=1e-5*Range_Max(1,Range_Max(fabs(accumulated.lo),fabs(accumulated.hi)));
     *minimum=(float)(accumulated.lo-margin);*maximum=(float)(accumulated.hi+margin);
     return isfinite(*minimum) && isfinite(*maximum);
 }
@@ -2384,7 +2603,7 @@ static float MonsterSDF_EvalPosedMouthDistance(const MonsterSDFMouth* mouth,Vect
     float jaw=MonsterSDF_EvalJawCarvedDistance(mouth,rest)*scale;
     rest=Vec3_Add(pivot,Vec3_Scale(rel,1.0f/scale));
     float h=Math_Max(mouth->seamScale,.0001f);
-    for(int iteration=0;iteration<6;++iteration) {
+    for(int iteration=0;angle!=0.0f&&iteration<6;++iteration) {
         float skull=Math_Min(Vec3_Distance(rest,mouth->seamSkullLeftLocal),Vec3_Distance(rest,mouth->seamSkullRightLocal));
         skull=Math_Min(skull,Vec3_Distance(rest,mouth->seamGularLocal));
         skull=Math_Min(skull,Vec3_Distance(rest,pivot));
@@ -2435,6 +2654,39 @@ static uint64_t SurfaceFeatureHash(const void* data,size_t bytes) {
     const unsigned char* p=data;uint64_t hash=1469598103934665603ULL;
     for(size_t i=0;i<bytes;++i){hash^=p[i];hash*=1099511628211ULL;}return hash;
 }
+/* Subdividir controles de Bézier sólo estrecha las cotas, sin cambiar el
+ * barrido ni el voxel. Evita extender todo un tramo por el radio de su punta. */
+static void SurfaceSweepBounds(AABB3D* box,float controls[3][4],float z0,float z1,
+    float x0,float x1,float level,unsigned depth) {
+    bool split=false;
+    for(int k=0;k<2;++k) {
+        float lo=controls[k][0],hi=lo;
+        for(int j=1;j<4;++j){lo=fminf(lo,controls[k][j]);hi=fmaxf(hi,controls[k][j]);}
+        split|=fmaxf(hi,.0001f)>2*fmaxf(lo,.0001f);
+    }
+    if(depth && split) {
+        float left[3][4],right[3][4];
+        for(int k=0;k<3;++k) {
+            float* c=controls[k];float a=(c[0]+c[1])*.5f,b=(c[1]+c[2])*.5f,d=(c[2]+c[3])*.5f;
+            float e=(a+b)*.5f,f=(b+d)*.5f,g=(e+f)*.5f;
+            left[k][0]=c[0];left[k][1]=a;left[k][2]=e;left[k][3]=g;
+            right[k][0]=g;right[k][1]=f;right[k][2]=d;right[k][3]=c[3];
+        }
+        float z=(z0+z1)*.5f;
+        SurfaceSweepBounds(box,left,z0,z,x0,x1,level,depth-1);
+        SurfaceSweepBounds(box,right,z,z1,x0,x1,level,depth-1);return;
+    }
+    float lo[3],hi[3];
+    for(int k=0;k<3;++k) {
+        lo[k]=hi[k]=controls[k][0];
+        for(int j=1;j<4;++j){lo[k]=fminf(lo[k],controls[k][j]);hi[k]=fmaxf(hi[k],controls[k][j]);}
+    }
+    float factor=1+level/fmaxf(fminf(lo[0],lo[1]),.0001f);
+    float wx=fmaxf(hi[0],.0001f)*factor,hy=fmaxf(hi[1],.0001f)*factor;
+    float cap=fmaxf(hi[0],hi[1])+level;
+    AABB_ExpandPoint(box,Vec3_Create(fminf(x0,x1)-wx,lo[2]-hy,fminf(z0,z1)-cap));
+    AABB_ExpandPoint(box,Vec3_Create(fmaxf(x0,x1)+wx,hi[2]+hy,fmaxf(z0,z1)+cap));
+}
 size_t MonsterSDF_CollectSurfaceFeatures(const MonsterSDF* sdf,MonsterSDFSurfaceFeature* out,size_t capacity,float band) {
     if(!sdf||!isfinite(band)||band<0)return SIZE_MAX;
     size_t needed=sdf->bodyPartCount+(sdf->axialStationCount>1?(size_t)sdf->axialStationCount-1:0);
@@ -2444,44 +2696,75 @@ size_t MonsterSDF_CollectSurfaceFeatures(const MonsterSDF* sdf,MonsterSDFSurface
     if(!out)return needed;
     if(capacity<needed)return SIZE_MAX;
     size_t count=0;
-#define FEATURE(type,key,box,hash,module) do {AABB3D b=(box);AABB_Pad(&b,band);out[count++]=(MonsterSDFSurfaceFeature){((uint64_t)(type)<<56)|(uint64_t)(key),(hash),b,(module)};} while(0)
-    float blend=0;
-    for(size_t i=0;i<sdf->connectorCount;++i)blend=fmaxf(blend,sdf->connectors[i].localSmoothness);
-    for(size_t i=0;i<sdf->mouthCount;++i)blend=fmaxf(blend,sdf->mouths[i].headBodySmoothness);
-    if(sdf->bodyPartCount)blend=fmaxf(blend,sdf->config.bodySmoothness);
+    /* Un soporte individual puede ser muy laxo (puntas axiales finas). La
+     * envolvente global certificada contiene toda la superficie: intersectar
+     * ambas cotas conserva el campo visible sin sembrar bricks exteriores. */
+    AABB3D domain=sdf->bounds;AABB_Pad(&domain,band);
+#define FEATURE(type,key,box,hash,module) do {AABB3D b=(box);AABB_Pad(&b,band); \
+    b.start.x=fmaxf(b.start.x,domain.start.x);b.start.y=fmaxf(b.start.y,domain.start.y);b.start.z=fmaxf(b.start.z,domain.start.z); \
+    b.end.x=fminf(b.end.x,domain.end.x);b.end.y=fminf(b.end.y,domain.end.y);b.end.z=fminf(b.end.z,domain.end.z); \
+    out[count++]=(MonsterSDFSurfaceFeature){((uint64_t)(type)<<56)|(uint64_t)(key),(hash),b,(module)};} while(0)
+    /* Si una hoja influye en f=smin(a,b,k), su valor es <=f+k.
+     * Acumular las uniones posteriores certifica dependencia, no solamente
+     * ausencia de ceros. Las restas no amplían este presupuesto hacia atrás. */
+    double headBudget=0,connectorBudget=0;
+    for(size_t i=0;i<sdf->mouthCount;++i) {
+        const MonsterSDFMouth* m=&sdf->mouths[i];
+        headBudget+=m->anatomicalHead?fmax(m->headBodySmoothness,0):2*fmax(m->muzzleSmoothness,0);
+    }
+    for(size_t i=0;i<sdf->connectorCount;++i) {
+        const MonsterSDFConnector* c=&sdf->connectors[i];
+        if(!c->isHeadNeck&&!(sdf->axialStationCount>1&&c->kind==BODY_CONNECTION_AXIAL_LOFT))
+            connectorBudget+=fmax(c->localSmoothness,0);
+    }
+    float minimumBlend=0;
+    for(size_t i=0;i<sdf->connectorCount;++i)minimumBlend=fmaxf(minimumBlend,sdf->connectors[i].localSmoothness);
+    for(size_t i=0;i<sdf->mouthCount;++i)minimumBlend=fmaxf(minimumBlend,sdf->mouths[i].headBodySmoothness);
+    if(sdf->bodyPartCount)minimumBlend=fmaxf(minimumBlend,sdf->config.bodySmoothness);
+    double bodyBudget=headBudget+connectorBudget+fmax(sdf->config.bodySmoothness,0)*sdf->bodyPartCount;
+    float blend=nextafterf((float)fmax(bodyBudget,minimumBlend),INFINITY);
     for(size_t i=0;i<sdf->bodyPartCount;++i) {
-        const MonsterSDFBodyPart* p=&sdf->bodyParts[i];AABB3D box=AABB_Empty();RayBounds_Ellipsoid(&box,p->center,p->radii,blend);
-        float params[]={p->center.x,p->center.y,p->center.z,p->radii.x,p->radii.y,p->radii.z,blend};
+        const MonsterSDFBodyPart* p=&sdf->bodyParts[i];AABB3D box=AABB_Empty();
+        float level=nextafterf((float)fmax(minimumBlend,headBudget+connectorBudget+fmax(sdf->config.bodySmoothness,0)*(sdf->bodyPartCount-i)),INFINITY);
+        RayBounds_Ellipsoid(&box,p->center,p->radii,level);
+        float params[]={p->center.x,p->center.y,p->center.z,p->radii.x,p->radii.y,p->radii.z,level};
         FEATURE(1,i,box,SurfaceFeatureHash(params,sizeof(params)),0);
     }
     for(int i=0;i<sdf->axialStationCount-1;++i) {
         const SDFSweepStation *a=&sdf->axialStations[i],*b=&sdf->axialStations[i+1];
-        float span=b->center.z-a->center.z,w0,w1,h0,h1,y0,y1;
-        RayBounds_Cubic(a->width,b->width,a->widthSlope,b->widthSlope,span,&w0,&w1);
-        RayBounds_Cubic(a->height,b->height,a->heightSlope,b->heightSlope,span,&h0,&h1);
-        RayBounds_Cubic(a->center.y,b->center.y,a->centerSlope,b->centerSlope,span,&y0,&y1);
-        float factor=1+blend/fmaxf(fminf(w0,h0),.0001f),wx=fmaxf(w1,.0001f)*factor,hy=fmaxf(h1,.0001f)*factor;
-        float cap=fmaxf(w1,h1)+blend;
-        AABB3D box={Vec3_Create(fminf(a->center.x,b->center.x)-wx,y0-hy,b->center.z-cap),Vec3_Create(fmaxf(a->center.x,b->center.x)+wx,y1+hy,a->center.z+cap)};
+        float span=b->center.z-a->center.z;
+        float controls[3][4]={{a->width,a->width+span*a->widthSlope/3,b->width-span*b->widthSlope/3,b->width},
+            {a->height,a->height+span*a->heightSlope/3,b->height-span*b->heightSlope/3,b->height},
+            {a->center.y,a->center.y+span*a->centerSlope/3,b->center.y-span*b->centerSlope/3,b->center.y}};
+        AABB3D box=AABB_Empty();
+        SurfaceSweepBounds(&box,controls,a->center.z,b->center.z,a->center.x,b->center.x,blend,12);
+        AABB_Pad(&box,1e-5f);
         SDFSweepStation parameters[]={*a,*b};uint64_t fp=SurfaceFeatureHash(parameters,sizeof(parameters))^SurfaceFeatureHash(&blend,sizeof(blend));
         FEATURE(2,i,box,fp,1);
     }
+    double remaining=headBudget+connectorBudget;
     for(size_t i=0;i<sdf->connectorCount;++i) {
         const MonsterSDFConnector* c=&sdf->connectors[i];
         if(c->isHeadNeck||(sdf->axialStationCount>1&&c->kind==BODY_CONNECTION_AXIAL_LOFT))continue;
-        AABB3D box=c->bounds;AABB_Pad(&box,blend/fmaxf(c->distanceLowerBoundScale,.0001f));
+        float level=nextafterf((float)fmax(remaining,minimumBlend),INFINITY);
+        AABB3D box=MonsterSDF_ConnectorSublevelBounds(c,level);
+        remaining-=fmax(c->localSmoothness,0);
         float parameters[]={c->a.x,c->a.y,c->a.z,c->forward.x,c->forward.y,c->forward.z,c->side.x,c->side.y,c->side.z,
-            c->up.x,c->up.y,c->up.z,c->length,c->widthA,c->widthB,c->heightA,c->heightB,c->widthBulge,c->heightBulge,c->localSmoothness,blend};
-        uint64_t id=c->toId?c->toId:i;
+            c->up.x,c->up.y,c->up.z,c->length,c->widthA,c->widthB,c->heightA,c->heightB,c->widthBulge,c->heightBulge,c->localSmoothness,level};
+        uint64_t id=c->connectionId?c->connectionId:(c->toId?c->toId:i);
         FEATURE(3,id,box,SurfaceFeatureHash(parameters,sizeof(parameters)),c->moduleInstanceId);
     }
     for(size_t i=0;i<sdf->mouthCount;++i) {
         MonsterSDFMouth copy=sdf->mouths[i];copy.skinColor=(Color){0};copy.insideColor=(Color){0};
-        uint64_t fp=SurfaceFeatureHash(&copy,sizeof(copy));MonsterSDFMouth expanded=RayBounds_PackedMouth(&copy,blend,.0001f);
+        float headLevel=nextafterf((float)headBudget,INFINITY);
+        uint64_t fp=SurfaceFeatureHash(&copy,sizeof(copy))^SurfaceFeatureHash(&headLevel,sizeof(headLevel));
+        headBudget-=copy.anatomicalHead?fmax(copy.headBodySmoothness,0):2*fmax(copy.muzzleSmoothness,0);
+        copy.headBounds=AABB_Empty();copy.influenceBounds=AABB_Empty();
+        /* La cabeza se une después de todos los conectores: sólo su propia
+         * unión cabeza-cuerpo puede extender este soporte, no k de los dedos. */
+        MonsterSDFMouth expanded=RayBounds_PackedMouth(&copy,headLevel,.0001f);
         FEATURE(4,i,expanded.headBounds,fp,2);
-        AABB3D jaw=AABB_Empty();float radius=copy.visualJawBoundRadius;
-        Vector3 center=MonsterSDF_LocalToWorld(&copy,copy.visualJawPivot);AABB_ExpandRadius(&jaw,center,Vec3_Create(radius,radius,radius));
-        FEATURE(5,i,jaw,fp,2);
+        FEATURE(5,i,expanded.visualBounds,fp,2);
         if(copy.hasEars) {
             AABB3D left=AABB_Empty(),right=AABB_Empty();Vector3 radii=Vec3_Add(copy.earRadii,Vec3_Create(blend,blend,blend));
             AABB_ExpandRadius(&left,copy.leftEarCenterLocal,radii);AABB_ExpandRadius(&right,copy.rightEarCenterLocal,radii);

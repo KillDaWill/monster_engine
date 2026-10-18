@@ -1,0 +1,244 @@
+[
+  {
+    "age": 0.0,
+    "view": 4,
+    "geometry_gate_pass": false,
+    "history": {
+      "silhouette_different_pixels": 0,
+      "depth_world": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "max": 0.0
+      },
+      "same_age_pass": true,
+      "same_published_bricks": true,
+      "same_unique_edges": true,
+      "same_grid_origin": true,
+      "allocator_valid": true
+    },
+    "overflow": 0,
+    "allocator_integrity_errors": 0,
+    "head_regions": [
+      {
+        "feature": "head",
+        "reference_pixels": 73117,
+        "visible": true,
+        "missing_pixels": 1242,
+        "missing_connected_regions": 27,
+        "depth_world": {
+          "p50": 0.00019979476928710938,
+          "p95": 0.0023775100708007812,
+          "p99": 0.03650183677673332,
+          "max": 1.1726081371307373
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      },
+      {
+        "feature": "left-ear",
+        "reference_pixels": 13163,
+        "visible": true,
+        "missing_pixels": 205,
+        "missing_connected_regions": 9,
+        "depth_world": {
+          "p50": 0.00016021728515625,
+          "p95": 0.004308521747589111,
+          "p99": 0.01655347347259521,
+          "max": 1.1726081371307373
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      },
+      {
+        "feature": "right-ear",
+        "reference_pixels": 6745,
+        "visible": true,
+        "missing_pixels": 249,
+        "missing_connected_regions": 8,
+        "depth_world": {
+          "p50": 0.00021076202392578125,
+          "p95": 0.005242776870727535,
+          "p99": 0.012358989715576158,
+          "max": 0.2726707458496094
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      }
+    ]
+  },
+  {
+    "age": 0.35,
+    "view": 4,
+    "geometry_gate_pass": false,
+    "history": {
+      "silhouette_different_pixels": 0,
+      "depth_world": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "max": 0.0
+      },
+      "same_age_pass": true,
+      "same_published_bricks": true,
+      "same_unique_edges": true,
+      "same_grid_origin": true,
+      "allocator_valid": true
+    },
+    "overflow": 0,
+    "allocator_integrity_errors": 0,
+    "head_regions": [
+      {
+        "feature": "head",
+        "reference_pixels": 76816,
+        "visible": true,
+        "missing_pixels": 614,
+        "missing_connected_regions": 20,
+        "depth_world": {
+          "p50": 0.00016450881958007812,
+          "p95": 0.0017240047454833984,
+          "p99": 0.019584059715271017,
+          "max": 1.5838446617126465
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      },
+      {
+        "feature": "left-ear",
+        "reference_pixels": 6867,
+        "visible": true,
+        "missing_pixels": 156,
+        "missing_connected_regions": 7,
+        "depth_world": {
+          "p50": 0.00020170211791992188,
+          "p95": 0.007110726833343502,
+          "p99": 0.2705508685112,
+          "max": 1.1322426795959473
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      },
+      {
+        "feature": "right-ear",
+        "reference_pixels": 3108,
+        "visible": true,
+        "missing_pixels": 166,
+        "missing_connected_regions": 6,
+        "depth_world": {
+          "p50": 0.0003180503845214844,
+          "p95": 0.00639653205871582,
+          "p99": 0.014270544052124023,
+          "max": 0.10596227645874023
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      }
+    ]
+  },
+  {
+    "age": 0.9,
+    "view": 4,
+    "geometry_gate_pass": false,
+    "history": {
+      "silhouette_different_pixels": 0,
+      "depth_world": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "max": 0.0
+      },
+      "same_age_pass": true,
+      "same_published_bricks": true,
+      "same_unique_edges": true,
+      "same_grid_origin": true,
+      "allocator_valid": true
+    },
+    "overflow": 0,
+    "allocator_integrity_errors": 0,
+    "head_regions": [
+      {
+        "feature": "head",
+        "reference_pixels": 134762,
+        "visible": true,
+        "missing_pixels": 348,
+        "missing_connected_regions": 4,
+        "depth_world": {
+          "p50": 9.131431579589844e-05,
+          "p95": 0.001054525375366211,
+          "p99": 0.007370164394378667,
+          "max": 1.764232873916626
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      },
+      {
+        "feature": "left-ear",
+        "reference_pixels": 0,
+        "visible": false,
+        "missing_pixels": 0,
+        "missing_connected_regions": 0,
+        "depth_world": null,
+        "completely_missing": false,
+        "regional_pass": null,
+        "coverage_status": "unobserved"
+      },
+      {
+        "feature": "right-ear",
+        "reference_pixels": 0,
+        "visible": false,
+        "missing_pixels": 0,
+        "missing_connected_regions": 0,
+        "depth_world": null,
+        "completely_missing": false,
+        "regional_pass": null,
+        "coverage_status": "unobserved"
+      }
+    ]
+  },
+  {
+    "age": 1.0,
+    "view": 4,
+    "geometry_gate_pass": false,
+    "history": {
+      "silhouette_different_pixels": 0,
+      "depth_world": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "max": 0.0
+      },
+      "same_age_pass": true,
+      "same_published_bricks": true,
+      "same_unique_edges": true,
+      "same_grid_origin": true,
+      "allocator_valid": true
+    },
+    "overflow": 0,
+    "allocator_integrity_errors": 0,
+    "head_regions": [
+      {
+        "feature": "head",
+        "reference_pixels": 137589,
+        "visible": true,
+        "missing_pixels": 603,
+        "missing_connected_regions": 8,
+        "depth_world": {
+          "p50": 9.107589721679688e-05,
+          "p95": 0.0010962486267089844,
+          "p99": 0.01094126701354986,
+          "max": 1.5491702556610107
+        },
+        "completely_missing": false,
+        "regional_pass": false,
+        "coverage_status": "observed"
+      }
+    ]
+  }
+]

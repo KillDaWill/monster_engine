@@ -1,0 +1,22 @@
+[SDF GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02; extracción experimental sin readback
+[MATERIAL GPU] frame=0 error_rgb=0
+[MATERIAL GPU] frame=1 error_rgb=0
+[MATERIAL GPU] frame=2 error_rgb=0
+[MATERIAL GPU] frame=3 error_rgb=0
+[MATERIAL GPU] frame=4 error_rgb=0
+[MATERIAL GPU] frame=5 error_rgb=0
+[MATERIAL GPU] frame=6 error_rgb=0
+[MATERIAL GPU] frame=7 error_rgb=0
+[PARIDAD] edad=0.00 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=0.10 puntos=2334 compute=4.76837e-07 fragment=7.7486e-07
+[PARIDAD] edad=0.20 puntos=2334 compute=8.34465e-07 fragment=8.34465e-07
+[PARIDAD] edad=0.35 puntos=2334 compute=5.96046e-07 fragment=7.15256e-07
+[PARIDAD] edad=0.50 puntos=2334 compute=9.53674e-07 fragment=9.53674e-07
+[PARIDAD] edad=0.65 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PARIDAD] edad=0.80 puntos=2334 compute=1.66893e-06 fragment=1.66893e-06
+[PARIDAD] edad=0.90 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=1.00 puntos=2334 compute=9.53674e-07 fragment=9.53674e-07
+[PARIDAD] edad=0.50 puntos=2334 compute=9.53674e-07 fragment=9.53674e-07
+[PARIDAD] edad=0.00 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PASS] Raíz propietaria posterior y caché densa GPU

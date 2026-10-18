@@ -182,12 +182,31 @@ static AnatomyNode Counterpart(const AnatomyGraph* own,const AnatomyGraph* other
     if(match)return *match;
     AnatomyNode collapsed=*n;
     AnatomyId id=n->id;
+    const AnatomyNode* root=n;
     for(size_t depth=0;depth<own->nodeCount;++depth) {
         const BodyConnection* parent=Incoming(own,id);
         if(!parent)break;
         id=parent->fromId;
         match=AnatomyGraph_FindNode(other,id);
-        if(match){collapsed.center=match->center;break;}
+        if(match){
+            collapsed.center=match->center;
+            if(n->region==ANATOMY_REGION_ORNAMENT) {
+                const AnatomyNode* host=AnatomyGraph_FindNode(own,id);
+                if(host) {
+                    /* El brote nace en su ranura superficial, no en el centro
+                     * del anfitrión. Todos sus nodos colapsan en la misma raíz. */
+                    Vector3 offset=Vec3_Sub(root->center,host->center);
+                    Vector3 from=host->envelopeRadii,to=match->envelopeRadii;
+                    offset.x*=to.x/fmaxf(from.x,1e-6f);
+                    offset.y*=to.y/fmaxf(from.y,1e-6f);
+                    offset.z*=to.z/fmaxf(from.z,1e-6f);
+                    collapsed.center=Vec3_Add(match->center,offset);
+                }
+            }
+            break;
+        }
+        const AnatomyNode* ancestor=AnatomyGraph_FindNode(own,id);
+        if(ancestor&&ancestor->region==ANATOMY_REGION_ORNAMENT)root=ancestor;
     }
     collapsed.widthRadius=collapsed.heightRadius=1e-6f;
     collapsed.envelopeRadii=Vec3_Zero();

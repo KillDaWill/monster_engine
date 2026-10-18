@@ -1,0 +1,238 @@
+=================================================================
+ Monster Engine | Demo Visual del Juego: Escena Ortogonal
+=================================================================
+ Controles de cámara y escena:
+   1..4: Cuatro ángulos isométricos axiales (NE, NW, SW, SE)
+   Q / E: Rotación isométrica suave de la vista
+   W / S / A / D: Desplazar objetivo de cámara por el plano
+   + / - (Z / X): Zoom ortogonal (acercar / alejar)
+   F: Alternar pelaje procedural del perro
+   T: Mutar aleatoriamente el lagarto (MonsterAger)
+   D: Mostrar/ocultar límites del plano y vectores
+   Espacio: Pausar / reanudar simulación
+   Escape: Salir
+=================================================================
+
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=4
+[Escenario] Plano 3D generado con 13440 vértices y 6720 triángulos.
+[Criatura] Perro preparado (80881 vértices).
+[Criatura] Lagarto GPU preparado: Emerald Climber (voxel 0.075).
+[REACH SAFETY] id=2 reason=0 foot=0.00058
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.037
+[REACH JOINT] id=2 joint=65539 angle=0.0000 comfort=0.0780
+[REACH JOINT] id=2 joint=65538 angle=0.0000 comfort=0.0780
+[REACH JOINT] id=2 joint=4294901762 angle=0.0000 comfort=0.9100
+[REACH JOINT] id=2 joint=65537 angle=0.0000 comfort=0.4875
+[REACH JOINT] id=2 joint=131073 angle=0.0000 comfort=0.6175
+[REACH SCENE] frame=0 id=2 phase=1 status=0 error=0.00000 orientation=0.00000 speed=0.00000 stable=0.000 saturation=0.000 target=-2.914,0.025,-1.459 mouth=-2.914,3.927,-1.459
+[AI] frame=0 id=2 brain=balanced goal=6 action=approach_food thirst=0.0000 visible=1 remembered=1 target=4 distance=1.262 drinks=0 completed=0 failures=0 mouth_y=3.927 clearance=0.950 mouth_bank=8.951 forward=0.950 speed=0.000 yaw=0.800 random=137 mode=move
+[REACH SAFETY] id=3 reason=0 foot=0.00036
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.240
+[REACH JOINT] id=3 joint=65539 angle=0.0000 comfort=0.0780
+[REACH JOINT] id=3 joint=65538 angle=0.0000 comfort=0.0780
+[REACH JOINT] id=3 joint=4294901762 angle=0.0000 comfort=0.9100
+[REACH JOINT] id=3 joint=65537 angle=0.0000 comfort=0.4875
+[REACH JOINT] id=3 joint=131073 angle=0.0000 comfort=0.6175
+[REACH SCENE] frame=0 id=3 phase=3 status=0 error=0.00000 orientation=0.00000 speed=0.00000 stable=0.000 saturation=0.000 target=8.725,0.025,-5.558 mouth=8.725,1.206,-5.558
+[AI] frame=0 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=1.206 clearance=0.650 mouth_bank=14.376 forward=0.622 speed=0.000 yaw=3.600 random=238 mode=idle
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02; extracción experimental sin readback
+[REACH SAFETY] id=3 reason=0 foot=0.00036
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=30 id=3 phase=3 status=1 error=0.29335 orientation=0.13548 speed=0.64842 stable=0.000 saturation=0.259 target=8.725,0.025,-5.558 mouth=8.770,0.300,-5.467
+[AI] frame=30 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.300 clearance=0.650 mouth_bank=14.282 forward=0.520 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00036
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=60 id=3 phase=3 status=1 error=0.14486 orientation=0.11368 speed=0.26824 stable=0.000 saturation=0.421 target=8.725,0.025,-5.558 mouth=8.783,0.086,-5.440
+[AI] frame=60 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.086 clearance=0.650 mouth_bank=14.263 forward=0.490 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00163
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.656
+[REACH SCENE] frame=90 id=2 phase=3 status=1 error=3.29093 orientation=0.13231 speed=1.20000 stable=0.000 saturation=0.368 target=-2.761,0.025,-1.301 mouth=-1.996,3.133,-0.536
+[AI] frame=90 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.278 drinks=0 completed=0 failures=0 mouth_y=3.133 clearance=0.950 mouth_bank=7.665 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00037
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=90 id=3 phase=3 status=1 error=0.12396 orientation=0.07033 speed=0.21540 stable=0.000 saturation=0.483 target=8.725,0.025,-5.558 mouth=8.776,0.072,-5.455
+[AI] frame=90 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.072 clearance=0.650 mouth_bank=14.272 forward=0.507 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00173
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH JOINT] id=2 joint=65539 angle=0.0021 comfort=0.0780
+[REACH JOINT] id=2 joint=65538 angle=0.0010 comfort=0.0780
+[REACH JOINT] id=2 joint=4294901762 angle=0.8650 comfort=0.9100
+[REACH JOINT] id=2 joint=65537 angle=0.5797 comfort=0.4875
+[REACH JOINT] id=2 joint=131073 angle=0.4221 comfort=0.6175
+[REACH SCENE] frame=120 id=2 phase=3 status=1 error=1.62952 orientation=0.87895 speed=1.20000 stable=0.000 saturation=0.773 target=-2.761,0.025,-1.301 mouth=-2.169,1.424,-0.712
+[AI] frame=120 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=1.424 clearance=0.950 mouth_bank=7.519 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00037
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH JOINT] id=3 joint=65539 angle=0.0000 comfort=0.0780
+[REACH JOINT] id=3 joint=65538 angle=0.0000 comfort=0.0780
+[REACH JOINT] id=3 joint=4294901762 angle=0.7375 comfort=0.9100
+[REACH JOINT] id=3 joint=65537 angle=0.1110 comfort=0.4875
+[REACH JOINT] id=3 joint=131073 angle=0.4091 comfort=0.6175
+[REACH SCENE] frame=120 id=3 phase=3 status=1 error=0.11199 orientation=0.05493 speed=0.17389 stable=0.000 saturation=0.527 target=8.725,0.025,-5.558 mouth=8.771,0.067,-5.465
+[AI] frame=120 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.067 clearance=0.650 mouth_bank=14.279 forward=0.518 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00171
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=150 id=2 phase=3 status=1 error=0.49276 orientation=1.34790 speed=0.36612 stable=0.000 saturation=0.957 target=-2.761,0.025,-1.301 mouth=-2.617,0.474,-1.158
+[AI] frame=150 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.474 clearance=0.950 mouth_bank=7.970 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00025
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=150 id=3 phase=3 status=1 error=0.08396 orientation=0.03011 speed=0.14523 stable=0.000 saturation=0.571 target=8.725,0.025,-5.558 mouth=8.759,0.055,-5.487
+[AI] frame=150 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.055 clearance=0.650 mouth_bank=14.293 forward=0.544 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00198
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=180 id=2 phase=3 status=1 error=0.36981 orientation=1.40225 speed=0.01779 stable=0.000 saturation=0.998 target=-2.761,0.025,-1.301 mouth=-2.693,0.382,-1.233
+[AI] frame=180 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.382 clearance=0.950 mouth_bank=8.057 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00012
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=180 id=3 phase=3 status=1 error=0.06736 orientation=0.03022 speed=0.07358 stable=0.000 saturation=0.963 target=8.725,0.025,-5.558 mouth=8.753,0.049,-5.501
+[AI] frame=180 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.049 clearance=0.650 mouth_bank=14.302 forward=0.559 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00153
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=210 id=2 phase=3 status=1 error=0.10147 orientation=1.29839 speed=0.89099 stable=0.000 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.796,0.114,-1.335
+[AI] frame=210 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.114 clearance=0.950 mouth_bank=8.175 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00084
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=210 id=3 phase=3 status=1 error=0.06400 orientation=0.03562 speed=0.05410 stable=0.000 saturation=0.998 target=8.725,0.025,-5.558 mouth=8.751,0.048,-5.504
+[AI] frame=210 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.048 clearance=0.650 mouth_bank=14.303 forward=0.562 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00199
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH JOINT] id=2 joint=65539 angle=0.0529 comfort=0.0780
+[REACH JOINT] id=2 joint=65538 angle=0.1175 comfort=0.0780
+[REACH JOINT] id=2 joint=4294901762 angle=1.4000 comfort=0.9100
+[REACH JOINT] id=2 joint=65537 angle=0.5463 comfort=0.4875
+[REACH JOINT] id=2 joint=131073 angle=0.8174 comfort=0.6175
+[REACH SCENE] frame=240 id=2 phase=4 status=2 error=0.00633 orientation=1.15731 speed=0.02710 stable=0.167 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.763,0.030,-1.303
+[AI] frame=240 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.030 clearance=0.950 mouth_bank=8.136 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00003
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH JOINT] id=3 joint=65539 angle=0.0717 comfort=0.0780
+[REACH JOINT] id=3 joint=65538 angle=0.1200 comfort=0.0780
+[REACH JOINT] id=3 joint=4294901762 angle=0.8304 comfort=0.9100
+[REACH JOINT] id=3 joint=65537 angle=0.2791 comfort=0.4875
+[REACH JOINT] id=3 joint=131073 angle=0.3008 comfort=0.6175
+[REACH SCENE] frame=240 id=3 phase=3 status=1 error=0.06240 orientation=0.03901 speed=0.04484 stable=0.000 saturation=1.000 target=8.725,0.025,-5.558 mouth=8.751,0.047,-5.505
+[AI] frame=240 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.047 clearance=0.650 mouth_bank=14.304 forward=0.564 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00191
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=270 id=2 phase=5 status=2 error=0.00307 orientation=1.15928 speed=0.02278 stable=0.667 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.760,0.028,-1.301
+[AI] frame=270 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00020
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=270 id=3 phase=3 status=1 error=0.06128 orientation=0.04144 speed=0.03786 stable=0.000 saturation=1.000 target=8.725,0.025,-5.558 mouth=8.750,0.047,-5.506
+[AI] frame=270 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.047 clearance=0.650 mouth_bank=14.305 forward=0.565 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00140
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=300 id=2 phase=5 status=2 error=0.00191 orientation=1.16307 speed=0.01456 stable=1.167 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.760,0.027,-1.301
+[AI] frame=300 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.027 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00130
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=300 id=3 phase=3 status=1 error=0.06046 orientation=0.04316 speed=0.03242 stable=0.000 saturation=1.000 target=8.725,0.025,-5.558 mouth=8.750,0.047,-5.507
+[AI] frame=300 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.047 clearance=0.650 mouth_bank=14.305 forward=0.565 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00199
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=330 id=2 phase=5 status=2 error=0.00121 orientation=1.16551 speed=0.00909 stable=1.667 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.761,0.026,-1.301
+[AI] frame=330 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.026 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00149
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH SCENE] frame=330 id=3 phase=3 status=1 error=0.05985 orientation=0.04437 speed=0.02804 stable=0.000 saturation=1.000 target=8.725,0.025,-5.558 mouth=8.750,0.046,-5.507
+[AI] frame=330 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=10.296 drinks=0 completed=0 failures=0 mouth_y=0.046 clearance=0.650 mouth_bank=14.306 forward=0.566 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00193
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH JOINT] id=2 joint=65539 angle=0.0529 comfort=0.0780
+[REACH JOINT] id=2 joint=65538 angle=0.1176 comfort=0.0780
+[REACH JOINT] id=2 joint=4294901762 angle=1.4000 comfort=0.9100
+[REACH JOINT] id=2 joint=65537 angle=0.5261 comfort=0.4875
+[REACH JOINT] id=2 joint=131073 angle=0.7877 comfort=0.6175
+[REACH SCENE] frame=360 id=2 phase=5 status=2 error=0.00077 orientation=1.16705 speed=0.00575 stable=2.167 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.761,0.026,-1.301
+[AI] frame=360 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.026 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00103
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.802
+[REACH JOINT] id=3 joint=65539 angle=0.0627 comfort=0.0780
+[REACH JOINT] id=3 joint=65538 angle=0.1200 comfort=0.0780
+[REACH JOINT] id=3 joint=4294901762 angle=0.8739 comfort=0.9100
+[REACH JOINT] id=3 joint=65537 angle=0.3456 comfort=0.4875
+[REACH JOINT] id=3 joint=131073 angle=0.2624 comfort=0.6175
+[REACH SCENE] frame=360 id=3 phase=1 status=1 error=0.05939 orientation=0.04535 speed=0.02438 stable=0.000 saturation=1.000 target=8.725,0.025,-5.558 mouth=8.749,0.046,-5.508
+[AI] frame=360 id=3 brain=balanced goal=6 action=approach_food thirst=0.0000 visible=1 remembered=1 target=5 distance=0.355 drinks=0 completed=0 failures=0 mouth_y=0.046 clearance=0.650 mouth_bank=14.306 forward=0.566 speed=0.000 yaw=-2.683 random=238 mode=move
+[REACH SAFETY] id=2 reason=0 foot=0.00154
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=390 id=2 phase=5 status=2 error=0.00049 orientation=1.16802 speed=0.00367 stable=2.667 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.761,0.025,-1.301
+[AI] frame=390 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.025 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00154
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=390 id=3 phase=5 status=2 error=0.00979 orientation=0.06990 speed=0.00949 stable=0.483 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.030,-5.500
+[AI] frame=390 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.030 clearance=0.650 mouth_bank=14.300 forward=0.557 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00200
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=420 id=2 phase=5 status=2 error=0.00032 orientation=1.16865 speed=0.00234 stable=3.167 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.761,0.025,-1.301
+[AI] frame=420 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.025 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00126
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=420 id=3 phase=5 status=2 error=0.00952 orientation=0.07033 speed=0.00312 stable=0.983 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.753,0.029,-5.500
+[AI] frame=420 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.029 clearance=0.650 mouth_bank=14.300 forward=0.556 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00195
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH SCENE] frame=450 id=2 phase=5 status=2 error=0.00021 orientation=1.16905 speed=0.00153 stable=3.667 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.761,0.025,-1.301
+[AI] frame=450 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.025 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00118
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=450 id=3 phase=5 status=2 error=0.00945 orientation=0.06932 speed=0.00298 stable=1.483 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=450 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.556 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00165
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.940 distance=3.655
+[REACH JOINT] id=2 joint=65539 angle=0.0529 comfort=0.0780
+[REACH JOINT] id=2 joint=65538 angle=0.1176 comfort=0.0780
+[REACH JOINT] id=2 joint=4294901762 angle=1.4000 comfort=0.9100
+[REACH JOINT] id=2 joint=65537 angle=0.5231 comfort=0.4875
+[REACH JOINT] id=2 joint=131073 angle=0.7824 comfort=0.6175
+[REACH SCENE] frame=480 id=2 phase=5 status=2 error=0.00013 orientation=1.16931 speed=0.00099 stable=4.167 saturation=1.000 target=-2.761,0.025,-1.301 mouth=-2.761,0.025,-1.301
+[AI] frame=480 id=2 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=4 distance=0.277 drinks=0 completed=0 failures=0 mouth_y=0.025 clearance=0.950 mouth_bank=8.133 forward=0.950 speed=0.000 yaw=0.798 random=137 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00116
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH JOINT] id=3 joint=65539 angle=0.0546 comfort=0.0780
+[REACH JOINT] id=3 joint=65538 angle=0.1104 comfort=0.0780
+[REACH JOINT] id=3 joint=4294901762 angle=0.8715 comfort=0.9100
+[REACH JOINT] id=3 joint=65537 angle=0.3424 comfort=0.4875
+[REACH JOINT] id=3 joint=131073 angle=0.2418 comfort=0.6175
+[REACH SCENE] frame=480 id=3 phase=5 status=2 error=0.00939 orientation=0.06832 speed=0.00295 stable=1.983 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=480 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.556 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00116
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=510 id=3 phase=5 status=2 error=0.00933 orientation=0.06741 speed=0.00282 stable=2.483 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=510 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.556 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00116
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=540 id=3 phase=5 status=2 error=0.00928 orientation=0.06658 speed=0.00260 stable=2.983 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=540 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.556 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00117
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=570 id=3 phase=5 status=2 error=0.00922 orientation=0.06583 speed=0.00258 stable=3.483 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=570 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.557 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=2 reason=0 foot=0.00189
+[REACH BOUNDS] id=2 reach=4.832 root_y=2.944 distance=3.116
+[REACH JOINT] id=2 joint=65539 angle=0.0034 comfort=0.0780
+[REACH JOINT] id=2 joint=65538 angle=0.0045 comfort=0.0780
+[REACH JOINT] id=2 joint=4294901762 angle=0.0038 comfort=0.9100
+[REACH JOINT] id=2 joint=65537 angle=0.0080 comfort=0.4875
+[REACH JOINT] id=2 joint=131073 angle=0.0119 comfort=0.6175
+[REACH SCENE] frame=600 id=2 phase=6 status=0 error=0.00000 orientation=0.00000 speed=0.02433 stable=0.000 saturation=0.037 target=-2.761,0.025,-1.301 mouth=-3.110,3.944,-1.619
+[AI] frame=600 id=2 brain=balanced goal=6 action=wander thirst=0.0000 visible=1 remembered=1 target=0 distance=1.524 drinks=0 completed=0 failures=0 mouth_y=3.944 clearance=0.950 mouth_bank=9.150 forward=0.950 speed=-0.730 yaw=0.798 random=137 mode=reverse
+[REACH SAFETY] id=3 reason=0 foot=0.00117
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH JOINT] id=3 joint=65539 angle=0.0546 comfort=0.0780
+[REACH JOINT] id=3 joint=65538 angle=0.1104 comfort=0.0780
+[REACH JOINT] id=3 joint=4294901762 angle=0.8768 comfort=0.9100
+[REACH JOINT] id=3 joint=65537 angle=0.3475 comfort=0.4875
+[REACH JOINT] id=3 joint=131073 angle=0.2452 comfort=0.6175
+[REACH SCENE] frame=600 id=3 phase=5 status=2 error=0.00917 orientation=0.06517 speed=0.00264 stable=3.983 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=600 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.557 speed=0.000 yaw=-2.683 random=238 mode=idle
+[REACH SAFETY] id=3 reason=0 foot=0.00117
+[REACH BOUNDS] id=3 reach=3.962 root_y=1.387 distance=3.750
+[REACH SCENE] frame=630 id=3 phase=5 status=2 error=0.00913 orientation=0.06452 speed=0.00268 stable=4.483 saturation=0.920 target=8.748,0.025,-5.507 mouth=8.752,0.028,-5.500
+[AI] frame=630 id=3 brain=balanced goal=6 action=eat thirst=0.0000 visible=1 remembered=1 target=5 distance=0.354 drinks=0 completed=0 failures=0 mouth_y=0.028 clearance=0.650 mouth_bank=14.300 forward=0.557 speed=0.000 yaw=-2.683 random=238 mode=idle
+[AI PERFORMANCE] mean_ms=0.219447 max_ms=0.379941 frames=720
+[INTERACTION RESULT] case=ground id=2 phase=6 status=0 meals=1 drinks=0 failures=0 contact=4.350 error=0.00000
+[INTERACTION RESULT] case=ground id=3 phase=6 status=0 meals=1 drinks=0 failures=0 contact=4.600 error=0.00000
+[OBJETIVOS] llegadas=0 recuperaciones=0 sin_avance_max=0.0000
+Simulación finalizada tras 720 frames.

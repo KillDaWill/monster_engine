@@ -1,0 +1,6 @@
+[PASS] bowl: dos criaturas, contacto o rechazo según el caso
+[PASS] ground: dos criaturas, contacto o rechazo según el caso
+[PASS] raised: dos criaturas, contacto o rechazo según el caso
+[PASS] high: dos criaturas, contacto o rechazo según el caso
+[PASS] moving: dos criaturas, contacto o rechazo según el caso
+[PASS] blocked: dos criaturas, contacto o rechazo según el caso

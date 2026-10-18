@@ -8,6 +8,7 @@
 #include "AnatomyDeformer.h"
 #include "MathUtils.h"
 #include "AABB.h"
+#include "MonsterSDF.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -510,8 +511,17 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
             int a=Skeleton_FindJoint(s,c->fromId),b=Skeleton_FindJoint(s,c->toId);
             if(a<0 || b<0) { free(skin); return false; }
             float t=binding->projT[k];
-            if(s->joints[a].parentIndex==b) { int tmp=a;a=b;b=tmp;t=1-t; }
-            else if(s->joints[b].parentIndex!=a) { free(skin); return false; }
+            /* Los pivotes auxiliares sin volumen pueden interponerse entre
+             * nodos anatómicos; la superficie conserva ambos extremos reales. */
+            int pa=s->joints[a].parentIndex,pb=s->joints[b].parentIndex;
+            bool reverse=pa==b||(pa>=0&&!s->joints[pa].anatomyId&&s->joints[pa].parentIndex==b);
+            bool forward=pb==a||(pb>=0&&!s->joints[pb].anatomyId&&s->joints[pb].parentIndex==a);
+            if(reverse) { int tmp=a;a=b;b=tmp;t=1-t; }
+            else if(!forward) { free(skin); return false; }
+            /* Un pivote interpuesto también transporta el segmento: omitirlo
+             * dejaba vértices cervicales anclados al tórax durante la flexión. */
+            int auxiliary=s->joints[b].parentIndex;
+            if(auxiliary>=0&&!s->joints[auxiliary].anatomyId&&s->joints[auxiliary].parentIndex==a)a=auxiliary;
             /* Transición suave alrededor del extremo distal; el centro de
              * la articulación coincide en ambos transformados. Incluye twist. */
             t=fmaxf(0,(t-.5f)*2); t=t*t*(3-2*t);
@@ -519,40 +529,103 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
             skin[v].joints[k*2]=a; skin[v].weights[k*2]=binding->weight[k]*(1-t);
             skin[v].joints[k*2+1]=b; skin[v].weights[k*2+1]=binding->weight[k]*t;
         }
+        /* Conexiones vecinas comparten articulaciones. Fusionar sus pesos
+         * conserva el mismo skinning y evita aplicar varias veces un hueso. */
+        AnatomySkinBinding compact={0};int count=0;
+        for(int k=0;k<2*ANATOMY_MORPH_INFLUENCES;++k) {
+            if(skin[v].weights[k]<=0)continue;
+            int slot=0;
+            while(slot<count && compact.joints[slot]!=skin[v].joints[k])++slot;
+            if(slot==count)compact.joints[count++]=skin[v].joints[k];
+            compact.weights[slot]+=skin[v].weights[k];
+        }
+        skin[v]=compact;
     }
     free(d->skinBindings); d->skinBindings=skin;
     d->poseBound=true; return true;
 }
-bool AnatomyDeformer_DeformPose(const AnatomyDeformer* d,const Skeleton* s,const SkeletonPose* p,Mesh* mesh) {
-    if(!d || !s || !p || !mesh || !d->poseBound || !mesh->vertices ||
-       mesh->vertexCount!=d->vertexCount || p->jointCount>SKELETON_MAX_JOINTS || p->jointCount!=d->bindPose.jointCount || s->jointCount!=p->jointCount)return false;
-    /* Matrices de hueso precomputadas: O(J), bucle de vértices O(V), sin malloc. */
-    Vector3 rows[SKELETON_MAX_JOINTS][3],offset[SKELETON_MAX_JOINTS];
+float AnatomyDeformer_CranialWeight(Vector3 p,Vector3 attachment,Vector3 axis,float collar) {
+    float t=Math_Clamp01(1+Vec3_Dot(Vec3_Sub(p,attachment),axis)/fmaxf(collar,1e-6f));
+    return t*t*(3-2*t);
+}
+bool AnatomyDeformer_BindCranium(AnatomyDeformer* d,const Skeleton* s,
+    int head,Vector3 attachment,Vector3 axis,float collar,const MonsterSDF* sdf) {
+    if(!d||!d->poseBound||!d->skinBindings||!s||head<0||(size_t)head>=s->jointCount||
+       !isfinite(collar)||collar<=0||!isfinite(Vec3_LengthSq(attachment))||
+       !isfinite(Vec3_LengthSq(axis))||fabsf(Vec3_LengthSq(axis)-1)>1e-3f)return false;
+    AnatomyId headId=s->joints[head].anatomyId;
+    MonsterSDFHeadField context;SDFField field={0};
+    if(sdf&&sdf->mouthCount)field=MonsterSDF_GetHeadField(sdf,0,&context);
+    for(size_t v=0;v<d->vertexCount;++v) {
+        float w=AnatomyDeformer_CranialWeight(d->basePositions[v],attachment,axis,collar);
+        if(w<=0)continue;
+        const BodyConnection* c=&d->refGraph.connections[d->bindings[v].connIndex[0]];
+        /* La propiedad anatómica evita que un pie cercano al morro siga al cráneo. */
+        if(c->fromId!=headId&&c->toId!=headId) {
+            /* La cara puede estar más cerca de un segmento ancho del tórax
+             * tras mutar. Su superficie cefálica tiene prioridad semántica. */
+            if(!field.evaluateDistance||field.evaluateDistance(field.context,d->basePositions[v])>
+               sdf->mouths[0].headBodySmoothness*.5f)continue;
+        }
+        AnatomySkinBinding old=d->skinBindings[v],next={0};
+        next.joints[0]=head;next.weights[0]=w;int count=1;
+        for(int k=0;k<2*ANATOMY_MORPH_INFLUENCES;++k) {
+            float weight=old.weights[k]*(1-w);if(weight<=0)continue;
+            if(old.joints[k]==head)next.weights[0]+=weight;
+            else if(count<2*ANATOMY_MORPH_INFLUENCES) {
+                next.joints[count]=old.joints[k];next.weights[count++]=weight;
+            } else return false;
+        }
+        d->skinBindings[v]=next;
+    }
+    return true;
+}
+bool AnatomyDeformer_BuildPosePalette(const AnatomyDeformer* d,const Skeleton* s,
+    const SkeletonPose* p,AnatomyPosePalette* palette) {
+    if(!palette)return false;
+    palette->jointCount=0;
+    if(!d||!s||!p||!d->poseBound||p->jointCount>SKELETON_MAX_JOINTS||
+       p->jointCount!=d->bindPose.jointCount||s->jointCount!=p->jointCount)return false;
     for(size_t j=0;j<p->jointCount;++j) {
         Quaternion q=Quat_Multiply(p->joints[j].worldRotation,Quat_Inverse(d->bindPose.joints[j].worldRotation));
         Vector3 x=Quat_RotateVector(q,Vec3_Create(1,0,0)),y=Quat_RotateVector(q,Vec3_Create(0,1,0)),z=Quat_RotateVector(q,Vec3_Create(0,0,1));
-        rows[j][0]=Vec3_Create(x.x,y.x,z.x); rows[j][1]=Vec3_Create(x.y,y.y,z.y); rows[j][2]=Vec3_Create(x.z,y.z,z.z);
-        offset[j]=Vec3_Sub(p->joints[j].worldPosition,Quat_RotateVector(q,d->bindPose.joints[j].worldPosition));
+        Vector3 offset=Vec3_Sub(p->joints[j].worldPosition,Quat_RotateVector(q,d->bindPose.joints[j].worldPosition));
+        float rows[3][4]={{x.x,y.x,z.x,offset.x},{x.y,y.y,z.y,offset.y},{x.z,y.z,z.z,offset.z}};
+        memcpy(palette->rows[j],rows,sizeof(rows));
     }
-    for(size_t v=0;v<d->vertexCount;++v) {
-        Vector3 position=Vec3_Zero(),normal=Vec3_Zero();
-        const AnatomySkinBinding* b=&d->skinBindings[v];
-        for(int k=0;k<2*ANATOMY_MORPH_INFLUENCES;++k) {
-            if(b->weights[k]<=0)continue;
-            int j=b->joints[k];
-            Vector3 bp=d->basePositions[v],bn=d->baseNormals[v];
-            const Vector3* row=rows[j]; float w=b->weights[k];
-            position.x+=(row[0].x*bp.x+row[0].y*bp.y+row[0].z*bp.z+offset[j].x)*w;
-            position.y+=(row[1].x*bp.x+row[1].y*bp.y+row[1].z*bp.z+offset[j].y)*w;
-            position.z+=(row[2].x*bp.x+row[2].y*bp.y+row[2].z*bp.z+offset[j].z)*w;
-            normal.x+=(row[0].x*bn.x+row[0].y*bn.y+row[0].z*bn.z)*w;
-            normal.y+=(row[1].x*bn.x+row[1].y*bn.y+row[1].z*bn.z)*w;
-            normal.z+=(row[2].x*bn.x+row[2].y*bn.y+row[2].z*bn.z)*w;
-        }
-        float length=sqrtf(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
-        if(length>1e-12f) { normal.x/=length; normal.y/=length; normal.z/=length; }
-        mesh->vertices[v].position=position; mesh->vertices[v].normal=normal;
+    palette->jointCount=p->jointCount;return true;
+}
+static bool EvaluatePoseVertex(const AnatomyDeformer* d,const AnatomyPosePalette* palette,
+    size_t vertex,Vector3* position,Vector3* normal) {
+    *position=Vec3_Zero();*normal=Vec3_Zero();
+    const AnatomySkinBinding* b=&d->skinBindings[vertex];
+    Vector3 bp=d->basePositions[vertex],bn=d->baseNormals[vertex];
+    for(int k=0;k<2*ANATOMY_MORPH_INFLUENCES;++k) {
+        if(b->weights[k]<=0)break;
+        int j=b->joints[k];if(j<0||(size_t)j>=palette->jointCount)return false;
+        const float (*row)[4]=palette->rows[j];float w=b->weights[k];
+        position->x+=(row[0][0]*bp.x+row[0][1]*bp.y+row[0][2]*bp.z+row[0][3])*w;
+        position->y+=(row[1][0]*bp.x+row[1][1]*bp.y+row[1][2]*bp.z+row[1][3])*w;
+        position->z+=(row[2][0]*bp.x+row[2][1]*bp.y+row[2][2]*bp.z+row[2][3])*w;
+        normal->x+=(row[0][0]*bn.x+row[0][1]*bn.y+row[0][2]*bn.z)*w;
+        normal->y+=(row[1][0]*bn.x+row[1][1]*bn.y+row[1][2]*bn.z)*w;
+        normal->z+=(row[2][0]*bn.x+row[2][1]*bn.y+row[2][2]*bn.z)*w;
     }
-    Mesh_MarkGeometryChanged(mesh);
+    float length=sqrtf(normal->x*normal->x+normal->y*normal->y+normal->z*normal->z);
+    if(length>1e-12f){float inverse=1/length;normal->x*=inverse;normal->y*=inverse;normal->z*=inverse;}
     return true;
+}
+bool AnatomyDeformer_EvaluatePoseVertex(const AnatomyDeformer* d,const AnatomyPosePalette* palette,
+    size_t vertex,Vector3* position,Vector3* normal) {
+    if(!d||!palette||!position||!normal||!d->poseBound||vertex>=d->vertexCount||
+       !d->skinBindings||!d->basePositions||!d->baseNormals||palette->jointCount!=d->bindPose.jointCount)return false;
+    return EvaluatePoseVertex(d,palette,vertex,position,normal);
+}
+bool AnatomyDeformer_DeformPose(const AnatomyDeformer* d,const Skeleton* s,const SkeletonPose* p,Mesh* mesh) {
+    if(!mesh||!mesh->vertices||!d||mesh->vertexCount!=d->vertexCount)return false;
+    AnatomyPosePalette palette;
+    if(!AnatomyDeformer_BuildPosePalette(d,s,p,&palette))return false;
+    for(size_t v=0;v<d->vertexCount;++v)
+        if(!EvaluatePoseVertex(d,&palette,v,&mesh->vertices[v].position,&mesh->vertices[v].normal))return false;
+    Mesh_MarkGeometryChanged(mesh);return true;
 }

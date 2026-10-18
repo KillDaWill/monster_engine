@@ -316,15 +316,23 @@ bool SurfaceMapper_BuildMorphDomain(SurfaceMorphDomain* domain,const AnatomyGrap
     const AnatomyGraph* reference,const SurfaceMapping* mapping) {
     if(!domain||!current||!reference||!mapping||!isfinite(mapping->unitScale)||mapping->unitScale<=0)return false;
     domain->count=0;
+    if(current->connectionCount>ANATOMY_MAX_CONNECTIONS)return false;
+    AnatomyGraphIndex currentIndex,referenceIndex;
+    if(!AnatomyGraphIndex_Build(&currentIndex,current))return false;
+    const AnatomyGraphIndex* refIndex=&currentIndex;
+    if(reference!=current) {
+        if(!AnatomyGraphIndex_Build(&referenceIndex,reference))return false;
+        refIndex=&referenceIndex;
+    }
     MapSegment segments[ANATOMY_MAX_CONNECTIONS];
     for(size_t i=0;i<current->connectionCount;++i) {
         const BodyConnection* e=&current->connections[i];
         if(current->dormantConnections[i]||e->kind==BODY_CONNECTION_SUPPORT)continue;
-        const AnatomyNode* a=AnatomyGraph_FindNode(current,e->fromId);
-        const AnatomyNode* b=AnatomyGraph_FindNode(current,e->toId);
-        const AnatomyNode* ra=AnatomyGraph_FindNode(reference,e->fromId);
-        const AnatomyNode* rb=AnatomyGraph_FindNode(reference,e->toId);
-        if(!a||!b||!ra||!rb)return false;
+        int ai=AnatomyGraphIndex_Find(&currentIndex,e->fromId),bi=AnatomyGraphIndex_Find(&currentIndex,e->toId);
+        int rai=AnatomyGraphIndex_Find(refIndex,e->fromId),rbi=AnatomyGraphIndex_Find(refIndex,e->toId);
+        if(ai<0||bi<0||rai<0||rbi<0)return false;
+        const AnatomyNode* a=&current->nodes[ai];const AnatomyNode* b=&current->nodes[bi];
+        const AnatomyNode* ra=&reference->nodes[rai];const AnatomyNode* rb=&reference->nodes[rbi];
         Quaternion q=Quat_FromTo(Vec3_Sub(b->center,a->center),Vec3_Sub(rb->center,ra->center));
         Vector3 rp[2]={Vec3_Scale(Vec3_Sub(ra->center,mapping->origin),1/mapping->unitScale),
             Vec3_Scale(Vec3_Sub(rb->center,mapping->origin),1/mapping->unitScale)};

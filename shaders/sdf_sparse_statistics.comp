@@ -6,19 +6,18 @@ void main(){uint i=invocation();
         if(i<metadataCount&&bricks[i].nearSurface==0u&&bricks[i].farAge!=0u&&generation-bricks[i].farAge>3u)releaseSamples(i);
         if(i<metadataCount&&bricks[i].sampleSlot!=0xffffffffu&&bricks[i].pad1!=generation)atomicAdd(unused2,sampleCount());
         if(i<pageCapacity)atomicAdd(unused1,draws[i].count);
-    }else if(statisticsPass==1&&i<pageCapacity*PAGE_VERTICES){uint page=i/PAGE_VERTICES,offset=i%PAGE_VERTICES;
-        if(offset<draws[page].count){uint index=indices[i];if(atomicExchange(edges[index].statistics.x,generation)!=generation)atomicAdd(unused3,1u);}}
-    else if(statisticsPass==2&&i<edgeCapacity&&edges[i].key!=0u&&edges[i].key!=0xffffffffu&&edges[i].statistics.x!=generation){
-        // Tombstone: conserva la cadena de colisiones sin retener una arista obsoleta.
-        edges[i].key=0xffffffffu;edges[i].version=0u;
-    }else if(statisticsPass==3&&i<edgeCapacity&&edges[i].key==0xffffffffu){
-        // Sólo se acorta una cadena si no queda ninguna clave viva detrás del hueco.
-        uint next=(i+1u)&(edgeCapacity-1u);
-        for(uint probe=0u;probe<edgeCapacity;++probe){
-            uint key=atomicAdd(edges[next].key,0u);
-            if(key==0u){atomicCompSwap(edges[i].key,0xffffffffu,0u);break;}
-            if(key!=0xffffffffu)break;
-            next=(next+1u)&(edgeCapacity-1u);
+    } else if(statisticsPass==2 && i<min(retiredCount,edgeCapacity)) {
+        uint edge=RetiredEdge(i);
+        if(edges[edge].statistics.y==0u) {edges[edge].key=0xffffffffu;edges[edge].version=0u;}
+    } else if(statisticsPass==3 && i<min(retiredCount,edgeCapacity)) {
+        uint edge=RetiredEdge(i);
+        // Acortar únicamente el extremo vacío de la cadena. El recorrido
+        // acotado consume candidatos, nunca barre toda la tabla hash.
+        for(uint step=0u;step<64u;++step) {
+            uint next=(edge+1u)&(edgeCapacity-1u);
+            if(atomicAdd(edges[next].key,0u)!=0u ||
+               atomicCompSwap(edges[edge].key,0xffffffffu,0u)!=0xffffffffu)break;
+            edge=(edge+edgeCapacity-1u)&(edgeCapacity-1u);
         }
     }
 }

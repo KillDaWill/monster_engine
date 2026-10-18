@@ -20,7 +20,7 @@ void main() {
     uint base=atomicAdd(drawCount,uint(count));
     if(base>=vertexCapacity||uint(count)>vertexCapacity-base) {atomicOr(overflow,1u);return;}
     MonsterSDFUseCompleteScene();uvec3 cell=cellCoord(id);
-    vec3 positions[12],normals[12];uvec2 edgeIds[12];bool ready[12];
+    vec3 positions[12],normals[12];vec4 materials[12];uvec2 edgeIds[12];bool ready[12];
     for(int e=0;e<12;++e)ready[e]=false;
     for(int k=0;k<count;++k) {
         int edge=mcTables[row+k];
@@ -31,12 +31,14 @@ void main() {
             if(cornerIndex(a)>cornerIndex(b)) {uvec3 swap=a;a=b;b=swap;}
             positions[edge]=edgeRoot(gridPoint(a),gridPoint(b),samples[sampleIndex(a)],samples[sampleIndex(b)]);
             normals[edge]=MonsterSDFGradient(positions[edge],.00065);
+            SDFResult semantic;vec4 value=sceneDetailed(positions[edge],semantic);
+            materials[edge]=vec4(value.rgb,surfacePoseMaterial(positions[edge],semantic));
             uint ia=cornerIndex(a),ib=cornerIndex(b);
             // Las raíces exactamente situadas en una esquina comparten identidad.
             if(all(equal(positions[edge],gridPoint(a))))ib=ia;
             else if(all(equal(positions[edge],gridPoint(b))))ia=ib;
             edgeIds[edge]=uvec2(ia,ib);ready[edge]=true;
         }
-        vertices[base+uint(k)]=SurfaceVertex(vec4(positions[edge],uintBitsToFloat(edgeIds[edge].x)),vec4(normals[edge],uintBitsToFloat(edgeIds[edge].y)));
+        vertices[base+uint(k)]=SurfaceVertex(vec4(positions[edge],uintBitsToFloat(edgeIds[edge].x)),vec4(normals[edge],uintBitsToFloat(edgeIds[edge].y)),materials[edge]);
     }
 }

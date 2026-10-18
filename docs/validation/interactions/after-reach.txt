@@ -1,0 +1,8 @@
+species=0 case=0 mean_ms=0.578603 residual=0.000009 max_angle=0.135612
+species=0 case=1 mean_ms=0.576626 residual=0.000005 max_angle=0.165855
+species=0 case=2 mean_ms=0.573395 residual=0.000051 max_angle=0.330973
+species=0 case=3 mean_ms=0.233420 residual=9.506456 max_angle=0.330139
+species=1 case=0 mean_ms=0.636755 residual=0.000004 max_angle=0.237287
+species=1 case=1 mean_ms=0.632109 residual=0.000005 max_angle=0.236455
+species=1 case=2 mean_ms=0.628009 residual=0.000005 max_angle=0.412025
+species=1 case=3 mean_ms=0.295404 residual=9.506454 max_angle=0.411191

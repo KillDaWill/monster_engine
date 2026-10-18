@@ -26,10 +26,17 @@ int Skeleton_FindJoint(const Skeleton* s, AnatomyId id) {
     return -1;
 }
 bool SkeletonPose_UpdateWorldTransforms(SkeletonPose* p, const Skeleton* s) {
+    return SkeletonPose_UpdateSubtree(p,s,-1);
+}
+bool SkeletonPose_UpdateSubtree(SkeletonPose* p,const Skeleton* s,int rootIndex) {
     if (!p || !s || p->jointCount!=s->jointCount || p->jointCount>SKELETON_MAX_JOINTS) return false;
+    if(rootIndex < -1 || rootIndex >= (int)p->jointCount)return false;
+    bool changed[SKELETON_MAX_JOINTS]={0};
     for (size_t i=0;i<s->jointCount;++i) {
         int parent=s->joints[i].parentIndex;
         if (parent < -1 || parent >= (int)i) return false;
+        changed[i]=rootIndex<0 || i==(size_t)rootIndex || (parent>=0&&changed[parent]);
+        if(!changed[i])continue;
         JointPose* j=&p->joints[i];
         if(!isfinite(j->localPosition.x)||!isfinite(j->localPosition.y)||!isfinite(j->localPosition.z))return false;
         j->localRotation=Quat_Normalize(j->localRotation);

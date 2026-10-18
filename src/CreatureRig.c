@@ -8,10 +8,12 @@
 #include "CreatureRig.h"
 #include "Monster.h"
 #include "Limb.h"
+#include "Transform3D.h"
 #include <math.h>
 #include <string.h>
 
 #define CREATURE_JAW_JOINT_ID 0xffff0001u
+#define CREATURE_CERVICAL_BASE_ID 0xffff0002u
 
 static JointConstraint Ball(Vector3 axis, float swing, float twist) {
     return (JointConstraint){.type = JOINT_BALL, .hingeAxis = axis, .maxSwingAngle = swing, .maxTwistAngle = twist};
@@ -37,6 +39,31 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
     const AnatomyNode* head = AnatomyGraph_FindFirstRegion(g, ANATOMY_REGION_HEAD);
     const AnatomyNode* neck = AnatomyGraph_FindFirstRegion(g, ANATOMY_REGION_NECK);
 
+    r->cervicalBaseJoint = -1;
+    /* Articulación auxiliar sin volumen: gira el segmento completo desde su
+     * inserción torácica, en lugar de doblar únicamente el extremo del cuello.
+     * Se inserta antes de resolver índices de extremidades y controladores. */
+    int cervical = neck ? Skeleton_FindJoint(s, neck->id) : -1;
+    if (cervical >= 0 && s->joints[cervical].parentIndex >= 0) {
+        int parent = s->joints[cervical].parentIndex;
+        const AnatomyNode* insertion=AnatomyGraph_FindNode(g,s->joints[parent].anatomyId);
+        /* La inserción cervical ventral está dentro de la masa torácica;
+         * girar sólo desde su centro dorsal acortaba artificialmente el alcance. */
+        float ventral=insertion?insertion->heightRadius*.7f:0;
+        if (s->jointCount >= SKELETON_MAX_JOINTS) return false;
+        memmove(&s->joints[cervical + 1], &s->joints[cervical],
+                (s->jointCount - (size_t)cervical) * sizeof(s->joints[0]));
+        ++s->jointCount;
+        for (size_t j = (size_t)cervical + 1; j < s->jointCount; ++j)
+            if (s->joints[j].parentIndex >= cervical) ++s->joints[j].parentIndex;
+        s->joints[cervical] = (SkeletonJoint){.id=CREATURE_CERVICAL_BASE_ID,
+            .parentIndex=parent, .restPosition={0,-ventral,0},.restRotation=Quat_Identity(),
+            .constraint={.type=JOINT_HINGE,.hingeAxis={1,0,0},.minAngle=-.45f,.maxAngle=1.4f}};
+        s->joints[cervical + 1].restPosition.y+=ventral;
+        s->joints[cervical + 1].parentIndex = cervical;
+        r->cervicalBaseJoint = cervical;
+    }
+
     /* Estaciones cefálicas y pélvicas opcionales */
     r->pelvisJoint = pelvis ? Skeleton_FindJoint(s, pelvis->id) : -1;
     r->headJoint = head ? Skeleton_FindJoint(s, head->id) : -1;
@@ -48,6 +75,7 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
         if (n->region == ANATOMY_REGION_TRUNK && r->spineCount < RIG_MAX_AXIAL_JOINTS) {
             int joint = Skeleton_FindJoint(s, n->id);
             if (joint >= 0) {
+                r->spineRadius[r->spineCount]=fmaxf(n->widthRadius,n->heightRadius);
                 r->spine[r->spineCount++] = joint;
                 s->joints[joint].constraint = Ball(Vec3_Create(0, 0, 1), 0.12f, 0.08f);
             }
@@ -104,10 +132,19 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
     }
 
     if (r->headJoint >= 0) {
-        s->joints[r->headJoint].constraint = Ball(Vec3_Create(0, 0, 1), 0.35f, 0.15f);
+        s->joints[r->headJoint].constraint = Ball(Vec3_Create(0, 0, 1), 0.95f, 0.15f);
     }
     if (r->neckJoint >= 0) {
-        s->joints[r->neckJoint].constraint = Ball(Vec3_Create(0, 0, 1), 0.25f, 0.12f);
+        s->joints[r->neckJoint].constraint = Ball(Vec3_Create(0, 0, 1), 0.75f, 0.12f);
+    }
+    if (head && m->hasHead) {
+        Vector3 host = m->head.anatomy.attachmentBodyPartIndex < m->bodyPartCount
+            ? m->bodyParts[m->head.anatomy.attachmentBodyPartIndex].positionRender : Vec3_Zero();
+        r->oralDirection=Vec3_Normalize(Vec3_Sub(m->head.anatomy.landmarks.muzzleTip,m->head.anatomy.landmarks.muzzleRoot));
+        r->oralPoint = Vec3_Sub(Vec3_Add(host,m->head.anatomy.landmarks.mandibularSymphysis),head->center);
+        r->cranialAttachment=Vec3_Add(host,m->head.anatomy.landmarks.neckAttachment);
+        r->cranialAxis=Vec3_Normalize(Vec3_Sub(m->head.anatomy.landmarks.skullCenter,m->head.anatomy.landmarks.neckAttachment));
+        r->cranialCollar=m->head.anatomy.surface.craniumRadii.z*.25f;
     }
 
     /* Ensamblaje genérico de extremidades mediante descriptores modulares */
@@ -132,7 +169,9 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
         const Mouth* mouth = &m->mouths[0];
         r->jawJoint = (int)s->jointCount++;
         Vector3 host = mouth->bodyPartIndex < m->bodyPartCount ? m->bodyParts[mouth->bodyPartIndex].positionRender : Vec3_Zero();
-        Vector3 pivot = Vec3_Add(host, Vec3_Add(mouth->offset, mouth->jawPivot));
+        Vector3 pivot = Vec3_Add(host, Vec3_Add(mouth->offset,
+            Transform3D_RotateVector(mouth->rotation,mouth->jawPivot)));
+        Vector3 hingeAxis=Transform3D_RotateVector(mouth->rotation,Vec3_Create(1,0,0));
         r->maxJawAngle = mouth->maxJawAngle * 0.017453292519943295f;
         s->joints[r->jawJoint] = (SkeletonJoint){
             .id = CREATURE_JAW_JOINT_ID,
@@ -140,7 +179,7 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
             .parentIndex = r->headJoint,
             .restPosition = Vec3_Sub(pivot, head->center),
             .restRotation = Quat_Identity(),
-            .constraint = {.type = JOINT_HINGE, .hingeAxis = {1, 0, 0}, .minAngle = 0, .maxAngle = r->maxJawAngle}
+            .constraint = {.type = JOINT_HINGE, .hingeAxis = hingeAxis, .minAngle = 0, .maxAngle = r->maxJawAngle}
         };
     }
 

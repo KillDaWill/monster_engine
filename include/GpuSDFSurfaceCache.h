@@ -39,8 +39,10 @@ bool GpuSDFSurfaceGrid_PlanDense(const GpuSDFSurfaceGrid* grid,size_t sampleLimi
     size_t cellLimit,unsigned requestedDepth,GpuSDFSurfacePlan* plan);
 /** @brief Telemetría diferida de etapas GPU, sin descargar geometría. */
 typedef struct GpuSDFSurfaceStats {
+    double certificationCPUms;size_t certifiedEmptyBricks;
     double uploadCPUms,samplingGPUms,classificationGPUms,emissionGPUms,renderGPUms,totalGPUms;
     size_t samples,cells,gpuBytes;
+    size_t sampleRequests; /**< Esquinas solicitadas por bricks antes de compartir valores globales. */
     size_t candidateBricks,dirtyBricks,newBricks,activeBricks,residentSampleBricks,reusedSamples,publishedIndices,uniqueEdges,updatedEdges,exactNormals;
     unsigned slabs;
     uint64_t generation,timingGeneration;
@@ -53,13 +55,14 @@ typedef struct GpuSDFSurfaceCache {
     unsigned brickCells;
     bool cachedNormals;
     MorphSpatialCache* spatial;
-    MonsterSDFSurfaceFeature* features;size_t featureCount;
+    MonsterSDFSurfaceFeature* features;size_t featureCount,featureCapacity;
+    MonsterSDFSurfaceFeature* featureScratch;size_t featureScratchCapacity;
     GpuSDFBrickJob* dirty;size_t dirtyCount,dirtyCapacity;
     uint32_t* retired;size_t retiredCount,retiredCapacity;
     uint32_t* freeSlots;size_t freeCount,freeCapacity;
     uint32_t nextSlot;
     size_t residentCount,newCount,reusedSamples;
-    uint64_t generation;
+    uint64_t generation,submittedGeneration,completedGeneration;
 } GpuSDFSurfaceCache;
 /** @brief Crea control puro C; bricks uniformes de 8 o 16 celdas.
  * @param grid Rejilla estable. @param brickCells Tamaño configurable.
@@ -73,9 +76,12 @@ void GpuSDFSurfaceCache_Destroy(GpuSDFSurfaceCache* cache);
  * @return false ante error; no se debe presentar geometría antigua en ese caso.
  */
 bool GpuSDFSurfaceCache_Update(GpuSDFSurfaceCache* cache,const MonsterSDF* sdf);
-/** @brief Publica la generación completa tras enviar barreras GPU.
- * @param cache Control. @param generation Versión enviada; una versión antigua no limpia dirty nuevo.
+/** @brief Registra trabajo enviado, todavía sin certificar su finalización.
+ * @param cache Control. @param generation Versión enviada.
+ */
+void GpuSDFSurfaceCache_Submit(GpuSDFSurfaceCache* cache,uint64_t generation);
+/** @brief Certifica una generación tras comprobar finalización y ausencia de overflow.
+ * @param cache Control. @param generation Versión completada; no limpia solicitudes posteriores.
  */
 void GpuSDFSurfaceCache_Commit(GpuSDFSurfaceCache* cache,uint64_t generation);
 #endif
-

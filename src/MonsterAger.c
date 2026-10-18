@@ -311,6 +311,7 @@ MonsterAger MonsterAger_Create(const Monster* first, const Monster* second, floa
     ager.result = Monster_Clone(&ager.monster1);
     ager.geometryResult = Monster_Clone(&ager.monster1);
     ager.geometrySteps=32;
+    ager.geometrySnapshotEnabled=true;
     double start=AgerNowMs();
     MonsterAger_Interpolate(&ager.monster1, &ager.monster2, ager.perc, &ager.result);
     ager.lastInterpolationMs=AgerNowMs()-start;ager.interpolationCount=1;
@@ -328,6 +329,9 @@ void MonsterAger_SetPerc(MonsterAger* ager, float perc) {
     double start=AgerNowMs();
     MonsterAger_Interpolate(&ager->monster1, &ager->monster2, ager->perc, &ager->result);
     ager->lastInterpolationMs=AgerNowMs()-start;++ager->interpolationCount;
+    if(!ager->geometrySnapshotEnabled) {
+        ager->geometryPerc=ager->perc;ager->lastGeometryInterpolationMs=0;return;
+    }
     float geometryPerc=GeometryPerc(ager->perc,ager->geometrySteps);
     ager->lastGeometryInterpolationMs=0;
     if(fabsf(geometryPerc-ager->geometryPerc)>1e-7f) {
@@ -348,6 +352,7 @@ const Monster* MonsterAger_GetResultConst(const MonsterAger* ager) {
 void MonsterAger_SetGeometrySteps(MonsterAger* ager,unsigned steps) {
     if(!ager)return;
     ager->geometrySteps=steps;
+    if(!ager->geometrySnapshotEnabled)return;
     float p=GeometryPerc(ager->perc,steps);
     if(fabsf(p-ager->geometryPerc)<=1e-7f)return;
     ager->geometryPerc=p;double start=AgerNowMs();
@@ -356,7 +361,21 @@ void MonsterAger_SetGeometrySteps(MonsterAger* ager,unsigned steps) {
 }
 
 const Monster* MonsterAger_GetGeometryResultConst(const MonsterAger* ager) {
-    return ager?&ager->geometryResult:NULL;
+    return ager?(ager->geometrySnapshotEnabled?&ager->geometryResult:&ager->result):NULL;
+}
+
+void MonsterAger_SetGeometrySnapshotEnabled(MonsterAger* ager,bool enabled) {
+    if(!ager||ager->geometrySnapshotEnabled==enabled)return;
+    ager->geometrySnapshotEnabled=enabled;
+    if(!enabled) {
+        Monster_Free(&ager->geometryResult);ager->geometryPerc=ager->perc;
+        ager->lastGeometryInterpolationMs=0;return;
+    }
+    ager->geometryResult=Monster_Clone(&ager->monster1);
+    ager->geometryPerc=GeometryPerc(ager->perc,ager->geometrySteps);
+    double start=AgerNowMs();
+    MonsterAger_Interpolate(&ager->monster1,&ager->monster2,ager->geometryPerc,&ager->geometryResult);
+    ager->lastGeometryInterpolationMs=AgerNowMs()-start;++ager->geometryInterpolationCount;
 }
 
 void MonsterAger_Free(MonsterAger* ager) {

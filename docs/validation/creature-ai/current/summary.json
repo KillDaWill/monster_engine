@@ -1,0 +1,439 @@
+{
+  "balanced": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--cycles=0",
+      "--dog-brain=balanced",
+      "--lizard-brain=balanced",
+      "--profile=docs/validation/creature-ai/current/balanced.csv",
+      "--capture-prefix=docs/validation/creature-ai/current/balanced"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=balanced thirst=0.16518 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.293578 max_ms=0.425838 frames=1800"
+    ],
+    "ai_p95_ms": 0.321454
+  },
+  "waterless-lizard": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--cycles=0",
+      "--lizard-brain=waterless",
+      "--profile=docs/validation/creature-ai/current/waterless-lizard.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=waterless thirst=0.00000 drinks=0 completed=0 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.244214 max_ms=0.389540 frames=1800"
+    ],
+    "ai_p95_ms": 0.260729
+  },
+  "waterless-dog": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--cycles=0",
+      "--dog-brain=waterless",
+      "--profile=docs/validation/creature-ai/current/waterless-dog.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=waterless thirst=0.00000 drinks=0 completed=0 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.16518 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.271961 max_ms=0.392658 frames=1800"
+    ],
+    "ai_p95_ms": 0.303269
+  },
+  "mutate-approach": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=1",
+      "--profile=docs/validation/creature-ai/current/mutate-approach.csv",
+      "--capture-prefix=docs/validation/creature-ai/current/mutate-approach"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.28517 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.545884 max_ms=1.137263 frames=1800"
+    ],
+    "ai_p95_ms": 0.723799
+  },
+  "mutate-drink": {
+    "passed": false,
+    "exit_code": 1,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=drink",
+      "--target=7",
+      "--profile=docs/validation/creature-ai/current/mutate-drink.csv",
+      "--capture-prefix=docs/validation/creature-ai/current/mutate-drink"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.79951 drinks=1 completed=0 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.312675 max_ms=0.517062 frames=1800"
+    ],
+    "ai_p95_ms": 0.380646
+  },
+  "deterministic-repeat": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--cycles=0",
+      "--dog-brain=balanced",
+      "--lizard-brain=balanced",
+      "--profile=docs/validation/creature-ai/current/deterministic-repeat.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=balanced thirst=0.16518 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.290541 max_ms=0.460045 frames=1800"
+    ],
+    "ai_p95_ms": 0.309541
+  },
+  "variant-0": {
+    "passed": false,
+    "exit_code": 1,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=0",
+      "--profile=docs/validation/creature-ai/current/variant-0.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.42109 drinks=1 completed=0 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.298276 max_ms=0.454483 frames=1800"
+    ],
+    "ai_p95_ms": 0.339217
+  },
+  "variant-1": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=1",
+      "--profile=docs/validation/creature-ai/current/variant-1.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.28517 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.543297 max_ms=1.080808 frames=1800"
+    ],
+    "ai_p95_ms": 0.707938
+  },
+  "variant-2": {
+    "passed": false,
+    "exit_code": 1,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=2",
+      "--profile=docs/validation/creature-ai/current/variant-2.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=[ERROR] AI no completó bebida id=3",
+      "[AI RESULT] id=3 brain=solitary thirst=1.00000 drinks=0 completed=0 failures=17"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.321881 max_ms=0.562896 frames=1800"
+    ],
+    "ai_p95_ms": 0.40531
+  },
+  "variant-3": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=3",
+      "--profile=docs/validation/creature-ai/current/variant-3.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.27851 drinks=2 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.317763 max_ms=2.508878 frames=1800"
+    ],
+    "ai_p95_ms": 0.370305
+  },
+  "variant-4": {
+    "passed": false,
+    "exit_code": 1,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=4",
+      "--profile=docs/validation/creature-ai/current/variant-4.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=1.00000 drinks=0 completed=0 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.363680 max_ms=0.581063 frames=1800"
+    ],
+    "ai_p95_ms": 0.416532
+  },
+  "variant-5": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=5",
+      "--profile=docs/validation/creature-ai/current/variant-5.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.21184 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.320614 max_ms=0.481644 frames=1800"
+    ],
+    "ai_p95_ms": 0.377557
+  },
+  "variant-6": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=6",
+      "--profile=docs/validation/creature-ai/current/variant-6.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.28142 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.324087 max_ms=0.498376 frames=1800"
+    ],
+    "ai_p95_ms": 0.37863
+  },
+  "variant-7": {
+    "passed": false,
+    "exit_code": 1,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=7",
+      "--profile=docs/validation/creature-ai/current/variant-7.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=1.00000 drinks=0 completed=0 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.347829 max_ms=3.208609 frames=1800"
+    ],
+    "ai_p95_ms": 0.406423
+  },
+  "variant-8": {
+    "passed": false,
+    "exit_code": 1,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=8",
+      "--profile=docs/validation/creature-ai/current/variant-8.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=1.00000 drinks=0 completed=0 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.326410 max_ms=1.069959 frames=1800"
+    ],
+    "ai_p95_ms": 0.469671
+  },
+  "variant-9": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--validate-ai",
+      "--seed=42",
+      "--fixed-dt=0.016666667",
+      "--benchmark-uncapped",
+      "--frames=1800",
+      "--ai-mutate=approach",
+      "--target=9",
+      "--profile=docs/validation/creature-ai/current/variant-9.csv"
+    ],
+    "actors": [
+      "[AI RESULT] id=2 brain=balanced thirst=0.23817 drinks=2 completed=1 failures=0",
+      "[AI RESULT] id=3 brain=solitary thirst=0.18184 drinks=1 completed=1 failures=0"
+    ],
+    "timing": [
+      "[AI PERFORMANCE] mean_ms=0.292749 max_ms=0.513695 frames=1800"
+    ],
+    "ai_p95_ms": 0.333177
+  },
+  "determinism": {
+    "passed": true
+  },
+  "navigation": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--benchmark-uncapped",
+      "--validate-navigation",
+      "--navigation-orbit-stress",
+      "--cycles=0",
+      "--frames=1200",
+      "--seed=137",
+      "--fixed-dt=.016666667"
+    ]
+  },
+  "boundary-gpu": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--benchmark-uncapped",
+      "--boundary-stress",
+      "--validate-gpu",
+      "--validate-skinning",
+      "--frames=240",
+      "--target=2",
+      "--seed=42"
+    ]
+  },
+  "boundary-cpu": {
+    "passed": true,
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_game_scene",
+      "--headless",
+      "--benchmark-uncapped",
+      "--boundary-stress",
+      "--cpu-skinning",
+      "--validate-gpu",
+      "--frames=240",
+      "--target=2",
+      "--seed=42"
+    ]
+  }
+}

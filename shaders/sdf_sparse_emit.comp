@@ -28,7 +28,10 @@ uint globalEdge(uint job,uvec3 local,uvec3 cell,int edge){
             else{index=home;firstRetired=0xffffffffu;continue;}
         }
         if(found!=0xffffffffu){uint previous=atomicMax(edges[found].version,generation);
-            if(previous<generation){edges[found].d0=sampleValue(job,local+oa);edges[found].d1=sampleValue(job,local+ob);
+            if(previous<generation){uint queued=atomicAdd(rootCount,1u);
+                if(queued>=edgeCapacity){atomicOr(overflow,8u);return 0u;}
+                RootEdge(queued)=found;
+                edges[found].d0=sampleValue(job,local+oa);edges[found].d1=sampleValue(job,local+ob);
                 edges[found].g0=vec4(cornerGradient(job,local+oa),cornerCurvature(job,local+oa));edges[found].g1=vec4(cornerGradient(job,local+ob),cornerCurvature(job,local+ob));}
             return found;}
         index=(index+1u)&(edgeCapacity-1u);
@@ -36,7 +39,7 @@ uint globalEdge(uint job,uvec3 local,uvec3 cell,int edge){
     atomicOr(overflow,8u);return 0u;
 }
 void main(){uint i=invocation(),n=cellCount();if(i>=jobCount*n)return;
-    uint job=i/n,id=i%n,mask=cases[i],slot=jobs[job+jobBase].w;
+    uint job=i/n,id=i%n,mask=cases[i],slot=jobs[job+jobBase].w&0x3fffffffu;
     if(mask==0u||mask==255u||bricks[slot].pages==0u)return;
     uint count=0u;int row=int(mask)*16;while(count<15u&&mcTables[row+int(count)]>=0)++count;
     uint base=atomicAdd(bricks[slot].pad0,count);uvec3 local=uvec3(id%brickCells,(id/brickCells)%brickCells,id/(brickCells*brickCells));
@@ -45,5 +48,7 @@ void main(){uint i=invocation(),n=cellCount();if(i>=jobCount*n)return;
     for(uint k=0u;k<count;++k){int edge=mcTables[row+int(k)];if(!ready[edge]){edgeIndices[edge]=globalEdge(job,local,cell,edge);ready[edge]=true;}
         uint index=base+k,page=bricks[slot].head;for(uint p=0u;p<index/PAGE_VERTICES;++p){if(page>=pageCapacity){atomicOr(overflow,16u);return;}page=nextPage[page];}
         if(page>=pageCapacity){atomicOr(overflow,4u);return;}
-        indices[page*PAGE_VERTICES+index%PAGE_VERTICES]=edgeIndices[edge];}
+        uint sharedIndex=edgeIndices[edge];
+        if(atomicAdd(edges[sharedIndex].statistics.y,1u)==0u)atomicAdd(unused3,1u);
+        indices[page*PAGE_VERTICES+index%PAGE_VERTICES ]=sharedIndex;}
 }

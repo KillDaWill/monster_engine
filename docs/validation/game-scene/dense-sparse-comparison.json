@@ -1,0 +1,74 @@
+[
+  {
+    "age": 0,
+    "debug": "flat",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 0,
+    "debug": "normal",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 0,
+    "debug": "material",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 0.5,
+    "debug": "flat",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 0.5,
+    "debug": "normal",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 0.5,
+    "debug": "material",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 1,
+    "debug": "flat",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 1,
+    "debug": "normal",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  },
+  {
+    "age": 1,
+    "debug": "material",
+    "silhouette_differences": 0,
+    "depth_max": 0.0,
+    "rgb_mean": 0.0,
+    "rgb_max": 0.0
+  }
+]

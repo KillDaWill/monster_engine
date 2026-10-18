@@ -74,6 +74,14 @@ typedef struct SurfacePhenotype {
     IntegumentPhenotype integument;
     SurfaceRegionProfile regions[SURFACE_REGION_COUNT];
     FurRegionProfile furRegions[SURFACE_REGION_COUNT];
+    /** Campo de pigmento de ambos extremos, con orden y semillas inmutables.
+     * La mezcla se evalúa en el dominio anatómico, sin reindexar capas. */
+    struct {
+        PigmentPhenotype from, to;
+        float weight, plateWeight, scaleCoverage;
+        uint32_t targetScaleSeed;
+        bool active;
+    } transition;
 } SurfacePhenotype;
 /** @brief Coordenadas de reposo; nunca se recalculan al aplicar una pose. */
 typedef struct SurfaceCoordinate {
@@ -87,7 +95,9 @@ typedef struct SurfaceCoordinate {
 #define SURFACE_RECIPE_FUR_ROWS     4
 #define SURFACE_RECIPE_REGION_ROWS  (2 * SURFACE_REGION_COUNT)
 #define SURFACE_RECIPE_PIGMENT_ROWS (3 * SURFACE_MAX_PIGMENT_LAYERS)
-#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_GLOBAL_ROWS + SURFACE_RECIPE_FUR_ROWS + SURFACE_RECIPE_REGION_ROWS + SURFACE_RECIPE_PIGMENT_ROWS)
+#define SURFACE_RECIPE_TRANSITION_BASE (SURFACE_RECIPE_GLOBAL_ROWS + SURFACE_RECIPE_FUR_ROWS + SURFACE_RECIPE_REGION_ROWS + SURFACE_RECIPE_PIGMENT_ROWS)
+#define SURFACE_RECIPE_PIGMENT_BANK_ROWS (5 + SURFACE_RECIPE_PIGMENT_ROWS)
+#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_TRANSITION_BASE + 2 + 2 * SURFACE_RECIPE_PIGMENT_BANK_ROWS)
 typedef struct SurfaceRecipe {
     float data[SURFACE_RECIPE_ROWS][4];
     uint32_t pigmentSeed, scaleSeed, furSeed;
@@ -98,7 +108,7 @@ SurfacePhenotype SurfacePhenotype_Default(void);
 /** @brief Limita valores e intercambia NaN/Inf por valores seguros.
  * @param surface Fenotipo a normalizar; NULL no hace nada. */
 void SurfacePhenotype_Normalize(SurfacePhenotype* surface);
-/** @brief Interpola controles; conserva semillas del origen durante la transición.
+/** @brief Interpola controles y transporta los campos de ambos extremos sin saltos de semillas.
  * @param a Origen; NULL selecciona valores por defecto.
  * @param b Destino; NULL selecciona valores por defecto.
  * @param t Madurez normalizada.

@@ -75,6 +75,7 @@ typedef struct MonsterSDFConnector {
     float widthBulge, heightBulge; /**< Perfil muscular compilado. */
     AnatomyId fromId;
     AnatomyId toId;
+    AnatomyId connectionId; /**< Identidad de tramo; varias costillas pueden compartir nodo destino. */
     uint32_t moduleInstanceId;
     AnatomyRegion region; /**< Identidad del tejido resuelto; independiente del color. */
     bool isHeadNeck, isDistalLimb;
@@ -94,6 +95,7 @@ typedef struct MonsterSDFConnector {
 /** Jerarquía de intervalos contiguos: conserva el orden de mezcla SDF. */
 typedef struct MonsterSDFConnectorNode {
     AABB3D bounds;
+    AABB3D positiveBounds; /**< Subniveles k local + margen; certifican sólo signo positivo. */
     float lowerBoundScale, smoothnessSum;
     size_t begin, end, left, right;
     bool hasEligible;
@@ -149,6 +151,7 @@ typedef struct MonsterSDFMouth {
     Vector3 browRadii;
     bool sweptSkull; /**< Cráneo y rostro del lagarto comparten un único barrido. */
     SDFSweepStation headStations[6]; /**< Perfil cefálico resuelto. */
+    SDFSweepStation jawStations[6]; /**< Anchura facial y profundidad mandibular independientes del cráneo. */
     bool anatomicalHead; /**< Activa la receta compilada por HeadAnatomy. */
     Vector3 faceRootLocal; /**< Raíz local del rostro ahusado. */
     Vector3 faceMidLocal; /**< Sección nasal local intermedia. */
@@ -199,6 +202,7 @@ typedef struct MonsterSDFMouth {
     float faceRounding;
     AABB3D influenceBounds;
     AABB3D headBounds; /**< AABB mundial ajustada al campo local de cabeza. */
+    AABB3D positiveHeadBounds; /**< Soporte certificado del subnivel cefálico d <= k cabeza-cuerpo. */
     /* Anclas compartidas de costura derivadas de dimensiones host/boca */
     Vector3 seamSkullLeftLocal;      /**< Ancla craneal superior izquierda */
     Vector3 seamSkullRightLocal;     /**< Ancla craneal superior derecha */
@@ -281,6 +285,10 @@ struct MonsterSDF {
     AABB3D bounds;
     AABB3D bodyBounds; /**< Bounds del cuerpo grueso particionado. */
     bool hasPartitionedHead; /**< Existe una cabeza local que no debe duplicarse en cuerpo. */
+    AABB3D subtractionBounds; /**< Subnivel conservador de todos los cutters. */
+    double subtractionLevel, subtractionBudget, subtractionRoundoff;
+    bool hasSubtractionBounds; /**< Certificación interior compilada para este snapshot. */
+    bool connectorNodesUseAxial; /**< Selección axial usada al compilar la jerarquía. */
 };
 
 /**

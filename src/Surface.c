@@ -1,6 +1,7 @@
 #include "Surface.h"
 #include <math.h>
 #include <string.h>
+#include <stdbool.h>
 static float Limit(float x,float lo,float hi,float fallback) {
     return isfinite(x)?fmaxf(lo,fminf(hi,x)):fallback;
 }
@@ -67,6 +68,16 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
 SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const SurfacePhenotype* b,float t) {
     SurfacePhenotype p=a?*a:SurfacePhenotype_Default(),q=b?*b:SurfacePhenotype_Default();
     SurfacePhenotype_Normalize(&p); SurfacePhenotype_Normalize(&q); t=Limit(t,0,1,0);
+    if(t<=0)return p;
+    if(t>=1)return q;
+    PigmentPhenotype sourcePigment=p.pigment;
+    float sourceCoverage=(p.integument.type==INTEGUMENT_SCALES||p.integument.type==INTEGUMENT_PLATES)?p.integument.coverage:0;
+    float targetCoverage=(q.integument.type==INTEGUMENT_SCALES||q.integument.type==INTEGUMENT_PLATES)?q.integument.coverage:0;
+    p.transition.from=sourcePigment;p.transition.to=q.pigment;
+    p.transition.weight=t;p.transition.active=true;
+    p.transition.plateWeight=(p.integument.type==INTEGUMENT_PLATES?1-t:0)+(q.integument.type==INTEGUMENT_PLATES?t:0);
+    p.transition.scaleCoverage=sourceCoverage+(targetCoverage-sourceCoverage)*t;
+    p.transition.targetScaleSeed=q.integument.scales.seed;
 #define MIX(x) p.x+=(q.x-p.x)*t
     p.pigment.baseColor=Color_Lerp(p.pigment.baseColor,q.pigment.baseColor,t);
     p.pigment.secondaryColor=Color_Lerp(p.pigment.secondaryColor,q.pigment.secondaryColor,t);
@@ -92,9 +103,42 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
         MIX(regions[i].roughness); MIX(regions[i].irregularity); MIX(regions[i].roundness);
     }
 #undef MIX
-    if(t>=.5f) {
+    /* Los patrones discretos no se interpolan como números: se mezclan sus
+     * contribuciones. Las semillas de cada capa permanecen inmutables. */
+    PigmentPhenotype origin=p.pigment;
+    PigmentLayer layers[2*SURFACE_MAX_PIGMENT_LAYERS];size_t count=0;
+    bool used[SURFACE_MAX_PIGMENT_LAYERS]={0};
+    for(size_t i=0;i<origin.layerCount;++i) {
+        PigmentLayer layer=origin.layers[i];size_t match=q.pigment.layerCount;
+        for(size_t j=0;j<q.pigment.layerCount;++j)
+            if(!used[j]&&layer.pattern==q.pigment.layers[j].pattern&&layer.seed==q.pigment.layers[j].seed){match=j;break;}
+        if(match<q.pigment.layerCount) {
+            PigmentLayer dest=q.pigment.layers[match];used[match]=true;
+            layer.color=Color_Lerp(layer.color,dest.color,t);
+            layer.strength+=(dest.strength-layer.strength)*t;
+            layer.scale+=(dest.scale-layer.scale)*t;layer.sharpness+=(dest.sharpness-layer.sharpness)*t;
+            layer.direction=Vec3_Lerp(layer.direction,dest.direction,t);
+        } else layer.strength*=1-t;
+        layers[count++]=layer;
+    }
+    for(size_t j=0;j<q.pigment.layerCount;++j)if(!used[j]) {
+        PigmentLayer layer=q.pigment.layers[j];layer.strength*=t;layers[count++]=layer;
+    }
+    if(t>=1) {
         p.pigment.layerCount=q.pigment.layerCount;
-        for(size_t i=0;i<q.pigment.layerCount;++i)p.pigment.layers[i]=q.pigment.layers[i];
+        memcpy(p.pigment.layers,q.pigment.layers,q.pigment.layerCount*sizeof(PigmentLayer));
+    } else if(t>0 && count<=SURFACE_MAX_PIGMENT_LAYERS) {
+        p.pigment.layerCount=count;memcpy(p.pigment.layers,layers,count*sizeof(PigmentLayer));
+    } else if(t>0) {
+        /* Capacidad fija: retirar una familia antes de introducir la otra.
+         * En el punto de cambio ambas contribuciones valen exactamente cero. */
+        bool target=t>=.5f;
+        p.pigment.layerCount=target?q.pigment.layerCount:origin.layerCount;
+        float strength=target?2*t-1:1-2*t;
+        for(size_t i=0;i<p.pigment.layerCount;++i) {
+            p.pigment.layers[i]=target?q.pigment.layers[i]:origin.layers[i];
+            p.pigment.layers[i].strength*=strength;
+        }
     }
     /* Piel, escamas, pelaje y placas comparten backend */
     if(p.integument.type!=q.integument.type &&
@@ -107,6 +151,20 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
     return p;
 }
 static void PackColor(float* out,Color c) { out[0]=c.r/255.f; out[1]=c.g/255.f; out[2]=c.b/255.f; out[3]=c.a/255.f; }
+/* Cada banco conserva el índice original de capa, que participa en su ruido.
+ * Separar bancos evita cambiar semilla al desaparecer una capa del origen. */
+static void PackPigmentBank(float (*rows)[4],const PigmentPhenotype* p) {
+    PackColor(rows[0],p->baseColor);PackColor(rows[1],p->secondaryColor);PackColor(rows[2],p->ventralColor);
+    float params[4]={p->dorsalDarkening,p->ventralLightening,p->patternStrength,p->patternScale};memcpy(rows[3],params,sizeof(params));
+    rows[4][0]=p->bands;rows[4][1]=(float)p->layerCount;
+    rows[4][2]=(float)(p->seed&0xffffu);rows[4][3]=(float)(p->seed>>16);
+    for(size_t i=0;i<p->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i) {
+        const PigmentLayer* l=&p->layers[i];size_t row=5+3*i;
+        PackColor(rows[row],l->color);rows[row][3]=l->strength;
+        rows[row+1][0]=(float)l->pattern;rows[row+1][1]=l->scale;rows[row+1][2]=l->sharpness;rows[row+1][3]=(float)(l->seed&0xffffu);
+        rows[row+2][0]=l->direction.x;rows[row+2][1]=l->direction.y;rows[row+2][2]=l->direction.z;
+    }
+}
 SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
     SurfacePhenotype p=source?*source:SurfacePhenotype_Default(); SurfacePhenotype_Normalize(&p);
     SurfaceRecipe r; memset(&r,0,sizeof(r));
@@ -118,6 +176,16 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         {p.integument.scales.roughness,p.integument.scales.microColorVariation,(p.integument.type==INTEGUMENT_SCALES||p.integument.type==INTEGUMENT_PLATES)?p.integument.coverage:0,p.pigment.bands},
         {(float)p.integument.type,p.integument.type==INTEGUMENT_PLATES?1.0f:0.0f,(float)p.pigment.layerCount,p.integument.plates.relief}};
     memcpy(r.data[3],rows,sizeof(rows));
+    if(p.transition.active) {
+        r.data[7][1]=p.transition.plateWeight;
+        r.data[6][2]=p.transition.scaleCoverage;
+        size_t row=SURFACE_RECIPE_TRANSITION_BASE;
+        r.data[row][0]=1;r.data[row][1]=p.transition.weight;
+        r.data[row+1][0]=(float)(p.transition.targetScaleSeed&0xffffu);
+        r.data[row+1][1]=(float)(p.transition.targetScaleSeed>>16);
+        PackPigmentBank(r.data+row+2,&p.transition.from);
+        PackPigmentBank(r.data+row+2+SURFACE_RECIPE_PIGMENT_BANK_ROWS,&p.transition.to);
+    }
 
     /* Filas 8..11: Parámetros del pelaje */
     float furRows[4][4]={

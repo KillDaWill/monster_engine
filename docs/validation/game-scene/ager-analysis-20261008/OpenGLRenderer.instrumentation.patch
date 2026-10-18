@@ -1,0 +1,43 @@
+--- src/OpenGLRenderer.c
++++ /tmp/game-ager-analysis-OpenGLRenderer.c
+@@ -1311,6 +1311,7 @@
+     d->compute.denseValid=false;
+     d->compute.extractionVoxel=cache->grid.voxelSize;
+     if(d->sparse.failed)return false;
++    double auditStart=RendererNowMs();
+     unsigned fenceSlot=d->compute.frame%2;
+     if(d->compute.frameFences[fenceSlot]) {
+         GLenum wait;glFlush();do {wait=glClientWaitSync(d->compute.frameFences[fenceSlot],0,0);if(wait==GL_TIMEOUT_EXPIRED)SDL_Delay(1);}while(wait==GL_TIMEOUT_EXPIRED);
+@@ -1325,6 +1326,7 @@
+             GpuSDFSurfaceCache_Commit(cache,d->sparse.submittedGeneration[fenceSlot]);
+         }
+     }
++    double auditFence=RendererNowMs()-auditStart;
+     // La publicación anterior consume estos mismos buffers: ordenar sus lecturas
+     // antes de las escrituras del nuevo cuadro, sin esperar desde la CPU.
+     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT|GL_COMMAND_BARRIER_BIT|
+@@ -1346,10 +1348,15 @@
+     bool diagnostic=getenv("MONSTER_SPARSE_GPU_DIAGNOSTIC")!=NULL;
+ #define DIAG(stage) do{if(diagnostic){fprintf(stderr,"[GPU DIAG] gen=%llu stage=%s\n",(unsigned long long)cache->generation,stage);fflush(stderr);glFinish();}}while(0)
+     double begin=RendererNowMs();
+-    if(!GpuSDFSurfaceCache_Update(cache,sdf)||!UploadSDFScene(d,sdf,NULL,0,0))return false;
++    if(!GpuSDFSurfaceCache_Update(cache,sdf))return false;
++    double auditCache=RendererNowMs()-begin,auditSceneStart=RendererNowMs();
++    if(!UploadSDFScene(d,sdf,NULL,0,0))return false;
++    double auditScene=RendererNowMs()-auditSceneStart;
+     if(cache->nextSlot*8u*sizeof(GLuint)>d->sparse.brickCapacity)return false;
+     double certifyStart=RendererNowMs();size_t certifiedJobs=CertifySparseJobs(d,sdf,cache);
++    double auditJobs=RendererNowMs()-certifyStart,auditPagesStart=RendererNowMs();
+     if(certifiedJobs==SIZE_MAX||!PrepareSparsePointPages(d,cache))return false;
++    double auditPages=RendererNowMs()-auditPagesStart;
+     d->compute.stats.certificationCPUms=RendererNowMs()-certifyStart;
+     d->compute.stats.certifiedEmptyBricks=certifiedJobs;
+     GLuint buffers[]={d->compute.samples,d->compute.cases,d->compute.tables,d->compute.command,d->compute.vertices,
+@@ -1492,6 +1499,7 @@
+         d->compute.vertexCapacity+d->sparse.brickCapacity+d->sparse.jobCapacity+d->sparse.drawCapacity+d->sparse.allocatorCapacity+d->sparse.linkCapacity+d->sparse.indexCapacity+d->sparse.edgeBytes+d->sparse.rootQueueBytes+d->sparse.pointMapCapacity;
+ #undef DIAG
+ #undef STAMP
++    fprintf(stderr,"[ANALISIS_SPARSE] %llu %.6f %.6f %.6f %.6f %.6f %.6f\n",(unsigned long long)cache->generation,auditFence,auditCache,auditScene,auditJobs,auditPages,RendererNowMs()-begin);
+     return OpenGLRenderer_CheckErrors();
+ }
+ 

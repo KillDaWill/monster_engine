@@ -1,0 +1,8 @@
+layout(local_size_x=64) in;
+void main() {
+    uint queued=invocation();if(queued>=min(rootCount,edgeCapacity))return;
+    uint edge=RootEdge(queued);MonsterSDFUseCompleteScene();
+    SDFResult semantic;vec4 value=sceneDetailed(vertices[edge].position.xyz,semantic);
+    // La etiqueta de mandíbula se conserva con la superficie, sin remallar al articular.
+    vertices[edge].material=vec4(value.rgb,surfacePoseMaterial(vertices[edge].position.xyz,semantic));
+}

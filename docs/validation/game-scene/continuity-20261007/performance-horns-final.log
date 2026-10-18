@@ -1,0 +1,23 @@
+=================================================================
+ Monster Engine | Demo Visual del Juego: Escena Ortogonal
+=================================================================
+ Controles de cámara y escena:
+   1..4: Cuatro ángulos isométricos axiales (NE, NW, SW, SE)
+   Q / E: Rotación isométrica suave de la vista
+   W / S / A / D: Desplazar objetivo de cámara por el plano
+   + / - (Z / X): Zoom ortogonal (acercar / alejar)
+   F: Alternar pelaje procedural del perro
+   T: Mutar aleatoriamente el lagarto (MonsterAger)
+   D: Mostrar/ocultar límites del plano y vectores
+   Espacio: Pausar / reanudar simulación
+   Escape: Salir
+=================================================================
+
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-34-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=4
+[Escenario] Plano 3D generado con 3120 vértices y 1560 triángulos.
+[Criatura] Perro preparado (84918 vértices).
+[Criatura] Lagarto GPU preparado: Emerald Climber (voxel 0.075).
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-34-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[MUTACIÓN] Metamorfosis iniciada: 'Emerald Climber' -> 'Desert Horned' (3.0s con MonsterAger)
+[MUTACIÓN] Metamorfosis completada con éxito a 'Desert Horned'!
+Simulación finalizada tras 240 frames.

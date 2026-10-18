@@ -1,5 +1,11 @@
 layout(local_size_x=64) in;
-void main(){uint i=invocation(),n=sampleCount();if(i>=jobCount*n)return;
-    uint job=i/n,id=i%n,s=side();uvec3 p=uvec3(id%s,(id/s)%s,id/(s*s));
+void main() {
+    uint queued=invocation();if(queued>=uniqueSampleCount)return;
+    if(queued==0u)atomicAdd(sampledCount,uniqueSampleCount);
+    uint i=SampleOrdinal(queued),n=sampleCount(),job=i/n,id=i%n,s=side();
+    uvec3 p=uvec3(id%s,(id/s)%s,id/(s*s));
     ivec3 g=ivec3(jobs[job+jobBase].xyz)+ivec3(p)-ivec3(1);
-    MonsterSDFUseCompleteScene();scratch[i]=sceneDistance(gridPoint(g));}
+    MonsterSDFUseCompleteScene();float value=sceneDistance(gridPoint(g));
+    if(all(greaterThanEqual(g,ivec3(0)))&&all(lessThanEqual(g,ivec3(gridCells))))stored0[pointAddress(uvec3(g))]=value;
+    else scratch[i]=value;
+}

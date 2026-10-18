@@ -6,7 +6,7 @@ layout(location=11) in float anatomicalMaterial;
 layout(location=12) in vec3 restFlowDirection;
 layout(location=13) in float vertexIntegumentMask;
 
-uniform vec4 surfaceRecipe[46];
+uniform vec4 surfaceRecipe[82];
 uniform float shellFraction;
 uniform int furPass;
 uniform int shellCount;

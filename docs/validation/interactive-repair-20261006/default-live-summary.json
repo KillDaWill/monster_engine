@@ -1,0 +1,68 @@
+{
+  "frames": 1600,
+  "budget_ms": 33.333333333333336,
+  "excluded_startup_frames": 10,
+  "sampled_returns_to_dog": 5,
+  "wall_all_ms": {
+    "count": 1600,
+    "p50": 61.32795,
+    "p95": 92.609895,
+    "p99": 98.808657,
+    "max": 107.3653,
+    "over_budget": 1600
+  },
+  "wall_after_startup_ms": {
+    "count": 1590,
+    "p50": 61.69,
+    "p95": 92.61484499999999,
+    "p99": 98.81922699999998,
+    "max": 107.3653,
+    "over_budget": 1590
+  },
+  "startup_wall_ms": {
+    "count": 10,
+    "p50": 53.716,
+    "p95": 66.58402499999998,
+    "p99": 72.478485,
+    "max": 73.9521,
+    "over_budget": 10
+  },
+  "gpu_unique_ms": {
+    "count": 1598,
+    "p50": 57.31255,
+    "p95": 88.24057499999999,
+    "p99": 94.073486,
+    "max": 102.7832,
+    "over_budget": 1597
+  },
+  "missing_gpu_timings": [
+    1599,
+    1600
+  ],
+  "stable_30fps_wall": false,
+  "metadata": {
+    "mode": "sdf-raymarch",
+    "revision": "75b199b-dirty",
+    "device": "AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-31-generic)",
+    "opengl": "4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2",
+    "width": 1100,
+    "height": 820,
+    "voxel": 0.0175000001,
+    "refinement": 2,
+    "brick_cells": 16,
+    "fur": true,
+    "fixed_timestep": 0,
+    "argv": [
+      "./demos/demo_morph_dog_lizard",
+      "--frames=1600",
+      "--gpu-trace=build/interactive-repair/default-live.csv"
+    ],
+    "group_pruning": true
+  },
+  "mean_fps_after_startup": 15.660128996500992,
+  "cpu_thread_ms": {
+    "p50": 3.9071,
+    "max": 8.8272
+  },
+  "all_extraction_samples_zero": true
+}

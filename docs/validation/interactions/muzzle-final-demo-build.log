@@ -1,0 +1,21 @@
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureBoundary.c -o build/CreatureBoundary.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureMorph.c -o build/CreatureMorph.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MorphSurfaceTracker.c -o build/MorphSurfaceTracker.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MorphSurfacePatcher.c -o build/MorphSurfacePatcher.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SurfaceMapper.c -o build/SurfaceMapper.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/SurfacePresets.c -o build/SurfacePresets.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterSDF.c -o build/MonsterSDF.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterVisual.c -o build/MonsterVisual.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterVisualAsync.c -o build/MonsterVisualAsync.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/BodyPart.c -o build/BodyPart.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureRecipes.c -o build/CreatureRecipes.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Creature.c -o build/Creature.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/Monster.c -o build/Monster.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterQueries.c -o build/MonsterQueries.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterAger.c -o build/MonsterAger.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/CreatureRig.c -o build/CreatureRig.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AnatomyDeformer.c -o build/AnatomyDeformer.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/MonsterAnimation.c -o build/MonsterAnimation.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/AnimatedVisual.c -o build/AnimatedVisual.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests -MMD -MP -c src/OpenGLRenderer.c -o build/OpenGLRenderer.o
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/AnatomicalReach.o build/BrainProfile.o build/CreatureNeeds.o build/AIWorld.o build/CreaturePerception.o build/CreatureNavigation.o build/CreatureMotor.o build/CreatureMind.o build/CreatureDecision.o build/CreatureActions.o build/GpuDevicePolicy.o build/NavigationProgress.o build/CreatureBoundary.o build/SDFInterval.o build/GpuSDFSurfaceCache.o build/CreatureMorph.o build/MorphModuleState.o build/MorphHandoff.o build/MorphSpatialCache.o build/MorphChunkManager.o build/MorphSurfaceTracker.o build/MorphSurfacePatcher.o build/HeadMorph.o build/Surface.o build/Fur.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/MeshPatch.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/EyeTexture.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipes.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/LizardVariations.o build/OpenGLRenderer.o demos/demo_game_scene.c -lSDL2 -lGL -lGLU -lm -pthread -o demos/demo_game_scene

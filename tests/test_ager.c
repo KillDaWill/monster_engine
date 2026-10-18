@@ -3,6 +3,10 @@
 #include "CreatureMorph.h"
 #include <stdlib.h>
 #include "CreatureRecipes.h"
+#include "LizardVariations.h"
+#include "Ornament.h"
+#include "CreatureRig.h"
+#include "GpuSDFSurfaceCache.h"
 #include "MonsterAger.h"
 #include "MonsterVisual.h"
 #include "Eye.h"
@@ -57,6 +61,17 @@ void test_monster_ager(void) {
     MonsterAger_SetPerc(&ager, 1.0f);
     result = MonsterAger_GetResultConst(&ager);
     TEST_ASSERT(FLOAT_NEAR(result->bodyParts[0].width, 3.0f), "Width interpolation at 100% failed");
+    MonsterAger_SetGeometrySnapshotEnabled(&ager,false);
+    uint64_t builds=ager.geometryInterpolationCount;
+    for(int frame=0;frame<=60;++frame) {
+        MonsterAger_SetPerc(&ager,frame/60.f);
+        TEST_ASSERT(MonsterAger_GetGeometryResultConst(&ager)==MonsterAger_GetResultConst(&ager),"Backend continuo comparte el resultado de cada edad");
+        TEST_ASSERT(FLOAT_NEAR(ager.geometryPerc,ager.perc),"Edad continua sin snapshot cuantizado adicional");
+    }
+    TEST_ASSERT(ager.geometryInterpolationCount==builds,"No interpolar una copia geométrica sin consumidor");
+    MonsterAger_SetGeometrySnapshotEnabled(&ager,true);
+    TEST_ASSERT(MonsterAger_GetGeometryResultConst(&ager)!=MonsterAger_GetResultConst(&ager),"Restaurar caché CPU independiente");
+    TEST_ASSERT(FLOAT_NEAR(ager.geometryResult.bodyParts[0].width,3),"Restaurar snapshot en la edad actual");
 
     /* El reloj limita extrapolación en ambos sentidos, sin bloquear el hilo visual. */
     MonsterAger_SetPerc(&ager,.5f);
@@ -288,7 +303,63 @@ static void test_resolved_morph_continuity(void) {
     Monster_Free(&a);Monster_Free(&b);Monster_Free(&previous);Monster_Free(&current);Monster_Free(&reverse);
 }
 
+static void test_variant_accessory_growth(void) {
+    const CreatureRecipe* base=CreatureRecipes_Lizard();
+    Monster source=Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(&source,base,&base->adult),"Origen para accesorios");
+    for(size_t variantIndex=0;variantIndex<LIZARD_VARIATIONS_COUNT;++variantIndex) {
+        CreatureVariation variation=LizardVariations_Get(variantIndex,179);
+        CreatureVariant variant;Monster target=Monster_Create();MonsterSDF sdf={0};
+        TEST_ASSERT(CreatureVariation_Apply(base,&base->adult,&variation,&variant),"Receta completa de variante");
+        TEST_ASSERT(Creature_BuildMonster(&target,&variant.recipe,&variant.phenotype),"Construir módulos añadidos, no sólo su fenotipo");
+        MonsterAger ager=MonsterAger_Create(&source,&target,0);
+        MonsterAger_SetGeometrySnapshotEnabled(&ager,false);
+        size_t ornaments=0;
+        for(size_t n=0;n<target.anatomyGraph.nodeCount;++n)ornaments+=target.anatomyGraph.nodes[n].region==ANATOMY_REGION_ORNAMENT;
+        if(variant.phenotype.ornamentCount)TEST_ASSERT(ornaments>0,"La forma adulta contiene todos los módulos de accesorios");
+        float previous=0;
+        for(int step=0;step<=20;++step) {
+            MonsterAger_SetPerc(&ager,step/20.f);
+            const Monster* current=MonsterAger_GetResultConst(&ager);float sum=0;
+            TEST_ASSERT(AnatomyGraph_Validate(&current->anatomyGraph),"Grafo de crecimiento válido");
+            TEST_ASSERT(MonsterSDF_Build(&sdf,current,MonsterSDF_DefaultConfig()),"SDF de accesorios en cada edad");
+            Rig rig;TEST_ASSERT(CreatureRig_Build(current,&rig),"Rig de accesorios y membranas en cada edad");
+            size_t count=MonsterSDF_CollectSurfaceFeatures(&sdf,NULL,0,0);
+            MonsterSDFSurfaceFeature* features=malloc(count*sizeof(*features));
+            TEST_ASSERT(features&&MonsterSDF_CollectSurfaceFeatures(&sdf,features,count,0)==count,"Descubrimiento de todos los accesorios");
+            for(size_t i=0;i<count;++i)for(size_t j=0;j<i;++j)
+                TEST_ASSERT(features[i].id!=features[j].id,"Costillas y membranas tienen identidad propia aunque compartan nodo");
+            free(features);
+            for(size_t n=0;n<target.anatomyGraph.nodeCount;++n) {
+                const AnatomyNode* adult=&target.anatomyGraph.nodes[n];
+                if(adult->region!=ANATOMY_REGION_ORNAMENT)continue;
+                const AnatomyNode* growing=AnatomyGraph_FindNode(&current->anatomyGraph,adult->id);
+                TEST_ASSERT(growing!=NULL,"La identidad del accesorio persiste durante Ager");
+                sum+=growing->development;
+                if(step==0)TEST_ASSERT(growing->development==0,"Accesorio ausente inicia sin desarrollo");
+                if(step==20) {
+                    TEST_ASSERT(Vec3_Distance(growing->center,adult->center)<1e-5f,"Accesorio alcanza su posición adulta sin sustitución");
+                    TEST_ASSERT(FLOAT_NEAR(growing->widthRadius,adult->widthRadius),"Radio adulto del accesorio");
+                    if(adult->localNodeId==ORNAMENT_NODE_MID)
+                        TEST_ASSERT(MonsterSDF_EvaluateDistance(&sdf,adult->center)<=.001f,"El accesorio adulto pertenece al volumen SDF");
+                }
+            }
+            TEST_ASSERT(sum>=previous-1e-5f,"Desarrollo continuo y monótono de accesorios");previous=sum;
+        }
+        MonsterSDF_Free(&sdf);MonsterAger_Free(&ager);Monster_Free(&target);
+    }
+    Monster_Free(&source);
+    printf("[PASS] test_variant_accessory_growth: 10 variantes, 21 edades\n");
+}
+
 void run_ager_tests(void) {
+    test_variant_accessory_growth();
+    /* Cambiar la composición cefálica exige anatomía resuelta aun cuando
+     * las extremidades y el blueprint tengan la misma topología. */
+    CreaturePhenotype formA=CreatureRecipes_Lizard()->adult,formB=formA;
+    formB.head.cranialForm=HEAD_CRANIAL_SHIELD;
+    formA.head.cranialForm=HEAD_CRANIAL_NARROW;
+    TEST_ASSERT(!CreaturePhenotype_MorphCompatible(&formA,&formB),"Las categorías craneales no se seleccionan al 50 por ciento");
     test_resolved_morph_continuity();
     test_monster_ager();
     test_bug_eye_pupil_buried_behind_sclera_during_growth();

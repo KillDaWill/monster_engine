@@ -10,6 +10,7 @@
 #include "MonsterSDF.h"
 #include "LizardVariations.h"
 #include <math.h>
+#include <float.h>
 #include <string.h>
 
 typedef struct DetailFixture { Vector3 center; float radius; } DetailFixture;
@@ -108,6 +109,39 @@ static void test_head_cell_ranges(void) {
         MonsterSDF_Free(&sdf);Monster_Free(&monster);
     }
 }
+static void test_interior_certificates(void) {
+    Monster source=Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(&source,CreatureRecipes_Lizard(),&CreatureRecipes_Lizard()->adult),"Origen de certificado");
+    unsigned seed=73291;unsigned certificates=0;
+    for(size_t v=0;v<LIZARD_VARIATIONS_COUNT;++v) {
+        CreatureVariation variation=LizardVariations_Get(v,42);CreatureVariant variant;
+        TEST_ASSERT(CreatureVariation_Apply(CreatureRecipes_Lizard(),&CreatureRecipes_Lizard()->adult,&variation,&variant),"Destino de certificado");
+        Monster target=Monster_Create();MonsterSDF sdf={0};
+        TEST_ASSERT(Creature_BuildMonster(&target,&variant.recipe,&variant.phenotype),"Construir destino de certificado");
+        MonsterAger ager=MonsterAger_Create(&source,&target,0);MonsterAger_SetGeometrySnapshotEnabled(&ager,false);
+        for(unsigned age=0;age<5;++age) {
+            MonsterAger_SetPerc(&ager,age/4.f);
+            TEST_ASSERT(MonsterSDF_Build(&sdf,MonsterAger_GetResultConst(&ager),MonsterSDF_DefaultConfig()),"Campo de edad actual");
+            SDFField field=MonsterSDF_GetField(&sdf);Vector3 size=AABB_Size(sdf.bounds);
+            for(unsigned cell=0;cell<240;++cell) {
+                float u[3];for(int j=0;j<3;++j){seed=seed*1664525u+1013904223u;u[j]=(seed>>8)/16777216.f;}
+                Vector3 center=Vec3_Add(sdf.bounds.start,Vec3_Create(size.x*u[0],size.y*u[1],size.z*u[2]));
+                float r=.001f+.18f*(cell%13)/12;Vector3 half={r,r,r};AABB3D box={Vec3_Sub(center,half),Vec3_Add(center,half)};
+                float lo,hi;TEST_ASSERT(field.getCellRange(field.context,box,&lo,&hi),"Rango certificado disponible");
+                if(lo==-FLT_MAX)++certificates;
+                for(unsigned point=0;point<27;++point) {
+                    Vector3 p=Vec3_Add(box.start,Vec3_Create(r*(point%3),r*((point/3)%3),r*(point/9)));
+                    float value=field.evaluateDistance(field.context,p);
+                    TEST_ASSERT(value>=lo&&value<=hi,"Certificado contiene esquinas, caras y centro de cada edad");
+                }
+            }
+        }
+        MonsterAger_Free(&ager);MonsterSDF_Free(&sdf);Monster_Free(&target);
+    }
+    TEST_ASSERT(certificates>0,"La prueba recorre la salida interior y las celdas inciertas");
+    Monster_Free(&source);
+}
+
 static void test_local_cavities(void) {
     for(int adaptive=0;adaptive<2;++adaptive)
     for(int k=0;k<3;++k) {
@@ -192,4 +226,4 @@ static void test_growth_ownership(void) {
     MonsterAger_Free(&ager);Monster_Free(&a);Monster_Free(&b);
     printf("[PASS] test_growth_ownership\n");
 }
-void run_local_detail_tests(void) { test_budget_preserves_octants();test_connector_cell_ranges();test_head_cell_ranges();test_local_cavities();test_growth_ownership(); }
+void run_local_detail_tests(void) { test_budget_preserves_octants();test_connector_cell_ranges();test_head_cell_ranges();test_interior_certificates();test_local_cavities();test_growth_ownership(); }

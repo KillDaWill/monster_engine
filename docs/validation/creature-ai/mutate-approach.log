@@ -1,0 +1,65 @@
+=================================================================
+ Monster Engine | Demo Visual del Juego: Escena Ortogonal
+=================================================================
+ Controles de cámara y escena:
+   1..4: Cuatro ángulos isométricos axiales (NE, NW, SW, SE)
+   Q / E: Rotación isométrica suave de la vista
+   W / S / A / D: Desplazar objetivo de cámara por el plano
+   + / - (Z / X): Zoom ortogonal (acercar / alejar)
+   F: Alternar pelaje procedural del perro
+   T: Mutar aleatoriamente el lagarto (MonsterAger)
+   D: Mostrar/ocultar límites del plano y vectores
+   Espacio: Pausar / reanudar simulación
+   Escape: Salir
+=================================================================
+
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=4
+[Escenario] Plano 3D generado con 13440 vértices y 6720 triángulos.
+[Criatura] Perro preparado (80881 vértices).
+[Criatura] Lagarto GPU preparado: Emerald Climber (voxel 0.075).
+[AI] frame=0 id=2 brain=balanced goal=0 action=wander thirst=0.8504 visible=0 remembered=0 target=0 distance=15.891 drinks=0 completed=0 failures=0 mouth_y=3.950 clearance=0.950 mouth_bank=8.691 forward=2.215 speed=0.000 yaw=0.333 random=3648046016 mode=move
+[AI] frame=0 id=3 brain=solitary goal=0 action=wander thirst=0.8504 visible=0 remembered=0 target=0 distance=7.064 drinks=0 completed=0 failures=0 mouth_y=1.238 clearance=0.650 mouth_bank=7.257 forward=0.625 speed=0.000 yaw=-0.785 random=940081303 mode=move
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02; extracción experimental sin readback
+[AI MUTATION] action=approach_water thirst=0.875002 target=1 memory=2
+[MUTACIÓN] Metamorfosis iniciada: 'Emerald Climber' -> 'Desert Horned' (3.0s con MonsterAger)
+[AI] frame=120 id=2 brain=balanced goal=1 action=approach_water thirst=0.9004 visible=1 remembered=1 target=1 distance=5.658 drinks=0 completed=0 failures=0 mouth_y=3.961 clearance=0.950 mouth_bank=6.560 forward=2.215 speed=1.216 yaw=0.333 random=3648046016 mode=move
+[AI] frame=120 id=3 brain=solitary goal=1 action=approach_water thirst=0.9004 visible=1 remembered=1 target=1 distance=6.597 drinks=0 completed=0 failures=0 mouth_y=1.122 clearance=0.817 mouth_bank=7.004 forward=0.648 speed=0.181 yaw=-0.948 random=940081303 mode=move
+[MUTACIÓN] Metamorfosis completada con éxito a 'Desert Horned'!
+[AI] frame=240 id=2 brain=balanced goal=1 action=approach_water thirst=0.9504 visible=1 remembered=1 target=1 distance=3.225 drinks=0 completed=0 failures=0 mouth_y=3.941 clearance=0.950 mouth_bank=4.369 forward=2.215 speed=1.217 yaw=0.333 random=3648046016 mode=move
+[AI] frame=240 id=3 brain=solitary goal=1 action=approach_water thirst=0.9504 visible=1 remembered=1 target=1 distance=5.500 drinks=0 completed=0 failures=0 mouth_y=0.691 clearance=1.666 mouth_bank=6.368 forward=0.776 speed=0.169 yaw=-0.974 random=940081303 mode=move
+[AI] frame=360 id=2 brain=balanced goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=0.950 drinks=0 completed=0 failures=0 mouth_y=3.367 clearance=0.950 mouth_bank=2.231 forward=1.951 speed=1.181 yaw=0.333 random=3648046016 mode=move
+[AI] frame=360 id=3 brain=solitary goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=5.012 drinks=0 completed=0 failures=0 mouth_y=0.697 clearance=1.666 mouth_bank=5.969 forward=0.790 speed=0.395 yaw=-0.710 random=940081303 mode=move
+[AI EVENT] id=2 time=6.600 drinks=1 completed=0 thirst=1.000000
+[AI] frame=480 id=2 brain=balanced goal=1 action=drink thirst=0.7233 visible=1 remembered=1 target=1 distance=0.590 drinks=1 completed=0 failures=0 mouth_y=3.362 clearance=0.950 mouth_bank=1.939 forward=1.951 speed=0.000 yaw=0.333 random=3648046016 mode=idle
+[AI] frame=480 id=3 brain=solitary goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=4.043 drinks=0 completed=0 failures=0 mouth_y=0.692 clearance=1.666 mouth_bank=4.991 forward=0.794 speed=0.504 yaw=-0.710 random=940081303 mode=move
+[AI] frame=600 id=2 brain=balanced goal=1 action=drink thirst=0.3333 visible=1 remembered=1 target=1 distance=0.590 drinks=1 completed=0 failures=0 mouth_y=3.362 clearance=0.950 mouth_bank=1.939 forward=1.951 speed=0.000 yaw=0.333 random=3648046016 mode=idle
+[AI] frame=600 id=3 brain=solitary goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=3.035 drinks=0 completed=0 failures=0 mouth_y=0.688 clearance=1.666 mouth_bank=3.997 forward=0.793 speed=0.504 yaw=-0.710 random=940081303 mode=move
+[AI EVENT] id=2 time=10.967 drinks=1 completed=1 thirst=0.148092
+[AI] frame=720 id=2 brain=balanced goal=0 action=wander thirst=0.1743 visible=1 remembered=1 target=0 distance=1.277 drinks=1 completed=1 failures=0 mouth_y=3.940 clearance=0.950 mouth_bank=2.632 forward=2.214 speed=-0.730 yaw=0.333 random=3648046016 mode=reverse
+[AI] frame=720 id=3 brain=solitary goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=2.026 drinks=0 completed=0 failures=0 mouth_y=0.687 clearance=1.666 mouth_bank=2.982 forward=0.793 speed=0.504 yaw=-0.710 random=940081303 mode=move
+[AI] frame=840 id=2 brain=balanced goal=0 action=wander thirst=0.2243 visible=1 remembered=1 target=0 distance=2.728 drinks=1 completed=1 failures=0 mouth_y=3.944 clearance=0.950 mouth_bank=3.809 forward=2.215 speed=-0.601 yaw=0.333 random=3648046016 mode=reverse
+[AI] frame=840 id=3 brain=solitary goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=1.882 drinks=0 completed=0 failures=0 mouth_y=0.693 clearance=1.666 mouth_bank=2.027 forward=0.793 speed=0.504 yaw=-0.722 random=940081303 mode=move
+[AI] frame=960 id=2 brain=balanced goal=0 action=wander thirst=0.2743 visible=1 remembered=1 target=0 distance=8.228 drinks=1 completed=1 failures=0 mouth_y=3.945 clearance=0.950 mouth_bank=4.423 forward=2.171 speed=0.309 yaw=0.086 random=1441438134 mode=move
+[AI] frame=960 id=3 brain=solitary goal=1 action=approach_water thirst=1.0000 visible=1 remembered=1 target=1 distance=1.188 drinks=0 completed=0 failures=0 mouth_y=0.111 clearance=1.666 mouth_bank=1.356 forward=0.416 speed=0.489 yaw=-0.727 random=940081303 mode=move
+[AI EVENT] id=3 time=17.283 drinks=1 completed=0 thirst=1.000000
+[AI] frame=1080 id=2 brain=balanced goal=0 action=wander thirst=0.3243 visible=1 remembered=1 target=0 distance=6.866 drinks=1 completed=1 failures=0 mouth_y=3.949 clearance=0.950 mouth_bank=6.031 forward=2.212 speed=1.103 yaw=-0.665 random=1441438134 mode=move
+[AI] frame=1080 id=3 brain=solitary goal=1 action=drink thirst=0.8566 visible=1 remembered=1 target=1 distance=0.681 drinks=1 completed=0 failures=0 mouth_y=0.094 clearance=1.666 mouth_bank=0.852 forward=0.408 speed=0.000 yaw=-0.762 random=940081303 mode=idle
+[AI] frame=1200 id=2 brain=balanced goal=1 action=approach_water thirst=0.3743 visible=1 remembered=1 target=1 distance=2.049 drinks=1 completed=1 failures=0 mouth_y=3.947 clearance=0.950 mouth_bank=3.734 forward=2.167 speed=0.337 yaw=-0.123 random=1441438134 mode=move
+[AI] frame=1200 id=3 brain=solitary goal=1 action=drink thirst=0.4666 visible=1 remembered=1 target=1 distance=0.680 drinks=1 completed=0 failures=0 mouth_y=0.094 clearance=1.666 mouth_bank=0.852 forward=0.408 speed=0.000 yaw=-0.759 random=940081303 mode=idle
+[AI EVENT] id=3 time=21.650 drinks=1 completed=1 thirst=0.148092
+[AI] frame=1320 id=2 brain=balanced goal=1 action=approach_water thirst=0.4243 visible=1 remembered=1 target=1 distance=0.586 drinks=1 completed=1 failures=0 mouth_y=3.376 clearance=0.950 mouth_bank=1.945 forward=1.952 speed=0.000 yaw=0.321 random=1441438134 mode=idle
+[AI] frame=1320 id=3 brain=solitary goal=0 action=wander thirst=0.1573 visible=1 remembered=1 target=0 distance=0.758 drinks=1 completed=1 failures=0 mouth_y=0.525 clearance=1.666 mouth_bank=0.640 forward=0.728 speed=-0.303 yaw=-0.759 random=940081303 mode=reverse
+[AI EVENT] id=2 time=22.233 drinks=2 completed=1 thirst=0.429758
+[AI EVENT] id=2 time=23.683 drinks=2 completed=2 thirst=0.147008
+[AI] frame=1440 id=2 brain=balanced goal=0 action=wander thirst=0.1553 visible=1 remembered=1 target=0 distance=0.845 drinks=2 completed=2 failures=0 mouth_y=3.610 clearance=0.950 mouth_bank=1.999 forward=2.106 speed=-0.730 yaw=0.540 random=1441438134 mode=reverse
+[AI] frame=1440 id=3 brain=solitary goal=0 action=wander thirst=0.2073 visible=1 remembered=1 target=0 distance=1.359 drinks=1 completed=1 failures=0 mouth_y=0.692 clearance=1.666 mouth_bank=1.196 forward=0.794 speed=-0.303 yaw=-0.759 random=940081303 mode=reverse
+[AI] frame=1560 id=2 brain=balanced goal=0 action=wander thirst=0.2053 visible=1 remembered=1 target=0 distance=2.182 drinks=2 completed=2 failures=0 mouth_y=3.943 clearance=0.950 mouth_bank=3.268 forward=2.215 speed=-0.730 yaw=0.539 random=1441438134 mode=reverse
+[AI] frame=1560 id=3 brain=solitary goal=0 action=wander thirst=0.2573 visible=1 remembered=1 target=0 distance=1.962 drinks=1 completed=1 failures=0 mouth_y=0.690 clearance=1.666 mouth_bank=1.797 forward=0.793 speed=-0.303 yaw=-0.759 random=940081303 mode=reverse
+[AI] frame=1680 id=2 brain=balanced goal=0 action=wander thirst=0.2553 visible=1 remembered=1 target=0 distance=11.926 drinks=2 completed=2 failures=0 mouth_y=3.947 clearance=0.950 mouth_bank=4.146 forward=2.212 speed=-0.218 yaw=0.508 random=2431644334 mode=move
+[AI] frame=1680 id=3 brain=solitary goal=0 action=wander thirst=0.3073 visible=1 remembered=1 target=0 distance=2.567 drinks=1 completed=1 failures=0 mouth_y=0.695 clearance=1.666 mouth_bank=2.397 forward=0.794 speed=-0.303 yaw=-0.759 random=940081303 mode=reverse
+[AI PERFORMANCE] mean_ms=0.156371 max_ms=0.356900 frames=1800
+[AI RESULT] id=2 brain=balanced thirst=0.30492 drinks=2 completed=2 failures=0
+[AI RESULT] id=3 brain=solitary thirst=0.35684 drinks=1 completed=1 failures=0
+[OBJETIVOS] llegadas=0 recuperaciones=0 sin_avance_max=0.2167
+Simulación finalizada tras 1800 frames.

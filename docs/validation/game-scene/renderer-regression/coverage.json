@@ -1,0 +1,3657 @@
+[
+  {
+    "age": 0.0,
+    "feature": "digit-10-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-40",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-53",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-61",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-62",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-64",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-65",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-66",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-67",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-10-68",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-40",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-53",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-61",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-62",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-64",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-65",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-66",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-67",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-11-68",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-40",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-53",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-61",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-62",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-64",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-65",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-66",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-67",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-68",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-12-69",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-40",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-53",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-61",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-62",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-64",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-65",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-66",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-67",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-68",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-13-69",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-40",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-10-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-40",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-11-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-40",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-12-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-32",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-33",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-34",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-35",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-36",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-40",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-41",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-42",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-43",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-44",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-48",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-49",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-50",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-51",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-52",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-56",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-57",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-58",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-59",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "digit-segment-13-60",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "foot-10",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "foot-11",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "foot-12",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "foot-13",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "head",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "left-ear",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-10-1",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-10-2",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-10-3",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-10-4",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-11-1",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-11-2",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-11-3",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-11-4",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-12-1",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-12-2",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-12-3",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-12-4",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-13-1",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-13-2",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-13-3",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "limb-junction-13-4",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "right-ear",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "tail-20-1",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "tail-20-2",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "tail-20-3",
+    "observed": false
+  },
+  {
+    "age": 0.0,
+    "feature": "tail-20-4",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "tail-20-5",
+    "observed": true
+  },
+  {
+    "age": 0.0,
+    "feature": "tail-20-6",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-40",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-48",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-50",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-62",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-64",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-10-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-40",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-48",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-50",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-62",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-64",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-11-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-36",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-40",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-48",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-50",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-62",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-64",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-12-69",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-40",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-48",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-49",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-50",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-53",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-56",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-57",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-61",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-62",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-64",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-13-69",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-40",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-48",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-50",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-62",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-64",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-10-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-40",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-48",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-50",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-62",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-64",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-11-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-40",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-48",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-50",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-62",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-64",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-12-69",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-32",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-33",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-34",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-35",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-36",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-40",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-41",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-42",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-43",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-44",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-48",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-49",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-50",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-51",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-52",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-53",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-56",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-57",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-58",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-59",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-60",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-61",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-62",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-64",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-65",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-66",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-67",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-68",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "digit-segment-13-69",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "foot-10",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "foot-11",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "foot-12",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "foot-13",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "head",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "left-ear",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-10-1",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-10-2",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-10-3",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-10-4",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-11-1",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-11-2",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-11-3",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-11-4",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-12-1",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-12-2",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-12-3",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-12-4",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-13-1",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-13-2",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-13-3",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "limb-junction-13-4",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "right-ear",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "tail-20-1",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "tail-20-2",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "tail-20-3",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "tail-20-4",
+    "observed": false
+  },
+  {
+    "age": 0.5,
+    "feature": "tail-20-5",
+    "observed": true
+  },
+  {
+    "age": 0.5,
+    "feature": "tail-20-6",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-32",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-33",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-34",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-35",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-36",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-40",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-41",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-42",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-43",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-44",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-48",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-49",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-50",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-51",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-52",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-53",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-56",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-57",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-58",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-59",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-60",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-61",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-62",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-64",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-65",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-66",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-67",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-10-68",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-32",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-33",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-34",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-35",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-36",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-40",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-41",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-42",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-43",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-44",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-48",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-49",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-50",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-51",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-52",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-53",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-56",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-57",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-58",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-59",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-60",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-61",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-62",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-64",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-65",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-66",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-67",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-11-68",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-32",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-33",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-34",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-35",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-36",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-40",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-41",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-42",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-43",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-44",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-48",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-49",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-50",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-51",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-52",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-53",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-56",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-57",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-58",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-59",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-60",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-61",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-62",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-64",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-65",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-66",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-67",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-68",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-12-69",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-32",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-33",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-34",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-35",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-36",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-40",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-41",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-42",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-43",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-44",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-48",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-49",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-50",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-51",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-52",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-53",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-56",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-57",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-58",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-59",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-60",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-61",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-62",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-64",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-65",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-66",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-67",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-68",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-13-69",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-32",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-33",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-34",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-35",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-40",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-41",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-42",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-43",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-44",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-48",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-49",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-50",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-51",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-52",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-53",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-56",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-57",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-58",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-59",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-60",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-61",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-62",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-64",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-65",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-66",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-67",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-10-68",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-32",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-33",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-34",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-35",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-40",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-41",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-42",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-43",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-44",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-48",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-49",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-50",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-51",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-52",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-53",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-56",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-57",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-58",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-59",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-60",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-61",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-62",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-64",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-65",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-66",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-67",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-11-68",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-32",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-33",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-34",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-35",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-40",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-41",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-42",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-43",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-44",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-48",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-49",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-50",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-51",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-52",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-53",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-56",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-57",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-58",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-59",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-60",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-61",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-62",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-64",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-65",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-66",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-67",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-68",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-12-69",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-32",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-33",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-34",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-35",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-40",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-41",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-42",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-43",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-44",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-48",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-49",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-50",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-51",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-52",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-53",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-56",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-57",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-58",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-59",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-60",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-61",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-62",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-64",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-65",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-66",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-67",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-68",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "digit-segment-13-69",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "foot-10",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "foot-11",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "foot-12",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "foot-13",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "head",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-10-1",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-10-2",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-10-3",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-10-4",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-11-1",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-11-2",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-11-3",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-11-4",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-12-1",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-12-2",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-12-3",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-12-4",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-13-1",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-13-2",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-13-3",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "limb-junction-13-4",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "tail-20-1",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "tail-20-2",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "tail-20-3",
+    "observed": false
+  },
+  {
+    "age": 1.0,
+    "feature": "tail-20-4",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "tail-20-5",
+    "observed": true
+  },
+  {
+    "age": 1.0,
+    "feature": "tail-20-6",
+    "observed": true
+  }
+]

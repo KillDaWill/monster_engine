@@ -51,6 +51,17 @@ __pycache__/
 /demos/demo_dog
 /demos/demo_lizard_diversity
 /demos/demo_morph_dog_lizard
+demos/demo_game_scene
 /benchmarks/benchmark_morph_dynamic
 /benchmarks/benchmark_gpu_sparse_surface
+benchmarks/benchmark_ai
+benchmarks/benchmark_interactions
 .opencode/
+
+# Capturas raw y volcados de memoria gráfica temporales
+*.ppm
+*.pfm
+*.bin
+
+# Directorio temporal de trabajo
+scratch/

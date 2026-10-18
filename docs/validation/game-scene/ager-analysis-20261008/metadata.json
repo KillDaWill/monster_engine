@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-08",
+  "git_head": "75b199b1fa69a3c1a0772c4c61d104eea8529742",
+  "working_tree_dirty": true,
+  "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+  "sha256": {
+    "demos/demo_game_scene": "7c1fa73c963119a1d19eed5019b71838313e0437f18fd03646f1f5c3a7a1512c",
+    "demos/demo_game_scene.c": "8fa78f273bc31361dfef2d0d721ba104d06bb6338a6b33ca1f896929b32217d5",
+    "src/CreatureBoundary.c": "04422a0b8a3b6ed2a6be82a3298a576302b2d604deffcfa4f038c5b234aa5f70",
+    "src/MonsterAger.c": "26d9900197fbde1baf457ad251e50b1ceb23831e1469e9dc6cc114c68fd11524",
+    "src/MonsterSDF.c": "697668ebb3878dc34fbe5bc1f7394b15798eff0046e077769e5c41919c492eb5",
+    "src/OpenGLRenderer.c": "c1a615c46ec550daaf6da746d2938eddb702ebc20336331e13e8d3aeec17361c",
+    "src/MonsterAnimation.c": "bc55903357d3b50e6f4d5c7d08180177004e8bdb0c77ac3bd37522701f5fd7c4",
+    "src/SurfaceMapper.c": "31d33027c2f2479c152f17f0f5ad09cb0a49ba0a46f07a7e7350af27409a2d9b",
+    "src/AnatomyDeformer.c": "091bac49b58bcf796a1b0abfd0a6c3f0d3814f3a1bbc7e9ccfd693ae3e55bf22",
+    "Makefile": "cfa1a2393fa9c58af3208adea3c820f049512383b9f83710c0afa4a40e1ad1be"
+  },
+  "settings": {
+    "width": 1200,
+    "height": 850,
+    "msaa": 4,
+    "fur": true,
+    "sdf_voxel": 0.075,
+    "refinement_steps": 2,
+    "seed": 42,
+    "initial_variant": 0,
+    "simulation_dt": 0.016666666666666666,
+    "benchmark_uncapped": true
+  },
+  "gpu_timing_scope": "Solo superficie sparse del lagarto; diferido por timing_generation; total incluye huecos entre comandos y etapas auxiliares.",
+  "quantiles": "Interpolación lineal sobre las muestras ordenadas; p*(n-1)."
+}

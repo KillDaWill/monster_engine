@@ -36,6 +36,7 @@ typedef struct MonsterAger {
     Monster geometryResult; /**< Snapshot cuantizado reservado para generación costosa. */
     float geometryPerc;     /**< Edad efectiva del snapshot geométrico. */
     unsigned geometrySteps; /**< Intervalos geométricos de 0 a 1; 0 desactiva cuantización. */
+    bool geometrySnapshotEnabled; /**< Caché adicional para malladores CPU; el resultado continuo siempre se actualiza. */
     double lastInterpolationMs; /**< Coste de la interpolación visual más reciente. */
     double lastGeometryInterpolationMs; /**< Coste de la última actualización geométrica. */
     uint64_t interpolationCount;
@@ -81,6 +82,11 @@ const Monster* MonsterAger_GetResultConst(const MonsterAger* ager);
 
 /** @brief Configura la discretización exclusiva de geometría (32 por defecto). */
 void MonsterAger_SetGeometrySteps(MonsterAger* ager,unsigned steps);
+/** @brief Activa el snapshot adicional CPU; desactivarlo evita interpolaciones sin consumidor.
+ * El getter geométrico devuelve el resultado continuo cuando la caché está desactivada.
+ * @param ager Interpolador propietario. @param enabled true por defecto.
+ */
+void MonsterAger_SetGeometrySnapshotEnabled(MonsterAger* ager,bool enabled);
 
 /** @brief Obtiene el snapshot geométrico cuantizado; la apariencia sigue en result. */
 const Monster* MonsterAger_GetGeometryResultConst(const MonsterAger* ager);

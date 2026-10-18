@@ -14,6 +14,7 @@ typedef struct LimbRig {
     LimbRole role;
     LimbSide side;
     bool walking;
+    bool digitigrade; /**< Metapodio orientado antes de resolver la cadena proximal. */
     float soleHeight;
 } LimbRig;
 #define RIG_MAX_TAILS 8
@@ -27,8 +28,14 @@ typedef struct Rig {
     Skeleton skeleton;
     LimbRig limbs[RIG_MAX_LIMBS]; size_t limbCount;
     int headJoint,neckJoint,jawJoint,pelvisJoint;
+    int cervicalBaseJoint; /**< Pivote cervical que no arrastra la cintura ni los apoyos. */
+    Vector3 oralDirection; /**< Dirección oral resuelta en el marco cefálico de reposo. */
+    Vector3 oralPoint; /**< Landmark oral en el marco local de la cabeza de reposo. */
+    Vector3 cranialAttachment,cranialAxis; /**< Plano occipital de reposo: el cráneo es rígido. */
+    float cranialCollar; /**< Transición de piel exclusivamente detrás del plano occipital. */
     int spine[RIG_MAX_AXIAL_JOINTS];
     size_t spineCount;
+    float spineRadius[RIG_MAX_AXIAL_JOINTS]; /**< Envolvente conservadora para compensación corporal. */
     TailRig tails[RIG_MAX_TAILS];
     size_t tailCount;
     float maxJawAngle;

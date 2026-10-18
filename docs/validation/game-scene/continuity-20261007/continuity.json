@@ -1,0 +1,47 @@
+[
+  {
+    "variant": "horns",
+    "last_step_RGB_MAE": 0.0,
+    "end_RGB_MAE": 0.0,
+    "overflow": 0,
+    "allocator_errors": 0,
+    "edge_errors": 0,
+    "shared_values": 0
+  },
+  {
+    "variant": "spikes",
+    "last_step_RGB_MAE": 0.0,
+    "end_RGB_MAE": 0.0,
+    "overflow": 0,
+    "allocator_errors": 0,
+    "edge_errors": 0,
+    "shared_values": 0
+  },
+  {
+    "variant": "plates",
+    "last_step_RGB_MAE": 0.0,
+    "end_RGB_MAE": 0.0,
+    "overflow": 0,
+    "allocator_errors": 0,
+    "edge_errors": 0,
+    "shared_values": 0
+  },
+  {
+    "variant": "sail",
+    "last_step_RGB_MAE": 0.0,
+    "end_RGB_MAE": 0.0,
+    "overflow": 0,
+    "allocator_errors": 0,
+    "edge_errors": 0,
+    "shared_values": 0
+  },
+  {
+    "variant": "fin",
+    "last_step_RGB_MAE": 0.0,
+    "end_RGB_MAE": 0.0,
+    "overflow": 0,
+    "allocator_errors": 0,
+    "edge_errors": 0,
+    "shared_values": 0
+  }
+]

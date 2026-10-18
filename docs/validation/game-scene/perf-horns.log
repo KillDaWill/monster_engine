@@ -1,0 +1,38 @@
+=================================================================
+ Monster Engine | Demo Visual del Juego: Escena Ortogonal
+=================================================================
+ Controles de cámara y escena:
+   1..4: Cuatro ángulos isométricos axiales (NE, NW, SW, SE)
+   Q / E: Rotación isométrica suave de la vista
+   W / S / A / D: Desplazar objetivo de cámara por el plano
+   + / - (Z / X): Zoom ortogonal (acercar / alejar)
+   F: Alternar pelaje procedural del perro
+   T: Mutar aleatoriamente el lagarto (MonsterAger)
+   D: Mostrar/ocultar límites del plano y vectores
+   Espacio: Pausar / reanudar simulación
+   Escape: Salir
+=================================================================
+
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-34-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=4
+[Escenario] Plano 3D generado con 3120 vértices y 1560 triángulos.
+[Criatura] Perro preparado (84918 vértices).
+[Criatura] Lagarto GPU preparado: Emerald Climber (voxel 0.075).
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-34-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[PARIDAD] frame=29 error=0.000000477
+[MUTACIÓN] Metamorfosis iniciada: 'Emerald Climber' -> 'Desert Horned' (3.0s con MonsterAger)
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000358
+[MUESTRAS SDF] bricks=388 puntos=6596 error=0.000000358
+[PARIDAD] frame=75 error=0.000000477
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000238
+[MUESTRAS SDF] bricks=448 puntos=7616 error=0.000000477
+[PARIDAD] frame=120 error=0.000000477
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000358
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000715
+[MUESTRAS SDF] bricks=76 puntos=1292 error=0.000000477
+[PARIDAD] frame=165 error=0.000000477
+[MUTACIÓN] Metamorfosis completada con éxito a 'Desert Horned'!
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000358
+[MUESTRAS SDF] bricks=512 puntos=8704 error=0.000000715
+[MUESTRAS SDF] bricks=60 puntos=1020 error=0.000000477
+[PARIDAD] frame=210 error=0.000000477
+Simulación finalizada tras 240 frames.
