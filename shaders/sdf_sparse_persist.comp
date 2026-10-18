@@ -1,4 +1,9 @@
+// Los consumidores conservan su halo, pero cada esquina tiene un solo valor global.
 layout(local_size_x=128) in;
-void main(){uint i=invocation(),n=sampleCount();if(i>=jobCount*n)return;
-    uint job=i/n,slot=jobs[job+jobBase].w,s=bricks[slot].sampleSlot;
-    if(s!=0xffffffffu)storeValue(s*n+i%n,scratch[i]);}
+void main() {
+    uint i=invocation(),n=sampleCount();if(i>=jobCount*n)return;
+    uint job=i/n,id=i%n,s=side();uvec3 p=uvec3(id%s,(id/s)%s,id/(s*s));
+    if((jobs[job+jobBase].w&0x80000000u)!=0u)return;
+    ivec3 g=ivec3(jobs[job+jobBase].xyz)+ivec3(p)-ivec3(1);
+    if(all(greaterThanEqual(g,ivec3(0)))&&all(lessThanEqual(g,ivec3(gridCells))))scratch[i]=stored0[pointAddress(uvec3(g))];
+}

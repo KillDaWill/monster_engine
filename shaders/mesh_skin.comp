@@ -1,0 +1,30 @@
+#version 430
+// Mismos pesos, matrices y orden de suma que AnatomyDeformer.
+layout(local_size_x=128) in;
+struct Vertex {float px,py,pz,nx,ny,nz;uint color;float padding;};
+struct Skin {ivec4 j0,j1;vec4 w0,w1;};
+layout(std430,binding=1) readonly buffer Base {Vertex base[];};
+layout(std430,binding=2) readonly buffer Bindings {Skin skin[];};
+layout(std430,binding=3) readonly buffer Palette {vec4 rows[];};
+layout(std430,binding=4) writeonly buffer Output {Vertex posed[];};
+uniform uint vertexCount;
+void main() {
+    uint v=(gl_WorkGroupID.y*gl_NumWorkGroups.x+gl_WorkGroupID.x)*gl_WorkGroupSize.x+gl_LocalInvocationID.x;
+    if(v>=vertexCount)return;
+    vec3 bp=vec3(base[v].px,base[v].py,base[v].pz),bn=vec3(base[v].nx,base[v].ny,base[v].nz);
+    precise vec3 p=vec3(0),n=vec3(0);
+    for(int k=0;k<8;++k) {
+        float w=k<4?skin[v].w0[k]:skin[v].w1[k-4];if(w<=0)break;
+        int j=k<4?skin[v].j0[k]:skin[v].j1[k-4];
+        vec4 x=rows[3*j],y=rows[3*j+1],z=rows[3*j+2];
+        p.x+=(x.x*bp.x+x.y*bp.y+x.z*bp.z+x.w)*w;
+        p.y+=(y.x*bp.x+y.y*bp.y+y.z*bp.z+y.w)*w;
+        p.z+=(z.x*bp.x+z.y*bp.y+z.z*bp.z+z.w)*w;
+        n.x+=(x.x*bn.x+x.y*bn.y+x.z*bn.z)*w;
+        n.y+=(y.x*bn.x+y.y*bn.y+y.z*bn.z)*w;
+        n.z+=(z.x*bn.x+z.y*bn.y+z.z*bn.z)*w;
+    }
+    precise float length=sqrt(n.x*n.x+n.y*n.y+n.z*n.z);
+    if(length>1e-12)n*=1.0/length;
+    posed[v]=Vertex(p.x,p.y,p.z,n.x,n.y,n.z,base[v].color,base[v].padding);
+}

@@ -21,4 +21,6 @@ void AnimatedVisual_Free(AnimatedVisual* binding);
 bool AnimatedVisual_Bind(AnimatedVisual* binding,const MonsterVisual* visual,const Monster* monster);
 /** @brief Aplica pose a cuerpo, cabeza, ojos y puente mandibular sin reconstrucciones. */
 bool AnimatedVisual_Deform(const AnimatedVisual* binding,MonsterVisual* visual,const Monster* monster);
+/** @brief Actualiza partes rígidas y apariencia; el cuerpo lo deforma el backend GPU. */
+bool AnimatedVisual_DeformRigid(const AnimatedVisual* binding,MonsterVisual* visual,const Monster* monster);
 #endif

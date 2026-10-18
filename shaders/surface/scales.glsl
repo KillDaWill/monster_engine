@@ -4,13 +4,9 @@ float ScaleInterior(vec2 local,vec2 other,float edgeWidth,float aa) {
     return smoothstep(0.0,edgeWidth+aa,border);
 }
 float ScaleProfile(vec2 local,vec2 other,vec3 rnd,vec4 shape,vec4 relief,float aa) {
-    if(surfaceRecipe[7].y > 0.5) {
-        float border = max(0.0, (length(other) - length(local)) * 0.5);
-        float bevelWidth = max(relief.z * 1.5, 0.04);
-        float bevel = smoothstep(0.0, bevelWidth + aa, border);
-        float plateau = 0.90 + 0.10 * bevel;
-        return bevel * plateau - (1.0 - bevel) * relief.y * 1.8;
-    }
+    float border = max(0.0, (length(other) - length(local)) * 0.5);
+    float bevel = smoothstep(0.0, max(relief.z * 1.5, 0.04) + aa, border);
+    float plate = bevel * (0.90 + 0.10 * bevel) - (1.0 - bevel) * relief.y * 1.8;
     float inner=ScaleInterior(local,other,relief.z,aa);
     float angle=(rnd.z-.5)*shape.w*.5;
     local=mat2(cos(angle),-sin(angle),sin(angle),cos(angle))*local;
@@ -18,7 +14,8 @@ float ScaleProfile(vec2 local,vec2 other,vec3 rnd,vec4 shape,vec4 relief,float a
     float dome=mix(sqrt(max(radial,0.0)),radial*radial,shape.z);
     float overlap=clamp(.75+local.y*.5,.3,1.0);
     float keel=exp(-abs(local.x)*16.0)*smoothstep(-.5,0.0,local.y)*(1.0-smoothstep(.15,.55,local.y));
-    return inner*(dome*overlap+relief.w*keel)-(1.0-inner)*relief.y;
+    float scale=inner*(dome*overlap+relief.w*keel)-(1.0-inner)*relief.y;
+    return mix(scale,plate,clamp(surfaceRecipe[7].y,0.0,1.0));
 }
 // Celdas alternadas con jitter acotado: domos direccionales, no fisuras de roca.
 ScaleSample ScalePattern(vec2 coord,vec4 shape,vec4 relief,float footprint,uint seed) {

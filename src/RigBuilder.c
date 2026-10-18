@@ -4,7 +4,7 @@ bool RigBuilder_FromAnatomy(const AnatomyGraph* g,AnatomyId rootId,Rig* out) {
     if (!out || !AnatomyGraph_Validate(g) || !g->nodeCount) return false;
     const AnatomyNode* root=AnatomyGraph_FindNode(g,rootId);
     if (!root) return false;
-    Rig r={0}; r.headJoint=r.neckJoint=r.jawJoint=r.pelvisJoint=-1;
+    Rig r={0}; r.headJoint=r.neckJoint=r.jawJoint=r.pelvisJoint=r.cervicalBaseJoint=-1;
     r.skeleton.joints[0]=(SkeletonJoint){.id=rootId,.anatomyId=rootId,.parentIndex=-1,
         .restPosition=root->center,.restRotation=Quat_Identity(),.constraint={.type=JOINT_FIXED}};
     r.skeleton.jointCount=1;

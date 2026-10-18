@@ -1,25 +1,19 @@
 // Material del mismo impacto SDF para ambos productores de superficie.
 uniform int sdfSurfaceDebug;
-vec3 SDFSurfaceColor(vec3 p,vec3 n,vec3 rd) {
+vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 displayNormal,vec4 sampleValue,SDFResult semantic,
+    vec3 materialCoord,vec3 materialNormal,vec4 profileA,vec4 profileB,float ventral,vec3 flow) {
     if(sdfSurfaceDebug==25)return n*.5+.5;
     if(sdfSurfaceDebug==26)return vec3(1);
-    vec3 viewDelta=p-cameraPosition;
+    vec3 viewDelta=displayPosition-cameraPosition;
     vec3 viewP=vec3(dot(viewDelta,cameraRight),dot(viewDelta,cameraUp),
         -dot(viewDelta,cameraForward));
-    vec3 viewN=normalize(vec3(dot(n,cameraRight),dot(n,cameraUp),
-        -dot(n,cameraForward)));
-    SDFResult semantic;vec4 sampleValue=sceneDetailed(p,semantic);
-    if(sdfSurfaceDebug==28)return vec3(float(semantic.moduleId%256u),float(semantic.regionId),float(semantic.materialId))/255.0;
+    vec3 viewN=normalize(vec3(dot(displayNormal,cameraRight),dot(displayNormal,cameraUp),
+        -dot(displayNormal,cameraForward)));
+    if(sdfSurfaceDebug==28)return vec3(float(semantic.moduleId%256u),float(semantic.regionId),float(semantic.materialId&255u))/255.0;
     vec3 light=normalize(vec3(10,20,15)-p);
     vec3 color=sampleValue.xyz*(.4+max(dot(n,light),0.0));
     if(sdfHasSurface!=0) {
         float skinMask=clamp(semantic.skinWeight,0.0,1.0);
-        vec3 materialCoord=p/max(surfaceRecipe[11].z,.001),materialNormal=n;
-        vec4 profileA=vec4(1),profileB=vec4(1);
-        float ventral=clamp(.5-.7*n.y,0.0,1.0);
-        vec3 flow=normalize(vec3(0,0,-1)-n*dot(vec3(0,0,-1),n)+vec3(1e-12));
-        if(morphMaterialCount>0)
-            MorphMaterial(p,n,materialCoord,materialNormal,profileA,profileB,ventral,flow);
         int integument=int(surfaceRecipe[7].x+.5);
         if(integument==2) {
             vec3 pigment=EvaluatePigment(materialCoord,ventral,surfaceRecipe[3],pigmentSeed);
@@ -66,6 +60,7 @@ vec3 SDFSurfaceColor(vec3 p,vec3 n,vec3 rd) {
             ScaleSample scales;vec3 pigment;
             SurfaceResponse response=Surface_Evaluate(materialInput,false,scales,pigment);
             if(sdfSurfaceDebug==27)return response.albedo;
+            response.normal=normalize(response.normal+displayNormal-n);
             response.normal=normalize(vec3(dot(response.normal,cameraRight),
                 dot(response.normal,cameraUp),-dot(response.normal,cameraForward)));
             color=SurfaceLighting(response,viewP);
@@ -74,3 +69,12 @@ vec3 SDFSurfaceColor(vec3 p,vec3 n,vec3 rd) {
     if(sdfSurfaceDebug==27)return sampleValue.xyz;
     return color;
 }
+
+vec3 SDFSurfaceColorPosed(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 displayNormal) {
+    SDFResult semantic;vec4 value=sceneDetailed(p,semantic);
+    vec3 coord=p/max(surfaceRecipe[11].z,.001),normal=n,flow=normalize(vec3(0,0,-1)-n*dot(vec3(0,0,-1),n)+vec3(1e-12));
+    vec4 pa=vec4(1),pb=vec4(1);float ventral=clamp(.5-.7*n.y,0.0,1.0);
+    if(morphMaterialCount>0)MorphMaterial(p,n,coord,normal,pa,pb,ventral,flow);
+    return SDFSurfaceColorWithDomain(p,n,rd,displayPosition,displayNormal,value,semantic,coord,normal,pa,pb,ventral,flow);
+}
+vec3 SDFSurfaceColor(vec3 p,vec3 n,vec3 rd) {return SDFSurfaceColorPosed(p,n,rd,p,n);}

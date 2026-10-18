@@ -1,6 +1,6 @@
 # Superficie GPU del Ager — trabajo en curso — 30-09-2026
 
-**Estado global: PARTIALLY IMPLEMENTED. El prototipo denso supera el gate de píxel en la matriz de 27 pares; la arquitectura completa todavía no satisface 30 FPS ni pelaje.** El modo GPU continúa experimental y `legacy-handoff` sigue siendo el predeterminado.
+**Estado global: PARTIALLY IMPLEMENTED. La arquitectura completa todavía no satisface 30 FPS ni cobertura fina y pelaje certificados.** El arranque interactivo utiliza `sdf-raymarch`; los extractores volumétricos y `legacy-handoff` se seleccionan explícitamente. La regresión del arranque denso se corrigió el 6 de octubre; véase `AGER_INTERACTIVE_REPAIR_2026-10-06.md`. Los gates históricos de píxel no acreditan los criterios regionales endurecidos; véase también `AGER_DIAGNOSTIC_REPAIR_2026-10-06.md`.
 
 ## Arquitectura ejecutada
 
@@ -433,7 +433,7 @@ Las capturas manuales necesitan un directorio existente. `--capture-normals` pro
 
 **STATUS:** FAILED
 
-**FILES CHANGED:** El demo conserva `legacy-handoff` como predeterminado.
+**FILES CHANGED (registro histórico; corregido 06-10-2026):** El código auditado arranca con `gpu-sdf-dense`. No se acredita aceptación regional ni de rendimiento por ser el predeterminado.
 
 **TESTS:** Se verifican selección y errores de modos; no promoción.
 
@@ -446,4 +446,3 @@ Las capturas manuales necesitan un directorio existente. `--capture-normals` pro
 **KNOWN LIMITATIONS:** Fases obligatorias pendientes.
 
 **NEXT ACTION:** Promover sólo cuando todos los criterios anteriores pasen.
-

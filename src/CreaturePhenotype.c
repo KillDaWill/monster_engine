@@ -154,6 +154,11 @@ bool CreaturePhenotype_MorphCompatible(const CreaturePhenotype* a, const Creatur
     if (!CreaturePhenotype_TopologyCompatible(a, b)) return false;
     if (a->axial.archetype != b->axial.archetype) return false;
     if (a->head.archetype != b->head.archetype) return false;
+    /* Resolver de nuevo una categoría a mitad de Ager cambia el volumen de
+     * golpe. Estas transiciones necesitan mezclar anatomías ya resueltas. */
+    if (a->head.cranialForm != b->head.cranialForm ||
+        a->head.muzzleForm != b->head.muzzleForm ||
+        a->head.eyeLayout != b->head.eyeLayout) return false;
     for (size_t i = 0; i < a->limbCount; ++i) {
         if (a->limbs[i].archetype != b->limbs[i].archetype) return false;
     }

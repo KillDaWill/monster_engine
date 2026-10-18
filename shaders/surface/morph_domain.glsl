@@ -9,9 +9,7 @@ float MorphNodeLowerBound(int node,vec3 p) {
     vec3 delta=max(max(lo.xyz-p,p-hi.xyz),vec3(0));
     return dot(delta,delta)/max(lo.w*lo.w,1e-12);
 }
-void MorphMaterial(vec3 p,vec3 worldNormal,out vec3 coord,out vec3 normal,
-    out vec4 pa,out vec4 pb,out float belly,out vec3 posedFlow) {
-    float scores[5];int ids[5];float params[5];
+void MorphBindings(vec3 p,out float scores[5],out int ids[5],out float params[5]) {
     for(int k=0;k<5;++k) {scores[k]=1e30;ids[k]=0;params[k]=0;}
     int stack[64],top=0;stack[top++]=0;
     while(top>0) {
@@ -38,6 +36,9 @@ void MorphMaterial(vec3 p,vec3 worldNormal,out vec3 coord,out vec3 normal,
         }
         }
     }
+ }
+void MorphMaterialFromBindings(vec3 p,vec3 worldNormal,float scores[5],int ids[5],float params[5],
+    out vec3 coord,out vec3 normal,out vec4 pa,out vec4 pb,out float belly,out vec3 posedFlow) {
     coord=vec3(0);normal=vec3(0);posedFlow=vec3(0);pa=vec4(0);pb=vec4(0);
     float sum=0,trunk=0;
     for(int k=0;k<4;++k) {
@@ -64,4 +65,10 @@ void MorphMaterial(vec3 p,vec3 worldNormal,out vec3 coord,out vec3 normal,
     pa=mix(pa,surfaceRecipe[20],belly*trunk/max(sum,1e-12));
     pb=mix(pb,surfaceRecipe[21],belly*trunk/max(sum,1e-12));
     posedFlow=normalize(posedFlow-worldNormal*dot(posedFlow,worldNormal)+vec3(1e-12));
+}
+
+void MorphMaterial(vec3 p,vec3 worldNormal,out vec3 coord,out vec3 normal,
+    out vec4 pa,out vec4 pb,out float belly,out vec3 posedFlow) {
+    float scores[5],params[5];int ids[5];MorphBindings(p,scores,ids,params);
+    MorphMaterialFromBindings(p,worldNormal,scores,ids,params,coord,normal,pa,pb,belly,posedFlow);
 }

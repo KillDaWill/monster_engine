@@ -1,6 +1,6 @@
 uniform int allocatePass;
 layout(local_size_x=64) in;
-void main(){uint job=invocation();if(job>=jobCount)return;uint slot=jobs[job+jobBase].w;
+void main(){uint job=invocation();if(job>=jobCount)return;uint slot=jobs[job+jobBase].w&0x3fffffffu;
     if(allocatePass==0){
         if(bricks[slot].nearSurface!=0u)bricks[slot].farAge=0u;
         else{if(bricks[slot].farAge==0u)bricks[slot].farAge=generation;

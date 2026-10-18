@@ -6,6 +6,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests
 LIBS = -lm -pthread
 GL_LIBS = -lSDL2 -lGL -lGLU -lm -pthread
+BUILD_REVISION := $(shell git describe --always --dirty 2>/dev/null)
 
 # Directorios
 SRC_DIR = src
@@ -15,7 +16,20 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/SDFInterval.c \
+CORE_SRCS = $(SRC_DIR)/AnatomicalReach.c \
+            $(SRC_DIR)/BrainProfile.c \
+            $(SRC_DIR)/CreatureNeeds.c \
+            $(SRC_DIR)/AIWorld.c \
+            $(SRC_DIR)/CreaturePerception.c \
+            $(SRC_DIR)/CreatureNavigation.c \
+            $(SRC_DIR)/CreatureMotor.c \
+            $(SRC_DIR)/CreatureMind.c \
+            $(SRC_DIR)/CreatureDecision.c \
+            $(SRC_DIR)/CreatureActions.c \
+            $(SRC_DIR)/GpuDevicePolicy.c \
+            $(SRC_DIR)/NavigationProgress.c \
+            $(SRC_DIR)/CreatureBoundary.c \
+            $(SRC_DIR)/SDFInterval.c \
             $(SRC_DIR)/GpuSDFSurfaceCache.c \
             $(SRC_DIR)/CreatureMorph.c \
             $(SRC_DIR)/MorphModuleState.c \
@@ -96,7 +110,16 @@ CORE_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(CORE_SRCS))
 RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
-TEST_SRCS = $(TEST_DIR)/main_test.c \
+TEST_SRCS = $(TEST_DIR)/test_anatomical_reach.c \
+            $(TEST_DIR)/test_brain_profile.c \
+            $(TEST_DIR)/test_creature_needs.c \
+            $(TEST_DIR)/test_creature_perception.c \
+            $(TEST_DIR)/test_creature_decision.c \
+            $(TEST_DIR)/test_creature_navigation.c \
+            $(TEST_DIR)/test_creature_actions.c \
+            $(TEST_DIR)/main_test.c \
+            $(TEST_DIR)/test_gpu_device_policy.c \
+            $(TEST_DIR)/test_navigation.c \
             $(TEST_DIR)/test_gpu_sdf_surface.c \
             $(TEST_DIR)/test_surface.c \
             $(TEST_DIR)/test_color.c \
@@ -139,6 +162,7 @@ DEMO_MOUTH_BIN = $(DEMO_DIR)/demo_mouth_animation
 DEMO_ANIMATION_BIN = $(DEMO_DIR)/demo_lizard_animation
 DEMO_DIVERSITY_BIN = $(DEMO_DIR)/demo_lizard_diversity
 DEMO_MORPH_BIN = $(DEMO_DIR)/demo_morph_dog_lizard
+DEMO_GAME_SCENE_BIN = $(DEMO_DIR)/demo_game_scene
 LIZARD_VIEWER_BIN = lizard_viewer
 
 .PHONY: all clean test benchmark docs demos visual-morph-ownership
@@ -171,16 +195,19 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN)
+demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN)
+
+$(DEMO_GAME_SCENE_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_game_scene.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(DEMO_MORPH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_morph_dog_lizard.c
-	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+	$(CC) $(CFLAGS) -DMONSTER_BUILD_REVISION='"$(BUILD_REVISION)"' $^ $(GL_LIBS) -o $@
 
 # Compara la silueta final retardada con el campo exacto del mismo snapshot.
 visual-morph-ownership: $(DEMO_MORPH_BIN)
 	@mkdir -p $(BUILD_DIR)/morph-ownership
-	./$(DEMO_MORPH_BIN) --validate-cycle=$(BUILD_DIR)/morph-ownership/delayed --worker-delay=3000 --view=3 --no-fur
-	./$(DEMO_MORPH_BIN) --age=1 --exact-sdf --capture-prefix=$(BUILD_DIR)/morph-ownership/exact --view=3 --no-fur
+	./$(DEMO_MORPH_BIN) --surface-mode=legacy-handoff --validate-cycle=$(BUILD_DIR)/morph-ownership/delayed --worker-delay=3000 --view=3 --no-fur
+	./$(DEMO_MORPH_BIN) --surface-mode=exact-sdf --age=1 --capture-prefix=$(BUILD_DIR)/morph-ownership/exact --view=3 --no-fur
 	python3 tools/verify_morph_ownership.py $(BUILD_DIR)/morph-ownership/exact.ppm $(BUILD_DIR)/morph-ownership/delayed-06.ppm
 
 $(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c $(DEMO_DIR)/demo_ager_realtime.h
@@ -213,7 +240,7 @@ codegraph:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(DEMO_MORPH_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph doc/html doc/latex
+	rm -rf $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -243,6 +270,13 @@ benchmarks/benchmark_morph_dynamic: $(CORE_OBJS) benchmarks/benchmark_morph_dyna
 
 benchmarks/benchmark_gpu_sparse_surface: $(CORE_OBJS) benchmarks/benchmark_gpu_sparse_surface.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+$(BUILD_DIR)/validate_morph_gpu_regressions: $(CORE_OBJS) $(RENDER_OBJS) tools/validate_morph_gpu_regressions.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+.PHONY: visual-morph-gpu-regressions
+visual-morph-gpu-regressions: $(BUILD_DIR)/validate_morph_gpu_regressions
+	./$(BUILD_DIR)/validate_morph_gpu_regressions
 
 .PHONY: benchmark-ager-realtime
 benchmark-ager-realtime: benchmarks/benchmark_ager_realtime
@@ -291,3 +325,16 @@ demos/demo_dog: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_dog.c
 .PHONY: visual-ager-sparse
 visual-ager-sparse: demos/demo_morph_dog_lizard
 	python3 tools/validate_ager_features.py --mode=gpu-sdf-sparse --history --out=build/ager-sparse-validation
+
+# Benchmark de inteligencia independiente de GL, superficies y Ager.
+benchmarks/benchmark_ai: $(CORE_OBJS) benchmarks/benchmark_ai.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-ai
+benchmark-ai: benchmarks/benchmark_ai
+	./benchmarks/benchmark_ai 2
+	./benchmarks/benchmark_ai 100
+
+# Instrumentación corporal sin dependencias GL.
+benchmarks/benchmark_interactions: $(CORE_OBJS) benchmarks/benchmark_interactions.c
+	$(CC) $(CFLAGS) benchmarks/benchmark_interactions.c $(CORE_OBJS) -o $@ $(LIBS)

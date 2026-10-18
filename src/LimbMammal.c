@@ -99,10 +99,30 @@ void LimbMammal_ConfigureRig(const LimbRigDescriptor* d,const AnatomyGraph* g,Ri
         LimbRig* l=&rig->limbs[i];
         if (rig->skeleton.joints[l->rootJoint].anatomyId!=d->joints[0]) continue;
         l->soleHeight=d->soleHeight;
-        for (unsigned j=0;j<4;++j) {
+        l->digitigrade=true;
+        /* Dos bisagras acopladas requieren converger también al pivotar. */
+        l->chain.maxIterations=96;
+        for (size_t j=0;j<l->chain.jointCount;++j) {
             SkeletonJoint* joint=&rig->skeleton.joints[l->chain.jointIndices[j]];
-            joint->constraint=(JointConstraint){.type=JOINT_BALL,.hingeAxis={1,0,0},.maxSwingAngle=.45f,.maxTwistAngle=.20f};
-            if (j==1 || j==2) joint->constraint=(JointConstraint){.type=JOINT_HINGE,.hingeAxis={1,0,0},.minAngle=-.65f,.maxAngle=.85f};
+            Vector3 axis=j+1<l->chain.jointCount?
+                rig->skeleton.joints[l->chain.jointIndices[j+1]].restPosition:Vec3_Create(0,1,0);
+            /* En hombro/cadera, twist sigue el hueso; X es flexión sagital,
+             * no torsión. Confundir ambos ejes bloqueaba el paso del perro. */
+            joint->constraint=(JointConstraint){.type=JOINT_BALL,.hingeAxis=Vec3_Normalize(axis),
+                .maxSwingAngle=j==0?.7f:.9f,.maxTwistAngle=j==0?.15f:.35f};
+            if (j>0 && j+1<l->chain.jointCount) {
+                Vector3 incoming=joint->restPosition;
+                Vector3 outgoing=rig->skeleton.joints[l->chain.jointIndices[j+1]].restPosition;
+                float bend=atan2f(Vec3_Cross(incoming,outgoing).x,Vec3_Dot(incoming,outgoing));
+                /* Codo, rodilla y corvejón conservan el lado de flexión que
+                 * resuelve la anatomía. Los límites son relativos al reposo. */
+                float limit=j+2==l->chain.jointCount?.5f:1.2f;
+                float min=-limit,max=limit;
+                float margin=fminf(.02f,fabsf(bend)*.25f);
+                if(bend>0)min=fmaxf(min,-bend+margin);
+                if(bend<0)max=fminf(max,-bend-margin);
+                joint->constraint=(JointConstraint){.type=JOINT_HINGE,.hingeAxis={1,0,0},.minAngle=min,.maxAngle=max};
+            }
         }
     }
 }

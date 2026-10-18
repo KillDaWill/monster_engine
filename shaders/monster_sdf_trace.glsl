@@ -135,18 +135,20 @@ void main() {
         int tile=int(gl_FragCoord.y)/16*tileColumns+int(gl_FragCoord.x)/16;
         vec4 list=dataAt(tileDataBase+tile);tileOffset=int(list.x);tileCount=int(list.y);
     }
+    spatialTrace=!referenceTrace;
     vec3 p=vec3(0);vec4 sampleValue=vec4(0);bool hit=false;
     float traceTolerance=referenceTrace?hitTolerance*.01:hitTolerance;
-    float previousT=t,previousDistance=0;bool previousValid=false;
+    float previousT=t,previousDistance=0;bool previousValid=false,rejectedRoot=false;
     for(int step=0;step<(referenceTrace?referenceSteps:256);++step) {
         bool inside=false;float next=1e30;
         for(int i=0;i<intervalCount;++i) {
             inside=inside||(t>=entries[i]&&t<=exits[i]);
             if(entries[i]>t)next=min(next,entries[i]);
         }
-        if(!inside) {t=next;previousValid=false;if(t>end)break;}
+        if(!inside) {t=next;previousValid=false;rejectedRoot=false;if(t>end)break;}
         p=cameraPosition+rd*t;sampleValue.w=sceneDistance(p);
-        if(referenceTrace&&previousValid&&(previousDistance>0)!=(sampleValue.w>0)) {
+        bool rootFound=false;
+        if(previousValid&&(previousDistance>0)!=(sampleValue.w>0)) {
             // Un campo implícito puede sobrepasar la primera raíz aunque el
             // valor escalar sea correcto. No se sigue marchando dentro del sólido.
             float lo=previousT,hi=t;bool outside=previousDistance>0;
@@ -154,9 +156,17 @@ void main() {
                 float mid=(lo+hi)*.5;if(mid==lo||mid==hi)break;
                 if((sceneDistance(cameraPosition+rd*mid)>0)==outside)lo=mid;else hi=mid;
             }
-            t=(lo+hi)*.5;p=cameraPosition+rd*t;hit=true;break;
+            t=(lo+hi)*.5;p=cameraPosition+rd*t;rootFound=true;
         }
-        if(abs(sampleValue.w)<traceTolerance){hit=true;break;}
+        if(!rejectedRoot&&abs(sampleValue.w)<traceTolerance)rootFound=true;
+        if(rootFound) {
+            if(HandoffSDFKeep(p)){hit=true;break;}
+            // Una raíz ajena no termina el rayo: buscar el siguiente impacto
+            // dentro de los intervalos restantes, sin repetir la misma banda.
+            rejectedRoot=true;previousValid=false;
+            t+=traceTolerance*.5;if(t>end)break;continue;
+        }
+        if(abs(sampleValue.w)>=traceTolerance)rejectedRoot=false;
         previousT=t;previousDistance=sampleValue.w;previousValid=true;
         float stepFactor=sampleValue.w>0.04?1.0:0.8;
         float advance=max(abs(sampleValue.w)*stepFactor,traceTolerance*.35);
@@ -164,7 +174,8 @@ void main() {
         t+=advance;
         if(t>end)break;
     }
-    if(!hit||!HandoffSDFKeep(p))discard;
+    if(!hit)discard;
+    spatialTrace=false;
     float e=hitTolerance*.65;
     // Tetraedro simétrico: cuatro muestras con radio comparable a las seis originales.
     const vec3 k0=vec3(1,-1,-1),k1=vec3(-1,-1,1),k2=vec3(-1,1,-1),k3=vec3(1,1,1);

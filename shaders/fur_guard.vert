@@ -8,7 +8,7 @@ layout(location=5) in vec3 rootFlow;
 layout(location=6) in vec4 rootRegion;
 layout(location=7) in float rootMask;
 uniform samplerBuffer geometryData,surfaceData;
-uniform vec4 surfaceRecipe[46];
+uniform vec4 surfaceRecipe[82];
 uniform float guardVisibility;
 uniform uint furSeed;
 out vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;

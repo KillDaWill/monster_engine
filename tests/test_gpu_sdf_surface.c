@@ -115,6 +115,42 @@ static void TestConnectorIntervalContainment(void) {
     }
 }
 
+/* Una hoja temprana puede desplazar el cero a través de uniones posteriores,
+ * incluso cuando su distancia supera el mayor k individual. */
+static void TestFeatureDependencyBudget(void) {
+    MonsterSDFBodyPart body={.radii={1,1,1},.invRadii={1,1,1},.invRadiiSquared={1,1,1},.minRadius=1};
+    MonsterSDFConnector connectors[3]={0};
+    float centers[]={4.1f,2.8f,2.0667603f},radii[]={.5f,.2f,.2f};
+    for(int i=0;i<3;++i) {
+        MonsterSDFConnector* c=&connectors[i];c->a=(Vector3){0,centers[i],0};c->b=c->a;
+        c->widthA=c->heightA=c->widthB=c->heightB=radii[i];c->localSmoothness=1;
+        c->kind=BODY_CONNECTION_LIMB_SEGMENT;c->connectionId=(AnatomyId)i+100;c->distanceLowerBoundScale=1;
+        Vector3 r={radii[i],radii[i],radii[i]};c->bounds=(AABB3D){Vec3_Sub(c->a,r),Vec3_Add(c->a,r)};
+    }
+    MonsterSDF sdf={0};sdf.bodyParts=&body;sdf.bodyPartCount=1;sdf.connectors=connectors;sdf.connectorCount=3;
+    sdf.config=MonsterSDF_DefaultConfig();sdf.config.enableConnectorPruning=false;
+    sdf.bounds=(AABB3D){{-1.5f,-1.5f,-1.5f},{1.5f,5.5f,1.5f}};
+    Vector3 p={0,1.8f,0};float old=MonsterSDF_EvaluateDistance(&sdf,p);
+    TEST_ASSERT(fabsf(old)<1e-5f,"La referencia sitúa el cero sobre la composición suave");
+    GpuSDFSurfaceGrid grid;
+    TEST_ASSERT(GpuSDFSurfaceGrid_Configure(&grid,sdf.bounds,.025f,2),"Retícula causal de invalidación");
+    GpuSDFSurfaceCache* cache=GpuSDFSurfaceCache_Create(&grid,8);
+    TEST_ASSERT(cache&&GpuSDFSurfaceCache_Update(cache,&sdf),"Publicar composición inicial");
+    GpuSDFSurfaceCache_Submit(cache,cache->generation);GpuSDFSurfaceCache_Commit(cache,cache->generation);
+    connectors[0].widthA=connectors[0].heightA=.7f;
+    TEST_ASSERT(MonsterSDF_EvaluateDistance(&sdf,p)<-1e-4f,"Cambiar sólo la hoja temprana desplaza la superficie");
+    TEST_ASSERT(GpuSDFSurfaceCache_Update(cache,&sdf),"Invalidar la dependencia completa");
+    bool dirty=false;
+    for(size_t i=0;i<cache->dirtyCount;++i) {
+        const GpuSDFBrickJob* job=&cache->dirty[i];
+        Vector3 lo=Vec3_Add(grid.origin,Vec3_Create(job->x*grid.voxelSize,job->y*grid.voxelSize,job->z*grid.voxelSize));
+        float side=8*grid.voxelSize;
+        if(p.x>=lo.x&&p.x<=lo.x+side&&p.y>=lo.y&&p.y<=lo.y+side&&p.z>=lo.z&&p.z<=lo.z+side)dirty=true;
+    }
+    TEST_ASSERT(dirty,"Un cambio localizado invalida el cero causado por uniones posteriores");
+    GpuSDFSurfaceCache_Destroy(cache);
+}
+
 static void TestSparseDiscoveryAndPublication(void) {
     GpuSDFSurfaceGrid grid={0};AABB3D bounds={Vec3_Create(-3,-2,-3),Vec3_Create(3,2,3)};
     TEST_ASSERT(GpuSDFSurfaceGrid_Configure(&grid,bounds,.1f,2),"Rejilla de prueba dispersa");
@@ -126,9 +162,20 @@ static void TestSparseDiscoveryAndPublication(void) {
     sdf.config.bodySmoothness=.05f;
     TEST_ASSERT(GpuSDFSurfaceCache_Update(cache,&sdf)&&cache->dirtyCount>0,"Una feature nueva siembra bricks sin superficie anterior");
     uint64_t first=cache->generation;size_t initial=cache->residentCount;
+    GpuSDFSurfaceCache_Submit(cache,first);
+    TEST_ASSERT(cache->submittedGeneration==first&&cache->completedGeneration==0,
+        "Enviar no certifica extracción pendiente ni fallida");
+    for(size_t i=0;i<cache->spatial->brickCount;++i)
+        TEST_ASSERT(cache->spatial->bricks[i].fieldState!=MORPH_BRICK_CLEAN,
+            "Sin fence completada ningún brick se certifica CLEAN");
     GpuSDFSurfaceCache_Commit(cache,first);
     TEST_ASSERT(cache->spatial->dirtyCount==0,"Publicar versión completa limpia únicamente la generación enviada");
     TEST_ASSERT(GpuSDFSurfaceCache_Update(cache,&sdf)&&cache->dirtyCount==0,"Edad estática reutiliza muestras y malla");
+    MonsterSDFSurfaceFeature* storage=cache->features;
+    TEST_ASSERT(GpuSDFSurfaceCache_Update(cache,&sdf)&&cache->dirtyCount==0,
+        "Segunda edad estática reutiliza el almacenamiento alternante");
+    TEST_ASSERT(GpuSDFSurfaceCache_Update(cache,&sdf)&&cache->features==storage,
+        "Los arreglos de features persisten sin malloc por frame");
     sdf.bodyPartCount=2;
     TEST_ASSERT(GpuSDFSurfaceCache_Update(cache,&sdf)&&cache->newCount>0&&cache->residentCount>initial,"Feature distante naciente descubre bricks independientes");
     bool found=false;
@@ -151,7 +198,27 @@ static void TestSparseDiscoveryAndPublication(void) {
 }
 
 void run_gpu_sdf_surface_tests(void) {
+    /* Una punta fina no debe ensanchar hasta el radio máximo de todo el
+     * segmento; las cotas subdivididas conservan el subnivel completo. */
+    MonsterSDF sweep=MonsterSDF_Create();
+    sweep.bounds=(AABB3D){{-100,-100,-100},{100,100,100}};
+    sweep.axialStationCount=2;
+    sweep.axialStations[0]=(SDFSweepStation){.center={0,0,0},.width=1,.height=1};
+    sweep.axialStations[1]=(SDFSweepStation){.center={0,0,-5},.width=.001f,.height=.001f};
+    TEST_ASSERT(SDF_SweepResolveTangents(sweep.axialStations,2),"Resolver barrido con punta fina");
+    MonsterSDFConnector smoothing={.isHeadNeck=true,.localSmoothness=.4f};
+    sweep.connectors=&smoothing;sweep.connectorCount=1;
+    MonsterSDFSurfaceFeature bounded;
+    TEST_ASSERT(MonsterSDF_CollectSurfaceFeatures(&sweep,&bounded,1,0)==1,"Una feature axial completa");
+    TEST_ASSERT(bounded.bounds.end.x<2,"Subdivisión estrecha el soporte de una punta sin variar geometría");
+    for(int z=0;z<=100;++z)for(int x=-50;x<=50;++x) {
+        Vector3 p=Vec3_Create(x*.05f,0,-z*.05f);
+        if(SDF_EllipticalSweepZ(p,sweep.axialStations,2)>.4f)continue;
+        TEST_ASSERT(p.x>=bounded.bounds.start.x && p.x<=bounded.bounds.end.x &&
+            p.z>=bounded.bounds.start.z && p.z<=bounded.bounds.end.z,"La cota conserva todo el subnivel con mezcla");
+    }
     TestSparseDiscoveryAndPublication();
+    TestFeatureDependencyBudget();
     TestPinnaIntervalContainment();
     TestPrimitiveIntervalContainment();
     TestSweepIntervalContainment();

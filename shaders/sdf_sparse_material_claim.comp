@@ -1,0 +1,16 @@
+uniform int sdfHasSurface;
+layout(local_size_x=128) in;
+void main() {
+    uint i=invocation();if(i>=pageCapacity*PAGE_VERTICES)return;
+    uint page=i/PAGE_VERTICES,offset=i%PAGE_VERTICES;if(offset>=draws[page].count)return;
+    uint edge=indices[i];
+    if(atomicExchange(edges[edge].statistics.x,generation)==generation)return;
+    // El pigmento procedural sustituye por completo el color de una piel opaca.
+    // Una paleta nueva sólo exige reevaluar raíces movidas o mezclas con tejido oral.
+    if(sdfHasSurface!=0&&edges[edge].version!=generation) {
+        uint skin=uint(vertices[edge].material.w+.5)&255u;
+        if(skin==255u)return;
+    }
+    uint queued=atomicAdd(rootCount,1u);if(queued>=edgeCapacity){atomicOr(overflow,64u);return;}
+    RootEdge(queued)=edge;
+}

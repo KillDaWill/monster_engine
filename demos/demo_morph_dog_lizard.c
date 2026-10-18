@@ -28,6 +28,19 @@
 #include "Vector.h"
 #include "MathUtils.h"
 
+#ifndef MONSTER_BUILD_REVISION
+#define MONSTER_BUILD_REVISION "unknown"
+#endif
+
+static void WriteJSONText(FILE* file,const char* value) {
+    fputc('"',file);
+    for(const unsigned char* p=(const unsigned char*)(value?value:"");*p;++p) {
+        if(*p=='"'||*p=='\\')fputc('\\',file);
+        if(*p<32)fprintf(file,"\\u%04x",*p);else fputc(*p,file);
+    }
+    fputc('"',file);
+}
+
 static void DrawAnatomyOverlay(const AnatomyGraph* graph) {
     if (!graph) return;
     for (size_t i = 0; i < graph->connectionCount; ++i) {
@@ -167,11 +180,11 @@ static bool SaveCaptureMetadata(const char* prefix,const Monster* monster,const 
 
 int main(int argc, char* argv[]) {
     int exitCode=0;
-    bool cachedNormals=false,gpuSurface=true,gpuSparse=false,validateCompute=false,captureNormals=false,captureFlat=false,captureAlbedo=false,captureSemantic=false,strictReference=false,noMSAA=false;
+    bool cachedNormals=false,gpuSurface=false,gpuSparse=false,validateCompute=false,captureNormals=false,captureFlat=false,captureAlbedo=false,captureSemantic=false,strictReference=false,noMSAA=false;
     float fixedTimestep=0,sequence[512];size_t sequenceCount=0;
     float referenceMaxStep=0;unsigned referenceSteps=512;
     float gridVoxel=.0175f;unsigned gridRefinement=2,brickCells=16;
-    const char* surfaceMode="gpu-sdf-dense";const char* gpuSignature=NULL;const char* gpuTracePath=NULL;
+    const char* surfaceMode="sdf-raymarch";const char* gpuSignature=NULL;const char* gpuTracePath=NULL;
     float fixedAge=-1; const char* stressMotion=NULL; const char* capturePrefix=NULL; const char* cyclePrefix=NULL; int limitFrames=0, selectedView=3;
     bool legacyLag=false,noFur=false,exactSdf=true,localPatches=false;
     bool showChunkWireframe=false, showFallbackRegion=false,ownershipDebug=false,handoffDebug=false;
@@ -209,13 +222,16 @@ int main(int argc, char* argv[]) {
             }
             if(!sequenceCount)return 2;
         }
-        else if(strcmp(argv[i],"--exact-sdf")==0) {exactSdf=true;gpuSurface=false;gpuSparse=false;strictReference=false;surfaceMode="exact-sdf";}
+        else if(strcmp(argv[i],"--sdf")==0||strcmp(argv[i],"--exact-sdf")==0) {
+            exactSdf=true;gpuSurface=false;gpuSparse=false;strictReference=false;surfaceMode="sdf-raymarch";
+        }
         else if(strncmp(argv[i],"--surface-mode=",15)==0) {
             surfaceMode=argv[i]+15;
             if(strcmp(surfaceMode,"gpu-sdf-mesh")==0||strcmp(surfaceMode,"gpu-sdf-dense")==0) {
                 surfaceMode="gpu-sdf-dense";gpuSurface=true;gpuSparse=false;exactSdf=true;strictReference=false;
             }
             else if(strcmp(surfaceMode,"gpu-sdf-sparse")==0) {gpuSurface=true;gpuSparse=true;exactSdf=true;strictReference=false;}
+            else if(strcmp(surfaceMode,"sdf-raymarch")==0) {exactSdf=true;gpuSurface=false;gpuSparse=false;strictReference=false;}
             else if(strcmp(surfaceMode,"exact-sdf")==0) {exactSdf=true;gpuSurface=false;gpuSparse=false;strictReference=true;}
             else if(strcmp(surfaceMode,"legacy-handoff")==0) {exactSdf=false;gpuSurface=false;gpuSparse=false;strictReference=false;}
             else {fprintf(stderr,"[ERROR] Modo de superficie desconocido: %s\n",surfaceMode);return 2;}
@@ -230,7 +246,9 @@ int main(int argc, char* argv[]) {
         else if(strcmp(argv[i],"--gpu-cached-normals")==0)cachedNormals=true;
         else if(strcmp(argv[i],"--validate-compute")==0)validateCompute=true;
         else if(strcmp(argv[i],"--local-patches")==0)localPatches=true;
+        else {fprintf(stderr,"[ERROR] Argumento desconocido: %s\n",argv[i]);return 2;}
     }
+    if(gpuSignature&&!gpuSurface){fprintf(stderr,"[ERROR] --gpu-signature requiere un modo de extracción GPU explícito\n");return 2;}
     if(!isfinite(fixedTimestep)||fixedTimestep<0||fixedTimestep>1)return 2;
     if(sequenceCount)fixedAge=sequence[0];
     int totalFrames=0; bool captured=false; unsigned cycleCapture=0; float elapsed=0;
@@ -252,7 +270,8 @@ int main(int argc, char* argv[]) {
     printf("     revelando piel desnuda intermedia (45%% -> 55%%) donde la anatomía se reorganiza;\n");
     printf("     luego brotan las escamas (55%% -> 100%%) ganando relieve, quilla y pigmento.\n");
     if(gpuSurface)printf("  3. Campo actual GPU: modo %s, resolución %.6f, bricks %u.\n\n",surfaceMode,gridVoxel,brickCells);
-    else if(exactSdf)printf("  3. Referencia: trazado del SDF actual completo.\n\n");
+    else if(exactSdf)printf("  3. %s: trazado por píxel del campo actual, sin extracción volumétrica.\n\n",
+        strictReference?"Referencia diagnóstica":"SDF interactivo");
     else printf("  3. Ruta legacy: deformación y remallado asíncrono con cesión SDF.\n\n");
     printf(" Controles interactivos:\n");
     printf("  - ESPACIO                  : Alternar metamorfosis automática (oscilación fluida)\n");
@@ -346,7 +365,7 @@ int main(int argc, char* argv[]) {
     }
 
     printf("[SUPERFICIE] %s | %s | voxel=%.6f | timestep=%s %.6f\n",surfaceMode,
-        gpuSparse?"SPARSE":gpuSurface?"DENSE":"REFERENCE/LEGACY",gridVoxel,
+        gpuSparse?"SPARSE":gpuSurface?"DENSE":exactSdf?(strictReference?"REFERENCE":"RAYMARCH"):"LEGACY",gridVoxel,
         fixedTimestep>0?"FIXED":"REALTIME",fixedTimestep);
     if(gpuSparse&&brickCells!=8&&brickCells!=16)return 2;
     if(gpuSurface&&!OpenGLRenderer_SupportsComputeSurface(&renderer)) {
@@ -416,10 +435,20 @@ int main(int argc, char* argv[]) {
     }
     if(gpuSparse){gpuCache=GpuSDFSurfaceCache_Create(&gpuGrid,brickCells);if(!gpuCache)return 2;gpuCache->cachedNormals=cachedNormals;}
     FILE* gpuTrace=NULL;
-    if((cyclePrefix||gpuTracePath)&&gpuSurface) {char path[1024];
+    if(cyclePrefix||gpuTracePath) {char path[1024],metadataPath[1100];
         if(gpuTracePath)snprintf(path,sizeof(path),"%s",gpuTracePath);else snprintf(path,sizeof(path),"%s.gpu.csv",cyclePrefix);
         gpuTrace=fopen(path,"w");if(!gpuTrace)return 2;
-        fprintf(gpuTrace,"age,generation,timing_generation,samples,cells,gpu_bytes,upload_cpu_ms,sampling_gpu_ms,classification_gpu_ms,emission_gpu_ms,render_gpu_ms,total_gpu_ms,slabs,frame_wall_ms,cpu_thread_ms,candidate_bricks,dirty_bricks,new_bricks,active_bricks,resident_sample_bricks,reused_samples,unique_edges,updated_edges,indices,exact_normals\n");}
+        snprintf(metadataPath,sizeof(metadataPath),"%s.meta.json",path);
+        FILE* metadata=fopen(metadataPath,"w");if(!metadata){fclose(gpuTrace);return 2;}
+        fputs("{\"mode\":",metadata);WriteJSONText(metadata,surfaceMode);
+        fputs(",\"revision\":",metadata);WriteJSONText(metadata,MONSTER_BUILD_REVISION);
+        fputs(",\"device\":",metadata);WriteJSONText(metadata,(const char*)glGetString(GL_RENDERER));
+        fputs(",\"opengl\":",metadata);WriteJSONText(metadata,(const char*)glGetString(GL_VERSION));
+        fprintf(metadata,",\"width\":%d,\"height\":%d,\"voxel\":%.9g,\"refinement\":%u,\"brick_cells\":%u,\"fur\":%s,\"fixed_timestep\":%.9g,\"argv\":[",
+            windowWidth,windowHeight,gridVoxel,gridRefinement,brickCells,noFur?"false":"true",fixedTimestep);
+        for(int i=0;i<argc;++i){if(i)fputc(',',metadata);WriteJSONText(metadata,argv[i]);}
+        fprintf(metadata,"],\"group_pruning\":%s}\n",getenv("MONSTER_SDF_NO_GROUP_PRUNING")?"false":"true");if(fclose(metadata)!=0)return 2;
+        fprintf(gpuTrace,"age,generation,timing_generation,samples,cells,gpu_bytes,upload_cpu_ms,sampling_gpu_ms,classification_gpu_ms,emission_gpu_ms,render_gpu_ms,total_gpu_ms,slabs,frame_wall_ms,cpu_thread_ms,candidate_bricks,dirty_bricks,new_bricks,active_bricks,resident_sample_bricks,reused_samples,unique_edges,updated_edges,indices,exact_normals,submitted_generation,completed_generation\n");}
 
     /* 6. Bucle principal de simulación y renderizado */
     bool running = true;
@@ -1000,10 +1029,16 @@ int main(int argc, char* argv[]) {
             double wallMs=(SDL_GetPerformanceCounter()-frameBegin)*1000.0/timerFrequency;
             double cpuMs=(cpuEnd.tv_sec-cpuBegin.tv_sec)*1000.0+(cpuEnd.tv_nsec-cpuBegin.tv_nsec)*1e-6;
             GpuSDFSurfaceStats gs=OpenGLRenderer_GetGpuSDFSurfaceStats(&renderer);
-            fprintf(gpuTrace,"%.6f,%llu,%llu,%zu,%zu,%zu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%u,%.4f,%.4f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu\n",
+            if(!gpuSurface) {
+                gs.generation=(uint64_t)totalFrames+1;gs.timingGeneration=renderStats.gpuTimingGeneration;
+                gs.renderGPUms=gs.totalGPUms=renderStats.gpuRenderMs;
+            }
+            fprintf(gpuTrace,"%.6f,%llu,%llu,%zu,%zu,%zu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%u,%.4f,%.4f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%llu,%llu\n",
                 ageFactor,(unsigned long long)gs.generation,(unsigned long long)gs.timingGeneration,
                 gs.samples,gs.cells,gs.gpuBytes,gs.uploadCPUms,gs.samplingGPUms,
-                gs.classificationGPUms,gs.emissionGPUms,gs.renderGPUms,gs.totalGPUms,gs.slabs,wallMs,cpuMs,gs.candidateBricks,gs.dirtyBricks,gs.newBricks,gs.activeBricks,gs.residentSampleBricks,gs.reusedSamples,gs.uniqueEdges,gs.updatedEdges,gs.publishedIndices,gs.exactNormals);
+                gs.classificationGPUms,gs.emissionGPUms,gs.renderGPUms,gs.totalGPUms,gs.slabs,wallMs,cpuMs,gs.candidateBricks,gs.dirtyBricks,gs.newBricks,gs.activeBricks,gs.residentSampleBricks,gs.reusedSamples,gs.uniqueEdges,gs.updatedEdges,gs.publishedIndices,gs.exactNormals,
+                (unsigned long long)(gpuCache?gpuCache->submittedGeneration:gs.generation),
+                (unsigned long long)(gpuCache?gpuCache->completedGeneration:gs.timingGeneration));
         }
         ++totalFrames;
         if(limitFrames>0 && totalFrames>=limitFrames)running=false;

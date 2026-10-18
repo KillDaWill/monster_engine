@@ -29,6 +29,77 @@ static AABB3D RayBounds_World(const MonsterSDFMouth* m,AABB3D local) {
     }
     return box;
 }
+/** @brief Soporte de mandíbula barrida y costura bajo cualquier peso articular.
+ * La última inversión de la costura siempre usa un ángulo entre cero y el
+ * ángulo mandibular. La envolvente angular incluye también iteraciones que
+ * no converjan. Las restas mandibulares no amplían el sólido.
+ */
+static AABB3D RayBounds_PosedJaw(const MonsterSDFMouth* m,float tolerance) {
+    if(!m->sweptSkull||m->visualJawScale<.0001f) {
+        AABB3D box=AABB_Empty();float r=m->visualJawBoundRadius+8*tolerance;
+        AABB_ExpandRadius(&box,m->visualJawPivot,Vec3_Create(r,r,r));
+        return RayBounds_World(m,box);
+    }
+    float scale=m->visualJawScale,level=8*tolerance/scale;
+    float unionK=fmaxf(m->seamScale*.08f,.005f);
+    float jawLevel=level+(m->taperedMandible?unionK*.25f:0);
+    float lip=m->entranceCenterLocal.y-m->entranceHalfExtents.y;
+    float depth=fminf(fmaxf(m->jawRadii.y*2/fmaxf(m->faceRootRadii.y,.0001f),.4f),1.4f);
+    float sweepLevel=jawLevel/fminf(depth,1.f);
+    AABB3D jaw=AABB_Empty();
+    for(int i=0;i<5;++i) {
+        const SDFSweepStation *a=&m->headStations[i],*b=&m->headStations[i+1];
+        float span=b->center.z-a->center.z,w0,w1,h0,h1,y0,y1;
+        RayBounds_Cubic(a->width,b->width,a->widthSlope,b->widthSlope,span,&w0,&w1);
+        RayBounds_Cubic(a->height,b->height,a->heightSlope,b->heightSlope,span,&h0,&h1);
+        RayBounds_Cubic(a->center.y,b->center.y,a->centerSlope,b->centerSlope,span,&y0,&y1);
+        float factor=1+sweepLevel/fmaxf(fminf(w0,h0),.0001f);
+        float wx=fmaxf(w1,.0001f)*factor,hy=fmaxf(h1,.0001f)*factor;
+        float cap=fmaxf(w1,h1)+sweepLevel;
+        AABB_ExpandPoint(&jaw,Vec3_Create(fminf(a->center.x,b->center.x)-wx,lip+(y0-hy-lip)*depth,b->center.z-cap));
+        AABB_ExpandPoint(&jaw,Vec3_Create(fmaxf(a->center.x,b->center.x)+wx,lip+(y1+hy-lip)*depth,a->center.z+cap));
+    }
+    jaw.end.y=fminf(jaw.end.y,lip+jawLevel);
+    jaw.start.z=fmaxf(jaw.start.z,m->hingeCenterLocal.z-jawLevel);
+    if(m->taperedMandible) {
+        float dev=fminf(fmaxf((m->cephalicDevelopment-.25f)/.5f,0),1);
+        if(dev>.001f) {
+            float h=m->faceMidRadii.y*.08f*dev;
+            Vector3 a=m->faceRootLocal,b=m->faceTipLocal;
+            a.y=lip-h*.3f;b.y=a.y;b.z=a.z+(b.z-a.z)*.75f;
+            float r=fmaxf(m->faceRootRadii.x*.32f*dev,m->faceTipRadii.x*.30f*dev);
+            r=fmaxf(r,h)*(1+jawLevel/fmaxf(fminf(r,h*.65f),.0001f));
+            Vector3 radii=Vec3_Create(r,r,r);
+            AABB_ExpandRadius(&jaw,a,radii);AABB_ExpandRadius(&jaw,b,radii);
+        }
+    }
+    float h=m->seamScale;
+    if(h<.0001f)h=fmaxf(m->hingeRadius,fmaxf(m->throatRadius,m->entranceHalfExtents.y*2));
+    float k=fminf(fmaxf(h*.26f,.012f),h*.38f);
+    float seamLevel=level+7*k*.25f;
+    AABB3D seam=AABB_Empty();
+    Vector3 anchors[]={m->seamSkullLeftLocal,m->seamSkullRightLocal,m->seamJawLeftClosedLocal,
+        m->seamJawRightClosedLocal,m->seamJawAnchorLocal,m->seamGularLocal,m->hingeCenterLocal};
+    float r=h*.30f+seamLevel;
+    for(int i=0;i<7;++i)AABB_ExpandRadius(&seam,anchors[i],Vec3_Create(r,r,r));
+    RayBounds_Ellipsoid(&seam,m->seamGularLocal,
+        m->taperedMandible?Vec3_Create(h*1.58f,h*.62f,h*.88f):Vec3_Create(h*.74f,h*.68f,h*.72f),seamLevel);
+    r=h*.38f+seamLevel;
+    AABB_ExpandRadius(&seam,m->hingeCenterLocal,Vec3_Create(r,r,r));
+    AABB3D posed=AABB_Empty(),boxes[]={jaw,seam};float maxRadius=0;
+    for(int part=0;part<2;++part)for(int corner=0;corner<8;++corner) {
+        AABB3D b=boxes[part];
+        Vector3 p=Vec3_Create(corner&1?b.end.x:b.start.x,corner&2?b.end.y:b.start.y,corner&4?b.end.z:b.start.z);
+        Vector3 rel=Vec3_Scale(Vec3_Sub(p,m->visualJawPivot),scale);
+        maxRadius=fmaxf(maxRadius,Vec3_Length(rel));
+        for(int step=0;step<=8;++step) {
+            float a=m->visualJawAngle*step/8.f,c=cosf(a),s=sinf(a);
+            AABB_ExpandPoint(&posed,Vec3_Add(m->visualJawPivot,Vec3_Create(rel.x,c*rel.y-s*rel.z,s*rel.y+c*rel.z)));
+        }
+    }
+    AABB_Pad(&posed,maxRadius*fabsf(m->visualJawAngle)/16.f+2*tolerance);
+    return RayBounds_World(m,posed);
+}
 /** @brief Amplía las cajas existentes para cubrir subniveles y el stencil normal.
  * Una unión polinómica resta como máximo k/4. Se suma el presupuesto de todas
  * las uniones internas, incluso ramas inactivas; cada hoja encierra ese nivel.
@@ -107,13 +178,7 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     AABB_ExpandRadius(&mouth,m.entranceCenterLocal,ext);
     world=RayBounds_World(&m,mouth);
     AABB_ExpandPoint(&m.influenceBounds,world.start);AABB_ExpandPoint(&m.influenceBounds,world.end);
-    // La esfera de soporte ya usada por EvalPosedMouthDistance es una cota
-    // independiente de la inversión iterativa de la costura articulada.
-    AABB3D jaw=AABB_Empty();
-    radius=m.visualJawBoundRadius+8.f*tolerance;
-    AABB_ExpandRadius(&jaw,m.visualJawPivot,Vec3_Create(radius,radius,radius));
-    world=RayBounds_World(&m,jaw);
-    AABB_ExpandPoint(&m.visualBounds,world.start);AABB_ExpandPoint(&m.visualBounds,world.end);
+    m.visualBounds=RayBounds_PosedJaw(&m,tolerance);
     AABB_Pad(&m.headBounds,2.f*tolerance);AABB_Pad(&m.influenceBounds,2.f*tolerance);AABB_Pad(&m.visualBounds,2.f*tolerance);
     return m;
 }

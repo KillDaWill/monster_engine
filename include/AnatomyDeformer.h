@@ -42,6 +42,12 @@ typedef struct AnatomyDeformerBinding {
  */
 typedef struct AnatomySkinBinding { int joints[2*ANATOMY_MORPH_INFLUENCES]; float weights[2*ANATOMY_MORPH_INFLUENCES]; } AnatomySkinBinding;
 
+/** @brief Matrices afines de skinning compartidas por CPU y GPU, en reposo anatómico. */
+typedef struct AnatomyPosePalette {
+    float rows[SKELETON_MAX_JOINTS][3][4];
+    size_t jointCount;
+} AnatomyPosePalette;
+
 /** @brief Bases inmutables y buffers persistentes de deformación. */
 typedef struct AnatomyDeformer {
     AnatomyGraph refGraph;           /**< Grafo anatómico en la pose de referencia. */
@@ -55,6 +61,17 @@ typedef struct AnatomyDeformer {
     bool poseBound;
     bool isBound;                    /**< Indica si la malla base está vinculada. */
 } AnatomyDeformer;
+
+/** @brief Compila matrices de la pose actual sin asignaciones.
+ * @param deformer Vinculación. @param skeleton Esqueleto. @param pose Pose actual.
+ * @param palette Salida. @return false si no corresponde al reposo vinculado. */
+bool AnatomyDeformer_BuildPosePalette(const AnatomyDeformer* deformer,const Skeleton* skeleton,
+    const SkeletonPose* pose,AnatomyPosePalette* palette);
+/** @brief Evalúa un vértice con las mismas influencias y normalización del skinning.
+ * @param deformer Vinculación. @param palette Matrices actuales. @param vertex Índice.
+ * @param position Posición. @param normal Normal. @return false ante una influencia inválida. */
+bool AnatomyDeformer_EvaluatePoseVertex(const AnatomyDeformer* deformer,const AnatomyPosePalette* palette,
+    size_t vertex,Vector3* position,Vector3* normal);
 
 /**
  * @brief Crea una nueva instancia de AnatomyDeformer.
@@ -141,6 +158,20 @@ size_t AnatomyDeformer_GetVertexCount(const AnatomyDeformer* morph);
 /** @brief Vincula malla y transformados de reposo; reserva solo durante bind. */
 bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* deformer,const Mesh* mesh,
     const AnatomyGraph* rest,const Skeleton* skeleton);
+/** @brief Fija el cráneo a su articulación; sólo el collar posterior mezcla piel.
+ * @param deformer Vinculación esquelética actual. @param skeleton Esqueleto vinculado.
+ * @param headJoint Articulación cefálica. @param attachment Plano occipital en reposo.
+ * @param axis Normal hacia el cráneo. @param collar Longitud de transición posterior.
+ * @param sdf Campo de reposo opcional: conserva propiedad cefálica al variar proporciones.
+ * @return false si la vinculación o el perfil no son válidos. */
+struct MonsterSDF;
+bool AnatomyDeformer_BindCranium(AnatomyDeformer* deformer,const Skeleton* skeleton,
+    int headJoint,Vector3 attachment,Vector3 axis,float collar,const struct MonsterSDF* sdf);
+/** @brief Peso rígido craneal; uno delante del occipucio, cero detrás del collar.
+ * @param position Muestra de reposo. @param attachment Plano occipital.
+ * @param axis Normal unitaria hacia el cráneo. @param collar Anchura posterior.
+ * @return Peso suave entre cero y uno. */
+float AnatomyDeformer_CranialWeight(Vector3 position,Vector3 attachment,Vector3 axis,float collar);
 /** @brief Deforma desde bases inmutables usando rotaciones completas (incluido twist). */
 bool AnatomyDeformer_DeformPose(const AnatomyDeformer* deformer,const Skeleton* skeleton,
     const SkeletonPose* pose,Mesh* mesh);

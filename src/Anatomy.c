@@ -13,6 +13,40 @@ const AnatomyNode* AnatomyGraph_FindNode(const AnatomyGraph* graph, AnatomyId id
     return NULL;
 }
 
+_Static_assert((ANATOMY_MAX_NODES & (ANATOMY_MAX_NODES-1))==0 && ANATOMY_MAX_NODES<UINT16_MAX,
+    "El índice anatómico necesita capacidad potencia de dos e índices de 16 bits");
+
+static unsigned AnatomyIndexBucket(AnatomyId id) {
+    id^=id>>16;id*=0x7feb352du;id^=id>>15;
+    return id & (2 * ANATOMY_MAX_NODES - 1);
+}
+bool AnatomyGraphIndex_Build(AnatomyGraphIndex* index,const AnatomyGraph* graph) {
+    if(!index)return false;
+    index->graph=NULL;
+    if(!graph||graph->nodeCount>ANATOMY_MAX_NODES)return false;
+    memset(index->slots,0xff,sizeof(index->slots));
+    for(size_t i=0;i<graph->nodeCount;++i) {
+        AnatomyId id=graph->nodes[i].id;if(!id)return false;
+        unsigned slot=AnatomyIndexBucket(id);
+        while(index->slots[slot]!=UINT16_MAX) {
+            if(graph->nodes[index->slots[slot]].id==id)return false;
+            slot=(slot+1)&(2 * ANATOMY_MAX_NODES - 1);
+        }
+        index->slots[slot]=(uint16_t)i;
+    }
+    index->graph=graph;return true;
+}
+int AnatomyGraphIndex_Find(const AnatomyGraphIndex* index,AnatomyId id) {
+    if(!index||!index->graph||!id)return -1;
+    unsigned slot=AnatomyIndexBucket(id);
+    for(unsigned probes=0;probes<2 * ANATOMY_MAX_NODES;++probes) {
+        unsigned node=index->slots[slot];if(node==UINT16_MAX)return -1;
+        if(index->graph->nodes[node].id==id)return (int)node;
+        slot=(slot+1)&(2 * ANATOMY_MAX_NODES - 1);
+    }
+    return -1;
+}
+
 bool AnatomyGraph_AddNode(AnatomyGraph* graph, AnatomyNode node) {
     if (!graph || node.id == 0 || graph->nodeCount >= ANATOMY_MAX_NODES ||
         AnatomyGraph_FindNode(graph, node.id) || !isfinite(node.center.x) ||

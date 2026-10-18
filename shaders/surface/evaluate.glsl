@@ -13,6 +13,15 @@ SurfaceResponse Surface_Evaluate(SurfaceInput surfaceInput,bool skipDetail,out S
     // Rechazo barato antes de Voronoi: tejidos orales y piel lisa no buscan celdas.
     if(coverage<=.0001 || skipDetail)shape.x=.000001;
     s=TriplanarScales(surfaceInput.materialCoord,surfaceInput.materialNormal,shape,relief,scaleSeed);
+    if(surfaceRecipe[46].x>.5) {
+        uint targetSeed=uint(surfaceRecipe[47].x)|(uint(surfaceRecipe[47].y)<<16u);
+        if(targetSeed!=scaleSeed) {
+            ScaleSample target=TriplanarScales(surfaceInput.materialCoord,surfaceInput.materialNormal,shape,relief,targetSeed);
+            float t=surfaceRecipe[46].y;
+            s.height=mix(s.height,target.height,t);s.edge=mix(s.edge,target.edge,t);
+            s.variation=mix(s.variation,target.variation,t);s.gradient=mix(s.gradient,target.gradient,t);
+        }
+    }
     vec3 detailed=SurfaceBump(n,surfaceInput.position,surfaceInput.materialCoord,s.gradient*relief.x*coverage);
     pigment=EvaluatePigment(surfaceInput.materialCoord,clamp(surfaceInput.ventral,0.0,1.0),surfaceRecipe[3],pigmentSeed);
     vec3 albedo=pigment*(1.0+(s.variation*2.0-1.0)*surfaceRecipe[6].y*coverage);

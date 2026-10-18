@@ -102,6 +102,20 @@ typedef struct AnatomyGraph {
     bool dormantConnections[ANATOMY_MAX_CONNECTIONS]; /**< Blueprint sin superficie ni influencia de vinculación. */
 } AnatomyGraph;
 
+/** @brief Índice temporal de identidades, sin copiar ni modificar la geometría.
+ * Se reconstruye si cambian las identidades o el orden de los nodos; las
+ * posiciones y radios pueden actualizarse conservando el índice. */
+typedef struct AnatomyGraphIndex {
+    const AnatomyGraph* graph;
+    uint16_t slots[2 * ANATOMY_MAX_NODES];
+} AnatomyGraphIndex;
+/** @brief Compila el índice sin asignaciones; rechaza identidades nulas o repetidas.
+ * @param index Destino. @param graph Grafo consultado. @return Índice válido. */
+bool AnatomyGraphIndex_Build(AnatomyGraphIndex* index,const AnatomyGraph* graph);
+/** @brief Consulta un índice de nodo por identidad estable.
+ * @param index Índice compilado. @param id Identidad. @return Índice o -1. */
+int AnatomyGraphIndex_Find(const AnatomyGraphIndex* index,AnatomyId id);
+
 /** @brief Consulta un nodo local de un módulo. @return Nodo, o NULL. */
 const AnatomyNode* AnatomyGraph_FindModuleNode(const AnatomyGraph*,uint32_t,uint16_t);
 /** @brief Consulta la primera región semántica. @return Nodo, o NULL. */

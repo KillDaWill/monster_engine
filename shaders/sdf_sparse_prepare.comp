@@ -1,0 +1,15 @@
+uniform bool resetMaterialQueue;
+layout(local_size_x=1) in;
+void main(){
+    if(resetMaterialQueue){rootCount=0u;return;}
+    uint groups=(min(rootCount,edgeCapacity)+63u)/64u;
+    rootGroupsX=min(groups,65535u);
+    rootGroupsY=(groups+65534u)/65535u;
+    rootGroupsZ=1u;
+    groups=(min(retiredCount,edgeCapacity)+127u)/128u;
+    retiredGroupsX=min(groups,65535u);
+    retiredGroupsY=(groups+65534u)/65535u;
+    retiredGroupsZ=1u;
+    groups=(uniqueSampleCount+63u)/64u;
+    sampleGroupsX=min(groups,65535u);sampleGroupsY=(groups+65534u)/65535u;sampleGroupsZ=1u;
+}

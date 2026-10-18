@@ -37,6 +37,10 @@ bool SkeletonPose_Init(SkeletonPose* pose, const Skeleton* skeleton);
 bool SkeletonPose_ResetToRest(SkeletonPose* pose, const Skeleton* skeleton);
 /** @brief Deriva exclusivamente de locales los transformados mundiales. */
 bool SkeletonPose_UpdateWorldTransforms(SkeletonPose* pose, const Skeleton* skeleton);
+/** @brief Actualiza una rama después de cambiar sus locales; el resto de la pose debe estar actualizado.
+ * @param pose Pose mutable. @param skeleton Esqueleto ordenado. @param rootIndex Raíz de la rama.
+ * @return false si la rama o sus transformaciones son inválidas. */
+bool SkeletonPose_UpdateSubtree(SkeletonPose* pose,const Skeleton* skeleton,int rootIndex);
 /** @brief Copia una pose sin referencias compartidas. */
 void SkeletonPose_Copy(SkeletonPose* dst, const SkeletonPose* src);
 /** @brief Proyecta una rotación local sobre límites de bisagra o cono swing/twist. */

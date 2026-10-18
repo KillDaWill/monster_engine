@@ -1,5 +1,7 @@
 // Evaluador compartido por raymarch y extracción; mantiene el orden booleano.
 bool rayHeadActive=true,rayMouthActive=true,rayJawActive=true;
+bool spatialTrace=false;
+float outsideBox(vec3 p,vec3 lo,vec3 hi){return length(max(max(lo-p,p-hi),vec3(0)));}
 bool pruneBox(vec3 p,vec3 lo,vec3 hi,float scale,float cutoff) {
     vec3 d=max(max(lo-p,p-hi),vec3(0));
     if(cutoff<=0.0)return any(greaterThan(d,vec3(0)));
@@ -15,7 +17,24 @@ vec4 cutField(vec4 a,float d,vec3 color,float k) {
     return vec4(mix(a.xyz,color,h),SDF_SmoothSubtract(a.w,d,k));
 }
 uniform int tileDataBase, tileColumns, validationMode, validationPointBase;
+uniform int disableGroupPruning;
 int tileOffset, tileCount;
+int sceneConnectorIndex(int i) {
+    return tileOffset<0?i:int(dataAt(tileOffset+i/4)[i%4]);
+}
+// Los grupos son rangos contiguos certificados por el núcleo. Saltar el rango
+// conserva el orden de las uniones suaves y el subconjunto ordenado de tiles.
+bool pruneConnectorGroup(int c,vec3 p,float distance) {
+    return disableGroupPruning==0&&C_groupCount(c)>1&&
+        pruneBox(p,C_groupBounds_start(c),C_groupBounds_end(c),
+            C_groupLowerBoundScale(c),distance+C_groupSmoothness(c));
+}
+int skipConnectorGroup(int i,int c,int globalIndex) {
+    int end=globalIndex+C_groupCount(c);
+    if(tileOffset<0)return min(end,tileCount)-1;
+    while(i+1<tileCount&&sceneConnectorIndex(i+1)<end)++i;
+    return i;
+}
 // Identidad y cobertura siguen las mismas operaciones booleanas que la geometría.
 struct SDFResult {float distance;uint moduleId;uint regionId;uint materialId;float skinWeight;};
 vec4 joinSemantic(inout SDFResult sem,vec4 a,vec4 b,float k,uint module,uint region,uint material,float skin){
@@ -42,7 +61,8 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         result=joinSemantic(semantic,result,vec4(P_color(b),SDF_Ellipsoid(p-P_center(b),P_radii(b))),bodySmoothness,0u,0u,1u,1.0);
     }
     for(int i=0;i<tileCount;++i) {
-        int c=connectorBase+(tileOffset<0?i:int(dataAt(tileOffset+i/4)[i%4]))*C_STRIDE;
+        int globalIndex=sceneConnectorIndex(i),c=connectorBase+globalIndex*C_STRIDE;
+        if(pruneConnectorGroup(c,p,result.w)){i=skipConnectorGroup(i,c,globalIndex);continue;}
         if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result.w+k))continue;
@@ -83,23 +103,27 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         if(!rayJawActive)continue;
         int m=mouthBase+i*M_STRIDE;
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
-        float d=MonsterSDF_EvalPosedMouthDistance(m,local);
+        float jawWeight,tongueDistance;
+        float d=MonsterSDF_EvalPosedMouthMaterial(m,local,jawWeight,tongueDistance);
         if(d<result.w) {
             vec3 col=M_skinColor(m);float jawSkin=1.0;uint jawMaterial=1u;
-            if(M_taperedMandible(m)) {
-                float scale=M_visualJawScale(m);
-                vec3 pivot=M_visualJawPivot(m),rel=local-pivot;
-                float angle=M_visualJawAngle(m),c=cos(angle),s=sin(angle);
-                vec3 rest=pivot+vec3(rel.x,c*rel.y+s*rel.z,-s*rel.y+c*rel.z)/max(scale,0.0001);
-                float tongueD=MonsterSDF_EvalTongueDistance(m,rest)*scale;
-                if(tongueD<=d+0.005){col=M_insideColor(m);jawSkin=0.0;jawMaterial=2u;}
-            }
-            result=vec4(col,d);semantic=SDFResult(d,uint(M_moduleInstanceId(m)),1u,jawMaterial,jawSkin);
+            if(M_taperedMandible(m)&&tongueDistance<=d+0.005){col=M_insideColor(m);jawSkin=0.0;jawMaterial=2u;}
+            // Transportar el anclaje ya resuelto; no repetir la inversa de la costura.
+            uint anchor=1u+uint(round(jawWeight*255.0));
+            result=vec4(col,d);semantic=SDFResult(d,uint(M_moduleInstanceId(m)),1u,jawMaterial|256u|(anchor<<9),jawSkin);
         }
     }
     semantic.distance=result.w;return result;
 }
 vec4 scene(vec3 p){SDFResult sem;return sceneDetailed(p,sem);}
+// Metadatos de pose persistentes: 8 bits de cobertura y 9 de anclaje mandibular.
+// Se calculan al extraer/materializar, nunca mediante evaluación SDF por frame.
+float surfacePoseMaterial(vec3 p,SDFResult semantic) {
+    uint skin=uint(round(clamp(semantic.skinWeight,0.0,1.0)*255.0));
+    uint jaw=(semantic.materialId>>9)&511u;
+    return float(skin|(jaw<<8)|(semantic.regionId==1u?131072u:0u));
+}
+
 float sceneDistance(vec3 p) {
     float result=1e6;
     if(axialCount>1)result=SDF_EllipticalSweepZ(p,axialBase,axialCount);
@@ -108,7 +132,8 @@ float sceneDistance(vec3 p) {
         result=SDF_SmoothUnion(result,SDF_Ellipsoid(p-P_center(b),P_radii(b)),bodySmoothness);
     }
     for(int i=0;i<tileCount;++i) {
-        int c=connectorBase+(tileOffset<0?i:int(dataAt(tileOffset+i/4)[i%4]))*C_STRIDE;
+        int globalIndex=sceneConnectorIndex(i),c=connectorBase+globalIndex*C_STRIDE;
+        if(pruneConnectorGroup(c,p,result)){i=skipConnectorGroup(i,c,globalIndex);continue;}
         if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result+k))continue;
@@ -117,6 +142,10 @@ float sceneDistance(vec3 p) {
     for(int i=0;i<mouthCount;++i) {
         if(!rayHeadActive)continue;
         int m=mouthBase+i*M_STRIDE;
+        if(spatialTrace&&M_anatomicalHead(m)) {
+            float outside=outsideBox(p,M_headBounds_start(m),M_headBounds_end(m));
+            if(outside>.02){result=min(result,outside);continue;}
+        }
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(!M_anatomicalHead(m))result=SDF_SmoothUnion(result,MonsterSDF_EvalMuzzleDistance(m,local),M_muzzleSmoothness(m));
         result=SDF_SmoothUnion(result,MonsterSDF_EvalUpperHeadDistance(m,local),M_anatomicalHead(m)?M_headBodySmoothness(m):M_muzzleSmoothness(m));
@@ -146,6 +175,10 @@ float sceneDistance(vec3 p) {
     for(int i=0;i<mouthCount;++i) {
         if(!rayJawActive)continue;
         int m=mouthBase+i*M_STRIDE;
+        if(spatialTrace&&M_sweptSkull(m)) {
+            float outside=outsideBox(p,M_visualBounds_start(m),M_visualBounds_end(m));
+            if(outside>.02){result=min(result,outside);continue;}
+        }
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         result=min(result,MonsterSDF_EvalPosedMouthDistance(m,local));
     }

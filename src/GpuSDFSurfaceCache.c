@@ -80,7 +80,7 @@ GpuSDFSurfaceCache* GpuSDFSurfaceCache_Create(const GpuSDFSurfaceGrid* grid,unsi
 }
 void GpuSDFSurfaceCache_Destroy(GpuSDFSurfaceCache* cache) {
     if(!cache)return;
-    MorphSpatialCache_Destroy(cache->spatial);free(cache->features);free(cache->dirty);
+    MorphSpatialCache_Destroy(cache->spatial);free(cache->features);free(cache->featureScratch);free(cache->dirty);
     free(cache->retired);free(cache->freeSlots);free(cache);
 }
 static bool TouchFeatureBox(GpuSDFSurfaceCache* cache,AABB3D box,bool dirty,bool seen) {
@@ -106,26 +106,38 @@ static bool TouchFeatureBox(GpuSDFSurfaceCache* cache,AABB3D box,bool dirty,bool
     }
     return true;
 }
+static int CompareFeatureIds(const void* a,const void* b) {
+    uint64_t x=((const MonsterSDFSurfaceFeature*)a)->id,y=((const MonsterSDFSurfaceFeature*)b)->id;
+    return x==y?0:x<y?-1:1;
+}
 bool GpuSDFSurfaceCache_Update(GpuSDFSurfaceCache* cache,const MonsterSDF* sdf) {
     if(!cache||!sdf||!GpuSDFSurfaceGrid_Contains(&cache->grid,sdf->bounds))return false;
     size_t count=MonsterSDF_CollectSurfaceFeatures(sdf,NULL,0,0);
     if(count==SIZE_MAX||count>SIZE_MAX/sizeof(MonsterSDFSurfaceFeature))return false;
-    MonsterSDFSurfaceFeature* current=malloc(count*sizeof(*current));if(count&&!current)return false;
+    if(!GrowCacheArray((void**)&cache->featureScratch,&cache->featureScratchCapacity,count,
+        sizeof(*cache->featureScratch)))return false;
+    MonsterSDFSurfaceFeature* current=cache->featureScratch;
     float band=cache->grid.voxelSize*(3+sqrtf(3.f));
-    if(MonsterSDF_CollectSurfaceFeatures(sdf,current,count,band)!=count){free(current);return false;}
+    if(MonsterSDF_CollectSurfaceFeatures(sdf,current,count,band)!=count)return false;
+    if(count>1)qsort(current,count,sizeof(*current),CompareFeatureIds);
+    // Rechazar identidades ambiguas antes de modificar residencia o versiones.
+    for(size_t i=1;i<count;++i)if(current[i-1].id==current[i].id)return false;
     ++cache->generation;cache->dirtyCount=cache->retiredCount=cache->newCount=cache->residentCount=0;
+    size_t previous=0;
     for(size_t i=0;i<count;++i) {
         const MonsterSDFSurfaceFeature* old=NULL;
-        for(size_t j=0;j<cache->featureCount;++j)if(current[i].id==cache->features[j].id){old=&cache->features[j];break;}
+        while(previous<cache->featureCount&&cache->features[previous].id<current[i].id) {
+            if(!TouchFeatureBox(cache,cache->features[previous].bounds,true,false))goto fail;
+            ++previous;
+        }
+        if(previous<cache->featureCount&&current[i].id==cache->features[previous].id)
+            old=&cache->features[previous++];
         bool changed=!old||old->fingerprint!=current[i].fingerprint;
         if(!TouchFeatureBox(cache,current[i].bounds,changed,true))goto fail;
         if(changed&&old&&!TouchFeatureBox(cache,old->bounds,true,false))goto fail;
     }
-    for(size_t i=0;i<cache->featureCount;++i) {
-        bool exists=false;
-        for(size_t j=0;j<count;++j)if(current[j].id==cache->features[i].id){exists=true;break;}
-        if(!exists&&!TouchFeatureBox(cache,cache->features[i].bounds,true,false))goto fail;
-    }
+    while(previous<cache->featureCount)
+        if(!TouchFeatureBox(cache,cache->features[previous++].bounds,true,false))goto fail;
     for(size_t i=0;i<cache->spatial->brickCount;++i) {
         MorphSpatialBrick* brick=&cache->spatial->bricks[i];
         if(brick->resident&&cache->generation-brick->lastSeenGeneration>3) {
@@ -148,16 +160,29 @@ bool GpuSDFSurfaceCache_Update(GpuSDFSurfaceCache* cache,const MonsterSDF* sdf) 
         }
     }
     size_t side=cache->brickCells+3;cache->reusedSamples=(cache->residentCount-cache->dirtyCount)*side*side*side;
-    free(cache->features);cache->features=current;cache->featureCount=count;return true;
+    cache->featureScratch=cache->features;cache->features=current;cache->featureCount=count;
+    size_t capacity=cache->featureCapacity;cache->featureCapacity=cache->featureScratchCapacity;
+    cache->featureScratchCapacity=capacity;return true;
 fail:
-    free(current);return false;
+    return false;
 }
-void GpuSDFSurfaceCache_Commit(GpuSDFSurfaceCache* cache,uint64_t generation) {
+void GpuSDFSurfaceCache_Submit(GpuSDFSurfaceCache* cache,uint64_t generation) {
     if(!cache||generation!=cache->generation)return;
+    cache->submittedGeneration=generation;
     for(size_t i=0;i<cache->spatial->brickCount;++i) {
         MorphSpatialBrick* brick=&cache->spatial->bricks[i];
         if(!brick->resident||!brick->isDirty||brick->requestedGeneration>generation)continue;
-        brick->sampleGeneration=brick->meshGeneration=generation;brick->fieldState=MORPH_BRICK_CLEAN;
+        brick->fieldState=MORPH_BRICK_SCHEDULED;
         brick->isDirty=false;if(cache->spatial->dirtyCount)--cache->spatial->dirtyCount;
+    }
+}
+void GpuSDFSurfaceCache_Commit(GpuSDFSurfaceCache* cache,uint64_t generation) {
+    if(!cache||generation>cache->generation||generation<cache->completedGeneration)return;
+    cache->completedGeneration=generation;
+    for(size_t i=0;i<cache->spatial->brickCount;++i) {
+        MorphSpatialBrick* brick=&cache->spatial->bricks[i];
+        if(!brick->resident||brick->requestedGeneration!=generation)continue;
+        brick->sampleGeneration=brick->meshGeneration=generation;brick->fieldState=MORPH_BRICK_CLEAN;
+        if(brick->isDirty){brick->isDirty=false;if(cache->spatial->dirtyCount)--cache->spatial->dirtyCount;}
     }
 }

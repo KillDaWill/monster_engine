@@ -2,6 +2,8 @@
 
 void run_gpu_sdf_surface_tests(void);
 void run_dog_tests(void);
+void run_gpu_device_policy_tests(void);
+void run_navigation_tests(void);
 void run_animation_tests(void);
 void run_color_tests(void);
 void run_vector_tests(void);
@@ -33,13 +35,31 @@ void run_creature_variation_tests(void);
 
 void run_morph_handoff_tests(void);
 
+void run_brain_profile_tests(void);
+void run_creature_needs_tests(void);
+void run_creature_perception_tests(void);
+void run_creature_decision_tests(void);
+void run_creature_navigation_tests(void);
+void run_creature_actions_tests(void);
+
+void run_anatomical_reach_tests(void);
 int main(void) {
     printf("======================================\n");
     printf(" Ejecutando Test Suite (monster_engine)\n");
     printf("======================================\n");
 
-    printf("\n--- Módulo Color & ColorPalette ---\n");
+    printf("\n--- Navegación y animación ---\n");
+    run_anatomical_reach_tests();
+    run_brain_profile_tests();
+    run_creature_needs_tests();
+    run_creature_perception_tests();
+    run_creature_decision_tests();
+    run_creature_navigation_tests();
+    run_creature_actions_tests();
+    run_gpu_device_policy_tests();
+    run_navigation_tests();
     run_animation_tests();
+    printf("\n--- Módulo Color & ColorPalette ---\n");
     run_color_tests();
 
     printf("\n--- Módulo Vector ---\n");

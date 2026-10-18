@@ -21,4 +21,10 @@ typedef struct IKResult { bool valid, converged; int iterations; float error; } 
  * @return Residuo real después de FK; nunca declara convergencia ficticia por límites.
  */
 IKResult IK_SolveFABRIK(const Skeleton* skeleton, SkeletonPose* pose, const IKChain* chain);
+/** @brief Resuelve tres segmentos digitígrados preservando la orientación distal de apoyo.
+ * @param skeleton Esqueleto inmutable. @param pose Pose mutable.
+ * @param chain Cadena de cuatro articulaciones. @param distalDirection Dirección distal mundial.
+ * @param dt Tiempo del paso para relajar continuamente la preferencia postural.
+ * @return Validez, convergencia y residuo del efector real. */
+IKResult IK_SolveDigitigrade(const Skeleton* skeleton,SkeletonPose* pose,const IKChain* chain,Vector3 distalDirection,float dt);
 #endif
