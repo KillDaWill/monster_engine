@@ -8,9 +8,10 @@
 typedef struct PerceptionEntry {
     AIObjectId id;
     AIObjectType type;
-    unsigned group;
+    unsigned group, species, category, foodCategory;
+    bool available, reproductiveReady;
     Vector3 position;
-    float radius;
+    float radius, maximumSpeed;
     double observed;
     bool visible, drinkable;
     double unreachableUntil;

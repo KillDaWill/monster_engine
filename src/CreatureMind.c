@@ -26,10 +26,12 @@ void CreatureMind_Init(CreatureMind *m, const BrainProfile *p, AIObjectId self, 
 void CreatureMind_Reset(CreatureMind *m) { memset(m, 0, sizeof(*m)); }
 void CreatureMind_AssignProfile(CreatureMind *m, const BrainProfile *p) {
     CreatureNeeds old = m->needs;
+    bool external=m->externalPhysiology,transactional=m->transactionalIntake;
     uint32_t seed = m->random;
     AIObjectId self = m->self;
     double time = m->time;
     CreatureMind_Init(m, p, self, seed);
+    m->externalPhysiology=external;m->transactionalIntake=transactional;
     if (!m->profile)
         return;
     m->time = time;
@@ -41,7 +43,7 @@ void CreatureMind_Update(CreatureMind *m, const AIWorld *w, const CreatureBodySt
     if (!m->profile || !isfinite(dt) || dt <= 0)
         return;
     m->time += dt;
-    CreatureNeeds_Update(&m->needs, m->profile, dt);
+    if(!m->externalPhysiology)CreatureNeeds_Update(&m->needs, m->profile, dt);
     CreaturePerception_Update(&m->perception, &m->profile->perception, w, m->self, b->eye,
                               b->visionYaw, m->time);
     if (m->target &&
@@ -59,3 +61,9 @@ float CreatureMind_GetNeed(const CreatureMind *m, CreatureNeed k) {
 CreatureAction CreatureMind_GetAction(const CreatureMind *m) { return m ? m->action : ACTION_REST; }
 
 CreatureGoal CreatureMind_GetGoal(const CreatureMind *m) { return m ? m->goal : GOAL_RECOVER; }
+
+void CreatureMind_ConfirmIntake(CreatureMind *m,float amount) {
+    if(m&&m->profile&&m->transactionalIntake&&isfinite(amount)&&amount>0)
+        CreatureNeeds_Satisfy(&m->needs,m->profile,m->intakeNeed,fminf(amount,m->intakeRequested));
+    if(m)m->intakeRequested=0;
+}

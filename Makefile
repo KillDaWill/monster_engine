@@ -16,7 +16,14 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/AnatomicalReach.c \
+CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
+            $(SRC_DIR)/SimulationClock.c \
+            $(SRC_DIR)/CreaturePhysiology.c \
+            $(SRC_DIR)/CreatureGenome.c \
+            $(SRC_DIR)/CreatureReproduction.c \
+            $(SRC_DIR)/EcosystemResources.c \
+            $(SRC_DIR)/EcosystemWorld.c \
+            $(SRC_DIR)/AnatomicalReach.c \
             $(SRC_DIR)/BrainProfile.c \
             $(SRC_DIR)/CreatureNeeds.c \
             $(SRC_DIR)/AIWorld.c \
@@ -110,7 +117,8 @@ CORE_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(CORE_SRCS))
 RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
-TEST_SRCS = $(TEST_DIR)/test_anatomical_reach.c \
+TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
+            $(TEST_DIR)/test_anatomical_reach.c \
             $(TEST_DIR)/test_brain_profile.c \
             $(TEST_DIR)/test_creature_needs.c \
             $(TEST_DIR)/test_creature_perception.c \
@@ -195,7 +203,7 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN)
+demos: demos/demo_ecosystem demos/demo_ecosystem_headless $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN)
 
 $(DEMO_GAME_SCENE_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_game_scene.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
@@ -240,7 +248,7 @@ codegraph:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -rf $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
+	rm -rf demos/demo_ecosystem demos/demo_ecosystem_headless benchmarks/benchmark_ecosystem $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -338,3 +346,29 @@ benchmark-ai: benchmarks/benchmark_ai
 # Instrumentación corporal sin dependencias GL.
 benchmarks/benchmark_interactions: $(CORE_OBJS) benchmarks/benchmark_interactions.c
 	$(CC) $(CFLAGS) benchmarks/benchmark_interactions.c $(CORE_OBJS) -o $@ $(LIBS)
+
+# Ecosistema: simulación sin dependencias gráficas.
+demos/demo_ecosystem_headless: $(CORE_OBJS) demos/demo_ecosystem_headless.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+demos/demo_ecosystem: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_ecosystem.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+benchmarks/benchmark_ecosystem: $(CORE_OBJS) benchmarks/benchmark_ecosystem.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+# Diagnóstico de memoria de la simulación, sin recompilar objetos de producción.
+ECOSYSTEM_SANITIZER_SRCS = src/EcosystemScenario.c src/EcosystemWorld.c src/EcosystemResources.c \
+    src/SimulationClock.c src/CreaturePhysiology.c src/CreatureGenome.c src/CreatureReproduction.c \
+    src/AIWorld.c src/BrainProfile.c src/CreatureMind.c src/CreatureNeeds.c src/CreaturePerception.c \
+    src/CreatureDecision.c src/CreatureActions.c src/CreatureNavigation.c src/CreatureMotor.c \
+    src/NavigationProgress.c src/Vector.c src/AnatomicalReach.c
+.PHONY: ecosystem-sanitize
+ecosystem-sanitize:
+	@mkdir -p $(BUILD_DIR)
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) benchmarks/benchmark_ecosystem.c -Wl,--gc-sections -lm -o $(BUILD_DIR)/ecosystem-sanitize
+	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/ecosystem-sanitize 100 3600 10000
+
+.PHONY: validate-ecosystem
+validate-ecosystem: demos/demo_ecosystem_headless
+	python3 tools/validate_ecosystem.py

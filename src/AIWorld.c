@@ -1,6 +1,10 @@
 #include "AIWorld.h"
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
+#include <limits.h>
+static AIWorldObject *objects(const AIWorld *w) {return w->storage?w->storage:(AIWorldObject *)w->objects;}
+static bool geometry(const AIWorldObject *o) {return !o->walkable&&o->type!=AI_CREATURE;}
 static float segmentDistance(Vector3 a, Vector3 b, Vector3 c, float *t) {
     float x = b.x - a.x, z = b.z - a.z, d = x * x + z * z;
     *t = d > 1e-8f ? fmaxf(0, fminf(1, ((c.x - a.x) * x + (c.z - a.z) * z) / d)) : 0;
@@ -10,35 +14,38 @@ static float segmentDistance(Vector3 a, Vector3 b, Vector3 c, float *t) {
 }
 void AIWorld_Init(AIWorld *w, float half) {
     memset(w, 0, sizeof(*w));
+    w->capacity=AI_WORLD_CAPACITY;
     w->nextId = 1;
     w->halfSize = half;
 }
 AIObjectId AIWorld_Add(AIWorld *w, AIWorldObject o) {
-    if (!w->nextId)
+    if (!w->nextId||!isfinite(o.position.x)||!isfinite(o.position.y)||!isfinite(o.position.z)||!isfinite(o.radius)||o.radius<0||!isfinite(o.height)||o.height<0)
         return 0;
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i)
-        if (!w->objects[i].active) {
+    for (unsigned i = 0; i < w->capacity; ++i)
+        if (!objects(w)[i].active) {
             o.id = w->nextId++;
-            o.active = true;
-            w->objects[i] = o;
-            ++w->revision;
+            o.active = true;o.revision=1;
+            objects(w)[i] = o;
+            if(geometry(&o))++w->revision;
             return o.id;
         }
     return 0;
 }
 const AIWorldObject *AIWorld_Get(const AIWorld *w, AIObjectId id) {
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i)
-        if (w->objects[i].active && w->objects[i].id == id)
-            return &w->objects[i];
+    for (unsigned i = 0; i < w->capacity; ++i)
+        if (objects(w)[i].active && objects(w)[i].id == id)
+            return &objects(w)[i];
     return NULL;
 }
 bool AIWorld_Move(AIWorld *w, AIObjectId id, Vector3 p) {
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i)
-        if (w->objects[i].active && w->objects[i].id == id) {
-            if (w->objects[i].type != AI_CREATURE)
+    if(!isfinite(p.x)||!isfinite(p.y)||!isfinite(p.z))return false;
+    for (unsigned i = 0; i < w->capacity; ++i)
+        if (objects(w)[i].active && objects(w)[i].id == id) {
+            if (geometry(&objects(w)[i]))
                 ++w->revision;
-            w->objects[i].moving=Vec3_Distance(w->objects[i].position,p)>1e-6f;
-            w->objects[i].position = p;
+            objects(w)[i].moving=Vec3_Distance(objects(w)[i].position,p)>1e-6f;
+            if(objects(w)[i].moving)++objects(w)[i].revision;
+            objects(w)[i].position = p;
             return true;
         }
     return false;
@@ -46,12 +53,13 @@ bool AIWorld_Move(AIWorld *w, AIObjectId id, Vector3 p) {
 bool AIWorld_SetBounds(AIWorld *w, AIObjectId id, float radius, float height) {
     if (!isfinite(radius) || !isfinite(height) || radius < 0 || height < 0)
         return false;
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i) {
-        AIWorldObject *o = &w->objects[i];
+    for (unsigned i = 0; i < w->capacity; ++i) {
+        AIWorldObject *o = &objects(w)[i];
         if (o->active && o->id == id) {
-            if (o->type != AI_CREATURE &&
+            if (geometry(o) &&
                 (fabsf(o->radius - radius) > 1e-5f || fabsf(o->height - height) > 1e-5f))
                 ++w->revision;
+            if(o->radius!=radius||o->height!=height)++o->revision;
             o->radius = radius;
             o->height = height;
             return true;
@@ -60,16 +68,16 @@ bool AIWorld_SetBounds(AIWorld *w, AIObjectId id, float radius, float height) {
     return false;
 }
 void AIWorld_Remove(AIWorld *w, AIObjectId id) {
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i)
-        if (w->objects[i].id == id && w->objects[i].active) {
-            w->objects[i].active = false;
-            ++w->revision;
+    for (unsigned i = 0; i < w->capacity; ++i)
+        if (objects(w)[i].id == id && objects(w)[i].active) {
+            if(geometry(&objects(w)[i]))++w->revision;
+            objects(w)[i].active = false;
         }
 }
 unsigned AIWorld_Candidates(const AIWorld *w, Vector3 p, float r, AIObjectId *out, unsigned cap) {
     unsigned n = 0;
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY && n < cap; ++i) {
-        const AIWorldObject *o = &w->objects[i];
+    for (unsigned i = 0; i < w->capacity && n < cap; ++i) {
+        const AIWorldObject *o = &objects(w)[i];
         if (o->active &&
             Vec3_LengthSq(Vec3_Sub(p, o->position)) <= (r + o->radius) * (r + o->radius))
             out[n++] = o->id;
@@ -78,8 +86,8 @@ unsigned AIWorld_Candidates(const AIWorld *w, Vector3 p, float r, AIObjectId *ou
 }
 static bool clearSegment(const AIWorld *w,Vector3 a,Vector3 b,AIObjectId ignore,float radius,bool collision) {
     if(!isfinite(a.x)||!isfinite(a.y)||!isfinite(a.z)||!isfinite(b.x)||!isfinite(b.y)||!isfinite(b.z))return false;
-    for(unsigned i=0;i<AI_WORLD_CAPACITY;++i) {
-        const AIWorldObject *o=&w->objects[i];if(!o->active||(!o->occludes&&!(collision&&o->type==AI_OBSTACLE))||o->id==ignore)continue;
+    for(unsigned i=0;i<w->capacity;++i) {
+        const AIWorldObject *o=&objects(w)[i];if(!o->active||(!o->occludes&&!(collision&&o->type==AI_OBSTACLE))||o->id==ignore)continue;
         float dx=b.x-a.x,dz=b.z-a.z,x=a.x-o->position.x,z=a.z-o->position.z;
         float aa=dx*dx+dz*dz,bb=2*(x*dx+z*dz),cc=x*x+z*z-(o->radius+radius)*(o->radius+radius);
         float lo=0,hi=1;
@@ -107,8 +115,8 @@ bool AIWorld_ClearSegment(const AIWorld *w,Vector3 a,Vector3 b,float radius,AIOb
 bool AIWorld_Walkable(const AIWorld *w, Vector3 p, float r, bool swim) {
     if (fabsf(p.x) + r > w->halfSize || fabsf(p.z) + r > w->halfSize)
         return false;
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i) {
-        const AIWorldObject *o = &w->objects[i];
+    for (unsigned i = 0; i < w->capacity; ++i) {
+        const AIWorldObject *o = &objects(w)[i];
         if (!o->active || o->walkable || o->type == AI_CREATURE || (swim && o->type == AI_WATER))
             continue;
         float x = p.x - o->position.x, z = p.z - o->position.z;
@@ -120,8 +128,8 @@ bool AIWorld_Walkable(const AIWorld *w, Vector3 p, float r, bool swim) {
 bool AIWorld_SegmentWalkable(const AIWorld *w, Vector3 a, Vector3 b, float r, bool swim) {
     if (!AIWorld_Walkable(w, a, r, swim) || !AIWorld_Walkable(w, b, r, swim))
         return false;
-    for (unsigned i = 0; i < AI_WORLD_CAPACITY; ++i) {
-        const AIWorldObject *o = &w->objects[i];
+    for (unsigned i = 0; i < w->capacity; ++i) {
+        const AIWorldObject *o = &objects(w)[i];
         float t;
         if (o->active && !o->walkable && o->type != AI_CREATURE && !(swim && o->type == AI_WATER) &&
             segmentDistance(a, b, o->position, &t) < (r + o->radius) * (r + o->radius))
@@ -145,7 +153,7 @@ bool AIWorld_CanDrink(const AIWorld *w, AIObjectId id, Vector3 mouth, float reac
 bool AIWorld_InteractionTarget(const AIWorld *w,AIObjectId id,Vector3 mouth,float tolerance,InteractionTarget *t) {
     if(!t)return false;
     *t=(InteractionTarget){0};const AIWorldObject *o=AIWorld_Get(w,id);
-    if(!o||(o->type!=AI_WATER&&o->type!=AI_FOOD)||(o->type==AI_WATER&&!o->drinkable))return false;
+    if(!o||(o->foodCategory&&!o->available)||(o->type!=AI_WATER&&o->type!=AI_FOOD)||(o->type==AI_WATER&&!o->drinkable))return false;
     Vector3 normal=Vec3_LengthSq(o->surfaceNormal)>.5f?Vec3_Normalize(o->surfaceNormal):Vec3_Create(0,1,0);
     Vector3 origin=Vec3_Add(o->position,Vec3_Scale(normal,o->type==AI_FOOD?o->height:0));
     Vector3 d=Vec3_Sub(mouth,origin);d=Vec3_Sub(d,Vec3_Scale(normal,Vec3_Dot(d,normal)));
@@ -155,10 +163,45 @@ bool AIWorld_InteractionTarget(const AIWorld *w,AIObjectId id,Vector3 mouth,floa
     Vector3 approach=Vec3_Sub(point,mouth);
     if(Vec3_LengthSq(o->approachDirection)>.5f)approach=o->approachDirection;
     if(Vec3_LengthSq(approach)<1e-8f)approach=Vec3_Scale(normal,-1);
-    *t=(InteractionTarget){.objectId=id,.revision=w->revision,
+    *t=(InteractionTarget){.objectId=id,.revision=o->revision,
         .type=o->type==AI_WATER?INTERACTION_DRINK:INTERACTION_EAT,.position=point,
         .normal=normal,.approach=Vec3_Normalize(approach),.velocity=o->velocity,.moving=o->moving,.positionTolerance=tolerance,
         .orientationTolerance=1.4f,.valid=true,
         .blocked=!AIWorld_ClearSegment(w,mouth,point,0,id)};
     return InteractionTarget_Validate(t);
+}
+
+bool AIWorld_InitCapacity(AIWorld *w,float half,unsigned capacity) {
+    if(!w||!capacity||capacity>1000000||!isfinite(half)||half<=0)return false;
+    AIWorld_Init(w,half);
+    w->storage=calloc(capacity,sizeof(*w->storage));
+    if(!w->storage)return false;
+    w->capacity=capacity;return true;
+}
+void AIWorld_Destroy(AIWorld *w) {if(w){free(w->storage);memset(w,0,sizeof(*w));}}
+const AIWorldObject *AIWorld_At(const AIWorld *w,unsigned slot) {
+    return w&&slot<w->capacity?&objects(w)[slot]:NULL;
+}
+bool AIWorld_SetObservation(AIWorld *w,AIObjectId id,unsigned species,unsigned category,
+    unsigned food,bool available,bool ready) {
+    for(unsigned i=0;i<w->capacity;++i) {
+        AIWorldObject *o=&objects(w)[i];
+        if(o->active&&o->id==id) {
+            o->species=species;o->category=category;o->foodCategory=food;
+            if(o->available!=available)++o->revision;
+            o->available=available;o->reproductiveReady=ready;
+            if(o->type==AI_WATER&&food)o->drinkable=available;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AIWorld_SetAgentState(AIWorld *w,AIObjectId id,unsigned role,float speed) {
+    if(!isfinite(speed)||speed<0)return false;
+    for(unsigned i=0;i<w->capacity;++i) {
+        AIWorldObject *o=&objects(w)[i];
+        if(o->active&&o->id==id){o->group=role;o->maximumSpeed=speed;return true;}
+    }
+    return false;
 }

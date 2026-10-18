@@ -65,3 +65,8 @@ benchmarks/benchmark_interactions
 
 # Directorio temporal de trabajo
 scratch/
+
+# Ejecutables del ecosistema (fuentes en demos/ y benchmarks/).
+/demos/demo_ecosystem
+/demos/demo_ecosystem_headless
+/benchmarks/benchmark_ecosystem

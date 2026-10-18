@@ -8,7 +8,7 @@
 [![Graphics: OpenGL 4.6 + GLSL Compute / SDL2](https://img.shields.io/badge/Graphics-OpenGL%204.6%20%2B%20GLSL%20Compute%20%2F%20SDL2-5586A4.svg?logo=opengl)](shaders/)
 [![Tests: 100% Passing](https://img.shields.io/badge/Tests-100%25%20Passing-success.svg)](tests/)
 
-Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico de cualquier librería de renderizado**, desarrollado en C idiomático con aceleración por Compute Shaders en GPU, metamorfosis ontogénica e inteligencia artificial animal continua.
+Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico de cualquier librería de renderizado**, desarrollado en C idiomático con aceleración por Compute Shaders en GPU, metamorfosis ontogénica, inteligencia artificial animal continua y simulación de ecosistemas con genética heredable.
 
 ## 🚀 Arquitectura General
 
@@ -79,6 +79,16 @@ La geometría de los monstruos se define mediante **Signed Distance Fields (SDF)
 - **`CreatureActions` (`include/CreatureActions.h`)**: Máquina de estados persistente para búsqueda, aproximación, bebida en orilla, descanso y evasión.
 - **`AnatomicalReach` (`include/AnatomicalReach.h`)**: Cinemática inversa cervical (CCD acotado) que orienta el landmark oral exacto al recurso sin desplazar los apoyos plantares ni el tórax.
 - **`CreatureBoundary` (`include/CreatureBoundary.h`)**: Contención y colisión volumétrica continua contra los límites del escenario y obstáculos.
+
+### 🌿 Simulación de Ecosistemas, Genética y Fisiología
+
+- **`EcosystemWorld` (`include/EcosystemWorld.h`)**: Gestor global del ecosistema desacoplado de renderizado; administra ciclos de vida, múltiples especies (herbívoros, carnívoros, carroñeros), natalidad, mortalidad, biomasa y dinámica poblacional.
+- **`CreatureGenome` (`include/CreatureGenome.h`)**: Genoma cuantitativo con 7 rasgos fenotípicos heredables (tamaño, velocidad, eficiencia metabólica, fertilidad, agresividad, percepción, longevidad), recombinación sexual biparental y mutaciones estocásticas acotadas.
+- **`CreaturePhysiology` (`include/CreaturePhysiology.h`)**: Estado metabólico dinámico (reservas de energía y agua, fatiga, salud, tasa metabólica basal) y transiciones ontogénicas (infancia, madurez, senescencia, muerte por inanición/edad).
+- **`CreatureReproduction` (`include/CreatureReproduction.h`)**: Mecánica de cortejo, evaluación de receptividad, compatibilidad genética, gestación interna y parto con herencia alélica.
+- **`EcosystemResources` (`include/EcosystemResources.h`)**: Fuentes dinámicas de nutrientes: vegetación regenerativa, carcasas de animales muertos con decadencia temporal y fuentes hídricas permanentes.
+- **`EcosystemScenario` (`include/EcosystemScenario.h`)**: Presets reproducibles de condiciones iniciales y balances ecológicos (A–E: equilibrio biológico, depredador-presa, sequía, sobrepoblación, convivencia).
+- **`SimulationClock` (`include/SimulationClock.h`)**: Control temporal autoritativo con ticks discretos de física/biología (1/60s), acumulación de tiempo real y ciclo diurno/nocturno.
 
 
 ---
@@ -178,6 +188,30 @@ make clean
    ./demos/demo_game_scene --headless --validate-ai --seed=42 --fixed-dt=.016666667 --frames=1800 --cycles=0
    ```
 
+7. **Simulación de Ecosistema Completo y Vida Artificial (`demos/demo_ecosystem`)**:
+   Simulador de vida artificial continuo donde decenas de criaturas cohabitan, buscan alimento, se reproducen, transmiten su genoma y mueren por causas fisiológicas:
+   - **Dinámica Poblacional y Genética**: Selección de presas/depredadores, descomposición de biomasa, linajes evolutivos y herencia de rasgos cuantitativos (`CreatureGenome`).
+   - **Controles Interactivos**:
+     - **ESPACIO**: Pausar / reanudar la simulación del ecosistema.
+     - **1, 2, 3, 4**: Velocidad del tiempo ecológico (1x, 2x, 4x, 16x).
+     - **TAB**: Ciclar e inspeccionar criaturas vivas.
+     - **F**: Activar / desactivar modo seguimiento de cámara sobre la criatura seleccionada.
+     - **W, A, S, D**: Desplazar el centro de la cámara por el terreno.
+     - **Flechas IZQUIERDA / DERECHA**: Rotación orbital de la cámara.
+     - **Flechas ARRIBA / ABAJO (+ / -)**: Zoom ortogonal (acercar / alejar).
+     - **B**: Alternar líneas de depuración (visión cónica, objetivos y cinemática oral).
+     - **R**: Reiniciar escenario ecológico con sus condiciones iniciales.
+   ```bash
+   # Visor 3D interactivo con OpenGL y HUD:
+   ./demos/demo_ecosystem
+   # Ejecución con escenario específico (A..E) y velocidad inicial:
+   ./demos/demo_ecosystem --scenario=B --speed=4
+   # Modo headless de máximo rendimiento para experimentos:
+   ./demos/demo_ecosystem_headless --scenario=B --ticks=3600
+   # Validación automatizada de estabilidad biológica:
+   python3 tools/validate_ecosystem.py
+   ```
+
 ---
 
 ## ⚡ Benchmarks de Rendimiento
@@ -193,6 +227,10 @@ make benchmark-ai
 
 # Benchmark de alcance anatómico cervical y bebida orillera
 make benchmark-interactions
+
+# Benchmark de rendimiento y dinámica poblacional de ecosistema masivo
+make benchmarks/benchmark_ecosystem
+./benchmarks/benchmark_ecosystem 100 3600 10000
 
 # Benchmark de memoria y coste de animación procedural
 make benchmark-animation
@@ -272,3 +310,6 @@ El directorio `docs/` incluye informes exhaustivos de diseño, optimización y v
 - **Aceleración por GPU y Rendimiento**:
   - [Extracción de Superficie SDF en GPU](docs/AGER_GPU_SDF_SURFACE.md): Compute shaders GLSL, buffers SSBO y caché dispersa en GPU.
   - [Informe de Rendimiento del Ager](docs/AGER_PERFORMANCE.md): Perfilado por etapas, residencia GPU y deformación continua.
+
+- **Ecosistemas, Genética y Vida Artificial**:
+  - [Arquitectura de Simulación de Ecosistemas](docs/ECOSYSTEM_SIMULATION.md): Auditoría, modelo fisiológico, genoma hereditario, reproducción y escenarios reproducibles.

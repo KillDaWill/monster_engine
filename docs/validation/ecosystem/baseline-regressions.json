@@ -1,0 +1,26 @@
+{
+  "revision": "1c483c9",
+  "worktree": "/tmp/monster-ecosystem-baseline-1c483c9",
+  "cases": [
+    {
+      "variant": 2,
+      "exit_code": 1,
+      "brain": "solitary",
+      "thirst": 1.0,
+      "completed_drinks": 0,
+      "action_failures": 3,
+      "error": "AI no complet\u00f3 bebida id=5",
+      "command": "./demos/demo_game_scene --headless --validate-ai --seed=42 --fixed-dt=0.016666667 --benchmark-uncapped --frames=3600 --ai-mutate=approach --target=2"
+    },
+    {
+      "variant": 7,
+      "exit_code": 1,
+      "brain": "solitary",
+      "thirst": 1.0,
+      "completed_drinks": 0,
+      "action_failures": 3,
+      "error": "AI no complet\u00f3 bebida id=5",
+      "command": "./demos/demo_game_scene --headless --validate-ai --seed=42 --fixed-dt=0.016666667 --benchmark-uncapped --frames=3600 --ai-mutate=approach --target=7"
+    }
+  ]
+}

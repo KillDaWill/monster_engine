@@ -37,12 +37,12 @@ const BrainProfile *BrainProfile_Find(const char *name) {
 BrainProfile BrainProfile_Default(void) { return *BrainProfile_Find("balanced"); }
 const char *CreatureAction_Name(CreatureAction a) {
     static const char *names[] = {"wander", "search_water", "approach_water", "drink",
-                                  "rest",   "seek_company", "avoid_company",  "follow_target", "idle", "search_food", "approach_food", "eat"};
+                                  "rest",   "seek_company", "avoid_company",  "follow_target", "idle", "search_food", "approach_food", "eat", "chase", "attack", "escape", "approach_mate"};
     return a >= 0 && a < ACTION_COUNT ? names[a] : "invalid";
 }
 
 bool BrainProfile_Validate(const BrainProfile *p) {
-    if (!p || !p->name || !isfinite(p->perception.range) || p->perception.range < 0 ||
+    if (!p || !p->name || !isfinite(p->dangerDistance) || p->dangerDistance<0 || !isfinite(p->perception.range) || p->perception.range < 0 ||
         !isfinite(p->perception.horizontalFOV) || p->perception.horizontalFOV < 0 ||
         p->perception.horizontalFOV > 6.283186f || !isfinite(p->perception.verticalFOV) ||
         p->perception.verticalFOV < 0 || p->perception.verticalFOV > 3.141593f ||
@@ -66,4 +66,10 @@ bool BrainProfile_Validate(const BrainProfile *p) {
         if (!isfinite(p->weights[i]) || p->weights[i] < 0)
             return false;
     return true;
+}
+
+const char *CreatureGoal_Name(CreatureGoal goal) {
+    static const char *names[]={"explorar","hidratar","descansar","socializar","evitar",
+        "seguir","alimentar","cazar","huir","reproducir","recuperar"};
+    return goal>=GOAL_EXPLORE&&goal<=GOAL_RECOVER?names[goal]:"invalid";
 }

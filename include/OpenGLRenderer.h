@@ -240,6 +240,7 @@ OpenGLMeshPerformanceStats OpenGLRenderer_GetMeshPerformanceStats(const Renderer
 typedef struct OpenGLDemoWindow OpenGLDemoWindow;
 typedef struct OpenGLDemoInput {
     bool quit,togglePause,toggleDebug;
+    int cameraForward,cameraRight; /**< I/K y J/L mantenidas para desplazar cámara. */
     int view;
     int surfaceSelect,surfaceAdjust;
     bool surfaceSeed,surfacePigment,surfaceDebugNext,surfaceToggle;
@@ -280,6 +281,10 @@ void OpenGLRenderer_ModelTransform(Vector3 translation, float yawDegrees, float 
 void OpenGLRenderer_PopModelMatrix(void);
 /** @brief Dibuja un indicador superpuesto (HUD) en 2D con los FPS y tiempo de fotograma. */
 void OpenGLRenderer_DrawHUD(int width, int height, float fps, float frameTimeMs);
+/** @brief Panel de texto ASCII multilínea para estadísticas, sin dependencias en demos. */
+void OpenGLRenderer_DrawTextPanel(int width,int height,int x,int y,const char *text);
+/** @brief Historia de valores cronológicos con escala vertical automática. */
+void OpenGLRenderer_DrawHistory(int width,int height,int x,int y,int plotWidth,int plotHeight,const float *values,unsigned count);
 
 #ifdef __cplusplus
 }

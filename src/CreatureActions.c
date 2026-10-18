@@ -2,6 +2,7 @@
 #include <math.h>
 void CreatureActions_Cancel(CreatureMind *m) {
     if(!m)return;
+    m->intakeRequested=0;
     m->retreating=false;m->navigation.count=0;
     m->target=0;m->contactTime=0;m->interactionStarted=0;m->destinationValid=false;
     m->interactionPhase=INTERACTION_CANCELLED;m->intent=(CreatureIntent){0};
@@ -9,6 +10,7 @@ void CreatureActions_Cancel(CreatureMind *m) {
     m->score=0;m->nextDecision=m->time;
 }
 void CreatureActions_Fail(CreatureMind *m) {
+    m->intakeRequested=0;m->intent=(CreatureIntent){0};
     if (m->target) {
         m->failedTarget = m->target;
         m->cooldownUntil = m->time + 8;
@@ -46,6 +48,7 @@ static bool explore(CreatureMind *m, const AIWorld *w, const CreatureBodyState *
 void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBodyState *b,
                             float dt) {
     m->intent = (CreatureIntent){0};
+    m->intakeRequested=0;
     if (m->time < m->recoveryUntil)
         return;
     if (m->retreating) {
@@ -142,7 +145,11 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
                 m->contactTime+=dt;m->interactionPhase=INTERACTION_STABLE_CONTACT;
                 if(m->contactTime>=.25f) {
                     m->interactionPhase=INTERACTION_CONSUME;
-                    CreatureNeeds_Satisfy(&m->needs,p,need,p->needs[need].satisfactionRate*dt);
+                    if(m->transactionalIntake) {
+                        m->intakeNeed=need;
+                        if(m->needs.urgency[need]>p->needs[need].desiredLevel)
+                            m->intakeRequested=p->needs[need].satisfactionRate*dt;
+                    } else CreatureNeeds_Satisfy(&m->needs,p,need,p->needs[need].satisfactionRate*dt);
                     if(m->needs.urgency[need]<=p->needs[need].desiredLevel) {
                         if(food)++m->completedMeals;else ++m->completedDrinks;
                         m->interactionPhase=INTERACTION_WITHDRAW;m->intent.interact=false;
@@ -176,6 +183,37 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         bank.y=b->position.y;
         if(!m->destinationValid) {
             m->destination=bank;m->approachResourcePosition=e->position;m->destinationValid=false;
+        }
+    } else if(m->action==ACTION_CHASE||m->action==ACTION_ATTACK||
+              m->action==ACTION_ESCAPE||m->action==ACTION_APPROACH_MATE) {
+        if(!e||!e->available||m->time-m->started>25) {CreatureActions_Fail(m);return;}
+        bool escape=m->action==ACTION_ESCAPE;
+        if(!escape&&!e->visible) {CreatureActions_Fail(m);return;}
+        Vector3 delta=Vec3_Sub(e->position,b->position);delta.y=0;
+        float distance=Vec3_Length(delta);
+        float stop=m->action==ACTION_APPROACH_MATE?b->capabilities.clearance+e->radius+.15f:b->attackRange;
+        if(!escape&&distance<=stop) {
+            m->intent.lookAt=true;m->intent.lookTarget=e->position;
+            if(m->action!=ACTION_APPROACH_MATE)m->action=ACTION_ATTACK;
+            return;
+        }
+        if(m->action==ACTION_ATTACK)m->action=ACTION_CHASE;
+        Vector3 goal;
+        if(escape) {
+            Vector3 away=Vec3_Scale(Vec3_Normalize(delta),-1);
+            if(distance<.001f)away=Vec3_Create(1,0,0);
+            goal=Vec3_Add(b->position,Vec3_Scale(away,3));
+            bool valid=false;
+            for(unsigned k=0;k<8;++k) {
+                float angle=k*.78539816f;
+                Vector3 d=Vec3_Create(away.x*cosf(angle)-away.z*sinf(angle),0,away.x*sinf(angle)+away.z*cosf(angle));
+                goal=Vec3_Add(b->position,Vec3_Scale(d,3));
+                if(AIWorld_Walkable(w,goal,b->capabilities.clearance,b->capabilities.swimming)) {valid=true;break;}
+            }
+            if(!valid) {CreatureActions_Fail(m);return;}
+        } else goal=m->action==ACTION_CHASE?e->position:Vec3_Sub(e->position,Vec3_Scale(Vec3_Normalize(delta),stop*.85f));
+        if(!m->destinationValid||Vec3_Distance(goal,m->destination)>.5f) {
+            m->destination=goal;m->destinationValid=false;
         }
     } else if ((m->action == ACTION_SEEK_COMPANY || m->action == ACTION_FOLLOW_TARGET ||
                 m->action == ACTION_AVOID_COMPANY) &&
@@ -256,6 +294,7 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         return;
     }
     m->intent.moving = true;
+    m->intent.pursuing=m->action==ACTION_CHASE;
     m->interactionStarted = 0;
     m->intent.destination = waypoint;
     m->intent.speed = b->capabilities.maximumSpeed;

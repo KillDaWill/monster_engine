@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-18",
+  "baseline_revision": "1c483c9",
+  "hardware": {
+    "cpu": "AMD Ryzen 5 5600H",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "driver": "580.173.02",
+    "os": "Linux 7.0.0-34-generic",
+    "compiler": "GCC 13.3.0",
+    "flags": "-Wall -Wextra -Wpedantic -O2"
+  },
+  "unit_tests_passed": true,
+  "demos_build_passed": true,
+  "asan_ubsan_leaks_passed": true,
+  "headless": {
+    "initial_population": 100,
+    "final_population": 69,
+    "ticks": 12000,
+    "mean_ms": 0.72769,
+    "p50_ms": 0.671,
+    "p95_ms": 1.272,
+    "p99_ms": 1.948,
+    "max_ms": 3.72,
+    "peak_rss_kib": 3124,
+    "spawn_death_cycles": 10000,
+    "cycle_mean_ms": 0.001638,
+    "warm_peak_rss_kib": 3124,
+    "final_peak_rss_kib": 3124
+  },
+  "visual_reference_16x": {
+    "frames": 900,
+    "width": 1280,
+    "height": 800,
+    "frame_mean_ms": 1.016807,
+    "frame_p50_ms": 0.969815,
+    "frame_p95_ms": 1.880238,
+    "frame_p99_ms": 2.823584,
+    "simulation_mean_ms": 0.51083,
+    "gpu_mean_ms": 0.934236,
+    "gpu_samples": 897,
+    "peak_rss_kib": 116956,
+    "process_cpu_mean_ms": 1.015497
+  },
+  "visual_100_1x": {
+    "frames": 900,
+    "width": 1280,
+    "height": 800,
+    "frame_mean_ms": 2.076353,
+    "frame_p50_ms": 1.923329,
+    "frame_p95_ms": 3.242538,
+    "frame_p99_ms": 4.363334,
+    "simulation_mean_ms": 0.829816,
+    "gpu_mean_ms": 2.013533,
+    "gpu_samples": 897,
+    "peak_rss_kib": 113972,
+    "process_cpu_mean_ms": 2.075869
+  },
+  "legacy_regressions": {
+    "passed": 19,
+    "total": 21,
+    "baseline_failures": [
+      "variant-2",
+      "variant-7"
+    ]
+  }
+}

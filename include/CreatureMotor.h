@@ -14,11 +14,13 @@ typedef struct CreatureBodyState {
     ReachResult reach;
     Vector3 mouthDirection;
     float yaw, visionYaw, speed;
-    unsigned group;
+    unsigned group, species, reproductiveRole;
+    bool mateReady, canAttack;
+    float energy, fatigue, attackRange;
     CreatureCapabilities capabilities;
 } CreatureBodyState;
 typedef struct CreatureIntent {
-    bool moving, lookAt, reverse, interact;
+    bool moving, lookAt, reverse, interact, pursuing;
     InteractionTarget interaction;
     Vector3 destination, lookTarget;
     float speed;

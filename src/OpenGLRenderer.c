@@ -2414,6 +2414,9 @@ OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
             if(e.key.keysym.sym==SDLK_0)input.digitKey=9;
         }
     }
+    const Uint8 *held=SDL_GetKeyboardState(NULL);
+    input.cameraForward=(held[SDL_SCANCODE_I]!=0)-(held[SDL_SCANCODE_K]!=0);
+    input.cameraRight=(held[SDL_SCANCODE_L]!=0)-(held[SDL_SCANCODE_J]!=0);
     return input;
 }
 void OpenGLDemoWindow_Swap(OpenGLDemoWindow* w) { if(w){ResolveDemoFramebuffer();SDL_GL_SwapWindow(w->window);} }
@@ -3048,4 +3051,62 @@ bool OpenGLRenderer_CheckErrors(void) {
 OpenGLMeshPerformanceStats OpenGLRenderer_GetMeshPerformanceStats(const Renderer3D* r) {
     OpenGLMeshPerformanceStats empty={0};
     return r&&r->user_data?((const OpenGLRendererData*)r->user_data)->meshStats:empty;
+}
+
+void OpenGLRenderer_DrawTextPanel(int width,int height,int x,int y,const char *text) {
+    if(width<=0||height<=0||!text)return;
+    /* Fuente matricial mínima compartida por paneles de diagnóstico. Columnas 5x7. */
+    static const unsigned char glyphs[36][5]={
+        {0x7e,0x11,0x11,0x11,0x7e},{0x7f,0x49,0x49,0x49,0x36},{0x3e,0x41,0x41,0x41,0x22},
+        {0x7f,0x41,0x41,0x22,0x1c},{0x7f,0x49,0x49,0x49,0x41},{0x7f,0x09,0x09,0x09,0x01},
+        {0x3e,0x41,0x49,0x49,0x7a},{0x7f,0x08,0x08,0x08,0x7f},{0,0x41,0x7f,0x41,0},
+        {0x20,0x40,0x41,0x3f,0x01},{0x7f,0x08,0x14,0x22,0x41},{0x7f,0x40,0x40,0x40,0x40},
+        {0x7f,0x02,0x0c,0x02,0x7f},{0x7f,0x04,0x08,0x10,0x7f},{0x3e,0x41,0x41,0x41,0x3e},
+        {0x7f,0x09,0x09,0x09,0x06},{0x3e,0x41,0x51,0x21,0x5e},{0x7f,0x09,0x19,0x29,0x46},
+        {0x46,0x49,0x49,0x49,0x31},{0x01,0x01,0x7f,0x01,0x01},{0x3f,0x40,0x40,0x40,0x3f},
+        {0x1f,0x20,0x40,0x20,0x1f},{0x3f,0x40,0x38,0x40,0x3f},{0x63,0x14,0x08,0x14,0x63},
+        {0x07,0x08,0x70,0x08,0x07},{0x61,0x51,0x49,0x45,0x43},
+        {0x3e,0x51,0x49,0x45,0x3e},{0,0x42,0x7f,0x40,0},{0x42,0x61,0x51,0x49,0x46},
+        {0x21,0x41,0x45,0x4b,0x31},{0x18,0x14,0x12,0x7f,0x10},{0x27,0x45,0x45,0x45,0x39},
+        {0x3c,0x4a,0x49,0x49,0x30},{0x01,0x71,0x09,0x05,0x03},{0x36,0x49,0x49,0x49,0x36},
+        {0x06,0x49,0x49,0x29,0x1e}};
+    unsigned lines=1,length=0,longest=0;
+    for(const char *p=text;*p;++p)if(*p=='\n'){if(length>longest)longest=length;length=0;++lines;}else ++length;
+    if(length>longest)longest=length;
+    glPushAttrib(GL_ENABLE_BIT|GL_CURRENT_BIT|GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);glDisable(GL_LIGHTING);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glMatrixMode(GL_PROJECTION);glPushMatrix();glLoadIdentity();glOrtho(0,width,height,0,-1,1);
+    glMatrixMode(GL_MODELVIEW);glPushMatrix();glLoadIdentity();
+    glColor4ub(12,22,31,225);glBegin(GL_QUADS);
+    glVertex2i(x-10,y-10);glVertex2i(x+(int)longest*12+10,y-10);
+    glVertex2i(x+(int)longest*12+10,y+(int)lines*20);glVertex2i(x-10,y+(int)lines*20);glEnd();
+    glColor4ub(225,238,221,255);glBegin(GL_QUADS);int px=x,py=y;
+    for(const char *p=text;*p;++p) {
+        if(*p=='\n'){px=x;py+=20;continue;}
+        unsigned char c=(unsigned char)*p;if(c>='a'&&c<='z')c-='a'-'A';
+        int index=c>='A'&&c<='Z'?c-'A':c>='0'&&c<='9'?26+c-'0':-1;
+        for(int col=0;col<5;++col)for(int row=0;row<7;++row) {
+            bool bit=index>=0?(glyphs[index][col]&(1u<<row))!=0:
+                c==':'?(col==2&&(row==2||row==5)):
+                c=='.'?(col==2&&row==6):c=='-'?(row==3):c=='_'?(row==6):
+                c=='/'?(col==4-row/2):false;
+            if(bit){int a=px+col*2,b=py+row*2;glVertex2i(a,b);glVertex2i(a+2,b);glVertex2i(a+2,b+2);glVertex2i(a,b+2);}
+        }
+        px+=12;
+    }
+    glEnd();glPopMatrix();glMatrixMode(GL_PROJECTION);glPopMatrix();glMatrixMode(GL_MODELVIEW);glPopAttrib();
+}
+
+void OpenGLRenderer_DrawHistory(int width,int height,int x,int y,int plotWidth,int plotHeight,const float *values,unsigned count) {
+    if(width<=0||height<=0||plotWidth<=0||plotHeight<=0||!values||!count)return;
+    float maximum=1;for(unsigned i=0;i<count;++i)maximum=fmaxf(maximum,values[i]);
+    glPushAttrib(GL_ENABLE_BIT|GL_CURRENT_BIT|GL_LINE_BIT|GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);glDisable(GL_LIGHTING);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glMatrixMode(GL_PROJECTION);glPushMatrix();glLoadIdentity();glOrtho(0,width,height,0,-1,1);
+    glMatrixMode(GL_MODELVIEW);glPushMatrix();glLoadIdentity();
+    glColor4ub(12,22,31,225);glBegin(GL_QUADS);
+    glVertex2i(x,y);glVertex2i(x+plotWidth,y);glVertex2i(x+plotWidth,y+plotHeight);glVertex2i(x,y+plotHeight);glEnd();
+    glColor4ub(113,218,132,255);glLineWidth(2);glBegin(GL_LINE_STRIP);
+    for(unsigned i=0;i<count;++i)glVertex2f(x+plotWidth*(float)i/fmaxf(1,(float)count-1),y+plotHeight-5-values[i]/maximum*(plotHeight-10));
+    glEnd();glPopMatrix();glMatrixMode(GL_PROJECTION);glPopMatrix();glMatrixMode(GL_MODELVIEW);glPopAttrib();
 }
