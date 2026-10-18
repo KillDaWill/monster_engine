@@ -10,21 +10,37 @@ typedef uint32_t AIObjectId;
 typedef enum AIObjectType { AI_CREATURE, AI_WATER, AI_OBSTACLE, AI_INTEREST, AI_FOOD } AIObjectType;
 typedef struct AIWorldObject {
     AIObjectId id;
+    unsigned revision; /**< Revisión propia de contacto, separada de navegación. */
     AIObjectType type;
     unsigned group, tags;
+    unsigned species, category, foodCategory;
+    bool available, reproductiveReady;
     Vector3 position, surfaceNormal, approachDirection, velocity;
     bool moving;
-    float radius, height;
+    float radius, height, maximumSpeed;
     bool active, visible, occludes, walkable, drinkable;
 } AIWorldObject;
 typedef struct AIWorld {
     AIWorldObject objects[AI_WORLD_CAPACITY];
+    AIWorldObject *storage; /**< NULL usa almacenamiento heredado sin heap. */
+    unsigned capacity;
     AIObjectId nextId;
     unsigned revision;
     float halfSize;
 } AIWorld;
 /** @brief Inicializa registro acotado; IDs nunca se reutilizan. */
 void AIWorld_Init(AIWorld *, float halfSize);
+/** @brief Reserva capacidad configurable. No copiar por valor un mundo propietario. */
+bool AIWorld_InitCapacity(AIWorld *, float halfSize, unsigned capacity);
+/** @brief Libera almacenamiento opcional, después de retirar usuarios. */
+void AIWorld_Destroy(AIWorld *);
+/** @brief Acceso por ranura para sensores, sin truncar candidatos a 128. */
+const AIWorldObject *AIWorld_At(const AIWorld *, unsigned slot);
+/** @brief Publica datos observables sin invalidar navegación. */
+bool AIWorld_SetObservation(AIWorld *, AIObjectId, unsigned species, unsigned category,
+    unsigned foodCategory, bool available, bool reproductiveReady);
+/** @brief Publica rol y capacidad observable del agente, sin invalidar rutas. */
+bool AIWorld_SetAgentState(AIWorld *,AIObjectId,unsigned role,float maximumSpeed);
 /** @brief Registra objeto por valor; cero indica capacidad agotada. */
 AIObjectId AIWorld_Add(AIWorld *, AIWorldObject);
 /** @brief Consulta por identificador estable, NULL si fue retirado. */

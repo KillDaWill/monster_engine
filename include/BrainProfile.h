@@ -23,6 +23,10 @@ typedef enum CreatureAction {
     ACTION_SEARCH_FOOD,
     ACTION_APPROACH_FOOD,
     ACTION_EAT,
+    ACTION_CHASE,
+    ACTION_ATTACK,
+    ACTION_ESCAPE,
+    ACTION_APPROACH_MATE,
     ACTION_COUNT
 } CreatureAction;
 typedef enum CreatureGoal {
@@ -33,6 +37,9 @@ typedef enum CreatureGoal {
     GOAL_AVOID,
     GOAL_FOLLOW,
     GOAL_FEED,
+    GOAL_HUNT,
+    GOAL_FLEE,
+    GOAL_MATE,
     GOAL_RECOVER
 } CreatureGoal;
 typedef enum SocialPolicy {
@@ -53,6 +60,8 @@ typedef struct BrainProfile {
     NeedDefinition needs[NEED_COUNT];
     PerceptionProfile perception;
     float weights[ACTION_COUNT];
+    unsigned dietMask, preyMask, threatMask;
+    float dangerDistance;
     SocialPolicy social;
     float socialDistance, decisionInterval, switchMargin, commitment, explorationRadius;
 } BrainProfile;
@@ -66,5 +75,7 @@ bool BrainProfile_Validate(const BrainProfile *);
 /** @brief Nombre diagnóstico del estado, sin comparaciones de cadenas en
  * decisiones. */
 const char *CreatureAction_Name(CreatureAction action);
+/** @brief Nombre diagnóstico del objetivo abstracto. */
+const char *CreatureGoal_Name(CreatureGoal goal);
 
 #endif

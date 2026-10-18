@@ -43,7 +43,9 @@ void run_creature_navigation_tests(void);
 void run_creature_actions_tests(void);
 
 void run_anatomical_reach_tests(void);
+void run_ecosystem_tests(void);
 int main(void) {
+    run_ecosystem_tests();
     printf("======================================\n");
     printf(" Ejecutando Test Suite (monster_engine)\n");
     printf("======================================\n");

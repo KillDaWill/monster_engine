@@ -25,6 +25,9 @@ typedef struct CreatureMind {
     float contactTime;
     unsigned completedMeals, repositionAttempts;
     unsigned drinks, completedDrinks, actionFailures;
+    bool externalPhysiology, transactionalIntake;
+    float intakeRequested;
+    CreatureNeed intakeNeed;
     CreatureIntent intent;
 } CreatureMind;
 /** @brief Inicializa estado privado, semilla y planificación escalonada. */
@@ -46,4 +49,6 @@ CreatureGoal CreatureMind_GetGoal(const CreatureMind *);
 /** @brief PRNG privado determinista. */
 float CreatureMind_Random(CreatureMind *);
 
+/** @brief Confirma sólo beneficio realmente transferido, después del arbitraje mundial. */
+void CreatureMind_ConfirmIntake(CreatureMind *,float confirmedBenefit);
 #endif

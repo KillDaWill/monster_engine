@@ -20,10 +20,9 @@ void CreaturePerception_Update(CreaturePerception *p, const PerceptionProfile *c
     p->nextRefresh = time + fmaxf(.01f, cfg->interval);
     for (unsigned i = 0; i < p->count; ++i)
         p->entries[i].visible = false;
-    AIObjectId ids[AI_WORLD_CAPACITY];
-    unsigned n = AIWorld_Candidates(w, eye, cfg->range, ids, AI_WORLD_CAPACITY);
-    for (unsigned i = 0; i < n; ++i) {
-        const AIWorldObject *o = AIWorld_Get(w, ids[i]);
+    for (unsigned i = 0; i < w->capacity; ++i) {
+        const AIWorldObject *o = AIWorld_At(w, i);
+        if(!o->active)continue;
         if (o->id == self || !o->visible)
             continue;
         Vector3 d = Vec3_Sub(o->position, eye);
@@ -55,8 +54,11 @@ void CreaturePerception_Update(CreaturePerception *p, const PerceptionProfile *c
         p->entries[slot] = (PerceptionEntry){.id = o->id,
                                              .type = o->type,
                                              .group = o->group,
+                                             .species=o->species,.category=o->category,
+                                             .foodCategory=o->foodCategory,.available=o->available,
+                                             .reproductiveReady=o->reproductiveReady,
                                              .position = o->position,
-                                             .radius = o->radius,
+                                             .radius = o->radius,.maximumSpeed=o->maximumSpeed,
                                              .observed = time,
                                              .visible = true,
                                              .drinkable = o->drinkable,
