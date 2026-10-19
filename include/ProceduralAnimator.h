@@ -18,6 +18,8 @@ typedef struct ProceduralAnimator {
     Quaternion cervicalRotation[3]; /**< Continuidad del gesto cervical, sin mover el tronco. */
     bool (*validateInteractionPose)(const Rig *,const SkeletonPose *,void *);
     void *interactionContext;
+    void (*applyAxialPose)(const Rig*,SkeletonPose*,void*); /**< Autoridad corporal opcional, antes de resolver apoyos. */
+    void *axialContext;
     AnatomicalReachProfile reachProfile;
     AnatomicalReachState reachState;
     InteractionTarget interactionTarget;

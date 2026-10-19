@@ -1,0 +1,48 @@
+[
+  {
+    "case": "adult-side",
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--zoom=2",
+      "--no-hud",
+      "--validate-skinning",
+      "--validate-mouth=240",
+      "--frames=1",
+      "--view=side",
+      "--capture=docs/validation/editor-bull/demo/baseline-adult-side.ppm",
+      "--profile=docs/validation/editor-bull/demo/baseline-adult-side.json",
+      "--recipes-dir=docs/validation/editor-bull/demo/empty-catalog"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "55a41aa2c6adef52b8261e1154b1eeb35394594a7dc718d76d93950049349caa",
+    "captured": true,
+    "target_reached": true
+  },
+  {
+    "case": "adult-front",
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--zoom=2",
+      "--no-hud",
+      "--validate-skinning",
+      "--validate-mouth=240",
+      "--frames=1",
+      "--view=front",
+      "--capture=docs/validation/editor-bull/demo/baseline-adult-front.ppm",
+      "--profile=docs/validation/editor-bull/demo/baseline-adult-front.json",
+      "--recipes-dir=docs/validation/editor-bull/demo/empty-catalog"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "55a41aa2c6adef52b8261e1154b1eeb35394594a7dc718d76d93950049349caa",
+    "captured": true,
+    "target_reached": true
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "initialRevision": 3,
+  "finalState": {
+    "revision": 7,
+    "source": "brumacerno.creature.json",
+    "dirty": false,
+    "view": {
+      "stage": "adult",
+      "part": "head",
+      "index": 0,
+      "tab": "shape",
+      "camera": "perspective",
+      "quality": "fine"
+    }
+  },
+  "errors": [],
+  "mesh": "293.588 triángulos · 4.7 s de reconstrucción"
+}

@@ -1,0 +1,37 @@
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/EcosystemScenario.o build/EcosystemAnatomy.o build/SimulationClock.o build/CreaturePhysiology.o build/CreatureGenome.o build/CreatureReproduction.o build/EcosystemResources.o build/EcosystemWorld.o build/AnatomicalReach.o build/BrainProfile.o build/CreatureNeeds.o build/AIWorld.o build/CreaturePerception.o build/CreatureNavigation.o build/CreatureMotor.o build/CreatureMind.o build/CreatureDecision.o build/CreatureActions.o build/GpuDevicePolicy.o build/NavigationProgress.o build/CreatureBoundary.o build/SDFInterval.o build/GpuSDFSurfaceCache.o build/CreatureMorph.o build/MorphModuleState.o build/MorphHandoff.o build/MorphSpatialCache.o build/MorphChunkManager.o build/MorphSurfaceTracker.o build/MorphSurfacePatcher.o build/HeadMorph.o build/Surface.o build/Fur.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/MeshPatch.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/EyeTexture.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipeIO.o build/CreatureRecipes.o build/CreatureRecipeBrumacerno.o build/CreatureRecipeVelkar.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/VisualVariation.o build/EcosystemVisual.o build/LizardVariations.o tools/creature_editor_bridge.c -lm -pthread -o build/creature_editor_bridge
+python3 tools/creature_editor/test_editor.py
+test_catalog_roundtrip_and_static_assets (__main__.EditorTests.test_catalog_roundtrip_and_static_assets) ... ok
+test_mesh_all_recipes_and_stages (__main__.EditorTests.test_mesh_all_recipes_and_stages) ...   Receta 1, etapa 0: (16200, 137)
+  Receta 1, etapa 1: (15028, 137)
+  Receta 1, etapa 2: (116460, 137)
+  Receta 1, etapa 3: (117736, 137)
+  Receta 2, etapa 0: (97090, 109)
+  Receta 2, etapa 1: (95742, 109)
+  Receta 2, etapa 2: (97246, 109)
+  Receta 2, etapa 3: (98618, 109)
+  Receta 3, etapa 0: (72602, 67)
+  Receta 3, etapa 1: (79524, 67)
+  Receta 3, etapa 2: (83984, 67)
+  Receta 3, etapa 3: (87380, 67)
+  Receta 4, etapa 0: (89776, 117)
+  Receta 4, etapa 1: (91628, 117)
+  Receta 4, etapa 2: (80648, 117)
+  Receta 4, etapa 3: (71790, 117)
+ok
+test_new_recipe_save_reload_and_overwrite (__main__.EditorTests.test_new_recipe_save_reload_and_overwrite) ... 127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/save HTTP/1.1" 409 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/save HTTP/1.1" 409 -
+ok
+test_reject_invalid_versions_counts_attachments_and_paths (__main__.EditorTests.test_reject_invalid_versions_counts_attachments_and_paths) ... 127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/save HTTP/1.1" 422 -
+127.0.0.1 - - [19/Oct/2026 18:33:36] "POST /api/validate HTTP/1.1" 403 -
+ok
+test_topology_edits_and_geometry_change (__main__.EditorTests.test_topology_edits_and_geometry_change) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 20.960s
+
+OK

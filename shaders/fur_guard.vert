@@ -14,12 +14,14 @@ uniform uint furSeed;
 out vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;
 out vec4 vertexColor,profileA,profileB;
 out float ventral,skinMask,fragShellFraction,fragIntegumentMask,shellDelta;
+flat out int tissueMaterial;
 out float ribbonSide,ribbonFade;
 out vec3 worldPosition,ownershipRoot,ownershipNormal;
 #include "surface/hash.glsl"
 #include "surface/fur_curve.glsl"
 vec3 Rest(int i) {return vec3(texelFetch(surfaceData,i*15).r,texelFetch(surfaceData,i*15+1).r,texelFetch(surfaceData,i*15+2).r);}
 void main() {
+    tissueMaterial=0;
     int ia=int(rootIndices.x),ib=int(rootIndices.y),ic=int(rootIndices.z);
     restCoord=rootCoord;restNormal=normalize(rootNormal);restFlowOut=normalize(rootFlow);
     vec4 ga=texelFetch(geometryData,ia*2),gb=texelFetch(geometryData,ib*2),gc=texelFetch(geometryData,ic*2);

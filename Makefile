@@ -17,6 +17,7 @@ BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
 CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
+            $(SRC_DIR)/EcosystemAnatomy.c \
             $(SRC_DIR)/SimulationClock.c \
             $(SRC_DIR)/CreaturePhysiology.c \
             $(SRC_DIR)/CreatureGenome.c \
@@ -78,7 +79,11 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/Anatomy.c \
             $(SRC_DIR)/CreaturePhenotype.c \
             $(SRC_DIR)/CreatureRecipe.c \
+            $(SRC_DIR)/CreatureRecipeIO.c \
+            $(SRC_DIR)/CreatureRecipeRegistry.c \
             $(SRC_DIR)/CreatureRecipes.c \
+             $(SRC_DIR)/CreatureRecipeBrumacerno.c \
+             $(SRC_DIR)/CreatureRecipeVelkar.c \
             $(SRC_DIR)/Attachment.c \
             $(SRC_DIR)/AxialBody.c \
             $(SRC_DIR)/AxialBodySprawlingTetrapod.c \
@@ -108,6 +113,8 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/PigmentPattern.c \
             $(SRC_DIR)/AttachmentPath.c \
             $(SRC_DIR)/CreatureVariation.c \
+            $(SRC_DIR)/VisualVariation.c \
+            $(SRC_DIR)/EcosystemVisual.c \
             $(SRC_DIR)/LizardVariations.c
 
 # Módulo de Renderizador OpenGL
@@ -118,6 +125,8 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
+            $(TEST_DIR)/test_creature_recipe_io.c \
+            $(TEST_DIR)/test_bovine_editor.c \
             $(TEST_DIR)/test_anatomical_reach.c \
             $(TEST_DIR)/test_brain_profile.c \
             $(TEST_DIR)/test_creature_needs.c \
@@ -154,6 +163,8 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_morph_handoff.c \
             $(TEST_DIR)/test_animation.c \
             $(TEST_DIR)/test_creature_variation.c \
+            $(TEST_DIR)/test_creature_visual_variation.c \
+            $(TEST_DIR)/test_ecosystem_creatures.c \
             $(TEST_DIR)/test_morph_spatial_cache.c \
             $(TEST_DIR)/test_morph_chunk_manager.c \
             $(TEST_DIR)/test_morph_cross.c \
@@ -176,6 +187,25 @@ LIZARD_VIEWER_BIN = lizard_viewer
 .PHONY: all clean test benchmark docs demos visual-morph-ownership
 
 all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
+
+# Editor local; las recetas se cargan como datos sin recompilar el núcleo.
+.PHONY: creature-editor editor-test
+$(BUILD_DIR)/creature_editor_bridge: $(CORE_OBJS) tools/creature_editor_bridge.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+creature-editor: $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/creature_editor/server.py
+
+editor-test: $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/creature_editor/test_editor.py
+
+$(BUILD_DIR)/validate_recipe_gpu: $(CORE_OBJS) $(RENDER_OBJS) tools/validate_recipe_gpu.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/CreatureRecipeIO.o: src/CreatureRecipeSchema.inc
+
+src/CreatureRecipeSchema.inc: tools/generate_recipe_schema.py $(wildcard include/*.h)
+	python3 tools/generate_recipe_schema.py
 
 # Regla para compilar objetos del núcleo
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
@@ -358,15 +388,11 @@ benchmarks/benchmark_ecosystem: $(CORE_OBJS) benchmarks/benchmark_ecosystem.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 # Diagnóstico de memoria de la simulación, sin recompilar objetos de producción.
-ECOSYSTEM_SANITIZER_SRCS = src/EcosystemScenario.c src/EcosystemWorld.c src/EcosystemResources.c \
-    src/SimulationClock.c src/CreaturePhysiology.c src/CreatureGenome.c src/CreatureReproduction.c \
-    src/AIWorld.c src/BrainProfile.c src/CreatureMind.c src/CreatureNeeds.c src/CreaturePerception.c \
-    src/CreatureDecision.c src/CreatureActions.c src/CreatureNavigation.c src/CreatureMotor.c \
-    src/NavigationProgress.c src/Vector.c src/AnatomicalReach.c
+ECOSYSTEM_SANITIZER_SRCS = $(CORE_SRCS)
 .PHONY: ecosystem-sanitize
 ecosystem-sanitize:
 	@mkdir -p $(BUILD_DIR)
-	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) benchmarks/benchmark_ecosystem.c -Wl,--gc-sections -lm -o $(BUILD_DIR)/ecosystem-sanitize
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) benchmarks/benchmark_ecosystem.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/ecosystem-sanitize
 	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/ecosystem-sanitize 100 3600 10000
 
 .PHONY: validate-ecosystem

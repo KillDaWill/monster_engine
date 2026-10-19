@@ -64,3 +64,54 @@ SurfacePhenotype SurfacePreset_CanidShortDoubleCoat(uint32_t seed,float maturity
     p.furRegions[SURFACE_REGION_DIGIT]=(FurRegionProfile){.16f,.8f,.55f,1,.6f,.3f,.4f,.6f};
     SurfacePhenotype_Normalize(&p); return p;
 }
+SurfacePhenotype SurfacePreset_BovineShaggyCoat(uint32_t seed,float maturity) {
+    float t=isfinite(maturity)?fmaxf(0,fminf(1,maturity)):1;
+    SurfacePhenotype p=SurfacePhenotype_Default(); uint32_t state=seed;
+    float warm=Random(&state);
+    p.pigment.baseColor=Color_Lerp(Color_FromRGB(108,96,68),Color_FromRGB(130,114,82),warm);
+    p.pigment.secondaryColor=Color_Lerp(Color_FromRGB(150,130,92),Color_FromRGB(181,161,120),warm);
+    p.pigment.ventralColor=Color_FromRGB(209,191,149);
+    p.pigment.dorsalDarkening=.42f;p.pigment.ventralLightening=.62f;p.pigment.patternStrength=.24f;
+    p.pigment.patternScale=.72f;p.pigment.bands=.18f;p.pigment.seed=Hash(seed^0x42564e31u);
+    p.integument.type=INTEGUMENT_FUR;p.integument.coverage=.25f+.75f*t;
+    FurPhenotype* f=&p.integument.fur;
+    f->length=.095f+.075f*t;f->density=.92f+.18f*Random(&state);f->thickness=.86f;
+    f->lay=.58f;f->stiffness=.56f;f->clumping=.46f+.16f*Random(&state);f->irregularity=.52f;
+    f->undercoat=.92f+.08f*t;f->undercoatLength=.66f;f->guardDensity=.86f;
+    f->roughness=.82f;f->sheen=.10f;f->rootDarkening=.38f;f->tipLightening=.10f;
+    f->seed=Hash(seed^0x46555242u);
+    p.furRegions[SURFACE_REGION_HEAD]=(FurRegionProfile){.22f,.95f,.80f,.90f,.72f,.62f,.48f,.72f};
+    p.furRegions[SURFACE_REGION_NECK]=(FurRegionProfile){1.45f,1.10f,1.05f,.82f,1.08f,1.12f,1.18f,1.05f};
+    p.furRegions[SURFACE_REGION_DORSAL_TRUNK]=(FurRegionProfile){1.18f,1.02f,1.05f,.88f,1.04f,1.05f,1.08f,1.04f};
+    p.furRegions[SURFACE_REGION_VENTRAL_TRUNK]=(FurRegionProfile){.90f,1.02f,.92f,1.05f,1.08f,.84f,.92f,1.02f};
+    p.furRegions[SURFACE_REGION_FORELIMB]=(FurRegionProfile){.68f,.96f,.92f,1,1,.86f,.82f,.82f};
+    p.furRegions[SURFACE_REGION_HINDLIMB]=(FurRegionProfile){.78f,1,.98f,1,1,.92f,.90f,.88f};
+    p.furRegions[SURFACE_REGION_TAIL]=(FurRegionProfile){1.18f,1.05f,1.02f,.94f,1,.98f,1.04f,1};
+    p.furRegions[SURFACE_REGION_DIGIT]=(FurRegionProfile){.18f,.80f,.60f,1,.55f,.36f,.42f,.62f};
+    SurfacePhenotype_Normalize(&p); return p;
+}
+SurfacePhenotype SurfacePreset_FelineSleekCoat(uint32_t seed,float maturity) {
+    float t=isfinite(maturity)?fmaxf(0,fminf(1,maturity)):1;
+    SurfacePhenotype p=SurfacePhenotype_Default(); uint32_t state=seed;
+    float warm=Random(&state);
+    p.pigment.baseColor=Color_Lerp(Color_FromRGB(48,53,56),Color_FromRGB(65,59,55),warm);
+    p.pigment.secondaryColor=Color_FromRGB(102,86,76);p.pigment.ventralColor=Color_FromRGB(210,197,171);
+    p.pigment.dorsalDarkening=.30f;p.pigment.ventralLightening=.50f;p.pigment.patternStrength=.16f;
+    p.pigment.patternScale=.85f;p.pigment.bands=.32f;p.pigment.seed=Hash(seed^0x46454c31u);
+    p.integument.type=INTEGUMENT_FUR;p.integument.coverage=.30f+.70f*t;
+    FurPhenotype* f=&p.integument.fur;
+    f->length=.022f+.014f*t;f->density=1.12f+.18f*Random(&state);f->thickness=.46f;
+    f->lay=.88f;f->stiffness=.88f;f->clumping=.10f+.06f*Random(&state);f->irregularity=.16f;
+    f->undercoat=.42f+.16f*t;f->undercoatLength=.48f;f->guardDensity=.96f;
+    f->roughness=.28f;f->sheen=.48f;f->rootDarkening=.22f;f->tipLightening=.08f;
+    f->seed=Hash(seed^0x46555246u);
+    p.furRegions[SURFACE_REGION_HEAD]=(FurRegionProfile){.20f,1.04f,.72f,.92f,.46f,.86f,.16f,.52f};
+    p.furRegions[SURFACE_REGION_NECK]=(FurRegionProfile){.82f,1.06f,.82f,.96f,.66f,1.02f,.24f,.84f};
+    p.furRegions[SURFACE_REGION_DORSAL_TRUNK]=(FurRegionProfile){1.0f,1.08f,.88f,.96f,.58f,1.04f,.18f,.82f};
+    p.furRegions[SURFACE_REGION_VENTRAL_TRUNK]=(FurRegionProfile){.72f,1.02f,.78f,1.02f,.52f,.82f,.14f,.76f};
+    p.furRegions[SURFACE_REGION_FORELIMB]=(FurRegionProfile){.62f,1.04f,.76f,1,.48f,.90f,.14f,.76f};
+    p.furRegions[SURFACE_REGION_HINDLIMB]=(FurRegionProfile){.68f,1.08f,.80f,1,.50f,.96f,.16f,.78f};
+    p.furRegions[SURFACE_REGION_TAIL]=(FurRegionProfile){.92f,1.10f,.82f,.98f,.54f,1.10f,.16f,.86f};
+    p.furRegions[SURFACE_REGION_DIGIT]=(FurRegionProfile){.14f,.72f,.52f,1,.32f,.36f,.10f,.56f};
+    SurfacePhenotype_Normalize(&p); return p;
+}

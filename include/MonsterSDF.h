@@ -52,6 +52,7 @@ typedef struct MonsterSDFBodyPart {
     Vector3 invRadiiSquared;
     float minRadius;
     Color color;
+    SDFMaterial material; /**< Tejido conservado en CPU y extracción GPU. */
 } MonsterSDFBodyPart;
 
 /**
@@ -83,6 +84,7 @@ typedef struct MonsterSDFConnector {
     bool isAttachment; /**< Unión axial al miembro; su detalle pertenece al brote, no al torso. */
     BodyConnectionKind kind;
     Color color;
+    SDFMaterial material; /**< El módulo propietario determina el tejido. */
     AABB3D bounds;             /**< AABB que encierra el volumen conservador del conector */
     float distanceLowerBoundScale; /**< Cota conservadora de anisotropía para poda. */
     size_t groupCount; /**< Conectores consecutivos del mismo miembro; cero fuera del inicio. */

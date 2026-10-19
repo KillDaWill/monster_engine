@@ -1,0 +1,2818 @@
+[
+  {
+    "path": "/recipe/seed/axial/trunkLength",
+    "value": 2.61
+  },
+  {
+    "path": "/recipe/seed/axial/neckLength",
+    "value": 0.7970400378000001
+  },
+  {
+    "path": "/recipe/seed/axial/neckWidth",
+    "value": 0.8732400364799999
+  },
+  {
+    "path": "/recipe/seed/axial/withersHeight",
+    "value": 2.8662047586
+  },
+  {
+    "path": "/recipe/seed/axial/shoulderWidth",
+    "value": 1.9404000196
+  },
+  {
+    "path": "/recipe/seed/axial/thoraxWidth",
+    "value": 2.1426719411999997
+  },
+  {
+    "path": "/recipe/seed/axial/pelvicWidth",
+    "value": 1.8774840186000001
+  },
+  {
+    "path": "/recipe/seed/axial/cervicalDorsalMass",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/seed/axial/withersElevation",
+    "value": 0.14
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/scale",
+    "value": 1.05599999934
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/widthScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/heightScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/lengthScale",
+    "value": 1.4
+  },
+  {
+    "path": "/recipe/seed/head/skullWidth",
+    "value": 0.66
+  },
+  {
+    "path": "/recipe/seed/head/skullHeight",
+    "value": 0.61
+  },
+  {
+    "path": "/recipe/seed/head/skullLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/seed/head/muzzleLength",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/seed/head/muzzleWidth",
+    "value": 0.77
+  },
+  {
+    "path": "/recipe/seed/head/muzzleTaper",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/seed/head/rostrumDepth",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/seed/head/snoutBluntness",
+    "value": 0.98
+  },
+  {
+    "path": "/recipe/seed/head/jawDepth",
+    "value": 0.43
+  },
+  {
+    "path": "/recipe/seed/head/jawLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/seed/head/jawStrength",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/seed/head/masseterMass",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/seed/head/cheekMass",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/seed/head/mouthWidth",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/seed/head/maxillaryWidth",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/seed/head/zygomaticWidth",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/seed/head/cephalicIndex",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/seed/head/stopProminence",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/seed/head/browProminence",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/seed/head/eyeSize",
+    "value": 0.33
+  },
+  {
+    "path": "/recipe/seed/head/eyeLaterality",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/seed/head/eyeForwardness",
+    "value": 0.12
+  },
+  {
+    "path": "/recipe/seed/head/eyeDorsality",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/seed/head/eyeExposure",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/seed/head/earSize",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/seed/head/earWidthRatio",
+    "value": 2.2
+  },
+  {
+    "path": "/recipe/seed/head/earHeightRatio",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/seed/head/earOutward",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/seed/head/earForward",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/seed/head/earPointiness",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/seed/head/noseScale",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/seed/eyes/size",
+    "value": 0.38599999979
+  },
+  {
+    "path": "/recipe/seed/eyes/protrusion",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/seed/eyes/pupilShape",
+    "value": 2
+  },
+  {
+    "path": "/recipe/seed/eyes/pupilAspect",
+    "value": 0.4
+  },
+  {
+    "path": "/recipe/seed/eyes/pupilScale",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/seed/eyes/irisColor",
+    "value": {
+      "r": 65,
+      "g": 40,
+      "b": 20,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/seed/limbs/0/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/seed/limbs/0/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/seed/limbs/0/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/seed/limbs/0/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/seed/limbs/0/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/seed/limbs/0/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/seed/limbs/0/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/0/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/0/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/seed/limbs/0/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/seed/limbs/0/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/seed/limbs/0/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/seed/limbs/0/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/seed/limbs/0/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/seed/limbs/0/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/seed/limbs/0/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/seed/limbs/0/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/seed/limbs/0/length",
+    "value": 1.9274527435999997
+  },
+  {
+    "path": "/recipe/seed/limbs/1/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/seed/limbs/1/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/seed/limbs/1/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/seed/limbs/1/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/seed/limbs/1/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/seed/limbs/1/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/seed/limbs/1/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/1/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/1/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/seed/limbs/1/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/seed/limbs/1/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/seed/limbs/1/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/seed/limbs/1/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/seed/limbs/1/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/seed/limbs/1/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/seed/limbs/1/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/seed/limbs/1/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/seed/limbs/1/length",
+    "value": 1.9274527435999997
+  },
+  {
+    "path": "/recipe/seed/limbs/2/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/seed/limbs/2/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/seed/limbs/2/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/seed/limbs/2/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/seed/limbs/2/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/seed/limbs/2/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/seed/limbs/2/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/2/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/2/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/seed/limbs/2/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/seed/limbs/2/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/2/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/seed/limbs/2/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/seed/limbs/2/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/seed/limbs/2/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/seed/limbs/2/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/seed/limbs/2/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/seed/limbs/2/length",
+    "value": 1.7910087686
+  },
+  {
+    "path": "/recipe/seed/limbs/3/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/seed/limbs/3/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/seed/limbs/3/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/seed/limbs/3/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/seed/limbs/3/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/seed/limbs/3/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/seed/limbs/3/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/3/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/3/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/seed/limbs/3/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/seed/limbs/3/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/limbs/3/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/seed/limbs/3/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/seed/limbs/3/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/seed/limbs/3/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/seed/limbs/3/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/seed/limbs/3/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/seed/limbs/3/length",
+    "value": 1.7910087686
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/length",
+    "value": 0.0312500005
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/baseRadius",
+    "value": 0.00840000007
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/tipRadius",
+    "value": 0.0005400000045
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/growthDirection",
+    "value": {
+      "x": -0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/lateralSweep",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/length",
+    "value": 0.0312500005
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/baseRadius",
+    "value": 0.00840000007
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/tipRadius",
+    "value": 0.0005400000045
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/growthDirection",
+    "value": {
+      "x": 0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/lateralSweep",
+    "value": -0.55
+  },
+  {
+    "path": "/recipe/seed/tails/0/length",
+    "value": 0.9547199489999999
+  },
+  {
+    "path": "/recipe/seed/tails/0/baseWidth",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/seed/tails/0/baseHeight",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/seed/tails/0/tipWidth",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/seed/tails/0/tipHeight",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/seed/surface/pigment/baseColor",
+    "value": {
+      "r": 103,
+      "g": 60,
+      "b": 37,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/seed/surface/pigment/secondaryColor",
+    "value": {
+      "r": 56,
+      "g": 32,
+      "b": 23,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/seed/surface/pigment/ventralColor",
+    "value": {
+      "r": 151,
+      "g": 113,
+      "b": 75,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/seed/surface/pigment/patternStrength",
+    "value": 0.1
+  },
+  {
+    "path": "/recipe/seed/surface/pigment/dorsalDarkening",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/seed/surface/pigment/ventralLightening",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/length",
+    "value": 0.028
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/density",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/thickness",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/clumping",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/lay",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/undercoat",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/guardDensity",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/rootDarkening",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/seed/surface/integument/fur/tipLightening",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/seed/surface/furRegions/1/lengthMultiplier",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/seed/surface/furRegions/5/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/seed/surface/furRegions/6/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/seed/surface/furRegions/7/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/seed/surface/furRegions/8/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/seed/surface/furRegions/10/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/larva/axial/trunkLength",
+    "value": 3.537999942
+  },
+  {
+    "path": "/recipe/larva/axial/neckLength",
+    "value": 0.88970402916
+  },
+  {
+    "path": "/recipe/larva/axial/neckWidth",
+    "value": 0.9309240284999999
+  },
+  {
+    "path": "/recipe/larva/axial/withersHeight",
+    "value": 3.2039592065999996
+  },
+  {
+    "path": "/recipe/larva/axial/shoulderWidth",
+    "value": 2.0138998334
+  },
+  {
+    "path": "/recipe/larva/axial/thoraxWidth",
+    "value": 2.251452
+  },
+  {
+    "path": "/recipe/larva/axial/pelvicWidth",
+    "value": 1.9583939163000001
+  },
+  {
+    "path": "/recipe/larva/axial/cervicalDorsalMass",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/larva/axial/withersElevation",
+    "value": 0.14
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/scale",
+    "value": 1.00760000286
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/widthScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/heightScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/lengthScale",
+    "value": 1.4
+  },
+  {
+    "path": "/recipe/larva/head/skullWidth",
+    "value": 0.66
+  },
+  {
+    "path": "/recipe/larva/head/skullHeight",
+    "value": 0.61
+  },
+  {
+    "path": "/recipe/larva/head/skullLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/larva/head/muzzleLength",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/larva/head/muzzleWidth",
+    "value": 0.77
+  },
+  {
+    "path": "/recipe/larva/head/muzzleTaper",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/larva/head/rostrumDepth",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/larva/head/snoutBluntness",
+    "value": 0.98
+  },
+  {
+    "path": "/recipe/larva/head/jawDepth",
+    "value": 0.43
+  },
+  {
+    "path": "/recipe/larva/head/jawLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/larva/head/jawStrength",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/larva/head/masseterMass",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/larva/head/cheekMass",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/larva/head/mouthWidth",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/larva/head/maxillaryWidth",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/larva/head/zygomaticWidth",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/larva/head/cephalicIndex",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/larva/head/stopProminence",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/larva/head/browProminence",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/larva/head/eyeSize",
+    "value": 0.33
+  },
+  {
+    "path": "/recipe/larva/head/eyeLaterality",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/larva/head/eyeForwardness",
+    "value": 0.12
+  },
+  {
+    "path": "/recipe/larva/head/eyeDorsality",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/larva/head/eyeExposure",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/larva/head/earSize",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/larva/head/earWidthRatio",
+    "value": 2.2
+  },
+  {
+    "path": "/recipe/larva/head/earHeightRatio",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/larva/head/earOutward",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/larva/head/earForward",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/larva/head/earPointiness",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/larva/head/noseScale",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/larva/eyes/size",
+    "value": 0.37060000091
+  },
+  {
+    "path": "/recipe/larva/eyes/protrusion",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/larva/eyes/pupilShape",
+    "value": 2
+  },
+  {
+    "path": "/recipe/larva/eyes/pupilAspect",
+    "value": 0.4
+  },
+  {
+    "path": "/recipe/larva/eyes/pupilScale",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/larva/eyes/irisColor",
+    "value": {
+      "r": 65,
+      "g": 40,
+      "b": 20,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/larva/limbs/0/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/larva/limbs/0/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/larva/limbs/0/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/larva/limbs/0/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/larva/limbs/0/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/larva/limbs/0/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/larva/limbs/0/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/0/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/0/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/larva/limbs/0/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/larva/limbs/0/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/larva/limbs/0/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/larva/limbs/0/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/larva/limbs/0/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/larva/limbs/0/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/larva/limbs/0/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/larva/limbs/0/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/larva/limbs/0/length",
+    "value": 2.1152072166
+  },
+  {
+    "path": "/recipe/larva/limbs/1/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/larva/limbs/1/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/larva/limbs/1/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/larva/limbs/1/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/larva/limbs/1/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/larva/limbs/1/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/larva/limbs/1/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/1/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/1/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/larva/limbs/1/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/larva/limbs/1/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/larva/limbs/1/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/larva/limbs/1/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/larva/limbs/1/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/larva/limbs/1/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/larva/limbs/1/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/larva/limbs/1/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/larva/limbs/1/length",
+    "value": 2.1152072166
+  },
+  {
+    "path": "/recipe/larva/limbs/2/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/larva/limbs/2/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/larva/limbs/2/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/larva/limbs/2/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/larva/limbs/2/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/larva/limbs/2/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/larva/limbs/2/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/2/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/2/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/larva/limbs/2/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/larva/limbs/2/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/2/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/larva/limbs/2/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/larva/limbs/2/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/larva/limbs/2/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/larva/limbs/2/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/larva/limbs/2/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/larva/limbs/2/length",
+    "value": 2.082263186599999
+  },
+  {
+    "path": "/recipe/larva/limbs/3/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/larva/limbs/3/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/larva/limbs/3/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/larva/limbs/3/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/larva/limbs/3/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/larva/limbs/3/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/larva/limbs/3/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/3/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/3/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/larva/limbs/3/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/larva/limbs/3/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/limbs/3/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/larva/limbs/3/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/larva/limbs/3/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/larva/limbs/3/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/larva/limbs/3/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/larva/limbs/3/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/larva/limbs/3/length",
+    "value": 2.082263186599999
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/length",
+    "value": 0.074999998375
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/baseRadius",
+    "value": 0.017500000279999997
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/tipRadius",
+    "value": 0.0011250000179999998
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/growthDirection",
+    "value": {
+      "x": -0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/lateralSweep",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/length",
+    "value": 0.074999998375
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/baseRadius",
+    "value": 0.017500000279999997
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/tipRadius",
+    "value": 0.0011250000179999998
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/growthDirection",
+    "value": {
+      "x": 0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/lateralSweep",
+    "value": -0.55
+  },
+  {
+    "path": "/recipe/larva/tails/0/length",
+    "value": 1.0568219898
+  },
+  {
+    "path": "/recipe/larva/tails/0/baseWidth",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/larva/tails/0/baseHeight",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/larva/tails/0/tipWidth",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/larva/tails/0/tipHeight",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/larva/surface/pigment/baseColor",
+    "value": {
+      "r": 103,
+      "g": 60,
+      "b": 37,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/larva/surface/pigment/secondaryColor",
+    "value": {
+      "r": 56,
+      "g": 32,
+      "b": 23,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/larva/surface/pigment/ventralColor",
+    "value": {
+      "r": 151,
+      "g": 113,
+      "b": 75,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/larva/surface/pigment/patternStrength",
+    "value": 0.1
+  },
+  {
+    "path": "/recipe/larva/surface/pigment/dorsalDarkening",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/larva/surface/pigment/ventralLightening",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/length",
+    "value": 0.030160000084
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/density",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/thickness",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/clumping",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/lay",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/undercoat",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/guardDensity",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/rootDarkening",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/larva/surface/integument/fur/tipLightening",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/larva/surface/furRegions/1/lengthMultiplier",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/larva/surface/furRegions/5/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/larva/surface/furRegions/6/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/larva/surface/furRegions/7/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/larva/surface/furRegions/8/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/larva/surface/furRegions/10/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/juvenile/axial/trunkLength",
+    "value": 4.4659998839999995
+  },
+  {
+    "path": "/recipe/juvenile/axial/neckLength",
+    "value": 1.03291203996
+  },
+  {
+    "path": "/recipe/juvenile/axial/neckWidth",
+    "value": 1.0200720079799999
+  },
+  {
+    "path": "/recipe/juvenile/axial/withersHeight",
+    "value": 3.66685988265
+  },
+  {
+    "path": "/recipe/juvenile/axial/shoulderWidth",
+    "value": 2.0825
+  },
+  {
+    "path": "/recipe/juvenile/axial/thoraxWidth",
+    "value": 2.3529800196
+  },
+  {
+    "path": "/recipe/juvenile/axial/pelvicWidth",
+    "value": 2.0339100372
+  },
+  {
+    "path": "/recipe/juvenile/axial/cervicalDorsalMass",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/juvenile/axial/withersElevation",
+    "value": 0.14
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/scale",
+    "value": 0.9328000022
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/widthScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/heightScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/lengthScale",
+    "value": 1.4
+  },
+  {
+    "path": "/recipe/juvenile/head/skullWidth",
+    "value": 0.66
+  },
+  {
+    "path": "/recipe/juvenile/head/skullHeight",
+    "value": 0.61
+  },
+  {
+    "path": "/recipe/juvenile/head/skullLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleLength",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleWidth",
+    "value": 0.77
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleTaper",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/juvenile/head/rostrumDepth",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/juvenile/head/snoutBluntness",
+    "value": 0.98
+  },
+  {
+    "path": "/recipe/juvenile/head/jawDepth",
+    "value": 0.43
+  },
+  {
+    "path": "/recipe/juvenile/head/jawLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/juvenile/head/jawStrength",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/juvenile/head/masseterMass",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/juvenile/head/cheekMass",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/juvenile/head/mouthWidth",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/juvenile/head/maxillaryWidth",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/juvenile/head/zygomaticWidth",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/juvenile/head/cephalicIndex",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/juvenile/head/stopProminence",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/juvenile/head/browProminence",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/juvenile/head/eyeSize",
+    "value": 0.33
+  },
+  {
+    "path": "/recipe/juvenile/head/eyeLaterality",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/juvenile/head/eyeForwardness",
+    "value": 0.12
+  },
+  {
+    "path": "/recipe/juvenile/head/eyeDorsality",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/juvenile/head/eyeExposure",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/juvenile/head/earSize",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/juvenile/head/earWidthRatio",
+    "value": 2.2
+  },
+  {
+    "path": "/recipe/juvenile/head/earHeightRatio",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/juvenile/head/earOutward",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/juvenile/head/earForward",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/juvenile/head/earPointiness",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/juvenile/head/noseScale",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/juvenile/eyes/size",
+    "value": 0.3468000007
+  },
+  {
+    "path": "/recipe/juvenile/eyes/protrusion",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/juvenile/eyes/pupilShape",
+    "value": 2
+  },
+  {
+    "path": "/recipe/juvenile/eyes/pupilAspect",
+    "value": 0.4
+  },
+  {
+    "path": "/recipe/juvenile/eyes/pupilScale",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/juvenile/eyes/irisColor",
+    "value": {
+      "r": 65,
+      "g": 40,
+      "b": 20,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/juvenile/limbs/0/length",
+    "value": 2.43810790765
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/juvenile/limbs/1/length",
+    "value": 2.43810790765
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/juvenile/limbs/2/length",
+    "value": 2.50176393265
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/juvenile/limbs/3/length",
+    "value": 2.50176393265
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/length",
+    "value": 0.874999985
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/baseRadius",
+    "value": 0.11199999719999999
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/tipRadius",
+    "value": 0.00719999982
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/growthDirection",
+    "value": {
+      "x": -0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/lateralSweep",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/length",
+    "value": 0.874999985
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/baseRadius",
+    "value": 0.11199999719999999
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/tipRadius",
+    "value": 0.00719999982
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/growthDirection",
+    "value": {
+      "x": 0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/lateralSweep",
+    "value": -0.55
+  },
+  {
+    "path": "/recipe/juvenile/tails/0/length",
+    "value": 1.2146159711
+  },
+  {
+    "path": "/recipe/juvenile/tails/0/baseWidth",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/juvenile/tails/0/baseHeight",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/juvenile/tails/0/tipWidth",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/juvenile/tails/0/tipHeight",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/juvenile/surface/pigment/baseColor",
+    "value": {
+      "r": 103,
+      "g": 60,
+      "b": 37,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/juvenile/surface/pigment/secondaryColor",
+    "value": {
+      "r": 56,
+      "g": 32,
+      "b": 23,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/juvenile/surface/pigment/ventralColor",
+    "value": {
+      "r": 151,
+      "g": 113,
+      "b": 75,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/juvenile/surface/pigment/patternStrength",
+    "value": 0.1
+  },
+  {
+    "path": "/recipe/juvenile/surface/pigment/dorsalDarkening",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/juvenile/surface/pigment/ventralLightening",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/length",
+    "value": 0.036160000084
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/density",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/thickness",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/clumping",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/lay",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/undercoat",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/guardDensity",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/rootDarkening",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/juvenile/surface/integument/fur/tipLightening",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/juvenile/surface/furRegions/1/lengthMultiplier",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/juvenile/surface/furRegions/5/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/juvenile/surface/furRegions/6/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/juvenile/surface/furRegions/7/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/juvenile/surface/furRegions/8/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/juvenile/surface/furRegions/10/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/adult/axial/trunkLength",
+    "value": 5.104000115999999
+  },
+  {
+    "path": "/recipe/adult/axial/neckLength",
+    "value": 1.1339999459999999
+  },
+  {
+    "path": "/recipe/adult/axial/neckWidth",
+    "value": 1.08300005472
+  },
+  {
+    "path": "/recipe/adult/axial/withersHeight",
+    "value": 4.03805224125
+  },
+  {
+    "path": "/recipe/adult/axial/shoulderWidth",
+    "value": 2.14375
+  },
+  {
+    "path": "/recipe/adult/axial/thoraxWidth",
+    "value": 2.4436299902000003
+  },
+  {
+    "path": "/recipe/adult/axial/pelvicWidth",
+    "value": 2.1013350279
+  },
+  {
+    "path": "/recipe/adult/axial/cervicalDorsalMass",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/adult/axial/withersElevation",
+    "value": 0.14
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/scale",
+    "value": 0.88
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/widthScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/heightScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/lengthScale",
+    "value": 1.4
+  },
+  {
+    "path": "/recipe/adult/head/skullWidth",
+    "value": 0.66
+  },
+  {
+    "path": "/recipe/adult/head/skullHeight",
+    "value": 0.61
+  },
+  {
+    "path": "/recipe/adult/head/skullLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/adult/head/muzzleLength",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/adult/head/muzzleWidth",
+    "value": 0.77
+  },
+  {
+    "path": "/recipe/adult/head/muzzleTaper",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/adult/head/rostrumDepth",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/adult/head/snoutBluntness",
+    "value": 0.98
+  },
+  {
+    "path": "/recipe/adult/head/jawDepth",
+    "value": 0.43
+  },
+  {
+    "path": "/recipe/adult/head/jawLength",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/adult/head/jawStrength",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/adult/head/masseterMass",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/adult/head/cheekMass",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/adult/head/mouthWidth",
+    "value": 0.64
+  },
+  {
+    "path": "/recipe/adult/head/maxillaryWidth",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/adult/head/zygomaticWidth",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/adult/head/cephalicIndex",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/adult/head/stopProminence",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/adult/head/browProminence",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/adult/head/eyeSize",
+    "value": 0.33
+  },
+  {
+    "path": "/recipe/adult/head/eyeLaterality",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/adult/head/eyeForwardness",
+    "value": 0.12
+  },
+  {
+    "path": "/recipe/adult/head/eyeDorsality",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/adult/head/eyeExposure",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/adult/head/earSize",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/adult/head/earWidthRatio",
+    "value": 2.2
+  },
+  {
+    "path": "/recipe/adult/head/earHeightRatio",
+    "value": 0.7
+  },
+  {
+    "path": "/recipe/adult/head/earOutward",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/adult/head/earForward",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/adult/head/earPointiness",
+    "value": 0.15
+  },
+  {
+    "path": "/recipe/adult/head/noseScale",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/adult/eyes/size",
+    "value": 0.33
+  },
+  {
+    "path": "/recipe/adult/eyes/protrusion",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/adult/eyes/pupilShape",
+    "value": 2
+  },
+  {
+    "path": "/recipe/adult/eyes/pupilAspect",
+    "value": 0.4
+  },
+  {
+    "path": "/recipe/adult/eyes/pupilScale",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/adult/eyes/irisColor",
+    "value": {
+      "r": 65,
+      "g": 40,
+      "b": 20,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/adult/limbs/0/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/adult/limbs/0/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/adult/limbs/0/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/adult/limbs/0/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/adult/limbs/0/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/adult/limbs/0/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/adult/limbs/0/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/0/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/0/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/adult/limbs/0/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/adult/limbs/0/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/adult/limbs/0/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/adult/limbs/0/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/adult/limbs/0/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/adult/limbs/0/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/adult/limbs/0/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/adult/limbs/0/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/adult/limbs/0/length",
+    "value": 2.68430026625
+  },
+  {
+    "path": "/recipe/adult/limbs/1/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/adult/limbs/1/thickness",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/adult/limbs/1/rootThicknessScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/adult/limbs/1/proximalThicknessScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/adult/limbs/1/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/adult/limbs/1/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/adult/limbs/1/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/1/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/1/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/adult/limbs/1/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/adult/limbs/1/proximalScale",
+    "value": 0.95
+  },
+  {
+    "path": "/recipe/adult/limbs/1/middleScale",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/adult/limbs/1/distalScale",
+    "value": 1.8
+  },
+  {
+    "path": "/recipe/adult/limbs/1/proximalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/adult/limbs/1/distalSweep",
+    "value": 0
+  },
+  {
+    "path": "/recipe/adult/limbs/1/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/adult/limbs/1/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/adult/limbs/1/length",
+    "value": 2.68430026625
+  },
+  {
+    "path": "/recipe/adult/limbs/2/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/adult/limbs/2/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/adult/limbs/2/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/adult/limbs/2/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/adult/limbs/2/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/adult/limbs/2/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/adult/limbs/2/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/2/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/2/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/adult/limbs/2/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/adult/limbs/2/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/2/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/adult/limbs/2/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/adult/limbs/2/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/adult/limbs/2/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/adult/limbs/2/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/adult/limbs/2/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/adult/limbs/2/length",
+    "value": 2.83420624125
+  },
+  {
+    "path": "/recipe/adult/limbs/3/archetype",
+    "value": 6
+  },
+  {
+    "path": "/recipe/adult/limbs/3/thickness",
+    "value": 0.36
+  },
+  {
+    "path": "/recipe/adult/limbs/3/rootThicknessScale",
+    "value": 1.7
+  },
+  {
+    "path": "/recipe/adult/limbs/3/proximalThicknessScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/adult/limbs/3/middleThicknessScale",
+    "value": 0.76
+  },
+  {
+    "path": "/recipe/adult/limbs/3/distalThicknessScale",
+    "value": 0.8
+  },
+  {
+    "path": "/recipe/adult/limbs/3/footScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/3/footWidthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/3/footHeightScale",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/adult/limbs/3/digitThicknessScale",
+    "value": 1
+  },
+  {
+    "path": "/recipe/adult/limbs/3/proximalScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/limbs/3/middleScale",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/adult/limbs/3/distalScale",
+    "value": 1.25
+  },
+  {
+    "path": "/recipe/adult/limbs/3/proximalSweep",
+    "value": 0.025
+  },
+  {
+    "path": "/recipe/adult/limbs/3/distalSweep",
+    "value": -0.035
+  },
+  {
+    "path": "/recipe/adult/limbs/3/digitSpread",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/adult/limbs/3/digitLengths",
+    "value": [
+      0.85,
+      0.85,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "path": "/recipe/adult/limbs/3/length",
+    "value": 2.83420624125
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/length",
+    "value": 1.5625
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/baseRadius",
+    "value": 0.19600000069999998
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/tipRadius",
+    "value": 0.012600000044999999
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/growthDirection",
+    "value": {
+      "x": -0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/lateralSweep",
+    "value": 0.55
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/length",
+    "value": 1.5625
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/baseRadius",
+    "value": 0.19600000069999998
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/tipRadius",
+    "value": 0.012600000044999999
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/curvature",
+    "value": 0.75
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/growthDirection",
+    "value": {
+      "x": 0.95,
+      "y": 0.3,
+      "z": -0.05
+    }
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/lateralSweep",
+    "value": -0.55
+  },
+  {
+    "path": "/recipe/adult/tails/0/length",
+    "value": 1.3259999507
+  },
+  {
+    "path": "/recipe/adult/tails/0/baseWidth",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/adult/tails/0/baseHeight",
+    "value": 0.13
+  },
+  {
+    "path": "/recipe/adult/tails/0/tipWidth",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/adult/tails/0/tipHeight",
+    "value": 0.045
+  },
+  {
+    "path": "/recipe/adult/surface/pigment/baseColor",
+    "value": {
+      "r": 103,
+      "g": 60,
+      "b": 37,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/adult/surface/pigment/secondaryColor",
+    "value": {
+      "r": 56,
+      "g": 32,
+      "b": 23,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/adult/surface/pigment/ventralColor",
+    "value": {
+      "r": 151,
+      "g": 113,
+      "b": 75,
+      "a": 255
+    }
+  },
+  {
+    "path": "/recipe/adult/surface/pigment/patternStrength",
+    "value": 0.1
+  },
+  {
+    "path": "/recipe/adult/surface/pigment/dorsalDarkening",
+    "value": 0.35
+  },
+  {
+    "path": "/recipe/adult/surface/pigment/ventralLightening",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/length",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/density",
+    "value": 1.0
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/thickness",
+    "value": 0.65
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/clumping",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/lay",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/undercoat",
+    "value": 0.6
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/guardDensity",
+    "value": 0.32
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/rootDarkening",
+    "value": 0.22
+  },
+  {
+    "path": "/recipe/adult/surface/integument/fur/tipLightening",
+    "value": 0.04
+  },
+  {
+    "path": "/recipe/adult/surface/furRegions/1/lengthMultiplier",
+    "value": 0.25
+  },
+  {
+    "path": "/recipe/adult/surface/furRegions/5/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/adult/surface/furRegions/6/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/adult/surface/furRegions/7/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/adult/surface/furRegions/8/lengthMultiplier",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/adult/surface/furRegions/10/lengthMultiplier",
+    "value": 0.5
+  }
+]

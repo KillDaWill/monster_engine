@@ -165,6 +165,7 @@ MeshValidationResult Mesh_Validate(const Mesh* mesh) {
             v->material != SDF_MATERIAL_LIP && v->material != SDF_MATERIAL_EYE_SOCKET &&
             v->material != SDF_MATERIAL_NOSTRIL && v->material != SDF_MATERIAL_TYMPANUM &&
             v->material != SDF_MATERIAL_NASAL_PAD &&
+            v->material != SDF_MATERIAL_HORN && v->material != SDF_MATERIAL_HOOF &&
             v->material != SDF_MATERIAL_UNKNOWN) {
             ++result.invalidMaterialCount;
         }

@@ -194,7 +194,13 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         float stop=m->action==ACTION_APPROACH_MATE?b->capabilities.clearance+e->radius+.15f:b->attackRange;
         if(!escape&&distance<=stop) {
             m->intent.lookAt=true;m->intent.lookTarget=e->position;
-            if(m->action!=ACTION_APPROACH_MATE)m->action=ACTION_ATTACK;
+            if(m->action!=ACTION_APPROACH_MATE) {
+                m->action=ACTION_ATTACK;
+                if(e->maximumSpeed>.05f&&distance>stop*.94f) {
+                    m->intent.moving=true;m->intent.pursuing=true;
+                    m->intent.destination=e->position;m->intent.speed=b->capabilities.maximumSpeed;
+                }
+            }
             return;
         }
         if(m->action==ACTION_ATTACK)m->action=ACTION_CHASE;

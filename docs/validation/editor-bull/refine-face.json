@@ -1,0 +1,162 @@
+[
+  {
+    "path": "/recipe/seed/headEnvelope/lengthScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/heightScale",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/seed/head/muzzleLength",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/seed/head/rostrumDepth",
+    "value": 0.62
+  },
+  {
+    "path": "/recipe/seed/head/rostrumDorsalSlope",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/seed/head/skullHeight",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/seed/head/muzzleWidth",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/seed/head/earSize",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/seed/head/earWidthRatio",
+    "value": 2.5
+  },
+  {
+    "path": "/recipe/seed/head/earHeightRatio",
+    "value": 0.58
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/lengthScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/heightScale",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/larva/head/muzzleLength",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/larva/head/rostrumDepth",
+    "value": 0.62
+  },
+  {
+    "path": "/recipe/larva/head/rostrumDorsalSlope",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/larva/head/skullHeight",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/larva/head/muzzleWidth",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/larva/head/earSize",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/larva/head/earWidthRatio",
+    "value": 2.5
+  },
+  {
+    "path": "/recipe/larva/head/earHeightRatio",
+    "value": 0.58
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/lengthScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/heightScale",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleLength",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/juvenile/head/rostrumDepth",
+    "value": 0.62
+  },
+  {
+    "path": "/recipe/juvenile/head/rostrumDorsalSlope",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/juvenile/head/skullHeight",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleWidth",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/juvenile/head/earSize",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/juvenile/head/earWidthRatio",
+    "value": 2.5
+  },
+  {
+    "path": "/recipe/juvenile/head/earHeightRatio",
+    "value": 0.58
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/lengthScale",
+    "value": 1.12
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/heightScale",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/adult/head/muzzleLength",
+    "value": 0.5
+  },
+  {
+    "path": "/recipe/adult/head/rostrumDepth",
+    "value": 0.62
+  },
+  {
+    "path": "/recipe/adult/head/rostrumDorsalSlope",
+    "value": 0.08
+  },
+  {
+    "path": "/recipe/adult/head/skullHeight",
+    "value": 0.68
+  },
+  {
+    "path": "/recipe/adult/head/muzzleWidth",
+    "value": 0.85
+  },
+  {
+    "path": "/recipe/adult/head/earSize",
+    "value": 0.3
+  },
+  {
+    "path": "/recipe/adult/head/earWidthRatio",
+    "value": 2.5
+  },
+  {
+    "path": "/recipe/adult/head/earHeightRatio",
+    "value": 0.58
+  }
+]

@@ -60,6 +60,43 @@ HeadPhenotype HeadPhenotype_CanidPreset(void) {
     p.cranialForm=HEAD_CRANIAL_STANDARD;p.muzzleForm=HEAD_MUZZLE_TAPERED;
     return p;
 }
+HeadPhenotype HeadPhenotype_BovinePreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_CANID);
+    p.skullWidth=.80f;p.skullHeight=.72f;p.skullLength=.52f;
+    p.muzzleLength=.38f;p.muzzleWidth=.88f;p.muzzleTaper=.16f;
+    p.rostrumDepth=.78f;p.rostrumDorsalSlope=.48f;p.temporalWidth=.78f;p.temporalDepth=.72f;
+    p.eyeSize=.42f;p.eyeLaterality=.52f;p.eyeForwardness=.34f;p.eyeDorsality=.46f;
+    p.eyelidCoverage=.38f;p.eyeCompression=.34f;p.eyeExposure=.12f;p.browProminence=.48f;
+    p.snoutBluntness=.94f;p.jawLength=.62f;p.jawDepth=.78f;p.jawStrength=.86f;
+    p.noseScale=.72f;p.earSize=.34f;p.earBaseWidth=.76f;p.earThickness=.26f;
+    p.earWidthRatio=1.7f;p.earHeightRatio=.50f;
+    p.earConcavity=.62f;p.earOutward=.44f;p.earForward=.12f;p.earPointiness=.04f;
+    p.earLongitudinalCurve=.34f;p.earRootRoll=.48f;p.earTipRoundness=.94f;
+    p.earRootFlare=.70f;p.earMarginBow=.54f;p.earMarginAsymmetry=.50f;
+    p.cheekMass=.72f;p.maxillaryWidth=.80f;p.mouthWidth=.76f;p.zygomaticWidth=.82f;
+    p.masseterMass=.92f;p.stopProminence=.34f;p.cephalicIndex=.60f;p.nostrilPosition=.84f;
+    p.orbitDepth=.46f;p.eyeLayout=HEAD_EYES_LATERAL;
+    p.cranialForm=HEAD_CRANIAL_BLOCK;p.muzzleForm=HEAD_MUZZLE_BLUNT;
+    return p;
+}
+HeadPhenotype HeadPhenotype_FelinePreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_CANID);
+    p.skullWidth=.62f;p.skullHeight=.58f;p.skullLength=.47f;
+    p.muzzleLength=.28f;p.muzzleWidth=.50f;p.muzzleTaper=.58f;
+    p.rostrumDepth=.54f;p.rostrumDorsalSlope=.45f;p.temporalWidth=.58f;p.temporalDepth=.50f;
+    p.eyeSize=.48f;p.eyeLaterality=.20f;p.eyeForwardness=.92f;p.eyeDorsality=.46f;
+    p.eyelidCoverage=.54f;p.eyeCompression=.48f;p.eyeExposure=.10f;p.browProminence=.40f;
+    p.snoutBluntness=.76f;p.jawLength=.42f;p.jawDepth=.40f;p.jawStrength=.56f;
+    p.noseScale=.42f;p.earSize=.66f;p.earBaseWidth=.85f;p.earWidthRatio=2.25f;p.earThickness=.16f;
+    p.earConcavity=.80f;p.earOutward=.20f;p.earForward=.24f;p.earPointiness=.92f;
+    p.earLongitudinalCurve=.50f;p.earRootRoll=.42f;p.earTipRoundness=.10f;
+    p.earRootFlare=.38f;p.earMarginBow=.46f;p.earMarginAsymmetry=.50f;
+    p.cheekMass=.36f;p.maxillaryWidth=.46f;p.mouthWidth=.44f;p.zygomaticWidth=.52f;
+    p.masseterMass=.46f;p.stopProminence=.38f;p.cephalicIndex=.92f;p.nostrilPosition=.80f;
+    p.orbitDepth=.48f;p.eyeLayout=HEAD_EYES_FORWARD;
+    p.cranialForm=HEAD_CRANIAL_BLOCK;p.muzzleForm=HEAD_MUZZLE_BLUNT;
+    return p;
+}
 HeadPhenotype HeadPhenotype_AvianPreset(void) {
     HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_AVIAN);
     p.skullWidth=.54f;p.skullHeight=.68f;p.skullLength=.48f;p.muzzleLength=.25f;p.muzzleWidth=.32f;p.muzzleTaper=.82f;
@@ -85,6 +122,8 @@ void HeadPhenotype_Normalize(HeadPhenotype* p) {
     C(noseScale);C(earSize);C(earPointiness);C(cheekMass);C(beakLength);C(beakDepth);
     C(beakTaper);C(beakCurvature);C(nostrilPosition);C(orbitDepth);C(tympanumSize);
 #undef C
+    p->earWidthRatio=isfinite(p->earWidthRatio)&&p->earWidthRatio>0?Math_Clamp(p->earWidthRatio,.5f,3):1;
+    p->earHeightRatio=isfinite(p->earHeightRatio)&&p->earHeightRatio>0?Math_Clamp(p->earHeightRatio,.3f,2):1;
     if (p->cranialForm < HEAD_CRANIAL_STANDARD || p->cranialForm > HEAD_CRANIAL_WEDGE)
         p->cranialForm = HEAD_CRANIAL_STANDARD;
     if (p->muzzleForm < HEAD_MUZZLE_TAPERED || p->muzzleForm > HEAD_MUZZLE_WEDGE)
@@ -327,17 +366,26 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if (p.archetype==HEAD_ARCHETYPE_CANID) {
         /* La trufa sobresale del premaxilar, pero no debe convertirse en un
          * segundo hocico bulboso al aumentar la anchura del perro. */
-        r->noseCenter=Vec3_Add(tip,Vec3_Create(0,faceDepth*.08f,tipWidth*.38f));
-        r->noseRadii=Vec3_Create(tipWidth*(.70f+.16f*p.noseScale),tipHeight*.56f,tipWidth*.38f);
+        float broad=Math_Clamp01((p.snoutBluntness-.85f)/.15f);
+        r->noseCenter=Vec3_Add(tip,Vec3_Create(0,faceDepth*.08f,tipWidth*Math_Lerp(.38f,.08f,broad)));
+        r->noseRadii=Vec3_Create(tipWidth*(.70f+.16f*p.noseScale),tipHeight*.56f,tipWidth*Math_Lerp(.38f,.18f,broad));
+        /* Un morro plano sigue apoyado sobre la premaxila: reducir su
+         * proyección sin moverlo al borde enterraría la almohadilla nasal. */
+        float capDepth=Math_Min(r->faceTipRadii.x,r->faceTipRadii.y);
+        r->noseCenter.z=Math_Lerp(r->noseCenter.z,tip.z+capDepth-r->noseRadii.z*.45f,broad);
         l->leftNostril=Vec3_Create(r->noseRadii.x*.70f,r->noseCenter.y+r->noseRadii.y*.10f,tip.z);
         l->rightNostril=l->leftNostril;l->rightNostril.x*=-1;
+        l->leftNostril.z=Math_Lerp(l->leftNostril.z,r->noseCenter.z+r->noseRadii.z*.60f,broad);
+        l->rightNostril.z=l->leftNostril.z;
         r->leftNostrilCenter=l->leftNostril;r->rightNostrilCenter=l->rightNostril;
         r->nostrilRadii=Vec3_Create(r->noseRadii.x*.20f,r->noseRadii.y*.25f,r->noseRadii.z*.30f);
         r->nostrilRadii=Vec3_Scale(r->nostrilRadii,.25f+1.5f*p.noseScale);
     }
     r->leftTympanumCenter=l->leftTympanum;r->rightTympanumCenter=l->rightTympanum;r->tympanumRadii=Vec3_Create(tymR*.42f,tymR,tymR*.86f);r->tympanumDepth=tymR*.55f;
     float earWidthScale=p.archetype==HEAD_ARCHETYPE_CANID?.15f+.10f*p.earBaseWidth:.31f+.32f*p.earBaseWidth;
+    earWidthScale*=p.earWidthRatio;
     float earHeightScale=p.archetype==HEAD_ARCHETYPE_CANID?.86f+1.22f*p.earSize:.60f+1.20f*p.earSize;
+    earHeightScale*=p.earHeightRatio;
     r->earShape=Vec3_Create(skullR.x*earWidthScale,
         skullR.y*earHeightScale,skullR.z*(.045f+.07f*p.earThickness));
     r->earConcavity=p.earConcavity;
@@ -345,7 +393,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     r->earLongitudinalCurve=(p.earLongitudinalCurve-.5f)*r->earShape.z*1.4f;
     r->earRootRoll=p.earRootRoll;r->earTipRoundness=p.earTipRoundness;r->earFold=(p.earFold-.5f)*r->earShape.y*.62f;
     r->earRootFlare=p.earRootFlare;r->earMarginBow=p.earMarginBow;r->earMarginAsymmetry=p.earMarginAsymmetry;
-    Vector3 leftUp=Vec3_Create(p.earOutward*.7f,1,p.earForward*.7f);
+    /* El extremo del control permite pabellones laterales casi horizontales;
+     * el intervalo habitual de orejas erectas conserva su orientación. */
+    float lateralEar=Math_Clamp01((p.earOutward-.6f)/.4f);
+    lateralEar=lateralEar*lateralEar*(3-2*lateralEar);
+    Vector3 leftUp=Vec3_Create(p.earOutward*.7f+lateralEar*1.1f,1-lateralEar*.75f,p.earForward*.7f);
     Vector3 rightUp=Vec3_Create(-leftUp.x,leftUp.y,leftUp.z);
     if(!HeadSurfaceRecipe_SetEarPose(r,false,l->leftEarBase,leftUp,Vec3_Create(0,0,1))||
        !HeadSurfaceRecipe_SetEarPose(r,true,l->rightEarBase,rightUp,Vec3_Create(0,0,1)))return false;
@@ -401,7 +453,9 @@ uint32_t HeadAnatomy_Validate(const HeadAnatomy* a){
     if(!Head_InEllipsoid(l->leftOrbit,r->craniumCenter,r->craniumRadii,1.16f)||!Head_InEllipsoid(l->rightOrbit,r->craniumCenter,r->craniumRadii,1.16f)||!Head_InEllipsoid(l->leftEyeCenter,r->craniumCenter,r->craniumRadii,1.18f)||exposure<=0||exposure>globeDepth*.25f||lateralFraction>.88f||r->orbitRadii.y<a->eyeScale.y*.55f)e|=HEAD_INVALID_ORBITS;
     float span=Math_Max(l->muzzleTip.z-l->muzzleRoot.z,1e-4f),nt=Math_Clamp01((l->leftNostril.z-l->muzzleRoot.z)/span);
     float nw=nt<=.52f?Math_Lerp(r->faceRootRadii.x,r->faceMidRadii.x,nt/.52f):Math_Lerp(r->faceMidRadii.x,r->faceTipRadii.x,(nt-.52f)/.48f);
-    if(l->leftNostril.z<l->muzzleRoot.z||l->leftNostril.z>l->muzzleTip.z||fabsf(l->leftNostril.x)>nw*1.02f)e|=HEAD_INVALID_NOSTRILS;
+    bool nasalPadNostril=r->hasNasalPad&&Head_InEllipsoid(l->leftNostril,r->noseCenter,r->noseRadii,1.02f)&&
+        Head_InEllipsoid(l->rightNostril,r->noseCenter,r->noseRadii,1.02f);
+    if(!nasalPadNostril&&(l->leftNostril.z<l->muzzleRoot.z||l->leftNostril.z>l->muzzleTip.z||fabsf(l->leftNostril.x)>nw*1.02f))e|=HEAD_INVALID_NOSTRILS;
     if(l->neckAttachment.z>=l->skullCenter.z||l->neckAttachment.y>l->skullCenter.y)e|=HEAD_INVALID_NECK;
     return e;
 }

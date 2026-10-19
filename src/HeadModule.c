@@ -71,7 +71,7 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
             .role = ATTACHMENT_CRANIAL,
             .hostModuleInstanceId = module,
             .hostNode = headId,
-            .position = Vec3_Add(skull, Vec3_Add(Vec3_Scale(slot->side, w * 0.28f),
+            .position = Vec3_Add(skull, Vec3_Add(Vec3_Scale(slot->side, w * 0.72f),
                                                  Vec3_Add(Vec3_Scale(slot->up, h * 0.75f),
                                                           Vec3_Scale(slot->forward, -depth * 0.42f)))),
             .forward = slot->forward,
@@ -87,7 +87,7 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
             .role = ATTACHMENT_CRANIAL,
             .hostModuleInstanceId = module,
             .hostNode = headId,
-            .position = Vec3_Add(skull, Vec3_Add(Vec3_Scale(slot->side, -w * 0.28f),
+            .position = Vec3_Add(skull, Vec3_Add(Vec3_Scale(slot->side, -w * 0.72f),
                                                  Vec3_Add(Vec3_Scale(slot->up, h * 0.75f),
                                                           Vec3_Scale(slot->forward, -depth * 0.42f)))),
             .forward = slot->forward,
@@ -200,6 +200,21 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
             .scale = s
         };
         if (slots->count < ATTACHMENT_MAX_SLOTS) slots->slots[slots->count++] = hornTR;
+        /* Los apéndices del ápice comparten la misma pinna resuelta al SDF. */
+        for(unsigned side=0;side<2;++side) {
+            const HeadSurfaceRecipe* r=&anatomy.surface;
+            Vector3 up=side?r->rightEarDirection:r->earDirection;
+            Vector3 normal=side?r->rightEarNormal:r->leftEarNormal;
+            Vector3 base=side?r->rightEarCenter:r->leftEarCenter;
+            AttachmentSlot tip={.id=side?HEAD_SLOT_PINNA_RIGHT:HEAD_SLOT_PINNA_LEFT,
+                .role=ATTACHMENT_CRANIAL,.hostModuleInstanceId=module,.hostNode=headId,
+                .position=Vec3_Add(c,Vec3_Add(base,Vec3_Add(Vec3_Scale(up,r->earShape.y*.46f),
+                    Vec3_Scale(normal,r->earLongitudinalCurve+r->earFold)))),
+                .up=up,.forward=normal,.side=side?r->rightEarSide:r->leftEarSide,
+                .scale=s,.hostRadii=r->earShape};
+            if(slots->count>=ATTACHMENT_MAX_SLOTS)return false;
+            slots->slots[slots->count++]=tip;
+        }
     }
 
     return true;

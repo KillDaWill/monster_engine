@@ -8,6 +8,10 @@
 const CreatureRecipe* CreatureRecipes_Lizard(void);
 /** @return Receta inmutable del primer cánido digitígrado (ID persistente 2). */
 const CreatureRecipe* CreatureRecipes_Dog(void);
+/** @return Receta inmutable del herbívoro bovino Brumacerno (ID persistente 3). */
+const CreatureRecipe* CreatureRecipes_Brumacerno(void);
+/** @return Receta inmutable del carnívoro felino Velkar (ID persistente 4). */
+const CreatureRecipe* CreatureRecipes_Velkar(void);
 /** @param id Identidad persistente. @return Receta registrada, o NULL. */
 const CreatureRecipe* CreatureRecipes_Find(CreatureRecipeId id);
 #endif

@@ -27,6 +27,13 @@ bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);
  * @return false ante incompatibilidad o fallo; no sustituye la malla por otra representación. */
 bool OpenGLRenderer_SetMeshSkinning(Renderer3D* renderer,const Mesh* mesh,const AnatomyDeformer* binding,
     const Skeleton* skeleton,const SkeletonPose* pose,uint64_t generation);
+/**
+ * @brief Sobrescribe la receta superficial de la próxima malla dibujada.
+ * @param renderer Backend de renderizado.
+ * @param recipe Receta efectiva, o NULL para volver a la receta de la malla.
+ * @return true si el override quedó registrado.
+ */
+bool OpenGLRenderer_SetMeshSurfaceOverride(Renderer3D* renderer, const SurfaceRecipe* recipe);
 /** @brief Compara todos los vértices GPU publicados con el skinning CPU de referencia.
  * @param renderer Backend. @param mesh Malla dibujada. @param binding Vinculación.
  * @param skeleton Esqueleto. @param pose Misma pose. @param positionError Error máximo de posición.
@@ -225,6 +232,8 @@ bool OpenGLRenderer_CheckErrors(void);
 /** @brief Métricas acumuladas de residencia, transferencia y dibujo de mallas. */
 typedef struct OpenGLMeshPerformanceStats {
     uint64_t uploadCount,cacheHitCount,totalBytesUploaded;
+    uint64_t meshCacheMisses,staticGeometryUploads,staticSurfaceUploads,indexUploads;
+    uint64_t furRootUploads,skinUploads;
     double lastUploadMs;
     float gpuRenderMs;
     uint64_t gpuTimingGeneration; /**< Frame 1-based de la última consulta completada. */
@@ -252,6 +261,8 @@ typedef struct OpenGLDemoInput {
     bool keyT;     /**< true si se pulsa la tecla 'T' (mutación de criatura) */
     int furLengthAdjust;  /**< +1 o -1 con [ / ] */
     int furDensityAdjust; /**< +1 o -1 con ; / ' */
+    bool mouseLeftPressed; /**< Pulsación izquierda, sin repetición al mantener. */
+    int mouseX,mouseY; /**< Coordenadas de ventana desde la esquina superior izquierda. */
 } OpenGLDemoInput;
 /** @brief Crea contexto para demos; NULL si falla. */
 /** @brief Crea una ventana con MSAA solicitado y fallback sin MSAA. */
@@ -277,6 +288,13 @@ void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color);
 void OpenGLRenderer_PushModelTranslation(float x, float y, float z);
 /** @brief Traslación, giro y escala uniforme de un espécimen completo. */
 void OpenGLRenderer_ModelTransform(Vector3 translation, float yawDegrees, float scale, Vector3 center);
+/** @brief Apila el movimiento rígido de una articulación desde su pose de reposo. */
+void OpenGLRenderer_PushJointTransform(const SkeletonPose* rest,const SkeletonPose* pose,int joint);
+/** @brief Movimiento articular con escala local de crecimiento anatómico. */
+void OpenGLRenderer_PushJointMorphTransform(const SkeletonPose*,const SkeletonPose*,int,Vector3 scale);
+/** @brief Vincula la pose y las secciones de crecimiento a una malla compartida. */
+bool OpenGLRenderer_SetMeshMorphSkinning(Renderer3D*,const Mesh*,const AnatomyDeformer*,
+    const Skeleton*,const SkeletonPose*,const AnatomyGraph*,int head,Vector3 headScale,uint64_t);
 /** @brief Restaura la matriz de modelo previa. */
 void OpenGLRenderer_PopModelMatrix(void);
 /** @brief Dibuja un indicador superpuesto (HUD) en 2D con los FPS y tiempo de fotograma. */

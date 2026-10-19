@@ -20,8 +20,16 @@ bool EcosystemScenario_Create(EcosystemWorld *w,const EcosystemConfig *c) {
     if(!EcosystemWorld_Init(w,c->capacity,c->plants+2+c->capacity,2,c->seed,c->step,c->day))return false;
     EcosystemSpecies herb=EcosystemSpecies_Default(1,1,ECO_PLANT,0,2);
     EcosystemSpecies carn=EcosystemSpecies_Default(2,2,ECO_MEAT,1,0);
+    herb.anatomicalOral=true;carn.anatomicalOral=true;
+    /* El disco contiene el tronco completo en cualquier orientación, no sólo
+     * su anchura. El cuello sigue validando cada mordisco sobre la presa. */
+    herb.radius=.95f;carn.radius=.80f;carn.oralReach=2.0f;carn.attackRange=1.9f;
+    herb.turnRate=1.0f;carn.turnRate=2.0f;
     if(!strcmp(c->scenario,"generations")) {
         herb.speed=2.5f;carn.speed=2.25f;carn.damage=.2f;carn.attackCooldown=1.2f;
+        /* Este escenario favorece escape y relevo generacional. La ventaja
+         * lineal debe incluir una capacidad de giro compatible con sus rutas. */
+        herb.turnRate=1.5f;carn.turnRate=1.7f;
     }
     if(!EcosystemWorld_AddSpecies(w,herb)||!EcosystemWorld_AddSpecies(w,carn))goto failure;
     for(unsigned i=0;i<2;++i) {

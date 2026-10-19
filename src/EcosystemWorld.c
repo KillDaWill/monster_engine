@@ -1,5 +1,6 @@
 #include "EcosystemWorld.h"
 #include "CreatureActions.h"
+#include "EcosystemAnatomy.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,10 +15,17 @@ static void event(EcosystemWorld *w,unsigned kind,AIObjectId a,AIObjectId b) {
     for(unsigned i=0;i<4;++i){w->statistics.eventHash^=v[i];w->statistics.eventHash*=UINT64_C(1099511628211);}
 }
 EcosystemSpecies EcosystemSpecies_Default(unsigned id,unsigned category,unsigned diet,unsigned prey,unsigned threats) {
-    EcosystemSpecies s={.id=id,.category=category,.brain=*BrainProfile_Find("forager"),
+    bool carnivore=category==ECO_MEAT;
+    /* Discos conservadores para las secciones torácicas de las recetas.
+     * La longitud visual se calibra desde el eje corporal, sin contar la cola.
+     * El alcance oral se valida además contra las articulaciones reales. */
+    EcosystemSpecies s={.id=id,.category=category,.recipeId=carnivore?4u:3u,
+        .brain=*BrainProfile_Find("forager"),
         .physiology=CreaturePhysiology_Default(),.reproduction=CreatureReproduction_Default(),
-        .speed=prey?2.6f:2,.radius=.23f,.oralReach=.8f,.attackRange=.7f,
-        .damage=.36f,.attackCooldown=.8f,.attackCost=.008f,.edibleBiomass=4,.nutrition=.28f};
+        .speed=carnivore?2.8f:2.2f,.radius=carnivore?.206f:.278f,
+        .oralReach=carnivore?.785f:1.589f,.attackRange=carnivore?.69f:1.398f,
+        .damage=.36f,.attackCooldown=.8f,.attackCost=.008f,
+        .edibleBiomass=carnivore?2.332f:5.515f,.nutrition=carnivore?.480f:.203f};
     snprintf(s.name,sizeof(s.name),"perfil_%u",id);
     s.brain.name="ecologico";s.brain.dietMask=diet;s.brain.preyMask=prey;s.brain.threatMask=threats;
     s.brain.dangerDistance=5;s.brain.perception.range=14;s.brain.perception.horizontalFOV=5.5f;
@@ -49,6 +57,7 @@ bool EcosystemWorld_Init(EcosystemWorld *w,unsigned cap,unsigned resources,unsig
 }
 void EcosystemWorld_Free(EcosystemWorld *w) {
     if(!w)return;
+    if(w->entities)for(unsigned i=0;i<w->capacity;++i)free(w->entities[i].anatomicalBody);
     free(w->entities);free(w->resources);free(w->species);free(w->birthQueue);free(w->order);
     AIWorld_Destroy(&w->observations);memset(w,0,sizeof(*w));
 }
@@ -87,13 +96,19 @@ static void updateBody(EcosystemWorld *w,EcosystemEntity *e) {
     e->body.capabilities=(CreatureCapabilities){.ground=true,.waterInteraction=true,
         .contactTolerance=.09f*size,.maximumOralReach=s->oralReach*size*e->genome.morphology,.clearance=s->radius*size,
         .bankClearance=s->radius*size,.drinkReach=.09f*size,.mouthForward=.48f*size*e->genome.morphology,
-        .maximumSpeed=s->speed*e->genome.speed*(.6f+.4f*e->developmentScale)*(1-.45f*e->physiology.fatigue),.maximumTurn=3};
+        .maximumSpeed=s->speed*e->genome.speed*(.6f+.4f*e->developmentScale)*(1-.45f*e->physiology.fatigue),.maximumTurn=s->turnRate>0?s->turnRate:3};
     e->body.eye=Vec3_Add(e->body.position,Vec3_Create(0,.65f*size,0));
     e->body.visionYaw=e->body.yaw;
     AIWorld_SetAgentState(&w->observations,e->id,e->reproduction.role,e->body.capabilities.maximumSpeed);
     AIWorld_Move(&w->observations,e->id,e->body.position);
     AIWorld_SetBounds(&w->observations,e->id,e->body.capabilities.clearance,.65f*size);
     AIWorld_SetObservation(&w->observations,e->id,s->id,s->category,0,!e->physiology.cause,e->body.mateReady);
+    if(s->anatomicalOral&&EcosystemAnatomy_Configure(e,s)&&e->anatomicalBody) {
+        const EcosystemAnatomy* a=e->anatomicalBody;
+        float scale=EcosystemAnatomy_Scale(a,e);
+        Vector3 oral=Vec3_Add(a->rest.joints[a->rig.headJoint].worldPosition,a->rig.oralPoint);
+        e->body.capabilities.mouthForward=(oral.z-a->center.z)*scale;
+    }
 }
 static bool spawnPosition(EcosystemWorld *w,Vector3 p,float radius) {
     if(!AIWorld_Walkable(&w->observations,p,radius,false))return false;
@@ -109,7 +124,9 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w,unsigned species,Vector3 posit
     if(!CreatureGenome_Validate(&g))return 0;
     unsigned si=0;while(si<w->speciesCount&&w->species[si].id!=species)++si;
     if(si==w->speciesCount)return 0;
-    if(w->count>=w->capacity||!spawnPosition(w,position,w->species[si].radius*g.size)) {++w->statistics.failedSpawns;return 0;}
+    double maturity=w->species[si].physiology.maturityAge*g.maturation;
+    float development=age<maturity?.55f+.45f*(float)(age/maturity):1;
+    if(w->count>=w->capacity||!spawnPosition(w,position,w->species[si].radius*g.size*development)) {++w->statistics.failedSpawns;return 0;}
     unsigned slot=0;while(w->entities[slot].id)++slot;
     AIObjectId id=AIWorld_Add(&w->observations,(AIWorldObject){.type=AI_CREATURE,.group=w->observations.nextId%2,.position=position,.visible=true,.walkable=true});
     if(!id){++w->statistics.failedSpawns;return 0;}
@@ -129,6 +146,7 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w,unsigned species,Vector3 posit
     e->oralLocal=Vec3_Create(0,0,.48f*size*e->genome.morphology);
     e->body.mouth=Vec3_Add(position,Vec3_Create(sinf(e->body.yaw)*e->oralLocal.z,.45f*size,cosf(e->body.yaw)*e->oralLocal.z));
     e->body.mouthDirection=Vec3_Create(sinf(e->body.yaw),0,cosf(e->body.yaw));
+    if(e->anatomicalBody)EcosystemAnatomy_Update(e,0);
     event(w,1,id,species);if(!w->updating)statistics(w);return id;
 }
 bool EcosystemWorld_RequestDeath(EcosystemWorld *w,AIObjectId id,CreatureDeathCause cause) {
@@ -212,6 +230,11 @@ bool EcosystemWorld_Attack(EcosystemWorld *w,AIObjectId attacker,AIObjectId prey
        Vec3_Length(delta)>fminf(a->body.attackRange,a->body.capabilities.maximumOralReach)||
        Vec3_Dot(front,Vec3_Normalize(delta))<.6f||
        !AIWorld_ClearSegment(&w->observations,a->body.mouth,b->body.position,0,prey))return false;
+    if(a->anatomicalBody) {
+        Vector3 center=Vec3_Add(b->body.position,Vec3_Create(0,.55f*b->developmentScale*b->genome.size,0));
+        if(a->body.reach.objectId!=prey||a->body.reach.status!=REACH_REACHED||
+            Vec3_Distance(a->body.mouth,center)>b->body.capabilities.clearance+.15f)return false;
+    }
     a->nextAttack=w->clock.seconds+s->attackCooldown;a->physiology.energy-=s->attackCost;
     b->physiology.health=fmaxf(0,b->physiology.health-s->damage);
     ++w->statistics.attacks;event(w,5,attacker,prey);
@@ -224,6 +247,21 @@ static void needs(EcosystemEntity *e) {
     e->mind.needs.urgency[NEED_REST]=e->brain.needs[NEED_REST].enabled?e->physiology.fatigue:0;
 }
 static void mouth(EcosystemWorld *w,EcosystemEntity *e,float dt) {
+    if(e->anatomicalBody){
+        CreatureIntent saved=e->mind.intent;
+        const EcosystemEntity* prey=e->mind.action==ACTION_ATTACK?EcosystemWorld_Get(w,e->mind.target):NULL;
+        if(prey) {
+            Vector3 center=Vec3_Add(prey->body.position,Vec3_Create(0,.55f*prey->developmentScale*prey->genome.size,0));
+            Vector3 point=Vec3_Add(center,Vec3_Scale(Vec3_Normalize(Vec3_Sub(e->body.mouth,center)),prey->body.capabilities.clearance*.7f));
+            Vector3 approach=Vec3_Normalize(Vec3_Sub(point,e->body.mouth));
+            if(Vec3_LengthSq(approach)<.5f)approach=Vec3_Create(sinf(e->body.yaw),0,cosf(e->body.yaw));
+            e->mind.intent.interact=true;
+            e->mind.intent.interaction=(InteractionTarget){.valid=true,.objectId=prey->id,.type=INTERACTION_EAT,
+                .position=point,.normal={0,1,0},.approach=approach,.positionTolerance=.12f,
+                .orientationTolerance=1.4f,.moving=true};
+        }
+        EcosystemAnatomy_Update(e,dt);e->mind.intent=saved;return;
+    }
     float size=e->genome.size*e->developmentScale;
     Vector3 pivot=Vec3_Add(e->body.position,Vec3_Create(0,.45f*size,0));
     Vector3 front=Vec3_Create(sinf(e->body.yaw),0,cosf(e->body.yaw));
@@ -283,7 +321,7 @@ static void movement(EcosystemWorld *w,EcosystemEntity *e,float dt) {
         for(unsigned k=0;k<w->count;++k) {
             EcosystemEntity *other=&w->entities[w->order[k]];
             if(!other->id||other==e||other->physiology.cause)continue;
-            if(other->id==e->mind.target&&(e->mind.action==ACTION_CHASE||e->mind.action==ACTION_APPROACH_MATE))continue;
+            if(other->id==e->mind.target&&(e->mind.action==ACTION_CHASE||e->mind.action==ACTION_ATTACK||e->mind.action==ACTION_APPROACH_MATE))continue;
             float gap=b->capabilities.clearance+other->body.capabilities.clearance+.06f;
             if(segmentDistance(b->position,ahead,other->body.position)>=gap)continue;
             Vector3 right=Vec3_Create(direction.z,0,-direction.x);
@@ -301,6 +339,12 @@ static void movement(EcosystemWorld *w,EcosystemEntity *e,float dt) {
     float turn=remainderf(c.heading-b->yaw,6.2831853f);
     b->yaw+=clamp(turn,-b->capabilities.maximumTurn*dt,b->capabilities.maximumTurn*dt);
     float speed=c.speed*fmaxf(0,cosf(turn));
+    /* La curvatura hasta el waypoint debe caber en la velocidad angular real.
+     * Sin este límite, un cuerpo pesado sobrepasaba esquinas de navegación
+     * repetidamente aunque su destino estuviera libre y fuera alcanzable. */
+    float distance=Vec3_Distance(b->position,e->mind.intent.destination);
+    float curvature=2*fabsf(sinf(turn))/fmaxf(b->capabilities.clearance,distance);
+    if(curvature>.001f)speed=copysignf(fminf(fabsf(speed),b->capabilities.maximumTurn/curvature),speed);
     Vector3 next=Vec3_Add(b->position,Vec3_Scale(Vec3_Create(sinf(b->yaw),0,cosf(b->yaw)),speed*dt));
     bool clear=AIWorld_SegmentWalkable(&w->observations,b->position,next,b->capabilities.clearance,false);
     for(unsigned i=0;clear&&i<w->capacity;++i) {
@@ -370,7 +414,7 @@ static void commit(EcosystemWorld *w) {
         AIObjectId id=e->id;Vector3 position=e->body.position;CreatureDeathCause cause=e->physiology.cause;
         AIWorld_Remove(&w->observations,id);invalidate(w,id);
         ++w->statistics.deaths;++w->statistics.deathCauses[cause];event(w,2,id,cause);
-        memset(e,0,sizeof(*e));--w->count;
+        free(e->anatomicalBody);memset(e,0,sizeof(*e));--w->count;
         if(cause!=DEATH_REMOVED&&s->edibleBiomass>0) {
             AIObjectId carcass=EcosystemWorld_AddResource(w,(EcosystemResource){.category=ECO_MEAT,.originalSpecies=s->id,
                 .biomass=s->edibleBiomass,.maximumBiomass=s->edibleBiomass,.nutritionalValue=s->nutrition,
@@ -384,7 +428,7 @@ static void commit(EcosystemWorld *w) {
         for(unsigned j=0;j<24&&!id&&w->count<w->capacity;++j) {
             float angle=CreatureGenome_Random(&w->random)*6.2831853f,distance=.65f+CreatureGenome_Random(&w->random)*2;
             Vector3 p=Vec3_Add(birth->position,Vec3_Create(sinf(angle)*distance,0,cosf(angle)*distance));
-            if(!spawnPosition(w,p,w->species[birth->speciesIndex].radius*birth->genome.size))continue;
+            if(!spawnPosition(w,p,w->species[birth->speciesIndex].radius*birth->genome.size*.55f))continue;
             id=EcosystemWorld_Spawn(w,w->species[birth->speciesIndex].id,p,0,.8f,&birth->genome);
         }
         if(id) {

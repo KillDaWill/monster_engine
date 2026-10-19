@@ -19,6 +19,7 @@ uniform vec2 shellSamples[32];
 out vec3 restCoord, restNormal, viewPosition, viewNormal;
 out vec4 vertexColor, profileA, profileB;
 out float ventral, skinMask;
+flat out int tissueMaterial;
 out vec3 posedFlowOut,restFlowOut;
 out float shellDelta;
 out float fragShellFraction;
@@ -68,6 +69,7 @@ void main() {
     }
     ventral = surfaceRegion.w;
     skinMask = 1.0 - step(0.5, anatomicalMaterial);
+    tissueMaterial=int(anatomicalMaterial+.5);
 
     vec3 nGeom = normalize(gl_Normal);
     vec3 nRest = normalize(materialNormal);

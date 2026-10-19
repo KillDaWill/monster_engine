@@ -1,0 +1,1 @@
+{"initial_population":100,"final_population":87,"ticks":3600,"mean_ms":8.728787,"p50_ms":6.013000,"p95_ms":17.463000,"p99_ms":19.071000,"max_ms":21.646000,"peak_rss_kib":29788,"spawn_death_cycles":10000,"cycle_mean_ms":0.001439,"warm_peak_rss_kib":29788,"final_peak_rss_kib":29788}

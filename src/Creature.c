@@ -200,16 +200,30 @@ bool Creature_BuildMonster(struct Monster* monster, const CreatureRecipe* recipe
     if (!Creature_ResolveAppearance(monster, recipe, source)) return false;
     Rig rig;
     if (!CreatureRig_Build(monster, &rig)) return false;
-    if (recipe->gait == CREATURE_GAIT_NONE) {
+    GaitProfile gait;
+    switch (recipe->gait) {
+    case CREATURE_GAIT_NONE:
         if (monster->animation) {
             MonsterAnimation_Free(monster->animation);
             monster->animation = NULL;
         }
         return true;
+    case CREATURE_GAIT_SPRAWLING_QUADRUPED:
+        gait=GaitPreset_SprawlingQuadruped(monster->phenotype.axial.totalScale);
+        break;
+    case CREATURE_GAIT_UPRIGHT_QUADRUPED:
+        gait=GaitPreset_CanidWalk(&rig);
+        break;
+    case CREATURE_GAIT_BOVINE_WALK:
+        gait=GaitPreset_BovineWalk(&rig);
+        break;
+    case CREATURE_GAIT_FELINE_STALK:
+        gait=GaitPreset_FelineStalk(&rig);
+        break;
+    default:
+        return false;
     }
-    return MonsterAnimation_Configure(monster, &rig,
-        recipe->gait == CREATURE_GAIT_SPRAWLING_QUADRUPED ?
-            GaitPreset_SprawlingQuadruped(monster->phenotype.axial.totalScale) : (GaitProfile){0});
+    return MonsterAnimation_Configure(monster, &rig, gait);
 }
 
 float Creature_AgeFromScaleBetween(float scale, float initialScale, float finalScale) {

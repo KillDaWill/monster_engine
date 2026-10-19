@@ -57,6 +57,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         l->proximalSweep = Math_Clamp(isfinite(l->proximalSweep) ? l->proximalSweep : 0, -1, 1);
         l->distalSweep = Math_Clamp(isfinite(l->distalSweep) ? l->distalSweep : 0, -1, 1);
         l->footYaw = Math_Clamp(isfinite(l->footYaw) ? l->footYaw : 0, -3.14159265f, 3.14159265f);
+        l->flexionScale=Math_Clamp(Positive(l->flexionScale,1),.5f,2);
         l->proximalScale = Positive(l->proximalScale, 1);
         l->middleScale = Positive(l->middleScale, 1);
         l->distalScale = Positive(l->distalScale, 1);
@@ -113,6 +114,9 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         o->tipRadius = Positive(o->tipRadius, 0.05f);
         o->development = Unit(o->development, 1.0f);
         if (!isfinite(o->curvature)) o->curvature = 0.0f;
+        if(!isfinite(o->growthDirection.x)||!isfinite(o->growthDirection.y)||!isfinite(o->growthDirection.z))o->growthDirection=Vec3_Zero();
+        if(!isfinite(o->lateralSweep))o->lateralSweep=0;
+        o->lateralSweep=Math_Clamp(o->lateralSweep,-1,1);
     }
 
     p->eyes.size = isfinite(p->eyes.size) ? Math_Clamp(p->eyes.size, 0.0f, 4.0f) : 1.0f;
@@ -228,6 +232,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(limbs[i].digitThicknessScale);
         LERP_BODY(limbs[i].attachmentInset);
         LERP_BODY(limbs[i].proximalSweep); LERP_BODY(limbs[i].distalSweep); LERP_BODY(limbs[i].footYaw);
+        LERP_BODY(limbs[i].flexionScale);
         LERP_BODY(limbs[i].length); LERP_BODY(limbs[i].sprawl); LERP_BODY(limbs[i].development);
         p.limbs[i].thickness = Math_Lerp(a->limbs[i].thickness, b->limbs[i].thickness, mature);
         LERP_BODY(limbs[i].digitSpread); LERP_BODY(limbs[i].footScale);
@@ -244,6 +249,8 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     for (size_t i = 0; i < p.ornamentCount; ++i) {
         LERP_BODY(ornaments[i].length); LERP_BODY(ornaments[i].baseRadius); LERP_BODY(ornaments[i].tipRadius);
         LERP_BODY(ornaments[i].curvature); LERP_BODY(ornaments[i].development);
+        LERP_BODY(ornaments[i].growthDirection.x);LERP_BODY(ornaments[i].growthDirection.y);LERP_BODY(ornaments[i].growthDirection.z);
+        LERP_BODY(ornaments[i].lateralSweep);
     }
 #undef LERP_BODY
 
@@ -259,6 +266,8 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     LERP_HEAD(jawLength); LERP_HEAD(jawDepth);
     p.head.jawStrength = Math_Lerp(a->head.jawStrength, b->head.jawStrength, mature);
     LERP_HEAD(earConcavity); LERP_HEAD(earBaseWidth); LERP_HEAD(earThickness); LERP_HEAD(earOutward); LERP_HEAD(earForward);
+    LERP_HEAD(earWidthRatio);
+    LERP_HEAD(earHeightRatio);
     LERP_HEAD(noseScale); LERP_HEAD(earSize); LERP_HEAD(earPointiness);
     p.head.cheekMass = Math_Lerp(a->head.cheekMass, b->head.cheekMass, mature);
     LERP_HEAD(beakLength); LERP_HEAD(beakDepth);

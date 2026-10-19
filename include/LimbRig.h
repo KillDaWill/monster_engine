@@ -18,6 +18,7 @@ typedef struct LimbRigDescriptor {
     LimbArchetype archetype;
     bool locomotionLimb;
     float soleHeight;
+    float flexionScale; /**< Rango de flexión solicitado por el fenotipo. */
 } LimbRigDescriptor;
 
 #endif

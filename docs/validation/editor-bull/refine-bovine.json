@@ -1,0 +1,194 @@
+[
+  {
+    "path": "/recipe/seed/axial/neckWidth",
+    "value": 1.02169086318
+  },
+  {
+    "path": "/recipe/seed/axial/thoraxWidth",
+    "value": 2.2605187700999996
+  },
+  {
+    "path": "/recipe/seed/axial/shoulderWidth",
+    "value": 2.018016
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/widthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/heightScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/seed/headEnvelope/lengthScale",
+    "value": 1.04
+  },
+  {
+    "path": "/recipe/seed/head/skullWidth",
+    "value": 0.72
+  },
+  {
+    "path": "/recipe/seed/head/muzzleWidth",
+    "value": 0.96
+  },
+  {
+    "path": "/recipe/seed/head/muzzleLength",
+    "value": 0.46
+  },
+  {
+    "path": "/recipe/seed/head/earOutward",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/seed/head/earWidthRatio",
+    "value": 2.25
+  },
+  {
+    "path": "/recipe/seed/head/earHeightRatio",
+    "value": 0.63
+  },
+  {
+    "path": "/recipe/larva/axial/neckWidth",
+    "value": 1.08918114786
+  },
+  {
+    "path": "/recipe/larva/axial/thoraxWidth",
+    "value": 2.37528182835
+  },
+  {
+    "path": "/recipe/larva/axial/shoulderWidth",
+    "value": 2.0944557919999998
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/widthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/heightScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/larva/headEnvelope/lengthScale",
+    "value": 1.04
+  },
+  {
+    "path": "/recipe/larva/head/skullWidth",
+    "value": 0.72
+  },
+  {
+    "path": "/recipe/larva/head/muzzleWidth",
+    "value": 0.96
+  },
+  {
+    "path": "/recipe/larva/head/muzzleLength",
+    "value": 0.46
+  },
+  {
+    "path": "/recipe/larva/head/earOutward",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/larva/head/earWidthRatio",
+    "value": 2.25
+  },
+  {
+    "path": "/recipe/larva/head/earHeightRatio",
+    "value": 0.63
+  },
+  {
+    "path": "/recipe/juvenile/axial/neckWidth",
+    "value": 1.1934842166
+  },
+  {
+    "path": "/recipe/juvenile/axial/thoraxWidth",
+    "value": 2.4823940477
+  },
+  {
+    "path": "/recipe/juvenile/axial/shoulderWidth",
+    "value": 2.1657999792
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/widthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/heightScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/juvenile/headEnvelope/lengthScale",
+    "value": 1.04
+  },
+  {
+    "path": "/recipe/juvenile/head/skullWidth",
+    "value": 0.72
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleWidth",
+    "value": 0.96
+  },
+  {
+    "path": "/recipe/juvenile/head/muzzleLength",
+    "value": 0.46
+  },
+  {
+    "path": "/recipe/juvenile/head/earOutward",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/juvenile/head/earWidthRatio",
+    "value": 2.25
+  },
+  {
+    "path": "/recipe/juvenile/head/earHeightRatio",
+    "value": 0.63
+  },
+  {
+    "path": "/recipe/adult/axial/neckWidth",
+    "value": 1.2671100702
+  },
+  {
+    "path": "/recipe/adult/axial/thoraxWidth",
+    "value": 2.5780296288999995
+  },
+  {
+    "path": "/recipe/adult/axial/shoulderWidth",
+    "value": 2.2294999480000004
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/widthScale",
+    "value": 1.1
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/heightScale",
+    "value": 1.35
+  },
+  {
+    "path": "/recipe/adult/headEnvelope/lengthScale",
+    "value": 1.04
+  },
+  {
+    "path": "/recipe/adult/head/skullWidth",
+    "value": 0.72
+  },
+  {
+    "path": "/recipe/adult/head/muzzleWidth",
+    "value": 0.96
+  },
+  {
+    "path": "/recipe/adult/head/muzzleLength",
+    "value": 0.46
+  },
+  {
+    "path": "/recipe/adult/head/earOutward",
+    "value": 0.82
+  },
+  {
+    "path": "/recipe/adult/head/earWidthRatio",
+    "value": 2.25
+  },
+  {
+    "path": "/recipe/adult/head/earHeightRatio",
+    "value": 0.63
+  }
+]

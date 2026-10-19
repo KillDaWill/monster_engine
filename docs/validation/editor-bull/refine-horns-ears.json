@@ -1,0 +1,130 @@
+[
+  {
+    "path": "/recipe/seed/ornaments/0/length",
+    "value": 0.0271875
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/seed/ornaments/0/lateralSweep",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/length",
+    "value": 0.0271875
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/seed/ornaments/1/lateralSweep",
+    "value": -0.2
+  },
+  {
+    "path": "/recipe/seed/head/earWidthRatio",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/seed/head/earHeightRatio",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/length",
+    "value": 0.065249996085
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/larva/ornaments/0/lateralSweep",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/length",
+    "value": 0.065249996085
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/larva/ornaments/1/lateralSweep",
+    "value": -0.2
+  },
+  {
+    "path": "/recipe/larva/head/earWidthRatio",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/larva/head/earHeightRatio",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/length",
+    "value": 0.76125
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/0/lateralSweep",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/length",
+    "value": 0.76125
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/juvenile/ornaments/1/lateralSweep",
+    "value": -0.2
+  },
+  {
+    "path": "/recipe/juvenile/head/earWidthRatio",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/juvenile/head/earHeightRatio",
+    "value": 0.9
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/length",
+    "value": 1.359375
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/adult/ornaments/0/lateralSweep",
+    "value": 0.2
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/length",
+    "value": 1.359375
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/curvature",
+    "value": 0.45
+  },
+  {
+    "path": "/recipe/adult/ornaments/1/lateralSweep",
+    "value": -0.2
+  },
+  {
+    "path": "/recipe/adult/head/earWidthRatio",
+    "value": 1.3
+  },
+  {
+    "path": "/recipe/adult/head/earHeightRatio",
+    "value": 0.9
+  }
+]

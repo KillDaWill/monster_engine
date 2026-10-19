@@ -1,0 +1,6 @@
+A: PASS population=0 births=0 deaths=12 kills=0 generation=0
+B: PASS population=0 births=5 deaths=13 kills=0 generation=2
+C: PASS population=0 births=14 deaths=32 kills=2 generation=3
+D: PASS population=0 births=0 deaths=4 kills=0 generation=0
+E: PASS population=0 births=10 deaths=24 kills=2 generation=2
+determinism: PASS

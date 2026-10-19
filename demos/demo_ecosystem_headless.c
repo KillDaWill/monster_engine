@@ -1,6 +1,7 @@
 /** @file demo_ecosystem_headless.c
  * @brief Ejecución ecológica reproducible sin SDL/OpenGL. */
 #include "EcosystemScenario.h"
+#include "CreatureRecipeRegistry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -11,6 +12,7 @@ static bool number(const char *s,double *out) {
 }
 int main(int argc,char **argv) {
     EcosystemConfig c=EcosystemConfig_Default();const char *summary=NULL,*history=NULL,*events=NULL;bool trace=false;
+    const char* recipesDirectory="recipes";
     for(int i=1;i<argc;++i)if(!strncmp(argv[i],"--scenario=",11)&&!EcosystemConfig_Scenario(&c,argv[i]+11)) {
         fprintf(stderr,"Escenario desconocido\n");return 2;
     }
@@ -18,12 +20,13 @@ int main(int argc,char **argv) {
         const char *a=argv[i];double n=0;
         if(!strcmp(a,"--trace")){trace=true;continue;}
         if(!strcmp(a,"--help")) {
-            puts("--seed=N --days=N --herbivores=N --carnivores=N --plants=N --capacity=N --fixed-dt=N --day-duration=N --scenario=reference|A|B|C|D|E --summary=archivo.json --history=archivo.csv --events=eventos.csv --trace");return 0;
+            puts("--recipes-dir=DIR --seed=N --days=N --herbivores=N --carnivores=N --plants=N --capacity=N --fixed-dt=N --day-duration=N --scenario=reference|A|B|C|D|E --summary=archivo.json --history=archivo.csv --events=eventos.csv --trace");return 0;
         }
         if(!strncmp(a,"--scenario=",11))continue;
         if(!strncmp(a,"--summary=",10)){summary=a+10;continue;}
         if(!strncmp(a,"--events=",9)){events=a+9;continue;}
         if(!strncmp(a,"--history=",10)){history=a+10;continue;}
+        if(!strncmp(a,"--recipes-dir=",14)){recipesDirectory=a+14;continue;}
         const char *value=strchr(a,'=');if(!value||!number(value+1,&n))goto invalid;
         if(!strncmp(a,"--days=",7)){c.days=n;continue;}
         if(!strncmp(a,"--fixed-dt=",11)){c.step=n;continue;}
@@ -41,6 +44,8 @@ invalid:
     }
     double ticks=c.days*c.day/c.step;
     if(!isfinite(ticks)||ticks<0||ticks>1e10||c.step<=0||c.day<=0)return 2;
+    char recipeError[256]={0};
+    if(!CreatureRecipeRegistry_LoadDirectory(recipesDirectory,recipeError,sizeof(recipeError))){fprintf(stderr,"%s\n",recipeError);return 1;}
     EcosystemWorld w;if(!EcosystemScenario_Create(&w,&c)){fprintf(stderr,"No se pudo crear el ecosistema\n");return 1;}
     FILE *csv=history?fopen(history,"w"):NULL;
     if(history&&!csv){perror(history);EcosystemWorld_Free(&w);return 1;}

@@ -7,6 +7,7 @@ out vec3 surfaceDomainPosition,surfaceDomainNormal,surfaceDomainFlow;
 out vec4 surfaceDomainProfileA,surfaceDomainProfileB;
 out float surfaceDomainVentral;
 flat out uint extractionOverflow;
+flat out uint surfaceTissue;
 uniform samplerBuffer surfacePoseData;
 uniform int surfacePoseCount;
 uniform vec4 surfaceCranialPlane;
@@ -100,6 +101,7 @@ void main() {
     if(overflow!=0u) {vec2 p=vec2((gl_VertexID==1)?3:-1,(gl_VertexID==2)?3:-1);gl_Position=vec4(p,0,1);return;}
     SurfaceVertex v=vertices[gl_VertexID];surfacePosition=v.position.xyz;surfaceNormal=v.normal.xyz;surfaceMaterial=v.material;
     uint metadata=uint(v.material.w+.5),jaw=(metadata>>8)&511u;
+    surfaceTissue=(metadata>>18)&15u;
     surfaceMaterial.w=float(metadata&255u)/255.0;
     // El material conserva coordenadas de reposo; solamente la posición visible lleva pose.
     surfaceDomainPosition=v.position.xyz/max(surfaceRecipe[11].z,.001);

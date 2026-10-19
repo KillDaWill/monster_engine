@@ -103,17 +103,25 @@ bool CreatureVariation_IsTraitCompatible(
     }
 }
 
+static void HashPhenotypeBytes(uint64_t* hash,const void* value,size_t size) {
+    const unsigned char* bytes=value;
+    for(size_t i=0;i<size;++i){*hash^=bytes[i];*hash*=1099511628211ULL;}
+}
 uint64_t CreaturePhenotype_Fingerprint(const CreaturePhenotype* p) {
-    if (!p) return 0;
-    const uint64_t FNV_OFFSET = 14695981039346656037ULL;
-    const uint64_t FNV_PRIME = 1099511628211ULL;
-    uint64_t hash = FNV_OFFSET;
-
-    const unsigned char* bytes = (const unsigned char*)p;
-    for (size_t i = 0; i < sizeof(CreaturePhenotype); ++i) {
-        hash ^= bytes[i];
-        hash *= FNV_PRIME;
-    }
+    if(!p)return 0;
+    /* Los huecos de alineación del struct no representan fenotipo y pueden
+     * contener bytes distintos después de una asignación C perfectamente válida. */
+    uint64_t hash=14695981039346656037ULL;
+#define HASH_FIELD(field) HashPhenotypeBytes(&hash,&p->field,sizeof(p->field))
+    HASH_FIELD(axial);HASH_FIELD(head);HASH_FIELD(headEnvelope);HASH_FIELD(eyes);
+    HASH_FIELD(limbCount);HASH_FIELD(tailCount);HASH_FIELD(ornamentCount);
+    HashPhenotypeBytes(&hash,p->limbs,fmin(p->limbCount,CREATURE_MAX_LIMBS)*sizeof(p->limbs[0]));
+    HashPhenotypeBytes(&hash,p->tails,fmin(p->tailCount,CREATURE_MAX_TAILS)*sizeof(p->tails[0]));
+    HashPhenotypeBytes(&hash,p->ornaments,fmin(p->ornamentCount,CREATURE_MAX_ORNAMENTS)*sizeof(p->ornaments[0]));
+    SurfaceRecipe surface=SurfaceRecipe_Compile(&p->surface);
+    HashPhenotypeBytes(&hash,&surface,sizeof(surface));
+    HASH_FIELD(development);HASH_FIELD(dorsalColor);HASH_FIELD(ventralColor);HASH_FIELD(unpigmentedVentralColor);
+#undef HASH_FIELD
     return hash;
 }
 
@@ -706,7 +714,7 @@ static bool CreatureVariation_ApplyInto(
         case CREATURE_TRAIT_DORSAL_SPINES: {
             unsigned count = (t->paramA > 0.0f ? (unsigned)t->paramA : 8);
             if (count > 12) count = 12;
-            OrnamentArray spines;
+            OrnamentArray spines={0};
             spines.ornament.archetype = ORNAMENT_ARCHETYPE_SPINE;
             spines.ornament.length = (t->paramB > 0.0f ? t->paramB : 0.48f) * s;
             spines.ornament.baseRadius = 0.10f * s;
@@ -813,7 +821,7 @@ static bool CreatureVariation_ApplyInto(
             float spineLen = (t->paramB > 0.0f ? t->paramB : 0.24f) * s;
             float spineRad = 0.075f * s;
 
-            OrnamentArray fringe;
+            OrnamentArray fringe={0};
             fringe.ornament.archetype = ORNAMENT_ARCHETYPE_SPINE;
             fringe.ornament.length = spineLen;
             fringe.ornament.baseRadius = spineRad;
