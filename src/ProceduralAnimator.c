@@ -214,6 +214,12 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
         SkeletonPose_UpdateWorldTransforms(p,&r->skeleton);
         a->reachResult.status=REACH_BLOCKED;a->reachResult.blockedReason=collision?2:3;a->reachState.stableTime=0;
     }
+    /* Una autoridad externa sustituye también la retirada cervical al reposo;
+     * debe aplicarse después del alcance y antes de resolver las patas. */
+    if(a->applyAxialPose) {
+        a->applyAxialPose(r,p,a->axialContext);
+        SkeletonPose_UpdateWorldTransforms(p,&r->skeleton);
+    }
     for(int attempt=0;attempt<2;++attempt) {
     for(size_t i=0;i<r->limbCount;++i) {
         if(!r->limbs[i].walking)continue;

@@ -67,6 +67,11 @@ typedef struct AnatomyDeformer {
  * @param palette Salida. @return false si no corresponde al reposo vinculado. */
 bool AnatomyDeformer_BuildPosePalette(const AnatomyDeformer* deformer,const Skeleton* skeleton,
     const SkeletonPose* pose,AnatomyPosePalette* palette);
+/** @brief Paleta de pose con secciones de crecimiento; reutiliza geometría y pesos adultos. */
+bool AnatomyDeformer_BuildMorphPosePalette(const AnatomyDeformer*,const Skeleton*,const SkeletonPose*,
+    const AnatomyGraph* target,AnatomyPosePalette*);
+/** @brief Reemplaza una matriz articular por la escala local de un landmark acotado. */
+bool AnatomyDeformer_ScaleJointPalette(const AnatomyDeformer*,const SkeletonPose*,int,Vector3,AnatomyPosePalette*);
 /** @brief Evalúa un vértice con las mismas influencias y normalización del skinning.
  * @param deformer Vinculación. @param palette Matrices actuales. @param vertex Índice.
  * @param position Posición. @param normal Normal. @return false ante una influencia inválida. */

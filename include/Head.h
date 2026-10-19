@@ -77,6 +77,8 @@ typedef struct HeadPhenotype {
     float noseScale; /**< Desarrollo de la almohadilla nasal y abertura de las narinas. */
     float earSize; /**< Tamaño relativo de oreja. */
     float earBaseWidth; /**< Anchura normalizada de la implantación auricular. */
+    float earWidthRatio; /**< Multiplicador de anchura del pabellón; cero conserva 1. */
+    float earHeightRatio; /**< Multiplicador de altura independiente de la anchura. */
     float earThickness; /**< Espesor normalizado del cartílago. */
     float earConcavity; /**< Profundidad normalizada de la concha auricular. */
     float earOutward; /**< Inclinación lateral de la pinna. */
@@ -264,6 +266,10 @@ bool Head_Supports(HeadArchetype archetype);
 HeadPhenotype HeadPhenotype_LizardPreset(void);
 /** @return Fenotipo predefinido de cánido. */
 HeadPhenotype HeadPhenotype_CanidPreset(void);
+/** @return Fenotipo bovino sobre la base cefálica canina. */
+HeadPhenotype HeadPhenotype_BovinePreset(void);
+/** @return Fenotipo felino sobre la base cefálica canina. */
+HeadPhenotype HeadPhenotype_FelinePreset(void);
 /** @return Fenotipo predefinido de ave. */
 HeadPhenotype HeadPhenotype_AvianPreset(void);
 /** Normaliza todos los controles semánticos a rangos válidos. */

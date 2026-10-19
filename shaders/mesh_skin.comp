@@ -20,9 +20,13 @@ void main() {
         p.x+=(x.x*bp.x+x.y*bp.y+x.z*bp.z+x.w)*w;
         p.y+=(y.x*bp.x+y.y*bp.y+y.z*bp.z+y.w)*w;
         p.z+=(z.x*bp.x+z.y*bp.y+z.z*bp.z+z.w)*w;
-        n.x+=(x.x*bn.x+x.y*bn.y+x.z*bn.z)*w;
-        n.y+=(y.x*bn.x+y.y*bn.y+y.z*bn.z)*w;
-        n.z+=(z.x*bn.x+z.y*bn.y+z.z*bn.z)*w;
+        vec3 cx=cross(y.xyz,z.xyz),cy=cross(z.xyz,x.xyz),cz=cross(x.xyz,y.xyz);
+        float det=dot(x.xyz,cx);
+        if(abs(det)>1e-20) {
+            n.x+=dot(cx,bn)*w/det;
+            n.y+=dot(cy,bn)*w/det;
+            n.z+=dot(cz,bn)*w/det;
+        }
     }
     precise float length=sqrt(n.x*n.x+n.y*n.y+n.z*n.z);
     if(length>1e-12)n*=1.0/length;

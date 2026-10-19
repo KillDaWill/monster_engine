@@ -1,0 +1,49 @@
+[
+  {
+    "name": "reference-performance",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--frames=900",
+      "--validate-mouth=900",
+      "--validate-skinning",
+      "--profile=docs/validation/ecosystem-creatures/reference-performance.json",
+      "--capture=docs/validation/ecosystem-creatures/reference-final.ppm"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "population-100-performance",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--herbivores=80",
+      "--carnivores=20",
+      "--capacity=128",
+      "--frames=600",
+      "--zoom=40",
+      "--validate-mouth=600",
+      "--profile=docs/validation/ecosystem-creatures/population-100-performance.json",
+      "--capture=docs/validation/ecosystem-creatures/population-100.ppm"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "cpu-fallback",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--zoom=4",
+      "--frames=240",
+      "--cpu-skinning",
+      "--validate-mouth=240",
+      "--profile=docs/validation/ecosystem-creatures/cpu-fallback.json",
+      "--capture=docs/validation/ecosystem-creatures/cpu-fallback.ppm"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  }
+]

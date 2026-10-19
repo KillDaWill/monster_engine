@@ -48,6 +48,10 @@ static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, Mo
     h = HashBytes(&pruning, sizeof(bool), h);
     if (visual) h = HashBytes(&visual->mesher.config, sizeof(visual->mesher.config), h);
     if (!monster) return h;
+    if(monster->hasCreaturePhenotype){
+        for(size_t i=0;i<monster->phenotype.ornamentCount;++i)h=HashBytes(&monster->phenotype.ornaments[i].archetype,sizeof(OrnamentArchetype),h);
+        for(size_t i=0;i<monster->phenotype.limbCount;++i)h=HashBytes(&monster->phenotype.limbs[i].archetype,sizeof(LimbArchetype),h);
+    }
     h=HashBytes(&monster->hasAnatomyGraph,sizeof(monster->hasAnatomyGraph),h);
     if(monster->hasAnatomyGraph) {uint64_t anatomy=AnatomyGraph_Fingerprint(&monster->anatomyGraph);h=HashBytes(&anatomy,sizeof(anatomy),h);}
     h=HashBytes(&monster->hasHead,sizeof(monster->hasHead),h);

@@ -10,7 +10,7 @@
 #include "LimbMammal.h"
 
 bool Limb_Supports(LimbArchetype a) {
-    return a == LIMB_ARCHETYPE_REPTILE || a == LIMB_ARCHETYPE_MAMMAL;
+    return a == LIMB_ARCHETYPE_REPTILE || a == LIMB_ARCHETYPE_MAMMAL || a == LIMB_ARCHETYPE_UNGULATE;
 }
 
 uint16_t Limb_DigitLocalId(unsigned digit, unsigned station) {
@@ -21,6 +21,7 @@ bool Limb_Resolve(const LimbPhenotype* phenotype, uint32_t moduleInstanceId, con
     if (!phenotype) return false;
     switch (phenotype->archetype) {
     case LIMB_ARCHETYPE_MAMMAL:
+    case LIMB_ARCHETYPE_UNGULATE:
         return LimbMammal_Resolve(phenotype, moduleInstanceId, slot, graph);
     case LIMB_ARCHETYPE_REPTILE:
         return LimbReptile_Resolve(phenotype, moduleInstanceId, slot, graph);
@@ -33,6 +34,7 @@ bool Limb_BuildRigDescriptor(const LimbPhenotype* phenotype, uint32_t moduleInst
     if (!phenotype) return false;
     switch (phenotype->archetype) {
     case LIMB_ARCHETYPE_MAMMAL:
+    case LIMB_ARCHETYPE_UNGULATE:
         return LimbMammal_BuildRigDescriptor(phenotype, moduleInstanceId, graph, out);
     case LIMB_ARCHETYPE_REPTILE:
         return LimbReptile_BuildRigDescriptor(phenotype, moduleInstanceId, graph, out);
@@ -45,6 +47,7 @@ void Limb_ConfigureRig(const LimbRigDescriptor* limb, const AnatomyGraph* graph,
     if (!limb) return;
     switch (limb->archetype) {
     case LIMB_ARCHETYPE_MAMMAL:
+    case LIMB_ARCHETYPE_UNGULATE:
         LimbMammal_ConfigureRig(limb, graph, rig);
         break;
     case LIMB_ARCHETYPE_REPTILE:

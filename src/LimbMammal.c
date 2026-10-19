@@ -17,7 +17,9 @@ static Vector3 World(const AttachmentSlot* slot,Vector3 p) {
         Vec3_Add(Vec3_Scale(slot->up,p.y),Vec3_Scale(slot->forward,p.z))));
 }
 bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,AnatomyGraph* g) {
-    if (!p || !slot || !g || p->archetype!=LIMB_ARCHETYPE_MAMMAL || p->digitCount>CREATURE_MAX_DIGITS) return false;
+    if (!p || !slot || !g || (p->archetype!=LIMB_ARCHETYPE_MAMMAL&&p->archetype!=LIMB_ARCHETYPE_UNGULATE) || p->digitCount>CREATURE_MAX_DIGITS) return false;
+    bool hoof=p->archetype==LIMB_ARCHETYPE_UNGULATE;
+    if(hoof&&p->digitCount!=2)return false;
     for (unsigned d=0;d<p->digitCount;++d) if (!p->digitPhalanges[d] || p->digitPhalanges[d]>5) return false;
     bool hind=p->role==LIMB_HIND;
     float side=p->side==LIMB_RIGHT?-1:1;
@@ -37,6 +39,12 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     float w[]={r*p->rootThicknessScale,r*.78f*p->middleThicknessScale,
         r*.40f*p->distalThicknessScale,r*1.05f*p->footScale*p->footWidthScale};
     float h[]={w[0],w[1],w[2],r*.48f*p->footScale*p->footHeightScale};
+    if(hoof){
+        /* El metapodio termina en un menudillo estrecho; no existe el cojín
+         * común de la pata carnívora que rellenaría la hendidura del casco. */
+        w[3]=r*.42f*p->distalThicknessScale;
+        h[3]=r*.55f*p->footScale*p->footHeightScale;
+    }
     for (unsigned i=0;i<4;++i) {
         if (!Node(g,module,i+1,World(slot,positions[i]),w[i],h[i],p,false)) return false;
         if (i && !Module_Edge(g,module,(uint16_t)i,Anatomy_MakeId(module,i),Anatomy_MakeId(module,i+1),BODY_CONNECTION_LIMB_SEGMENT,p->development)) return false;
@@ -47,14 +55,14 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             edge->widthBulge=fullness;
             edge->heightBulge=fullness*(hind?1.15f:.85f);
             /* El metapodio conserva un tallo estrecho hasta el cojín distal. */
-            if (i==3) edge->widthBulge=-r*.28f*p->footScale;
+            if (i==3) edge->widthBulge=hoof?-r*.04f:-r*.28f*p->footScale;
         }
     }
     if (!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)) return false;
     for (unsigned d=0;d<p->digitCount;++d) {
         AnatomyId previous=Anatomy_MakeId(module,4);
         float offset=((float)d-((float)p->digitCount-1)*.5f);
-        float toeR=w[3]*.28f*p->digitThicknessScale;
+        float toeR=(hoof?r*.48f*p->footScale*p->footWidthScale:w[3]*.28f)*p->digitThicknessScale;
         unsigned count=p->digitPhalanges[d]+2;
         for (unsigned j=0;j<count;++j) {
             float t=(float)j/(count-1);
@@ -64,12 +72,21 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             c.z+=w[3]*(.28f+t*1.35f*p->digitLengths[d]);
             /* Cada falange apoya en la misma suela; el carpo/tarso permanece elevado. */
             c.y+=-h[3]+radius;
+            if(hoof){
+                float sign=d?1:-1;
+                c=positions[3];
+                c.x+=sign*toeR*1.14f;
+                c.y+=-h[3]+toeR*.60f;
+                c.z+=r*p->footScale*(-.18f+t*1.18f*p->digitLengths[d]);
+                radius=toeR*(.75f+.25f*sinf(t*3.14159265f));
+            }
             float yaw=side*p->footYaw,dx=c.x-positions[3].x,dz=c.z-positions[3].z;
             c.x=positions[3].x+cosf(yaw)*dx+sinf(yaw)*dz;
             c.z=positions[3].z-sinf(yaw)*dx+cosf(yaw)*dz;
             unsigned local=Limb_DigitLocalId(d,j);
-            if (!Node(g,module,local,World(slot,c),radius,radius,p,true) ||
-                !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),BODY_CONNECTION_DIGIT_SEGMENT,p->development)) return false;
+            if (!Node(g,module,local,World(slot,c),radius,hoof?radius*.60f:radius,p,true) ||
+                !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),
+                    hoof&&j==0?BODY_CONNECTION_LIMB_SEGMENT:BODY_CONNECTION_DIGIT_SEGMENT,p->development)) return false;
             previous=Anatomy_MakeId(module,local);
         }
     }
@@ -78,7 +95,7 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
 bool LimbMammal_BuildRigDescriptor(const LimbPhenotype* p,uint32_t module,const AnatomyGraph* g,LimbRigDescriptor* out) {
     if (!p || !g || !out) return false;
     *out=(LimbRigDescriptor){.moduleInstanceId=module,.jointCount=4,.role=p->role,.side=p->side,
-        .archetype=LIMB_ARCHETYPE_MAMMAL,.locomotionLimb=p->development>.05f};
+        .archetype=p->archetype,.locomotionLimb=p->development>.05f,.flexionScale=p->flexionScale};
     for (unsigned i=0;i<4;++i) {
         out->joints[i]=Anatomy_MakeId(module,i+1);
         if (!AnatomyGraph_FindNode(g,out->joints[i])) return false;
@@ -102,6 +119,7 @@ void LimbMammal_ConfigureRig(const LimbRigDescriptor* d,const AnatomyGraph* g,Ri
         l->digitigrade=true;
         /* Dos bisagras acopladas requieren converger también al pivotar. */
         l->chain.maxIterations=96;
+        float flexion=d->flexionScale>0?d->flexionScale:1;
         for (size_t j=0;j<l->chain.jointCount;++j) {
             SkeletonJoint* joint=&rig->skeleton.joints[l->chain.jointIndices[j]];
             Vector3 axis=j+1<l->chain.jointCount?
@@ -109,14 +127,14 @@ void LimbMammal_ConfigureRig(const LimbRigDescriptor* d,const AnatomyGraph* g,Ri
             /* En hombro/cadera, twist sigue el hueso; X es flexión sagital,
              * no torsión. Confundir ambos ejes bloqueaba el paso del perro. */
             joint->constraint=(JointConstraint){.type=JOINT_BALL,.hingeAxis=Vec3_Normalize(axis),
-                .maxSwingAngle=j==0?.7f:.9f,.maxTwistAngle=j==0?.15f:.35f};
+                .maxSwingAngle=fminf(1.4f,(j==0?.7f:.9f)*flexion),.maxTwistAngle=j==0?.15f:.35f};
             if (j>0 && j+1<l->chain.jointCount) {
                 Vector3 incoming=joint->restPosition;
                 Vector3 outgoing=rig->skeleton.joints[l->chain.jointIndices[j+1]].restPosition;
                 float bend=atan2f(Vec3_Cross(incoming,outgoing).x,Vec3_Dot(incoming,outgoing));
                 /* Codo, rodilla y corvejón conservan el lado de flexión que
                  * resuelve la anatomía. Los límites son relativos al reposo. */
-                float limit=j+2==l->chain.jointCount?.5f:1.2f;
+                float limit=(j+2==l->chain.jointCount?.5f:1.2f)*flexion;
                 float min=-limit,max=limit;
                 float margin=fminf(.02f,fabsf(bend)*.25f);
                 if(bend>0)min=fmaxf(min,-bend+margin);

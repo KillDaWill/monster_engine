@@ -1,4 +1,5 @@
 #include "CreatureRecipes.h"
+#include "CreatureRecipeRegistry.h"
 #include "SurfacePresets.h"
 #include "AxialBody.h"
 #include "AxialBodySprawlingTetrapod.h"
@@ -188,7 +189,11 @@ static void InitRecipe(void) {
              .attachment={.hostModuleInstanceId=1,.slotId=AXIAL_SPRAWLING_SLOT_PELVIC_RIGHT},.phenotypeIndex=3}}};
 }
 const CreatureRecipe* CreatureRecipes_Lizard(void) { pthread_once(&recipeOnce,InitRecipe); return &recipe; }
-const CreatureRecipe* CreatureRecipes_Find(CreatureRecipeId id) { return id==1?CreatureRecipes_Lizard():id==2?CreatureRecipes_Dog():NULL; }
+const CreatureRecipe* CreatureRecipes_Find(CreatureRecipeId id) {
+    const CreatureRecipe* external=CreatureRecipeRegistry_Find(id);if(external)return external;
+    return id==1?CreatureRecipes_Lizard():id==2?CreatureRecipes_Dog():
+        id==3?CreatureRecipes_Brumacerno():id==4?CreatureRecipes_Velkar():NULL;
+}
 
 /* Las etapas provisionales comparten topología y proporciones: todavía no
  * representan ontogenia canina, solo escalas compatibles con la API. */

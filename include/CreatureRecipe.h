@@ -61,7 +61,10 @@ typedef struct BodyPlan {
 
 typedef enum CreatureGait {
     CREATURE_GAIT_NONE = 0,
-    CREATURE_GAIT_SPRAWLING_QUADRUPED
+    CREATURE_GAIT_SPRAWLING_QUADRUPED,
+    CREATURE_GAIT_UPRIGHT_QUADRUPED, /**< Paso cuadrúpedo digitígrado genérico. */
+    CREATURE_GAIT_FELINE_STALK,     /**< Merodeo felino: ciclo largo, zancada corta y cuerpo agachado. */
+    CREATURE_GAIT_BOVINE_WALK       /**< Transferencia lenta de peso para ungulados robustos. */
 } CreatureGait;
 
 /**

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Lagarto",
+    "stage": 3,
+    "preview_seconds": 1.086,
+    "triangles": 117736,
+    "bytes": 3779442
+  },
+  {
+    "name": "Perro",
+    "stage": 3,
+    "preview_seconds": 1.24,
+    "triangles": 98618,
+    "bytes": 3165318
+  },
+  {
+    "name": "Brumacerno",
+    "stage": 3,
+    "preview_seconds": 0.932,
+    "triangles": 87380,
+    "bytes": 2801935
+  },
+  {
+    "name": "Velkar",
+    "stage": 3,
+    "preview_seconds": 1.009,
+    "triangles": 71790,
+    "bytes": 2307036
+  },
+  {
+    "name": "Explorador",
+    "stage": 3,
+    "preview_seconds": 1.148,
+    "triangles": 98892,
+    "bytes": 3174395
+  },
+  {
+    "name": "Explorador",
+    "stage": 2,
+    "preview_seconds": 1.127,
+    "triangles": 98068,
+    "bytes": 3147818
+  }
+]

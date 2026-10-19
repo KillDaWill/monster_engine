@@ -38,6 +38,8 @@ bool MonsterAnimation_Configure(Monster* m,const Rig* rig,GaitProfile gait) {
         next->animator.interactionTarget=old->interactionTarget;
         next->animator.validateInteractionPose=old->validateInteractionPose;
         next->animator.interactionContext=old->interactionContext;
+        next->animator.applyAxialPose=old->applyAxialPose;
+        next->animator.axialContext=old->axialContext;
         for(int k=0;k<3;++k)next->animator.cervicalRotation[k]=old->cervicalRotation[k];
         next->animator.locomotion.phase=old->locomotion.phase;
         next->animator.locomotion.velocity=old->locomotion.velocity;

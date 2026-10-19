@@ -81,7 +81,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
                 access.append(f'vec3 {short}_{name}_{edge}(int i) {{ return dataAt(i+{offset+j}).xyz; }}')
                 code.append(f'    PackVector(out[{offset+j}], in->{name}.{edge});')
             scalar_row=offset+1;scalar_component=3;offset+=2
-        elif t in ['float','bool','size_t','AnatomyId','BodyConnectionKind','AnatomyRegion','uint32_t']:
+        elif t in ['float','bool','size_t','AnatomyId','BodyConnectionKind','AnatomyRegion','uint32_t','SDFMaterial']:
             gt='float' if t=='float' else 'bool' if t=='bool' else 'int'
             if scalar_component==4:
                 scalar_row=offset;offset+=1;scalar_component=0

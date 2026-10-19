@@ -12,6 +12,12 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
     if(sdfSurfaceDebug==28)return vec3(float(semantic.moduleId%256u),float(semantic.regionId),float(semantic.materialId&255u))/255.0;
     vec3 light=normalize(vec3(10,20,15)-p);
     vec3 color=sampleValue.xyz*(.4+max(dot(n,light),0.0));
+    uint tissue=semantic.materialId&255u;
+    if(tissue==5u||tissue==6u){
+        if(sdfSurfaceDebug==27)return sampleValue.xyz;
+        SurfaceResponse keratin=SurfaceResponse(sampleValue.xyz,viewN,tissue==5u?.38:.55,.30);
+        return SurfaceLighting(keratin,viewP);
+    }
     if(sdfHasSurface!=0) {
         float skinMask=clamp(semantic.skinWeight,0.0,1.0);
         int integument=int(surfaceRecipe[7].x+.5);

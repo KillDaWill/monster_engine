@@ -9,6 +9,7 @@ uniform int shellCount;
 in vec3 restCoord,restNormal,viewPosition,viewNormal;
 in vec4 vertexColor,profileA,profileB;
 in float ventral,skinMask;
+flat in int tissueMaterial;
 in vec3 posedFlowOut,restFlowOut;
 in float shellDelta;
 uniform float guardVisibility;
@@ -49,6 +50,11 @@ void main() {
     if(surfaceDebug==23) {fragColor=vec4(0.0,0.9,1.0,1.0);return;}
     vec3 n = normalize(viewNormal);
     if (!gl_FrontFacing) n = -n;
+    if(tissueMaterial==8||tissueMaterial==9){
+        if(furPass==1)discard;
+        SurfaceResponse keratin=SurfaceResponse(vertexColor.rgb,n,tissueMaterial==8?.38:.55,.30);
+        fragColor=vec4(SurfaceLighting(keratin,viewPosition),vertexColor.a);return;
+    }
 
     int integumentType = int(surfaceRecipe[7].x + 0.5);
 

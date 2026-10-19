@@ -8,13 +8,17 @@
 #include "CreatureReproduction.h"
 #include "EcosystemResources.h"
 #include <stdio.h>
+#include <stdint.h>
 typedef struct EcosystemSpecies {
     unsigned id, category;
+    uint32_t recipeId; /**< Receta anatómica persistente asociada a la categoría. */
+    bool anatomicalOral; /**< Contacto cervical resuelto desde la receta, también en headless. */
     char name[32];
     BrainProfile brain;
     PhysiologyProfile physiology;
     ReproductionProfile reproduction;
     float speed, radius, oralReach, attackRange, damage, attackCooldown, attackCost;
+    float turnRate; /**< Velocidad angular máxima; cero conserva el valor genérico. */
     float edibleBiomass, nutrition;
 } EcosystemSpecies;
 typedef struct EcosystemEntity {
@@ -31,6 +35,7 @@ typedef struct EcosystemEntity {
     double nextAttack;
     float developmentScale, oralMotion;
     void *visual; /**< Préstamo opcional; el núcleo nunca lo consulta ni libera. */
+    struct EcosystemAnatomy* anatomicalBody; /**< Propiedad privada del cuerpo oral, sin recursos gráficos. */
 } EcosystemEntity;
 typedef struct EcosystemStatistics {
     uint64_t births, deaths, deathCauses[DEATH_CAUSE_COUNT], kills, attacks, matings;

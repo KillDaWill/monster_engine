@@ -1,0 +1,398 @@
+[
+  {
+    "name": "brumacerno-adult-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-adult-side.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-adult-side.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-adult-front",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=front",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-adult-front.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-adult-front.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-adult-three-quarter",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=three-quarter",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-adult-three-quarter.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-adult-three-quarter.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-juvenile-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--initial-age=60",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-juvenile-side.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-juvenile-side.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-newborn-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--initial-age=0",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-newborn-side.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-newborn-side.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-walking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--view=three-quarter",
+      "--capture-state=walking",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-walking.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-walking.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-drinking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--view=three-quarter",
+      "--capture-state=drinking",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-drinking.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-drinking.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-adult-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--capture=docs/validation/ecosystem-creatures/velkar-adult-side.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-adult-side.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-adult-front",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=front",
+      "--capture=docs/validation/ecosystem-creatures/velkar-adult-front.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-adult-front.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-adult-three-quarter",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=three-quarter",
+      "--capture=docs/validation/ecosystem-creatures/velkar-adult-three-quarter.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-adult-three-quarter.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-juvenile-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--initial-age=60",
+      "--capture=docs/validation/ecosystem-creatures/velkar-juvenile-side.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-juvenile-side.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-newborn-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--initial-age=0",
+      "--capture=docs/validation/ecosystem-creatures/velkar-newborn-side.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-newborn-side.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-walking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--view=three-quarter",
+      "--capture-state=walking",
+      "--capture=docs/validation/ecosystem-creatures/velkar-walking.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-walking.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-drinking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--view=three-quarter",
+      "--capture-state=drinking",
+      "--capture=docs/validation/ecosystem-creatures/velkar-drinking.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-drinking.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-feeding",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--focus=23",
+      "--frames=2400",
+      "--capture-state=feeding",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-feeding.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-feeding.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-hunting",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--focus=31",
+      "--frames=2400",
+      "--capture-state=hunting",
+      "--capture=docs/validation/ecosystem-creatures/velkar-hunting.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-hunting.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-attacking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--focus=31",
+      "--frames=6000",
+      "--capture-state=attacking",
+      "--capture=docs/validation/ecosystem-creatures/velkar-attacking.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-attacking.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "velkar-feeding",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--scenario=C",
+      "--capture-species=2",
+      "--speed=4",
+      "--frames=12000",
+      "--capture-state=feeding",
+      "--capture=docs/validation/ecosystem-creatures/velkar-feeding.ppm",
+      "--profile=docs/validation/ecosystem-creatures/velkar-feeding.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "brumacerno-fleeing",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--scenario=E",
+      "--capture-species=1",
+      "--speed=4",
+      "--frames=6000",
+      "--capture-state=fleeing",
+      "--capture=docs/validation/ecosystem-creatures/brumacerno-fleeing.ppm",
+      "--profile=docs/validation/ecosystem-creatures/brumacerno-fleeing.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  },
+  {
+    "name": "overview",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--zoom=4",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--frames=180",
+      "--zoom=25",
+      "--view=three-quarter",
+      "--capture=docs/validation/ecosystem-creatures/overview.ppm",
+      "--profile=docs/validation/ecosystem-creatures/overview.json"
+    ],
+    "exit_code": 0,
+    "binary_sha256": "1e1cea31ffe288dacbf7674a46c7e9bbb2fbd56ecb808129a2077e4616493956"
+  }
+]

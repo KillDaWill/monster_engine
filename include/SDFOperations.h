@@ -26,7 +26,9 @@ typedef enum SDFMaterial {
     SDF_MATERIAL_NOSTRIL,
     SDF_MATERIAL_TYMPANUM,
     SDF_MATERIAL_NASAL_PAD, /**< Almohadilla nasal pigmentada. */
-    SDF_MATERIAL_UNKNOWN
+    SDF_MATERIAL_UNKNOWN,
+    SDF_MATERIAL_HORN, /**< Queratina de cuerno: sin integumento. */
+    SDF_MATERIAL_HOOF  /**< Casco ungulado: sin pelo ni escamas. */
 } SDFMaterial;
 
 /**

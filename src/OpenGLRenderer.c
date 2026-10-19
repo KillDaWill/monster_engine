@@ -110,6 +110,8 @@ typedef struct OpenGLRendererData {
     GLuint sdfProgram,sdfCachedProgram,sdfMouthCache,sdfBuffer,sdfTexture;
     bool sweepSorted;
     GLuint surfaceProgram,guardProgram;
+    SurfaceRecipe meshSurfaceOverride;
+    bool meshSurfaceOverrideSet;
     struct {
         GLuint program,paletteBuffer;
         GLint countLocation;
@@ -171,6 +173,18 @@ typedef struct OpenGLRendererData {
 static double RendererNowMs(void) {
     struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);
     return (double)t.tv_sec*1000.0+(double)t.tv_nsec/1000000.0;
+}
+
+static const SurfaceRecipe* EffectiveMeshSurface(const OpenGLRendererData* d,const Mesh* mesh) {
+    return d->meshSurfaceOverrideSet ? &d->meshSurfaceOverride : &mesh->surfaceRecipe;
+}
+
+static uint32_t FurRootSeedBucket(const Mesh* mesh) {
+    uint64_t key=mesh->identity^UINT64_C(0x9e3779b97f4a7c15);
+    key^=key>>30;key*=UINT64_C(0xbf58476d1ce4e5b9);
+    key^=key>>27;key*=UINT64_C(0x94d049bb133111eb);
+    key^=key>>31;
+    return (uint32_t)(key^(key>>32));
 }
 
 void OpenGLRenderer_SetWireframe(Renderer3D* renderer, bool enabled) {
@@ -442,7 +456,7 @@ static void OpenGL_BeginFrame(Renderer3D* self) {
 static void OpenGL_EndFrame(Renderer3D* self) {
     OpenGLRendererData* d=self?self->user_data:NULL;
     if(d&&d->meshQueryIssued){glEndQuery(GL_TIME_ELAPSED);d->meshQueryPending[d->meshQueryFrame%4]=true;}
-    if(d){++d->meshQueryFrame;d->meshQueryIssued=false;}
+    if(d){++d->meshQueryFrame;d->meshQueryIssued=false;d->meshSurfaceOverrideSet=false;}
 }
 
 #include <stddef.h>
@@ -2388,6 +2402,9 @@ OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
     (void)w; OpenGLDemoInput input={.view=-1, .digitKey=-1}; SDL_Event e;
     while(SDL_PollEvent(&e)) {
         if(e.type==SDL_QUIT)input.quit=true;
+        if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT) {
+            input.mouseLeftPressed=true;input.mouseX=e.button.x;input.mouseY=e.button.y;
+        }
         if(e.type==SDL_KEYDOWN) {
             if(e.key.keysym.sym==SDLK_ESCAPE)input.quit=true;
             if(e.key.keysym.sym==SDLK_SPACE)input.togglePause=true;
@@ -2465,6 +2482,23 @@ void OpenGLRenderer_ModelTransform(Vector3 translation,float yawDegrees,float sc
 void OpenGLRenderer_PopModelMatrix(void) {
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
+}
+
+void OpenGLRenderer_PushJointTransform(const SkeletonPose* rest,const SkeletonPose* pose,int joint) {
+    OpenGLRenderer_PushJointMorphTransform(rest,pose,joint,Vec3_Create(1,1,1));
+}
+void OpenGLRenderer_PushJointMorphTransform(const SkeletonPose* rest,const SkeletonPose* pose,int joint,Vector3 scale) {
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    if(!rest||!pose||joint<0||(size_t)joint>=rest->jointCount||(size_t)joint>=pose->jointCount)return;
+    Quaternion q=Quat_Multiply(pose->joints[joint].worldRotation,Quat_Inverse(rest->joints[joint].worldRotation));
+    Vector3 x=Quat_RotateVector(q,Vec3_Create(scale.x,0,0));
+    Vector3 y=Quat_RotateVector(q,Vec3_Create(0,scale.y,0));
+    Vector3 z=Quat_RotateVector(q,Vec3_Create(0,0,scale.z));
+    Vector3 r=rest->joints[joint].worldPosition;
+    Vector3 t=Vec3_Sub(pose->joints[joint].worldPosition,Vec3_Add(Vec3_Scale(x,r.x),Vec3_Add(Vec3_Scale(y,r.y),Vec3_Scale(z,r.z))));
+    const GLfloat matrix[16]={x.x,x.y,x.z,0,y.x,y.y,y.z,0,z.x,z.y,z.z,0,t.x,t.y,t.z,1};
+    glMultMatrixf(matrix);
 }
 
 static void DrawStrokeSegment(float x0, float y0, float x1, float y1) {
@@ -2687,6 +2721,20 @@ bool OpenGLRenderer_SetMeshSkinning(Renderer3D* renderer,const Mesh* mesh,const 
        !AnatomyDeformer_BuildPosePalette(binding,skeleton,pose,&d->skin.palette))return false;
     d->skin.mesh=mesh;d->skin.binding=binding;d->skin.generation=generation;return true;
 }
+bool OpenGLRenderer_SetMeshSurfaceOverride(Renderer3D* renderer,const SurfaceRecipe* recipe) {
+    if(!renderer||!renderer->user_data)return false;
+    OpenGLRendererData* d=renderer->user_data;
+    if(recipe){d->meshSurfaceOverride=*recipe;d->meshSurfaceOverrideSet=true;}
+    else d->meshSurfaceOverrideSet=false;
+    return true;
+}
+bool OpenGLRenderer_SetMeshMorphSkinning(Renderer3D* renderer,const Mesh* mesh,const AnatomyDeformer* binding,
+    const Skeleton* skeleton,const SkeletonPose* pose,const AnatomyGraph* graph,int head,Vector3 headScale,uint64_t generation) {
+    if(!OpenGLRenderer_SetMeshSkinning(renderer,mesh,binding,skeleton,pose,generation))return false;
+    OpenGLRendererData* d=renderer->user_data;
+    return AnatomyDeformer_BuildMorphPosePalette(binding,skeleton,pose,graph,&d->skin.palette)&&
+        (head<0||AnatomyDeformer_ScaleJointPalette(binding,pose,head,headScale,&d->skin.palette));
+}
 static bool DeformMeshGPU(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh) {
     const AnatomyDeformer* binding=d->skin.binding;
     if(cache->skinOwner!=binding||cache->skinBindingGeneration!=d->skin.generation||
@@ -2716,15 +2764,14 @@ static bool DeformMeshGPU(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER,cache->skinWeights);
         glBufferData(GL_SHADER_STORAGE_BUFFER,mesh->vertexCount*sizeof(AnatomySkinBinding),binding->skinBindings,GL_STATIC_DRAW);
         cache->skinOwner=binding;cache->skinBindingGeneration=d->skin.generation;cache->skinGeometryGeneration=mesh->geometryGeneration;
-        cache->rootsValid=false;
         d->meshStats.totalBytesUploaded+=mesh->vertexCount*(sizeof(GeometryGpuVertex)+sizeof(AnatomySkinBinding));
-        d->meshStats.uploadCount+=2;
+        d->meshStats.uploadCount+=2;d->meshStats.skinUploads+=2;
     }
     if(!d->skin.paletteBuffer)glGenBuffers(1,&d->skin.paletteBuffer);
     size_t bytes=d->skin.palette.jointCount*sizeof(d->skin.palette.rows[0]);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->skin.paletteBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER,bytes,d->skin.palette.rows,GL_STREAM_DRAW);
-    ++d->meshStats.uploadCount;d->meshStats.totalBytesUploaded+=bytes;
+    ++d->meshStats.uploadCount;++d->meshStats.skinUploads;d->meshStats.totalBytesUploaded+=bytes;
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1,cache->skinBase);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,2,cache->skinWeights);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,3,d->skin.paletteBuffer);
@@ -2745,7 +2792,11 @@ bool OpenGLRenderer_ValidateMeshSkinning(Renderer3D* renderer,const Mesh* mesh,c
     for(unsigned i=0;i<GPU_MESH_CACHE_CAPACITY;++i)
         if(d->meshCache[i].owner==mesh&&d->meshCache[i].identity==mesh->identity){cached=&d->meshCache[i];break;}
     AnatomyPosePalette palette;
-    if(!cached||cached->skinOwner!=binding||!AnatomyDeformer_BuildPosePalette(binding,skeleton,pose,&palette))return false;
+    if(!cached||cached->skinOwner!=binding)return false;
+    /* La paleta publicada también puede contener crecimiento afín. Comparar
+     * contra otra paleta rígida daría un falso fallo en individuos jóvenes. */
+    if(d->skin.mesh==mesh&&d->skin.binding==binding)palette=d->skin.palette;
+    else if(!AnatomyDeformer_BuildPosePalette(binding,skeleton,pose,&palette))return false;
     GeometryGpuVertex* vertices=malloc(mesh->vertexCount*sizeof(*vertices));if(!vertices)return false;
     glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
     glBindBuffer(GL_COPY_READ_BUFFER,cached->geometryVbo);
@@ -2807,20 +2858,10 @@ static bool InitGuardProgram(OpenGLRendererData* d) {
     return true;
 }
 static bool PrepareRoots(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh,bool changed) {
-    if(cache->rootsValid&&!changed&&cache->rootSeed==mesh->surfaceRecipe.furSeed)return true;
-    if(d->skin.mesh==mesh) {
-        /* La distribución inicial conserva las mismas áreas de la pose CPU.
-         * Sólo se evalúa al crear raíces; las poses siguientes viven en GPU. */
-        Mesh posed=*mesh;posed.vertices=malloc(mesh->vertexCount*sizeof(*posed.vertices));
-        if(!posed.vertices)return false;
-        memcpy(posed.vertices,mesh->vertices,mesh->vertexCount*sizeof(*posed.vertices));
-        for(size_t v=0;v<mesh->vertexCount;++v)
-            if(!AnatomyDeformer_EvaluatePoseVertex(d->skin.binding,&d->skin.palette,v,
-                &posed.vertices[v].position,&posed.vertices[v].normal)){free(posed.vertices);return false;}
-        bool ok=PrepareRoots(d,cache,&posed,changed);free(posed.vertices);return ok;
-    }
+    uint32_t rootSeed=FurRootSeedBucket(mesh);
+    if(cache->rootsValid&&!changed&&cache->rootSeed==rootSeed)return true;
     FurRootSet roots={0};
-    if(!FurRootSet_Build(&roots,mesh,mesh->surfaceRecipe.furSeed,1800,90000))return false;
+    if(!FurRootSet_Build(&roots,mesh,rootSeed,1800,90000))return false;
     float (*packed)[22]=calloc(roots.count?roots.count:1,sizeof(*packed));
     if(!packed){FurRootSet_Free(&roots);return false;}
     for(size_t i=0;i<roots.count;++i) {
@@ -2842,8 +2883,8 @@ static bool PrepareRoots(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh,b
     glBufferData(GL_ARRAY_BUFFER,roots.count*sizeof(*packed),packed,GL_STATIC_DRAW);
     const unsigned offsets[]={0,3,6,8,11,14,17,21};const int sizes[]={3,3,2,3,3,3,4,1};
     for(unsigned j=0;j<8;++j){glEnableVertexAttribArray(j);glVertexAttribPointer(j,sizes[j],GL_FLOAT,GL_FALSE,sizeof(*packed),(void*)(uintptr_t)(offsets[j]*sizeof(float)));glVertexAttribDivisor(j,1);}
-    cache->rootCount=roots.count;cache->rootSeed=mesh->surfaceRecipe.furSeed;cache->rootsValid=true;
-    d->meshStats.totalBytesUploaded+=roots.count*sizeof(*packed);++d->meshStats.uploadCount;
+    cache->rootCount=roots.count;cache->rootSeed=rootSeed;cache->rootsValid=true;
+    d->meshStats.totalBytesUploaded+=roots.count*sizeof(*packed);++d->meshStats.uploadCount;++d->meshStats.furRootUploads;
     ++d->meshStats.furRootBuilds;
     free(packed);FurRootSet_Free(&roots);return true;
 }
@@ -2855,9 +2896,10 @@ static void DrawGuards(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh,flo
     if(!cache->surfaceTexture)glGenTextures(1,&cache->surfaceTexture);
     glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_BUFFER,cache->geometryTexture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,cache->geometryVbo);
     glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_BUFFER,cache->surfaceTexture);glTexBuffer(GL_TEXTURE_BUFFER,GL_R32F,cache->surfaceVbo);
+    const SurfaceRecipe* recipe=EffectiveMeshSurface(d,mesh);
     glUseProgram(d->guardProgram);glUniform1i(d->guard.geometry,0);glUniform1i(d->guard.surface,1);
-    glUniform4fv(d->guard.recipe,SURFACE_RECIPE_ROWS,&mesh->surfaceRecipe.data[0][0]);
-    glUniform1ui(d->guard.pigmentSeed,mesh->surfaceRecipe.pigmentSeed);glUniform1ui(d->guard.furSeed,mesh->surfaceRecipe.furSeed);
+    glUniform4fv(d->guard.recipe,SURFACE_RECIPE_ROWS,&recipe->data[0][0]);
+    glUniform1ui(d->guard.pigmentSeed,recipe->pigmentSeed);glUniform1ui(d->guard.furSeed,recipe->furSeed);
     glUniform1i(d->guard.debug,d->surfaceDebug);glUniform1f(d->guard.visibility,visibility);
     UploadHandoffs(d,d->guardProgram);
     glBindVertexArray(cache->rootVao);glDisable(GL_CULL_FACE);
@@ -2877,6 +2919,7 @@ static void DrawGuards(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh,flo
 static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     if(!mesh->vertexCount || !mesh->indexCount)return true;
     if(!InitSurfaceProgram(d))return false;
+    const SurfaceRecipe* recipe=EffectiveMeshSurface(d,mesh);
     GLint previous=0,buffer=0,indexBuffer=0,vao=0;
     glGetIntegerv(GL_CURRENT_PROGRAM,&previous); glGetIntegerv(GL_ARRAY_BUFFER_BINDING,&buffer);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING,&indexBuffer);glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&vao);
@@ -2887,6 +2930,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
         if(!entry->owner || entry->lastUse<evict->lastUse)evict=entry;
     }
     if(!cached) {
+        ++d->meshStats.meshCacheMisses;
         cached=evict;
         if(!cached->vao)glGenVertexArrays(1,&cached->vao);
         if(!cached->geometryVbo)glGenBuffers(1,&cached->geometryVbo);
@@ -2914,13 +2958,13 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
             p->color[0]=v->color.r;p->color[1]=v->color.g;p->color[2]=v->color.b;p->color[3]=v->color.a;p->padding=0;
         }
         glBindBuffer(GL_ARRAY_BUFFER,cached->geometryVbo);glBufferData(GL_ARRAY_BUFFER,mesh->vertexCount*sizeof(GeometryGpuVertex),d->geometryScratch,GL_STREAM_DRAW);
-        uploaded+=mesh->vertexCount*sizeof(GeometryGpuVertex);
+        uploaded+=mesh->vertexCount*sizeof(GeometryGpuVertex);++d->meshStats.staticGeometryUploads;
         cached->geometryGeneration=mesh->geometryGeneration;
         cached->gpuPosed=false;
     }
     if(indicesChanged) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);glBufferData(GL_ELEMENT_ARRAY_BUFFER,mesh->indexCount*sizeof(MeshIndex),mesh->indices,GL_STATIC_DRAW);
-        uploaded+=mesh->indexCount*sizeof(MeshIndex);
+        uploaded+=mesh->indexCount*sizeof(MeshIndex);++d->meshStats.indexUploads;
     }
     if(surfaceChanged) {
         if(mesh->vertexCount>d->surfaceScratchCapacity) {
@@ -2937,7 +2981,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
             p->integumentMask=v->surface.integumentMask;
         }
         glBindBuffer(GL_ARRAY_BUFFER,cached->surfaceVbo);glBufferData(GL_ARRAY_BUFFER,mesh->vertexCount*sizeof(SurfaceGpuVertex),d->surfaceScratch,GL_STATIC_DRAW);
-        uploaded+=mesh->vertexCount*sizeof(SurfaceGpuVertex);cached->surfaceGeneration=mesh->surfaceGeneration;
+        uploaded+=mesh->vertexCount*sizeof(SurfaceGpuVertex);++d->meshStats.staticSurfaceUploads;cached->surfaceGeneration=mesh->surfaceGeneration;
     }
     if(d->skin.mesh==mesh&&!DeformMeshGPU(d,cached,mesh))return false;
     if(uploaded){++d->meshStats.uploadCount;d->meshStats.totalBytesUploaded+=uploaded;d->meshStats.lastUploadMs=RendererNowMs()-uploadStart;}
@@ -2945,10 +2989,10 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     cached->vertexPointer=mesh->vertices;cached->indexPointer=mesh->indices;cached->vertexCount=mesh->vertexCount;cached->indexCount=mesh->indexCount;
     glBindVertexArray(cached->vao);
     glUseProgram(d->surfaceProgram);
-    glUniform4fv(d->surfaceRecipeLocation,SURFACE_RECIPE_ROWS,&mesh->surfaceRecipe.data[0][0]);
-    glUniform1ui(d->pigmentSeedLocation,mesh->surfaceRecipe.pigmentSeed);
-    glUniform1ui(d->scaleSeedLocation,mesh->surfaceRecipe.scaleSeed);
-    if(d->furSeedLocation>=0)glUniform1ui(d->furSeedLocation,mesh->surfaceRecipe.furSeed);
+    glUniform4fv(d->surfaceRecipeLocation,SURFACE_RECIPE_ROWS,&recipe->data[0][0]);
+    glUniform1ui(d->pigmentSeedLocation,recipe->pigmentSeed);
+    glUniform1ui(d->scaleSeedLocation,recipe->scaleSeed);
+    if(d->furSeedLocation>=0)glUniform1ui(d->furSeedLocation,recipe->furSeed);
     glUniform1i(d->surfaceDebugLocation,d->surfaceDebug);
     UploadHandoffs(d,d->surfaceProgram);
 
@@ -2973,7 +3017,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     glColorPointer(4,GL_UNSIGNED_BYTE,sizeof(GeometryGpuVertex),(const void*)offsetof(GeometryGpuVertex,color));
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);
 
-    int integumentType=(int)(mesh->surfaceRecipe.data[7][0]+0.5f);
+    int integumentType=(int)(recipe->data[7][0]+0.5f);
     if(d->furPassLocation>=0)glUniform1i(d->furPassLocation,0);
     if(d->shellFractionLocation>=0)glUniform1f(d->shellFractionLocation,0.0f);
     if(d->shellCountLocation>=0)glUniform1i(d->shellCountLocation,0);
@@ -2987,7 +3031,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     }
 
     // Resolución proyectada, con conjuntos anidados y peso óptico conservado.
-    if(integumentType==2 && mesh->surfaceRecipe.data[11][3]>0) {
+    if(integumentType==2 && recipe->data[11][3]>0) {
         GLfloat mv[16],projection[16];GLint viewport[4];
         glGetFloatv(GL_MODELVIEW_MATRIX,mv);glGetFloatv(GL_PROJECTION_MATRIX,projection);glGetIntegerv(GL_VIEWPORT,viewport);
         float minDepth=INFINITY;float grazing=0;unsigned samples=0;
@@ -2999,7 +3043,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
             if(depth>0)minDepth=fminf(minDepth,depth);
             grazing+=1-fabsf(mv[2]*n.x+mv[6]*n.y+mv[10]*n.z);++samples;
         }
-        float pixels=mesh->surfaceRecipe.data[8][0]*mesh->surfaceRecipe.data[11][2]*projection[5]*viewport[3]*.5f/fmaxf(.1f,minDepth);
+        float pixels=recipe->data[8][0]*recipe->data[11][2]*projection[5]*viewport[3]*.5f/fmaxf(.1f,minDepth);
         float resolution=Fur_ShellResolution(pixels,samples?grazing/samples:0,1);
         if(d->forcedShells>0)resolution=(float)d->forcedShells;
         float visibility=d->disableGuards?0:fmaxf(0,fminf(1,(pixels-3)/18));

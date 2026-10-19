@@ -35,7 +35,7 @@ La referencia `make -j6 test demos benchmarks/benchmark_ai` pasó antes de edita
 | `EcosystemWorld` | Propiedad, IDs, fases, cuerpo ligero, arbitraje de interacciones, nacimientos, muertes y estadísticas. |
 | `EcosystemScenario` | Condiciones iniciales reproducibles A–E, sin intervenir después del arranque. |
 
-Cada módulo tiene cabecera pública documentada en español y fuente inscrita en `CORE_SRCS`. No incluye SDL/GL. La simulación no crea `Monster`, SDF, mallas ni contextos gráficos.
+Cada módulo tiene cabecera pública documentada en español y fuente inscrita en `CORE_SRCS`. No incluye SDL/GL. La simulación no crea SDF, mallas ni contextos gráficos. Los perfiles anatómicos actuales compilan un `Monster` temporal para obtener el grafo y el rig, y conservan únicamente el cuerpo oral sin recursos gráficos.
 
 ### Propiedad e identidad
 
@@ -53,7 +53,7 @@ Las muertes se solicitan y se aplican al final del tick. Una muerte pendiente ya
 
 Por defecto: paso `1/60 s`, día ecológico de `120 s`, velocidad 1×. La presentación aporta tiempo real a un acumulador. Se procesan como máximo 64 pasos por frame; acelerar usa más pasos pequeños, nunca un `dt` grande. La deuda restante se conserva y `clock.behind`/el HUD muestran `ATRASO`. No se elimina tiempo biológico para recuperar FPS.
 
-El ejecutable headless llama a pasos fijos sin esperar presentación: máxima velocidad. La edad, metabolismo, memoria, acciones, gestación, regeneración y cooldowns sólo avanzan durante esos pasos. Pausar impide consumir ticks y acumular tiempo nuevo. La cámara y la selección siguen disponibles durante la pausa. El PRNG xorshift32 pertenece al mundo o a cada mente; no se usa `rand()`.
+El ejecutable headless llama a pasos fijos sin esperar presentación: máxima velocidad. La edad, metabolismo, memoria, acciones, gestación, regeneración y cooldowns sólo avanzan durante esos pasos. Pausar impide consumir ticks y acumular tiempo nuevo. La cámara y la selección siguen disponibles durante la pausa. Un clic izquierdo sobre la superficie de una criatura la selecciona y activa su seguimiento; `F` alterna el seguimiento y `Tab` cambia de individuo. Pulsar el fondo conserva la selección. El PRNG xorshift32 pertenece al mundo o a cada mente; no se usa `rand()`.
 
 La reproducción determinista se garantiza para la misma configuración, semilla y build/plataforma matemática. No se promete identidad bit a bit entre compiladores, arquitecturas o implementaciones de `libm`.
 
@@ -94,7 +94,7 @@ El motor tiene una intención de persecución que evita frenar hasta una velocid
 
 Un ataque exige acción/target correctos, presa viva y elegible, capacidad, energía, orientación, línea libre, alcance corporal y cooldown. Aplica daño configurable; una presa puede sobrevivir varios ataques. La muerte por salud cero genera un cadáver y nunca concede nutrición directamente al atacante.
 
-El cuerpo MVP es cinemático: discos para desplazamiento/evitación y una cadena oral analítica de dos segmentos iguales. La punta se mueve con velocidad acotada dentro de la esfera físicamente alcanzable; el codo se resuelve conservando longitud de ambos segmentos. Se comprueban residuo, dirección, bloqueo y estabilidad antes del contacto. La demo puede mostrar la cadena con `D`. **Este cuerpo no certifica los límites articulares de una receta procedural concreta.** El adaptador anatómico existente conserva `AnatomicalReach`, `MonsterAnimation` y `CreatureBoundary`; sustituir el cuerpo ligero por uno de esos adaptadores debe devolver resultados corporales reales, sin relajar sus restricciones.
+El cuerpo es cinemático. Los escenarios actuales usan discos conservadores para desplazamiento/evitación y un rig cervical de receta para el contacto real. Los perfiles sin `anatomicalOral` conservan el cuerpo MVP: una cadena oral analítica de dos segmentos iguales. La punta se mueve con velocidad acotada dentro de la esfera físicamente alcanzable; el codo se resuelve conservando longitud de ambos segmentos. Se comprueban residuo, dirección, bloqueo y estabilidad antes del contacto. La demo puede mostrar la cadena con `D`. **Este cuerpo no certifica los límites articulares de una receta procedural concreta.** El adaptador anatómico existente conserva `AnatomicalReach`, `MonsterAnimation` y `CreatureBoundary`; sustituir el cuerpo ligero por uno de esos adaptadores debe devolver resultados corporales reales, sin relajar sus restricciones.
 
 ### Reproducción y desarrollo
 
@@ -104,7 +104,7 @@ El rol gestante guarda genoma y generación del fecundante, IDs de concepción y
 
 Los nacimientos se encolan y se busca espacio libre cerca del gestante. Si faltan capacidad o posiciones válidas se registra fallo y termina ese embarazo, sin reintentar nacimientos infinitamente. El gestante entra en cooldown también después del parto.
 
-El genoma contiene tamaño adulto, velocidad, eficiencia metabólica, percepción, pigmento, morfología oral y maduración. Cada rasgo se recombina con contribuciones de ambos padres y mutación configurable; se limita a rangos físicos. El hijo recibe nuevo ID, PRNG, mente, reservas y ascendencia. Tamaño, capacidades y apariencia proxy se resuelven desde esos rasgos. La cronología es independiente de `MonsterAger.perc`: juveniles crecen, se hacen adultos reproductivos y finalmente senescentes. No se reconstruye geometría al avanzar edad o biomasa.
+El genoma contiene tamaño adulto, velocidad, eficiencia metabólica, percepción, pigmento, morfología oral y maduración. Cada rasgo se recombina con contribuciones de ambos padres y mutación configurable; se limita a rangos físicos. El hijo recibe nuevo ID, PRNG, mente, reservas y ascendencia. Tamaño, capacidades y apariencia anatómica se resuelven desde esos rasgos. La cronología es independiente de `MonsterAger.perc`: juveniles crecen, se hacen adultos reproductivos y finalmente senescentes. No se reconstruye geometría al avanzar edad o biomasa.
 
 ## Uso
 
@@ -154,7 +154,7 @@ Seleccionar un escenario aplica sus valores por defecto antes de las opciones ex
 
 HUD: día/hora, velocidad/deuda, poblaciones, nacimientos, muertes por causa, capturas, consumo y biomasa. La selección muestra especie, edad, etapa, salud, energía, hidratación, fatiga, objetivo, acción, target y estado reproductivo. El historial de población usa un anillo visual de 160 muestras; las estadísticas no guardan historiales ilimitados en memoria.
 
-Se crean seis mallas proxy compartidas una vez. Individuos, tamaños, cabeza/punta oral, pigmento y movimiento se dibujan desde el estado lógico. Plantas/cadáveres usan escala basada en biomasa; no se remallan. Son representaciones de baja resolución, no las recetas completas de perro/lagarto.
+Los animales utilizan las recetas procedurales Brumacerno y Velkar mediante plantillas compartidas por cubeta y LOD, crecimiento por estaciones y animación esquelética. Ojos, mandíbula y cuerpo siguen la misma pose; la boca utiliza la misma autoridad anatómica en visual y headless. Plantas y cadáveres conservan mallas sencillas con escala basada en biomasa. Construcción, medidas, capturas y límites se documentan en [ECOSYSTEM_CREATURE_VISUAL_INTEGRATION.md](ECOSYSTEM_CREATURE_VISUAL_INTEGRATION.md).
 
 ## Validación y mediciones
 
@@ -170,7 +170,7 @@ Los resultados finales, comandos y hardware medidos se incorporan al final de es
 - Se conserva el A* de 48×48 y el barrido lineal del abierto. Se midió antes de proponer una sustitución. La revisión de navegación cambia sólo para geometría no transitable; los objetos tienen una revisión propia de contacto. Regenerar plantas o publicar animales no obliga a replantear rutas estáticas.
 - Los discos y la desviación lateral local evitan contactos conservadores; la huida busca direcciones libres. No hay un solucionador recíproco de tráfico: pueden aparecer congestión y fallos cerca de estanques. Los counters los hacen observables; no se certifica navegación óptima ni supervivencia por tener agua en el mapa.
 - La visión es geométrica simple; no hay olfato, comunicación, evaluación sofisticada de riesgo ni caza colectiva. El rol reproductivo observado es una simplificación de reconocimiento de pareja.
-- Los genomas tienen siete rasgos, sin cromosomas ni evolución sofisticada. El cuerpo y los visuales proxy los utilizan; aún no hay un adaptador de descendientes que resuelva esos rasgos en recetas anatómicas completas, caché de fenotipos y rigs de producción.
+- Los genomas tienen siete rasgos, sin cromosomas ni evolución sofisticada. El cuerpo y el adaptador procedural los utilizan; los descendientes comparten geometría adulta y deforman sus proporciones conforme al desarrollo biológico.
 - No se serializa/reanuda un mundo ni se reproduce bit a bit en plataformas distintas. Los JSON/CSV son salidas de observación, no archivos de guardado.
 - La población puede extinguirse. No se añaden alimento, parejas o presas desde fuera para mantenerla viva. La calibración de tráfico, reserva energética y tasas ecológicas merece otro estudio con varias semillas.
 

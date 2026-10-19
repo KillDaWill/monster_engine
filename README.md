@@ -10,6 +10,15 @@
 
 Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico de cualquier librería de renderizado**, desarrollado en C idiomático con aceleración por Compute Shaders en GPU, metamorfosis ontogénica, inteligencia artificial animal continua y simulación de ecosistemas con genética heredable.
 
+## Editor de criaturas
+
+Ejecutar `make creature-editor` y abrir http://127.0.0.1:8765 para crear y modificar
+criaturas con vista 3D, controles anatómicos, pintura y cuatro etapas de crecimiento.
+Importa las recetas actuales del motor y guarda nuevas recetas JSON en `recipes/`
+sin recompilar sus datos. Incluye la criatura externa de ejemplo **Explorador**.
+Requiere Python 3 y un navegador con WebGL 2; no necesita npm ni servicios externos.
+Ver [manual del editor y API de carga](docs/CREATURE_EDITOR.md).
+
 ## 🚀 Arquitectura General
 
 El motor está compuesto por los siguientes módulos principales:

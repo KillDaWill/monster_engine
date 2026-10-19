@@ -77,9 +77,20 @@ bool Locomotion_Update(Locomotion* l,const Rig* rig,const GaitProfile* g,World* 
         FootState* f=&l->feet[i];
         float phase=fmodf(l->phase+f->phaseOffset,1);
         bool window=phase>=g->stanceRatio;
-        if(f->phase==FOOT_STANCE && window && !f->wasSwingWindow && contactSpeed>.001f) {
-            Vector3 restPos=rest.joints[limb->endEffectorJoint].worldPosition;
-            Vector3 home=Vec3_Add(l->bodyPosition,restPos);
+        Vector3 restPos=rest.joints[limb->endEffectorJoint].worldPosition;
+        Vector3 home=Vec3_Add(l->bodyPosition,restPos);
+        float length=0;
+        for(size_t joint=1;joint<limb->chain.jointCount;++joint)
+            length+=Vec3_Length(rig->skeleton.joints[limb->chain.jointIndices[joint]].restPosition);
+        float vertical=rest.joints[limb->rootJoint].worldPosition.y+l->bodyPosition.y-g->supportCompression-limb->soleHeight;
+        float reserve=sqrtf(fmaxf(.0001f,length*length-vertical*vertical))*.60f;
+        float travelLimit=fmaxf(g->stepHeight,fminf(g->strideLength*.65f,reserve));
+        Vector3 offset=Vec3_Sub(f->plantedPosition,home);offset.y=0;
+        /* Un cambio de fase o un giro rápido puede agotar el alcance antes
+         * de abrirse la ventana nominal. Levantar el pie conserva el contacto
+         * previo sin deslizarlo ni pedir a la IK una cadena imposible. */
+        bool release=Vec3_Length(offset)>travelLimit;
+        if(f->phase==FOOT_STANCE && ((window && !f->wasSwingWindow)||release) && contactSpeed>.001f) {
             Vector3 rel=Vec3_Sub(restPos,l->supportCenter);
             Vector3 footVel=l->velocity;
             if(fabsf(l->angularVelocity)>.0001f) {
@@ -88,7 +99,8 @@ bool Locomotion_Update(Locomotion* l,const Rig* rig,const GaitProfile* g,World* 
             }
             Vector3 stepOffset=Vec3_Scale(footVel,g->cycleDuration*g->stanceRatio*.5f);
             float stepLen=Vec3_Length(stepOffset);
-            if(stepLen>g->strideLength) stepOffset=Vec3_Scale(stepOffset,g->strideLength/stepLen);
+            float maximumStep=fminf(g->strideLength,travelLimit);
+            if(stepLen>maximumStep) stepOffset=Vec3_Scale(stepOffset,maximumStep/stepLen);
             Vector3 query=Vec3_Add(home,stepOffset);
             Vector3 target,normal;
             if(GroundTarget(world,query,limb->soleHeight,&target,&normal)) {

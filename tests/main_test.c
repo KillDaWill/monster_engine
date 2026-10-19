@@ -1,5 +1,8 @@
 #include <stdio.h>
 
+void run_creature_recipe_io_tests(void);
+void run_bovine_editor_tests(void);
+
 void run_gpu_sdf_surface_tests(void);
 void run_dog_tests(void);
 void run_gpu_device_policy_tests(void);
@@ -44,8 +47,14 @@ void run_creature_actions_tests(void);
 
 void run_anatomical_reach_tests(void);
 void run_ecosystem_tests(void);
+void run_creature_visual_variation_tests(void);
+void run_ecosystem_creatures_tests(void);
 int main(void) {
+    run_bovine_editor_tests();
+    run_creature_recipe_io_tests();
     run_ecosystem_tests();
+    run_creature_visual_variation_tests();
+    run_ecosystem_creatures_tests();
     printf("======================================\n");
     printf(" Ejecutando Test Suite (monster_engine)\n");
     printf("======================================\n");

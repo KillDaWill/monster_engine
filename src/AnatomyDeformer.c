@@ -607,12 +607,66 @@ static bool EvaluatePoseVertex(const AnatomyDeformer* d,const AnatomyPosePalette
         position->x+=(row[0][0]*bp.x+row[0][1]*bp.y+row[0][2]*bp.z+row[0][3])*w;
         position->y+=(row[1][0]*bp.x+row[1][1]*bp.y+row[1][2]*bp.z+row[1][3])*w;
         position->z+=(row[2][0]*bp.x+row[2][1]*bp.y+row[2][2]*bp.z+row[2][3])*w;
-        normal->x+=(row[0][0]*bn.x+row[0][1]*bn.y+row[0][2]*bn.z)*w;
-        normal->y+=(row[1][0]*bn.x+row[1][1]*bn.y+row[1][2]*bn.z)*w;
-        normal->z+=(row[2][0]*bn.x+row[2][1]*bn.y+row[2][2]*bn.z)*w;
+        Vector3 x={row[0][0],row[0][1],row[0][2]},y={row[1][0],row[1][1],row[1][2]},z={row[2][0],row[2][1],row[2][2]};
+        Vector3 cx=Vec3_Cross(y,z),cy=Vec3_Cross(z,x),cz=Vec3_Cross(x,y);
+        float det=Vec3_Dot(x,cx);
+        if(fabsf(det)>1e-20f) {
+            normal->x+=Vec3_Dot(cx,bn)*w/det;
+            normal->y+=Vec3_Dot(cy,bn)*w/det;
+            normal->z+=Vec3_Dot(cz,bn)*w/det;
+        }
     }
     float length=sqrtf(normal->x*normal->x+normal->y*normal->y+normal->z*normal->z);
     if(length>1e-12f){float inverse=1/length;normal->x*=inverse;normal->y*=inverse;normal->z*=inverse;}
+    return true;
+}
+bool AnatomyDeformer_BuildMorphPosePalette(const AnatomyDeformer* d,const Skeleton* s,
+    const SkeletonPose* p,const AnatomyGraph* graph,AnatomyPosePalette* palette) {
+    if(!AnatomyDeformer_BuildPosePalette(d,s,p,palette))return false;
+    if(!graph)return true;
+    for(size_t j=0;j<p->jointCount;++j) {
+        AnatomyId id=s->joints[j].anatomyId;
+        /* Un pivote cervical auxiliar no tiene volumen propio. Hereda la
+         * sección de su hijo anatómico para que también crezca su collar. */
+        if(!id)for(size_t child=j+1;child<s->jointCount;++child)
+            if(s->joints[child].parentIndex==(int)j&&s->joints[child].anatomyId){id=s->joints[child].anatomyId;break;}
+        const AnatomyNode* from=AnatomyGraph_FindNode(&d->refGraph,id);
+        const AnatomyNode* to=AnatomyGraph_FindNode(graph,id);
+        if(!from||!to)continue;
+        Vector3 scale={to->widthRadius/fmaxf(1e-6f,from->widthRadius),
+            to->heightRadius/fmaxf(1e-6f,from->heightRadius),to->widthRadius/fmaxf(1e-6f,from->widthRadius)};
+        Quaternion q=p->joints[j].worldRotation,rest=Quat_Inverse(d->bindPose.joints[j].worldRotation);
+        Vector3 axes[3]={{1,0,0},{0,1,0},{0,0,1}};
+        for(unsigned k=0;k<3;++k) {
+            Vector3 v=Quat_RotateVector(rest,axes[k]);v=(Vector3){v.x*scale.x,v.y*scale.y,v.z*scale.z};
+            v=Quat_RotateVector(q,v);
+            palette->rows[j][0][k]=v.x;palette->rows[j][1][k]=v.y;palette->rows[j][2][k]=v.z;
+        }
+        Vector3 b=d->bindPose.joints[j].worldPosition,t=p->joints[j].worldPosition;
+        float base[3]={b.x,b.y,b.z},target[3]={t.x,t.y,t.z};
+        for(unsigned row=0;row<3;++row) {
+            palette->rows[j][row][3]=target[row];
+            for(unsigned k=0;k<3;++k)palette->rows[j][row][3]-=palette->rows[j][row][k]*base[k];
+        }
+    }
+    return true;
+}
+bool AnatomyDeformer_ScaleJointPalette(const AnatomyDeformer* d,const SkeletonPose* p,
+    int joint,Vector3 scale,AnatomyPosePalette* palette) {
+    if(!d||!p||!palette||joint<0||(size_t)joint>=p->jointCount||
+       !isfinite(Vec3_LengthSq(scale))||scale.x<=0||scale.y<=0||scale.z<=0)return false;
+    Quaternion q=p->joints[joint].worldRotation,rest=Quat_Inverse(d->bindPose.joints[joint].worldRotation);
+    Vector3 axes[3]={{1,0,0},{0,1,0},{0,0,1}};
+    for(unsigned k=0;k<3;++k) {
+        Vector3 v=Quat_RotateVector(rest,axes[k]);v=(Vector3){v.x*scale.x,v.y*scale.y,v.z*scale.z};v=Quat_RotateVector(q,v);
+        palette->rows[joint][0][k]=v.x;palette->rows[joint][1][k]=v.y;palette->rows[joint][2][k]=v.z;
+    }
+    Vector3 b=d->bindPose.joints[joint].worldPosition,t=p->joints[joint].worldPosition;
+    float base[3]={b.x,b.y,b.z},target[3]={t.x,t.y,t.z};
+    for(unsigned row=0;row<3;++row) {
+        palette->rows[joint][row][3]=target[row];
+        for(unsigned k=0;k<3;++k)palette->rows[joint][row][3]-=palette->rows[joint][row][k]*base[k];
+    }
     return true;
 }
 bool AnatomyDeformer_EvaluatePoseVertex(const AnatomyDeformer* d,const AnatomyPosePalette* palette,

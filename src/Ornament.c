@@ -32,6 +32,28 @@ bool Ornament_Resolve(const OrnamentPhenotype* phenotype,
      * que la última estación comparta superficie con su tramo anterior. */
     float tipR = fmaxf(phenotype->tipRadius * s * dev, baseR * 0.30f);
     float midR = (baseR + tipR) * 0.5f;
+    if(phenotype->archetype==ORNAMENT_ARCHETYPE_HORN){
+        /* Barrido curvo con estaciones persistentes: la base crece hacia
+         * growthDirection y curvature dobla gradualmente la punta hacia up. */
+        Vector3 v=phenotype->growthDirection;
+        Vector3 axis=Vec3_LengthSq(v)>1e-6f?Vec3_Normalize(Vec3_Add(Vec3_Scale(slot->side,v.x),
+            Vec3_Add(Vec3_Scale(slot->up,v.y),Vec3_Scale(slot->forward,v.z)))):slot->up;
+        const uint16_t ids[7]={ORNAMENT_NODE_BASE,4,5,ORNAMENT_NODE_MID,6,7,ORNAMENT_NODE_TIP};
+        float tip=fmaxf(phenotype->tipRadius*s*dev,baseR*.045f);
+        for(unsigned i=0;i<7;++i){
+            float t=(float)i/6,curve=t*t;
+            Vector3 center=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length*t-baseR*.70f*(1-t)),
+                Vec3_Add(Vec3_Scale(slot->side,length*phenotype->lateralSweep*curve),
+                         Vec3_Scale(slot->up,length*phenotype->curvature*curve))));
+            float radius=baseR*powf(1-t,.8f)+tip*t;
+            if(!Module_Node(graph,module,ids[i],center,radius,radius,2,ANATOMY_ROLE_AXIAL,
+                ANATOMY_REGION_ORNAMENT,ANATOMY_SIDE_CENTER,phenotype->development))return false;
+            if(!Module_Edge(graph,module,(uint16_t)(i+1),i?Anatomy_MakeId(module,ids[i-1]):slot->hostNode,
+                Anatomy_MakeId(module,ids[i]),i?BODY_CONNECTION_ORNAMENT_SEGMENT:BODY_CONNECTION_SUPPORT,phenotype->development))return false;
+            graph->dormantConnections[graph->connectionCount-1]=phenotype->development<=0;
+        }
+        return true;
+    }
     if (phenotype->archetype == ORNAMENT_ARCHETYPE_CREST) {
         Vector3 a=Vec3_Sub(slot->position,Vec3_Scale(slot->forward,baseR));
         Vector3 b=Vec3_Add(slot->position,Vec3_Scale(slot->up,length*.25f));
@@ -65,6 +87,16 @@ bool Ornament_Resolve(const OrnamentPhenotype* phenotype,
     Vector3 tipPos = Vec3_Add(slot->position,
         Vec3_Add(Vec3_Scale(slot->up, length),
                  Vec3_Scale(slot->forward, phenotype->curvature * s * dev)));
+    if(Vec3_LengthSq(phenotype->growthDirection)>1e-6f) {
+        Vector3 v=phenotype->growthDirection;
+        Vector3 axis=Vec3_Normalize(Vec3_Add(Vec3_Scale(slot->side,v.x),
+            Vec3_Add(Vec3_Scale(slot->up,v.y),Vec3_Scale(slot->forward,v.z))));
+        basePos=Vec3_Sub(slot->position,Vec3_Scale(axis,baseR*.95f));
+        midPos=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length*.5f),
+            Vec3_Add(Vec3_Scale(slot->side,length*phenotype->lateralSweep*.6f),Vec3_Scale(slot->forward,phenotype->curvature*s*dev*.25f))));
+        tipPos=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length),
+            Vec3_Add(Vec3_Scale(slot->side,length*phenotype->lateralSweep*.35f),Vec3_Scale(slot->forward,phenotype->curvature*s*dev))));
+    }
 
     AnatomyId baseId = Anatomy_MakeId(module, ORNAMENT_NODE_BASE);
     AnatomyId midId = Anatomy_MakeId(module, ORNAMENT_NODE_MID);

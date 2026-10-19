@@ -59,7 +59,8 @@ typedef enum LimbArchetype {
     LIMB_ARCHETYPE_AVIAN,
     LIMB_ARCHETYPE_WING,
     LIMB_ARCHETYPE_FLIPPER,
-    LIMB_ARCHETYPE_CUSTOM
+    LIMB_ARCHETYPE_CUSTOM,
+    LIMB_ARCHETYPE_UNGULATE /**< Miembro mamífero ungulígrado con pezuña hendida. */
 } LimbArchetype;
 
 typedef struct LimbPhenotype {
@@ -78,6 +79,7 @@ typedef struct LimbPhenotype {
     float attachmentInset;
     float proximalSweep, distalSweep; /**< Desplazamientos longitudinales relativos a la longitud del miembro. */
     float footYaw; /**< Giro del autopodio en radianes, simétrico entre ambos lados. */
+    float flexionScale; /**< Amplitud articular mamífera; cero conserva el rango base. */
 } LimbPhenotype;
 
 typedef enum TailArchetype {
@@ -113,6 +115,8 @@ typedef struct OrnamentPhenotype {
     float tipRadius;
     float curvature;
     float development;
+    Vector3 growthDirection; /**< Dirección opcional en el marco side/up/forward del anclaje. */
+    float lateralSweep; /**< Arco lateral relativo a la longitud. */
 } OrnamentPhenotype;
 
 typedef struct EyePhenotype {

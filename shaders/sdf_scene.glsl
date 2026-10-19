@@ -37,6 +37,8 @@ int skipConnectorGroup(int i,int c,int globalIndex) {
 }
 // Identidad y cobertura siguen las mismas operaciones booleanas que la geometría.
 struct SDFResult {float distance;uint moduleId;uint regionId;uint materialId;float skinWeight;};
+// Los IDs de transporte del shader son independientes del enumerado C.
+uint tissueMaterial(int material){return material==8?5u:material==9?6u:1u;}
 vec4 joinSemantic(inout SDFResult sem,vec4 a,vec4 b,float k,uint module,uint region,uint material,float skin){
     float h=k<=.0001?(a.w<b.w?1.0:0.0):clamp(.5+.5*(b.w-a.w)/k,0.0,1.0);
     sem.skinWeight=mix(skin,sem.skinWeight,h);
@@ -58,7 +60,7 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
                 semantic.moduleId=uint(C_moduleInstanceId(c));semantic.regionId=uint(C_region(c));break;}}}
     for(int i=0;i<partCount;++i) {
         int b=partBase+i*P_STRIDE;
-        result=joinSemantic(semantic,result,vec4(P_color(b),SDF_Ellipsoid(p-P_center(b),P_radii(b))),bodySmoothness,0u,0u,1u,1.0);
+        result=joinSemantic(semantic,result,vec4(P_color(b),SDF_Ellipsoid(p-P_center(b),P_radii(b))),bodySmoothness,0u,0u,tissueMaterial(P_material(b)),P_material(b)==0?1.0:0.0);
     }
     for(int i=0;i<tileCount;++i) {
         int globalIndex=sceneConnectorIndex(i),c=connectorBase+globalIndex*C_STRIDE;
@@ -66,7 +68,7 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result.w+k))continue;
-        result=joinSemantic(semantic,result,vec4(C_color(c),MonsterSDF_EvalConnectorDistance(c,p)),k,uint(C_moduleInstanceId(c)),uint(C_region(c)),1u,1.0);
+        result=joinSemantic(semantic,result,vec4(C_color(c),MonsterSDF_EvalConnectorDistance(c,p)),k,uint(C_moduleInstanceId(c)),uint(C_region(c)),tissueMaterial(C_material(c)),C_material(c)==0?1.0:0.0);
     }
     for(int i=0;i<mouthCount;++i) {
         if(!rayHeadActive)continue;
@@ -121,7 +123,7 @@ vec4 scene(vec3 p){SDFResult sem;return sceneDetailed(p,sem);}
 float surfacePoseMaterial(vec3 p,SDFResult semantic) {
     uint skin=uint(round(clamp(semantic.skinWeight,0.0,1.0)*255.0));
     uint jaw=(semantic.materialId>>9)&511u;
-    return float(skin|(jaw<<8)|(semantic.regionId==1u?131072u:0u));
+    return float(skin|(jaw<<8)|(semantic.regionId==1u?131072u:0u)|((semantic.materialId&15u)<<18));
 }
 
 float sceneDistance(vec3 p) {

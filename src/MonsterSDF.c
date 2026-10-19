@@ -15,6 +15,21 @@ static void MonsterSDF_ResolveVisualBounds(MonsterSDF* sdf,size_t index);
 static bool MonsterSDF_BuildConnectorNodes(MonsterSDF* sdf);
 static void MonsterSDF_CompileSubtractionBounds(MonsterSDF* sdf);
 
+/* La identidad del tejido procede del módulo, no de rangos de IDs ni colores. */
+static SDFMaterial MonsterSDF_ConnectionMaterial(const Monster* monster,const BodyConnection* edge) {
+    if(!monster->hasCreaturePhenotype)return SDF_MATERIAL_SKIN;
+    for(size_t i=0;i<monster->recipe.bodyPlan.moduleCount;++i){
+        const CreatureModuleInstance* m=&monster->recipe.bodyPlan.modules[i];
+        if(m->instanceId!=edge->moduleInstanceId)continue;
+        if(m->kind==CREATURE_MODULE_ORNAMENT&&m->phenotypeIndex<monster->phenotype.ornamentCount&&
+            monster->phenotype.ornaments[m->phenotypeIndex].archetype==ORNAMENT_ARCHETYPE_HORN)return SDF_MATERIAL_HORN;
+        if(m->kind==CREATURE_MODULE_LIMB&&edge->kind==BODY_CONNECTION_DIGIT_SEGMENT&&
+            m->phenotypeIndex<monster->phenotype.limbCount&&
+            monster->phenotype.limbs[m->phenotypeIndex].archetype==LIMB_ARCHETYPE_UNGULATE)return SDF_MATERIAL_HOOF;
+    }
+    return SDF_MATERIAL_SKIN;
+}
+
 MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
     return (MonsterSDFConfig){
         .bodySmoothness = 0.5f,
@@ -274,6 +289,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             sdf->bodyParts[dst].invRadii.z * sdf->bodyParts[dst].invRadii.z);
         sdf->bodyParts[dst].minRadius = Math_Min(rx, Math_Min(ry, rz));
         sdf->bodyParts[dst].color = Monster_GetColorFromIndexStruct(monster, part->color);
+        sdf->bodyParts[dst].material = SDF_MATERIAL_SKIN;
         AABB_ExpandRadius(&sdf->bounds, sdf->bodyParts[dst].center, sdf->bodyParts[dst].radii);
     }
     /* 2. Conectores: grafo explícito o compatibilidad secuencial heredada. */
@@ -446,6 +462,14 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             c->isDistalLimb=b->role==ANATOMY_ROLE_JOINT&&(b->localNodeId==LIMB_NODE_DISTAL||b->localNodeId==LIMB_NODE_AUTOPOD);
             c->isAttachment=a->role==ANATOMY_ROLE_AXIAL && b->role==ANATOMY_ROLE_JOINT;
             c->color=Color_Lerp(Monster_GetColorFromIndex(monster,a->colorIndex),Monster_GetColorFromIndex(monster,b->colorIndex),.5f);
+            c->material=MonsterSDF_ConnectionMaterial(monster,edge);
+            if(c->material==SDF_MATERIAL_HORN){
+                float along=0;
+                for(size_t n=0;n<monster->anatomyGraph.nodeCount;++n){const AnatomyNode* root=&monster->anatomyGraph.nodes[n];
+                    if(root->moduleInstanceId==edge->moduleInstanceId&&root->localNodeId==ORNAMENT_NODE_BASE){
+                        along=Vec3_Distance(Vec3_Lerp(a->center,b->center,.5f),root->center)/Math_Max(monster->phenotype.axial.totalScale,.01f);break;}}
+                c->color=Color_Lerp(Color_FromRGB(219,205,167),Color_FromRGB(68,53,35),Math_Clamp01(along*.65f));
+            }else if(c->material==SDF_MATERIAL_HOOF)c->color=Color_FromRGB(49,43,35);
             AABB_ExpandRadius(&sdf->bounds,c->a,Vec3_Create(c->widthA,c->heightA,c->widthA));
             AABB_ExpandRadius(&sdf->bounds,c->b,Vec3_Create(c->widthB,c->heightB,c->widthB));
         }
@@ -477,6 +501,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             Color c1 = Monster_GetColorFromIndexStruct(monster, p1->color);
             Color c2 = Monster_GetColorFromIndexStruct(monster, p2->color);
             sdf->connectors[i].color = Color_Lerp(c1, c2, 0.5f);
+            sdf->connectors[i].material = SDF_MATERIAL_SKIN;
             AABB_ExpandRadius(&sdf->bounds, sdf->connectors[i].a, Vec3_Create(r1, r1, r1));
             AABB_ExpandRadius(&sdf->bounds, sdf->connectors[i].b, Vec3_Create(r2, r2, r2));
         }
@@ -1380,7 +1405,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
     for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
         const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
         float dist = MonsterSDF_EvalBodyPartDistance(part, point);
-        SDFSample partSample = SDFSample_Create(dist, part->color, SDF_MATERIAL_SKIN);
+        SDFSample partSample = SDFSample_Create(dist, part->color, part->material);
         if (!hasInitialSample) { accumulated = partSample; hasInitialSample = true; }
         else accumulated = SDFSample_SmoothUnion(accumulated, partSample, sdf->config.bodySmoothness);
     }
@@ -1400,7 +1425,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
         }
         if (tls_enableStats) tls_connectorExactCount++;
         float dist = MonsterSDF_EvalConnectorDistance(conn, point);
-        SDFSample connSample = SDFSample_Create(dist, conn->color, SDF_MATERIAL_SKIN);
+        SDFSample connSample = SDFSample_Create(dist, conn->color, conn->material);
         if (!hasInitialSample) { accumulated = connSample; hasInitialSample = true; }
         else accumulated = SDFSample_SmoothUnion(accumulated, connSample, localSmoothness);
     }
@@ -1568,7 +1593,7 @@ static SDFSample MonsterSDF_EvaluateBodyPartition(const MonsterSDF* sdf,Vector3 
     if(has) accumulated=SDFSample_Create(SDF_EllipticalSweepZ(point,sdf->axialStations,sdf->axialStationCount),(sdf->connectorCount?sdf->connectors[0].color:COLOR_WHITE),SDF_MATERIAL_SKIN);
     for(size_t i=0;i<sdf->bodyPartCount;++i) {
         const MonsterSDFBodyPart* part=&sdf->bodyParts[i];
-        SDFSample sample=SDFSample_Create(MonsterSDF_EvalBodyPartDistance(part,point),part->color,SDF_MATERIAL_SKIN);
+        SDFSample sample=SDFSample_Create(MonsterSDF_EvalBodyPartDistance(part,point),part->color,part->material);
         if(!has){accumulated=sample;has=true;}else accumulated=SDFSample_SmoothUnion(accumulated,sample,sdf->config.bodySmoothness);
     }
     for(size_t i=0;i<sdf->connectorCount;++i) {
@@ -1587,7 +1612,7 @@ static SDFSample MonsterSDF_EvaluateBodyPartition(const MonsterSDF* sdf,Vector3 
             continue;
         }
         if (tls_enableStats) tls_connectorExactCount++;
-        SDFSample sample=SDFSample_Create(MonsterSDF_EvalConnectorDistance(c,point),c->color,SDF_MATERIAL_SKIN);
+        SDFSample sample=SDFSample_Create(MonsterSDF_EvalConnectorDistance(c,point),c->color,c->material);
         if(!has){accumulated=sample;has=true;}else accumulated=SDFSample_SmoothUnion(accumulated,sample,smooth);
     }
     return accumulated;
