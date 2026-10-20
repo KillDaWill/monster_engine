@@ -94,6 +94,12 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
         return false;
     }
 
+    AttachmentSlot hanging=*slot;
+    if(p->droop>0) {
+        hanging.forward=Vec3_Normalize(Vec3_Lerp(slot->forward,Vec3_Create(0,-1,0),Math_Clamp01(p->droop)));
+        hanging.up=Vec3_Normalize(Vec3_Cross(hanging.side,hanging.forward));
+        slot=&hanging;
+    }
     AnatomyId previous = slot->hostNode;
     for (unsigned i = 0; i < p->segmentCount; ++i) {
         const float four[] = {0.0f, 0.28f, 0.62f, 1.0f};

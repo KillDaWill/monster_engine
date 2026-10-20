@@ -31,6 +31,8 @@ uniform float bodySmoothness;
 #define Vec3_Cross cross
 #define Vec3_Normalize normalize
 #define Vec3_Distance distance
+#define Vec3_Zero() vec3(0.0)
+#define powf pow
 #define cosf cos
 #define sinf sin
 #define Vec3_Length length
@@ -123,7 +125,7 @@ float SDF_EllipticalSweepZ(vec3 p,int base,int count) {
 }
 '''
 heads=[]
-for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalUpperHeadDistance']:
+for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCutter','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalUpperHeadDistance']:
     heads.append(function('src/MonsterSDF.c',name))
 
 def translate(s):
@@ -138,7 +140,7 @@ def translate(s):
     s=re.sub(r'mouth->(\w+)',r'M_\1(mouth)',s)
     s=re.sub(r'conn->(\w+)',r'C_\1(conn)',s)
     if '->' in s:raise ValueError(s)
-    return s
+    return s.replace('SDF_MATERIAL_HOOF','9')
 
 def posed_material_source():
     """Extrae anclajes de la misma inversa C sin repetir sus seis iteraciones.
@@ -169,11 +171,11 @@ def posed_material_source():
         '            weight=w*w*(3.0-2.0*w);\n        }\n        jawWeight=weight;\n    }\n    return posedDistance;')
     return source
 
-surface_modules=['hash','scales','pigment','fur_curve','fur','bump','lighting','evaluate']
+surface_modules=['hash','scales','pigment_regions','pigment','fur_curve','fur','bump','lighting','evaluate']
 surface='uniform vec4 surfaceRecipe[82];\nuniform uint pigmentSeed,scaleSeed,furSeed;\nuniform int sdfHasSurface,sdfFurEnabled;\n'
 surface+='\n'.join(re.sub(r'^#include .*\n','',
     (ROOT/f'shaders/surface/{name}.glsl').read_text(),flags=re.M) for name in surface_modules)
-domain=(ROOT/'shaders/surface/morph_domain.glsl').read_text()
+domain=re.sub(r'^#include .*\n','',(ROOT/'shaders/surface/morph_domain.glsl').read_text(),flags=re.M)
 handoff=(ROOT/'shaders/morph_handoff.glsl').read_text()+'\n'+domain
 core=prefix.split("\n",1)[1]+'\n'.join(access)+'\n'+prototypes+'\n'.join(map(translate,functions))+sweep+'\n'.join(map(translate,heads))+'\n'+posed_material_source()+'\n'+(ROOT/'shaders/sdf_scene.glsl').read_text()
 material=(ROOT/'shaders/sdf_surface_material.glsl').read_text()
@@ -272,10 +274,10 @@ interval_names=['Interval_Pad','Interval_Constant','Interval_Add','Interval_Subt
     'Interval_Square','Interval_Sqrt','Interval_SinHalfTurn','Interval_Project','SDF_CurvedPinnaInterval',
     'Interval_Lerp','Interval_Length','Interval_Component','Interval_Hull','SDF_EllipsoidInterval',
     'SDF_CapsuleInterval','SDF_RoundedSlotInterval','SDF_SmoothUnionInterval','SDF_SmoothSubtractInterval',
-    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_ConnectorInterval']
+    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_ConnectorPowerInterval','SDF_ConnectorInterval']
 interval_code=interval_prefix+'\n'.join(interval_translate(function('src/SDFInterval.c',name)) for name in interval_names)
 compute+=embed('sdfIntervalValidateSource','#version 430 compatibility\n'+core+interval_code+
     (ROOT/'shaders/sdf_interval_validate.comp').read_text())
-compute+=embed('sdfMeshVertexSource','#version 430 compatibility\nuniform vec4 surfaceRecipe[82];\n'+domain+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
+compute+=embed('sdfMeshVertexSource','#version 430 compatibility\nuniform vec4 surfaceRecipe[82];\n'+(ROOT/'shaders/surface/pigment_regions.glsl').read_text()+domain+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
 compute+=embed('sdfMeshFragmentSource','#version 430 compatibility\n'+core+surface+domain+'\nuniform vec3 cameraPosition,cameraForward,cameraRight,cameraUp;\n'+material+(ROOT/'shaders/sdf_surface_mesh.frag').read_text())
 (ROOT/'src/MonsterSDFCompute.generated.h').write_text('\n'.join(compute)+'\n')

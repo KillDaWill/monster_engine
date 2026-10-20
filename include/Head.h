@@ -21,7 +21,8 @@ extern "C" {
 typedef enum HeadArchetype {
     HEAD_ARCHETYPE_LIZARD = 0,
     HEAD_ARCHETYPE_CANID,
-    HEAD_ARCHETYPE_AVIAN
+    HEAD_ARCHETYPE_AVIAN,
+    HEAD_ARCHETYPE_BOVID
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */
@@ -130,6 +131,7 @@ typedef struct HeadLandmarks {
     Vector3 rightNostril; /**< Centro de narina derecha. */
     Vector3 leftTympanum; /**< Centro del tímpano externo izquierdo. */
     Vector3 rightTympanum; /**< Centro del tímpano externo derecho. */
+    Vector3 oralContactPoint; /**< Centro funcional de la abertura oral, separado del hueso mandibular. */
     Vector3 mandibularSymphysis; /**< Unión anterior de ambas ramas mandibulares. */
     Vector3 oralCavityCenter; /**< Centro semántico de la cavidad oral. */
     Vector3 leftEarBase; /**< Inserción de oreja izquierda. */
@@ -178,6 +180,7 @@ typedef struct HeadSurfaceRecipe {
     Vector3 rightOrbitNormal; /**< Dirección exterior del socket derecho. */
     float orbitSocketDepth; /**< Profundidad máxima del cutter orbital. */
     float eyelidCoverage; /**< Apertura palpebral semántica compilada al SDF. */
+    Vector3 eyelidProfile; /**< Arcos superior/inferior y avance normal del margen. */
     Vector3 noseCenter; /**< Centro de almohadilla nasal. */
     Vector3 noseRadii; /**< Radios de almohadilla nasal. */
     Vector3 leftNostrilCenter; /**< Centro del cutter nasal izquierdo. */
@@ -217,6 +220,10 @@ typedef struct HeadSurfaceRecipe {
     bool isBeak; /**< Indica una receta facial aviar. */
     float tympanumDevelopment; /**< Peso continuo de apertura timpánica. */
     bool hasTympana; /**< Activa aberturas timpánicas externas. */
+    float faceCapWeight; /**< Mezcla continua del límite facial durante metamorfosis. */
+    float faceCapDepth; /**< Profundidad terminal del rostro; cero conserva el casquete redondo. */
+    float oralSlope; /**< Pendiente sagital de labios y plano oral. */
+    float nostrilCurve; /**< Curvatura resuelta de la fosa nasal; cero elipsoidal. */
     float faceRounding; /**< Redondeo de la cuña facial. */
 } HeadSurfaceRecipe;
 
@@ -266,7 +273,7 @@ bool Head_Supports(HeadArchetype archetype);
 HeadPhenotype HeadPhenotype_LizardPreset(void);
 /** @return Fenotipo predefinido de cánido. */
 HeadPhenotype HeadPhenotype_CanidPreset(void);
-/** @return Fenotipo bovino sobre la base cefálica canina. */
+/** @return Fenotipo bóvido con puente estrecho y morro distal ancho. */
 HeadPhenotype HeadPhenotype_BovinePreset(void);
 /** @return Fenotipo felino sobre la base cefálica canina. */
 HeadPhenotype HeadPhenotype_FelinePreset(void);

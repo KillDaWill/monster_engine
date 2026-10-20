@@ -302,7 +302,13 @@ SurfaceMapping SurfaceMapping_FromAnatomy(const AnatomyGraph* g,float scale) {
         case ANATOMY_REGION_NECK:region=SURFACE_REGION_NECK;break;
         case ANATOMY_REGION_FORELIMB:case ANATOMY_REGION_LIMB:case ANATOMY_REGION_WING:region=SURFACE_REGION_FORELIMB;break;
         case ANATOMY_REGION_HINDLIMB:region=SURFACE_REGION_HINDLIMB;break;
-        case ANATOMY_REGION_TAIL:region=SURFACE_REGION_TAIL;break;
+        case ANATOMY_REGION_TAIL: {
+            bool terminal=true;
+            for(size_t edge=0;edge<g->connectionCount;++edge)if(g->connections[edge].fromId==g->nodes[i].id){terminal=false;break;}
+            /* La ornamentación terminal admite un pincel de pelo sin añadir
+             * geometría ni comprobar la identidad de una especie. */
+            region=terminal?SURFACE_REGION_ORNAMENT:SURFACE_REGION_TAIL;break;
+        }
         case ANATOMY_REGION_DIGIT:region=SURFACE_REGION_DIGIT;break;
         case ANATOMY_REGION_ORNAMENT:region=SURFACE_REGION_ORNAMENT;break;
         default:break;

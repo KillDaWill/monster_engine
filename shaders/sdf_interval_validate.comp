@@ -44,8 +44,8 @@ void main() {
     }
     if(intervalRecipe==7) {
         int c=intervalConnector;
-        interval=SDF_ConnectorInterval(box,C_a(c),C_forward(c),C_side(c),C_up(c),C_length(c),
-            C_widthA(c),C_widthB(c),C_heightA(c),C_heightB(c),C_widthBulge(c),C_heightBulge(c));
+        interval=SDF_ConnectorPowerInterval(box,C_a(c),C_forward(c),C_side(c),C_up(c),C_length(c),
+            C_widthA(c),C_widthB(c),C_heightA(c),C_heightB(c),C_widthBulge(c),C_heightBulge(c),C_material(c)==9);
     }
     float lo=1e30,hi=-1e30;
     for(int corner=0;corner<9;++corner) {

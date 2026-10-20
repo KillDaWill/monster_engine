@@ -141,7 +141,7 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
         Vector3 host = m->head.anatomy.attachmentBodyPartIndex < m->bodyPartCount
             ? m->bodyParts[m->head.anatomy.attachmentBodyPartIndex].positionRender : Vec3_Zero();
         r->oralDirection=Vec3_Normalize(Vec3_Sub(m->head.anatomy.landmarks.muzzleTip,m->head.anatomy.landmarks.muzzleRoot));
-        r->oralPoint = Vec3_Sub(Vec3_Add(host,m->head.anatomy.landmarks.mandibularSymphysis),head->center);
+        r->oralPoint = Vec3_Sub(Vec3_Add(host,m->head.anatomy.landmarks.oralContactPoint),head->center);
         r->cranialAttachment=Vec3_Add(host,m->head.anatomy.landmarks.neckAttachment);
         r->cranialAxis=Vec3_Normalize(Vec3_Sub(m->head.anatomy.landmarks.skullCenter,m->head.anatomy.landmarks.neckAttachment));
         r->cranialCollar=m->head.anatomy.surface.craniumRadii.z*.25f;

@@ -14,10 +14,12 @@ uniform float shellResolution;
 uniform bool regionalShellLOD;
 uniform vec2 shellSamples[32];
 #include "surface/hash.glsl"
+#include "surface/pigment_regions.glsl"
 #include "surface/fur_curve.glsl"
 
 out vec3 restCoord, restNormal, viewPosition, viewNormal;
 out vec4 vertexColor, profileA, profileB;
+out vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
 out float ventral, skinMask;
 flat out int tissueMaterial;
 out vec3 posedFlowOut,restFlowOut;
@@ -35,6 +37,8 @@ vec3 RotateFromTo(vec3 fromDir, vec3 toDir, vec3 v) {
 }
 
 void main() {
+    PigmentSetRegions(surfaceRegion);
+    pigmentMaskLegacy=pigmentCoverage[0];pigmentMaskFrom=pigmentCoverage[1];pigmentMaskTo=pigmentCoverage[2];
     ownershipRoot=gl_Vertex.xyz;ownershipNormal=normalize(gl_Normal);
     restCoord = materialCoord;
     restNormal = materialNormal;

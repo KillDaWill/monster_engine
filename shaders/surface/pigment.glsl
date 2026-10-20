@@ -1,3 +1,4 @@
+#include "pigment_regions.glsl"
 float SamplePigmentPattern(int pat, vec3 p, float scale, float sharpness, vec3 dir, uint seed) {
     vec3 q = p * max(scale, 0.01);
     float sh = clamp(sharpness, 0.0, 1.0);
@@ -64,7 +65,7 @@ vec3 EvaluatePigmentLegacy(vec3 p, float underside, vec4 params, uint seed) {
         vec4 layerDir = surfaceRecipe[36 + 3 * i];
         uint layerSeed = seed ^ uint(layerParam.w) ^ uint(i * 101);
         float sampleVal = SamplePigmentPattern(int(layerParam.x + 0.5), p, layerParam.y, layerParam.z, layerDir.xyz, layerSeed);
-        float blend = clamp(sampleVal * layerCol.a, 0.0, 1.0);
+        float blend = clamp(sampleVal * layerCol.a * pigmentCoverage[0][i], 0.0, 1.0);
         color = mix(color, layerCol.rgb, blend);
     }
     color *= 1.0 - params.x * (1.0 - underside);
@@ -89,7 +90,7 @@ vec3 EvaluatePigmentBank(vec3 p,float underside,int bank) {
         vec4 col=surfaceRecipe[bank+5+3*i],layer=surfaceRecipe[bank+6+3*i];
         uint layerSeed=seed^uint(layer.w)^uint(i*101);
         float value=SamplePigmentPattern(int(layer.x+.5),p,layer.y,layer.z,surfaceRecipe[bank+7+3*i].xyz,layerSeed);
-        color=mix(color,col.rgb,clamp(value*col.a,0.0,1.0));
+        color=mix(color,col.rgb,clamp(value*col.a*pigmentCoverage[bank==48?1:2][i],0.0,1.0));
     }
     color*=1.0-params.x*(1.0-underside);
     return mix(color,surfaceRecipe[bank+2].rgb,underside*params.y);

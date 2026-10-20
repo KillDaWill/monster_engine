@@ -1,0 +1,1321 @@
+{
+  "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd",
+  "recipe_sha256": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+  "captures": [
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-adult-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-adult-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-adult-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-adult-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-adult-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-adult-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-adult-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-adult-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-adult-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-juvenile-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--initial-age=60",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-juvenile-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-juvenile-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-newborn-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--initial-age=0",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-newborn-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-newborn-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-head-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--inspect=head",
+        "--zoom=1.2",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-head-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-head-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-head-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--inspect=head",
+        "--zoom=1.2",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-head-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-head-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-head-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--inspect=head",
+        "--zoom=1.2",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-head-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-head-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-feet-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--inspect=feet",
+        "--zoom=1",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-feet-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-feet-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-feet-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--inspect=feet",
+        "--zoom=1",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-feet-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-feet-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-feet-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--inspect=feet",
+        "--zoom=1",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-feet-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-feet-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-neck-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--inspect=neck",
+        "--zoom=1.6",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-neck-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-neck-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-neck-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--inspect=neck",
+        "--zoom=1.6",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-neck-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-neck-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-neck-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--inspect=neck",
+        "--zoom=1.6",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-neck-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-neck-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-walking",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=3600",
+        "--view=three-quarter",
+        "--capture-state=walking",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-walking.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-walking.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-drinking",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--frames=3600",
+        "--view=three-quarter",
+        "--capture-state=drinking",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-drinking.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-drinking.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-adult-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--capture=docs/validation/bull-overhaul/after/velkar-adult-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-adult-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-adult-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--capture=docs/validation/bull-overhaul/after/velkar-adult-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-adult-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-adult-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--capture=docs/validation/bull-overhaul/after/velkar-adult-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-adult-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-juvenile-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--initial-age=60",
+        "--capture=docs/validation/bull-overhaul/after/velkar-juvenile-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-juvenile-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-newborn-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--initial-age=0",
+        "--capture=docs/validation/bull-overhaul/after/velkar-newborn-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-newborn-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-head-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--inspect=head",
+        "--zoom=1.2",
+        "--capture=docs/validation/bull-overhaul/after/velkar-head-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-head-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-head-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--inspect=head",
+        "--zoom=1.2",
+        "--capture=docs/validation/bull-overhaul/after/velkar-head-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-head-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-head-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--inspect=head",
+        "--zoom=1.2",
+        "--capture=docs/validation/bull-overhaul/after/velkar-head-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-head-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-feet-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--inspect=feet",
+        "--zoom=1",
+        "--capture=docs/validation/bull-overhaul/after/velkar-feet-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-feet-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-feet-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--inspect=feet",
+        "--zoom=1",
+        "--capture=docs/validation/bull-overhaul/after/velkar-feet-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-feet-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-feet-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--inspect=feet",
+        "--zoom=1",
+        "--capture=docs/validation/bull-overhaul/after/velkar-feet-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-feet-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-neck-side",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=side",
+        "--inspect=neck",
+        "--zoom=1.6",
+        "--capture=docs/validation/bull-overhaul/after/velkar-neck-side.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-neck-side.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-neck-front",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=front",
+        "--inspect=neck",
+        "--zoom=1.6",
+        "--capture=docs/validation/bull-overhaul/after/velkar-neck-front.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-neck-front.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-neck-three-quarter",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=1",
+        "--view=three-quarter",
+        "--inspect=neck",
+        "--zoom=1.6",
+        "--capture=docs/validation/bull-overhaul/after/velkar-neck-three-quarter.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-neck-three-quarter.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-walking",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=3600",
+        "--view=three-quarter",
+        "--capture-state=walking",
+        "--capture=docs/validation/bull-overhaul/after/velkar-walking.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-walking.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-drinking",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=0",
+        "--carnivores=1",
+        "--plants=0",
+        "--focus=3",
+        "--frames=3600",
+        "--view=three-quarter",
+        "--capture-state=drinking",
+        "--capture=docs/validation/bull-overhaul/after/velkar-drinking.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-drinking.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-feeding",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--focus=23",
+        "--frames=2400",
+        "--capture-state=feeding",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-feeding.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-feeding.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-hunting",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--focus=31",
+        "--frames=2400",
+        "--capture-state=hunting",
+        "--capture=docs/validation/bull-overhaul/after/velkar-hunting.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-hunting.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-attacking",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--focus=31",
+        "--frames=6000",
+        "--capture-state=attacking",
+        "--capture=docs/validation/bull-overhaul/after/velkar-attacking.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-attacking.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "velkar-feeding",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--scenario=C",
+        "--capture-species=2",
+        "--speed=4",
+        "--frames=12000",
+        "--capture-state=feeding",
+        "--capture=docs/validation/bull-overhaul/after/velkar-feeding.ppm",
+        "--profile=docs/validation/bull-overhaul/after/velkar-feeding.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "brumacerno-fleeing",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--scenario=E",
+        "--capture-species=1",
+        "--speed=4",
+        "--frames=6000",
+        "--capture-state=fleeing",
+        "--capture=docs/validation/bull-overhaul/after/brumacerno-fleeing.ppm",
+        "--profile=docs/validation/bull-overhaul/after/brumacerno-fleeing.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "recipe_sha256": {
+        "recipes/catalog.txt": "e5f9468d262c30553124b92d93ef84cf181e26294f85f33f20c6212984ca9142",
+        "recipes/brumacerno.creature.json": "2791249453e02ab097d636e9736f29573b374d3da51422064edfd8b390f34f95",
+        "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+      },
+      "name": "overview",
+      "command": [
+        "./demos/demo_ecosystem",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--frames=180",
+        "--zoom=25",
+        "--view=three-quarter",
+        "--capture=docs/validation/bull-overhaul/after/overview.ppm",
+        "--profile=docs/validation/bull-overhaul/after/overview.json"
+      ],
+      "exit_code": 0,
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    }
+  ],
+  "correctness_matrix": [
+    {
+      "name": "cpu-adult",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--cpu-skinning",
+        "--frames=1",
+        "--view=three-quarter",
+        "--capture=docs/validation/bull-overhaul/correctness/cpu-adult.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/cpu-adult.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "cpu-newborn",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--cpu-skinning",
+        "--frames=1",
+        "--view=side",
+        "--initial-age=0",
+        "--capture=docs/validation/bull-overhaul/correctness/cpu-newborn.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/cpu-newborn.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "cpu-drinking",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--cpu-skinning",
+        "--frames=3600",
+        "--view=three-quarter",
+        "--capture-state=drinking",
+        "--capture=docs/validation/bull-overhaul/correctness/cpu-drinking.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/cpu-drinking.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "lod-cycle",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--lod-cycle",
+        "--frames=720",
+        "--view=three-quarter",
+        "--validate-mouth=720",
+        "--capture=docs/validation/bull-overhaul/correctness/lod-cycle.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/lod-cycle.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "lod-mid",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--frames=1",
+        "--inspect=head",
+        "--zoom=1.4",
+        "--view=three-quarter",
+        "--focus-lod=mid",
+        "--capture=docs/validation/bull-overhaul/correctness/lod-mid.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/lod-mid.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "lod-far",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--frames=1",
+        "--inspect=head",
+        "--zoom=1.4",
+        "--view=three-quarter",
+        "--focus-lod=far",
+        "--capture=docs/validation/bull-overhaul/correctness/lod-far.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/lod-far.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "lod-near",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--frames=1",
+        "--inspect=head",
+        "--zoom=1.4",
+        "--view=three-quarter",
+        "--focus-lod=near",
+        "--capture=docs/validation/bull-overhaul/correctness/lod-near.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/lod-near.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "horns-front",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=1",
+        "--carnivores=0",
+        "--plants=0",
+        "--focus=3",
+        "--no-hud",
+        "--inspect=body",
+        "--zoom=3",
+        "--validate-mouth=240",
+        "--validate-skinning",
+        "--frames=1",
+        "--inspect=head",
+        "--zoom=2.2",
+        "--view=front",
+        "--capture=docs/validation/bull-overhaul/correctness/horns-front.ppm",
+        "--profile=docs/validation/bull-overhaul/correctness/horns-front.json"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    }
+  ],
+  "fixed_camera_performance": [
+    {
+      "name": "fixed-before-10",
+      "exit_code": 0,
+      "command": [
+        "./build/bull-overhaul-baseline",
+        "--herbivores=8",
+        "--carnivores=2",
+        "--capacity=128",
+        "--frames=900",
+        "--zoom=40",
+        "--no-hud",
+        "--view=three-quarter",
+        "--profile=docs/validation/bull-overhaul/performance/fixed-before-10.json",
+        "--capture=docs/validation/bull-overhaul/performance/fixed-before-10.ppm",
+        "--recipes-dir=docs/validation/bull-overhaul/before"
+      ],
+      "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+    },
+    {
+      "name": "fixed-after-10",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=8",
+        "--carnivores=2",
+        "--capacity=128",
+        "--frames=900",
+        "--zoom=40",
+        "--no-hud",
+        "--view=three-quarter",
+        "--profile=docs/validation/bull-overhaul/performance/fixed-after-10.json",
+        "--capture=docs/validation/bull-overhaul/performance/fixed-after-10.ppm"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "fixed-before-30",
+      "exit_code": 0,
+      "command": [
+        "./build/bull-overhaul-baseline",
+        "--herbivores=24",
+        "--carnivores=6",
+        "--capacity=128",
+        "--frames=600",
+        "--zoom=40",
+        "--no-hud",
+        "--view=three-quarter",
+        "--profile=docs/validation/bull-overhaul/performance/fixed-before-30.json",
+        "--capture=docs/validation/bull-overhaul/performance/fixed-before-30.ppm",
+        "--recipes-dir=docs/validation/bull-overhaul/before"
+      ],
+      "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+    },
+    {
+      "name": "fixed-after-30",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=24",
+        "--carnivores=6",
+        "--capacity=128",
+        "--frames=600",
+        "--zoom=40",
+        "--no-hud",
+        "--view=three-quarter",
+        "--profile=docs/validation/bull-overhaul/performance/fixed-after-30.json",
+        "--capture=docs/validation/bull-overhaul/performance/fixed-after-30.ppm"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    },
+    {
+      "name": "fixed-before-100",
+      "exit_code": 0,
+      "command": [
+        "./build/bull-overhaul-baseline",
+        "--herbivores=80",
+        "--carnivores=20",
+        "--capacity=128",
+        "--frames=300",
+        "--zoom=40",
+        "--no-hud",
+        "--view=three-quarter",
+        "--profile=docs/validation/bull-overhaul/performance/fixed-before-100.json",
+        "--capture=docs/validation/bull-overhaul/performance/fixed-before-100.ppm",
+        "--recipes-dir=docs/validation/bull-overhaul/before"
+      ],
+      "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+    },
+    {
+      "name": "fixed-after-100",
+      "exit_code": 0,
+      "command": [
+        "./demos/demo_ecosystem",
+        "--herbivores=80",
+        "--carnivores=20",
+        "--capacity=128",
+        "--frames=300",
+        "--zoom=40",
+        "--no-hud",
+        "--view=three-quarter",
+        "--profile=docs/validation/bull-overhaul/performance/fixed-after-100.json",
+        "--capture=docs/validation/bull-overhaul/performance/fixed-after-100.ppm"
+      ],
+      "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+    }
+  ]
+}

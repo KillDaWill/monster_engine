@@ -1,0 +1,107 @@
+[
+  {
+    "name": "fixed-before-10",
+    "exit_code": 0,
+    "command": [
+      "./build/bull-overhaul-baseline",
+      "--herbivores=8",
+      "--carnivores=2",
+      "--capacity=128",
+      "--frames=900",
+      "--zoom=40",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/fixed-before-10.json",
+      "--capture=docs/validation/bull-overhaul/performance/fixed-before-10.ppm",
+      "--recipes-dir=docs/validation/bull-overhaul/before"
+    ],
+    "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+  },
+  {
+    "name": "fixed-after-10",
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_ecosystem",
+      "--herbivores=8",
+      "--carnivores=2",
+      "--capacity=128",
+      "--frames=900",
+      "--zoom=40",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/fixed-after-10.json",
+      "--capture=docs/validation/bull-overhaul/performance/fixed-after-10.ppm"
+    ],
+    "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+  },
+  {
+    "name": "fixed-before-30",
+    "exit_code": 0,
+    "command": [
+      "./build/bull-overhaul-baseline",
+      "--herbivores=24",
+      "--carnivores=6",
+      "--capacity=128",
+      "--frames=600",
+      "--zoom=40",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/fixed-before-30.json",
+      "--capture=docs/validation/bull-overhaul/performance/fixed-before-30.ppm",
+      "--recipes-dir=docs/validation/bull-overhaul/before"
+    ],
+    "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+  },
+  {
+    "name": "fixed-after-30",
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_ecosystem",
+      "--herbivores=24",
+      "--carnivores=6",
+      "--capacity=128",
+      "--frames=600",
+      "--zoom=40",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/fixed-after-30.json",
+      "--capture=docs/validation/bull-overhaul/performance/fixed-after-30.ppm"
+    ],
+    "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+  },
+  {
+    "name": "fixed-before-100",
+    "exit_code": 0,
+    "command": [
+      "./build/bull-overhaul-baseline",
+      "--herbivores=80",
+      "--carnivores=20",
+      "--capacity=128",
+      "--frames=300",
+      "--zoom=40",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/fixed-before-100.json",
+      "--capture=docs/validation/bull-overhaul/performance/fixed-before-100.ppm",
+      "--recipes-dir=docs/validation/bull-overhaul/before"
+    ],
+    "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+  },
+  {
+    "name": "fixed-after-100",
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_ecosystem",
+      "--herbivores=80",
+      "--carnivores=20",
+      "--capacity=128",
+      "--frames=300",
+      "--zoom=40",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/fixed-after-100.json",
+      "--capture=docs/validation/bull-overhaul/performance/fixed-after-100.ppm"
+    ],
+    "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+  }
+]

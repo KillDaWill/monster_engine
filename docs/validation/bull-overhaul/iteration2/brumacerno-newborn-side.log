@@ -1,0 +1,10 @@
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=0
+geometry_warmup_seconds=0.561394 cache_builds=1
+scale_proof recipeId=3 meshRadius=0.265100 measuredMeshRadius=2.212221 meshLength=10.313039 calibrationLength=1.415427 totalScale=1.000000 k=1.448325992 rendered_width=0.211197 species_radius=0.950000 expected_width=0.522559 normalized_width=0.383951
+capture_mesh_ready=1 tier=2 body_vertices=20148 head_vertices=0
+capture_entity=3 species=1 recipe=3 action=wander stage=0
+process_cpu_mean_ms=634.012000
+meshCacheMisses=3 staticGeometryUploads=3 staticSurfaceUploads=3 indexUploads=3 furRootUploads=0 skinUploads=3
+mouth_validation_method=Rig.oralPoint_en_pose_vs_boca_ecologica
+mouth_err_max_m=0.000187635 mouth_err_p95_m=0.000187635 mouth_validation_frames=1

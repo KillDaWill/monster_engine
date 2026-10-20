@@ -80,4 +80,7 @@ SDFInterval SDF_EllipticalSweepInterval(AABB3D box,const SDFSweepStation* statio
  */
 SDFInterval SDF_ConnectorInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
     float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge);
+/** @brief Intervalo del conector elíptico o superelíptico de casco, con la misma sección escalar. */
+SDFInterval SDF_ConnectorPowerInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
+    float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge,bool hoof);
 #endif

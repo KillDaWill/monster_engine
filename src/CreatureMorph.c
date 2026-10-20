@@ -26,6 +26,7 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->landmarks.rightNostril=Vec3_Lerp(a->landmarks.rightNostril,b->landmarks.rightNostril,t);
     out->landmarks.leftTympanum=Vec3_Lerp(a->landmarks.leftTympanum,b->landmarks.leftTympanum,t);
     out->landmarks.rightTympanum=Vec3_Lerp(a->landmarks.rightTympanum,b->landmarks.rightTympanum,t);
+    out->landmarks.oralContactPoint=Vec3_Lerp(a->landmarks.oralContactPoint,b->landmarks.oralContactPoint,t);
     out->landmarks.mandibularSymphysis=Vec3_Lerp(a->landmarks.mandibularSymphysis,b->landmarks.mandibularSymphysis,t);
     out->landmarks.oralCavityCenter=Vec3_Lerp(a->landmarks.oralCavityCenter,b->landmarks.oralCavityCenter,t);
     out->landmarks.leftEarBase=Vec3_Lerp(a->landmarks.leftEarBase,b->landmarks.leftEarBase,t);
@@ -69,6 +70,7 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->surface.leftOrbitNormal=Vec3_Lerp(a->surface.leftOrbitNormal,b->surface.leftOrbitNormal,t);
     out->surface.rightOrbitNormal=Vec3_Lerp(a->surface.rightOrbitNormal,b->surface.rightOrbitNormal,t);
     out->surface.orbitSocketDepth=Math_Lerp(a->surface.orbitSocketDepth,b->surface.orbitSocketDepth,t);
+    out->surface.eyelidProfile=Vec3_Lerp(a->surface.eyelidProfile,b->surface.eyelidProfile,t);
     out->surface.eyelidCoverage=Math_Lerp(a->surface.eyelidCoverage,b->surface.eyelidCoverage,t);
     out->surface.noseCenter=Vec3_Lerp(a->surface.noseCenter,b->surface.noseCenter,t);
     out->surface.noseRadii=Vec3_Lerp(a->surface.noseRadii,b->surface.noseRadii,t);
@@ -109,6 +111,10 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->surface.isBeak=a->surface.isBeak || b->surface.isBeak;
     out->surface.tympanumDevelopment=Math_Lerp(a->surface.hasTympana?a->surface.tympanumDevelopment:0,b->surface.hasTympana?b->surface.tympanumDevelopment:0,t);
     out->surface.hasTympana=a->surface.hasTympana || b->surface.hasTympana;
+    out->surface.faceCapWeight=Math_Lerp(a->surface.faceCapWeight,b->surface.faceCapWeight,t);
+    out->surface.faceCapDepth=Math_Lerp(a->surface.faceCapDepth,b->surface.faceCapDepth,t);
+    out->surface.oralSlope=Math_Lerp(a->surface.oralSlope,b->surface.oralSlope,t);
+    out->surface.nostrilCurve=Math_Lerp(a->surface.nostrilCurve,b->surface.nostrilCurve,t);
     out->surface.faceRounding=Math_Lerp(a->surface.faceRounding,b->surface.faceRounding,t);
     out->oralSystem.offset=Vec3_Lerp(a->oralSystem.offset,b->oralSystem.offset,t);
     out->oralSystem.rotation=Vec3_Lerp(a->oralSystem.rotation,b->oralSystem.rotation,t);

@@ -25,9 +25,9 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     float side=p->side==LIMB_RIGHT?-1:1;
     float length=p->length*slot->scale*fmaxf(.01f,p->development);
     float r=p->thickness*slot->scale*fmaxf(.01f,p->development);
-    float upper=(hind?.36f:.35f)*p->proximalScale;
-    float lower=(hind?.40f:.53f)*p->middleScale;
-    float distal=(hind?.24f:.12f)*p->distalScale;
+    float upper=(hoof?.34f:(hind?.36f:.35f))*p->proximalScale;
+    float lower=(hoof?.34f:(hind?.40f:.53f))*p->middleScale;
+    float distal=(hoof?.32f:(hind?.24f:.12f))*p->distalScale;
     float sum=upper+lower+distal;
     upper/=sum; lower/=sum;
     float inset=-side*r*p->attachmentInset;

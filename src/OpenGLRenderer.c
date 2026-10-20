@@ -1974,8 +1974,8 @@ bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* r,const MonsterSDF* sdf,f
             if(recipe==7) {
                 connector=sdf->connectors[0];connector.isHeadNeck=false;
                 field.connectors=&connector;field.connectorCount=1;
-                cpu=SDF_ConnectorInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
-                    connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.widthBulge,connector.heightBulge);
+                cpu=SDF_ConnectorPowerInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
+                    connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.widthBulge,connector.heightBulge,connector.material==SDF_MATERIAL_HOOF);
             }
             float lo=INFINITY,hi=-INFINITY;
             for(unsigned corner=0;corner<9;++corner) {

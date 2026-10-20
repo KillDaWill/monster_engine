@@ -1,0 +1,23 @@
+[
+  {
+    "case": "cpu-adult",
+    "mean_absolute_channel_error": 0.0015576171875,
+    "max_channel_error": 45,
+    "pixels_changed": 312,
+    "pixels_over_3": 159
+  },
+  {
+    "case": "cpu-newborn",
+    "mean_absolute_channel_error": 0.0,
+    "max_channel_error": 0,
+    "pixels_changed": 0,
+    "pixels_over_3": 0
+  },
+  {
+    "case": "cpu-drinking",
+    "mean_absolute_channel_error": 0.0009742838541666667,
+    "max_channel_error": 46,
+    "pixels_changed": 224,
+    "pixels_over_3": 103
+  }
+]

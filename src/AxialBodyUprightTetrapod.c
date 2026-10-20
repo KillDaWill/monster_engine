@@ -78,9 +78,9 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     float zW = pectoralNode->center.z;
     float deltaW = withersElev * p->withersHeight * s * .5f;
     float dorsal0 = neckNode->center.y + neckNode->heightRadius;
-    float ventral0 = neckNode->center.y - neckNode->heightRadius;
+    float ventral0 = neckNode->center.y - neckNode->heightRadius-p->dewlapDepth*p->neckWidth*s;
     float dorsalW = pectoralNode->center.y + pectoralNode->heightRadius + deltaW;
-    float ventralW = pectoralNode->center.y - pectoralNode->heightRadius;
+    float ventralW = pectoralNode->center.y - pectoralNode->heightRadius-p->brisketDepth*p->thoraxHeight*s;
     if (z0 <= zW) return false;
     int count = 0;
     for (unsigned i=0;i<4;++i) {
@@ -104,8 +104,9 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     if (zPW <= thoraxANode->center.z + 0.05f * s) zPW = (zW + thoraxANode->center.z) * 0.5f;
     float wPW = (pectoralNode->widthRadius + thoraxANode->widthRadius) * .5f;
     float deltaPW = deltaW * .35f;
-    float hPW = thoraxANode->heightRadius + deltaPW * .5f;
-    float yPW = thoraxANode->center.y + deltaPW * .5f;
+    float chestSoft=p->brisketDepth*p->thoraxHeight*s*.35f;
+    float hPW = thoraxANode->heightRadius + deltaPW * .5f+chestSoft*.5f;
+    float yPW = thoraxANode->center.y + deltaPW * .5f-chestSoft*.5f;
     outStations[count++] = (SDFSweepStation){.center = {0, yPW, zPW}, .width = wPW, .height = hPW};
 
     /* 6. Tórax Anterior */

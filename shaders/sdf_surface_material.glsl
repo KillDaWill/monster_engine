@@ -2,6 +2,7 @@
 uniform int sdfSurfaceDebug;
 vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 displayNormal,vec4 sampleValue,SDFResult semantic,
     vec3 materialCoord,vec3 materialNormal,vec4 profileA,vec4 profileB,float ventral,vec3 flow) {
+    PigmentSetAnatomyRegion(int(semantic.regionId),ventral);
     if(sdfSurfaceDebug==25)return n*.5+.5;
     if(sdfSurfaceDebug==26)return vec3(1);
     vec3 viewDelta=displayPosition-cameraPosition;
@@ -13,6 +14,10 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
     vec3 light=normalize(vec3(10,20,15)-p);
     vec3 color=sampleValue.xyz*(.4+max(dot(n,light),0.0));
     uint tissue=semantic.materialId&255u;
+    if(tissue==4u) {
+        if(sdfSurfaceDebug==27)return sampleValue.xyz;
+        return SurfaceLighting(SurfaceResponse(sampleValue.xyz,viewN,.34,.28),viewP);
+    }
     if(tissue==5u||tissue==6u){
         if(sdfSurfaceDebug==27)return sampleValue.xyz;
         SurfaceResponse keratin=SurfaceResponse(sampleValue.xyz,viewN,tissue==5u?.38:.55,.30);

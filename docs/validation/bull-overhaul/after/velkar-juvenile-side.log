@@ -1,0 +1,22 @@
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=0
+geometry_warmup_seconds=2.664775 cache_builds=1
+scale_proof recipeId=4 meshRadius=0.325150 measuredMeshRadius=0.960146 meshLength=9.175068 calibrationLength=2.998029 totalScale=0.950000 k=0.683782637 rendered_width=0.172321 species_radius=0.800000 expected_width=0.620050 normalized_width=0.222332
+capture_mesh_ready=1 tier=2 body_vertices=48742 head_vertices=0
+capture_body_components=12 largest_triangles=96140 second_triangles=612
+mesh_island triangles=8 material=0 min=1.06013,4.22861,1.4384 max=1.07016,4.23553,1.45215
+mesh_island triangles=8 material=3 min=-0.920709,3.32144,1.72653 max=-0.9204,3.32219,1.72858
+mesh_island triangles=8 material=3 min=-0.83319,3.30749,1.81601 max=-0.830178,3.31015,1.81755
+mesh_island triangles=8 material=3 min=-0.84823,3.46068,1.79032 max=-0.843011,3.4663,1.7933
+mesh_island triangles=8 material=3 min=0.902679,3.44811,1.73786 max=0.904174,3.45021,1.74226
+mesh_island triangles=8 material=3 min=0.890378,3.30858,1.76551 max=0.891135,3.30965,1.76662
+mesh_island triangles=8 material=0 min=0.800223,3.44811,1.82896 max=0.803268,3.44977,1.82996
+mesh_island triangles=8 material=0 min=0.860011,3.45899,1.77272 max=0.868142,3.46467,1.78143
+mesh_island triangles=8 material=0 min=0.846488,3.4595,1.78726 max=0.854643,3.46348,1.79303
+capture_world_body_bounds min=3.08793,-0.00113555,-12.5886 max=4.70494,1.08197,-11.1313
+capture_jaw_scale=0.457116,0.526646,0.426383 rest_rot=0,0,0,1 pose_rot=0,0,0,1
+capture_entity=3 species=2 recipe=4 action=wander stage=0
+process_cpu_mean_ms=2812.189000
+meshCacheMisses=3 staticGeometryUploads=3 staticSurfaceUploads=3 indexUploads=3 furRootUploads=0 skinUploads=3
+mouth_validation_method=Rig.oralPoint_en_pose_vs_boca_ecologica
+mouth_err_max_m=0.000414937 mouth_err_p95_m=0.000414937 mouth_validation_frames=1

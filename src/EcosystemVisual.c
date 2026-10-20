@@ -329,6 +329,17 @@ static bool BuildMainMeshes(CacheEntry* entry, const EcosystemVisualCacheKey key
      * pabellones: una rejilla global gruesa podía borrar miembros completos. */
     size_t count=MonsterSDF_GetDetailRegions(sdf,key.tier==VISUAL_TIER_NEAR?1.8f:1.2f,regions,MONSTER_SDF_DETAIL_REGION_CAPACITY);
     count=TailDetailRegions(sdf,&monster->anatomyGraph,regions,count,MONSTER_SDF_DETAIL_REGION_CAPACITY);
+    if(key.tier==VISUAL_TIER_NEAR)for(size_t m=0;m<sdf->mouthCount&&count+5<=MONSTER_SDF_DETAIL_REGION_CAPACITY;++m) {
+        const MonsterSDFMouth* head=&sdf->mouths[m];
+        float unit=monster->phenotype.axial.totalScale;
+        regions[count++]=(SDFDetailRegion){.bounds=head->headBounds,.targetVoxelSize=.06f*unit};
+        Vector3 points[]={head->leftNostrilCenterLocal,head->rightNostrilCenterLocal,head->leftOrbitCenterLocal,head->rightOrbitCenterLocal};
+        for(unsigned feature=0;feature<4;++feature) {
+            Vector3 center=Vec3_Add(head->center,points[feature]);
+            Vector3 radii=Vec3_Scale(feature<2?head->nostrilRadii:head->orbitRadii,2);
+            regions[count++]=(SDFDetailRegion){.bounds=AABB_FromMinMax(Vec3_Sub(center,radii),Vec3_Add(center,radii)),.targetVoxelSize=.025f*unit};
+        }
+    }
     mesher.config.adaptiveDetail=count>0;
     if (key.tier == VISUAL_TIER_FAR) {
         MonsterSDFBodyField context;
@@ -350,10 +361,11 @@ static bool BuildMainMeshes(CacheEntry* entry, const EcosystemVisualCacheKey key
         MonsterSDFHeadField context;
         SDFField field = MonsterSDF_GetHeadField(sdf, 0, &context);
         SDFMesher headMesher = SDFMesher_Create((SDFMesherConfig){
-            .voxelSize = .38f, .maxResolution = 96, .maxCells = 180000u,
+            .voxelSize = .20f, .maxResolution = 160, .maxCells = 220000u,
             .isolevel = 0.0f, .normalEps = 0.0f, .useAutoBounds = true,
             .samplingThreadCount = 1});
-        if (sdf->mouthCount && !SDFMesher_GenerateMesh(&headMesher, &field, &entry->head)) ok = false;
+        headMesher.config.adaptiveDetail=count>0;
+        if (sdf->mouthCount && !(count?SDFMesher_GenerateMeshDetailed(&headMesher,&field,regions,count,&entry->head):SDFMesher_GenerateMesh(&headMesher,&field,&entry->head))) ok = false;
         SDFMesher_Free(&headMesher);
         if (ok) ok = KeepLargestWithoutAnatomyLoss(&entry->head);
     }

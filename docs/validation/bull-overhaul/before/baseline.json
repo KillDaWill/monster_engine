@@ -1,0 +1,6 @@
+{
+  "git_head": "0fc39cb595d4d21b86cd8bac1890b4553e0c543f",
+  "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f",
+  "external_recipe_sha256": "f2c79e23aca348b0fa3dd3aefd70db16e210f56eb56edba016535db06aeca786",
+  "note": "Receta externa y binario conservados antes de modificar la morfolog\u00eda. C\u00e1mara y prueba de LOD residente ya instrumentadas."
+}

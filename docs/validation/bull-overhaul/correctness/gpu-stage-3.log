@@ -1,0 +1,14 @@
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=0
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02; extracción experimental sin readback
+[SDF GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000805 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000119 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000089 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000119 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000119 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000596 PASS
+[RECETA GPU] intervalo_error_m=8.04662704e-07
+[RECETA GPU] etapa=3 muestras=1724 compute_error_m=7.15255737e-07 fragment_error_m=7.74860382e-07 PASS

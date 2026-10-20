@@ -1,0 +1,39 @@
+[
+  {
+    "name": "near-herd-before",
+    "exit_code": 0,
+    "command": [
+      "./build/bull-overhaul-baseline",
+      "--herbivores=8",
+      "--carnivores=2",
+      "--capacity=128",
+      "--focus=23",
+      "--frames=600",
+      "--zoom=12",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/near-herd-before.json",
+      "--capture=docs/validation/bull-overhaul/performance/near-herd-before.ppm",
+      "--recipes-dir=docs/validation/bull-overhaul/before"
+    ],
+    "binary_sha256": "0ec001f8eba47638dd73258693c4d776ace68fff66d0be168c857a8a7d03c21f"
+  },
+  {
+    "name": "near-herd-after",
+    "exit_code": 0,
+    "command": [
+      "./demos/demo_ecosystem",
+      "--herbivores=8",
+      "--carnivores=2",
+      "--capacity=128",
+      "--focus=23",
+      "--frames=600",
+      "--zoom=12",
+      "--no-hud",
+      "--view=three-quarter",
+      "--profile=docs/validation/bull-overhaul/performance/near-herd-after.json",
+      "--capture=docs/validation/bull-overhaul/performance/near-herd-after.ppm"
+    ],
+    "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+  }
+]

@@ -13,14 +13,18 @@ uniform float guardVisibility;
 uniform uint furSeed;
 out vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;
 out vec4 vertexColor,profileA,profileB;
+out vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
 out float ventral,skinMask,fragShellFraction,fragIntegumentMask,shellDelta;
 flat out int tissueMaterial;
 out float ribbonSide,ribbonFade;
 out vec3 worldPosition,ownershipRoot,ownershipNormal;
 #include "surface/hash.glsl"
+#include "surface/pigment_regions.glsl"
 #include "surface/fur_curve.glsl"
 vec3 Rest(int i) {return vec3(texelFetch(surfaceData,i*15).r,texelFetch(surfaceData,i*15+1).r,texelFetch(surfaceData,i*15+2).r);}
 void main() {
+    PigmentSetRegions(rootRegion);
+    pigmentMaskLegacy=pigmentCoverage[0];pigmentMaskFrom=pigmentCoverage[1];pigmentMaskTo=pigmentCoverage[2];
     tissueMaterial=0;
     int ia=int(rootIndices.x),ib=int(rootIndices.y),ic=int(rootIndices.z);
     restCoord=rootCoord;restNormal=normalize(rootNormal);restFlowOut=normalize(rootFlow);

@@ -34,9 +34,23 @@ int main(int argc,char** argv){
         float x=(float)((i*97u)%1021u)/1020,y=(float)((i*193u)%1019u)/1018,z=(float)((i*251u)%1013u)/1012;
         points[count++]=Vec3_Add(sdf.bounds.start,Vec3_Create(x*size.x,y*size.y,z*size.z));
     }
+    /* Sondeos densos alrededor de las estructuras nuevas, además del dominio global. */
+    if(sdf.mouthCount) {
+        const MonsterSDFMouth* m=&sdf.mouths[0];
+        Vector3 centers[]={m->leftNostrilCenterLocal,m->rightNostrilCenterLocal,m->leftOrbitCenterLocal,m->rightOrbitCenterLocal,m->faceMidLocal};
+        for(unsigned feature=0;feature<5;++feature)for(unsigned j=0;j<125&&count<2048;++j) {
+            Vector3 r=feature<2?m->nostrilRadii:feature<4?m->orbitRadii:m->faceMidRadii;
+            Vector3 local=Vec3_Add(centers[feature],Vec3_Create(((j%5)*.5f-1)*r.x,(((j/5)%5)*.5f-1)*r.y,((j/25)*.5f-1)*r.z));
+            RotationBasis3D b=m->inverseRotation;
+            points[count++]=Vec3_Add(m->center,Vec3_Create(b.row0.x*local.x+b.row1.x*local.y+b.row2.x*local.z,b.row0.y*local.x+b.row1.y*local.y+b.row2.y*local.z,b.row0.z*local.x+b.row1.z*local.y+b.row2.z*local.z));
+        }
+    }
     float compute=0,fragment=0;
     ok=OpenGLRenderer_ValidateComputeSDF(&renderer,&sdf,points,count,&compute)&&
         OpenGLRenderer_ValidateSDF(&renderer,&sdf,points,count,&fragment)&&compute<.0002f&&fragment<.0002f;
+    float intervalError=0;
+    ok=OpenGLRenderer_ValidatePinnaIntervals(&renderer,&sdf,&intervalError)&&ok;
+    printf("[RECETA GPU] intervalo_error_m=%.9g\n",intervalError);
     printf("[RECETA GPU] etapa=%d muestras=%zu compute_error_m=%.9g fragment_error_m=%.9g %s\n",
         stage,count,compute,fragment,ok?"PASS":"FAIL");
     if(ok&&argc==4){

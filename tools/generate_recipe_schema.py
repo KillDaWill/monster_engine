@@ -33,6 +33,7 @@ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'bool': ('F_BOOL', '1'), 'CreatureRecipeId': ('F_U32', 'UINT32_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
+OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask'}}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
 
@@ -58,7 +59,7 @@ def emit(name, body=None, owner=None, prefix=''):
             field = declaration[end+1:].strip()
             child = name + '_' + field
             emit(child, declaration[declaration.index('{')+1:end], owner, prefix + field + '.')
-            rows.append(f'{{"{field}",offsetof({owner},{prefix}{field}),sizeof((({owner}*)0)->{prefix}{field}),1,F_OBJECT,0,{child}_fields,NO_COUNT,NULL}}')
+            rows.append(f'{{"{field}",offsetof({owner},{prefix}{field}),sizeof((({owner}*)0)->{prefix}{field}),1,F_OBJECT,0,{child}_fields,NO_COUNT,NULL,false}}')
             continue
         match = re.fullmatch(r'(const char\s*\*|\w+)\s+(\w+(?:\s*\[[\w]+\])?(?:\s*,\s*\w+(?:\s*\[[\w]+\])?)*)', declaration)
         if not match:
@@ -79,7 +80,7 @@ def emit(name, body=None, owner=None, prefix=''):
             # Los offsets de subobjetos anónimos son relativos a su propio comienzo.
             offset = f'offsetof({owner},{path})' + (f'-offsetof({owner},{prefix[:-1]})' if prefix else '')
             choices=json.dumps('|'.join(enums[typ])) if typ in enums else 'NULL'
-            rows.append(f'{{"{field}",{offset},sizeof({typ}),{count or 1},{kind},{maximum},{child},{count_offset}' + (f'-offsetof({owner},{prefix[:-1]})' if prefix and count_offset != 'NO_COUNT' else '') + f',{choices}' + '}')
+            rows.append(f'{{"{field}",{offset},sizeof({typ}),{count or 1},{kind},{maximum},{child},{count_offset}' + (f'-offsetof({owner},{prefix[:-1]})' if prefix and count_offset != 'NO_COUNT' else '') + f',{choices},' + ('true' if field in OPTIONAL.get(name, set()) else 'false') + '}')
     output.append(f'static const Field {name}_fields[] = {{\n    ' + ',\n    '.join(rows) + ',\n    {0}\n};')
 
 
