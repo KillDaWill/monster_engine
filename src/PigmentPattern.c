@@ -142,3 +142,18 @@ Color PigmentPattern_EvaluateLayer(
     float blend = Math_Clamp01(sample * layer->strength);
     return Color_Lerp(baseColor, layer->color, blend);
 }
+
+float PigmentPattern_RegionWeight(const PigmentLayer* layer,unsigned primary,unsigned secondary,float blend) {
+    if(!layer)return 0;
+    if(!layer->regionMask)return 1;
+    float a=primary<32&&(layer->regionMask&(1u<<primary))?1:0;
+    float b=secondary<32&&(layer->regionMask&(1u<<secondary))?1:0;
+    return Math_Lerp(a,b,Math_Clamp01(blend));
+}
+Color PigmentPattern_EvaluateRegionalLayer(const PigmentLayer* layer,Vector3 p,Color base,
+    unsigned primary,unsigned secondary,float blend) {
+    if(!layer)return base;
+    PigmentLayer local=*layer;
+    local.strength*=PigmentPattern_RegionWeight(layer,primary,secondary,blend);
+    return PigmentPattern_EvaluateLayer(&local,p,base);
+}

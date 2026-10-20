@@ -4,6 +4,7 @@
 #include "EcosystemScenario.h"
 #include "EcosystemVisual.h"
 #include "CreatureRecipeRegistry.h"
+#include "EcosystemAnatomy.h"
 #include "OpenGLRenderer.h"
 #include "PrimitiveMesh.h"
 #include <math.h>
@@ -14,6 +15,27 @@
 #include <string.h>
 #include <sys/resource.h>
 #include <time.h>
+
+/** @brief Localiza islotes por conectividad sin eliminar ni modificar triángulos. */
+static size_t componentRoot(size_t* parent,size_t i) {
+    while(parent[i]!=i){parent[i]=parent[parent[i]];i=parent[i];}return i;
+}
+static void reportMeshIslands(const Mesh* mesh) {
+    if(!mesh||!mesh->vertexCount)return;
+    size_t* parent=malloc(mesh->vertexCount*sizeof(*parent));
+    size_t* counts=calloc(mesh->vertexCount,sizeof(*counts));
+    if(!parent||!counts){free(parent);free(counts);return;}
+    for(size_t i=0;i<mesh->vertexCount;++i)parent[i]=i;
+    for(size_t i=0;i+2<mesh->indexCount;i+=3)for(unsigned j=1;j<3;++j)
+        parent[componentRoot(parent,mesh->indices[i+j])]=componentRoot(parent,mesh->indices[i]);
+    for(size_t i=0;i+2<mesh->indexCount;i+=3)++counts[componentRoot(parent,mesh->indices[i])];
+    for(size_t root=0;root<mesh->vertexCount;++root)if(counts[root]&&counts[root]<128) {
+        AABB3D box=AABB_Empty();SDFMaterial material=SDF_MATERIAL_UNKNOWN;
+        for(size_t i=0;i<mesh->vertexCount;++i)if(componentRoot(parent,i)==root){AABB_ExpandPoint(&box,mesh->vertices[i].position);material=mesh->vertices[i].material;}
+        printf("mesh_island triangles=%zu material=%u min=%g,%g,%g max=%g,%g,%g\n",counts[root],material,box.start.x,box.start.y,box.start.z,box.end.x,box.end.y,box.end.z);
+    }
+    free(parent);free(counts);
+}
 
 static int compareDouble(const void *a,const void *b) {double x=*(const double *)a,y=*(const double *)b;return (x>y)-(x<y);}
 
@@ -70,15 +92,15 @@ static bool projectEntity(const ICamera *camera,float orthoHeight,int width,int 
     return isfinite(projection->projectedPixels);
 }
 
-static void setCameraPose(ICamera *camera,Vector3 target,float zoom,double angle,ViewMode view) {
+static void setCameraPose(ICamera *camera,Vector3 target,float zoom,double angle,ViewMode view,bool inspection) {
     float x,z;
     if(view==VIEW_SIDE){x=cosf((float)angle);z=-sinf((float)angle);}
     else if(view==VIEW_FRONT){x=sinf((float)angle);z=cosf((float)angle);}
     else if(view==VIEW_OVERVIEW){camera->target=target;camera->position=Vec3_Add(target,Vec3_Create(0,(float)(zoom*1.2),0));camera->up=Vec3_Create(0,0,-1);return;}
     else {x=sinf((float)angle);z=cosf((float)angle);}
-    target.y+=zoom<8?.55f:0;
+    target.y+=inspection?0:(zoom<8?.55f:0);
     camera->target=target;
-    camera->position=Vec3_Add(target,Vec3_Create(x*(float)zoom,(float)(zoom*(view==VIEW_SIDE||view==VIEW_FRONT?.18:.48)),z*(float)zoom));
+    camera->position=Vec3_Add(target,Vec3_Create(x*(float)zoom,(float)(zoom*(view==VIEW_SIDE||view==VIEW_FRONT?(inspection?0:.18):(inspection?.20:.48))),z*(float)zoom));
     camera->up=Vec3_Create(0,1,0);
 }
 
@@ -120,7 +142,7 @@ int main(int argc,char **argv) {
     EcosystemConfig config=EcosystemConfig_Default();
     const char* recipesDirectory="recipes";
     unsigned frames=0,validateMouthFrames=0;const char *capture=NULL,*profile=NULL;double initialSpeed=1,initialZoom=22,initialAge=-1;bool showHud=true,captured=false,validateSkin=false,forceCpu=false;
-    ViewMode view=VIEW_THREE_QUARTER;CaptureState captureState=CAPTURE_OVERVIEW;AIObjectId focusId=0;unsigned captureSpecies=0;bool hasFocus=false;
+    ViewMode view=VIEW_THREE_QUARTER;CaptureState captureState=CAPTURE_OVERVIEW;AIObjectId focusId=0;unsigned captureSpecies=0;bool hasFocus=false;const char* inspect=NULL;VisualTier captureTier=VISUAL_TIER_NEAR;bool lodCycle=false;
     for(int i=1;i<argc;++i) {
         if(!strncmp(argv[i],"--seed=",7))config.seed=(uint32_t)strtoul(argv[i]+7,NULL,10);
         else if(!strncmp(argv[i],"--frames=",9))frames=(unsigned)strtoul(argv[i]+9,NULL,10);
@@ -131,8 +153,11 @@ int main(int argc,char **argv) {
         else if(!strncmp(argv[i],"--capacity=",11))config.capacity=(unsigned)strtoul(argv[i]+11,NULL,10);
         else if(!strncmp(argv[i],"--speed=",8))initialSpeed=strtod(argv[i]+8,NULL);
         else if(!strcmp(argv[i],"--validate-skinning"))validateSkin=true;
+        else if(!strcmp(argv[i],"--lod-cycle"))lodCycle=true;
+        else if(!strncmp(argv[i],"--focus-lod=",12)){const char* v=argv[i]+12;if(!strcmp(v,"near"))captureTier=VISUAL_TIER_NEAR;else if(!strcmp(v,"mid"))captureTier=VISUAL_TIER_MID;else if(!strcmp(v,"far"))captureTier=VISUAL_TIER_FAR;else return 2;}
         else if(!strcmp(argv[i],"--cpu-skinning"))forceCpu=true;
         else if(!strncmp(argv[i],"--recipes-dir=",14))recipesDirectory=argv[i]+14;
+        else if(!strncmp(argv[i],"--inspect=",10)){inspect=argv[i]+10;if(strcmp(inspect,"body")&&strcmp(inspect,"head")&&strcmp(inspect,"feet")&&strcmp(inspect,"neck"))return 2;}
         else if(!strcmp(argv[i],"--no-hud"))showHud=false;
         else if(!strncmp(argv[i],"--initial-age=",14))initialAge=strtod(argv[i]+14,NULL);
         else if(!strncmp(argv[i],"--zoom=",7))initialZoom=strtod(argv[i]+7,NULL);
@@ -143,10 +168,10 @@ int main(int argc,char **argv) {
         else if(!strncmp(argv[i],"--capture-species=",18))captureSpecies=(unsigned)strtoul(argv[i]+18,NULL,10);
         else if(!strncmp(argv[i],"--capture-state=",16)){if(!parseCaptureState(argv[i]+16,&captureState))return 2;}
         else if(!strncmp(argv[i],"--validate-mouth=",17))validateMouthFrames=(unsigned)strtoul(argv[i]+17,NULL,10);
-        else if(!strcmp(argv[i],"--help")){puts("--recipes-dir=DIR --seed=N --scenario=A..E --frames=N --speed=1|2|4|16 --herbivores=N --carnivores=N --plants=N --capacity=N --capture=imagen.ppm --profile=metricas.json --view=side|front|three-quarter|overview --focus=ID --capture-state=adult|juvenile|newborn|walking|drinking|feeding|hunting|attacking|fleeing|resting|overview --validate-mouth=N --zoom=2..90 --no-hud --initial-age=SEGUNDOS --capture-species=ID --validate-skinning --cpu-skinning");return 0;}
+        else if(!strcmp(argv[i],"--help")){puts("--recipes-dir=DIR --seed=N --scenario=A..E --frames=N --speed=1|2|4|16 --herbivores=N --carnivores=N --plants=N --capacity=N --capture=imagen.ppm --profile=metricas.json --view=side|front|three-quarter|overview --focus=ID --capture-state=adult|juvenile|newborn|walking|drinking|feeding|hunting|attacking|fleeing|resting|overview --validate-mouth=N --zoom=.4..90 --no-hud --initial-age=SEGUNDOS --capture-species=ID --validate-skinning --cpu-skinning --inspect=body|head|feet|neck --focus-lod=near|mid|far --lod-cycle");return 0;}
         else return 2;
     }
-    if(!isfinite(initialAge)||initialAge>10000||frames>1000000||!isfinite(initialZoom)||initialZoom<2||initialZoom>90||(initialSpeed!=1&&initialSpeed!=2&&initialSpeed!=4&&initialSpeed!=16))return 2;
+    if(!isfinite(initialAge)||initialAge>10000||frames>1000000||!isfinite(initialZoom)||initialZoom<.4||initialZoom>90||(initialSpeed!=1&&initialSpeed!=2&&initialSpeed!=4&&initialSpeed!=16))return 2;
     char recipeError[256]={0};
     if(!CreatureRecipeRegistry_LoadDirectory(recipesDirectory,recipeError,sizeof(recipeError))){fprintf(stderr,"%s\n",recipeError);return 1;}
     EcosystemWorld w;if(!EcosystemScenario_Create(&w,&config))return 1;
@@ -179,6 +204,7 @@ int main(int argc,char **argv) {
     OpenGLMeshPerformanceStats finalGpu={0};float footErrorMax=0,stanceFootErrorMax=0,skinPositionError=0,skinNormalError=0;
     unsigned initialPopulation=w.count,drawnMin=ECOSYSTEM_VISUAL_MAX_SLOTS,drawnMax=0;double drawnSum=0,adapterSum=0,renderSum=0,geometryWarmSeconds=0;
     AIObjectId validatedSkin[ECOSYSTEM_VISUAL_MAX_SLOTS]={0};
+    uint64_t validatedSkinMesh[ECOSYSTEM_VISUAL_MAX_SLOTS]={0};
     Mesh cpuBodies[ECOSYSTEM_VISUAL_MAX_SLOTS]={0};
     unsigned frame=0,selectedSlot=0;bool debug=false,follow=hasFocus;Vector3 cameraCenter=Vec3_Zero();float history[160]={0};unsigned historyCount=0,historyIndex=0;double nextSample=0;
     if(hasFocus)for(unsigned i=0;i<w.capacity;++i)if(w.entities[i].id==focusId){selectedSlot=i;break;}
@@ -228,12 +254,13 @@ int main(int argc,char **argv) {
         EcosystemEntity *selected=w.entities[selectedSlot].id?&w.entities[selectedSlot]:NULL;
         const EcosystemEntity *focus=findEntity(&w,focusId);
         if(hasFocus&&!focus&&!focusWarned){fprintf(stderr,"[ADVERTENCIA] --focus=%u no corresponde a una entidad viva.\n",focusId);focusWarned=true;}
+        if(lodCycle){const VisualTier cycle[]={VISUAL_TIER_NEAR,VISUAL_TIER_MID,VISUAL_TIER_FAR,VISUAL_TIER_NEAR};captureTier=cycle[(frame/180)%4];}
         if(captureTargetId){const EcosystemEntity* current=findEntity(&w,captureTargetId);if(!current||!matchesCapture(&w,current,captureState))captureTargetId=0;}
         if(captureState!=CAPTURE_OVERVIEW&&!captureTargetId)for(unsigned i=0;i<w.capacity;++i)if(w.entities[i].id&&(!captureSpecies||w.entities[i].body.species==captureSpecies)&&(!hasFocus||w.entities[i].id==focusId)&&matchesCapture(&w,&w.entities[i],captureState)){captureTargetId=w.entities[i].id;break;}
         if(selectedRequestId&&(!selected||selectedRequestId!=selected->id))EcosystemVisual_ClearTierRequest(&visual,selectedRequestId);
-        selectedRequestId=selected?selected->id:0;if(selected)EcosystemVisual_RequestTier(&visual,selected->id,VISUAL_TIER_NEAR);
-        if(focus)EcosystemVisual_RequestTier(&visual,focus->id,VISUAL_TIER_NEAR);
-        if(captureTargetId){const EcosystemEntity *target=findEntity(&w,captureTargetId);if(target)EcosystemVisual_RequestTier(&visual,target->id,VISUAL_TIER_NEAR);}
+        selectedRequestId=selected?selected->id:0;if(selected)EcosystemVisual_RequestTier(&visual,selected->id,captureTier);
+        if(focus)EcosystemVisual_RequestTier(&visual,focus->id,captureTier);
+        if(captureTargetId){const EcosystemEntity *target=findEntity(&w,captureTargetId);if(target)EcosystemVisual_RequestTier(&visual,target->id,captureTier);}
         Vector3 target=cameraCenter;
         if(focus)target=focus->body.position;
         else if(captureTargetId){const EcosystemEntity *captureTarget=findEntity(&w,captureTargetId);if(captureTarget)target=captureTarget->body.position;}
@@ -242,7 +269,21 @@ int main(int argc,char **argv) {
         const EcosystemEntity* cameraSubject=focus?focus:findEntity(&w,captureTargetId);
         double cameraAngle=cameraSubject?cameraSubject->body.yaw+(view==VIEW_THREE_QUARTER?.65:0):angle;
         angle=cameraAngle;
-        setCameraPose(&camera,target,zoom,cameraAngle,view);
+        if(inspect&&cameraSubject&&cameraSubject->anatomicalBody) {
+            const EcosystemAnatomy* a=cameraSubject->anatomicalBody;
+            Vector3 local=Vec3_Create(0,a->standingHeight*.52f,-a->phenotype.axial.trunkLength*.42f);
+            if(!strcmp(inspect,"head"))local=Vec3_Lerp(a->pose.joints[a->rig.headJoint].worldPosition,
+                Vec3_Add(a->center,Vec3_Scale(Vec3_Create(
+                    (cameraSubject->body.mouth.x-cameraSubject->body.position.x)*cosf(cameraSubject->body.yaw)-(cameraSubject->body.mouth.z-cameraSubject->body.position.z)*sinf(cameraSubject->body.yaw),
+                    cameraSubject->body.mouth.y-cameraSubject->body.position.y,
+                    (cameraSubject->body.mouth.x-cameraSubject->body.position.x)*sinf(cameraSubject->body.yaw)+(cameraSubject->body.mouth.z-cameraSubject->body.position.z)*cosf(cameraSubject->body.yaw)),1/EcosystemAnatomy_Scale(a,cameraSubject))),.5f);
+            else if(!strcmp(inspect,"feet"))local=Vec3_Create(0,.25f,0);
+            else if(!strcmp(inspect,"neck"))local=Vec3_Create(0,a->standingHeight*.75f,0);
+            local=Vec3_Scale(Vec3_Sub(local,a->center),EcosystemAnatomy_Scale(a,cameraSubject));
+            float sn=sinf(cameraSubject->body.yaw),cs=cosf(cameraSubject->body.yaw);
+            target=Vec3_Add(cameraSubject->body.position,Vec3_Create(local.x*cs+local.z*sn,local.y,-local.x*sn+local.z*cs));
+        }
+        setCameraPose(&camera,target,zoom,cameraAngle,view,inspect!=NULL);
         if(!EcosystemVisual_Sync(&visual)&&!projectionWarned){fprintf(stderr,"[ADVERTENCIA] No se pudo sincronizar EcosystemVisual.\n");projectionWarned=true;}
         for(unsigned i=0;i<w.capacity;++i)if(w.entities[i].id) {
             EcosystemVisualProjection projection={0};
@@ -257,7 +298,7 @@ int main(int argc,char **argv) {
                 EcosystemVisual_Update(&visual,.016f);
                 EcosystemVisualDrawPacket warm[ECOSYSTEM_VISUAL_MAX_SLOTS];
                 size_t count=EcosystemVisual_GetDrawPackets(&visual,warm,ECOSYSTEM_VISUAL_MAX_SLOTS);
-                loading=false;for(size_t i=0;i<count;++i)if(!warm[i].ready)loading=true;
+                loading=false;for(size_t i=0;i<count;++i)if(!warm[i].ready||((warm[i].entityId==focusId||warm[i].entityId==captureTargetId)&&warm[i].tier!=captureTier))loading=true;
                 if(OpenGLDemoWindow_Poll(window).quit){ok=false;loading=false;}
                 if(loading) {
                     renderer.beginFrame(&renderer);
@@ -266,6 +307,7 @@ int main(int argc,char **argv) {
                     OpenGLDemoWindow_LimitFPS(OpenGLDemoWindow_Time(),100);
                 }
             }
+            if(loading){fprintf(stderr,"No se completó el LOD solicitado durante la carga.\n");ok=false;break;}
             geometryWarmSeconds=OpenGLDemoWindow_Time()-warmStart;
             printf("geometry_warmup_seconds=%.6f cache_builds=%zu\n",geometryWarmSeconds,EcosystemVisual_BuildCount(&visual));
             start=OpenGLDemoWindow_Time();last=start;
@@ -312,12 +354,12 @@ int main(int argc,char **argv) {
                 OpenGLRenderer_SetMeshSurfaceOverride(&renderer,&packet->surfaceRecipe);
                 if(skinning||!packet->ready)renderer.renderMesh(&renderer,body);
                 else if(EcosystemVisual_DeformBody(packet,&cpuBodies[packet->slotIndex]))renderer.renderMesh(&renderer,&cpuBodies[packet->slotIndex]);
-                if(validateSkin&&skinning&&validatedSkin[packet->slotIndex]!=packet->entityId) {
+                if(validateSkin&&skinning&&(validatedSkin[packet->slotIndex]!=packet->entityId||validatedSkinMesh[packet->slotIndex]!=body->identity)) {
                     float positionError=0,normalError=0;
                     bool valid=OpenGLRenderer_ValidateMeshSkinning(&renderer,body,packet->deformer,packet->skeleton,packet->pose,&positionError,&normalError);
                     ok=valid&&positionError<.0001f&&normalError<.0002f&&ok;
                     skinPositionError=fmaxf(skinPositionError,positionError);skinNormalError=fmaxf(skinNormalError,normalError);
-                    validatedSkin[packet->slotIndex]=packet->entityId;
+                    validatedSkin[packet->slotIndex]=packet->entityId;validatedSkinMesh[packet->slotIndex]=body->identity;
                 }
                 footErrorMax=fmaxf(footErrorMax,packet->footError);stanceFootErrorMax=fmaxf(stanceFootErrorMax,packet->stanceFootError);
                 OpenGLRenderer_SetMeshSkinning(&renderer,NULL,NULL,NULL,NULL,0);
@@ -359,7 +401,27 @@ int main(int argc,char **argv) {
         bool captureNow=capture&&frames&&(captureState==CAPTURE_OVERVIEW?frame+1==frames:
             frame>=60&&captureTargetId&&captureTargetReady&&(!hasFocus||captureTargetId==focusId));
         if(captureNow){
-            captured=OpenGLRenderer_SavePPM(capture,1280,800);ok=captured&&ok;
+            for(size_t i=0;i<packetCount;++i)if(packets[i].entityId==(captureTargetId?captureTargetId:focusId)) {
+                printf("capture_mesh_ready=%u tier=%u body_vertices=%zu head_vertices=%zu\n",packets[i].ready,packets[i].tier,packets[i].bodyMesh?packets[i].bodyMesh->vertexCount:0,packets[i].headMesh?packets[i].headMesh->vertexCount:0);
+                size_t components=0,largest=0,second=0;
+                if(packets[i].bodyMesh&&Mesh_ComponentStatistics(packets[i].bodyMesh,&components,&largest,&second))printf("capture_body_components=%zu largest_triangles=%zu second_triangles=%zu\n",components,largest,second);
+                reportMeshIslands(packets[i].bodyMesh);
+                Mesh posed=Mesh_Create();
+                if(EcosystemVisual_DeformBody(&packets[i],&posed)) {
+                    AABB3D bounds=AABB_Empty();float sn=sinf(packets[i].yaw),cs=cosf(packets[i].yaw);
+                    for(size_t v=0;v<posed.vertexCount;++v) {
+                        Vector3 p=Vec3_Scale(posed.vertices[v].position,packets[i].scale);
+                        AABB_ExpandPoint(&bounds,Vec3_Add(packets[i].position,Vec3_Create(p.x*cs+p.z*sn,p.y,-p.x*sn+p.z*cs)));
+                    }
+                    printf("capture_world_body_bounds min=%g,%g,%g max=%g,%g,%g\n",bounds.start.x,bounds.start.y,bounds.start.z,bounds.end.x,bounds.end.y,bounds.end.z);
+                }
+                Mesh_Free(&posed);
+                if(packets[i].jawJoint>=0)printf("capture_jaw_scale=%g,%g,%g rest_rot=%g,%g,%g,%g pose_rot=%g,%g,%g,%g\n",packets[i].jawScale.x,packets[i].jawScale.y,packets[i].jawScale.z,
+                    packets[i].restPose->joints[packets[i].jawJoint].localRotation.x,packets[i].restPose->joints[packets[i].jawJoint].localRotation.y,packets[i].restPose->joints[packets[i].jawJoint].localRotation.z,packets[i].restPose->joints[packets[i].jawJoint].localRotation.w,
+                    packets[i].pose->joints[packets[i].jawJoint].localRotation.x,packets[i].pose->joints[packets[i].jawJoint].localRotation.y,packets[i].pose->joints[packets[i].jawJoint].localRotation.z,packets[i].pose->joints[packets[i].jawJoint].localRotation.w);
+                if(!packets[i].ready||packets[i].tier!=captureTier)ok=false;
+            }
+            captured=ok&&OpenGLRenderer_SavePPM(capture,1280,800);ok=captured&&ok;
             const EcosystemEntity* subject=findEntity(&w,captureTargetId?captureTargetId:focusId);
             if(subject)printf("capture_entity=%u species=%u recipe=%u action=%s stage=%u\n",subject->id,subject->body.species,w.species[subject->speciesIndex].recipeId,CreatureAction_Name(subject->mind.action),subject->physiology.stage);
         }

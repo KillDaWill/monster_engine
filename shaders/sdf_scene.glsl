@@ -65,7 +65,7 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
     for(int i=0;i<tileCount;++i) {
         int globalIndex=sceneConnectorIndex(i),c=connectorBase+globalIndex*C_STRIDE;
         if(pruneConnectorGroup(c,p,result.w)){i=skipConnectorGroup(i,c,globalIndex);continue;}
-        if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
+        if(C_isHeadNeck(c)||(axialCount>1&&C_axialSweepMember(c)))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result.w+k))continue;
         result=joinSemantic(semantic,result,vec4(C_color(c),MonsterSDF_EvalConnectorDistance(c,p)),k,uint(C_moduleInstanceId(c)),uint(C_region(c)),tissueMaterial(C_material(c)),C_material(c)==0?1.0:0.0);
@@ -85,8 +85,10 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(rayMouthActive) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
-            float entrance=SDF_RoundedSlotExtruded(local-M_entranceCenterLocal(m),ext.x,ext.y,ext.z);
-            float cavity=SDF_Ellipsoid(local-M_cavityCenterLocal(m),M_cavityRadii(m));
+            vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=M_oralSlope(m)*oralRel.z;
+            float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);
+            vec3 cavityRel=local-M_cavityCenterLocal(m);cavityRel.y-=M_oralSlope(m)*cavityRel.z;
+            float cavity=SDF_Ellipsoid(cavityRel,M_cavityRadii(m));
             if(M_sweptSkull(m)) {
                 float wall=max(ext.y*2.0,M_faceMidRadii(m).x*.12);
                 cavity=max(cavity,SDF_EllipticalSweepZ(local,M_headStations(m),6)+wall);
@@ -136,7 +138,7 @@ float sceneDistance(vec3 p) {
     for(int i=0;i<tileCount;++i) {
         int globalIndex=sceneConnectorIndex(i),c=connectorBase+globalIndex*C_STRIDE;
         if(pruneConnectorGroup(c,p,result)){i=skipConnectorGroup(i,c,globalIndex);continue;}
-        if(C_isHeadNeck(c)||(axialCount>1&&C_kind(c)==0))continue;
+        if(C_isHeadNeck(c)||(axialCount>1&&C_axialSweepMember(c)))continue;
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result+k))continue;
         result=SDF_SmoothUnion(result,MonsterSDF_EvalConnectorDistance(c,p),k);
@@ -158,8 +160,10 @@ float sceneDistance(vec3 p) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(rayMouthActive) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
-            float entrance=SDF_RoundedSlotExtruded(local-M_entranceCenterLocal(m),ext.x,ext.y,ext.z);
-            float cavity=SDF_Ellipsoid(local-M_cavityCenterLocal(m),M_cavityRadii(m));
+            vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=M_oralSlope(m)*oralRel.z;
+            float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);
+            vec3 cavityRel=local-M_cavityCenterLocal(m);cavityRel.y-=M_oralSlope(m)*cavityRel.z;
+            float cavity=SDF_Ellipsoid(cavityRel,M_cavityRadii(m));
             if(M_sweptSkull(m)) {
                 float wall=max(ext.y*2.0,M_faceMidRadii(m).x*.12);
                 cavity=max(cavity,SDF_EllipticalSweepZ(local,M_headStations(m),6)+wall);

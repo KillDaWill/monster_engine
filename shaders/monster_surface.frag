@@ -8,6 +8,7 @@ uniform int shellCount;
 
 in vec3 restCoord,restNormal,viewPosition,viewNormal;
 in vec4 vertexColor,profileA,profileB;
+in vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
 in float ventral,skinMask;
 flat in int tissueMaterial;
 in vec3 posedFlowOut,restFlowOut;
@@ -31,6 +32,8 @@ out vec4 fragColor;
 #include "surface/evaluate.glsl"
 
 void main() {
+    pigmentCoverage[0]=clamp(pigmentMaskLegacy,0.0,1.0);
+    pigmentCoverage[1]=clamp(pigmentMaskFrom,0.0,1.0);pigmentCoverage[2]=clamp(pigmentMaskTo,0.0,1.0);
     vec3 mappedCoord=restCoord,mappedNormal=restNormal;
     vec4 mappedA=profileA,mappedB=profileB;
     float mappedVentral=ventral;
@@ -50,6 +53,11 @@ void main() {
     if(surfaceDebug==23) {fragColor=vec4(0.0,0.9,1.0,1.0);return;}
     vec3 n = normalize(viewNormal);
     if (!gl_FrontFacing) n = -n;
+    if(tissueMaterial==6) {
+        if(furPass==1)discard;
+        SurfaceResponse nasal=SurfaceResponse(vertexColor.rgb,n,.34,.28);
+        fragColor=vec4(SurfaceLighting(nasal,viewPosition),vertexColor.a);return;
+    }
     if(tissueMaterial==8||tissueMaterial==9){
         if(furPass==1)discard;
         SurfaceResponse keratin=SurfaceResponse(vertexColor.rgb,n,tissueMaterial==8?.38:.55,.30);

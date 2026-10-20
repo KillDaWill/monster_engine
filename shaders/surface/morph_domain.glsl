@@ -1,3 +1,4 @@
+#include "pigment_regions.glsl"
 // Coordenadas canónicas compartidas, transportadas por identidad anatómica.
 uniform samplerBuffer morphMaterialData;
 uniform int morphMaterialCount;
@@ -41,6 +42,7 @@ void MorphMaterialFromBindings(vec3 p,vec3 worldNormal,float scores[5],int ids[5
     out vec3 coord,out vec3 normal,out vec4 pa,out vec4 pb,out float belly,out vec3 posedFlow) {
     coord=vec3(0);normal=vec3(0);posedFlow=vec3(0);pa=vec4(0);pb=vec4(0);
     float sum=0,trunk=0;
+    PigmentClearRegions();
     for(int k=0;k<4;++k) {
         float support=max(0.0,1.0-scores[k]/max(scores[4],1e-6));
         float weight=support*support/(scores[k]*scores[k]+1e-4);
@@ -56,9 +58,11 @@ void MorphMaterialFromBindings(vec3 p,vec3 worldNormal,float scores[5],int ids[5
         normal+=weight*MorphRotate(q,worldNormal);
         posedFlow+=weight*normalize(b.xyz-a.xyz+vec3(1e-12));
         int region=clamp(int(texelFetch(morphMaterialData,6*i+5).x+.5),0,10);
+        PigmentAccumulateRegion(region,weight);
         pa+=weight*surfaceRecipe[12+2*region];pb+=weight*surfaceRecipe[13+2*region];
         trunk+=weight*float(region==3||region==4);sum+=weight;
     }
+    PigmentNormalizeRegions(sum);
     coord/=max(sum,1e-12);normal=normalize(normal+vec3(1e-12));
     pa/=max(sum,1e-12);pb/=max(sum,1e-12);
     belly=clamp(.5-.7*normal.y,0.0,1.0);

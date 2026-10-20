@@ -248,8 +248,8 @@ static SDFInterval Interval_RelativeProject(AABB3D box,Vector3 origin,Vector3 ba
     SDFInterval z=Interval_Subtract(Interval_Component(box,2),Interval_Constant(origin.z));
     return Interval_Add(Interval_Add(Interval_Scale(x,basis.x),Interval_Scale(y,basis.y)),Interval_Scale(z,basis.z));
 }
-SDFInterval SDF_ConnectorInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
-    float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge) {
+SDFInterval SDF_ConnectorPowerInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
+    float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge,bool hoof) {
     if(length<.000001f) {
         SDFInterval x=Interval_Subtract(Interval_Component(box,0),Interval_Constant(origin.x));
         SDFInterval y=Interval_Subtract(Interval_Component(box,1),Interval_Constant(origin.y));
@@ -268,5 +268,12 @@ SDFInterval SDF_ConnectorInterval(AABB3D box,Vector3 origin,Vector3 forward,Vect
     SDFInterval x=Interval_Divide(Interval_RelativeProject(box,origin,side),width);
     SDFInterval y=Interval_Divide(Interval_RelativeProject(box,origin,up),height);
     SDFInterval z=Interval_Divide(outside,r);
-    return Interval_Multiply(Interval_Subtract(Interval_Length(x,y,z),Interval_Constant(1)),r);
+    SDFInterval norm=hoof?Interval_Sqrt(Interval_Sqrt(Interval_Add(Interval_Add(
+        Interval_Square(Interval_Square(x)),Interval_Square(Interval_Square(y))),Interval_Square(Interval_Square(z))))):Interval_Length(x,y,z);
+    return Interval_Multiply(Interval_Subtract(norm,Interval_Constant(1)),r);
+}
+
+SDFInterval SDF_ConnectorInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
+    float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge) {
+    return SDF_ConnectorPowerInterval(box,origin,forward,side,up,length,widthA,widthB,heightA,heightB,widthBulge,heightBulge,false);
 }

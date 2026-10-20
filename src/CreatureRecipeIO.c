@@ -20,13 +20,14 @@ typedef struct Field {
     const struct Field* children;
     size_t countOffset;
     const char* enumNames;
+    bool optional;
 } Field;
 #define NO_COUNT SIZE_MAX
 #include "CreatureRecipeSchema.inc"
 typedef struct Envelope { uint32_t version; CreatureRecipe recipe; } Envelope;
 static const Field envelopeFields[]={
-    {"version",offsetof(Envelope,version),sizeof(uint32_t),1,F_U32,1,NULL,NO_COUNT,NULL},
-    {"recipe",offsetof(Envelope,recipe),sizeof(CreatureRecipe),1,F_OBJECT,0,CreatureRecipe_fields,NO_COUNT,NULL},{0}
+    {"version",offsetof(Envelope,version),sizeof(uint32_t),1,F_U32,1,NULL,NO_COUNT,NULL,false},
+    {"recipe",offsetof(Envelope,recipe),sizeof(CreatureRecipe),1,F_OBJECT,0,CreatureRecipe_fields,NO_COUNT,NULL,false},{0}
 };
 typedef struct Reader { const char* start; const char* p; char name[192]; } Reader;
 static void Space(Reader* r) { while(isspace((unsigned char)*r->p)) ++r->p; }
@@ -113,6 +114,7 @@ static bool Object(Reader* r,void* ptr,const Field* fields,unsigned depth) {
     while(fields[count].name)++count;
     if(count>128)return false;
     for(size_t k=0;k<count;++k){
+        Space(r);if(*r->p=='}')break;
         if(k&&!Take(r,','))return false;
         char key[96];if(!String(r,key,sizeof(key))||!Take(r,':'))return false;
         size_t i=0;while(i<count&&strcmp(fields[i].name,key))++i;
@@ -131,6 +133,7 @@ static bool Object(Reader* r,void* ptr,const Field* fields,unsigned depth) {
         }else if(!Value(r,dst,f,depth))return false;
     }
     if(!Take(r,'}'))return false;
+    for(size_t i=0;i<count;++i)if(!seen[i]&&!fields[i].optional)return false;
     for(size_t i=0;i<count;++i)if(fields[i].countOffset!=NO_COUNT &&
         lengths[i]!=*(size_t*)((char*)ptr+fields[i].countOffset))return false;
     return true;

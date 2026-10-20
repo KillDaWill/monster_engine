@@ -199,8 +199,16 @@ creature-editor: $(BUILD_DIR)/creature_editor_bridge
 editor-test: $(BUILD_DIR)/creature_editor_bridge
 	python3 tools/creature_editor/test_editor.py
 
+$(BUILD_DIR)/inspect_brumacerno: $(CORE_OBJS) tools/inspect_brumacerno.c
+	$(CC) $(CFLAGS) $^ -lm -pthread -o $@
+
 $(BUILD_DIR)/validate_recipe_gpu: $(CORE_OBJS) $(RENDER_OBJS) tools/validate_recipe_gpu.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/CreatureRecipeBrumacerno.o: src/CreatureRecipeBrumacerno.generated.inc
+
+src/CreatureRecipeBrumacerno.generated.inc: recipes/brumacerno.creature.json tools/generate_builtin_brumacerno.py
+	python3 tools/generate_builtin_brumacerno.py
 
 $(BUILD_DIR)/CreatureRecipeIO.o: src/CreatureRecipeSchema.inc
 

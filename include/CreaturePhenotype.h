@@ -49,6 +49,8 @@ typedef struct AxialPhenotype {
     float cervicalCurvature;    /**< Arqueamiento sagital de la columna cervical (0..1). */
     float cervicalDorsalMass;   /**< Concentración de masa muscular nucal / sesgo dorsal (0..2). */
     float cervicalMidNarrowing; /**< Retraso del ensanchamiento cervical hacia los hombros (0.5..1.0). */
+    float dewlapDepth; /**< Descenso ventral cervical relativo a la anchura del cuello. */
+    float brisketDepth; /**< Descenso del pecho relativo a la altura torácica. */
     float withersElevation;     /**< Elevación sutil de la cruz sobre la línea dorsal (0..0.3). */
     AxialStationMorph profile[AXIAL_PROFILE_STATIONS];
 } AxialPhenotype;
@@ -92,6 +94,7 @@ typedef enum TailArchetype {
 } TailArchetype;
 
 typedef struct TailPhenotype {
+    float droop; /**< Caída gravitatoria de la cola; cero conserva el eje anfitrión. */
     TailArchetype archetype;
     float length, baseWidth, baseHeight, tipWidth, tipHeight;
     float taperCurve, curvature, development;

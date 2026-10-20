@@ -45,9 +45,16 @@ typedef struct PigmentLayer {
     float sharpness;        /**< Nitidez o pendiente de transición de los bordes [0.0 - 1.0] */
     Vector3 direction;      /**< Vector directriz para gradientes y bandas */
     uint32_t seed;          /**< Semilla pseudoaleatoria determinista */
+    uint32_t regionMask; /**< Bits de SurfaceRegion; cero conserva cobertura global. */
 } PigmentLayer;
 
 #define SURFACE_MAX_PIGMENT_LAYERS 4
+
+/** @brief Peso de la máscara en dos regiones mezcladas; cero de máscara cubre todo. */
+float PigmentPattern_RegionWeight(const PigmentLayer* layer,unsigned primary,unsigned secondary,float blend);
+/** @brief Evalúa una capa sobre el dominio regional, sin depender del render. */
+Color PigmentPattern_EvaluateRegionalLayer(const PigmentLayer* layer,Vector3 p,Color base,
+    unsigned primary,unsigned secondary,float blend);
 
 /**
  * @struct PlatePhenotype

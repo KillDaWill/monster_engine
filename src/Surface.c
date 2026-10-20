@@ -39,7 +39,7 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     CLAMP(integument.fur.roughness,.05f,1.0f,.55f); CLAMP(integument.fur.sheen,0.0f,1.0f,.35f);
     CLAMP(integument.fur.rootDarkening,0.0f,1.0f,.25f); CLAMP(integument.fur.tipLightening,0.0f,1.0f,.15f);
     for(int i=0;i<SURFACE_REGION_COUNT;++i) {
-        CLAMP(furRegions[i].lengthMultiplier,.02f,4,1);CLAMP(furRegions[i].densityMultiplier,0,4,1);
+        CLAMP(furRegions[i].lengthMultiplier,.02f,8,1);CLAMP(furRegions[i].densityMultiplier,0,4,1);
         CLAMP(furRegions[i].thicknessMultiplier,.05f,3,1);CLAMP(furRegions[i].layMultiplier,0,2,1);
         CLAMP(furRegions[i].undercoatMultiplier,0,2,1);CLAMP(furRegions[i].guardMultiplier,0,2,1);
         CLAMP(furRegions[i].clumpMultiplier,0,2,1);CLAMP(furRegions[i].variationMultiplier,0,2,1);
@@ -59,6 +59,7 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     for(size_t i=0;i<p->pigment.layerCount;++i) {
         PigmentLayer* l=&p->pigment.layers[i];
         if(l->pattern>PIGMENT_PATTERN_GRADIENT)l->pattern=PIGMENT_PATTERN_SOLID;
+        l->regionMask&=(1u<<SURFACE_REGION_COUNT)-1;
         l->strength=Limit(l->strength,0,1,1);
         l->scale=Limit(l->scale,.01f,50,1);
         l->sharpness=Limit(l->sharpness,0,1,.5f);
@@ -111,7 +112,7 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
     for(size_t i=0;i<origin.layerCount;++i) {
         PigmentLayer layer=origin.layers[i];size_t match=q.pigment.layerCount;
         for(size_t j=0;j<q.pigment.layerCount;++j)
-            if(!used[j]&&layer.pattern==q.pigment.layers[j].pattern&&layer.seed==q.pigment.layers[j].seed){match=j;break;}
+            if(!used[j]&&layer.pattern==q.pigment.layers[j].pattern&&layer.seed==q.pigment.layers[j].seed&&layer.regionMask==q.pigment.layers[j].regionMask){match=j;break;}
         if(match<q.pigment.layerCount) {
             PigmentLayer dest=q.pigment.layers[match];used[match]=true;
             layer.color=Color_Lerp(layer.color,dest.color,t);
@@ -162,7 +163,7 @@ static void PackPigmentBank(float (*rows)[4],const PigmentPhenotype* p) {
         const PigmentLayer* l=&p->layers[i];size_t row=5+3*i;
         PackColor(rows[row],l->color);rows[row][3]=l->strength;
         rows[row+1][0]=(float)l->pattern;rows[row+1][1]=l->scale;rows[row+1][2]=l->sharpness;rows[row+1][3]=(float)(l->seed&0xffffu);
-        rows[row+2][0]=l->direction.x;rows[row+2][1]=l->direction.y;rows[row+2][2]=l->direction.z;
+        rows[row+2][0]=l->direction.x;rows[row+2][1]=l->direction.y;rows[row+2][2]=l->direction.z;rows[row+2][3]=(float)l->regionMask;
     }
 }
 SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
@@ -221,7 +222,7 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         r.data[baseIdx+2][0]=l->direction.x;
         r.data[baseIdx+2][1]=l->direction.y;
         r.data[baseIdx+2][2]=l->direction.z;
-        r.data[baseIdx+2][3]=0.0f;
+        r.data[baseIdx+2][3]=(float)l->regionMask;
     }
     r.pigmentSeed=p.pigment.seed; r.scaleSeed=p.integument.scales.seed; r.furSeed=p.integument.fur.seed; return r;
 }

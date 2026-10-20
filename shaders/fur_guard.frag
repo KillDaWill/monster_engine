@@ -5,6 +5,7 @@ uniform int surfaceDebug;
 uniform bool guardCoverage;
 in vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;
 in vec4 vertexColor,profileA,profileB;
+in vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
 in float ventral,skinMask,fragShellFraction,fragIntegumentMask,shellDelta,ribbonSide,ribbonFade;
 in vec3 worldPosition;
 #include "morph_handoff.glsl"
@@ -15,6 +16,8 @@ out vec4 fragColor;
 #include "surface/pigment.glsl"
 #include "surface/fur.glsl"
 void main() {
+    pigmentCoverage[0]=clamp(pigmentMaskLegacy,0.0,1.0);
+    pigmentCoverage[1]=clamp(pigmentMaskFrom,0.0,1.0);pigmentCoverage[2]=clamp(pigmentMaskTo,0.0,1.0);
     vec3 mappedCoord=restCoord,mappedNormal=restNormal;
     vec4 mappedA=profileA,mappedB=profileB;
     float mappedVentral=ventral;
