@@ -2,6 +2,26 @@
 #include "MathUtils.h"
 #include <math.h>
 
+float SDF_KeratinClaw(Vector3 p,float length,float widthA,float widthB,float heightA,float heightB,
+    float crownInset,float toeRounding) {
+    float y=p.y+heightA;
+    float v=Math_Clamp01(y/(2*Math_Max(heightA,heightB)));
+    float z=p.z+v*crownInset*length;
+    float t=Math_Clamp01(z/Math_Max(length,.0001f));
+    float w=Math_Lerp(widthA,widthB,t)*(1-.28f*v);
+    float radius=w*Math_Lerp(.55f,toeRounding,t);
+    float dx=fabsf(p.x)-w+radius;
+    float dz=Math_Max(-z-widthA*.55f+radius,z-length-widthB*toeRounding+radius);
+    float footprint=sqrtf(Math_Max(dx,0)*Math_Max(dx,0)+Math_Max(dz,0)*Math_Max(dz,0))+
+        Math_Min(Math_Max(dx,dz),0)-radius;
+    float roof=y-2*Math_Lerp(heightA,heightB,t);
+    /* La intersección preserva exactamente el plano de apoyo interior.
+     * El pequeño bisel superior evita una arista de corona infinitamente viva. */
+    float bevel=Math_Min(heightA,heightB)*.12f;
+    float k=Math_Max(bevel-fabsf(footprint-roof),0)/Math_Max(bevel,.0001f);
+    return Math_Max(-y,Math_Max(footprint,roof)+k*k*bevel*.25f);
+}
+
 float SDF_Sphere(Vector3 point, float radius) {
     if (radius <= 0.0001f) return Vec3_Length(point);
     return Vec3_Length(point) - radius;

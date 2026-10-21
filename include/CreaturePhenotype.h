@@ -82,6 +82,10 @@ typedef struct LimbPhenotype {
     float proximalSweep, distalSweep; /**< Desplazamientos longitudinales relativos a la longitud del miembro. */
     float footYaw; /**< Giro del autopodio en radianes, simétrico entre ambos lados. */
     float flexionScale; /**< Amplitud articular mamífera; cero conserva el rango base. */
+    float hoofWallSlope; /**< Retracción de corona respecto a suela, relativa a la longitud (0..0.45). */
+    float hoofToeRoundness; /**< Radio anterior relativo a la semianchura de cada uña (0.3..1). */
+    float hoofHeelHeight; /**< Altura del talón relativa a la pared anterior (0.4..1). */
+    float dewclawSize; /**< Tamaño de espolones no sustentantes relativo al casco; cero los omite. */
 } LimbPhenotype;
 
 typedef enum TailArchetype {

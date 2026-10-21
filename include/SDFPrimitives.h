@@ -132,6 +132,15 @@ float SDF_RoundedTaperedWedge(Vector3 point, Vector3 root, Vector3 tip,
  */
 float SDF_Box(Vector3 point, Vector3 halfExtents);
 
+/** @brief Uña de queratina con pared inclinada, talón, punta redondeada y suela plana.
+ * @param p Coordenadas laterales, verticales y longitudinales respecto al centro del talón.
+ * @param length Distancia talón-punta. @param widthA Semiancho del talón. @param widthB Semiancho anterior.
+ * @param heightA Semialto del talón. @param heightB Semialto anterior.
+ * @param crownInset Retracción de corona relativa a longitud. @param toeRounding Radio anterior relativo al ancho.
+ * @return Campo continuo con cero en la cápsula; no es una distancia euclídea exacta. */
+float SDF_KeratinClaw(Vector3 p,float length,float widthA,float widthB,float heightA,float heightB,
+    float crownInset,float toeRounding);
+
 /**
  * @brief SDF de una ranura o cápsula 2D extruida en Z (sección XY horizontal redondeada).
  * @param point Punto a evaluar en espacio local.

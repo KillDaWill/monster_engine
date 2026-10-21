@@ -182,6 +182,10 @@ static const Field LimbPhenotype_fields[] = {
     {"distalSweep",offsetof(LimbPhenotype,distalSweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"footYaw",offsetof(LimbPhenotype,footYaw),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"flexionScale",offsetof(LimbPhenotype,flexionScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"hoofWallSlope",offsetof(LimbPhenotype,hoofWallSlope),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"hoofToeRoundness",offsetof(LimbPhenotype,hoofToeRoundness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"hoofHeelHeight",offsetof(LimbPhenotype,hoofHeelHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"dewclawSize",offsetof(LimbPhenotype,dewclawSize),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field TailPhenotype_fields[] = {

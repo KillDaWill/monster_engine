@@ -26,7 +26,7 @@ int main(int argc,char** argv){
     ICamera camera={.position=Vec3_Add(center,Vec3_Create(extent*.8f,extent*.25f,extent*.5f)),
         .target=center,.up={0,1,0},.fov=40,.aspectRatio=960.f/720,.nearPlane=.01f,.farPlane=100};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
-    Vector3 points[2048];size_t count=0;
+    Vector3 points[8192];size_t count=0;
     for(size_t i=0;i<monster->anatomyGraph.nodeCount&&count<1024;++i)
         points[count++]=monster->anatomyGraph.nodes[i].center;
     Vector3 size=Vec3_Sub(sdf.bounds.end,sdf.bounds.start);
@@ -38,16 +38,32 @@ int main(int argc,char** argv){
     if(sdf.mouthCount) {
         const MonsterSDFMouth* m=&sdf.mouths[0];
         Vector3 centers[]={m->leftNostrilCenterLocal,m->rightNostrilCenterLocal,m->leftOrbitCenterLocal,m->rightOrbitCenterLocal,m->faceMidLocal};
-        for(unsigned feature=0;feature<5;++feature)for(unsigned j=0;j<125&&count<2048;++j) {
+        for(unsigned feature=0;feature<5;++feature)for(unsigned j=0;j<125&&count<8192;++j) {
             Vector3 r=feature<2?m->nostrilRadii:feature<4?m->orbitRadii:m->faceMidRadii;
             Vector3 local=Vec3_Add(centers[feature],Vec3_Create(((j%5)*.5f-1)*r.x,(((j/5)%5)*.5f-1)*r.y,((j/25)*.5f-1)*r.z));
             RotationBasis3D b=m->inverseRotation;
             points[count++]=Vec3_Add(m->center,Vec3_Create(b.row0.x*local.x+b.row1.x*local.y+b.row2.x*local.z,b.row0.y*local.x+b.row1.y*local.y+b.row2.y*local.z,b.row0.z*local.x+b.row1.z*local.y+b.row2.z*local.z));
         }
     }
+    /* Cada uña y espolón recibe sondeos de corona, hendidura, talón y suela. */
+    for(size_t c=0;c<sdf.connectorCount;++c)if(sdf.connectors[c].material==SDF_MATERIAL_HOOF) {
+        const MonsterSDFConnector* claw=&sdf.connectors[c];
+        for(unsigned j=0;j<216&&count<8192;++j) {
+            Vector3 local={((j%6)*.5f-1.25f)*claw->widthA,
+                (((j/6)%6)*.5f-1.25f)*claw->heightB,
+                ((j/36)*.3f-.25f)*claw->length};
+            points[count++]=Vec3_Add(claw->a,Vec3_Add(Vec3_Scale(claw->side,local.x),
+                Vec3_Add(Vec3_Scale(claw->up,local.y),Vec3_Scale(claw->forward,local.z))));
+        }
+    }
     float compute=0,fragment=0;
-    ok=OpenGLRenderer_ValidateComputeSDF(&renderer,&sdf,points,count,&compute)&&
-        OpenGLRenderer_ValidateSDF(&renderer,&sdf,points,count,&fragment)&&compute<.0002f&&fragment<.0002f;
+    ok=OpenGLRenderer_ValidateComputeSDF(&renderer,&sdf,points,count,&compute);
+    for(size_t base=0;base<count;base+=2048) {
+        size_t n=count-base<2048?count-base:2048;float chunkError=0;
+        ok=OpenGLRenderer_ValidateSDF(&renderer,&sdf,points+base,n,&chunkError)&&ok;
+        fragment=fmaxf(fragment,chunkError);
+    }
+    ok=ok&&compute<.0002f&&fragment<.0002f;
     float intervalError=0;
     ok=OpenGLRenderer_ValidatePinnaIntervals(&renderer,&sdf,&intervalError)&&ok;
     printf("[RECETA GPU] intervalo_error_m=%.9g\n",intervalError);

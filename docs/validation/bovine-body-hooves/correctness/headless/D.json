@@ -1,0 +1,10 @@
+{
+  "seed":42,"tick":216000,"seconds":3600.000000000,"days":30.000000000,
+  "population":0,"juveniles":0,"births":0,"deaths":4,"kills":0,"attacks":0,"matings":0,
+  "food_consumed":0.000000000,"water_consumed":1.907500135,"plant_biomass":100.000000000,"average_age":0.000000000,"average_health":0.000000000,
+  "action_failures":1,"navigation_failures":1,"failed_births":0,"escapes":0,"event_hash":"c435911c100f894a",
+  "death_causes":[0,4,0,0,0,0],
+  "plant_consumed":0.000000000,"meat_consumed":0.000000000,
+  "maximum_generation":0,
+  "species":[{"id":1,"population":0},{"id":2,"population":0}]
+}

@@ -1,0 +1,280 @@
+{
+  "A": {
+    "passed": true,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem_headless",
+      "--scenario=A",
+      "--seed=42",
+      "--days=30",
+      "--summary=build/bovine-ecosystem-final/A.json",
+      "--history=build/bovine-ecosystem-final/A.csv"
+    ],
+    "summary": {
+      "seed": 42,
+      "tick": 216000,
+      "seconds": 3600.0,
+      "days": 30.0,
+      "population": 0,
+      "juveniles": 0,
+      "births": 0,
+      "deaths": 12,
+      "kills": 0,
+      "attacks": 0,
+      "matings": 0,
+      "food_consumed": 0.338820049,
+      "water_consumed": 0.837500059,
+      "plant_biomass": 0.300000012,
+      "average_age": 0.0,
+      "average_health": 0.0,
+      "action_failures": 115,
+      "navigation_failures": 111,
+      "failed_births": 0,
+      "escapes": 0,
+      "event_hash": "addae5cad5648b34",
+      "death_causes": [
+        0,
+        12,
+        0,
+        0,
+        0,
+        0
+      ],
+      "plant_consumed": 0.338820049,
+      "meat_consumed": 0.0,
+      "maximum_generation": 0,
+      "species": [
+        {
+          "id": 1,
+          "population": 0
+        },
+        {
+          "id": 2,
+          "population": 0
+        }
+      ]
+    }
+  },
+  "B": {
+    "passed": true,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem_headless",
+      "--scenario=B",
+      "--seed=42",
+      "--days=30",
+      "--summary=build/bovine-ecosystem-final/B.json",
+      "--history=build/bovine-ecosystem-final/B.csv"
+    ],
+    "summary": {
+      "seed": 42,
+      "tick": 216000,
+      "seconds": 3600.0,
+      "days": 30.0,
+      "population": 0,
+      "juveniles": 0,
+      "births": 11,
+      "deaths": 19,
+      "kills": 0,
+      "attacks": 0,
+      "matings": 11,
+      "food_consumed": 93.76000227,
+      "water_consumed": 24.397501727,
+      "plant_biomass": 150.0,
+      "average_age": 0.0,
+      "average_health": 0.0,
+      "action_failures": 1623,
+      "navigation_failures": 1300,
+      "failed_births": 0,
+      "escapes": 0,
+      "event_hash": "0ed1d45a05a2351f",
+      "death_causes": [
+        0,
+        0,
+        16,
+        0,
+        3,
+        0
+      ],
+      "plant_consumed": 93.76000227,
+      "meat_consumed": 0.0,
+      "maximum_generation": 2,
+      "species": [
+        {
+          "id": 1,
+          "population": 0
+        },
+        {
+          "id": 2,
+          "population": 0
+        }
+      ]
+    }
+  },
+  "C": {
+    "passed": true,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem_headless",
+      "--scenario=C",
+      "--seed=42",
+      "--days=30",
+      "--summary=build/bovine-ecosystem-final/C.json",
+      "--history=build/bovine-ecosystem-final/C.csv"
+    ],
+    "summary": {
+      "seed": 42,
+      "tick": 216000,
+      "seconds": 3600.0,
+      "days": 30.0,
+      "population": 0,
+      "juveniles": 0,
+      "births": 6,
+      "deaths": 24,
+      "kills": 15,
+      "attacks": 46,
+      "matings": 6,
+      "food_consumed": 63.292646117,
+      "water_consumed": 14.620001035,
+      "plant_biomass": 125.0,
+      "average_age": 0.0,
+      "average_health": 0.0,
+      "action_failures": 1387,
+      "navigation_failures": 697,
+      "failed_births": 0,
+      "escapes": 1358,
+      "event_hash": "b698e18edcf9d2fc",
+      "death_causes": [
+        0,
+        2,
+        7,
+        15,
+        0,
+        0
+      ],
+      "plant_consumed": 37.860000917,
+      "meat_consumed": 25.4326452,
+      "maximum_generation": 1,
+      "species": [
+        {
+          "id": 1,
+          "population": 0
+        },
+        {
+          "id": 2,
+          "population": 0
+        }
+      ]
+    }
+  },
+  "D": {
+    "passed": true,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem_headless",
+      "--scenario=D",
+      "--seed=42",
+      "--days=30",
+      "--summary=build/bovine-ecosystem-final/D.json",
+      "--history=build/bovine-ecosystem-final/D.csv"
+    ],
+    "summary": {
+      "seed": 42,
+      "tick": 216000,
+      "seconds": 3600.0,
+      "days": 30.0,
+      "population": 0,
+      "juveniles": 0,
+      "births": 0,
+      "deaths": 4,
+      "kills": 0,
+      "attacks": 0,
+      "matings": 0,
+      "food_consumed": 0.0,
+      "water_consumed": 1.907500135,
+      "plant_biomass": 100.0,
+      "average_age": 0.0,
+      "average_health": 0.0,
+      "action_failures": 1,
+      "navigation_failures": 1,
+      "failed_births": 0,
+      "escapes": 0,
+      "event_hash": "c435911c100f894a",
+      "death_causes": [
+        0,
+        4,
+        0,
+        0,
+        0,
+        0
+      ],
+      "plant_consumed": 0.0,
+      "meat_consumed": 0.0,
+      "maximum_generation": 0,
+      "species": [
+        {
+          "id": 1,
+          "population": 0
+        },
+        {
+          "id": 2,
+          "population": 0
+        }
+      ]
+    }
+  },
+  "E": {
+    "passed": true,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/demos/demo_ecosystem_headless",
+      "--scenario=E",
+      "--seed=42",
+      "--days=30",
+      "--summary=build/bovine-ecosystem-final/E.json",
+      "--history=build/bovine-ecosystem-final/E.csv"
+    ],
+    "summary": {
+      "seed": 42,
+      "tick": 216000,
+      "seconds": 3600.0,
+      "days": 30.0,
+      "population": 0,
+      "juveniles": 0,
+      "births": 9,
+      "deaths": 23,
+      "kills": 8,
+      "attacks": 49,
+      "matings": 9,
+      "food_consumed": 78.585036629,
+      "water_consumed": 18.727501326,
+      "plant_biomass": 150.0,
+      "average_age": 0.0,
+      "average_health": 0.0,
+      "action_failures": 3665,
+      "navigation_failures": 2589,
+      "failed_births": 0,
+      "escapes": 3570,
+      "event_hash": "c8028b3a7fdac964",
+      "death_causes": [
+        0,
+        2,
+        12,
+        8,
+        1,
+        0
+      ],
+      "plant_consumed": 44.020001066,
+      "meat_consumed": 34.565035563,
+      "maximum_generation": 2,
+      "species": [
+        {
+          "id": 1,
+          "population": 0
+        },
+        {
+          "id": 2,
+          "population": 0
+        }
+      ]
+    }
+  },
+  "determinism": {
+    "passed": true
+  }
+}

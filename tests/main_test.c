@@ -2,6 +2,7 @@
 
 void run_creature_recipe_io_tests(void);
 void run_bovine_editor_tests(void);
+void run_cloven_hoof_tests(void);
 
 void run_gpu_sdf_surface_tests(void);
 void run_dog_tests(void);
@@ -50,6 +51,7 @@ void run_ecosystem_tests(void);
 void run_creature_visual_variation_tests(void);
 void run_ecosystem_creatures_tests(void);
 int main(void) {
+    run_cloven_hoof_tests();
     run_bovine_editor_tests();
     run_creature_recipe_io_tests();
     run_ecosystem_tests();

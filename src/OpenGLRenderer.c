@@ -53,6 +53,8 @@ typedef struct GpuMesh {
     const void* vertexPointer;
     const void* indexPointer;
     GLuint vao,geometryVbo,surfaceVbo,indexBuffer;
+    GLuint furIndexBuffer;
+    size_t furIndexCount;
     uint64_t geometryGeneration,surfaceGeneration,lastUse;
     size_t vertexCount,indexCount;
     GLuint rootVbo,rootVao,geometryTexture,surfaceTexture;
@@ -592,6 +594,7 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
             if(m->geometryVbo)glDeleteBuffers(1,&m->geometryVbo);
             if(m->surfaceVbo)glDeleteBuffers(1,&m->surfaceVbo);
             if(m->indexBuffer)glDeleteBuffers(1,&m->indexBuffer);
+            if(m->furIndexBuffer)glDeleteBuffers(1,&m->furIndexBuffer);
             if(m->skinBase)glDeleteBuffers(1,&m->skinBase);
             if(m->skinWeights)glDeleteBuffers(1,&m->skinWeights);
         }
@@ -1954,8 +1957,23 @@ bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* r,const MonsterSDF* sdf,f
     Vector3 rshape=m->earShape,a=Vec3_Create(.2f,-.3f,.1f),b=Vec3_Create(-.4f,.8f,-.5f);
     for(int recipe=0;recipe<8;++recipe) {
         if(recipe==7&&!sdf->connectorCount)continue;
+        size_t connectorIndex=0;
+        if(recipe==7) {
+            for(size_t c=0;c<sdf->connectorCount;++c)if(sdf->connectors[c].material==SDF_MATERIAL_HOOF){connectorIndex=c;break;}
+            const MonsterSDFConnector* claw=&sdf->connectors[connectorIndex];
+            Vector3 extent=AABB_Size(claw->bounds);
+            for(unsigned i=0;i<COUNT;++i) {
+                Vector3 center=Vec3_Add(claw->bounds.start,Vec3_Create(((i*97u)%509u)/508.f*extent.x,
+                    ((i*193u)%503u)/502.f*extent.y,((i*251u)%499u)/498.f*extent.z));
+                float radius=i%3==0?0:fminf(claw->widthA,claw->heightA)*(.02f+.01f*(i%17));
+                Vector3 half=Vec3_Create(radius,radius,radius),lo=Vec3_Sub(center,half),hi=Vec3_Add(center,half);
+                probes[i][0]=lo.x;probes[i][1]=lo.y;probes[i][2]=lo.z;
+                probes[i][4]=hi.x;probes[i][5]=hi.y;probes[i][6]=hi.z;
+            }
+            glBufferSubData(GL_SHADER_STORAGE_BUFFER,0,sizeof(probes),probes);
+        }
         glUniform1i(glGetUniformLocation(d->compute.intervalProgram,"intervalRecipe"),recipe);
-        glUniform1i(glGetUniformLocation(d->compute.intervalProgram,"intervalConnector"),d->scene.connectorBase);
+        glUniform1i(glGetUniformLocation(d->compute.intervalProgram,"intervalConnector"),d->scene.connectorBase+(int)connectorIndex*C_STRIDE);
         glDispatchCompute(COUNT/64,1,1);glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT|GL_SHADER_STORAGE_BARRIER_BIT);
         glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,sizeof(probes),probes);
         bool contained=true;float recipeError=0;
@@ -1972,10 +1990,12 @@ bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* r,const MonsterSDF* sdf,f
             if(recipe==6)cpu=SDF_EllipticalSweepInterval(box,m->headStations,6);
             MonsterSDFConnector connector={0};MonsterSDF field={0};
             if(recipe==7) {
-                connector=sdf->connectors[0];connector.isHeadNeck=false;
+                connector=sdf->connectors[connectorIndex];connector.isHeadNeck=false;
                 field.connectors=&connector;field.connectorCount=1;
                 cpu=SDF_ConnectorPowerInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
                     connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.widthBulge,connector.heightBulge,connector.material==SDF_MATERIAL_HOOF);
+                if(connector.material==SDF_MATERIAL_HOOF)cpu=SDF_KeratinClawInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
+                    connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.crownInset,connector.toeRounding);
             }
             float lo=INFINITY,hi=-INFINITY;
             for(unsigned corner=0;corner<9;++corner) {
@@ -2983,6 +3003,27 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
         glBindBuffer(GL_ARRAY_BUFFER,cached->surfaceVbo);glBufferData(GL_ARRAY_BUFFER,mesh->vertexCount*sizeof(SurfaceGpuVertex),d->surfaceScratch,GL_STATIC_DRAW);
         uploaded+=mesh->vertexCount*sizeof(SurfaceGpuVertex);++d->meshStats.staticSurfaceUploads;cached->surfaceGeneration=mesh->surfaceGeneration;
     }
+    if(surfaceChanged||indicesChanged) {
+        /* El pase base conserva todos los índices. Las conchas no necesitan
+         * procesar queratina ni triángulos cuya máscara completa garantiza
+         * discard en el fragment shader. Se mantienen los bordes mixtos. */
+        MeshIndex* furIndices=malloc(mesh->indexCount*sizeof(*furIndices));
+        if(!furIndices)return false;
+        size_t count=0;
+        for(size_t triangle=0;triangle+2<mesh->indexCount;triangle+=3) {
+            bool mask=false,skin=false;
+            for(unsigned corner=0;corner<3;++corner) {
+                const MeshVertex* v=&mesh->vertices[mesh->indices[triangle+corner]];
+                mask=mask||v->surface.integumentMask>.001f;
+                skin=skin||v->material==SDF_MATERIAL_SKIN;
+            }
+            if(mask&&skin)for(unsigned corner=0;corner<3;++corner)furIndices[count++]=mesh->indices[triangle+corner];
+        }
+        if(!cached->furIndexBuffer)glGenBuffers(1,&cached->furIndexBuffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->furIndexBuffer);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,count*sizeof(*furIndices),furIndices,GL_STATIC_DRAW);
+        cached->furIndexCount=count;uploaded+=count*sizeof(*furIndices);free(furIndices);
+    }
     if(d->skin.mesh==mesh&&!DeformMeshGPU(d,cached,mesh))return false;
     if(uploaded){++d->meshStats.uploadCount;d->meshStats.totalBytesUploaded+=uploaded;d->meshStats.lastUploadMs=RendererNowMs()-uploadStart;}
     else ++d->meshStats.cacheHitCount;
@@ -3063,7 +3104,9 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
             glUniform1f(d->shellResolutionLocation,resolution);glUniform1i(d->regionalLODLocation,d->forcedShells==0);
             glUniform1i(d->furPassLocation,1);glUniform1i(d->shellCountLocation,count);
             glUniform2fv(d->shellSamplesLocation,count,&shellSamples[0][0]);
-            glDrawElementsInstanced(GL_TRIANGLES,(GLsizei)mesh->indexCount,GL_UNSIGNED_INT,0,count);
+            bool compact=d->surfaceDebug==0&&!getenv("MONSTER_FUR_FULL_INDICES");
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,compact?cached->furIndexBuffer:cached->indexBuffer);
+            glDrawElementsInstanced(GL_TRIANGLES,(GLsizei)(compact?cached->furIndexCount:mesh->indexCount),GL_UNSIGNED_INT,0,count);
         }
         DrawGuards(d,cached,mesh,visibility);
         glDepthMask(depth);glCullFace((GLenum)cullMode);if(cull)glEnable(GL_CULL_FACE);else glDisable(GL_CULL_FACE);

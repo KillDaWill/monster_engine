@@ -65,7 +65,6 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     const AnatomyNode* pelvisNode = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_PELVIS);
     if (!neckNode || !pectoralNode || !thoraxANode || !thoraxPNode || !abdomenNode || !pelvisNode) return false;
 
-    float trunkLen = p->trunkLength * s;
     float curvature = isfinite(p->cervicalCurvature) && p->cervicalCurvature > 0.0f ? p->cervicalCurvature : 0.45f;
     float dorsalMass = isfinite(p->cervicalDorsalMass) && p->cervicalDorsalMass > 0.0f ? p->cervicalDorsalMass : 1.0f;
     float midNarrow = isfinite(p->cervicalMidNarrowing) && p->cervicalMidNarrowing > 0.0f ? p->cervicalMidNarrowing : 0.82f;
@@ -100,13 +99,15 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     }
 
     /* 5. Post-Withers: Transición suave hacia el dorso nivelado del tórax */
-    float zPW = -trunkLen * 0.10f;
+    float zPW = Math_Lerp(zW,thoraxANode->center.z,.10f/.23f);
     if (zPW <= thoraxANode->center.z + 0.05f * s) zPW = (zW + thoraxANode->center.z) * 0.5f;
     float wPW = (pectoralNode->widthRadius + thoraxANode->widthRadius) * .5f;
-    float deltaPW = deltaW * .35f;
-    float chestSoft=p->brisketDepth*p->thoraxHeight*s*.35f;
-    float hPW = thoraxANode->heightRadius + deltaPW * .5f+chestSoft*.5f;
-    float yPW = thoraxANode->center.y + deltaPW * .5f-chestSoft*.5f;
+    /* Interpolar ambos contornos semánticos respeta perfiles escapulares
+     * desplazados, en lugar de imponer otra sección cilíndrica al tórax. */
+    float dorsalPW=Math_Lerp(dorsalW,thoraxANode->center.y+thoraxANode->heightRadius,.5f);
+    float ventralPW=Math_Lerp(ventralW,thoraxANode->center.y-thoraxANode->heightRadius,.5f);
+    float hPW = (dorsalPW-ventralPW)*.5f;
+    float yPW = (dorsalPW+ventralPW)*.5f;
     outStations[count++] = (SDFSweepStation){.center = {0, yPW, zPW}, .width = wPW, .height = hPW};
 
     /* 6. Tórax Anterior */

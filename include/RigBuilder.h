@@ -15,6 +15,7 @@ typedef struct LimbRig {
     LimbSide side;
     bool walking;
     bool digitigrade; /**< Metapodio orientado antes de resolver la cadena proximal. */
+    bool unguligrade; /**< Apoyo en dos suelas de queratina, por debajo del menudillo. */
     float soleHeight;
 } LimbRig;
 #define RIG_MAX_TAILS 8

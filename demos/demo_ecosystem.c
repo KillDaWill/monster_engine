@@ -41,7 +41,9 @@ static int compareDouble(const void *a,const void *b) {double x=*(const double *
 
 typedef enum ViewMode { VIEW_SIDE, VIEW_FRONT, VIEW_THREE_QUARTER, VIEW_OVERVIEW } ViewMode;
 typedef enum CaptureState { CAPTURE_OVERVIEW, CAPTURE_ADULT, CAPTURE_JUVENILE, CAPTURE_NEWBORN,
-    CAPTURE_WALKING, CAPTURE_DRINKING, CAPTURE_HUNTING, CAPTURE_FLEEING, CAPTURE_FEEDING, CAPTURE_RESTING, CAPTURE_ATTACKING } CaptureState;
+    CAPTURE_WALKING, CAPTURE_DRINKING, CAPTURE_HUNTING, CAPTURE_FLEEING, CAPTURE_FEEDING, CAPTURE_RESTING, CAPTURE_ATTACKING, CAPTURE_TURNING } CaptureState;
+static AIObjectId turningEntity=0;
+static float observedTurnRate=0;
 
 static bool parseView(const char *value,ViewMode *out) {
     if(!strcmp(value,"side"))*out=VIEW_SIDE;
@@ -53,7 +55,7 @@ static bool parseView(const char *value,ViewMode *out) {
 }
 
 static bool parseCaptureState(const char *value,CaptureState *out) {
-    const char *names[]={"overview","adult","juvenile","newborn","walking","drinking","hunting","fleeing","feeding","resting","attacking"};
+    const char *names[]={"overview","adult","juvenile","newborn","walking","drinking","hunting","fleeing","feeding","resting","attacking","turning"};
     for(unsigned i=0;i<sizeof(names)/sizeof(*names);++i) if(!strcmp(value,names[i])) {*out=(CaptureState)i;return true;}
     return false;
 }
@@ -115,6 +117,7 @@ static bool matchesCapture(const EcosystemWorld *world,const EcosystemEntity *en
             return entity->physiology.stage==LIFE_JUVENILE&&entity->physiology.age<=species->physiology.maturityAge*.25;
         }
         case CAPTURE_WALKING:return entity->body.speed>.05f;
+        case CAPTURE_TURNING:return entity->id==turningEntity&&entity->body.speed>.05f&&fabsf(observedTurnRate)>.1f;
         case CAPTURE_DRINKING:return entity->mind.action==ACTION_DRINK&&entity->body.reach.status==REACH_REACHED;
         case CAPTURE_FEEDING:return entity->mind.action==ACTION_EAT&&entity->body.reach.status==REACH_REACHED;
         case CAPTURE_ATTACKING:return entity->mind.action==ACTION_ATTACK&&entity->body.reach.status==REACH_REACHED;
@@ -168,7 +171,7 @@ int main(int argc,char **argv) {
         else if(!strncmp(argv[i],"--capture-species=",18))captureSpecies=(unsigned)strtoul(argv[i]+18,NULL,10);
         else if(!strncmp(argv[i],"--capture-state=",16)){if(!parseCaptureState(argv[i]+16,&captureState))return 2;}
         else if(!strncmp(argv[i],"--validate-mouth=",17))validateMouthFrames=(unsigned)strtoul(argv[i]+17,NULL,10);
-        else if(!strcmp(argv[i],"--help")){puts("--recipes-dir=DIR --seed=N --scenario=A..E --frames=N --speed=1|2|4|16 --herbivores=N --carnivores=N --plants=N --capacity=N --capture=imagen.ppm --profile=metricas.json --view=side|front|three-quarter|overview --focus=ID --capture-state=adult|juvenile|newborn|walking|drinking|feeding|hunting|attacking|fleeing|resting|overview --validate-mouth=N --zoom=.4..90 --no-hud --initial-age=SEGUNDOS --capture-species=ID --validate-skinning --cpu-skinning --inspect=body|head|feet|neck --focus-lod=near|mid|far --lod-cycle");return 0;}
+        else if(!strcmp(argv[i],"--help")){puts("--recipes-dir=DIR --seed=N --scenario=A..E --frames=N --speed=1|2|4|16 --herbivores=N --carnivores=N --plants=N --capacity=N --capture=imagen.ppm --profile=metricas.json --view=side|front|three-quarter|overview --focus=ID --capture-state=adult|juvenile|newborn|walking|turning|drinking|feeding|hunting|attacking|fleeing|resting|overview --validate-mouth=N --zoom=.4..90 --no-hud --initial-age=SEGUNDOS --capture-species=ID --validate-skinning --cpu-skinning --inspect=body|head|feet|neck --focus-lod=near|mid|far --lod-cycle");return 0;}
         else return 2;
     }
     if(!isfinite(initialAge)||initialAge>10000||frames>1000000||!isfinite(initialZoom)||initialZoom<.4||initialZoom>90||(initialSpeed!=1&&initialSpeed!=2&&initialSpeed!=4&&initialSpeed!=16))return 2;
@@ -242,7 +245,15 @@ int main(int argc,char **argv) {
             if(!EcosystemVisual_BindWorld(&visual,&w))fprintf(stderr,"[ADVERTENCIA] Fallo al volver a enlazar EcosystemVisual.\n");
             if(!EcosystemVisual_Validate(&visual))fprintf(stderr,"[ADVERTENCIA] EcosystemVisual inválido tras reinicio.\n");
         }
+        /* Medir el giro observado del individuo enfocado, sin guionizarlo. */
+        AIObjectId observedId=hasFocus?focusId:w.entities[selectedSlot].id;
+        const EcosystemEntity* beforeTurn=findEntity(&w,observedId);
+        float previousYaw=beforeTurn?beforeTurn->body.yaw:0;
         double simStart=OpenGLDemoWindow_Time();EcosystemWorld_Advance(&w,dt);
+        const EcosystemEntity* afterTurn=findEntity(&w,observedId);
+        turningEntity=afterTurn?observedId:0;
+        float deltaYaw=afterTurn?afterTurn->body.yaw-previousYaw:0;
+        observedTurnRate=atan2f(sinf(deltaYaw),cosf(deltaYaw))/(float)dt;
         if(simulationTimes)simulationTimes[frame]=(OpenGLDemoWindow_Time()-simStart)*1000;
         if(w.clock.seconds>=nextSample) {
             history[historyIndex]=w.count;historyIndex=(historyIndex+1)%160;if(historyCount<160)++historyCount;
@@ -424,6 +435,7 @@ int main(int argc,char **argv) {
             captured=ok&&OpenGLRenderer_SavePPM(capture,1280,800);ok=captured&&ok;
             const EcosystemEntity* subject=findEntity(&w,captureTargetId?captureTargetId:focusId);
             if(subject)printf("capture_entity=%u species=%u recipe=%u action=%s stage=%u\n",subject->id,subject->body.species,w.species[subject->speciesIndex].recipeId,CreatureAction_Name(subject->mind.action),subject->physiology.stage);
+            if(subject&&subject->id==turningEntity)printf("capture_yaw_rate_rad_s=%g\n",observedTurnRate);
         }
         renderer.endFrame(&renderer);finalGpu=OpenGLRenderer_GetMeshPerformanceStats(&renderer);
         if(finalGpu.gpuTimingGeneration!=gpuTimingGeneration){gpuTimingGeneration=(unsigned)finalGpu.gpuTimingGeneration;gpuSum+=finalGpu.gpuRenderMs;++gpuSamples;}

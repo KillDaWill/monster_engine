@@ -60,6 +60,10 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         l->distalSweep = Math_Clamp(isfinite(l->distalSweep) ? l->distalSweep : 0, -1, 1);
         l->footYaw = Math_Clamp(isfinite(l->footYaw) ? l->footYaw : 0, -3.14159265f, 3.14159265f);
         l->flexionScale=Math_Clamp(Positive(l->flexionScale,1),.5f,2);
+        l->hoofWallSlope=Math_Clamp(Positive(l->hoofWallSlope,.22f),.02f,.45f);
+        l->hoofToeRoundness=Math_Clamp(Positive(l->hoofToeRoundness,.8f),.3f,1);
+        l->hoofHeelHeight=Math_Clamp(Positive(l->hoofHeelHeight,.75f),.4f,1);
+        l->dewclawSize=Unit(l->dewclawSize,0);
         l->proximalScale = Positive(l->proximalScale, 1);
         l->middleScale = Positive(l->middleScale, 1);
         l->distalScale = Positive(l->distalScale, 1);
@@ -239,6 +243,8 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(limbs[i].attachmentInset);
         LERP_BODY(limbs[i].proximalSweep); LERP_BODY(limbs[i].distalSweep); LERP_BODY(limbs[i].footYaw);
         LERP_BODY(limbs[i].flexionScale);
+        LERP_BODY(limbs[i].hoofWallSlope); LERP_BODY(limbs[i].hoofToeRoundness);
+        LERP_BODY(limbs[i].hoofHeelHeight); LERP_BODY(limbs[i].dewclawSize);
         LERP_BODY(limbs[i].length); LERP_BODY(limbs[i].sprawl); LERP_BODY(limbs[i].development);
         p.limbs[i].thickness = Math_Lerp(a->limbs[i].thickness, b->limbs[i].thickness, mature);
         LERP_BODY(limbs[i].digitSpread); LERP_BODY(limbs[i].footScale);

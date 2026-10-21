@@ -1,0 +1,361 @@
+[
+  {
+    "name": "anatomy-adult",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "docs/validation/bovine-body-hooves/after/adult",
+      "3"
+    ],
+    "returncode": 0,
+    "binary_sha256": "df067898ceac8e7191f9f443eb37b41887f021824b85f657ca9fde833135039a"
+  },
+  {
+    "name": "anatomy-juvenile",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "docs/validation/bovine-body-hooves/after/juvenile",
+      "2"
+    ],
+    "returncode": 0,
+    "binary_sha256": "df067898ceac8e7191f9f443eb37b41887f021824b85f657ca9fde833135039a"
+  },
+  {
+    "name": "anatomy-newborn",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "docs/validation/bovine-body-hooves/after/newborn",
+      "1"
+    ],
+    "returncode": 0,
+    "binary_sha256": "df067898ceac8e7191f9f443eb37b41887f021824b85f657ca9fde833135039a"
+  },
+  {
+    "name": "gpu-stage-0",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "0"
+    ],
+    "returncode": 0,
+    "binary_sha256": "433929e2b01c26f28129fe210489a6d85e4b2f86bb5dc9b3d93e29ebcbc68277"
+  },
+  {
+    "name": "gpu-stage-1",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "1"
+    ],
+    "returncode": 0,
+    "binary_sha256": "433929e2b01c26f28129fe210489a6d85e4b2f86bb5dc9b3d93e29ebcbc68277"
+  },
+  {
+    "name": "gpu-stage-2",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "2"
+    ],
+    "returncode": 0,
+    "binary_sha256": "433929e2b01c26f28129fe210489a6d85e4b2f86bb5dc9b3d93e29ebcbc68277"
+  },
+  {
+    "name": "gpu-stage-3",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "3"
+    ],
+    "returncode": 0,
+    "binary_sha256": "433929e2b01c26f28129fe210489a6d85e4b2f86bb5dc9b3d93e29ebcbc68277"
+  },
+  {
+    "name": "gpu-mesh-adult",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "3",
+      "docs/validation/bovine-body-hooves/after/gpu-mesh-adult.ppm"
+    ],
+    "returncode": 0,
+    "binary_sha256": "433929e2b01c26f28129fe210489a6d85e4b2f86bb5dc9b3d93e29ebcbc68277"
+  },
+  {
+    "name": "ecosystem-adult-side",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=side",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-adult-side.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-adult-side.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-adult-front",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--view=front",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-adult-front.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-adult-front.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-adult-three-quarter",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-adult-three-quarter.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-adult-three-quarter.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-juvenile",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--initial-age=60",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-juvenile.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-juvenile.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-newborn",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--initial-age=0",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-newborn.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-newborn.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-walking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--capture-state=walking",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-walking.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-walking.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-turning",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--capture-state=turning",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-turning.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-turning.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-drinking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=3600",
+      "--capture-state=drinking",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-drinking.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-drinking.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-feeding",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--focus=23",
+      "--frames=2400",
+      "--capture-state=feeding",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-feeding.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-feeding.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-fleeing",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--scenario=E",
+      "--capture-species=1",
+      "--speed=4",
+      "--frames=6000",
+      "--capture-state=fleeing",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-fleeing.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-fleeing.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-lod-cycle",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=720",
+      "--lod-cycle",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-lod-cycle.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-lod-cycle.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-cpu-skinning",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=240",
+      "--cpu-skinning",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-cpu-skinning.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-cpu-skinning.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ecosystem-velkar",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=240",
+      "--capture=docs/validation/bovine-body-hooves/after/ecosystem-velkar.ppm",
+      "--profile=docs/validation/bovine-body-hooves/after/ecosystem-velkar.json"
+    ],
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "recipes": {
+      "recipes/brumacerno.creature.json": "fae9cded20b499e4113ef179e13d05f86db78b8625d2884429a4ae68c26d5b9f",
+      "recipes/explorador.creature.json": "a09945f18c3d45c174f6c1b47165662891d61a4f94264dda5aeb76f3360ac35a"
+    }
+  }
+]

@@ -1,0 +1,24 @@
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/EcosystemScenario.o build/EcosystemAnatomy.o build/SimulationClock.o build/CreaturePhysiology.o build/CreatureGenome.o build/CreatureReproduction.o build/EcosystemResources.o build/EcosystemWorld.o build/AnatomicalReach.o build/BrainProfile.o build/CreatureNeeds.o build/AIWorld.o build/CreaturePerception.o build/CreatureNavigation.o build/CreatureMotor.o build/CreatureMind.o build/CreatureDecision.o build/CreatureActions.o build/GpuDevicePolicy.o build/NavigationProgress.o build/CreatureBoundary.o build/SDFInterval.o build/GpuSDFSurfaceCache.o build/CreatureMorph.o build/MorphModuleState.o build/MorphHandoff.o build/MorphSpatialCache.o build/MorphChunkManager.o build/MorphSurfaceTracker.o build/MorphSurfacePatcher.o build/HeadMorph.o build/Surface.o build/Fur.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/MeshPatch.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/EyeTexture.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipeIO.o build/CreatureRecipeRegistry.o build/CreatureRecipes.o build/CreatureRecipeBrumacerno.o build/CreatureRecipeVelkar.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/VisualVariation.o build/EcosystemVisual.o build/LizardVariations.o build/OpenGLRenderer.o tools/validate_morph_gpu_regressions.c -lSDL2 -lGL -lGLU -lm -pthread -o build/validate_morph_gpu_regressions
+./build/validate_morph_gpu_regressions
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-34-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-34-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[MATERIAL GPU] frame=0 error_rgb=0
+[MATERIAL GPU] frame=1 error_rgb=0
+[MATERIAL GPU] frame=2 error_rgb=0
+[MATERIAL GPU] frame=3 error_rgb=0
+[MATERIAL GPU] frame=4 error_rgb=0
+[MATERIAL GPU] frame=5 error_rgb=0
+[MATERIAL GPU] frame=6 error_rgb=0
+[MATERIAL GPU] frame=7 error_rgb=0
+[PARIDAD] edad=0.00 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PARIDAD] edad=0.10 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PARIDAD] edad=0.20 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=0.35 puntos=2334 compute=4.08292e-05 fragment=4.08292e-05
+[PARIDAD] edad=0.50 puntos=2334 compute=1.43051e-06 fragment=1.43051e-06
+[PARIDAD] edad=0.65 puntos=2334 compute=7.15256e-07 fragment=7.15256e-07
+[PARIDAD] edad=0.80 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PARIDAD] edad=0.90 puntos=2334 compute=4.76837e-07 fragment=4.76837e-07
+[PARIDAD] edad=1.00 puntos=2334 compute=4.76837e-07 fragment=4.76837e-07
+[PARIDAD] edad=0.50 puntos=2334 compute=1.43051e-06 fragment=1.43051e-06
+[PARIDAD] edad=0.00 puntos=2334 compute=5.96046e-07 fragment=5.96046e-07
+[PASS] Raíz propietaria posterior y caché densa GPU
