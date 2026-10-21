@@ -33,7 +33,7 @@ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'bool': ('F_BOOL', '1'), 'CreatureRecipeId': ('F_U32', 'UINT32_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
-OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask'}}
+OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask'}}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
 

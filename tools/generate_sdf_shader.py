@@ -96,7 +96,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
     pack.extend([f'#define {short}_STRIDE {offset}',*code,'}'])
 
 functions=[]
-for name in ['SDF_SinHalfTurn','SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
+for name in ['SDF_KeratinClaw','SDF_SinHalfTurn','SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
     functions.append(function('src/SDFPrimitives.c',name))
 for name in ['SDF_SmoothUnion','SDF_SmoothSubtract']:
     functions.append(function('src/SDFOperations.c',name))
@@ -274,7 +274,7 @@ interval_names=['Interval_Pad','Interval_Constant','Interval_Add','Interval_Subt
     'Interval_Square','Interval_Sqrt','Interval_SinHalfTurn','Interval_Project','SDF_CurvedPinnaInterval',
     'Interval_Lerp','Interval_Length','Interval_Component','Interval_Hull','SDF_EllipsoidInterval',
     'SDF_CapsuleInterval','SDF_RoundedSlotInterval','SDF_SmoothUnionInterval','SDF_SmoothSubtractInterval',
-    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_ConnectorPowerInterval','SDF_ConnectorInterval']
+    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_KeratinClawInterval','SDF_ConnectorPowerInterval','SDF_ConnectorInterval']
 interval_code=interval_prefix+'\n'.join(interval_translate(function('src/SDFInterval.c',name)) for name in interval_names)
 compute+=embed('sdfIntervalValidateSource','#version 430 compatibility\n'+core+interval_code+
     (ROOT/'shaders/sdf_interval_validate.comp').read_text())

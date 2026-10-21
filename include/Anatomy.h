@@ -81,6 +81,7 @@ typedef struct BodyConnection {
     uint32_t moduleInstanceId;
     float development;
     float widthBulge, heightBulge; /**< Plenitud central de sección; cero conserva el cono lineal. */
+    float crownInset, toeRounding; /**< Perfil de queratina: retracción superior y radio anterior. */
     Vector3 transverseAxis; /**< Eje transversal anatómico opcional; cero usa el marco automático. */
 } BodyConnection;
 

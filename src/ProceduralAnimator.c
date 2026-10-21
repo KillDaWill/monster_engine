@@ -224,7 +224,7 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
     for(size_t i=0;i<r->limbCount;++i) {
         if(!r->limbs[i].walking)continue;
         IKChain c=r->limbs[i].chain; c.targetPosition=a->locomotion.feet[i].targetPosition;
-        if(r->limbs[i].digitigrade&&c.jointCount==4) {
+        if((r->limbs[i].digitigrade||r->limbs[i].unguligrade)&&c.jointCount==4) {
             int parent=r->skeleton.joints[c.jointIndices[0]].parentIndex;
             Quaternion frame=parent>=0?p->joints[parent].worldRotation:Quat_Identity();
             Vector3 distal=Quat_RotateVector(frame,r->skeleton.joints[c.endEffectorJoint].restPosition);

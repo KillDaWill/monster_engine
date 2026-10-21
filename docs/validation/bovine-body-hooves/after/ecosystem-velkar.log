@@ -1,0 +1,28 @@
+[GPU selección] Adaptador dedicado pci-0000_01_00_0 solicitado al arrancar.
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.173.02 | MSAA=0
+geometry_warmup_seconds=5.111110 cache_builds=1
+scale_proof recipeId=4 meshRadius=0.703000 measuredMeshRadius=1.138448 meshLength=9.175173 calibrationLength=6.351016 totalScale=0.950000 k=0.322783023 rendered_width=0.226916 species_radius=0.800000 expected_width=0.800000 normalized_width=0.226916
+capture_mesh_ready=1 tier=2 body_vertices=67588 head_vertices=0
+capture_body_components=17 largest_triangles=133404 second_triangles=712
+mesh_island triangles=8 material=3 min=-0.909439,3.31108,1.73873 max=-0.908341,3.31433,1.74212
+mesh_island triangles=8 material=3 min=-0.803494,3.31185,1.83468 max=-0.79387,3.31542,1.8366
+mesh_island triangles=8 material=0 min=-0.885365,3.45633,1.76012 max=-0.884058,3.45724,1.76478
+mesh_island triangles=8 material=0 min=-0.873939,3.45602,1.77441 max=-0.871637,3.45788,1.77712
+mesh_island triangles=8 material=0 min=-0.861684,3.45634,1.78734 max=-0.860234,3.45736,1.7886
+mesh_island triangles=8 material=0 min=-0.828407,3.45516,1.80996 max=-0.82103,3.45973,1.81361
+mesh_island triangles=8 material=3 min=-0.789988,3.44481,1.83577 max=-0.789598,3.44503,1.83587
+mesh_island triangles=96 material=0 min=-0.699956,3.35111,1.86983 max=-0.642743,3.39885,1.8728
+mesh_island triangles=8 material=0 min=0.86,3.29788,1.78358 max=0.867862,3.30449,1.79069
+mesh_island triangles=8 material=0 min=0.845713,3.3,1.79668 max=0.85466,3.30389,1.80127
+mesh_island triangles=100 material=0 min=0.642725,3.35091,1.86981 max=0.700193,3.399,1.8728
+mesh_island triangles=8 material=0 min=0.793163,3.44475,1.83572 max=0.793824,3.44504,1.83589
+mesh_island triangles=8 material=3 min=0.840713,3.45652,1.79974 max=0.841975,3.45769,1.8005
+mesh_island triangles=8 material=0 min=0.824611,3.45588,1.81078 max=0.830286,3.45775,1.81259
+capture_world_body_bounds min=10.5542,-0.000251781,-7.16959 max=12.9716,1.41221,-5.27308
+capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0,0,0,1
+capture_entity=3 species=2 recipe=4 action=search_food stage=1
+capture_yaw_rate_rad_s=0
+process_cpu_mean_ms=28.001650
+meshCacheMisses=3 staticGeometryUploads=3 staticSurfaceUploads=3 indexUploads=3 furRootUploads=3 skinUploads=242
+mouth_validation_method=Rig.oralPoint_en_pose_vs_boca_ecologica
+mouth_err_max_m=0.002021996 mouth_err_p95_m=0.001927598 mouth_validation_frames=240

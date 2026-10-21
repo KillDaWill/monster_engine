@@ -128,6 +128,24 @@ static void BovineNearTemplate(void) {
     TEST_ASSERT(packet.ready&&packet.tier==VISUAL_TIER_NEAR&&packet.bodyMesh,"La validación usa geometría NEAR residente");
     size_t count=0,largest=0,second=0;
     TEST_ASSERT(Mesh_ComponentStatistics(packet.bodyMesh,&count,&largest,&second)&&count==1,"Cuerpo, cuernos, cascos y cola forman una sola componente sin borrar tejido");
+    const VisualTier tiers[]={VISUAL_TIER_MID,VISUAL_TIER_FAR};
+    for(unsigned tier=0;tier<2;++tier) {
+        TEST_ASSERT(EcosystemVisual_RequestTier(&visual,id,tiers[tier]),"Solicitar LOD ungulado");
+        clock_gettime(CLOCK_MONOTONIC,&start);
+        do {
+            EcosystemVisual_Update(&visual,.016f);EcosystemVisual_GetDrawPackets(&visual,&packet,1);
+            if(packet.ready&&packet.tier==tiers[tier])break;
+            nanosleep(&pause,NULL);clock_gettime(CLOCK_MONOTONIC,&now);
+        }while(now.tv_sec-start.tv_sec<30);
+        TEST_ASSERT(packet.ready&&packet.tier==tiers[tier]&&packet.deformer,"MID/FAR residentes, sin aceptar proxy");
+        for(unsigned leg=0;leg<4;++leg)for(unsigned digit=0;digit<2;++digit) {
+            const AnatomyNode* node=AnatomyGraph_FindModuleNode(&packet.deformer->refGraph,10+leg,Limb_DigitLocalId(digit,2));
+            float nearest=INFINITY;
+            for(size_t v=0;v<packet.bodyMesh->vertexCount;++v)if(packet.bodyMesh->vertices[v].material==SDF_MATERIAL_HOOF)
+                nearest=fminf(nearest,Vec3_Distance(node->center,packet.bodyMesh->vertices[v].position));
+            TEST_ASSERT(nearest<node->widthRadius*1.6f,"Las ocho uñas conservan geometría de queratina también en MID y FAR");
+        }
+    }
     EcosystemVisual_Shutdown(&visual);EcosystemWorld_Free(&world);
 }
 

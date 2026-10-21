@@ -1,0 +1,80 @@
+[
+  {
+    "name": "one-before",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--frames=900",
+      "--validate-mouth=900",
+      "--validate-skinning",
+      "--no-hud",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--inspect=body",
+      "--zoom=3",
+      "--view=side",
+      "--profile=/home/guillermo/Escritorio/monster_engine/docs/validation/bovine-body-hooves/performance/one-before.json"
+    ],
+    "cwd": "/tmp/monster-bovine-baseline",
+    "returncode": 0,
+    "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+  },
+  {
+    "name": "one-after",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--frames=900",
+      "--validate-mouth=900",
+      "--validate-skinning",
+      "--no-hud",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--inspect=body",
+      "--zoom=3",
+      "--view=side",
+      "--profile=/home/guillermo/Escritorio/monster_engine/docs/validation/bovine-body-hooves/performance/one-after.json"
+    ],
+    "cwd": "/home/guillermo/Escritorio/monster_engine",
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  },
+  {
+    "name": "ten-before",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--frames=900",
+      "--validate-mouth=900",
+      "--validate-skinning",
+      "--no-hud",
+      "--herbivores=8",
+      "--carnivores=2",
+      "--zoom=22",
+      "--view=three-quarter",
+      "--profile=/home/guillermo/Escritorio/monster_engine/docs/validation/bovine-body-hooves/performance/ten-before.json"
+    ],
+    "cwd": "/tmp/monster-bovine-baseline",
+    "returncode": 0,
+    "binary_sha256": "99b9cebf4339397ecdef29e16c005a68040db79ea64fdbd51d5f98fe5f6ebffd"
+  },
+  {
+    "name": "ten-after",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--frames=900",
+      "--validate-mouth=900",
+      "--validate-skinning",
+      "--no-hud",
+      "--herbivores=8",
+      "--carnivores=2",
+      "--zoom=22",
+      "--view=three-quarter",
+      "--profile=/home/guillermo/Escritorio/monster_engine/docs/validation/bovine-body-hooves/performance/ten-after.json"
+    ],
+    "cwd": "/home/guillermo/Escritorio/monster_engine",
+    "returncode": 0,
+    "binary_sha256": "5361f541f0dd6be6913890db5ddd206ee2a395a9f13bc18515193e8814a4ea7f"
+  }
+]

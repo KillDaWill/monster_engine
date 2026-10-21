@@ -4,6 +4,7 @@
 #include "Creature.h"
 #include "Monster.h"
 #include "MonsterSDF.h"
+#include "Limb.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -30,6 +31,7 @@ int main(int argc,char** argv) {
         unsigned validation=HeadAnatomy_Validate(h);valid=valid&&!validation&&!gaps;
         printf("%s{\"stage\":%u,\"scale\":%.7g,\"head_validation\":%u,\"field_samples\":%u,\"field_gaps\":%u,\"head_length\":%.7g,\"zygomatic_width\":%.7g,\"bridge_width\":%.7g,\"muzzle_width\":%.7g,\"inter_eye_distance\":%.7g,\"oral_slope\":%.7g,\"bounds_min\":",stage?",":"",stage,p->axial.totalScale,validation,samples,gaps,m.actualHeadLength,m.actualMaxZygomaticWidth,h->surface.faceMidRadii.x*2,m.muzzleTipWidth,m.interEyeDistance,h->surface.oralSlope);
         VectorJSON(sdf.bounds.start);printf(",\"bounds_max\":");VectorJSON(sdf.bounds.end);
+        printf(",\"ear_shape\":");VectorJSON(h->surface.earShape);
         printf(",\"skull\":");VectorJSON(h->landmarks.skullCenter);
         printf(",\"left_eye\":");VectorJSON(h->landmarks.leftEyeCenter);
         printf(",\"left_nostril\":");VectorJSON(h->landmarks.leftNostril);
@@ -41,6 +43,28 @@ int main(int argc,char** argv) {
         printf(",\"contact_to_jaw\":%.7g,\"contact_to_upper\":%.7g",jawDistance,upperDistance);
         printf(",\"horns\":[");
         for(unsigned side=0;side<2;++side){const AnatomyNode* a=AnatomyGraph_FindModuleNode(&monster->anatomyGraph,30+side,1);const AnatomyNode* b=AnatomyGraph_FindModuleNode(&monster->anatomyGraph,30+side,3);if(side)printf(",");printf("{\"root\":");VectorJSON(a->center);printf(",\"tip\":");VectorJSON(b->center);printf("}");}
+        printf("],\"axial_stations\":[");
+        float reference=p->axial.withersHeight*p->axial.totalScale;
+        for(unsigned station=1;station<=6;++station) {
+            const AnatomyNode* node=AnatomyGraph_FindModuleNode(&monster->anatomyGraph,1,station);
+            printf("%s{\"center\":",station>1?",":"");VectorJSON(node->center);
+            printf(",\"width_H\":%.7g,\"depth_H\":%.7g}",2*node->widthRadius/reference,2*node->heightRadius/reference);
+        }
+        printf("],\"limbs\":[");
+        for(unsigned leg=0;leg<4;++leg) {
+            LimbRigDescriptor desc;Limb_BuildRigDescriptor(&p->limbs[leg],10+leg,&monster->anatomyGraph,&desc);
+            printf("%s{\"sole_offset_H\":%.7g,\"joints\":[",leg?",":"",desc.soleHeight/reference);
+            for(unsigned joint=1;joint<=4;++joint){if(joint>1)printf(",");VectorJSON(AnatomyGraph_FindModuleNode(&monster->anatomyGraph,10+leg,joint)->center);}
+            printf("],\"claws\":[");unsigned count=0;
+            for(size_t c=0;c<sdf.connectorCount;++c) {
+                const MonsterSDFConnector* claw=&sdf.connectors[c];
+                if(claw->moduleInstanceId!=10+leg||claw->material!=SDF_MATERIAL_HOOF)continue;
+                printf("%s{\"width_H\":%.7g,\"height_H\":%.7g,\"length_H\":%.7g,\"sole_y\":%.7g}",count++?",":"",
+                    2*claw->widthA/reference,2*claw->heightB/reference,
+                    (claw->length+claw->widthA*.55f+claw->widthB*claw->toeRounding)/reference,claw->a.y-claw->heightA);
+            }
+            printf("]}");
+        }
         printf("]}");MonsterSDF_Free(&sdf);Monster_Free(monster);
     }
     printf("],\"valid\":%s}\n",valid?"true":"false");free(monster);free(doc);return valid?0:1;

@@ -83,4 +83,12 @@ SDFInterval SDF_ConnectorInterval(AABB3D box,Vector3 origin,Vector3 forward,Vect
 /** @brief Intervalo del conector elíptico o superelíptico de casco, con la misma sección escalar. */
 SDFInterval SDF_ConnectorPowerInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
     float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge,bool hoof);
+/** @brief Cota conservadora de la cápsula de queratina, incluyendo suela y corona inclinada.
+ * @param box Dominio mundial. @param origin Centro del talón. @param forward Eje anterior.
+ * @param side Eje transversal. @param up Eje dorsal. @param length Distancia entre estaciones.
+ * @param widthA Semiancho posterior. @param widthB Semiancho anterior. @param heightA Semialto posterior.
+ * @param heightB Semialto anterior. @param crownInset Retracción superior relativa. @param toeRounding Radio anterior relativo.
+ * @return Intervalo inclusivo del mismo campo escalar CPU/GPU. */
+SDFInterval SDF_KeratinClawInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
+    float length,float widthA,float widthB,float heightA,float heightB,float crownInset,float toeRounding);
 #endif

@@ -126,6 +126,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
+            $(TEST_DIR)/test_cloven_hoof.c \
             $(TEST_DIR)/test_bovine_editor.c \
             $(TEST_DIR)/test_anatomical_reach.c \
             $(TEST_DIR)/test_brain_profile.c \
@@ -203,6 +204,9 @@ $(BUILD_DIR)/inspect_brumacerno: $(CORE_OBJS) tools/inspect_brumacerno.c
 	$(CC) $(CFLAGS) $^ -lm -pthread -o $@
 
 $(BUILD_DIR)/validate_recipe_gpu: $(CORE_OBJS) $(RENDER_OBJS) tools/validate_recipe_gpu.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/capture_bovine_anatomy: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_bovine_anatomy.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(BUILD_DIR)/CreatureRecipeBrumacerno.o: src/CreatureRecipeBrumacerno.generated.inc

@@ -74,6 +74,7 @@ typedef struct MonsterSDFConnector {
     float widthB;
     float heightB;
     float widthBulge, heightBulge; /**< Perfil muscular compilado. */
+    float crownInset, toeRounding; /**< Perfil de uña resuelto por el módulo anatómico. */
     AnatomyId fromId;
     AnatomyId toId;
     AnatomyId connectionId; /**< Identidad de tramo; varias costillas pueden compartir nodo destino. */

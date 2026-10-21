@@ -273,6 +273,29 @@ SDFInterval SDF_ConnectorPowerInterval(AABB3D box,Vector3 origin,Vector3 forward
     return Interval_Multiply(Interval_Subtract(norm,Interval_Constant(1)),r);
 }
 
+SDFInterval SDF_KeratinClawInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
+    float length,float widthA,float widthB,float heightA,float heightB,float crownInset,float toeRounding) {
+    SDFInterval y=Interval_Add(Interval_RelativeProject(box,origin,up),Interval_Constant(heightA));
+    SDFInterval v=Interval_Clamp(Interval_Scale(y,1/(2*fmaxf(heightA,heightB))),0,1);
+    SDFInterval z=Interval_Add(Interval_RelativeProject(box,origin,forward),Interval_Scale(v,crownInset*length));
+    SDFInterval t=Interval_Clamp(Interval_Scale(z,1/fmaxf(length,.0001f)),0,1);
+    SDFInterval w=Interval_Multiply(Interval_Lerp(Interval_Constant(widthA),Interval_Constant(widthB),t),
+        Interval_Subtract(Interval_Constant(1),Interval_Scale(v,.28f)));
+    SDFInterval factor=Interval_Lerp(Interval_Constant(.55f),Interval_Constant(toeRounding),t);
+    SDFInterval radius=Interval_Multiply(w,factor);
+    SDFInterval dx=Interval_Add(Interval_Subtract(Interval_Absolute(Interval_RelativeProject(box,origin,side)),w),radius);
+    SDFInterval dz=Interval_Add(Interval_Max(Interval_Subtract(Interval_Scale(z,-1),Interval_Constant(widthA*.55f)),
+        Interval_Subtract(z,Interval_Constant(length+widthB*toeRounding))),radius);
+    SDFInterval footprint=Interval_Subtract(Interval_Add(Interval_Sqrt(Interval_Add(
+        Interval_Square(Interval_Max(dx,Interval_Constant(0))),Interval_Square(Interval_Max(dz,Interval_Constant(0))))),
+        Interval_Min(Interval_Max(dx,dz),Interval_Constant(0))),radius);
+    SDFInterval roof=Interval_Subtract(y,Interval_Scale(Interval_Lerp(Interval_Constant(heightA),Interval_Constant(heightB),t),2));
+    float bevel=fminf(heightA,heightB)*.12f;
+    SDFInterval k=Interval_Scale(Interval_Max(Interval_Subtract(Interval_Constant(bevel),
+        Interval_Absolute(Interval_Subtract(footprint,roof))),Interval_Constant(0)),1/fmaxf(bevel,.0001f));
+    return Interval_Max(Interval_Scale(y,-1),Interval_Add(Interval_Max(footprint,roof),Interval_Scale(Interval_Square(k),bevel*.25f)));
+}
+
 SDFInterval SDF_ConnectorInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
     float length,float widthA,float widthB,float heightA,float heightB,float widthBulge,float heightBulge) {
     return SDF_ConnectorPowerInterval(box,origin,forward,side,up,length,widthA,widthB,heightA,heightB,widthBulge,heightBulge,false);

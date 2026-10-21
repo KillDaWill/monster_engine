@@ -393,6 +393,8 @@ static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,Anatomy
             BodyConnection v=*e;
             v.widthBulge=Math_Lerp(x?x->widthBulge:0,y?y->widthBulge:0,t);
             v.heightBulge=Math_Lerp(x?x->heightBulge:0,y?y->heightBulge:0,t);
+            v.crownInset=Math_Lerp(x?x->crownInset:0,y?y->crownInset:0,t);
+            v.toeRounding=Math_Lerp(x?x->toeRounding:0,y?y->toeRounding:0,t);
             v.transverseAxis=Vec3_Lerp(x?x->transverseAxis:e->transverseAxis,y?y->transverseAxis:e->transverseAxis,t);
             v.development=Math_Lerp(x?x->development:0,y?y->development:0,t);
             if(!AnatomyGraph_Connect(out,v))return false;
