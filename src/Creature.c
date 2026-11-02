@@ -27,49 +27,20 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
     AnatomyGraph_Init(graph);
     AttachmentSlotSet slots = {0};
 
-    /* Primer pase: módulos axiales publican estaciones y ranuras anfitrionas */
+    size_t order[CREATURE_MAX_MODULES];
+    if (!CreatureRecipe_ResolutionOrder(recipe, order)) return false;
+    /* Cada módulo consume únicamente anfitriones ya resueltos. */
     for (size_t i = 0; i < recipe->bodyPlan.moduleCount; ++i) {
-        const CreatureModuleInstance* m = &recipe->bodyPlan.modules[i];
-        if (m->kind == CREATURE_MODULE_AXIAL &&
-            !AxialBody_Resolve(&p.axial, m->instanceId, graph, &slots)) {
-            return false;
+        const CreatureModuleInstance* m = &recipe->bodyPlan.modules[order[i]];
+        if (m->kind == CREATURE_MODULE_AXIAL) {
+            if (!AxialBody_Resolve(&p.axial, m->instanceId, graph, &slots)) return false;
+            continue;
         }
-    }
-
-    /* Segundo pase: módulos periféricos resuelven anatomía consumiendo ranuras */
-    for (size_t i = 0; i < recipe->bodyPlan.moduleCount; ++i) {
-        const CreatureModuleInstance* m = &recipe->bodyPlan.modules[i];
-        if (m->kind == CREATURE_MODULE_AXIAL) continue;
 
         const AttachmentSlot* slot = AttachmentSlotSet_FindRef(&slots, m->attachment);
         AttachmentSlot pathSlot = {0};
         if (m->pathAttached) {
-            const AnatomyNode* a = AnatomyGraph_FindNode(graph, m->pathNodeA);
-            const AnatomyNode* b = AnatomyGraph_FindNode(graph, m->pathNodeB);
-            if (!a || !b) return false;
-            pathSlot.hostNode = m->pathU < .5f ? a->id : b->id;
-            pathSlot.up = m->pathNormal;
-            pathSlot.forward = Vec3_Normalize(Vec3_Sub(b->center, a->center));
-            pathSlot.side = Vec3_Normalize(Vec3_Cross(pathSlot.forward, pathSlot.up));
-            pathSlot.up = Vec3_Normalize(Vec3_Cross(pathSlot.side, pathSlot.forward));
-            float h = Math_Lerp(a->heightRadius, b->heightRadius, m->pathU);
-            float w = Math_Lerp(a->widthRadius, b->widthRadius, m->pathU);
-            float lateral = Math_Clamp(m->lateralOffset, -.95f, .95f);
-            /* Parametrización continua de la sección elíptica: evita el salto
-             * dorsal/lateral y orienta el ornamento según la normal superficial. */
-            Vector3 radial = Vec3_Add(Vec3_Scale(pathSlot.up, sqrtf(1-lateral*lateral)),
-                                     Vec3_Scale(pathSlot.side, lateral));
-            Vector3 reference = fabsf(pathSlot.forward.y) > .94f ? Vec3_Create(0,0,1) : Vec3_Create(0,1,0);
-            Vector3 transverse = Vec3_Normalize(Vec3_Cross(pathSlot.forward, reference));
-            Vector3 vertical = Vec3_Normalize(Vec3_Cross(transverse, pathSlot.forward));
-            float rx = Vec3_Dot(radial, transverse), ry = Vec3_Dot(radial, vertical);
-            pathSlot.position = Vec3_Add(Vec3_Lerp(a->center, b->center, m->pathU),
-                Vec3_Add(Vec3_Scale(transverse, rx*w), Vec3_Scale(vertical, ry*h)));
-            pathSlot.up = Vec3_Normalize(Vec3_Add(Vec3_Scale(transverse, rx/w),
-                                                  Vec3_Scale(vertical, ry/h)));
-            pathSlot.side = Vec3_Normalize(Vec3_Cross(pathSlot.forward, pathSlot.up));
-            pathSlot.hostRadii = Vec3_Create(w,h,w);
-            pathSlot.scale = p.axial.totalScale;
+            if (!AttachmentPath_ResolveNodes(graph, m, p.axial.totalScale, &pathSlot)) return false;
             slot = &pathSlot;
         }
         if (!slot) return false;
@@ -100,7 +71,8 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
         }
     }
 
-    return AnatomyGraph_Validate(graph);
+    return AnatomyGraph_FindModuleNode(graph, recipe->bodyPlan.root.moduleInstanceId,
+        recipe->bodyPlan.root.localNodeId) && AnatomyGraph_Validate(graph);
 }
 
 bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* recipe, const CreaturePhenotype* source) {

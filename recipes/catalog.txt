@@ -1,3 +1,5 @@
 # Recetas externas del motor; generado por el editor.
 brumacerno.creature.json
 explorador.creature.json
+caballo.creature.json
+asno.creature.json

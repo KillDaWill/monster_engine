@@ -68,7 +68,7 @@ static const Field AxialPhenotype_fields[] = {
     {0}
 };
 static const Field HeadPhenotype_fields[] = {
-    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_BOVID,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID",false},
+    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_EQUINE,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE",false},
     {"skullWidth",offsetof(HeadPhenotype,skullWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullHeight",offsetof(HeadPhenotype,skullHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullLength",offsetof(HeadPhenotype,skullLength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},

@@ -62,7 +62,7 @@ typedef enum LimbArchetype {
     LIMB_ARCHETYPE_WING,
     LIMB_ARCHETYPE_FLIPPER,
     LIMB_ARCHETYPE_CUSTOM,
-    LIMB_ARCHETYPE_UNGULATE /**< Miembro mamífero ungulígrado con pezuña hendida. */
+    LIMB_ARCHETYPE_UNGULATE /**< Ungulígrado: un casco central o dos uñas según digitCount. */
 } LimbArchetype;
 
 typedef struct LimbPhenotype {
@@ -70,7 +70,7 @@ typedef struct LimbPhenotype {
     LimbRole role;
     LimbSide side;
     float length, thickness, sprawl, development;
-    unsigned digitCount;
+    unsigned digitCount; /**< Ungulados: 1 casco entero, 2 pezuña hendida; otros conteos se rechazan. */
     float digitLengths[CREATURE_MAX_DIGITS];
     unsigned digitPhalanges[CREATURE_MAX_DIGITS];
     float digitAngles[CREATURE_MAX_DIGITS];

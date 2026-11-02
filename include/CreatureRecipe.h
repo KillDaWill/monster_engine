@@ -98,6 +98,13 @@ CreaturePhenotype CreatureRecipe_EvaluateDevelopment(const CreatureRecipe* recip
 /** @brief Valida identidades, índices, ranuras de anclaje y módulos admitidos. @return Validez estructural. */
 bool CreatureRecipe_Validate(const CreatureRecipe* recipe, const CreaturePhenotype* phenotype);
 
+/** @brief Orden topológico estable: anfitriones, extremos de ruta y soporte de membrana.
+ * Desempata por familia e identidad, sin depender del orden del documento.
+ * No modifica la receta ni asigna memoria dinámica.
+ * @param recipe Receta fuente. @param order Índices destino (CREATURE_MAX_MODULES).
+ * @return false ante ciclos, identidades repetidas o dependencias ausentes. */
+bool CreatureRecipe_ResolutionOrder(const CreatureRecipe* recipe, size_t order[CREATURE_MAX_MODULES]);
+
 #ifdef __cplusplus
 }
 #endif

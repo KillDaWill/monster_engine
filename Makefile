@@ -125,6 +125,8 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
+            $(TEST_DIR)/test_equine_anatomy.c \
+            $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
             $(TEST_DIR)/test_cloven_hoof.c \
             $(TEST_DIR)/test_bovine_editor.c \
@@ -240,6 +242,21 @@ $(BENCHMARK_BIN): $(CORE_OBJS) benchmarks/benchmark_sdf.c
 benchmark: $(BENCHMARK_BIN)
 	./$(BENCHMARK_BIN)
 
+# Resolución anatómica sin render ni extracción de mallas.
+benchmarks/benchmark_anatomy: $(CORE_OBJS) benchmarks/benchmark_anatomy.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+.PHONY: benchmark-anatomy
+benchmark-anatomy: benchmarks/benchmark_anatomy
+	./benchmarks/benchmark_anatomy
+
+.PHONY: visual-anatomy-foundation
+visual-anatomy-foundation: $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/validate_anatomy_dependencies.py
+
+.PHONY: visual-equine
+visual-equine: $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/validate_equine_anatomy.py
+
 # Ejecutable del visor 3D principal
 $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
@@ -290,6 +307,7 @@ codegraph:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
+	rm -f benchmarks/benchmark_anatomy
 	rm -rf demos/demo_ecosystem demos/demo_ecosystem_headless benchmarks/benchmark_ecosystem $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.

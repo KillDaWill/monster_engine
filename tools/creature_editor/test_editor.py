@@ -48,6 +48,74 @@ class EditorTests(unittest.TestCase):
         for path in ('/', '/app.js', '/agent-sync.js', '/viewport.js', '/style.css'):
             self.assertGreater(len(self.request(path)), 100)
 
+    def test_dependency_order_and_cycle_transaction(self):
+        """Los módulos desordenados pasan por C; un ciclo no altera el historial."""
+        state = self.request('/api/agent/state')
+        state = self.request('/api/agent/action', {'action': 'open', 'key': 'builtin:3',
+            'expected_revision': state['revision']})
+        original = copy.deepcopy(state['document'])
+        modules = list(reversed(original['recipe']['bodyPlan']['modules']))
+        edited = self.request('/api/agent/action', {'action': 'patch',
+            'expected_revision': state['revision'],
+            'edits': [{'path': '/recipe/bodyPlan/modules', 'value': modules}]})
+        info = self.request('/api/agent/inspect', {})
+        self.assertGreater(len(info['nodes']), 0)
+        self.assertGreater(sum(m['materialCounts']['horn'] for m in info['meshes']), 0)
+        bad = copy.deepcopy(modules)
+        child = next(m for m in bad if m['kind'] == 4)
+        child['attachment']['hostModuleInstanceId'] = child['instanceId']
+        with self.assertRaises(HTTPError) as error:
+            self.request('/api/agent/action', {'action': 'patch',
+                'expected_revision': edited['revision'],
+                'edits': [{'path': '/recipe/bodyPlan/modules', 'value': bad}]})
+        self.assertEqual(error.exception.code, 422)
+        self.assertEqual(self.request('/api/agent/state'), edited)
+        undone = self.request('/api/agent/action', {'action': 'undo',
+            'expected_revision': edited['revision']})
+        self.assertEqual(undone['document'], original)
+        redone = self.request('/api/agent/action', {'action': 'redo',
+            'expected_revision': undone['revision']})
+        self.assertEqual(redone['document'], edited['document'])
+
+    def test_equine_recipes_editor_roundtrip(self):
+        """Casco único y cara équida atraviesan JSON, edición HTTP, C y mallas."""
+        for animal in ('caballo', 'asno'):
+            filename = f'{animal}.creature.json'
+            document = json.loads((server.ROOT / 'recipes' / filename).read_text())
+            normalized = self.request('/api/validate', {'document': document})
+            self.assertEqual(normalized['version'], 1)
+            self.assertEqual(normalized['recipe']['adult']['head']['archetype'], 4)
+            self.request('/api/save', {'document': normalized, 'filename': filename})
+            state = self.request('/api/agent/state')
+            state = self.request('/api/agent/action', {'action': 'open', 'key': filename,
+                'expected_revision': state['revision']})
+            for stage in range(4):
+                data = self.request('/api/preview', {'document': normalized, 'stage': stage})
+                self.check_mesh(data)
+                size, = struct.unpack_from('<I', data)
+                info = json.loads(data[4:4+size])
+                self.assertGreater(sum(m['materialCounts']['hoof'] for m in info['meshes']), 0)
+            prior = copy.deepcopy(state)
+            with self.assertRaises(HTTPError) as error:
+                self.request('/api/agent/action', {'action': 'patch',
+                    'expected_revision': state['revision'],
+                    'edits': [{'path': '/recipe/adult/limbs/0/digitCount', 'value': 3}]})
+            self.assertEqual(error.exception.code, 422)
+            self.assertEqual(self.request('/api/agent/state'), prior)
+            edited = self.request('/api/agent/action', {'action': 'patch',
+                'expected_revision': state['revision'],
+                'edits': [{'path': '/recipe/adult/limbs/0/hoofWallSlope', 'value': .4}]})
+            undone = self.request('/api/agent/action', {'action': 'undo',
+                'expected_revision': edited['revision']})
+            self.assertEqual(undone['document'], prior['document'])
+            redone = self.request('/api/agent/action', {'action': 'redo',
+                'expected_revision': undone['revision']})
+            self.assertEqual(redone['document'], edited['document'])
+            server.recipe_path(filename).unlink()
+        schema = self.request('/api/agent/schema')
+        head = schema['properties']['recipe']['properties']['adult']['properties']['head']['properties']['archetype']
+        self.assertEqual(head['enumNames'][4], 'HEAD_ARCHETYPE_EQUINE')
+
     def test_agent_transactions_schema_and_concurrency(self):
         state=self.request('/api/agent/state')
         state=self.request('/api/agent/action',{'action':'open','key':'builtin:3','expected_revision':state['revision']})

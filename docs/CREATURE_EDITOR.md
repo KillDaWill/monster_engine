@@ -43,6 +43,21 @@ Nueva criatura ofrece las cuatro anatomías funcionales como punto de partida.
 El editor no ofrece todavía construcción desde un tronco vacío, arrastre de piezas
 desde la paleta, esculpido directo, animación ni reproducción continua del crecimiento.
 
+### Équidos y autopodios ungulados
+
+La biblioteca incluye los documentos locales `caballo.creature.json` (ID 1005)
+y `asno.creature.json` (ID 1006). En Cabeza se ofrece la familia **Équido**;
+en un miembro **Ungulado**, el selector de autopodio distingue **Casco único**
+(`digitCount=1`) y **Pezuña hendida** (`digitCount=2`). El casco único elimina
+los espolones; otros conteos ungulados se rechazan por el motor C. La pared,
+redondeo, talón y escalas del pie siguen siendo editables.
+
+No cambia el formato v1 ni las identidades anteriores. Deshacer/rehacer y la API
+de agentes funcionan sobre los mismos datos; no hay geometría équida paralela
+en JavaScript. Las cuatro etapas son muestras compatibles con el contrato del
+motor, no una ontogenia equina calibrada. Evidencias y limitaciones actuales:
+[validación équida](validation/equine-anatomy/README.md).
+
 ## Fidelidad de la vista
 
 La cadena es receta → `Creature_ResolveAppearance` → `MonsterSDF` →

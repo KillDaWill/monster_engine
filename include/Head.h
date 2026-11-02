@@ -22,7 +22,8 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_LIZARD = 0,
     HEAD_ARCHETYPE_CANID,
     HEAD_ARCHETYPE_AVIAN,
-    HEAD_ARCHETYPE_BOVID
+    HEAD_ARCHETYPE_BOVID,
+    HEAD_ARCHETYPE_EQUINE /**< Cráneo alargado, diastema y hocico distal independiente. */
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */
@@ -275,6 +276,8 @@ HeadPhenotype HeadPhenotype_LizardPreset(void);
 HeadPhenotype HeadPhenotype_CanidPreset(void);
 /** @return Fenotipo bóvido con puente estrecho y morro distal ancho. */
 HeadPhenotype HeadPhenotype_BovinePreset(void);
+/** @return Fenotipo équido con cara inclinada, labios anchos y orejas erectas. */
+HeadPhenotype HeadPhenotype_EquinePreset(void);
 /** @return Fenotipo felino sobre la base cefálica canina. */
 HeadPhenotype HeadPhenotype_FelinePreset(void);
 /** @return Fenotipo predefinido de ave. */
