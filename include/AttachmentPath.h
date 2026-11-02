@@ -22,6 +22,13 @@ extern "C" {
 
 #define ATTACHMENT_PATH_MAX_POINTS 32
 
+/** @brief Resuelve un anclaje superficial entre dos estaciones de cualquier módulo.
+ * @param graph Grafo con anfitriones ya resueltos. @param module Referencia de ruta.
+ * @param scale Escala heredada. @param slot Destino, intacto si falla.
+ * @return false ante referencias ausentes, radios inválidos o marco degenerado. */
+bool AttachmentPath_ResolveNodes(const AnatomyGraph* graph, const CreatureModuleInstance* module,
+    float scale, AttachmentSlot* slot);
+
 /**
  * @struct AttachmentPathPoint
  * @brief Estación discreta a lo largo de una trayectoria continua en la superficie anatómica.

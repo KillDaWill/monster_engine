@@ -28,6 +28,7 @@ doc/latex/
 # Benchmarks (binarios)
 benchmarks/benchmark_lizard
 benchmarks/benchmark_sdf
+benchmarks/benchmark_anatomy
 
 benchmarks/benchmark_appendages
 benchmarks/benchmark_ager_realtime

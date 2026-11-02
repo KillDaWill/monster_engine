@@ -1,0 +1,3377 @@
+{
+  "version": 1,
+  "recipe": {
+    "id": 1,
+    "name": "Lagarto",
+    "bodyPlan": {
+      "root": {
+        "moduleInstanceId": 1,
+        "localNodeId": 6
+      },
+      "modules": [
+        {
+          "instanceId": 13,
+          "kind": 2,
+          "attachment": {
+            "hostModuleInstanceId": 1,
+            "slotId": 5
+          },
+          "phenotypeIndex": 3,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        },
+        {
+          "instanceId": 12,
+          "kind": 2,
+          "attachment": {
+            "hostModuleInstanceId": 1,
+            "slotId": 4
+          },
+          "phenotypeIndex": 2,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        },
+        {
+          "instanceId": 11,
+          "kind": 2,
+          "attachment": {
+            "hostModuleInstanceId": 1,
+            "slotId": 3
+          },
+          "phenotypeIndex": 1,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        },
+        {
+          "instanceId": 10,
+          "kind": 2,
+          "attachment": {
+            "hostModuleInstanceId": 1,
+            "slotId": 2
+          },
+          "phenotypeIndex": 0,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        },
+        {
+          "instanceId": 20,
+          "kind": 3,
+          "attachment": {
+            "hostModuleInstanceId": 1,
+            "slotId": 6
+          },
+          "phenotypeIndex": 0,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        },
+        {
+          "instanceId": 2,
+          "kind": 1,
+          "attachment": {
+            "hostModuleInstanceId": 1,
+            "slotId": 1
+          },
+          "phenotypeIndex": 0,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        },
+        {
+          "instanceId": 1,
+          "kind": 0,
+          "attachment": {
+            "hostModuleInstanceId": 0,
+            "slotId": 0
+          },
+          "phenotypeIndex": 0,
+          "pathAttached": false,
+          "pathNodeA": 0,
+          "pathNodeB": 0,
+          "pathU": 0,
+          "lateralOffset": 0,
+          "pathNormal": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "membranePrevious": 0
+        }
+      ],
+      "moduleCount": 7
+    },
+    "seed": {
+      "axial": {
+        "archetype": 0,
+        "totalScale": 0.379999995,
+        "neckLength": 0.0799999982,
+        "neckWidth": 0.899999976,
+        "shoulderWidth": 0.920000017,
+        "thoraxWidth": 0.949999988,
+        "thoraxHeight": 0.949999988,
+        "abdomenWidth": 0.949999988,
+        "abdomenHeight": 0.949999988,
+        "pelvicWidth": 0.920000017,
+        "pelvicHeight": 0.920000017,
+        "trunkLength": 0.200000003,
+        "bodyFlattening": 1,
+        "limbAttachmentLateral": 0.860000014,
+        "withersHeight": 4,
+        "cervicalCurvature": 0.449999988,
+        "cervicalDorsalMass": 1,
+        "cervicalMidNarrowing": 0.819999993,
+        "dewlapDepth": 0,
+        "brisketDepth": 0,
+        "withersElevation": 0,
+        "profile": [
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          }
+        ]
+      },
+      "head": {
+        "archetype": 0,
+        "skullWidth": 0.419999987,
+        "skullHeight": 0.419999987,
+        "skullLength": 0.150000006,
+        "muzzleLength": 0.0399999991,
+        "muzzleWidth": 0.349999994,
+        "muzzleTaper": 0.0500000007,
+        "rostrumDepth": 0.0500000007,
+        "rostrumDorsalSlope": 0.5,
+        "temporalWidth": 0,
+        "temporalDepth": 0,
+        "eyeSize": 0,
+        "eyeLaterality": 0.899999976,
+        "eyeForwardness": 0.200000003,
+        "eyeDorsality": 0.720000029,
+        "eyelidCoverage": 0,
+        "eyeCompression": 0,
+        "eyeExposure": 0.180000007,
+        "browProminence": 0,
+        "snoutBluntness": 1,
+        "jawLength": 0,
+        "jawDepth": 0,
+        "jawStrength": 0,
+        "noseScale": 0,
+        "earSize": 0,
+        "earBaseWidth": 0.550000012,
+        "earWidthRatio": 1,
+        "earHeightRatio": 1,
+        "earThickness": 0.300000012,
+        "earConcavity": 0.649999976,
+        "earOutward": 0.150000006,
+        "earForward": 0.100000001,
+        "earLongitudinalCurve": 0.5,
+        "earRootRoll": 0.419999987,
+        "earTipRoundness": 0.300000012,
+        "earFold": 0.5,
+        "earPointiness": 0,
+        "cheekMass": 0,
+        "maxillaryWidth": 0.5,
+        "mouthWidth": 0.5,
+        "cephalicIndex": 0.5,
+        "stopProminence": 0.449999988,
+        "zygomaticWidth": 0.5,
+        "masseterMass": 0.400000006,
+        "earRootFlare": 0.349999994,
+        "earMarginBow": 0.400000006,
+        "earMarginAsymmetry": 0.5,
+        "beakLength": 0.5,
+        "beakDepth": 0.449999988,
+        "beakTaper": 0.649999976,
+        "beakCurvature": 0.349999994,
+        "nostrilPosition": 0.819999993,
+        "orbitDepth": 0.340000004,
+        "tympanumSize": 0,
+        "cranialForm": 0,
+        "muzzleForm": 0,
+        "eyeLayout": 0
+      },
+      "headEnvelope": {
+        "scale": 1,
+        "widthScale": 1,
+        "heightScale": 1,
+        "lengthScale": 1
+      },
+      "eyes": {
+        "size": 0,
+        "protrusion": 1,
+        "irisScale": 0.720000029,
+        "pupilScale": 0.340000004,
+        "pupilAspect": 0.340000004,
+        "pupilShape": 1,
+        "scleraColor": {
+          "r": 38,
+          "g": 46,
+          "b": 24,
+          "a": 255
+        },
+        "irisColor": {
+          "r": 188,
+          "g": 158,
+          "b": 48,
+          "a": 255
+        },
+        "pupilColor": {
+          "r": 4,
+          "g": 7,
+          "b": 3,
+          "a": 255
+        }
+      },
+      "limbs": [
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 0,
+          "length": 0.0500000007,
+          "thickness": 0.0500000007,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 1,
+          "length": 0.0500000007,
+          "thickness": 0.0500000007,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 0,
+          "length": 0.0500000007,
+          "thickness": 0.0500000007,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 1,
+          "length": 0.0500000007,
+          "thickness": 0.0500000007,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        }
+      ],
+      "limbCount": 4,
+      "tails": [
+        {
+          "droop": 0,
+          "archetype": 0,
+          "length": 0.0599999987,
+          "baseWidth": 0.25,
+          "baseHeight": 0.25,
+          "tipWidth": 0.0399999991,
+          "tipHeight": 0.0399999991,
+          "taperCurve": 1,
+          "curvature": 0,
+          "development": 1,
+          "rootMatchStrength": 0,
+          "segmentCount": 4
+        }
+      ],
+      "tailCount": 1,
+      "ornaments": [],
+      "ornamentCount": 0,
+      "surface": {
+        "pigment": {
+          "baseColor": {
+            "r": 252,
+            "g": 252,
+            "b": 248,
+            "a": 255
+          },
+          "secondaryColor": {
+            "r": 36,
+            "g": 56,
+            "b": 26,
+            "a": 255
+          },
+          "ventralColor": {
+            "r": 193,
+            "g": 181,
+            "b": 108,
+            "a": 255
+          },
+          "dorsalDarkening": 0.150000006,
+          "ventralLightening": 0.850000024,
+          "patternStrength": 0,
+          "patternScale": 0.90372467,
+          "bands": 0.216498673,
+          "seed": 3309735671,
+          "layers": [],
+          "layerCount": 0
+        },
+        "integument": {
+          "type": 1,
+          "coverage": 0,
+          "scales": {
+            "size": 0.111716963,
+            "aspectRatio": 1.05350494,
+            "roundness": 0.836823881,
+            "irregularity": 0.429481238,
+            "relief": 0.00499999989,
+            "edgeDepth": 0.150000006,
+            "edgeWidth": 0.075000003,
+            "keelStrength": 0,
+            "roughness": 0.585433722,
+            "microColorVariation": 0.0799999982,
+            "seed": 2155873910
+          },
+          "plates": {
+            "size": 0.0199999996,
+            "aspect": 0.200000003,
+            "thickness": 0,
+            "bevel": 0,
+            "overlap": 0,
+            "irregularity": 0,
+            "relief": 0
+          },
+          "fur": {
+            "length": 0.140000001,
+            "density": 1,
+            "thickness": 0.850000024,
+            "lay": 0.75,
+            "stiffness": 0.699999988,
+            "clumping": 0.25,
+            "irregularity": 0.200000003,
+            "undercoat": 0.800000012,
+            "undercoatLength": 0.550000012,
+            "guardDensity": 0.649999976,
+            "roughness": 0.550000012,
+            "sheen": 0.349999994,
+            "rootDarkening": 0.25,
+            "tipLightening": 0.150000006,
+            "seed": 3
+          }
+        },
+        "regions": [
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.45000005,
+            "aspect": 1,
+            "relief": 0.649999976,
+            "keel": 0.200000003,
+            "roughness": 1,
+            "irregularity": 1.39999998,
+            "roundness": 0.800000012,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.60000002,
+            "aspect": 0.649999976,
+            "relief": 0.349999994,
+            "keel": 0,
+            "roughness": 1.14999998,
+            "irregularity": 0.25,
+            "roundness": 1.10000002,
+            "reserved": 0
+          },
+          {
+            "size": 0.699999988,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.75,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.850000024,
+            "aspect": 1.70000005,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.349999994,
+            "aspect": 1,
+            "relief": 0.300000012,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          }
+        ],
+        "furRegions": [
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          }
+        ],
+        "transition": {
+          "from": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "to": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "weight": 0,
+          "plateWeight": 0,
+          "scaleCoverage": 0,
+          "targetScaleSeed": 0,
+          "active": false
+        }
+      },
+      "development": {
+        "appendages": 0,
+        "cephalic": 0,
+        "pigmentation": 0,
+        "integument": 1,
+        "colorMaturity": 0
+      },
+      "dorsalColor": {
+        "r": 42,
+        "g": 72,
+        "b": 34,
+        "a": 255
+      },
+      "ventralColor": {
+        "r": 126,
+        "g": 158,
+        "b": 67,
+        "a": 255
+      },
+      "unpigmentedVentralColor": {
+        "r": 255,
+        "g": 254,
+        "b": 246,
+        "a": 255
+      }
+    },
+    "larva": {
+      "axial": {
+        "archetype": 0,
+        "totalScale": 0.379999995,
+        "neckLength": 0.449999988,
+        "neckWidth": 0.899999976,
+        "shoulderWidth": 0.920000017,
+        "thoraxWidth": 0.920000017,
+        "thoraxHeight": 0.920000017,
+        "abdomenWidth": 0.920000017,
+        "abdomenHeight": 0.920000017,
+        "pelvicWidth": 0.899999976,
+        "pelvicHeight": 0.899999976,
+        "trunkLength": 2.4000001,
+        "bodyFlattening": 1,
+        "limbAttachmentLateral": 0.860000014,
+        "withersHeight": 4,
+        "cervicalCurvature": 0.449999988,
+        "cervicalDorsalMass": 1,
+        "cervicalMidNarrowing": 0.819999993,
+        "dewlapDepth": 0,
+        "brisketDepth": 0,
+        "withersElevation": 0,
+        "profile": [
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          }
+        ]
+      },
+      "head": {
+        "archetype": 0,
+        "skullWidth": 0.5,
+        "skullHeight": 0.550000012,
+        "skullLength": 0.400000006,
+        "muzzleLength": 0.180000007,
+        "muzzleWidth": 0.449999988,
+        "muzzleTaper": 0.0500000007,
+        "rostrumDepth": 0.100000001,
+        "rostrumDorsalSlope": 0.5,
+        "temporalWidth": 0,
+        "temporalDepth": 0,
+        "eyeSize": 0,
+        "eyeLaterality": 0.899999976,
+        "eyeForwardness": 0.200000003,
+        "eyeDorsality": 0.720000029,
+        "eyelidCoverage": 0,
+        "eyeCompression": 0,
+        "eyeExposure": 0.180000007,
+        "browProminence": 0,
+        "snoutBluntness": 1,
+        "jawLength": 0,
+        "jawDepth": 0,
+        "jawStrength": 0,
+        "noseScale": 0,
+        "earSize": 0,
+        "earBaseWidth": 0.550000012,
+        "earWidthRatio": 1,
+        "earHeightRatio": 1,
+        "earThickness": 0.300000012,
+        "earConcavity": 0.649999976,
+        "earOutward": 0.150000006,
+        "earForward": 0.100000001,
+        "earLongitudinalCurve": 0.5,
+        "earRootRoll": 0.419999987,
+        "earTipRoundness": 0.300000012,
+        "earFold": 0.5,
+        "earPointiness": 0,
+        "cheekMass": 0,
+        "maxillaryWidth": 0.5,
+        "mouthWidth": 0.5,
+        "cephalicIndex": 0.5,
+        "stopProminence": 0.449999988,
+        "zygomaticWidth": 0.5,
+        "masseterMass": 0.400000006,
+        "earRootFlare": 0.349999994,
+        "earMarginBow": 0.400000006,
+        "earMarginAsymmetry": 0.5,
+        "beakLength": 0.5,
+        "beakDepth": 0.449999988,
+        "beakTaper": 0.649999976,
+        "beakCurvature": 0.349999994,
+        "nostrilPosition": 0.819999993,
+        "orbitDepth": 0.340000004,
+        "tympanumSize": 0,
+        "cranialForm": 0,
+        "muzzleForm": 0,
+        "eyeLayout": 0
+      },
+      "headEnvelope": {
+        "scale": 1,
+        "widthScale": 1,
+        "heightScale": 1,
+        "lengthScale": 1
+      },
+      "eyes": {
+        "size": 0,
+        "protrusion": 1,
+        "irisScale": 0.720000029,
+        "pupilScale": 0.340000004,
+        "pupilAspect": 0.340000004,
+        "pupilShape": 1,
+        "scleraColor": {
+          "r": 38,
+          "g": 46,
+          "b": 24,
+          "a": 255
+        },
+        "irisColor": {
+          "r": 188,
+          "g": 158,
+          "b": 48,
+          "a": 255
+        },
+        "pupilColor": {
+          "r": 4,
+          "g": 7,
+          "b": 3,
+          "a": 255
+        }
+      },
+      "limbs": [
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 0,
+          "length": 2.1500001,
+          "thickness": 0.270000011,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 1,
+          "length": 2.1500001,
+          "thickness": 0.270000011,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 0,
+          "length": 2.54999995,
+          "thickness": 0.360000014,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 1,
+          "length": 2.54999995,
+          "thickness": 0.360000014,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        }
+      ],
+      "limbCount": 4,
+      "tails": [
+        {
+          "droop": 0,
+          "archetype": 0,
+          "length": 0.5,
+          "baseWidth": 0.439999998,
+          "baseHeight": 0.439999998,
+          "tipWidth": 0.159999996,
+          "tipHeight": 0.159999996,
+          "taperCurve": 1,
+          "curvature": 0,
+          "development": 1,
+          "rootMatchStrength": 0,
+          "segmentCount": 4
+        }
+      ],
+      "tailCount": 1,
+      "ornaments": [],
+      "ornamentCount": 0,
+      "surface": {
+        "pigment": {
+          "baseColor": {
+            "r": 242,
+            "g": 241,
+            "b": 230,
+            "a": 255
+          },
+          "secondaryColor": {
+            "r": 36,
+            "g": 56,
+            "b": 26,
+            "a": 255
+          },
+          "ventralColor": {
+            "r": 193,
+            "g": 181,
+            "b": 108,
+            "a": 255
+          },
+          "dorsalDarkening": 0.150000006,
+          "ventralLightening": 0.850000024,
+          "patternStrength": 0,
+          "patternScale": 0.90372467,
+          "bands": 0.216498673,
+          "seed": 3309735671,
+          "layers": [],
+          "layerCount": 0
+        },
+        "integument": {
+          "type": 1,
+          "coverage": 0,
+          "scales": {
+            "size": 0.111716963,
+            "aspectRatio": 1.05350494,
+            "roundness": 0.836823881,
+            "irregularity": 0.429481238,
+            "relief": 0.00499999989,
+            "edgeDepth": 0.150000006,
+            "edgeWidth": 0.075000003,
+            "keelStrength": 0,
+            "roughness": 0.585433722,
+            "microColorVariation": 0.0799999982,
+            "seed": 2155873910
+          },
+          "plates": {
+            "size": 0.0199999996,
+            "aspect": 0.200000003,
+            "thickness": 0,
+            "bevel": 0,
+            "overlap": 0,
+            "irregularity": 0,
+            "relief": 0
+          },
+          "fur": {
+            "length": 0.140000001,
+            "density": 1,
+            "thickness": 0.850000024,
+            "lay": 0.75,
+            "stiffness": 0.699999988,
+            "clumping": 0.25,
+            "irregularity": 0.200000003,
+            "undercoat": 0.800000012,
+            "undercoatLength": 0.550000012,
+            "guardDensity": 0.649999976,
+            "roughness": 0.550000012,
+            "sheen": 0.349999994,
+            "rootDarkening": 0.25,
+            "tipLightening": 0.150000006,
+            "seed": 3
+          }
+        },
+        "regions": [
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.45000005,
+            "aspect": 1,
+            "relief": 0.649999976,
+            "keel": 0.200000003,
+            "roughness": 1,
+            "irregularity": 1.39999998,
+            "roundness": 0.800000012,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.60000002,
+            "aspect": 0.649999976,
+            "relief": 0.349999994,
+            "keel": 0,
+            "roughness": 1.14999998,
+            "irregularity": 0.25,
+            "roundness": 1.10000002,
+            "reserved": 0
+          },
+          {
+            "size": 0.699999988,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.75,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.850000024,
+            "aspect": 1.70000005,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.349999994,
+            "aspect": 1,
+            "relief": 0.300000012,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          }
+        ],
+        "furRegions": [
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          }
+        ],
+        "transition": {
+          "from": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "to": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "weight": 0,
+          "plateWeight": 0,
+          "scaleCoverage": 0,
+          "targetScaleSeed": 0,
+          "active": false
+        }
+      },
+      "development": {
+        "appendages": 0,
+        "cephalic": 0,
+        "pigmentation": 0,
+        "integument": 1,
+        "colorMaturity": 0
+      },
+      "dorsalColor": {
+        "r": 42,
+        "g": 72,
+        "b": 34,
+        "a": 255
+      },
+      "ventralColor": {
+        "r": 126,
+        "g": 158,
+        "b": 67,
+        "a": 255
+      },
+      "unpigmentedVentralColor": {
+        "r": 255,
+        "g": 254,
+        "b": 246,
+        "a": 255
+      }
+    },
+    "juvenile": {
+      "axial": {
+        "archetype": 0,
+        "totalScale": 0.579999983,
+        "neckLength": 0.980000019,
+        "neckWidth": 0.660000026,
+        "shoulderWidth": 1.45000005,
+        "thoraxWidth": 1.62,
+        "thoraxHeight": 1.08000004,
+        "abdomenWidth": 1.51999998,
+        "abdomenHeight": 1.03999996,
+        "pelvicWidth": 1.58000004,
+        "pelvicHeight": 1.01999998,
+        "trunkLength": 4.3499999,
+        "bodyFlattening": 0.920000017,
+        "limbAttachmentLateral": 0.860000014,
+        "withersHeight": 4,
+        "cervicalCurvature": 0.449999988,
+        "cervicalDorsalMass": 1,
+        "cervicalMidNarrowing": 0.819999993,
+        "dewlapDepth": 0,
+        "brisketDepth": 0,
+        "withersElevation": 0,
+        "profile": [
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          }
+        ]
+      },
+      "head": {
+        "archetype": 0,
+        "skullWidth": 0.600000024,
+        "skullHeight": 0.300000012,
+        "skullLength": 0.460000008,
+        "muzzleLength": 0.5,
+        "muzzleWidth": 0.579999983,
+        "muzzleTaper": 0.560000002,
+        "rostrumDepth": 0.620000005,
+        "rostrumDorsalSlope": 0.280000001,
+        "temporalWidth": 0.720000029,
+        "temporalDepth": 0.680000007,
+        "eyeSize": 0.670000017,
+        "eyeLaterality": 0.899999976,
+        "eyeForwardness": 0.200000003,
+        "eyeDorsality": 0.720000029,
+        "eyelidCoverage": 0,
+        "eyeCompression": 0,
+        "eyeExposure": 0.180000007,
+        "browProminence": 0.579999983,
+        "snoutBluntness": 0.620000005,
+        "jawLength": 0.579999983,
+        "jawDepth": 0.300000012,
+        "jawStrength": 0.319999993,
+        "noseScale": 0.219999999,
+        "earSize": 0,
+        "earBaseWidth": 0.550000012,
+        "earWidthRatio": 1,
+        "earHeightRatio": 1,
+        "earThickness": 0.300000012,
+        "earConcavity": 0.649999976,
+        "earOutward": 0.150000006,
+        "earForward": 0.100000001,
+        "earLongitudinalCurve": 0.5,
+        "earRootRoll": 0.419999987,
+        "earTipRoundness": 0.300000012,
+        "earFold": 0.5,
+        "earPointiness": 0,
+        "cheekMass": 0.280000001,
+        "maxillaryWidth": 0.5,
+        "mouthWidth": 0.5,
+        "cephalicIndex": 0.5,
+        "stopProminence": 0.449999988,
+        "zygomaticWidth": 0.5,
+        "masseterMass": 0.400000006,
+        "earRootFlare": 0.349999994,
+        "earMarginBow": 0.400000006,
+        "earMarginAsymmetry": 0.5,
+        "beakLength": 0.5,
+        "beakDepth": 0.449999988,
+        "beakTaper": 0.649999976,
+        "beakCurvature": 0.349999994,
+        "nostrilPosition": 0.819999993,
+        "orbitDepth": 0.340000004,
+        "tympanumSize": 0.519999981,
+        "cranialForm": 0,
+        "muzzleForm": 0,
+        "eyeLayout": 0
+      },
+      "headEnvelope": {
+        "scale": 1,
+        "widthScale": 1,
+        "heightScale": 1,
+        "lengthScale": 1
+      },
+      "eyes": {
+        "size": 0.670000017,
+        "protrusion": 1,
+        "irisScale": 0.720000029,
+        "pupilScale": 0.340000004,
+        "pupilAspect": 0.340000004,
+        "pupilShape": 1,
+        "scleraColor": {
+          "r": 38,
+          "g": 46,
+          "b": 24,
+          "a": 255
+        },
+        "irisColor": {
+          "r": 188,
+          "g": 158,
+          "b": 48,
+          "a": 255
+        },
+        "pupilColor": {
+          "r": 4,
+          "g": 7,
+          "b": 3,
+          "a": 255
+        }
+      },
+      "limbs": [
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 0,
+          "length": 1.95000005,
+          "thickness": 0.219999999,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 1,
+          "length": 1.95000005,
+          "thickness": 0.219999999,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 0,
+          "length": 2.27999997,
+          "thickness": 0.280000001,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 1,
+          "length": 2.27999997,
+          "thickness": 0.280000001,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        }
+      ],
+      "limbCount": 4,
+      "tails": [
+        {
+          "droop": 0,
+          "archetype": 0,
+          "length": 5.9000001,
+          "baseWidth": 0.600000024,
+          "baseHeight": 0.419999987,
+          "tipWidth": 0.0549999997,
+          "tipHeight": 0.0450000018,
+          "taperCurve": 1.35000002,
+          "curvature": 0,
+          "development": 1,
+          "rootMatchStrength": 0,
+          "segmentCount": 4
+        }
+      ],
+      "tailCount": 1,
+      "ornaments": [],
+      "ornamentCount": 0,
+      "surface": {
+        "pigment": {
+          "baseColor": {
+            "r": 180,
+            "g": 185,
+            "b": 140,
+            "a": 255
+          },
+          "secondaryColor": {
+            "r": 36,
+            "g": 56,
+            "b": 26,
+            "a": 255
+          },
+          "ventralColor": {
+            "r": 193,
+            "g": 181,
+            "b": 108,
+            "a": 255
+          },
+          "dorsalDarkening": 0.150000006,
+          "ventralLightening": 0.850000024,
+          "patternStrength": 0.111573733,
+          "patternScale": 0.90372467,
+          "bands": 0.216498673,
+          "seed": 3309735671,
+          "layers": [],
+          "layerCount": 0
+        },
+        "integument": {
+          "type": 1,
+          "coverage": 0.25,
+          "scales": {
+            "size": 0.111716963,
+            "aspectRatio": 1.05350494,
+            "roundness": 0.836823881,
+            "irregularity": 0.429481238,
+            "relief": 0.00499999989,
+            "edgeDepth": 0.150000006,
+            "edgeWidth": 0.075000003,
+            "keelStrength": 0,
+            "roughness": 0.585433722,
+            "microColorVariation": 0.0799999982,
+            "seed": 2155873910
+          },
+          "plates": {
+            "size": 0.0199999996,
+            "aspect": 0.200000003,
+            "thickness": 0,
+            "bevel": 0,
+            "overlap": 0,
+            "irregularity": 0,
+            "relief": 0
+          },
+          "fur": {
+            "length": 0.140000001,
+            "density": 1,
+            "thickness": 0.850000024,
+            "lay": 0.75,
+            "stiffness": 0.699999988,
+            "clumping": 0.25,
+            "irregularity": 0.200000003,
+            "undercoat": 0.800000012,
+            "undercoatLength": 0.550000012,
+            "guardDensity": 0.649999976,
+            "roughness": 0.550000012,
+            "sheen": 0.349999994,
+            "rootDarkening": 0.25,
+            "tipLightening": 0.150000006,
+            "seed": 3
+          }
+        },
+        "regions": [
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.45000005,
+            "aspect": 1,
+            "relief": 0.649999976,
+            "keel": 0.200000003,
+            "roughness": 1,
+            "irregularity": 1.39999998,
+            "roundness": 0.800000012,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.60000002,
+            "aspect": 0.649999976,
+            "relief": 0.349999994,
+            "keel": 0,
+            "roughness": 1.14999998,
+            "irregularity": 0.25,
+            "roundness": 1.10000002,
+            "reserved": 0
+          },
+          {
+            "size": 0.699999988,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.75,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.850000024,
+            "aspect": 1.70000005,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.349999994,
+            "aspect": 1,
+            "relief": 0.300000012,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          }
+        ],
+        "furRegions": [
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          }
+        ],
+        "transition": {
+          "from": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "to": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "weight": 0,
+          "plateWeight": 0,
+          "scaleCoverage": 0,
+          "targetScaleSeed": 0,
+          "active": false
+        }
+      },
+      "development": {
+        "appendages": 1,
+        "cephalic": 1,
+        "pigmentation": 1,
+        "integument": 1,
+        "colorMaturity": 0
+      },
+      "dorsalColor": {
+        "r": 42,
+        "g": 72,
+        "b": 34,
+        "a": 255
+      },
+      "ventralColor": {
+        "r": 126,
+        "g": 158,
+        "b": 67,
+        "a": 255
+      },
+      "unpigmentedVentralColor": {
+        "r": 255,
+        "g": 254,
+        "b": 246,
+        "a": 255
+      }
+    },
+    "adult": {
+      "axial": {
+        "archetype": 0,
+        "totalScale": 1,
+        "neckLength": 1.14999998,
+        "neckWidth": 0.720000029,
+        "shoulderWidth": 1.54999995,
+        "thoraxWidth": 1.77999997,
+        "thoraxHeight": 1.27999997,
+        "abdomenWidth": 1.62,
+        "abdomenHeight": 1.13999999,
+        "pelvicWidth": 1.72000003,
+        "pelvicHeight": 1.17999995,
+        "trunkLength": 4.80000019,
+        "bodyFlattening": 0.920000017,
+        "limbAttachmentLateral": 0.860000014,
+        "withersHeight": 4,
+        "cervicalCurvature": 0.449999988,
+        "cervicalDorsalMass": 1,
+        "cervicalMidNarrowing": 0.819999993,
+        "dewlapDepth": 0,
+        "brisketDepth": 0,
+        "withersElevation": 0,
+        "profile": [
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          },
+          {
+            "longitudinalOffset": 0,
+            "verticalOffset": 0,
+            "widthScale": 1,
+            "heightScale": 1
+          }
+        ]
+      },
+      "head": {
+        "archetype": 0,
+        "skullWidth": 0.639999986,
+        "skullHeight": 0.360000014,
+        "skullLength": 0.519999981,
+        "muzzleLength": 0.680000007,
+        "muzzleWidth": 0.620000005,
+        "muzzleTaper": 0.479999989,
+        "rostrumDepth": 0.620000005,
+        "rostrumDorsalSlope": 0.319999993,
+        "temporalWidth": 0.519999981,
+        "temporalDepth": 0.400000006,
+        "eyeSize": 0.479999989,
+        "eyeLaterality": 0.899999976,
+        "eyeForwardness": 0.200000003,
+        "eyeDorsality": 0.720000029,
+        "eyelidCoverage": 0,
+        "eyeCompression": 0,
+        "eyeExposure": 0.180000007,
+        "browProminence": 0.419999987,
+        "snoutBluntness": 0.600000024,
+        "jawLength": 0.860000014,
+        "jawDepth": 0.430000007,
+        "jawStrength": 0.449999988,
+        "noseScale": 0.300000012,
+        "earSize": 0,
+        "earBaseWidth": 0.550000012,
+        "earWidthRatio": 1,
+        "earHeightRatio": 1,
+        "earThickness": 0.300000012,
+        "earConcavity": 0.649999976,
+        "earOutward": 0.150000006,
+        "earForward": 0.100000001,
+        "earLongitudinalCurve": 0.5,
+        "earRootRoll": 0.419999987,
+        "earTipRoundness": 0.300000012,
+        "earFold": 0.5,
+        "earPointiness": 0,
+        "cheekMass": 0.400000006,
+        "maxillaryWidth": 0.5,
+        "mouthWidth": 0.5,
+        "cephalicIndex": 0.5,
+        "stopProminence": 0.449999988,
+        "zygomaticWidth": 0.5,
+        "masseterMass": 0.400000006,
+        "earRootFlare": 0.349999994,
+        "earMarginBow": 0.400000006,
+        "earMarginAsymmetry": 0.5,
+        "beakLength": 0.5,
+        "beakDepth": 0.449999988,
+        "beakTaper": 0.649999976,
+        "beakCurvature": 0.349999994,
+        "nostrilPosition": 0.819999993,
+        "orbitDepth": 0.340000004,
+        "tympanumSize": 0.349999994,
+        "cranialForm": 0,
+        "muzzleForm": 0,
+        "eyeLayout": 0
+      },
+      "headEnvelope": {
+        "scale": 1,
+        "widthScale": 1,
+        "heightScale": 1,
+        "lengthScale": 1
+      },
+      "eyes": {
+        "size": 0.5,
+        "protrusion": 1,
+        "irisScale": 0.720000029,
+        "pupilScale": 0.340000004,
+        "pupilAspect": 0.340000004,
+        "pupilShape": 1,
+        "scleraColor": {
+          "r": 38,
+          "g": 46,
+          "b": 24,
+          "a": 255
+        },
+        "irisColor": {
+          "r": 188,
+          "g": 158,
+          "b": 48,
+          "a": 255
+        },
+        "pupilColor": {
+          "r": 4,
+          "g": 7,
+          "b": 3,
+          "a": 255
+        }
+      },
+      "limbs": [
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 0,
+          "length": 2.1500001,
+          "thickness": 0.270000011,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 0,
+          "side": 1,
+          "length": 2.1500001,
+          "thickness": 0.270000011,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.600000024,
+            0.819999993,
+            1,
+            1.05999994,
+            0.699999988,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            3,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.649999976,
+            -0.300000012,
+            0.0199999996,
+            0.360000014,
+            1.04999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 0,
+          "length": 2.54999995,
+          "thickness": 0.360000014,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        },
+        {
+          "archetype": 0,
+          "role": 1,
+          "side": 1,
+          "length": 2.54999995,
+          "thickness": 0.360000014,
+          "sprawl": 1,
+          "development": 1,
+          "digitCount": 5,
+          "digitLengths": [
+            0.479999989,
+            0.689999998,
+            0.879999995,
+            1.14999998,
+            0.74000001,
+            0,
+            0,
+            0
+          ],
+          "digitPhalanges": [
+            2,
+            3,
+            4,
+            5,
+            4,
+            0,
+            0,
+            0
+          ],
+          "digitAngles": [
+            -0.600000024,
+            -0.239999995,
+            0.0599999987,
+            0.370000005,
+            1.29999995,
+            0,
+            0,
+            0
+          ],
+          "digitSpread": 1,
+          "footScale": 1,
+          "proximalScale": 1,
+          "middleScale": 1,
+          "distalScale": 1,
+          "rootThicknessScale": 1,
+          "proximalThicknessScale": 1,
+          "middleThicknessScale": 1,
+          "distalThicknessScale": 1,
+          "footWidthScale": 1,
+          "footHeightScale": 1,
+          "digitThicknessScale": 1,
+          "attachmentInset": 0.449999988,
+          "proximalSweep": 0,
+          "distalSweep": 0,
+          "footYaw": 0,
+          "flexionScale": 1,
+          "hoofWallSlope": 0.219999999,
+          "hoofToeRoundness": 0.800000012,
+          "hoofHeelHeight": 0.75,
+          "dewclawSize": 0
+        }
+      ],
+      "limbCount": 4,
+      "tails": [
+        {
+          "droop": 0,
+          "archetype": 0,
+          "length": 6.80000019,
+          "baseWidth": 0.680000007,
+          "baseHeight": 0.479999989,
+          "tipWidth": 0.0549999997,
+          "tipHeight": 0.0450000018,
+          "taperCurve": 1.35000002,
+          "curvature": 0,
+          "development": 1,
+          "rootMatchStrength": 0,
+          "segmentCount": 4
+        }
+      ],
+      "tailCount": 1,
+      "ornaments": [],
+      "ornamentCount": 0,
+      "surface": {
+        "pigment": {
+          "baseColor": {
+            "r": 93,
+            "g": 119,
+            "b": 48,
+            "a": 255
+          },
+          "secondaryColor": {
+            "r": 36,
+            "g": 56,
+            "b": 26,
+            "a": 255
+          },
+          "ventralColor": {
+            "r": 193,
+            "g": 181,
+            "b": 108,
+            "a": 255
+          },
+          "dorsalDarkening": 0.150000006,
+          "ventralLightening": 0.850000024,
+          "patternStrength": 0.37191242,
+          "patternScale": 0.90372467,
+          "bands": 0.216498673,
+          "seed": 3309735671,
+          "layers": [],
+          "layerCount": 0
+        },
+        "integument": {
+          "type": 1,
+          "coverage": 1,
+          "scales": {
+            "size": 0.111716963,
+            "aspectRatio": 1.05350494,
+            "roundness": 0.836823881,
+            "irregularity": 0.429481238,
+            "relief": 0.0159999989,
+            "edgeDepth": 0.150000006,
+            "edgeWidth": 0.075000003,
+            "keelStrength": 0.389367819,
+            "roughness": 0.585433722,
+            "microColorVariation": 0.0799999982,
+            "seed": 2155873910
+          },
+          "plates": {
+            "size": 0.0199999996,
+            "aspect": 0.200000003,
+            "thickness": 0,
+            "bevel": 0,
+            "overlap": 0,
+            "irregularity": 0,
+            "relief": 0
+          },
+          "fur": {
+            "length": 0.140000001,
+            "density": 1,
+            "thickness": 0.850000024,
+            "lay": 0.75,
+            "stiffness": 0.699999988,
+            "clumping": 0.25,
+            "irregularity": 0.200000003,
+            "undercoat": 0.800000012,
+            "undercoatLength": 0.550000012,
+            "guardDensity": 0.649999976,
+            "roughness": 0.550000012,
+            "sheen": 0.349999994,
+            "rootDarkening": 0.25,
+            "tipLightening": 0.150000006,
+            "seed": 3
+          }
+        },
+        "regions": [
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.45000005,
+            "aspect": 1,
+            "relief": 0.649999976,
+            "keel": 0.200000003,
+            "roughness": 1,
+            "irregularity": 1.39999998,
+            "roundness": 0.800000012,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1.60000002,
+            "aspect": 0.649999976,
+            "relief": 0.349999994,
+            "keel": 0,
+            "roughness": 1.14999998,
+            "irregularity": 0.25,
+            "roundness": 1.10000002,
+            "reserved": 0
+          },
+          {
+            "size": 0.699999988,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.75,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.850000024,
+            "aspect": 1.70000005,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 0.349999994,
+            "aspect": 1,
+            "relief": 0.300000012,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          },
+          {
+            "size": 1,
+            "aspect": 1,
+            "relief": 1,
+            "keel": 1,
+            "roughness": 1,
+            "irregularity": 1,
+            "roundness": 1,
+            "reserved": 0
+          }
+        ],
+        "furRegions": [
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          },
+          {
+            "lengthMultiplier": 1,
+            "densityMultiplier": 1,
+            "thicknessMultiplier": 1,
+            "layMultiplier": 1,
+            "undercoatMultiplier": 1,
+            "guardMultiplier": 1,
+            "clumpMultiplier": 1,
+            "variationMultiplier": 1
+          }
+        ],
+        "transition": {
+          "from": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "to": {
+            "baseColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "secondaryColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "ventralColor": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            },
+            "dorsalDarkening": 0,
+            "ventralLightening": 0,
+            "patternStrength": 0,
+            "patternScale": 0,
+            "bands": 0,
+            "seed": 0,
+            "layers": [],
+            "layerCount": 0
+          },
+          "weight": 0,
+          "plateWeight": 0,
+          "scaleCoverage": 0,
+          "targetScaleSeed": 0,
+          "active": false
+        }
+      },
+      "development": {
+        "appendages": 1,
+        "cephalic": 1,
+        "pigmentation": 1,
+        "integument": 1,
+        "colorMaturity": 1
+      },
+      "dorsalColor": {
+        "r": 48,
+        "g": 66,
+        "b": 34,
+        "a": 255
+      },
+      "ventralColor": {
+        "r": 112,
+        "g": 142,
+        "b": 62,
+        "a": 255
+      },
+      "unpigmentedVentralColor": {
+        "r": 255,
+        "g": 254,
+        "b": 246,
+        "a": 255
+      }
+    },
+    "gait": 1
+  }
+}

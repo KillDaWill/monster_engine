@@ -22,6 +22,8 @@ static JointConstraint Ball(Vector3 axis, float swing, float twist) {
 bool CreatureRig_Build(const Monster* m, Rig* r) {
     if (!m || !r || !m->hasAnatomyGraph) return false;
     const AnatomyGraph* g = &m->anatomyGraph;
+    size_t order[CREATURE_MAX_MODULES];
+    if (m->recipe.bodyPlan.moduleCount && !CreatureRecipe_ResolutionOrder(&m->recipe, order)) return false;
 
     /* Resolver la raíz del rig desde el BodyPlan de la receta; no asumir pelvis */
     AnatomyId rootId = 0;
@@ -85,7 +87,7 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
     /* Múltiples colas agrupadas por módulo */
     r->tailCount = 0;
     for (size_t index = 0; index < m->recipe.bodyPlan.moduleCount; ++index) {
-        const CreatureModuleInstance* module = &m->recipe.bodyPlan.modules[index];
+        const CreatureModuleInstance* module = &m->recipe.bodyPlan.modules[order[index]];
         if (module->kind != CREATURE_MODULE_TAIL) continue;
         if (r->tailCount >= RIG_MAX_TAILS) return false;
         TailRig* tRig = &r->tails[r->tailCount++];
@@ -149,7 +151,7 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
 
     /* Ensamblaje genérico de extremidades mediante descriptores modulares */
     for (size_t index = 0; index < m->recipe.bodyPlan.moduleCount; ++index) {
-        const CreatureModuleInstance* module = &m->recipe.bodyPlan.modules[index];
+        const CreatureModuleInstance* module = &m->recipe.bodyPlan.modules[order[index]];
         if (module->kind != CREATURE_MODULE_LIMB) continue;
         if (module->phenotypeIndex >= m->phenotype.limbCount) return false;
         const LimbPhenotype* p = &m->phenotype.limbs[module->phenotypeIndex];

@@ -1,4 +1,6 @@
 #include <stdio.h>
+void run_module_dependencies_tests(void);
+void run_equine_anatomy_tests(void);
 
 void run_creature_recipe_io_tests(void);
 void run_bovine_editor_tests(void);
@@ -51,6 +53,8 @@ void run_ecosystem_tests(void);
 void run_creature_visual_variation_tests(void);
 void run_ecosystem_creatures_tests(void);
 int main(void) {
+    run_equine_anatomy_tests();
+    run_module_dependencies_tests();
     run_cloven_hoof_tests();
     run_bovine_editor_tests();
     run_creature_recipe_io_tests();

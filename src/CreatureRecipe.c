@@ -11,6 +11,77 @@
 #include "Limb.h"
 #include <math.h>
 
+static bool AddDependency(const BodyPlan* plan, size_t child, uint32_t host, uint64_t* mask) {
+    for (size_t i = 0; i < plan->moduleCount; ++i) {
+        if (plan->modules[i].instanceId == host) {
+            if (i == child) return false;
+            *mask |= UINT64_C(1) << i;
+            return true;
+        }
+    }
+    return false;
+}
+
+static unsigned ResolutionPriority(CreatureModuleKind kind) {
+    /* Precedencia histórica de las recetas incorporadas, sin significado de especie. */
+    switch (kind) {
+    case CREATURE_MODULE_AXIAL: return 0;
+    case CREATURE_MODULE_HEAD: return 1;
+    case CREATURE_MODULE_TAIL: return 2;
+    case CREATURE_MODULE_LIMB: return 3;
+    case CREATURE_MODULE_ORNAMENT: return 4;
+    default: return 5;
+    }
+}
+
+bool CreatureRecipe_ResolutionOrder(const CreatureRecipe* r, size_t order[CREATURE_MAX_MODULES]) {
+    if (!r || !order || !r->bodyPlan.moduleCount || r->bodyPlan.moduleCount > CREATURE_MAX_MODULES) return false;
+    _Static_assert(CREATURE_MAX_MODULES <= 64, "La máscara de dependencias admite hasta 64 módulos");
+    const BodyPlan* plan = &r->bodyPlan;
+    uint64_t dependencies[CREATURE_MAX_MODULES] = {0}, resolved = 0;
+    for (size_t i = 0; i < plan->moduleCount; ++i) {
+        const CreatureModuleInstance* m = &plan->modules[i];
+        if (!Anatomy_MakeId(m->instanceId, 1)) return false;
+        for (size_t j = 0; j < i; ++j)
+            if (plan->modules[j].instanceId == m->instanceId) return false;
+        if (m->kind == CREATURE_MODULE_AXIAL) {
+            /* El contrato axial actual es una raíz, no un módulo anclado. */
+            if (m->pathAttached || m->membranePrevious || m->attachment.hostModuleInstanceId || m->attachment.slotId) return false;
+            continue;
+        }
+        if (m->pathAttached) {
+            if (!(m->pathNodeA & 0xffffu) || !(m->pathNodeB & 0xffffu) || m->pathNodeA == m->pathNodeB ||
+                !isfinite(m->pathU) || m->pathU < 0 || m->pathU > 1 || !isfinite(m->lateralOffset) ||
+                !isfinite(m->pathNormal.x) || !isfinite(m->pathNormal.y) || !isfinite(m->pathNormal.z) ||
+                !isfinite(Vec3_Length(m->pathNormal)) || Vec3_Length(m->pathNormal) < 1e-6f ||
+                !AddDependency(plan, i, m->pathNodeA >> 16, &dependencies[i]) ||
+                !AddDependency(plan, i, m->pathNodeB >> 16, &dependencies[i])) return false;
+        } else if (!m->attachment.slotId ||
+                   !AddDependency(plan, i, m->attachment.hostModuleInstanceId, &dependencies[i])) return false;
+        if (m->membranePrevious) {
+            if (m->kind != CREATURE_MODULE_ORNAMENT ||
+                !AddDependency(plan, i, m->membranePrevious, &dependencies[i])) return false;
+            for (size_t j = 0; j < plan->moduleCount; ++j)
+                if (plan->modules[j].instanceId == m->membranePrevious &&
+                    plan->modules[j].kind != CREATURE_MODULE_ORNAMENT) return false;
+        }
+    }
+    for (size_t n = 0; n < plan->moduleCount; ++n) {
+        size_t next = plan->moduleCount;
+        for (size_t i = 0; i < plan->moduleCount; ++i) {
+            if ((resolved & (UINT64_C(1) << i)) || (dependencies[i] & ~resolved)) continue;
+            if (next == plan->moduleCount ||
+                ResolutionPriority(plan->modules[i].kind) < ResolutionPriority(plan->modules[next].kind) ||
+                (ResolutionPriority(plan->modules[i].kind) == ResolutionPriority(plan->modules[next].kind) &&
+                 plan->modules[i].instanceId < plan->modules[next].instanceId)) next = i;
+        }
+        if (next == plan->moduleCount) return false;
+        order[n] = next;
+        resolved |= UINT64_C(1) << next;
+    }
+    return true;
+}
+
 const CreaturePhenotype* CreatureRecipe_GetStage(const CreatureRecipe* r, CreatureStage s) {
     if (!r) return NULL;
     switch (s) {
@@ -39,6 +110,9 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
         return false;
     }
 
+    size_t order[CREATURE_MAX_MODULES];
+    if (!CreatureRecipe_ResolutionOrder(r, order)) return false;
+
     /* Validar que la referencia a la raíz del BodyPlan sea coherente */
     if (!r->bodyPlan.root.moduleInstanceId || !r->bodyPlan.root.localNodeId ||
         !Anatomy_MakeId(r->bodyPlan.root.moduleInstanceId, r->bodyPlan.root.localNodeId)) {
@@ -64,18 +138,6 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (r->bodyPlan.modules[j].instanceId == m->instanceId) return false;
         }
 
-        /* Comprobar que el anfitrión del anclaje exista si no es axial */
-        if (m->kind != CREATURE_MODULE_AXIAL) {
-            bool hostFound = false;
-            for (size_t j = 0; j < r->bodyPlan.moduleCount; ++j) {
-                if (r->bodyPlan.modules[j].instanceId == m->attachment.hostModuleInstanceId) {
-                    hostFound = true;
-                    break;
-                }
-            }
-            if (!hostFound || !m->attachment.slotId) return false;
-        }
-
         switch (m->kind) {
         case CREATURE_MODULE_AXIAL:
             if (!AxialBody_Supports(p->axial.archetype)) return false;
@@ -88,6 +150,11 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
         case CREATURE_MODULE_LIMB:
             if (m->phenotypeIndex >= p->limbCount || limbs[m->phenotypeIndex]) return false;
             if (!Limb_Supports(p->limbs[m->phenotypeIndex].archetype)) return false;
+            const LimbPhenotype* limb = &p->limbs[m->phenotypeIndex];
+            if (limb->digitCount > CREATURE_MAX_DIGITS) return false;
+            if (limb->archetype == LIMB_ARCHETYPE_UNGULATE &&
+                ((limb->digitCount != 1 && limb->digitCount != 2) ||
+                 (limb->digitCount == 1 && limb->dewclawSize > 0))) return false;
             limbs[m->phenotypeIndex] = true;
             break;
         case CREATURE_MODULE_TAIL:

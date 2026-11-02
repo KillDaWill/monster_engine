@@ -12,6 +12,54 @@
 #include <math.h>
 #include <string.h>
 
+static bool FiniteVector(Vector3 v) {
+    return isfinite(v.x) && isfinite(v.y) && isfinite(v.z);
+}
+
+bool AttachmentPath_ResolveNodes(const AnatomyGraph* graph, const CreatureModuleInstance* m,
+    float scale, AttachmentSlot* out) {
+    if (!graph || !m || !out || !m->pathAttached || !isfinite(scale) || scale <= 0 ||
+        !isfinite(m->pathU) || m->pathU < 0 || m->pathU > 1 ||
+        !isfinite(m->lateralOffset) || !FiniteVector(m->pathNormal)) return false;
+    const AnatomyNode* a = AnatomyGraph_FindNode(graph, m->pathNodeA);
+    const AnatomyNode* b = AnatomyGraph_FindNode(graph, m->pathNodeB);
+    if (!a || !b || !FiniteVector(a->center) || !FiniteVector(b->center) ||
+        !isfinite(a->widthRadius) || !isfinite(b->widthRadius) ||
+        !isfinite(a->heightRadius) || !isfinite(b->heightRadius) ||
+        a->widthRadius <= 0 || b->widthRadius <= 0 || a->heightRadius <= 0 || b->heightRadius <= 0) return false;
+    Vector3 delta = Vec3_Sub(b->center, a->center);
+    float length = Vec3_Length(delta), normalLength = Vec3_Length(m->pathNormal);
+    if (!isfinite(length) || length < 1e-6f || !isfinite(normalLength) || normalLength < 1e-6f) return false;
+    AttachmentSlot slot = {0};
+    slot.hostNode = m->pathU < .5f ? a->id : b->id;
+    slot.hostModuleInstanceId = slot.hostNode >> 16;
+    slot.forward = Vec3_Scale(delta, 1 / length);
+    slot.up = Vec3_Scale(m->pathNormal, 1 / normalLength);
+    slot.side = Vec3_Cross(slot.forward, slot.up);
+    if (Vec3_Length(slot.side) < 1e-5f) return false;
+    slot.side = Vec3_Normalize(slot.side);
+    slot.up = Vec3_Normalize(Vec3_Cross(slot.side, slot.forward));
+    float h = Math_Lerp(a->heightRadius, b->heightRadius, m->pathU);
+    float w = Math_Lerp(a->widthRadius, b->widthRadius, m->pathU);
+    float lateral = Math_Clamp(m->lateralOffset, -.95f, .95f);
+    /* Mantener la sección elíptica histórica y su normal superficial. */
+    Vector3 radial = Vec3_Add(Vec3_Scale(slot.up, sqrtf(1-lateral*lateral)), Vec3_Scale(slot.side, lateral));
+    Vector3 reference = fabsf(slot.forward.y) > .94f ? Vec3_Create(0,0,1) : Vec3_Create(0,1,0);
+    Vector3 transverse = Vec3_Normalize(Vec3_Cross(slot.forward, reference));
+    Vector3 vertical = Vec3_Normalize(Vec3_Cross(transverse, slot.forward));
+    float rx = Vec3_Dot(radial, transverse), ry = Vec3_Dot(radial, vertical);
+    slot.position = Vec3_Add(Vec3_Lerp(a->center, b->center, m->pathU),
+        Vec3_Add(Vec3_Scale(transverse, rx*w), Vec3_Scale(vertical, ry*h)));
+    slot.up = Vec3_Normalize(Vec3_Add(Vec3_Scale(transverse, rx/w), Vec3_Scale(vertical, ry/h)));
+    slot.side = Vec3_Normalize(Vec3_Cross(slot.forward, slot.up));
+    slot.hostRadii = Vec3_Create(w,h,w);
+    slot.scale = scale;
+    if (!FiniteVector(slot.position) || !FiniteVector(slot.up) || !FiniteVector(slot.side) ||
+        Vec3_Length(slot.up) < .99f || Vec3_Length(slot.side) < .99f) return false;
+    *out = slot;
+    return true;
+}
+
 AttachmentPath AttachmentPath_FromAxialDorsal(const AnatomyGraph* graph, uint32_t axialModuleId) {
     AttachmentPath path;
     memset(&path, 0, sizeof(path));

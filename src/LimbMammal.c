@@ -18,15 +18,16 @@ static Vector3 World(const AttachmentSlot* slot,Vector3 p) {
 }
 /* Una cápsula por uña; las estaciones restantes siguen siendo referencias
  * esqueléticas, sin volver a dibujar las falanges como botones de queratina. */
-static bool ClovenFoot(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,
+static bool UngulateFoot(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,
     AnatomyGraph* g,Vector3 foot,float r,float sole) {
-    float width=r*.50f*p->footScale*p->footWidthScale*p->digitThicknessScale;
+    bool single=p->digitCount==1;
+    float width=r*(single?.95f:.50f)*p->footScale*p->footWidthScale*p->digitThicknessScale;
     float height=r*.90f*p->footScale*p->footHeightScale;
-    for(unsigned d=0;d<2;++d) {
+    for(unsigned d=0;d<p->digitCount;++d) {
         float sign=d?1:-1;
         float yaw=(p->side==LIMB_RIGHT?-1:1)*p->footYaw+p->digitAngles[d];
-        float offset=sign*(width+r*p->footScale*p->digitSpread*.5f);
-        float length=r*1.15f*p->footScale*p->digitLengths[d];
+        float offset=single?0:sign*(width+r*p->footScale*p->digitSpread*.5f);
+        float length=r*(single?1.65f:1.15f)*p->footScale*p->digitLengths[d];
         unsigned count=p->digitPhalanges[d]+2;
         AnatomyId previous=Anatomy_MakeId(module,4);
         for(unsigned j=0;j<count;++j) {
@@ -74,7 +75,8 @@ static bool ClovenFoot(const LimbPhenotype* p,uint32_t module,const AttachmentSl
 bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,AnatomyGraph* g) {
     if (!p || !slot || !g || (p->archetype!=LIMB_ARCHETYPE_MAMMAL&&p->archetype!=LIMB_ARCHETYPE_UNGULATE) || p->digitCount>CREATURE_MAX_DIGITS) return false;
     bool hoof=p->archetype==LIMB_ARCHETYPE_UNGULATE;
-    if(hoof&&p->digitCount!=2)return false;
+    if(hoof&&(p->digitCount!=1&&p->digitCount!=2))return false;
+    if(hoof&&p->digitCount==1&&p->dewclawSize>0)return false;
     for (unsigned d=0;d<p->digitCount;++d) if (!p->digitPhalanges[d] || p->digitPhalanges[d]>5) return false;
     bool hind=p->role==LIMB_HIND;
     float side=p->side==LIMB_RIGHT?-1:1;
@@ -114,7 +116,7 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
         }
     }
     if (!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)) return false;
-    if(hoof)return ClovenFoot(p,module,slot,g,positions[3],r,h[3]);
+    if(hoof)return UngulateFoot(p,module,slot,g,positions[3],r,h[3]);
     for (unsigned d=0;d<p->digitCount;++d) {
         AnatomyId previous=Anatomy_MakeId(module,4);
         float offset=((float)d-((float)p->digitCount-1)*.5f);
