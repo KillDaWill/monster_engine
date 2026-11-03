@@ -223,9 +223,16 @@ typedef struct HeadSurfaceRecipe {
     bool hasTympana; /**< Activa aberturas timpánicas externas. */
     float faceCapWeight; /**< Mezcla continua del límite facial durante metamorfosis. */
     float faceCapDepth; /**< Profundidad terminal del rostro; cero conserva el casquete redondo. */
+    float jawRearClipWeight; /**< Recorte caudal heredado independiente del casquete superior. */
     float oralSlope; /**< Pendiente sagital de labios y plano oral. */
     float nostrilCurve; /**< Curvatura resuelta de la fosa nasal; cero elipsoidal. */
     float faceRounding; /**< Redondeo de la cuña facial. */
+    bool hasMandibularProfile; /**< Secciones propias de rama, ángulo, cuerpo y sínfisis. */
+    Vector3 mandibularCenters[6]; /**< Orden rostral a caudal, independiente del cráneo. */
+    Vector3 mandibularRadii[6]; /**< Semianchura y semialtura de cada sección. */
+    bool hasCranialProfile; /**< Perfil facial regional distinto del perfil heredado. */
+    Vector3 cranialCenters[6]; /**< Labios, cartílago, nasal, frente, bóveda y nuca. */
+    Vector3 cranialRadii[6]; /**< Secciones independientes de la mandíbula. */
 } HeadSurfaceRecipe;
 
 /** Anatomía resuelta y validada, incluyendo el subsistema oral. */

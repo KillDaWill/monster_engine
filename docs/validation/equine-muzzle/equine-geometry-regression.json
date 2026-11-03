@@ -1,0 +1,154 @@
+[
+  {
+    "species": "caballo",
+    "stage": 0,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 1769,
+    "color_change_bounds": [
+      [
+        -0.16143688559532166,
+        1.6459602117538452,
+        0.966435432434082
+      ],
+      [
+        0.16143740713596344,
+        1.9242422580718994,
+        1.144456148147583
+      ]
+    ]
+  },
+  {
+    "species": "caballo",
+    "stage": 1,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 959,
+    "color_change_bounds": [
+      [
+        -0.2428443729877472,
+        2.559420108795166,
+        1.5226837396621704
+      ],
+      [
+        0.24287737905979156,
+        2.992830753326416,
+        1.7970751523971558
+      ]
+    ]
+  },
+  {
+    "species": "caballo",
+    "stage": 2,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 1312,
+    "color_change_bounds": [
+      [
+        -0.30654531717300415,
+        3.3972764015197754,
+        2.0510339736938477
+      ],
+      [
+        0.30641287565231323,
+        3.979487895965576,
+        2.4252829551696777
+      ]
+    ]
+  },
+  {
+    "species": "caballo",
+    "stage": 3,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 2629,
+    "color_change_bounds": [
+      [
+        -0.36154478788375854,
+        4.1610822677612305,
+        2.53346848487854
+      ],
+      [
+        0.36154481768608093,
+        4.876417636871338,
+        3.0021724700927734
+      ]
+    ]
+  },
+  {
+    "species": "asno",
+    "stage": 0,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 1473,
+    "color_change_bounds": [
+      [
+        -0.16036398708820343,
+        1.3438947200775146,
+        0.906949520111084
+      ],
+      [
+        0.16026456654071808,
+        1.621569275856018,
+        1.0508458614349365
+      ]
+    ]
+  },
+  {
+    "species": "asno",
+    "stage": 1,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 841,
+    "color_change_bounds": [
+      [
+        -0.24230876564979553,
+        2.090348720550537,
+        1.4061877727508545
+      ],
+      [
+        0.2418714314699173,
+        2.513293504714966,
+        1.6465861797332764
+      ]
+    ]
+  },
+  {
+    "species": "asno",
+    "stage": 2,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 1204,
+    "color_change_bounds": [
+      [
+        -0.30673789978027344,
+        2.7738330364227295,
+        1.867905616760254
+      ],
+      [
+        0.30686622858047485,
+        3.3424324989318848,
+        2.214423894882202
+      ]
+    ]
+  },
+  {
+    "species": "asno",
+    "stage": 3,
+    "max_geometry_delta": 0,
+    "indices_exact": true,
+    "changed_color_vertices": 1480,
+    "color_change_bounds": [
+      [
+        -0.35853931307792664,
+        3.40679931640625,
+        2.282984733581543
+      ],
+      [
+        0.35821542143821716,
+        4.084741592407227,
+        2.7335588932037354
+      ]
+    ]
+  }
+]

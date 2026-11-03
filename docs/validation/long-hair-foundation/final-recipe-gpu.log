@@ -1,0 +1,91 @@
+gcc -Wall -Wextra -Wpedantic -O2 -Iinclude -Itests build/EcosystemScenario.o build/LongHair.o build/EcosystemAnatomy.o build/SimulationClock.o build/CreaturePhysiology.o build/CreatureGenome.o build/CreatureReproduction.o build/EcosystemResources.o build/EcosystemWorld.o build/AnatomicalReach.o build/BrainProfile.o build/CreatureNeeds.o build/AIWorld.o build/CreaturePerception.o build/CreatureNavigation.o build/CreatureMotor.o build/CreatureMind.o build/CreatureDecision.o build/CreatureActions.o build/GpuDevicePolicy.o build/NavigationProgress.o build/CreatureBoundary.o build/SDFInterval.o build/GpuSDFSurfaceCache.o build/CreatureMorph.o build/MorphModuleState.o build/MorphHandoff.o build/MorphSpatialCache.o build/MorphChunkManager.o build/MorphSurfaceTracker.o build/MorphSurfacePatcher.o build/HeadMorph.o build/Surface.o build/Fur.o build/SurfaceMapper.o build/SurfacePresets.o build/Color.o build/ColorPalette.o build/Vector.o build/MathUtils.o build/Transform3D.o build/AABB.o build/Mesh.o build/MeshPatch.o build/PrimitiveMesh.o build/SDFPrimitives.o build/SDFOperations.o build/SDFSampling.o build/SDFSamplingPool.o build/MonsterSDF.o build/MarchingCubesTables.o build/MarchingCubes.o build/SDFMesher.o build/SDFAdaptiveMesher.o build/MonsterVisual.o build/MonsterVisualAsync.o build/BodyPart.o build/Eye.o build/EyeTexture.o build/Mouth.o build/Head.o build/Anatomy.o build/CreaturePhenotype.o build/CreatureRecipe.o build/CreatureRecipeIO.o build/CreatureRecipeRegistry.o build/CreatureRecipes.o build/CreatureRecipeBrumacerno.o build/CreatureRecipeVelkar.o build/Attachment.o build/AxialBody.o build/AxialBodySprawlingTetrapod.o build/HeadModule.o build/Limb.o build/LimbReptile.o build/LimbMammal.o build/AxialBodyUprightTetrapod.o build/Tail.o build/Ornament.o build/Creature.o build/Monster.o build/MonsterQueries.o build/MonsterAger.o build/Quaternion.o build/Skeleton.o build/IK.o build/RigBuilder.o build/CreatureRig.o build/AnatomyDeformer.o build/WorldInterface.o build/Locomotion.o build/ProceduralAnimator.o build/GaitPresets.o build/MonsterAnimation.o build/AnimatedVisual.o build/PigmentPattern.o build/AttachmentPath.o build/CreatureVariation.o build/VisualVariation.o build/EcosystemVisual.o build/LizardVariations.o build/OpenGLRenderer.o tools/validate_recipe_gpu.c -lSDL2 -lGL -lGLU -lm -pthread -o build/validate_recipe_gpu
+
+recipes/caballo.creature.json
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000093 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000093 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000075 PASS
+[RECETA GPU] intervalo_error_m=9.31322575e-08
+[RECETA GPU] etapa=3 muestras=3090 compute_error_m=9.53674316e-07 fragment_error_m=9.53674316e-07 PASS
+
+recipes/asno.creature.json
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000300 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000149 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000060 PASS
+[RECETA GPU] intervalo_error_m=2.99885869e-07
+[RECETA GPU] etapa=3 muestras=3090 compute_error_m=7.59959221e-07 fragment_error_m=7.59959221e-07 PASS
+
+/tmp/opencode/equine-regression-1.creature.json
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000188619 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000037 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000037 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000149 PASS
+[RECETA GPU] intervalo_error_m=0.000188618898
+[RECETA GPU] etapa=3 muestras=1786 compute_error_m=4.76837158e-07 fragment_error_m=4.76837158e-07 PASS
+
+/tmp/opencode/equine-regression-2.creature.json
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000563 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000097 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000298 PASS
+[RECETA GPU] intervalo_error_m=5.62518835e-07
+[RECETA GPU] etapa=3 muestras=1758 compute_error_m=5.96046448e-07 fragment_error_m=5.96046448e-07 PASS
+
+/tmp/opencode/equine-regression-3.creature.json
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000178695 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000052 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000052 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000179 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000060 PASS
+[RECETA GPU] intervalo_error_m=0.000178694725
+[RECETA GPU] etapa=3 muestras=5204 compute_error_m=0.00014102459 fragment_error_m=0.00014102459 PASS
+
+/tmp/opencode/equine-regression-4.creature.json
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000066429 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000149 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000238 PASS
+[RECETA GPU] intervalo_error_m=6.64293766e-05
+[RECETA GPU] etapa=3 muestras=1766 compute_error_m=6.61611557e-05 fragment_error_m=6.61611557e-05 PASS

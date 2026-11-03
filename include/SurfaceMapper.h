@@ -73,4 +73,9 @@ bool SurfaceMapper_MapBoundMesh(Mesh* mesh,const AnatomyDeformer* binding,
     const AnatomyGraph* canonical,const SurfaceMapping* mapping,SurfaceMapperStats* stats);
 /** @brief Etiqueta estaciones por región semántica. @return Dominio de reposo. */
 SurfaceMapping SurfaceMapping_FromAnatomy(const AnatomyGraph* graph,float unitScale);
+/** @brief Resuelve máscaras locales a coordenadas canónicas, sin modificar el
+ * fenotipo fuente. Un ancla ausente retira su capa, nunca la vuelve global.
+ * @param surface Copia de apariencia para render. @param graph Anatomía de reposo.
+ * @param mapping Marco canónico. */
+void SurfaceMapper_ResolvePigmentDomains(SurfacePhenotype* surface,const AnatomyGraph* graph,const SurfaceMapping* mapping);
 #endif

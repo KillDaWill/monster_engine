@@ -18,6 +18,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/** @brief Instrumentación exclusiva de ribbons largos; tiempo GPU asíncrono. */
+typedef struct LongHairRenderStats {
+    size_t guides,strands,bufferBytes;
+    unsigned segments;
+    float gpuMs;
+    bool ready,timingValid;
+} LongHairRenderStats;
+/** @brief Calidad 0=apagado, 1/2/3=baja/media/alta, 4=guías; no afecta identidades. */
+void OpenGLRenderer_SetLongHairQuality(Renderer3D* renderer,int quality);
+/** @brief Último dibujo y coste GPU, sin bloquear. */
+LongHairRenderStats OpenGLRenderer_GetLongHairStats(const Renderer3D* renderer);
+/** @brief Captura Catmull-Rom del shader real y lo compara con las guías CPU.
+ * @param maxError Error mundial máximo. @return false si hay NaN, raíz inválida o fallo GL. */
+bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError);
 
 /** @brief Comprueba OpenGL 4.3 y límites de cómputo de la GPU actual. */
 bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);
@@ -220,12 +234,18 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,
 
 /** @brief Espera a la GPU para medir el coste real en validaciones de rendimiento. */
 void OpenGLRenderer_Finish(void);
-/** @brief Selecciona visualización de superficie (0 normal, 1..9 diagnóstico). */
+/** @brief Selecciona superficie: 0 normal; 29 dominio localizado, 30 cobertura
+ * efectiva de pelo, 31 rugosidad; los diagnósticos anteriores conservan su ID. */
 void OpenGLRenderer_SetSurfaceDebug(Renderer3D* renderer,int mode);
 /** @brief Compila y verifica el programa; false permite detectar fallback heredado. */
 /** @brief Selecciona representaciones y fuerza 1..32 conchas (0=automático). */
 void OpenGLRenderer_SetFurQuality(Renderer3D*,bool shells,bool guards,int forcedShells);
 bool OpenGLRenderer_SurfaceReady(Renderer3D* renderer);
+/** @brief Compara máscara y material local CPU/compute para coordenadas de reposo.
+ * @param surface Apariencia resuelta. @param points Muestras regionales.
+ * @param count Número de muestras, hasta 4096. @param maxError Error máximo.
+ * @return true si el programa y la lectura GPU se ejecutaron. */
+bool OpenGLRenderer_ValidatePigmentDomains(const SurfacePhenotype* surface,const SurfaceCoordinate* points,size_t count,float* maxError);
 /** @brief Consume y comunica errores GL pendientes en validaciones. */
 bool OpenGLRenderer_CheckErrors(void);
 

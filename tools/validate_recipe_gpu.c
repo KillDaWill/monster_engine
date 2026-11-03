@@ -45,6 +45,19 @@ int main(int argc,char** argv){
             points[count++]=Vec3_Add(m->center,Vec3_Create(b.row0.x*local.x+b.row1.x*local.y+b.row2.x*local.z,b.row0.y*local.x+b.row1.y*local.y+b.row2.y*local.z,b.row0.z*local.x+b.row1.z*local.y+b.row2.z*local.z));
         }
     }
+    /* Las envolventes musculares también reciben muestras transversales y
+     * longitudinales: la concordancia facial no valida la cintura escapular. */
+    for(size_t c=0;c<sdf.connectorCount;++c)if(sdf.connectors[c].kind==BODY_CONNECTION_MUSCLE_UNION) {
+        const MonsterSDFConnector* muscle=&sdf.connectors[c];
+        for(unsigned j=0;j<125&&count<8192;++j) {
+            float t=(j/25)*.25f;
+            float w=(1-t)*muscle->widthA+t*muscle->widthB;
+            float h=(1-t)*muscle->heightA+t*muscle->heightB;
+            points[count++]=Vec3_Add(Vec3_Lerp(muscle->a,muscle->b,t),
+                Vec3_Add(Vec3_Scale(muscle->side,((j%5)*.6f-1.2f)*w),
+                         Vec3_Scale(muscle->up,(((j/5)%5)*.6f-1.2f)*h)));
+        }
+    }
     /* Cada uña y espolón recibe sondeos de corona, hendidura, talón y suela. */
     for(size_t c=0;c<sdf.connectorCount;++c)if(sdf.connectors[c].material==SDF_MATERIAL_HOOF) {
         const MonsterSDFConnector* claw=&sdf.connectors[c];

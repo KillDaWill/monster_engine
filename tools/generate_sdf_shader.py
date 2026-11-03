@@ -176,7 +176,7 @@ def posed_material_source():
     return source
 
 surface_modules=['hash','scales','pigment_regions','pigment','fur_curve','fur','bump','lighting','evaluate']
-surface='uniform vec4 surfaceRecipe[103];\nuniform uint pigmentSeed,scaleSeed,furSeed;\nuniform int sdfHasSurface,sdfFurEnabled;\n'
+surface='uniform vec4 surfaceRecipe[139];\nuniform uint pigmentSeed,scaleSeed,furSeed;\nuniform int sdfHasSurface,sdfFurEnabled;\n'
 surface+='\n'.join(re.sub(r'^#include .*\n','',
     (ROOT/f'shaders/surface/{name}.glsl').read_text(),flags=re.M) for name in surface_modules)
 domain=re.sub(r'^#include .*\n','',(ROOT/'shaders/surface/morph_domain.glsl').read_text(),flags=re.M)
@@ -282,6 +282,6 @@ interval_names=['Interval_Pad','Interval_Constant','Interval_Add','Interval_Subt
 interval_code=interval_prefix+'\n'.join(interval_translate(function('src/SDFInterval.c',name)) for name in interval_names)
 compute+=embed('sdfIntervalValidateSource','#version 430 compatibility\n'+core+interval_code+
     (ROOT/'shaders/sdf_interval_validate.comp').read_text())
-compute+=embed('sdfMeshVertexSource','#version 430 compatibility\nuniform vec4 surfaceRecipe[103];\n'+(ROOT/'shaders/surface/pigment_regions.glsl').read_text()+domain+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
+compute+=embed('sdfMeshVertexSource','#version 430 compatibility\nuniform vec4 surfaceRecipe[139];\n'+(ROOT/'shaders/surface/pigment_regions.glsl').read_text()+domain+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
 compute+=embed('sdfMeshFragmentSource','#version 430 compatibility\n'+core+surface+domain+'\nuniform vec3 cameraPosition,cameraForward,cameraRight,cameraUp;\n'+material+(ROOT/'shaders/sdf_surface_mesh.frag').read_text())
 (ROOT/'src/MonsterSDFCompute.generated.h').write_text('\n'.join(compute)+'\n')

@@ -93,6 +93,7 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
     monster->surface = p.surface;
     monster->hasSurface = true;
     monster->surfaceMapping = SurfaceMapping_FromAnatomy(&monster->anatomyGraph, p.axial.totalScale);
+    SurfaceMapper_ResolvePigmentDomains(&monster->surface,&monster->anatomyGraph,&monster->surfaceMapping);
     monster->phenotype = p;
     monster->recipeId = recipe->id;
     monster->recipe = *recipe;

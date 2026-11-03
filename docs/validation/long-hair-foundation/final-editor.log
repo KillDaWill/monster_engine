@@ -1,0 +1,51 @@
+python3 tools/creature_editor/test_editor.py
+test_agent_override_save_and_material_inspection (__main__.EditorTests.test_agent_override_save_and_material_inspection) ... ok
+test_agent_transactions_schema_and_concurrency (__main__.EditorTests.test_agent_transactions_schema_and_concurrency) ... 127.0.0.1 - - [03/Nov/2026 23:05:53] "POST /api/agent/action HTTP/1.1" 409 -
+127.0.0.1 - - [03/Nov/2026 23:05:53] "POST /api/agent/action HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:05:53] "POST /api/agent/action HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:05:53] "POST /api/agent/action HTTP/1.1" 422 -
+ok
+test_catalog_roundtrip_and_static_assets (__main__.EditorTests.test_catalog_roundtrip_and_static_assets) ... ok
+test_dependency_order_and_cycle_transaction (__main__.EditorTests.test_dependency_order_and_cycle_transaction)
+Los módulos desordenados pasan por C; un ciclo no altera el historial. ... 127.0.0.1 - - [03/Nov/2026 23:05:54] "POST /api/agent/action HTTP/1.1" 422 -
+ok
+test_equine_recipes_editor_roundtrip (__main__.EditorTests.test_equine_recipes_editor_roundtrip)
+Casco único y cara équida atraviesan JSON, edición HTTP, C y mallas. ... 127.0.0.1 - - [03/Nov/2026 23:06:00] "POST /api/agent/action HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:05] "POST /api/agent/action HTTP/1.1" 422 -
+ok
+test_localized_pigment_v1_roundtrip (__main__.EditorTests.test_localized_pigment_v1_roundtrip)
+Dominio opcional: compatibilidad v1, validación y preview C real. ... ok
+test_mesh_all_recipes_and_stages (__main__.EditorTests.test_mesh_all_recipes_and_stages) ...   Receta 1, etapa 0: (16200, 137)
+  Receta 1, etapa 1: (15028, 137)
+  Receta 1, etapa 2: (116460, 137)
+  Receta 1, etapa 3: (117736, 137)
+  Receta 2, etapa 0: (97130, 109)
+  Receta 2, etapa 1: (95838, 109)
+  Receta 2, etapa 2: (97262, 109)
+  Receta 2, etapa 3: (98602, 109)
+  Receta 3, etapa 0: (98376, 99)
+  Receta 3, etapa 1: (97596, 99)
+  Receta 3, etapa 2: (98368, 99)
+  Receta 3, etapa 3: (100312, 99)
+  Receta 4, etapa 0: (89874, 117)
+  Receta 4, etapa 1: (91652, 117)
+  Receta 4, etapa 2: (88146, 117)
+  Receta 4, etapa 3: (71798, 117)
+ok
+test_new_recipe_save_reload_and_overwrite (__main__.EditorTests.test_new_recipe_save_reload_and_overwrite) ... 127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/save HTTP/1.1" 409 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/save HTTP/1.1" 409 -
+ok
+test_reject_invalid_versions_counts_attachments_and_paths (__main__.EditorTests.test_reject_invalid_versions_counts_attachments_and_paths) ... 127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/validate HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/save HTTP/1.1" 422 -
+127.0.0.1 - - [03/Nov/2026 23:06:28] "POST /api/validate HTTP/1.1" 403 -
+ok
+test_topology_edits_and_geometry_change (__main__.EditorTests.test_topology_edits_and_geometry_change) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 38.596s
+
+OK

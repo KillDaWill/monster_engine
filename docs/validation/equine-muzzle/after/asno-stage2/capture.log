@@ -1,0 +1,16 @@
+head 131073 radii 0.489507 0.358176 0.446526 localTip 0 -0.583188 0.751028 nostril 0.260603 -0.426637 0.664649
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+pigment GPU frame 0 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU frame 1 samples 2048 maxError 3.57627869e-07 valid 1
+pigment GPU frame 2 samples 2048 maxError 2.38418579e-07 valid 1
+pigment GPU frame 3 samples 2048 maxError 1.1920929e-07 valid 1
+pigment GPU pattern 0 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU pattern 1 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU pattern 2 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU pattern 3 samples 2048 maxError 1.37090683e-06 valid 1
+pigment GPU pattern 4 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU pattern 5 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU pattern 6 samples 2048 maxError 4.76837158e-07 valid 1
+pigment GPU pattern 7 samples 2048 maxError 4.76837158e-07 valid 1
+part 0 closest tip 0.0374504 material 0 rest -0.000966758 3.70891 2.70052
+part 2 closest tip 0.0952038 material 0 rest -0.0237628 3.63979 2.5705

@@ -1,0 +1,258 @@
+{
+  "base_commit": "8920a58",
+  "method": "clock(), 1000 resoluciones por ejecuci\u00f3n, siete pares alternados; mediana en microsegundos; sin mallado",
+  "medians": {
+    "base": {
+      "1005": 20.297,
+      "1006": 19.992
+    },
+    "actual": {
+      "1005": 20.426,
+      "1006": 20.217
+    }
+  },
+  "runs": {
+    "base": [
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.831,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.568,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.34,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 19.722,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.919,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 19.953,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.222,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 19.992,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.214,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.24,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.084,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 19.663,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181000",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.297,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.421,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      }
+    ],
+    "actual": [
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.699,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.35,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.426,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.181,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.556,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.725,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.123,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.175,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.323,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.217,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.584,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.776,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      },
+      {
+        "sizes": "sizeof_recipe=37704 sizeof_phenotype=8520 sizeof_graph=121880 sizeof_monster=181296",
+        "values": [
+          {
+            "recipe": 1005,
+            "resolve_us": 20.381,
+            "nodes": 77,
+            "connections": 92
+          },
+          {
+            "recipe": 1006,
+            "resolve_us": 20.091,
+            "nodes": 77,
+            "connections": 92
+          }
+        ]
+      }
+    ]
+  }
+}

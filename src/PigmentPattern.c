@@ -25,7 +25,12 @@ static float Smoothstep(float edge0, float edge1, float x) {
     return t * t * (3.0f - 2.0f * t);
 }
 
-static float ValueNoise3D(Vector3 p, uint32_t seed) {
+static float SurfaceHashFloat3(int x,int y,int z,uint32_t seed) {
+    uint32_t h=(uint32_t)x*0x9e3779b9u^(uint32_t)y*0x85ebca6bu^seed^(uint32_t)z;
+    h^=h>>16;h*=0x7feb352du;h^=h>>15;h*=0x846ca68bu;h^=h>>16;
+    return (float)(h>>8)*(1.f/16777216.f);
+}
+static float ValueNoiseWithHash(Vector3 p,uint32_t seed,float (*hash)(int,int,int,uint32_t)) {
     int ix = (int)floorf(p.x);
     int iy = (int)floorf(p.y);
     int iz = (int)floorf(p.z);
@@ -37,14 +42,14 @@ static float ValueNoise3D(Vector3 p, uint32_t seed) {
     float uy = fy * fy * (3.0f - 2.0f * fy);
     float uz = fz * fz * (3.0f - 2.0f * fz);
 
-    float c000 = HashFloat3(ix,     iy,     iz,     seed);
-    float c100 = HashFloat3(ix + 1, iy,     iz,     seed);
-    float c010 = HashFloat3(ix,     iy + 1, iz,     seed);
-    float c110 = HashFloat3(ix + 1, iy + 1, iz,     seed);
-    float c001 = HashFloat3(ix,     iy,     iz + 1, seed);
-    float c101 = HashFloat3(ix + 1, iy,     iz + 1, seed);
-    float c011 = HashFloat3(ix,     iy + 1, iz + 1, seed);
-    float c111 = HashFloat3(ix + 1, iy + 1, iz + 1, seed);
+    float c000 = hash(ix,     iy,     iz,     seed);
+    float c100 = hash(ix + 1, iy,     iz,     seed);
+    float c010 = hash(ix,     iy + 1, iz,     seed);
+    float c110 = hash(ix + 1, iy + 1, iz,     seed);
+    float c001 = hash(ix,     iy,     iz + 1, seed);
+    float c101 = hash(ix + 1, iy,     iz + 1, seed);
+    float c011 = hash(ix,     iy + 1, iz + 1, seed);
+    float c111 = hash(ix + 1, iy + 1, iz + 1, seed);
 
     float x00 = c000 + ux * (c100 - c000);
     float x10 = c010 + ux * (c110 - c010);
@@ -56,14 +61,16 @@ static float ValueNoise3D(Vector3 p, uint32_t seed) {
 
     return y0 + uz * (y1 - y0);
 }
+static float ValueNoise3D(Vector3 p,uint32_t seed){return ValueNoiseWithHash(p,seed,HashFloat3);}
+static float SurfaceNoise3D(Vector3 p,uint32_t seed){return ValueNoiseWithHash(p,seed,SurfaceHashFloat3);}
 
-float PigmentPattern_Sample(
+static float SamplePattern(
     PigmentPattern pattern,
     Vector3 p,
     float scale,
     float sharpness,
     Vector3 direction,
-    uint32_t seed) {
+    uint32_t seed,float (*noise)(Vector3,uint32_t)) {
     float sc = scale > 1e-4f ? scale : 1.0f;
     Vector3 q = Vec3_Scale(p, sc);
     float sh = Math_Clamp01(sharpness);
@@ -73,17 +80,17 @@ float PigmentPattern_Sample(
         return 1.0f;
 
     case PIGMENT_PATTERN_NOISE:
-        return ValueNoise3D(q, seed);
+        return noise(q, seed);
 
     case PIGMENT_PATTERN_SPOTS: {
-        float n = ValueNoise3D(q, seed);
+        float n = noise(q, seed);
         float w = 0.16f * (1.0f - sh * 0.75f);
         return Smoothstep(0.56f - w, 0.56f + w, n);
     }
 
     case PIGMENT_PATTERN_BANDS: {
         float phase = (float)(seed & 1023u) * (6.2831853f / 1024.0f);
-        float n = ValueNoise3D(q, seed);
+        float n = noise(q, seed);
         float wave = 0.5f + 0.5f * sinf(q.z * 4.5f + phase + n * 2.0f);
         float w = 0.18f * (1.0f - sh * 0.8f);
         return Smoothstep(0.50f - w, 0.50f + w, wave);
@@ -91,22 +98,22 @@ float PigmentPattern_Sample(
 
     case PIGMENT_PATTERN_STRIPES: {
         float phase = (float)(seed & 1023u) * (6.2831853f / 1024.0f);
-        float n = ValueNoise3D(q, seed);
+        float n = noise(q, seed);
         float wave = 0.5f + 0.5f * sinf(q.x * 6.5f + phase + n * 1.8f);
         float w = 0.16f * (1.0f - sh * 0.8f);
         return Smoothstep(0.50f - w, 0.50f + w, wave);
     }
 
     case PIGMENT_PATTERN_BLOTCHES: {
-        float n1 = ValueNoise3D(Vec3_Scale(q, 0.40f), seed);
-        float n2 = ValueNoise3D(Vec3_Scale(q, 0.85f), seed + 77u);
+        float n1 = noise(Vec3_Scale(q, 0.40f), seed);
+        float n2 = noise(Vec3_Scale(q, 0.85f), seed + 77u);
         float combined = n1 * 0.70f + n2 * 0.30f;
         float w = 0.15f * (1.0f - sh * 0.8f);
         return Smoothstep(0.48f - w, 0.48f + w, combined);
     }
 
     case PIGMENT_PATTERN_OCELLI: {
-        float n = ValueNoise3D(q, seed);
+        float n = noise(q, seed);
         float ringDist = fabsf(n - 0.54f);
         float wRing = 0.10f * (1.0f - sh * 0.6f);
         float ring = 1.0f - Smoothstep(0.0f, wRing, ringDist);
@@ -125,6 +132,12 @@ float PigmentPattern_Sample(
         return 0.0f;
     }
 }
+float PigmentPattern_Sample(PigmentPattern pattern,Vector3 p,float scale,float sharpness,Vector3 direction,uint32_t seed) {
+    return SamplePattern(pattern,p,scale,sharpness,direction,seed,ValueNoise3D);
+}
+float PigmentPattern_SampleSurface(PigmentPattern pattern,Vector3 p,float scale,float sharpness,Vector3 direction,uint32_t seed) {
+    return SamplePattern(pattern,p,fmaxf(scale,.01f),sharpness,direction,seed,SurfaceNoise3D);
+}
 
 Color PigmentPattern_EvaluateLayer(
     const PigmentLayer* layer,
@@ -139,8 +152,21 @@ Color PigmentPattern_EvaluateLayer(
         layer->direction,
         layer->seed
     );
-    float blend = Math_Clamp01(sample * layer->strength);
+    float blend = Math_Clamp01(sample * layer->strength * PigmentDomain_Weight(&layer->domain,p,layer->seed));
     return Color_Lerp(baseColor, layer->color, blend);
+}
+
+float PigmentDomain_Weight(const PigmentDomain* d,Vector3 p,uint32_t seed) {
+    if(!d || d->radii.x<=0 || d->radii.y<=0 || d->radii.z<=0)return 1;
+    Vector3 q=Vec3_Sub(p,d->center);
+    q.x/=d->radii.x;q.y/=d->radii.y;q.z/=d->radii.z;
+    /* Ondulación acotada y continua, idéntica en CPU/GLSL, sin costuras UV. */
+    float phase=(float)(seed&1023u)*.00613592315f;
+    float warp=sinf(q.x*3.1f+phase)*sinf(q.y*4.3f-phase)*sinf(q.z*3.7f+phase);
+    float distance=Vec3_Length(q)+d->irregularity*.15f*warp;
+    float softness=fmaxf(.001f,d->softness);
+    float t=Math_Clamp01((1-distance)/softness);
+    return t*t*(3-2*t);
 }
 
 float PigmentPattern_RegionWeight(const PigmentLayer* layer,unsigned primary,unsigned secondary,float blend) {

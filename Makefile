@@ -17,6 +17,7 @@ BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
 CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
+            $(SRC_DIR)/LongHair.c \
             $(SRC_DIR)/EcosystemAnatomy.c \
             $(SRC_DIR)/SimulationClock.c \
             $(SRC_DIR)/CreaturePhysiology.c \
@@ -125,6 +126,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
+            $(TEST_DIR)/test_long_hair.c \
             $(TEST_DIR)/test_equine_anatomy.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
@@ -257,6 +259,28 @@ visual-anatomy-foundation: $(BUILD_DIR)/creature_editor_bridge
 visual-equine: $(BUILD_DIR)/creature_editor_bridge
 	python3 tools/validate_equine_anatomy.py
 
+.PHONY: visual-equine-muscles
+visual-equine-muscles: $(BUILD_DIR)/capture_bovine_anatomy
+	python3 tools/validate_equine_muscles.py --all-stages
+
+$(BUILD_DIR)/capture_equine_muzzle: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_equine_muzzle.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/capture_long_hair: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_long_hair.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+.PHONY: visual-long-hair
+visual-long-hair: $(BUILD_DIR)/capture_long_hair $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/validate_long_hair.py --all-stages
+
+.PHONY: visual-equine-muzzle
+visual-equine-muzzle: $(BUILD_DIR)/capture_equine_muzzle
+	python3 tools/validate_equine_muzzle.py --all-stages
+
+.PHONY: visual-equine-muzzle-editor
+visual-equine-muzzle-editor: $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/capture_equine_muzzle_editor.py
+
 # Ejecutable del visor 3D principal
 $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
@@ -371,7 +395,7 @@ benchmarks/benchmark_animation: $(CORE_OBJS) benchmarks/benchmark_animation.c
 benchmark-animation: benchmarks/benchmark_animation
 	./benchmarks/benchmark_animation
 
-src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py src/Fur.c $(wildcard shaders/surface/*.glsl) shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl
+src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py src/Fur.c $(wildcard shaders/surface/*.glsl) shaders/long_hair.vert shaders/long_hair.frag shaders/pigment_domain.comp shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl
 	python3 tools/generate_surface_shader.py
 $(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSurfaceShader.generated.h
 

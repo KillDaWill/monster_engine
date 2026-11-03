@@ -1,0 +1,3 @@
+python3 tools/capture_equine_muzzle_editor.py
+127.0.0.1 - - [03/Nov/2026 18:39:34] "GET /favicon.ico HTTP/1.1" 404 -
+Editor capturado mediante API pública; catálogo aislado

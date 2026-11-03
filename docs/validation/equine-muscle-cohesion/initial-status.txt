@@ -1,0 +1,18 @@
+## feature/universal-anatomy-foundation...origin/feature/universal-anatomy-foundation
+ M docs/validation/equine-reconstruction/README.md
+ M include/Head.h
+ M include/MonsterSDF.h
+ M recipes/asno.creature.json
+ M recipes/caballo.creature.json
+ M src/AxialBodyUprightTetrapod.c
+ M src/Head.c
+ M src/LimbMammal.c
+ M src/MonsterSDF.c
+ M src/MonsterSDFCompute.generated.h
+ M src/MonsterSDFShader.generated.h
+ M tests/test_equine_anatomy.c
+ M tools/capture_bovine_anatomy.c
+ M tools/creature_editor_bridge.c
+ M tools/generate_equine_recipes.py
+ M tools/validate_equine_anatomy.py
+?? docs/validation/equine-reconstruction/refinement/

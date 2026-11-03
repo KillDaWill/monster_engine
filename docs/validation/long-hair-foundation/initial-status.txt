@@ -1,0 +1,55 @@
+## feature/universal-anatomy-foundation...origin/feature/universal-anatomy-foundation
+ M Makefile
+ M docs/validation/equine-reconstruction/README.md
+ M include/Head.h
+ M include/MonsterSDF.h
+ M include/OpenGLRenderer.h
+ M include/PigmentPattern.h
+ M include/Surface.h
+ M include/SurfaceMapper.h
+ M recipes/asno.creature.json
+ M recipes/caballo.creature.json
+ M shaders/fur_guard.frag
+ M shaders/fur_guard.vert
+ M shaders/monster_mesh.vert
+ M shaders/monster_surface.frag
+ M shaders/sdf_surface_material.glsl
+ M shaders/surface/pigment.glsl
+ M shaders/surface/pigment_regions.glsl
+ M src/AnatomyDeformer.c
+ M src/AxialBodyUprightTetrapod.c
+ M src/Creature.c
+ M src/CreatureMorph.c
+ M src/CreatureRecipeSchema.inc
+ M src/CreatureVariation.c
+ M src/Head.c
+ M src/LimbMammal.c
+ M src/MonsterSDF.c
+ M src/MonsterSDFCompute.generated.h
+ M src/MonsterSDFShader.generated.h
+ M src/MonsterSurfaceShader.generated.h
+ M src/MonsterVisualAsync.c
+ M src/OpenGLRenderer.c
+ M src/PigmentPattern.c
+ M src/Surface.c
+ M src/SurfaceMapper.c
+ M tests/test_equine_anatomy.c
+ M tests/test_surface.c
+ M tools/capture_bovine_anatomy.c
+ M tools/creature_editor/app.js
+ M tools/creature_editor/test_editor.py
+ M tools/creature_editor_bridge.c
+ M tools/generate_equine_recipes.py
+ M tools/generate_recipe_schema.py
+ M tools/generate_sdf_shader.py
+ M tools/generate_surface_shader.py
+ M tools/validate_equine_anatomy.py
+ M tools/validate_recipe_gpu.c
+?? docs/validation/equine-muscle-cohesion/
+?? docs/validation/equine-muzzle/
+?? docs/validation/equine-reconstruction/refinement/
+?? shaders/pigment_domain.comp
+?? tools/capture_equine_muzzle.c
+?? tools/capture_equine_muzzle_editor.py
+?? tools/validate_equine_muscles.py
+?? tools/validate_equine_muzzle.py

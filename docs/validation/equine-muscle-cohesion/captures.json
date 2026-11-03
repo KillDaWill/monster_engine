@@ -1,0 +1,98 @@
+[
+  {
+    "recipe": "caballo",
+    "stage": 0,
+    "after": {
+      "seconds": 11.861360432001675,
+      "walking": true
+    },
+    "before": {
+      "seconds": 5.902934449000895,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "caballo",
+    "stage": 1,
+    "after": {
+      "seconds": 6.2993786909974006,
+      "walking": true
+    },
+    "before": {
+      "seconds": 5.957748762000847,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "caballo",
+    "stage": 2,
+    "after": {
+      "seconds": 6.7062329500004125,
+      "walking": true
+    },
+    "before": {
+      "seconds": 6.452312970999628,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "caballo",
+    "stage": 3,
+    "after": {
+      "seconds": 5.091567465002299,
+      "walking": true
+    },
+    "before": {
+      "seconds": 4.718182381999213,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "asno",
+    "stage": 0,
+    "after": {
+      "seconds": 9.779541633000917,
+      "walking": true
+    },
+    "before": {
+      "seconds": 12.41922350599998,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "asno",
+    "stage": 1,
+    "after": {
+      "seconds": 13.679810904999613,
+      "walking": true
+    },
+    "before": {
+      "seconds": 9.743824912999116,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "asno",
+    "stage": 2,
+    "after": {
+      "seconds": 9.334007462002774,
+      "walking": true
+    },
+    "before": {
+      "seconds": 8.789028793999023,
+      "walking": false
+    }
+  },
+  {
+    "recipe": "asno",
+    "stage": 3,
+    "after": {
+      "seconds": 8.505770387000666,
+      "walking": true
+    },
+    "before": {
+      "seconds": 8.348867133001477,
+      "walking": false
+    }
+  }
+]

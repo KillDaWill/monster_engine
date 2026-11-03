@@ -1,5 +1,9 @@
 # Reconstrucción équida: sistemas anatómicos reutilizables
 
+> Continuación posterior: [segunda reconstrucción, diagnóstico mandibular y
+> revisión muscular](refinement/README.md). Los resultados de este documento
+> corresponden al bloque anterior; no sustituyen la validación nueva.
+
 Continuación en `feature/universal-anatomy-foundation`, sobre el bloque de
 [dependencias anatómicas](../anatomy-foundation/README.md) y la primera
 [anatomía équida](../equine-anatomy/README.md). Se conserva el motor, sus

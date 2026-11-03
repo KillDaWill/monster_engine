@@ -1,5 +1,5 @@
 #version 330 compatibility
-uniform vec4 surfaceRecipe[103];
+uniform vec4 surfaceRecipe[139];
 uniform uint pigmentSeed,furSeed;
 uniform int surfaceDebug;
 uniform bool guardCoverage;
@@ -33,7 +33,8 @@ void main() {
     if(surfaceDebug==24) {fragColor=vec4(0,.7,1,1);return;}
     if(surfaceDebug==23) {fragColor=vec4(0.0,0.9,1.0,1.0);return;}
     float edge=1.0-smoothstep(.65,1.0,abs(ribbonSide));
-    float alpha=edge*ribbonFade*fragIntegumentMask;
+    if(surfaceDebug>=29&&surfaceDebug<=31)discard;
+    float alpha=edge*ribbonFade*fragIntegumentMask*EvaluatePigmentMaterial(mappedCoord,surfaceRecipe[10].z).x;
     if(alpha<.001)discard;
     float rootTip=mix(1.0-surfaceRecipe[11].x,1.0+surfaceRecipe[11].y,clamp(fragShellFraction*(.8+.4*shellDelta),0.0,1.0));
     vec3 pigment=EvaluatePigment(mappedCoord,mappedVentral,surfaceRecipe[3],pigmentSeed);

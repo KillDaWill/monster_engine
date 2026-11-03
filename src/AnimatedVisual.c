@@ -54,6 +54,7 @@ static bool DeformVisual(const AnimatedVisual* a,MonsterVisual* v,const Monster*
     if(!a || !v || !m || !m->animation || !a->bound || a->generation!=v->rebuildGeneration ||
        a->restFingerprint!=m->animation->restFingerprint || a->rigGeneration!=m->animation->rigGeneration || a->eyeCount!=v->eyeCount)return false;
     MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);
+    if(!MonsterVisual_UpdateLongHair(&v->longHair,m))return false;
     const MonsterAnimation* animation=m->animation; const Rig* rig=&animation->rig; const SkeletonPose* p=&animation->pose;
     if(body&&!AnatomyDeformer_DeformPose(a->body,&rig->skeleton,p,&v->mesh))return false;
     int head=rig->headJoint; if(head<0)return true;

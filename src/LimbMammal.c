@@ -107,6 +107,38 @@ static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlo
         r*.46f*p->distalThicknessScale,r*.62f*p->distalThicknessScale,r*.45f*p->distalThicknessScale};
     float h[]={w[0]*(hind?1.25f:1.30f),w[1]*1.14f,w[2]*1.10f,sole,
         r*(hind?.85f:1.0f),w[5]*1.22f,w[6]*1.24f,w[7]*1.24f,w[8]*.95f,w[9]};
+    if(!hind) {
+        /* Escápula oblicua sobre costillas: origen alto y medial, sección
+         * aplanada en vez de una bola junto a la articulación del hombro. */
+        v[4]=Vec3_Create(x-side*r*1.15f,length*.20f,-length*.17f);
+        /* La piel proximal entra en el tórax sin desplazar el pivote IK.
+         * La sección máxima queda arriba, no en una estación intermedia. */
+        v[5]=Vec3_Lerp(v[0],v[1],.42f);
+        v[5].x-=side*r*.22f;
+        v[6]=Vec3_Lerp(v[1],v[2],.36f);
+        w[4]=r*.40f*p->proximalThicknessScale;h[4]=r*.66f;
+        w[0]=r*.58f*p->rootThicknessScale;h[0]=r*.80f;
+        w[5]=r*.62f*p->proximalThicknessScale;h[5]=w[5]*1.12f;
+        w[1]=r*.68f;h[1]=w[1]*1.08f;
+        w[6]=r*.55f*p->middleThicknessScale;h[6]=w[6]*1.15f;
+        w[2]=r*.46f*p->distalThicknessScale;h[2]=w[2]*1.08f;
+    } else {
+        /* Muslo y gaskin conservan ejes propios: la masa glútea se distribuye
+         * desde pelvis, sin inflar la babilla ni alterar la cadena IK. */
+        v[4]=Vec3_Create(x-side*r*1.25f,length*.17f,length*.06f);
+        /* El vientre caudal del muslo baja desde la grupa hacia la babilla;
+         * dejarlo delante y arriba excavaba una cintura antes del gaskin. */
+        v[5]=Vec3_Lerp(v[0],v[1],.65f);
+        v[5].x-=side*r*.18f;
+        v[5].z-=r*.95f;
+        v[6]=Vec3_Lerp(v[1],v[2],.38f);
+        w[4]=r*.62f*p->proximalThicknessScale;h[4]=r*.80f;
+        w[0]=r*.72f*p->rootThicknessScale;h[0]=r*1.25f;
+        w[5]=r*.80f*p->proximalThicknessScale;h[5]=w[5]*1.32f;
+        w[1]=r*.76f;h[1]=w[1]*1.08f;
+        w[6]=r*.68f*p->middleThicknessScale;h[6]=w[6]*1.12f;
+        w[2]=r*.46f*p->distalThicknessScale;h[2]=w[2]*1.20f;
+    }
     for(unsigned i=0;i<10;++i)if(!Node(g,module,i+1,World(slot,v[i]),w[i],h[i],p,false))return false;
     for(unsigned i=1;i<4;++i)
         if(!Module_Edge(g,module,i,Anatomy_MakeId(module,i),Anatomy_MakeId(module,i+1),BODY_CONNECTION_SUPPORT,p->development))return false;
@@ -117,7 +149,9 @@ static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlo
         if(!Module_Edge(g,module,10+i,Anatomy_MakeId(module,chain[i]),Anatomy_MakeId(module,chain[i+1]),
             i==0?BODY_CONNECTION_MUSCLE_UNION:BODY_CONNECTION_LIMB_SEGMENT,p->development))return false;
         BodyConnection* edge=&g->connections[g->connectionCount-1];edge->transverseAxis=slot->side;
-        if(i==0){edge->widthBulge=r*.05f;edge->heightBulge=r*.06f;}
+        /* El vientre muscular ya está en las estaciones: añadir otra plenitud
+         * y suavizarla por separado duplicaba volumen junto al anfitrión. */
+        if(i==0){edge->widthBulge=0;edge->heightBulge=0;}
     }
     return UngulateFoot(p,module,slot,g,v[3],r,sole);
 }

@@ -1,0 +1,58 @@
+{
+  "draw_measurement": "CPU + GPU sincronizada + presentaci\u00f3n, 1000x900, no temporizador GPU aislado",
+  "cases": [
+    {
+      "case": "asno",
+      "off_ms": 19.954497,
+      "on_ms": 20.05955,
+      "delta_ms": 0.10505300000000162,
+      "delta_percent": 0.5264627817980205,
+      "off_fps": 50.114,
+      "on_fps": 49.852,
+      "samples_per_configuration": 60,
+      "cpu_material_ns_per_point": 93.419795
+    },
+    {
+      "case": "caballo",
+      "off_ms": 19.410519,
+      "on_ms": 19.776376,
+      "delta_ms": 0.3658569999999983,
+      "delta_percent": 1.8848388340363176,
+      "off_fps": 51.518,
+      "on_fps": 50.565,
+      "samples_per_configuration": 60,
+      "cpu_material_ns_per_point": 109.630765
+    }
+  ],
+  "parity": {
+    "samples": 196608,
+    "max_error": 2.56299973e-06,
+    "tolerance": 3e-05
+  },
+  "sizes": {
+    "PigmentLayer": {
+      "before": 40,
+      "after": 88
+    },
+    "SurfacePhenotype": {
+      "before": 1792,
+      "after": 2368
+    },
+    "SurfaceRecipe": {
+      "before": 1660,
+      "after": 2236
+    },
+    "CreaturePhenotype": {
+      "before": 8520,
+      "after": 9096
+    },
+    "CreatureRecipe": {
+      "before": 37704,
+      "after": 40008
+    },
+    "Monster": {
+      "before": 181296,
+      "after": 184752
+    }
+  }
+}

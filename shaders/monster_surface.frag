@@ -1,5 +1,5 @@
 #version 330 compatibility
-uniform vec4 surfaceRecipe[103];
+uniform vec4 surfaceRecipe[139];
 uniform uint pigmentSeed,scaleSeed,furSeed;
 uniform int surfaceDebug;
 uniform float shellFraction;
@@ -53,9 +53,24 @@ void main() {
     if(surfaceDebug==23) {fragColor=vec4(0.0,0.9,1.0,1.0);return;}
     vec3 n = normalize(viewNormal);
     if (!gl_FrontFacing) n = -n;
+    int integumentType = int(surfaceRecipe[7].x + 0.5);
+    vec3 localMaterial=EvaluatePigmentMaterial(mappedCoord,integumentType==2?surfaceRecipe[10].z:surfaceRecipe[6].x);
+    float localFurMask=fragIntegumentMask*localMaterial.x;
+    if(surfaceDebug==29||surfaceDebug==30||surfaceDebug==31) {
+        if(furPass==1)discard;
+        float roughness=localMaterial.y;
+        if(tissueMaterial==6)roughness=mix(.34,roughness,localMaterial.z);
+        if(tissueMaterial==8)roughness=.38;
+        if(tissueMaterial==9)roughness=.55;
+        if(tissueMaterial>0&&tissueMaterial!=2&&tissueMaterial!=6&&tissueMaterial!=8&&tissueMaterial!=9)roughness=surfaceRecipe[10].z;
+        float value=surfaceDebug==29?PigmentDomainDebug(mappedCoord):surfaceDebug==30?localFurMask:roughness;
+        fragColor=vec4(vec3(value),1);return;
+    }
     if(tissueMaterial==6) {
         if(furPass==1)discard;
-        SurfaceResponse nasal=SurfaceResponse(vertexColor.rgb,n,.34,.28);
+        vec3 pigment=EvaluateLocalizedPigment(mappedCoord,vertexColor.rgb);
+        SurfaceResponse nasal=SurfaceResponse(pigment,n,mix(.34,localMaterial.y,localMaterial.z),.28);
+        if(surfaceDebug==6){fragColor=vec4(pigment,1);return;}
         fragColor=vec4(SurfaceLighting(nasal,viewPosition),vertexColor.a);return;
     }
     if(tissueMaterial==8||tissueMaterial==9){
@@ -64,7 +79,6 @@ void main() {
         fragColor=vec4(SurfaceLighting(keratin,viewPosition),vertexColor.a);return;
     }
 
-    int integumentType = int(surfaceRecipe[7].x + 0.5);
 
     // Ruta de pelaje mamífero procedural (INTEGUMENT_FUR = 2)
     if (integumentType == 2) {
@@ -84,7 +98,7 @@ void main() {
             float cosine=abs(dot(n,normalize(-viewPosition)));
             float occupancy=fur.undercoat+fur.guard*(1.0-guardVisibility);
             float tau=32.0*surfaceRecipe[8].y*mappedA.y*occupancy*shellDelta/max(.25,cosine);
-            float furAlpha=(1.0-exp(-tau))*fragIntegumentMask*skinMask*surfaceRecipe[11].w;
+            float furAlpha=(1.0-exp(-tau))*localFurMask*skinMask*surfaceRecipe[11].w;
             if(furAlpha<.0001)discard;
 
             float rootTip = mix(1.0 - surfaceRecipe[11].x, 1.0 + surfaceRecipe[11].y, clamp(fragShellFraction*(.8+.4*fur.fiberRandom),0.0,1.0));
@@ -120,6 +134,7 @@ void main() {
             float rootFactor = 1.0 - surfaceRecipe[11].x * 0.35;
             vec3 albedo = pigment * rootFactor;
             albedo = mix(vertexColor.rgb, albedo, clamp(skinMask, 0.0, 1.0));
+            if(tissueMaterial==2)albedo=EvaluateLocalizedPigment(mappedCoord,albedo);
             // El manto no puede depender únicamente de las conchas: a media
             // distancia las fibras son subpíxel. Este grano macroscópico y
             // filtrado mantiene dirección y variación sin dibujar ruido.
@@ -131,6 +146,9 @@ void main() {
             float sheen = surfaceRecipe[10].w;
             vec3 furTangent = normalize(mix(n, mappedFlow, 0.72));
             vec3 color = FurLighting(albedo, furTangent, n, viewPosition, furRoughness, sheen * 0.30, 0.0);
+            vec3 skinColor=tissueMaterial==2?EvaluateLocalizedPigment(mappedCoord,vertexColor.rgb):pigment;
+            vec3 skin=SurfaceLighting(SurfaceResponse(skinColor,n,localMaterial.y,.28),viewPosition);
+            color=mix(color,skin,localMaterial.z*max(skinMask,float(tissueMaterial==2)));
 
             if (surfaceDebug == 1) color = vec3(mappedA.x * 0.4, mappedA.y * 0.35, mappedVentral);
             if (surfaceDebug == 2) color = fract(mappedCoord);
@@ -149,6 +167,7 @@ void main() {
     ScaleSample s;
     vec3 pigment;
     SurfaceResponse response = Surface_Evaluate(surfaceInput, surfaceDebug == 6 || surfaceDebug == 7, s, pigment);
+    response.roughness=mix(response.roughness,localMaterial.y,localMaterial.z);
     if (surfaceDebug == 10) { response.albedo = vec3(0.57); response.roughness = 0.65; response.specular = 0.12; }
     vec3 detailed = response.normal;
     vec3 color = SurfaceLighting(response, viewPosition);

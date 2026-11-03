@@ -179,6 +179,7 @@ typedef MonsterVisualEye MonsterVisualEyeAsync;
  * @brief Gestor asíncrono desacoplado con arquitectura de triple buffer y coalescencia de solicitudes.
  */
 typedef struct MonsterVisualAsync {
+    LongHairSet longHair; /**< Propiedad del hilo de presentación, nunca del worker. */
     MonsterVisualAsyncConfig config;
 
     /* Front Buffer / Mallas expuestas al hilo principal de renderizado */

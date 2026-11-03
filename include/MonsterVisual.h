@@ -118,6 +118,7 @@ void MonsterVisualMouth_Free(MonsterVisualMouth* visualMouth);
  * @brief Estructura que gestiona el ciclo de vida del buffer de malla SDF, ojos y bocas para un monstruo.
  */
 typedef struct MonsterVisual {
+    LongHairSet longHair; /**< Guías independientes de las generaciones de malla. */
     MonsterSDF sdf;         /**< Snapshot SDF activo de la geometría */
     MonsterSDF stagingSdf;  /**< Snapshot SDF de trabajo (reutilizable) */
     SDFMesher mesher;       /**< Orquestador de poligonización */
@@ -244,6 +245,9 @@ const Mesh* MonsterVisual_GetHinge(const MonsterVisual* visual, size_t index);
  */
 /** @brief Actualiza sólo recetas; no marca geometría sucia ni toca coordenadas. */
 void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surface);
+/** @brief Actualiza guías desde anatomía actual, nunca desde un resultado worker.
+ * @return true si la actualización es válida; no remalla el volumen. */
+bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* monster);
 
 bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer);
 

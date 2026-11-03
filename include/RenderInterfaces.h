@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 struct MonsterVisualEye;
+struct LongHairSet;
 
 /**
  * @struct ICamera
@@ -51,6 +52,8 @@ typedef struct Renderer3D {
 
     /** Ruta ocular opcional; NULL conserva el renderizado de mallas clásico. */
     void (*renderEye)(struct Renderer3D* self, const struct MonsterVisualEye* eye);
+    /** Guías opcionales; NULL conserva renderizadores anteriores. */
+    void (*renderLongHair)(struct Renderer3D* self,const struct LongHairSet* hair);
 } Renderer3D;
 
 #ifdef __cplusplus

@@ -445,6 +445,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     }
     if(bovid) {
         r->faceCapWeight=1;r->faceCapDepth=tipDepth;
+        r->jawRearClipWeight=1;
         r->orbitSocketDepth=orbitRadius*.66f;
         r->orbitRimRadii.x=orbitRadius*.95f;
         r->orbitRimRadii.y*=1.18f;r->orbitRimRadii.z*=1.18f;
@@ -464,19 +465,27 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         l->oralCavityCenter.y=l->leftMouthCorner.y+oralSlope*(l->oralCavityCenter.z-cornerZ);
     }
     if(equine) {
-        r->faceCapWeight=1;r->faceCapDepth=tipWidth*.55f;
+        r->faceCapWeight=1;r->faceCapDepth=tipWidth*.12f;
         r->nostrilCurve=.65f;
         r->cranialPostorbitalRadii.x=skullR.x*.86f;
         r->cranialTemporalRadii.x=skullR.x*.96f;
         r->cranialOccipitalRadii.x=skullR.x*.70f;
         r->maxillaryRadii=Vec3_Create(rootWidth*.22f,faceDepth*.22f,faceLength*.22f);
-        r->leftMaxillaryCenter.y=root.y+oralSlope*faceLength*.22f;
+        r->leftMaxillaryCenter.x=rootWidth*.30f;r->rightMaxillaryCenter.x=-r->leftMaxillaryCenter.x;
+        r->leftMaxillaryCenter.y=root.y+oralSlope*faceLength*.14f+faceDepth*.18f;
         r->rightMaxillaryCenter.y=r->leftMaxillaryCenter.y;
         /* Masetero posterior profundo y ganacha; no ensanchar todo el rostro. */
-        r->leftCheekCenter=Vec3_Create(skullR.x*.48f,-skullR.y*.42f,skull.z-skullR.z*.06f);
+        r->leftCheekCenter=Vec3_Create(skullR.x*.52f,-skullR.y*.36f,skull.z+skullR.z*.04f);
         r->rightCheekCenter=r->leftCheekCenter;r->rightCheekCenter.x*=-1;
-        r->cheekRadii=Vec3_Create(skullR.x*(.24f+.15f*p.cheekMass),skullR.y*(.44f+.18f*p.masseterMass),skullR.z*.38f);
-        r->nostrilRadii=Vec3_Create(localWidth*(.18f+.09f*p.noseScale),faceDepth*.25f,localWidth*.30f);
+        r->cheekRadii=Vec3_Create(skullR.x*(.15f+.10f*p.cheekMass),skullR.y*(.36f+.16f*p.masseterMass),skullR.z*.60f);
+        r->nostrilRadii=Vec3_Create(localWidth*(.14f+.06f*p.noseScale),faceDepth*.20f,localWidth*.34f);
+        l->leftNostril.x=localWidth*.90f;l->leftNostril.y=profileY+localHeight*.38f;
+        l->rightNostril=l->leftNostril;l->rightNostril.x*=-1;
+        r->leftNostrilCenter=l->leftNostril;r->rightNostrilCenter=l->rightNostril;
+        r->leftOrbitRimCenter=Vec3_Sub(l->leftOrbit,Vec3_Scale(ln,orbitRadius*.30f));
+        r->rightOrbitRimCenter=Vec3_Sub(l->rightOrbit,Vec3_Scale(rn,orbitRadius*.30f));
+        r->orbitRimRadii.x*=.82f;
+        r->eyelidProfile=Vec3_Create(.72f,-.48f,.28f);
         l->mandibularSymphysis.y=l->leftMouthCorner.y+oralSlope*(tip.z-cornerZ)-faceDepth*.20f;
         l->oralCavityCenter.y=l->leftMouthCorner.y+oralSlope*(l->oralCavityCenter.z-cornerZ);
         l->oralCavityCenter.z=root.z+faceLength*.72f;
@@ -500,6 +509,13 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     lateralEar=lateralEar*lateralEar*(3-2*lateralEar);
     Vector3 leftUp=Vec3_Create(p.earOutward*.7f+lateralEar*1.1f,1-lateralEar*.75f,p.earForward*.7f);
     Vector3 rightUp=Vec3_Create(-leftUp.x,leftUp.y,leftUp.z);
+    if(equine) {
+        /* Ligera divergencia sagital: el perfil no superpone dos láminas
+         * perfectamente verticales. Se conserva el tamaño propio del asno. */
+        leftUp.z+=.18f;rightUp.z-=.10f;
+        r->earShape.z*=1.35f;
+        r->earLongitudinalCurve+=r->earShape.y*.07f;
+    }
     if(!HeadSurfaceRecipe_SetEarPose(r,false,l->leftEarBase,leftUp,Vec3_Create(0,0,1))||
        !HeadSurfaceRecipe_SetEarPose(r,true,l->rightEarBase,rightUp,Vec3_Create(0,0,1)))return false;
 
@@ -511,6 +527,22 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     r->cranialPostorbitalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,0,skullR.z*.05f));
     r->cranialTemporalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,0,-skullR.z*.45f));
     r->cranialOccipitalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,-skullR.y*.08f,-skullR.z*.85f));
+    if(equine) {
+        /* Secciones regionales independientes: labios, cartílago, huesos
+         * nasales, transición frontal, bóveda interorbital y poll. */
+        r->hasCranialProfile=true;
+        r->cranialCenters[0]=tip;r->cranialRadii[0]=r->faceTipRadii;
+        r->cranialCenters[1]=Vec3_Lerp(root,tip,.80f);
+        r->cranialRadii[1]=Vec3_Create(tipWidth*.83f,faceDepth*.58f,0);
+        r->cranialCenters[2]=Vec3_Lerp(root,tip,.43f);
+        r->cranialCenters[2].y+=faceDepth*.035f;
+        r->cranialRadii[2]=Vec3_Create(midWidth,faceDepth*.70f,0);
+        r->cranialCenters[3]=root;r->cranialRadii[3]=r->faceRootRadii;
+        r->cranialCenters[4]=r->cranialPostorbitalCenter;
+        r->cranialRadii[4]=Vec3_Create(skullR.x*.96f,skullR.y*.94f,0);
+        r->cranialCenters[5]=r->cranialTemporalCenter;
+        r->cranialRadii[5]=Vec3_Create(skullR.x*.98f,skullR.y*.90f,0);
+    }
     if(p.cranialForm==HEAD_CRANIAL_SHIELD) {
         r->cranialPostorbitalCenter.z=r->craniumCenter.z-skullR.z*.18f;
         r->cranialTemporalCenter.z=r->craniumCenter.z-skullR.z*.55f;
@@ -524,7 +556,29 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(equine) {
         a->oralSystem.jawThickness=faceDepth*(.36f+.20f*p.jawDepth);
         a->oralSystem.slitThickness=faceDepth*.025f;
+        a->oralSystem.openFactor=0;
         Mouth_Normalize(&a->oralSystem);
+        /* Perfil mandibular propio: el ramus nace junto al cóndilo y desciende
+         * hacia la ganacha; el cuerpo converge hacia la sínfisis y los labios.
+         * No se copian ni desplazan estaciones del maxilar superior. */
+        r->hasMandibularProfile=true;
+        const float positions[]={1.035f,.82f,.51f,.24f,.08f,0};
+        const float widths[]={.94f,.78f,.83f,1.0f,.98f,.75f};
+        const float depths[]={.32f,.40f,.54f,.84f,.90f,.48f};
+        float length=l->mandibularSymphysis.z-hingeZ;
+        for(int i=0;i<6;++i) {
+            float z=hingeZ+positions[i]*length;
+            if(i==0)z=tip.z;
+            float height=faceDepth*depths[i];
+            float top=l->leftMouthCorner.y+oralSlope*(z-cornerZ);
+            /* El techo caudal sigue el cóndilo, no la prolongación del plano
+             * incisivo, que ascendía por encima de la región temporal. */
+            float posterior=Math_Clamp01((.30f-positions[i])/.30f);
+            top=Math_Lerp(top,hingeY+faceDepth*.22f,posterior);
+            r->mandibularCenters[i]=Vec3_Create(0,top-height*.72f,z);
+            float w=Math_Lerp(tipWidth,hingeX,Math_Clamp01((1-positions[i])/.76f));
+            r->mandibularRadii[i]=Vec3_Create(w*widths[i],height,0);
+        }
     }
     l->oralContactPoint=l->mandibularSymphysis;
     if(grazing) {
