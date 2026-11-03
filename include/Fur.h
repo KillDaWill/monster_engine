@@ -25,6 +25,10 @@ void FurRootSet_Free(FurRootSet* set);
  * @param normal Normal unitaria. @param flow Flujo tangente unitario.
  * @param random Variación estable [0,1]. @param h Altura [0,1]. @return Curva. */
 FurCurve Fur_EvaluateCurve(const FurPhenotype* fur,Vector3 normal,Vector3 flow,float random,float h);
+/** @brief Curva dirigida de alcance finito, compartida con el shader de mechones. */
+Vector3 Fur_TuftOffset(Vector3 normal,Vector3 direction,float length,float random,float h);
+/** @brief Derivada de la curva dirigida, sin escala longitudinal. */
+Vector3 Fur_TuftDerivative(Vector3 normal,Vector3 direction,float h);
 /** @brief Alfa de Beer-Lambert. @param density Extinción. @param occupancy Fracción ocupada.
  * @param deltaH Espesor integrado. @param cosine Ángulo con la normal. @return Alfa. */
 float Fur_OpticalAlpha(float density,float occupancy,float deltaH,float cosine);

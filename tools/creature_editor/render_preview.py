@@ -24,16 +24,18 @@ def read_mesh(data):
     return meshes
 
 
-def render(meshes, size=(600, 400), yaw=.95, pitch=.22):
+def render(meshes, size=(600, 400), yaw=.95, pitch=.22, *, center=None, ortho_height=None):
     width, height = size
     positions = np.concatenate([v[:, :3] for v, _ in meshes])
-    center = (positions.min(axis=0)+positions.max(axis=0))/2
+    center = (positions.min(axis=0)+positions.max(axis=0))/2 if center is None else np.asarray(center)
     right = np.array([np.cos(yaw), 0, -np.sin(yaw)])
     front = np.array([np.sin(yaw)*np.cos(pitch), np.sin(pitch), np.cos(yaw)*np.cos(pitch)])
     up = np.cross(front, right)
     rotation = np.array([right, up, front]).T
     view = (positions-center) @ rotation
     scale = min(width*.82/max(np.ptp(view[:, 0]), .01), height*.76/max(np.ptp(view[:, 1]), .01))
+    if ortho_height is not None:
+        scale = height / ortho_height
     triangles, colors, depths = [], [], []
     light = np.array([-.6, 1, .8]); light /= np.linalg.norm(light)
     rim = np.array([.5, .3, -.7]); rim /= np.linalg.norm(rim)

@@ -1996,6 +1996,8 @@ bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* r,const MonsterSDF* sdf,f
                     connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.widthBulge,connector.heightBulge,connector.material==SDF_MATERIAL_HOOF);
                 if(connector.material==SDF_MATERIAL_HOOF)cpu=SDF_KeratinClawInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
                     connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.crownInset,connector.toeRounding);
+                if(connector.kind==BODY_CONNECTION_HOOF_CAPSULE)cpu=SDF_HoofCapsuleInterval(box,connector.a,connector.forward,connector.side,connector.up,connector.length,
+                    connector.widthA,connector.widthB,connector.heightA,connector.heightB,connector.crownInset,connector.toeRounding);
             }
             float lo=INFINITY,hi=-INFINITY;
             for(unsigned corner=0;corner<9;++corner) {
@@ -2265,6 +2267,15 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,const
     if(!d->sdfProgram&&!InitSDFProgram(d))return false;
     if(!UploadSDFScene(d,sdf,NULL,0,0))return false;
     BindSceneProgram(d,d->sdfProgram,sdf);
+    /* Validar sin render previo también debe configurar el clasificador de
+     * rayos. Las cajas uniformes a cero omitían toda cabeza en el canal G,
+     * aunque el campo completo (R) ya coincidiera con CPU y compute. */
+    Vector3 validationCenter=Vec3_Scale(Vec3_Add(sdf->bounds.start,sdf->bounds.end),.5f);
+    float validationExtent=Vec3_Length(AABB_Size(sdf->bounds));
+    UniformVector(d->uniforms.cameraPosition,Vec3_Add(validationCenter,
+        Vec3_Create(validationExtent,validationExtent*.35f,validationExtent*.65f)));
+    UniformVector(d->uniforms.boundsMin,sdf->bounds.start);
+    UniformVector(d->uniforms.boundsMax,sdf->bounds.end);
     size_t total=d->sdfCount+count;
     if(total>d->sdfCapacity){float (*data)[4]=realloc(d->sdfData,total*sizeof(*data));if(!data)return false;d->sdfData=data;d->sdfCapacity=total;}
     for(size_t i=0;i<count;++i)PackVector(d->sdfData[d->sdfCount+i],points[i]);
@@ -2291,10 +2302,16 @@ bool OpenGLRenderer_ValidateSDF(Renderer3D* renderer,const MonsterSDF* sdf,const
             float cpu=MonsterSDF_EvaluateVisualDistance(sdf,points[i]);
             if(!isfinite(gpu)||!isfinite(cpu)){ok=false;break;}
             *maxError=fmaxf(*maxError,fabsf(cpu-gpu));
+            if(getenv("MONSTER_SDF_PARITY_DIAGNOSTICS")&&fabsf(cpu-gpu)>.0002f)
+                fprintf(stderr,"[SDF parity] muestra=%zu p=(%.7g,%.7g,%.7g) cpu=%.9g gpu=%.9g clasificado=%.9g\n",
+                    i,points[i].x,points[i].y,points[i].z,cpu,gpu,samples[i*4+1]);
             /* La distancia lejana de una fase omitida puede cambiar; su banda
              * superficial y las muestras normales deben conservar la paridad. */
             if(fabsf(cpu)<.002f) {
                 if(!isfinite(samples[i*4+1])){ok=false;break;}
+                if(getenv("MONSTER_SDF_PARITY_DIAGNOSTICS")&&fabsf(cpu-samples[i*4+1])>.0002f)
+                    fprintf(stderr,"[SDF parity ray] muestra=%zu p=(%.7g,%.7g,%.7g) cpu=%.9g completo=%.9g clasificado=%.9g\n",
+                        i,points[i].x,points[i].y,points[i].z,cpu,gpu,samples[i*4+1]);
                 *maxError=fmaxf(*maxError,fabsf(cpu-samples[i*4+1]));
             }
         }
@@ -2720,7 +2737,7 @@ void OpenGLRenderer_DrawHUD(int width, int height, float fps, float frameTimeMs)
 }
 
 #include "MonsterSurfaceShader.generated.h"
-_Static_assert(SURFACE_RECIPE_ROWS==82,"Actualizar contrato GLSL de superficie al cambiar regiones o bancos de pigmento");
+_Static_assert(SURFACE_RECIPE_ROWS==103,"Actualizar contrato GLSL de superficie al cambiar regiones o bancos de pigmento");
 _Static_assert(sizeof(GeometryGpuVertex)==32&&sizeof(AnatomySkinBinding)==64&&sizeof(int)==4,
     "Conservar el contrato std430 del skinning y las texturas de pelaje");
 static bool InitMeshSkinProgram(OpenGLRendererData* d) {
@@ -3088,6 +3105,10 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
         float resolution=Fur_ShellResolution(pixels,samples?grazing/samples:0,1);
         if(d->forcedShells>0)resolution=(float)d->forcedShells;
         float visibility=d->disableGuards?0:fmaxf(0,fminf(1,(pixels-3)/18));
+        if(!d->disableGuards)for(unsigned i=0;i<(unsigned)recipe->data[SURFACE_RECIPE_ROWS-1][0];++i) {
+            float longPixels=pixels*recipe->data[SURFACE_RECIPE_TUFT_BASE+5*i][3]/fmaxf(recipe->data[8][0],.001f);
+            visibility=fmaxf(visibility,fmaxf(0,fminf(1,(longPixels-3)/18)));
+        }
         if(visibility>0 && !PrepareRoots(d,cached,mesh,!cached->rootsValid))visibility=0;
         glBindVertexArray(cached->vao);glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);
         float shellSamples[32][2]={{0}};int count=0;

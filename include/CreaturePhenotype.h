@@ -39,6 +39,12 @@ typedef struct AxialStationMorph {
 } AxialStationMorph;
 #define AXIAL_PROFILE_STATIONS 6
 
+/** Distribución visual del tejido; no cambia los seis anclajes semánticos. */
+typedef enum AxialContourProfile {
+    AXIAL_CONTOUR_LEGACY = 0,
+    AXIAL_CONTOUR_CURSORIAL
+} AxialContourProfile;
+
 typedef struct AxialPhenotype {
     AxialArchetype archetype;
     float totalScale, neckLength, neckWidth, shoulderWidth;
@@ -53,6 +59,7 @@ typedef struct AxialPhenotype {
     float brisketDepth; /**< Descenso del pecho relativo a la altura torácica. */
     float withersElevation;     /**< Elevación sutil de la cruz sobre la línea dorsal (0..0.3). */
     AxialStationMorph profile[AXIAL_PROFILE_STATIONS];
+    AxialContourProfile contourProfile; /**< Opcional v1: cresta, flanco y grupa continuos. */
 } AxialPhenotype;
 
 typedef enum LimbArchetype {
@@ -64,6 +71,12 @@ typedef enum LimbArchetype {
     LIMB_ARCHETYPE_CUSTOM,
     LIMB_ARCHETYPE_UNGULATE /**< Ungulígrado: un casco central o dos uñas según digitCount. */
 } LimbArchetype;
+
+/** Perfil de tejido independiente del número de dedos y de la especie. */
+typedef enum LimbAnatomyProfile {
+    LIMB_PROFILE_LEGACY = 0, /**< Conserva exactamente las recetas v1 anteriores. */
+    LIMB_PROFILE_CURSORIAL /**< Musculatura integrada y estaciones distales ungulígradas. */
+} LimbAnatomyProfile;
 
 typedef struct LimbPhenotype {
     LimbArchetype archetype;
@@ -86,6 +99,7 @@ typedef struct LimbPhenotype {
     float hoofToeRoundness; /**< Radio anterior relativo a la semianchura de cada uña (0.3..1). */
     float hoofHeelHeight; /**< Altura del talón relativa a la pared anterior (0.4..1). */
     float dewclawSize; /**< Tamaño de espolones no sustentantes relativo al casco; cero los omite. */
+    LimbAnatomyProfile anatomyProfile; /**< Opcional en JSON v1; ausencia equivale a LEGACY. */
 } LimbPhenotype;
 
 typedef enum TailArchetype {

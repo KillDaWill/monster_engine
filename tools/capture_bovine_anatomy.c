@@ -7,6 +7,7 @@
 #include "Limb.h"
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 static void Neutral(Mesh* mesh) {
     mesh->hasSurface=false;
@@ -30,8 +31,9 @@ static bool Capture(Renderer3D* r,ICamera* camera,const Mesh* body,const Monster
     bool ok=OpenGLRenderer_SavePPM(path,1200,900);r->endFrame(r);return ok;
 }
 int main(int argc,char** argv) {
-    if(argc<3||argc>4)return 2;
-    int stage=argc==4?atoi(argv[3]):3;
+    if(argc<3||argc>5)return 2;
+    int stage=argc>=4?atoi(argv[3]):3;
+    bool natural=argc==5&&!strcmp(argv[4],"surface");
     CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));Monster* m=malloc(sizeof(*m));
     MonsterVisual* v=malloc(sizeof(*v));char error[256];
     if(!doc||!m||!v||stage<0||stage>3||!CreatureRecipeIO_LoadFile(doc,argv[1],error,sizeof(error)))return 1;
@@ -41,8 +43,10 @@ int main(int argc,char** argv) {
     config.maxCells=2500000;config.maxResolution=512;
     *v=MonsterVisual_Create(config);
     if(!MonsterVisual_RebuildNow(v,m,MonsterSDF_DefaultConfig()))return 1;
-    Neutral(&v->mesh);Neutral(&v->headMesh);
-    for(size_t i=0;i<v->mouthCount;++i){Neutral(&v->mouths[i].jaw);Neutral(&v->mouths[i].hinge);}
+    if(!natural) {
+        Neutral(&v->mesh);Neutral(&v->headMesh);
+        for(size_t i=0;i<v->mouthCount;++i){Neutral(&v->mouths[i].jaw);Neutral(&v->mouths[i].hinge);}
+    }
     OpenGLDemoWindow* window=OpenGLDemoWindow_Create("Anatomía bovina",1200,900);if(!window)return 1;
     ICamera camera={.fov=40,.aspectRatio=4.f/3,.nearPlane=.01f,.farPlane=100};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
@@ -51,6 +55,15 @@ int main(int argc,char** argv) {
     Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f}};
     const char* names[]={"side","front","rear","three-quarter"};bool ok=true;
     for(unsigned view=0;view<4;++view)ok=Capture(&renderer,&camera,&v->mesh,v,target,directions[view],7.6f*s,argv[2],names[view])&&ok;
+    ok=Capture(&renderer,&camera,&v->mesh,v,target,Vec3_Create(0,1,0),9.5f*s,argv[2],"top")&&ok;
+    const AnatomyNode* head=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_HEAD);
+    if(head) {
+        Vector3 center=Vec3_Add(head->center,Vec3_Add(m->head.anatomy.surface.faceMid,Vec3_Create(0,.25f,-.10f)));
+        ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[0],2.8f*s,argv[2],"head-side")&&ok;
+        ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[1],2.8f*s,argv[2],"head-front")&&ok;
+    }
+    ok=Capture(&renderer,&camera,&v->mesh,v,Vec3_Create(0,2.9f*s,-.10f*s),directions[3],3.8f*s,argv[2],"shoulder-chest")&&ok;
+    ok=Capture(&renderer,&camera,&v->mesh,v,Vec3_Create(0,2.4f*s,-m->phenotype.axial.trunkLength*s),directions[0],3.8f*s,argv[2],"hip-hock")&&ok;
     for(unsigned leg=0;leg<4;++leg) {
         MonsterSDF limb;MonsterSDFConnector connectors[100];
         if(!MonsterSDF_BuildModuleView(&v->sdf,10+leg,&limb,connectors,100)){ok=false;continue;}

@@ -91,4 +91,7 @@ SDFInterval SDF_ConnectorPowerInterval(AABB3D box,Vector3 origin,Vector3 forward
  * @return Intervalo inclusivo del mismo campo escalar CPU/GPU. */
 SDFInterval SDF_KeratinClawInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
     float length,float widthA,float widthB,float heightA,float heightB,float crownInset,float toeRounding);
+/** @brief Intervalo inclusivo de la cápsula oval, en el mismo marco del conector. */
+SDFInterval SDF_HoofCapsuleInterval(AABB3D box,Vector3 origin,Vector3 forward,Vector3 side,Vector3 up,
+    float length,float widthA,float widthB,float heightA,float heightB,float crownInset,float toeRounding);
 #endif

@@ -21,6 +21,22 @@ SurfacePhenotype SurfacePhenotype_Default(void) {
 }
 void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     if(!p)return;
+    if(p->tuftCount>SURFACE_MAX_FUR_TUFTS)p->tuftCount=SURFACE_MAX_FUR_TUFTS;
+    for(size_t i=0;i<p->tuftCount;++i) {
+        FurTuftPhenotype* f=&p->tufts[i];
+        if(f->region<0||f->region>=SURFACE_REGION_COUNT)f->region=SURFACE_REGION_UNKNOWN;
+        float* coordinates[]={&f->center.x,&f->center.y,&f->center.z,&f->direction.x,&f->direction.y,&f->direction.z,&f->normal.x,&f->normal.y,&f->normal.z};
+        for(unsigned j=0;j<9;++j)*coordinates[j]=Limit(*coordinates[j],-100,100,0);
+        f->halfExtents.x=Limit(f->halfExtents.x,.001f,100,.1f);
+        f->halfExtents.y=Limit(f->halfExtents.y,.001f,100,.1f);
+        f->halfExtents.z=Limit(f->halfExtents.z,.001f,100,.1f);
+        if(Vec3_LengthSq(f->direction)<.0001f)f->direction=Vec3_Create(0,-1,0);
+        f->direction=Vec3_Normalize(f->direction);
+        if(Vec3_LengthSq(f->normal)<.0001f)f->normal=Vec3_Create(0,1,0);
+        f->normal=Vec3_Normalize(f->normal);
+        f->length=Limit(f->length,0,4,0);f->density=Limit(f->density,0,4,0);
+        f->width=Limit(f->width,.0005f,.02f,.003f);f->minNormalDot=Limit(f->minNormalDot,-1,1,-1);
+    }
     if(p->integument.type<INTEGUMENT_SMOOTH_SKIN || p->integument.type>INTEGUMENT_PLATES)p->integument.type=INTEGUMENT_SMOOTH_SKIN;
 #define CLAMP(path,lo,hi,def) p->path=Limit(p->path,lo,hi,def)
     CLAMP(integument.coverage,0,1,1);
@@ -102,6 +118,19 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
         MIX(furRegions[i].undercoatMultiplier);MIX(furRegions[i].guardMultiplier);MIX(furRegions[i].clumpMultiplier);MIX(furRegions[i].variationMultiplier);
         MIX(regions[i].size); MIX(regions[i].aspect); MIX(regions[i].relief); MIX(regions[i].keel);
         MIX(regions[i].roughness); MIX(regions[i].irregularity); MIX(regions[i].roundness);
+    }
+    if(p.tuftCount==q.tuftCount)for(size_t i=0;i<p.tuftCount;++i) {
+        MIX(tufts[i].center.x);MIX(tufts[i].center.y);MIX(tufts[i].center.z);
+        MIX(tufts[i].halfExtents.x);MIX(tufts[i].halfExtents.y);MIX(tufts[i].halfExtents.z);
+        MIX(tufts[i].direction.x);MIX(tufts[i].direction.y);MIX(tufts[i].direction.z);
+        MIX(tufts[i].normal.x);MIX(tufts[i].normal.y);MIX(tufts[i].normal.z);
+        MIX(tufts[i].length);MIX(tufts[i].density);MIX(tufts[i].width);MIX(tufts[i].minNormalDot);
+        p.tufts[i].color=Color_Lerp(p.tufts[i].color,q.tufts[i].color,t);
+    }
+    else {
+        /* Sin capacidad para ambos bancos, retirada e introducción continuas. */
+        if(t>=.5f){p.tuftCount=q.tuftCount;memcpy(p.tufts,q.tufts,sizeof(p.tufts));}
+        for(size_t i=0;i<p.tuftCount;++i)p.tufts[i].density*=t<.5f?1-2*t:2*t-1;
     }
 #undef MIX
     /* Los patrones discretos no se interpolan como números: se mezclan sus
@@ -224,6 +253,16 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         r.data[baseIdx+2][2]=l->direction.z;
         r.data[baseIdx+2][3]=(float)l->regionMask;
     }
+    for(size_t i=0;i<p.tuftCount;++i) {
+        const FurTuftPhenotype* f=&p.tufts[i];size_t row=SURFACE_RECIPE_TUFT_BASE+5*i;
+        float data[4][4]={{f->center.x,f->center.y,f->center.z,f->length},
+            {f->halfExtents.x,f->halfExtents.y,f->halfExtents.z,f->density},
+            {f->direction.x,f->direction.y,f->direction.z,f->width},
+            {f->normal.x,f->normal.y,f->normal.z,f->minNormalDot}};
+        memcpy(r.data[row],data,sizeof(data));PackColor(r.data[row+4],f->color);
+        r.data[row+4][3]=(float)f->region;
+    }
+    r.data[SURFACE_RECIPE_ROWS-1][0]=(float)p.tuftCount;
     r.pigmentSeed=p.pigment.seed; r.scaleSeed=p.integument.scales.seed; r.furSeed=p.integument.fur.seed; return r;
 }
 

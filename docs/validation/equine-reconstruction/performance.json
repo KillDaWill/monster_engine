@@ -1,0 +1,491 @@
+{
+  "iterations_per_run": 1000,
+  "runs": {
+    "base": [
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 45.455,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 32.74,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 30.103,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.57,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 44.774,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 29.789,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 30.112,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.234,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 44.807,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 30.025,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.73,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.46,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 44.068,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 30.276,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.64,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.659,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 44.954,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 30.172,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.711,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.226,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 44.29,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 29.68,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 30.171,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.779,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 45.022,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 29.859,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 31.208,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 37.991,
+          "nodes": 117,
+          "connections": 116
+        }
+      ]
+    ],
+    "current": [
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.26,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 30.485,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 30.755,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 37.412,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.01,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 28.844,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.617,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 37.748,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.106,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 28.769,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.652,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 37.333,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.657,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 28.813,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 28.926,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.06,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.23,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 28.729,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.481,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 37.345,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.553,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 29.013,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 29.076,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 37.274,
+          "nodes": 117,
+          "connections": 116
+        }
+      ],
+      [
+        {
+          "recipe": 1,
+          "resolve_us": 43.086,
+          "nodes": 137,
+          "connections": 136
+        },
+        {
+          "recipe": 2,
+          "resolve_us": 28.627,
+          "nodes": 109,
+          "connections": 108
+        },
+        {
+          "recipe": 3,
+          "resolve_us": 28.834,
+          "nodes": 99,
+          "connections": 98
+        },
+        {
+          "recipe": 4,
+          "resolve_us": 38.269,
+          "nodes": 117,
+          "connections": 116
+        }
+      ]
+    ],
+    "equids": [
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 22.679,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 20.628,
+          "nodes": 77,
+          "connections": 92
+        }
+      ],
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 20.971,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 20.987,
+          "nodes": 77,
+          "connections": 92
+        }
+      ],
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 20.854,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 20.11,
+          "nodes": 77,
+          "connections": 92
+        }
+      ],
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 21.316,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 20.902,
+          "nodes": 77,
+          "connections": 92
+        }
+      ],
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 20.911,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 20.292,
+          "nodes": 77,
+          "connections": 92
+        }
+      ],
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 20.797,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 20.267,
+          "nodes": 77,
+          "connections": 92
+        }
+      ],
+      [
+        {
+          "recipe": 1005,
+          "resolve_us": 20.861,
+          "nodes": 77,
+          "connections": 92
+        },
+        {
+          "recipe": 1006,
+          "resolve_us": 21.172,
+          "nodes": 77,
+          "connections": 92
+        }
+      ]
+    ]
+  },
+  "median_us": {
+    "base": {
+      "1": 44.807,
+      "2": 30.025,
+      "3": 30.103,
+      "4": 38.46
+    },
+    "current": {
+      "1": 43.23,
+      "2": 28.813,
+      "3": 29.481,
+      "4": 37.412
+    },
+    "equids": {
+      "1005": 20.911,
+      "1006": 20.628
+    }
+  }
+}

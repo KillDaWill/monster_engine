@@ -8,7 +8,7 @@ layout(location=5) in vec3 rootFlow;
 layout(location=6) in vec4 rootRegion;
 layout(location=7) in float rootMask;
 uniform samplerBuffer geometryData,surfaceData;
-uniform vec4 surfaceRecipe[82];
+uniform vec4 surfaceRecipe[103];
 uniform float guardVisibility;
 uniform uint furSeed;
 out vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;
@@ -21,6 +21,7 @@ out vec3 worldPosition,ownershipRoot,ownershipNormal;
 #include "surface/hash.glsl"
 #include "surface/pigment_regions.glsl"
 #include "surface/fur_curve.glsl"
+#include "surface/fur_tuft.glsl"
 vec3 Rest(int i) {return vec3(texelFetch(surfaceData,i*15).r,texelFetch(surfaceData,i*15+1).r,texelFetch(surfaceData,i*15+2).r);}
 void main() {
     PigmentSetRegions(rootRegion);
@@ -51,17 +52,42 @@ void main() {
     float len=p0.x*surfaceRecipe[11].z;
     vec3 offset=FurCurveOffset(n,flow,len,p0.w,p1.x,p1.y,p1.z,fieldRandom,h);
     vec3 tangent=normalize(FurCurveDerivative(n,flow,p0.w,p1.x,p1.y,p1.z,fieldRandom,h));
+    vec4 tuftColor=vec4(1,1,1,0);
+    float tuftWidth=0.0,tuftDensity=0.0;
+    for(int i=0;i<4;++i) {
+        if(i>=int(surfaceRecipe[102].x))break;
+        int base=82+5*i;
+        vec4 root=surfaceRecipe[base],domain=surfaceRecipe[base+1],directed=surfaceRecipe[base+2];
+        vec4 cone=surfaceRecipe[base+3],color=surfaceRecipe[base+4];
+        if(root.w<=0.0||domain.w<=0.0||all(notEqual(vec2(a,b),vec2(color.w))))continue;
+        vec3 q=abs((restCoord-root.xyz)/domain.xyz);
+        if(any(greaterThan(q,vec3(1)))||dot(restNormal,cone.xyz)<cone.w)continue;
+        // Marco del triángulo: una hebra se mueve con su raíz, no con la pierna
+        // más próxima a la punta de una cola larga.
+        vec3 direction=normalize(directed.xyz);
+        float normalPart=dot(direction,restNormal);
+        vec3 dt=direction-restNormal*normalPart;
+        vec2 ct=vec2(dot(dt,e1)*bb-dot(dt,e2)*ab,dot(dt,e2)*aa-dot(dt,e1)*ab)/det;
+        direction=normalize((pb-pa)*ct.x+(pc-pa)*ct.y+n*normalPart+vec3(1e-9));
+        offset=Fur_TuftOffset(n,direction,root.w*surfaceRecipe[11].z,fieldRandom,h);
+        tangent=normalize(Fur_TuftDerivative(n,direction,h));
+        tuftWidth=directed.w*surfaceRecipe[11].z;
+        tuftDensity=domain.w;tuftColor=vec4(color.xyz,1);
+        break;
+    }
     vec3 vp=(gl_ModelViewMatrix*vec4(pos+offset,1)).xyz;
     vec3 tv=normalize(gl_NormalMatrix*tangent);
     vec3 side=normalize(cross(tv,normalize(-vp))+vec3(1e-8));
     ribbonSide=float(gl_VertexID%2)*2.0-1.0;
     float width=.0015*p0.z*surfaceRecipe[11].z*(1.0-h)*(1.0-h);
+    if(tuftWidth>0.0)width=tuftWidth*(1.0-.90*h);
     vp+=side*ribbonSide*width;
     worldPosition=pos+offset+side*ribbonSide*width;
     float threshold=guardVisibility*clamp(p0.y*.25*surfaceRecipe[10].y*profileB.y,0.0,1.0);
+    if(tuftWidth>0.0)threshold=guardVisibility*clamp(tuftDensity,0.0,1.0);
     ribbonFade=smoothstep(rootRandom.x-.025,rootRandom.x+.025,threshold)*surfaceRecipe[11].w;
     if(threshold<=0.0)ribbonFade=0.0;
     gl_Position=gl_ProjectionMatrix*vec4(vp,1);
     viewPosition=vp;viewNormal=normalize(gl_NormalMatrix*n);posedFlowOut=tv;
-    fragShellFraction=h;fragIntegumentMask=rootMask;skinMask=1;ventral=rootRegion.w;vertexColor=vec4(1);shellDelta=fieldRandom;
+    fragShellFraction=h;fragIntegumentMask=rootMask;skinMask=1;ventral=rootRegion.w;vertexColor=tuftColor;shellDelta=fieldRandom;
 }

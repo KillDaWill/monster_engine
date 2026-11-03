@@ -65,6 +65,7 @@ static const Field AxialPhenotype_fields[] = {
     {"brisketDepth",offsetof(AxialPhenotype,brisketDepth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"withersElevation",offsetof(AxialPhenotype,withersElevation),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"profile",offsetof(AxialPhenotype,profile),sizeof(AxialStationMorph),AXIAL_PROFILE_STATIONS,F_OBJECT,0,AxialStationMorph_fields,NO_COUNT,NULL,false},
+    {"contourProfile",offsetof(AxialPhenotype,contourProfile),sizeof(AxialContourProfile),1,F_ENUM,AXIAL_CONTOUR_CURSORIAL,NULL,NO_COUNT,"AXIAL_CONTOUR_LEGACY|AXIAL_CONTOUR_CURSORIAL",true},
     {0}
 };
 static const Field HeadPhenotype_fields[] = {
@@ -186,6 +187,7 @@ static const Field LimbPhenotype_fields[] = {
     {"hoofToeRoundness",offsetof(LimbPhenotype,hoofToeRoundness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"hoofHeelHeight",offsetof(LimbPhenotype,hoofHeelHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"dewclawSize",offsetof(LimbPhenotype,dewclawSize),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"anatomyProfile",offsetof(LimbPhenotype,anatomyProfile),sizeof(LimbAnatomyProfile),1,F_ENUM,LIMB_PROFILE_CURSORIAL,NULL,NO_COUNT,"LIMB_PROFILE_LEGACY|LIMB_PROFILE_CURSORIAL",true},
     {0}
 };
 static const Field TailPhenotype_fields[] = {
@@ -311,6 +313,19 @@ static const Field FurRegionProfile_fields[] = {
     {"variationMultiplier",offsetof(FurRegionProfile,variationMultiplier),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {0}
 };
+static const Field FurTuftPhenotype_fields[] = {
+    {"region",offsetof(FurTuftPhenotype,region),sizeof(SurfaceRegion),1,F_ENUM,SURFACE_REGION_COUNT,NULL,NO_COUNT,"SURFACE_REGION_UNKNOWN|SURFACE_REGION_HEAD|SURFACE_REGION_NECK|SURFACE_REGION_DORSAL_TRUNK|SURFACE_REGION_VENTRAL_TRUNK|SURFACE_REGION_FORELIMB|SURFACE_REGION_HINDLIMB|SURFACE_REGION_TAIL|SURFACE_REGION_DIGIT|SURFACE_REGION_ORAL|SURFACE_REGION_ORNAMENT|SURFACE_REGION_COUNT",false},
+    {"center",offsetof(FurTuftPhenotype,center),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"halfExtents",offsetof(FurTuftPhenotype,halfExtents),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"direction",offsetof(FurTuftPhenotype,direction),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"normal",offsetof(FurTuftPhenotype,normal),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"length",offsetof(FurTuftPhenotype,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"density",offsetof(FurTuftPhenotype,density),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"width",offsetof(FurTuftPhenotype,width),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"minNormalDot",offsetof(FurTuftPhenotype,minNormalDot),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"color",offsetof(FurTuftPhenotype,color),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {0}
+};
 static const Field SurfacePhenotype_transition_fields[] = {
     {"from",offsetof(SurfacePhenotype,transition.from)-offsetof(SurfacePhenotype,transition),sizeof(PigmentPhenotype),1,F_OBJECT,0,PigmentPhenotype_fields,NO_COUNT,NULL,false},
     {"to",offsetof(SurfacePhenotype,transition.to)-offsetof(SurfacePhenotype,transition),sizeof(PigmentPhenotype),1,F_OBJECT,0,PigmentPhenotype_fields,NO_COUNT,NULL,false},
@@ -326,6 +341,8 @@ static const Field SurfacePhenotype_fields[] = {
     {"integument",offsetof(SurfacePhenotype,integument),sizeof(IntegumentPhenotype),1,F_OBJECT,0,IntegumentPhenotype_fields,NO_COUNT,NULL,false},
     {"regions",offsetof(SurfacePhenotype,regions),sizeof(SurfaceRegionProfile),SURFACE_REGION_COUNT,F_OBJECT,0,SurfaceRegionProfile_fields,NO_COUNT,NULL,false},
     {"furRegions",offsetof(SurfacePhenotype,furRegions),sizeof(FurRegionProfile),SURFACE_REGION_COUNT,F_OBJECT,0,FurRegionProfile_fields,NO_COUNT,NULL,false},
+    {"tufts",offsetof(SurfacePhenotype,tufts),sizeof(FurTuftPhenotype),SURFACE_MAX_FUR_TUFTS,F_OBJECT,0,FurTuftPhenotype_fields,offsetof(SurfacePhenotype,tuftCount),NULL,true},
+    {"tuftCount",offsetof(SurfacePhenotype,tuftCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
     {"transition",offsetof(SurfacePhenotype,transition),sizeof(((SurfacePhenotype*)0)->transition),1,F_OBJECT,0,SurfacePhenotype_transition_fields,NO_COUNT,NULL,false},
     {0}
 };

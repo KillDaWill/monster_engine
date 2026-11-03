@@ -148,6 +148,7 @@ bool CreaturePhenotype_TopologyCompatible(const CreaturePhenotype* a, const Crea
     for (size_t i = 0; i < a->limbCount; ++i) {
         const LimbPhenotype *x = &a->limbs[i], *y = &b->limbs[i];
         if (x->role != y->role || x->side != y->side || x->digitCount != y->digitCount ||
+            x->anatomyProfile != y->anatomyProfile ||
             x->digitCount > CREATURE_MAX_DIGITS) {
             return false;
         }
@@ -164,6 +165,7 @@ bool CreaturePhenotype_TopologyCompatible(const CreaturePhenotype* a, const Crea
 bool CreaturePhenotype_MorphCompatible(const CreaturePhenotype* a, const CreaturePhenotype* b) {
     if (!CreaturePhenotype_TopologyCompatible(a, b)) return false;
     if (a->axial.archetype != b->axial.archetype) return false;
+    if (a->axial.contourProfile != b->axial.contourProfile) return false;
     if (a->head.archetype != b->head.archetype) return false;
     /* Resolver de nuevo una categoría a mitad de Ager cambia el volumen de
      * golpe. Estas transiciones necesitan mezclar anatomías ya resueltas. */

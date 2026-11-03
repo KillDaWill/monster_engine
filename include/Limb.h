@@ -20,7 +20,13 @@ enum {
     LIMB_NODE_ROOT = 1,
     LIMB_NODE_MIDDLE,
     LIMB_NODE_DISTAL,
-    LIMB_NODE_AUTOPOD
+    LIMB_NODE_AUTOPOD,
+    LIMB_NODE_MUSCLE_ANCHOR,
+    LIMB_NODE_UPPER_MUSCLE,
+    LIMB_NODE_LOWER_MUSCLE,
+    LIMB_NODE_CANNON,
+    LIMB_NODE_FETLOCK,
+    LIMB_NODE_PASTERN
 };
 
 /** @brief Indica si el módulo implementa anatomía y rig del arquetipo. */
