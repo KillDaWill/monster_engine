@@ -1,0 +1,606 @@
+[
+  {
+    "recipe": 1,
+    "stage": 0,
+    "nodes": 137,
+    "triangles": 16200,
+    "ordered_seconds": 0.1088210949965287,
+    "reordered_seconds": 0.10523905899754027,
+    "baseline_seconds": 0.145539164004731,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "a694ba79336beff3e05807ef42678cbfed798b79983a22a0b43adc3a5272fd12",
+    "materials": [
+      {
+        "skin": 8022,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 74,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 10,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 1,
+    "stage": 1,
+    "nodes": 137,
+    "triangles": 15028,
+    "ordered_seconds": 0.0923907420001342,
+    "reordered_seconds": 0.09195654799987096,
+    "baseline_seconds": 0.13304404499649536,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "5827a24f58ea210fa01084191a2e29d9e7dbae1b1bf036011fe9ce7aa84f5b76",
+    "materials": [
+      {
+        "skin": 7420,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 90,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 10,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 1,
+    "stage": 2,
+    "nodes": 137,
+    "triangles": 116460,
+    "ordered_seconds": 1.202337577000435,
+    "reordered_seconds": 1.1670515590012656,
+    "baseline_seconds": 1.2021168790015508,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "b654e75dac7fcedcdb3cff446a743e023c83d18e6e27996ff71e905744dbb311",
+    "materials": [
+      {
+        "skin": 54808,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 827,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 44,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 1,
+    "stage": 3,
+    "nodes": 137,
+    "triangles": 117736,
+    "ordered_seconds": 1.1170978609952726,
+    "reordered_seconds": 1.0828599180022138,
+    "baseline_seconds": 1.1303733949971502,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "b2f2cd3e8499a9b4ea4a0b7b0dde3734a5d94e37c5e35c5b0ff690cffc6766a8",
+    "materials": [
+      {
+        "skin": 53980,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 2434,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 118,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 2,
+    "stage": 0,
+    "nodes": 109,
+    "triangles": 97130,
+    "ordered_seconds": 1.241147828004614,
+    "reordered_seconds": 1.2620212279944099,
+    "baseline_seconds": 1.2816467490047216,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "7b57f724e4381b9706210c4cb54c2258ae8d8eb9c5988acda645fa1b822843c0",
+    "materials": [
+      {
+        "skin": 46415,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 82,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 10,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 2,
+    "stage": 1,
+    "nodes": 109,
+    "triangles": 95838,
+    "ordered_seconds": 1.2462420710071456,
+    "reordered_seconds": 1.2498886670000502,
+    "baseline_seconds": 1.296551528001146,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "10934b9a5f521922868a606fb2c297d9557c700deefa5f99d95e45a9d6aaac8e",
+    "materials": [
+      {
+        "skin": 45647,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 253,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 14,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 2,
+    "stage": 2,
+    "nodes": 109,
+    "triangles": 97262,
+    "ordered_seconds": 1.1952502560016,
+    "reordered_seconds": 1.211003795004217,
+    "baseline_seconds": 1.2521825340008945,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "f4fb10079d469f025ac4c04f9f215ae2775ecd5e9921c9a398a8ffd1ef9d5ac9",
+    "materials": [
+      {
+        "skin": 45984,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 636,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 62,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 2,
+    "stage": 3,
+    "nodes": 109,
+    "triangles": 98602,
+    "ordered_seconds": 1.2188700179976877,
+    "reordered_seconds": 1.21201365700108,
+    "baseline_seconds": 1.2535180620034225,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "4b57429211c4ecf4345be991e143d1b387ed526715e9b73e96072358d38d2216",
+    "materials": [
+      {
+        "skin": 45783,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 1304,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 154,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 3,
+    "stage": 0,
+    "nodes": 99,
+    "triangles": 98376,
+    "ordered_seconds": 1.7383766419952735,
+    "reordered_seconds": 1.7271399700039183,
+    "baseline_seconds": 1.769408960994042,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "f78d8eef69132e48ed97cd7ee6e4a3b88908be23dd152df74ab41ed1028d93b5",
+    "materials": [
+      {
+        "skin": 37510,
+        "horn": 0,
+        "hoof": 7483
+      },
+      {
+        "skin": 158,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 136,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 3,
+    "stage": 1,
+    "nodes": 99,
+    "triangles": 97596,
+    "ordered_seconds": 1.3047637249983381,
+    "reordered_seconds": 1.312020550998568,
+    "baseline_seconds": 1.4011542750013177,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "bf7dcbf375f024909c810bdfc8fa7648a94748a14c185f12901fa51d59ac091e",
+    "materials": [
+      {
+        "skin": 36209,
+        "horn": 0,
+        "hoof": 9032
+      },
+      {
+        "skin": 444,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 332,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 3,
+    "stage": 2,
+    "nodes": 99,
+    "triangles": 98368,
+    "ordered_seconds": 1.5035306089994265,
+    "reordered_seconds": 1.5112046560025192,
+    "baseline_seconds": 1.581317678996129,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "23d045a2391ec528980270775c67a1502dbf8d192ad2a102ede9ee871ff2c2e9",
+    "materials": [
+      {
+        "skin": 31205,
+        "horn": 663,
+        "hoof": 12589
+      },
+      {
+        "skin": 690,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 802,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 3,
+    "stage": 3,
+    "nodes": 99,
+    "triangles": 100312,
+    "ordered_seconds": 1.0966769169972395,
+    "reordered_seconds": 1.109721107997757,
+    "baseline_seconds": 1.1435989140009042,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "451a658c712b1b7dd8c8865c7c1c94f503cae6cc0ceebdbe28bf3271400925dc",
+    "materials": [
+      {
+        "skin": 40275,
+        "horn": 1547,
+        "hoof": 3239
+      },
+      {
+        "skin": 634,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 1142,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 4,
+    "stage": 0,
+    "nodes": 117,
+    "triangles": 89874,
+    "ordered_seconds": 1.4046370919968467,
+    "reordered_seconds": 1.3859089320030762,
+    "baseline_seconds": 1.4300099549946026,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "2072b6851f5ccf9ece0424b8d9f54b3b6033d29b4972b1e27e4a0f5bda7074a0",
+    "materials": [
+      {
+        "skin": 43328,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 44,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 14,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 4,
+    "stage": 1,
+    "nodes": 117,
+    "triangles": 91652,
+    "ordered_seconds": 1.4231722480035387,
+    "reordered_seconds": 1.4316330669971649,
+    "baseline_seconds": 1.4843798779984354,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "038d07f5be7b5463893f00ae45513ff488e18595eef551242443729e4eb97f30",
+    "materials": [
+      {
+        "skin": 43837,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 220,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 36,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 4,
+    "stage": 2,
+    "nodes": 117,
+    "triangles": 88146,
+    "ordered_seconds": 1.424695082998369,
+    "reordered_seconds": 1.420089637998899,
+    "baseline_seconds": 1.4781745799991768,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "4aa44c266948278bccdb76e2360244d6633448960fcb3f43527518a30a0c3e40",
+    "materials": [
+      {
+        "skin": 40945,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 1254,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 164,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  },
+  {
+    "recipe": 4,
+    "stage": 3,
+    "nodes": 117,
+    "triangles": 71798,
+    "ordered_seconds": 1.142151931002445,
+    "reordered_seconds": 1.1548728300040239,
+    "baseline_seconds": 1.2004152240042458,
+    "baseline_max_vertex_delta": 0.0,
+    "reordered_max_vertex_delta": 0.0,
+    "ordered_sha256": "4a8d0219b51c48ab854eb9cb9a7ab61bcf9815b5ec66f82c206239fc6e4d90cf",
+    "materials": [
+      {
+        "skin": 31910,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 1488,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 348,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      },
+      {
+        "skin": 738,
+        "horn": 0,
+        "hoof": 0
+      }
+    ]
+  }
+]

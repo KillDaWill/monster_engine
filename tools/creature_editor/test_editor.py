@@ -48,6 +48,35 @@ class EditorTests(unittest.TestCase):
         for path in ('/', '/app.js', '/agent-sync.js', '/viewport.js', '/style.css'):
             self.assertGreater(len(self.request(path)), 100)
 
+    def test_localized_pigment_v1_roundtrip(self):
+        """Dominio opcional: compatibilidad v1, validación y preview C real."""
+        doc = self.request('/api/recipe/builtin:2')
+        layer = dict(pattern=0, color=dict(r=55, g=42, b=35, a=255),
+                     strength=.9, scale=1, sharpness=.5, direction=dict(x=0,y=0,z=1), seed=71,
+                     regionMask=0, domain=dict(anchorNode=131073,
+                         center=dict(x=0,y=0,z=0), radii=dict(x=2,y=2,z=2),
+                         softness=.4, irregularity=.3, materialStrength=1,
+                         furCoverage=.05, roughness=.45))
+        for stage in ('seed','larva','juvenile','adult'):
+            doc['recipe'][stage]['surface']['pigment'].update(layers=[copy.deepcopy(layer)],layerCount=1)
+        validated = self.request('/api/validate', {'document': doc})
+        domain = validated['recipe']['adult']['surface']['pigment']['layers'][0]['domain']
+        for key,value in layer['domain'].items():
+            if isinstance(value,dict):
+                for axis,component in value.items():self.assertAlmostEqual(domain[key][axis],component,places=6)
+            else:self.assertAlmostEqual(domain[key],value,places=6)
+        self.assertEqual(self.request('/api/validate', {'document': validated}), validated)
+        colored = self.request('/api/preview', {'document': validated,'stage':3})
+        self.check_mesh(colored)
+        disabled = copy.deepcopy(validated)
+        disabled['recipe']['adult']['surface']['pigment']['layers'][0]['strength']=0
+        self.assertNotEqual(colored,self.request('/api/preview',{'document':disabled,'stage':3}),
+                            'El preview debe consumir el dominio resuelto, no el descriptor local sin convertir')
+        for stage in ('seed','larva','juvenile','adult'):
+            del doc['recipe'][stage]['surface']['pigment']['layers'][0]['domain']
+        legacy = self.request('/api/validate', {'document': doc})
+        self.assertEqual(legacy['recipe']['adult']['surface']['pigment']['layers'][0]['domain']['radii'],dict(x=0,y=0,z=0))
+
     def test_dependency_order_and_cycle_transaction(self):
         """Los módulos desordenados pasan por C; un ciclo no altera el historial."""
         state = self.request('/api/agent/state')

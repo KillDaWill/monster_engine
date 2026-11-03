@@ -15,8 +15,13 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
     vec3 color=sampleValue.xyz*(.4+max(dot(n,light),0.0));
     uint tissue=semantic.materialId&255u;
     if(tissue==4u) {
-        if(sdfSurfaceDebug==27)return sampleValue.xyz;
-        return SurfaceLighting(SurfaceResponse(sampleValue.xyz,viewN,.34,.28),viewP);
+        vec3 local=EvaluatePigmentMaterial(materialCoord,.34);
+        vec3 pigment=EvaluateLocalizedPigment(materialCoord,sampleValue.xyz);
+        if(sdfSurfaceDebug==29)return vec3(PigmentDomainDebug(materialCoord));
+        if(sdfSurfaceDebug==30)return vec3(0);
+        if(sdfSurfaceDebug==31)return vec3(local.y);
+        if(sdfSurfaceDebug==27)return pigment;
+        return SurfaceLighting(SurfaceResponse(pigment,viewN,local.y,.28),viewP);
     }
     if(tissue==5u||tissue==6u){
         if(sdfSurfaceDebug==27)return sampleValue.xyz;
@@ -27,6 +32,10 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
         float skinMask=clamp(semantic.skinWeight,0.0,1.0);
         int integument=int(surfaceRecipe[7].x+.5);
         if(integument==2) {
+            vec3 localMaterial=EvaluatePigmentMaterial(materialCoord,surfaceRecipe[10].z);
+            if(sdfSurfaceDebug==29)return vec3(PigmentDomainDebug(materialCoord)*skinMask);
+            if(sdfSurfaceDebug==30)return vec3(localMaterial.x*skinMask);
+            if(sdfSurfaceDebug==31)return vec3(localMaterial.y*skinMask);
             vec3 pigment=EvaluatePigment(materialCoord,ventral,surfaceRecipe[3],pigmentSeed);
             float footprint=max(length(dFdx(materialCoord)),length(dFdy(materialCoord)));
             float grain=PigmentNoise(materialCoord*8.0,furSeed^0x4d4943u);
@@ -39,7 +48,8 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
             vec3 tangent=normalize(mix(viewN,viewFlow,.72));
             color=FurLighting(albedo,tangent,viewN,viewP,
                 clamp(surfaceRecipe[10].z,.2,1.0),surfaceRecipe[10].w*.3,0.0);
-            float coverage=surfaceRecipe[11].w*skinMask;
+            color=mix(color,SurfaceLighting(SurfaceResponse(pigment,viewN,localMaterial.y,.28),viewP),localMaterial.z*skinMask);
+            float coverage=surfaceRecipe[11].w*skinMask*localMaterial.x;
             if(sdfFurEnabled!=0&&coverage>.001) {
                 vec3 fiberColor=vec3(0);float fiberWeight=0;
                 for(int layer=0;layer<3;++layer) {

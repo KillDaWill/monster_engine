@@ -1,0 +1,13 @@
+{
+  "source": "caballo.creature.json",
+  "view": {
+    "stage": "adult",
+    "part": "head",
+    "index": 0,
+    "tab": "paint",
+    "camera": "side",
+    "quality": "draft"
+  },
+  "revision": 3,
+  "has_domain": true
+}

@@ -1,0 +1,7 @@
+./run_tests
+[PASS] test_equine_anatomy: cráneo, casco único, apoyo, cuatro etapas, rig y metamorfosis
+[PASS] test_module_dependencies: orden, rutas, ciclos, marcos, capacidad y pipeline
+[PASS] ecosystem: reloj, economía, fisiología, IDs, caza y reproducción
+SONDA OK: variación visual determinista y GL-free
+[FAIL] AppendageMeshContinuity: cola mallada en cada LOD (Line 242)
+make: *** [Makefile:297: test] Error 1

@@ -28,6 +28,15 @@ def tuft(region, center, extent, direction, length, density=1, width=.004, cone=
         density=density, width=width, minNormalDot=cone, color=color(28, 20, 15))
 
 
+def pigment_domain(center, radii, tint, coverage, roughness, material=1, seed=71):
+    """Máscara artística en semiejes de la estación cefálica estable 2:1."""
+    return dict(pattern=0, color=color(*tint), strength=.96, scale=1, sharpness=.5,
+        direction=vector(0, 0, 1), seed=seed, regionMask=0,
+        domain=dict(anchorNode=131073, center=vector(*center), radii=vector(*radii),
+                    softness=.38, irregularity=.30, materialStrength=material,
+                    furCoverage=coverage, roughness=roughness))
+
+
 def equid(base, donkey=False):
     doc = copy.deepcopy(base)
     r = doc['recipe']
@@ -35,14 +44,14 @@ def equid(base, donkey=False):
     p = copy.deepcopy(r['adult'])
     p['axial'].update(withersHeight=4.5, trunkLength=3.65, neckLength=1.85,
         neckWidth=1.25, shoulderWidth=1.45, thoraxWidth=2.00, thoraxHeight=2.35,
-        abdomenWidth=1.72, abdomenHeight=1.70, pelvicWidth=1.58, pelvicHeight=1.78,
+        abdomenWidth=1.72, abdomenHeight=1.88, pelvicWidth=1.58, pelvicHeight=1.78,
         cervicalDorsalMass=1.65, cervicalCurvature=.90, cervicalMidNarrowing=.72,
         withersElevation=.075, contourProfile=1)
     p['axial']['profile'][0].update(verticalOffset=.28)
     # Dorso suavemente cóncavo, barril torácico y grupa: secciones semánticas,
     # no masas adicionales codificadas en el renderer.
     p['axial']['profile'][2].update(verticalOffset=-.11, heightScale=1.02)
-    p['axial']['profile'][3].update(verticalOffset=-.12, heightScale=1.08, widthScale=1.05)
+    p['axial']['profile'][3].update(verticalOffset=-.12, heightScale=1.02, widthScale=1.02)
     p['axial']['profile'][4].update(verticalOffset=-.02, heightScale=1.02)
     p['axial']['profile'][5].update(verticalOffset=-.04, heightScale=1.0)
     p['headEnvelope'].update(scale=.56, widthScale=1, heightScale=1.25, lengthScale=.85)
@@ -105,6 +114,17 @@ def equid(base, donkey=False):
         q['headEnvelope']['scale'] *= 1+.20*(1-maturity)
         q['head']['muzzleLength'] *= .72+.28*maturity
         q['head']['cheekMass'] *= .65+.35*maturity
+        # Dos dominios superpuestos: manto perinasal y borde labial, sin trufa
+        # de cánido ni cambio del material SDF. El asno conserva pelo pálido.
+        q['surface']['pigment']['layers'] = [
+            pigment_domain((0, -1.55, 1.65), (.94, .92, .75),
+                           (188, 179, 158) if donkey else (70, 54, 46),
+                           .70 if donkey else .08, .55 if donkey else .48,
+                           .30 if donkey else 1),
+            pigment_domain((0, -2.10, 1.72), (.90, .35, .58),
+                           (65, 60, 53) if donkey else (47, 37, 32), .02, .43, seed=93)
+        ]
+        q['surface']['pigment']['layerCount'] = 2
         for i, limb in enumerate(q['limbs']):
             limb['thickness'] *= .78+.22*maturity
             limb['rootThicknessScale'] *= .75+.25*maturity

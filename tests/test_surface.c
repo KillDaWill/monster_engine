@@ -169,6 +169,9 @@ static void TestAppearanceNoRebuild(void) {
     SurfaceRecipe beforeRecipe=async->displayMesh.surfaceRecipe;
     TEST_ASSERT(FLOAT_NEAR(beforeRecipe.data[11][2],2.5f),"Async conserva escala física de sync");
     m.surface.pigment.seed++; m.surface.integument.scales.size=.1f;
+    m.surface.pigment.layerCount=1;
+    m.surface.pigment.layers[0]=(PigmentLayer){.pattern=PIGMENT_PATTERN_SOLID,.strength=.8f,.scale=1,
+        .domain={.center={0,1,1},.radii={.3f,.5f,.4f},.softness=.3f,.materialStrength=1,.furCoverage=.1f,.roughness=.4f}};
     Monster_SetSurface(&m,&m.surface);
     MonsterVisualAsync_Update(async,&m,.016f); MonsterVisualAsync_Flush(async);
     MonsterVisualAsyncStats after=MonsterVisualAsync_GetStats(async);
@@ -237,6 +240,9 @@ static void TestCanonicalBinding(void) {
             float angle=k*6.2831853f/16;
             TEST_ASSERT(Vec3_Distance(mesh.vertices[k].surface.position,
                 Vec3_Create(cosf(angle),sinf(angle),1.26f))<1e-5f,"Identidad material estable al remallar y crecer");
+            PigmentDomain domain={.center={0,0,1.26f},.radii={2,2,1},.softness=.8f};
+            float weight=PigmentDomain_Weight(&domain,mesh.vertices[k].surface.position,42);
+            TEST_ASSERT(FLOAT_NEAR(weight,.68359375f),"Máscara localizada conserva peso tras veinte remallados y escalas");
         }
         Mesh_Free(&mesh);
     }
@@ -292,7 +298,49 @@ static void TestDormantAppendages(void) {
     }
     Monster_Free(&monster);
 }
+static void TestLocalizedPigment(void) {
+    SurfacePhenotype p=SurfacePhenotype_Default();p.pigment.layerCount=1;
+    PigmentLayer* l=&p.pigment.layers[0];
+    *l=(PigmentLayer){.pattern=PIGMENT_PATTERN_SOLID,.strength=1,.scale=1,.color={40,30,25,255},.seed=17,
+        .domain={.center={0,0,0},.radii={1,2,3},.softness=.4f,.materialStrength=1,.furCoverage=.05f,.roughness=.4f}};
+    TEST_ASSERT(PigmentDomain_Weight(&l->domain,Vec3_Zero(),17)==1,"Centro localizado cubierto");
+    TEST_ASSERT(PigmentDomain_Weight(&l->domain,Vec3_Create(2,0,0),17)==0,"Fuera del elipsoide sin pigmento");
+    Color base={150,100,80,255};
+    TEST_ASSERT(PigmentPattern_EvaluateLayer(l,Vec3_Create(2,0,0),base).r==base.r,"Capa no altera el resto del rostro");
+    float last=1;
+    for(int i=0;i<=1000;++i) {
+        Vector3 point=Vec3_Create(i/1000.f,0,0);float w=PigmentDomain_Weight(&l->domain,point,17);
+        TEST_ASSERT(w<=last+.00001f&&fabsf(w-last)<.005f,"Transición continua sin frontera circular dura");last=w;
+    }
+    SurfaceCoordinate c={.position={0,0,0},.region=SURFACE_REGION_HEAD,.integumentMask=1};
+    SurfaceLocalMaterial material=Surface_EvaluateLocalMaterial(&p,&c,.7f);
+    TEST_ASSERT(FLOAT_NEAR(material.furCoverage,.05f)&&FLOAT_NEAR(material.roughness,.4f),"Piel y pelo comparten máscara");
+    l->regionMask=1u<<SURFACE_REGION_NECK;
+    material=Surface_EvaluateLocalMaterial(&p,&c,.7f);
+    TEST_ASSERT(material.furCoverage==1&&material.skinWeight==0,"Respeta máscaras semánticas");
+    l->regionMask=0;l->domain.irregularity=.6f;
+    SurfacePhenotype q=SurfacePhenotype_Default();q.pigment.layerCount=0;
+    for(int i=0;i<=100;++i) {
+        SurfacePhenotype mixed=SurfacePhenotype_Interpolate(&p,&q,i/100.f);
+        SurfaceLocalMaterial m=Surface_EvaluateLocalMaterial(&mixed,&c,.7f);
+        TEST_ASSERT(FLOAT_NEAR(m.furCoverage,.05f+.95f*i/100.f),"Desaparición continua durante morph, sin salto de bancos");
+        SurfaceRecipe r=SurfaceRecipe_Compile(&mixed);
+        for(int row=0;row<SURFACE_RECIPE_ROWS;++row)for(int k=0;k<4;++k)TEST_ASSERT(isfinite(r.data[row][k]),"Transporte finito de dominios");
+    }
+    AnatomyGraph graph;AnatomyGraph_Init(&graph);
+    graph.nodes[graph.nodeCount++]=(AnatomyNode){.id=Anatomy_MakeId(7,1),.center={4,8,12},.envelopeRadii={2,4,6}};
+    l->domain.anchorNode=graph.nodes[0].id;l->domain.center=Vec3_Create(.5f,0,0);
+    SurfaceMapping mapping={.unitScale=2};SurfacePhenotype resolved=p;
+    SurfaceMapper_ResolvePigmentDomains(&resolved,&graph,&mapping);
+    PigmentDomain d=resolved.pigment.layers[0].domain;
+    TEST_ASSERT(d.anchorNode==0&&FLOAT_NEAR(d.center.x,2.5f)&&FLOAT_NEAR(d.center.y,4),"Ancla estable resuelta en reposo");
+    TEST_ASSERT(FLOAT_NEAR(d.radii.x,1)&&FLOAT_NEAR(d.radii.y,4)&&FLOAT_NEAR(d.radii.z,9),"Radios siguen envolvente y escala");
+    TEST_ASSERT(l->domain.anchorNode!=0,"No modificar fenotipo fuente al compilar");
+    graph.nodeCount=0;SurfaceMapper_ResolvePigmentDomains(&p,&graph,&mapping);
+    TEST_ASSERT(l->strength==0&&l->domain.materialStrength==0,"Ancla ausente retira capa sin manchar todo el cuerpo");
+}
 void run_surface_tests(void) {
+    TestLocalizedPigment();
     TestHeadCage();TestDormantAppendages();TestCanonicalBinding(); TestPhenotype(); TestMappingAndPose(); TestAppearanceNoRebuild(); TestGenericAger();TestGeometryAgeQuantization();
     printf("[PASS] superficie: determinismo, límites, regiones, marcha estable, edición sin reconstrucción\n");
 }

@@ -93,7 +93,14 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
         float ventralT=powf(t,.8f+.4f*Math_Clamp01(curvature));
         float widthT=powf(t,1.0f/Math_Clamp(midNarrow,.5f,1.0f));
         float dorsal=Math_Lerp(dorsal0,dorsalW,dorsalT);
-        if(cursorial)dorsal+=sinf(t*3.14159265f)*p->neckWidth*s*curvature*.22f;
+        if(cursorial) {
+            /* Cresta y garganta independientes. La potencia dorsal anterior
+             * retenía toda la masa junto al poll y sumaba una joroba senoidal.
+             * La cresta baja hacia la cruz; la garganta se abre más tarde. */
+            dorsal=Math_Lerp(dorsal0,dorsalW,t)+sinf(t*3.14159265f)*p->neckWidth*s*curvature*.045f;
+            ventralT=powf(t,1.55f+.30f*Math_Clamp01(curvature));
+            widthT=powf(t,1.35f/Math_Clamp(midNarrow,.5f,1));
+        }
         float ventral=Math_Lerp(ventral0,ventralW,ventralT);
         outStations[count++]=(SDFSweepStation){
             .center={Math_Lerp(neckNode->center.x,pectoralNode->center.x,t),
@@ -139,11 +146,19 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
          * pendiente. Una sección trasera demasiado pequeña convierte la
          * unión suave en una esfera; se conserva profundidad y se reduce
          * el ancho para lograr el afilado lateral del cuarto trasero. */
-        .center={pelvisNode->center.x,pelvisNode->center.y,
-                 pelvisNode->center.z-pelvisNode->widthRadius*.60f},
-        .width=pelvisNode->widthRadius*.64f,.height=pelvisNode->heightRadius*.84f};
+        .center={pelvisNode->center.x,pelvisNode->center.y-pelvisNode->heightRadius*.12f,
+                  pelvisNode->center.z-pelvisNode->widthRadius*.65f},
+        .width=pelvisNode->widthRadius*.52f,.height=pelvisNode->heightRadius*.68f};
 
     if(cursorial) {
+        /* La grupa termina en una sección todavía profunda. Estrecharla a
+         * media anchura antes de la tapa redondeada dibujaba un anillo y una
+         * segunda nalga aparente, aunque los miembros ya fueran continuos. */
+        SDFSweepStation* rump=&outStations[count-1];
+        rump->center.y=pelvisNode->center.y-pelvisNode->heightRadius*.08f;
+        rump->center.z=pelvisNode->center.z-pelvisNode->widthRadius*.45f;
+        rump->width=pelvisNode->widthRadius*.80f;
+        rump->height=pelvisNode->heightRadius*.90f;
         /* La grupa no es una esfera: el dorso baja desde la cruz, se hunde
          * en el riñón y vuelve a subir en el sacro antes de caer al maslo.
          * Se desplaza el techo sin mover el vientre para conservar la
@@ -153,7 +168,9 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
         for(int i=6;i<count;++i) {
             float d=top[i]*unit;
             outStations[i].center.y+=d*.5f;
-            outStations[i].height=Math_Max(outStations[i].height-d*.5f,.02f*s);
+            /* Desplazar techo sin mover vientre: h también cambia con d/2.
+             * El signo anterior anulaba el descenso dorsal previsto. */
+            outStations[i].height=Math_Max(outStations[i].height+d*.5f,.02f*s);
         }
     }
 

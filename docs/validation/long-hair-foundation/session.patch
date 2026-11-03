@@ -1,0 +1,1228 @@
+--- a/Makefile
++++ b/Makefile
+@@ -17,6 +17,7 @@
+ 
+ # Archivos fuente del núcleo puro (Desacoplado de Render)
+ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
++            $(SRC_DIR)/LongHair.c \
+             $(SRC_DIR)/EcosystemAnatomy.c \
+             $(SRC_DIR)/SimulationClock.c \
+             $(SRC_DIR)/CreaturePhysiology.c \
+@@ -125,6 +126,7 @@
+ 
+ # Archivos de Pruebas
+ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
++            $(TEST_DIR)/test_long_hair.c \
+             $(TEST_DIR)/test_equine_anatomy.c \
+             $(TEST_DIR)/test_module_dependencies.c \
+             $(TEST_DIR)/test_creature_recipe_io.c \
+@@ -264,6 +266,13 @@
+ $(BUILD_DIR)/capture_equine_muzzle: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_equine_muzzle.c
+ 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+ 
++$(BUILD_DIR)/capture_long_hair: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_long_hair.c
++	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
++
++.PHONY: visual-long-hair
++visual-long-hair: $(BUILD_DIR)/capture_long_hair $(BUILD_DIR)/creature_editor_bridge
++	python3 tools/validate_long_hair.py --all-stages
++
+ .PHONY: visual-equine-muzzle
+ visual-equine-muzzle: $(BUILD_DIR)/capture_equine_muzzle
+ 	python3 tools/validate_equine_muzzle.py --all-stages
+@@ -386,7 +395,7 @@
+ benchmark-animation: benchmarks/benchmark_animation
+ 	./benchmarks/benchmark_animation
+ 
+-src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py src/Fur.c $(wildcard shaders/surface/*.glsl) shaders/pigment_domain.comp shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl
++src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py src/Fur.c $(wildcard shaders/surface/*.glsl) shaders/long_hair.vert shaders/long_hair.frag shaders/pigment_domain.comp shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl
+ 	python3 tools/generate_surface_shader.py
+ $(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSurfaceShader.generated.h
+ 
+--- /dev/null
++++ b/include/LongHair.h
+@@ -0,0 +1,77 @@
++/** @file LongHair.h
++ * @brief Grupos anatómicos y guías de pelo largo; sin recursos gráficos ni fibras persistentes. */
++#ifndef MONSTER_LONG_HAIR_H
++#define MONSTER_LONG_HAIR_H
++#include "Anatomy.h"
++#include "Color.h"
++#include "Skeleton.h"
++#define LONG_HAIR_MAX_GROUPS 4
++#define LONG_HAIR_MAX_ANCHORS 8
++#define LONG_HAIR_POINTS 10
++#define LONG_HAIR_GPU_ROWS 16
++typedef enum LongHairDomainKind { LONG_HAIR_CURVE, LONG_HAIR_PATCH, LONG_HAIR_REGION } LongHairDomainKind;
++/** @brief Coordenadas anatómicas estables, no índices de una triangulación. */
++typedef struct LongHairDomain {
++    LongHairDomainKind kind;
++    uint32_t hostModuleId;
++    AnatomyRegion region;
++    AnatomyId anchors[LONG_HAIR_MAX_ANCHORS];
++    size_t anchorCount;
++    Vector3 offset, normal;
++    float angle, angularSpread, start, end, patchRadius;
++} LongHairDomain;
++/** @brief Descriptor pequeño serializable; longitudes relativas a la escala corporal. */
++typedef struct LongHairGroup {
++    uint32_t id, seed;
++    LongHairDomain domain;
++    unsigned guideCount, childrenPerGuide;
++    Vector3 direction;
++    float length, lengthVariation, width, rootSpread, clumping, stiffness, gravityInfluence, density;
++    Color rootColor, tipColor;
++} LongHairGroup;
++/** @brief Raíz con propiedad y parámetro estable, recuperable tras remallado. */
++typedef struct LongHairRoot {
++    uint32_t groupId, moduleId, stableRootId;
++    AnatomyId fromId, toId;
++    Vector3 restPosition, restNormal, restDirection;
++    float rootParameter, segmentParameter;
++} LongHairRoot;
++typedef struct LongHairGuide {
++    LongHairRoot root;
++    Vector3 restPoints[LONG_HAIR_POINTS], points[LONG_HAIR_POINTS];
++    Vector3 posedNormal;
++    float length;
++    unsigned groupIndex;
++    bool visible, rootValid;
++} LongHairGuide;
++/** @brief Propiedad exclusiva del runtime visual; nunca se copia al fenotipo. */
++typedef struct LongHairSet {
++    LongHairGuide* guides;
++    size_t count;
++    LongHairGroup groups[LONG_HAIR_MAX_GROUPS];
++    size_t groupCount;
++    float scale;
++    uint64_t fingerprint, generation;
++} LongHairSet;
++typedef float (*LongHairDistance)(const void*,Vector3);
++/** @brief Configuración neutra válida. @return Descriptor sin anfitrión. */
++LongHairGroup LongHairGroup_Default(void);
++/** @brief Sanea límites y valores no finitos. @param group Descriptor mutable. */
++void LongHairGroup_Normalize(LongHairGroup* group);
++/** @brief Huella de controles explícitos, sin leer padding ni reservas. */
++uint64_t LongHairGroups_Fingerprint(const LongHairGroup* groups,size_t count);
++/** @brief Construcción transaccional determinista; anfitriones ausentes se retiran.
++ * @param distance Proyección opcional al campo actual, nunca a una malla obsoleta.
++ * @return false si falla validación o asignación; conserva el runtime anterior. */
++bool LongHairSet_Build(LongHairSet* set,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,
++    float scale,LongHairDistance distance,const void* context);
++/** @brief Libera sólo memoria propia. @param set Runtime, admite NULL. */
++void LongHairSet_Free(LongHairSet* set);
++/** @brief Transporta guías por las dos estaciones propietarias, sin regenerar hijos.
++ * @return false ante pose incompatible; las guías no válidas quedan ocultas. */
++bool LongHairSet_Pose(LongHairSet* set,const Skeleton* skeleton,const SkeletonPose* pose);
++/** @brief Catmull-Rom común para CPU y ribbons. @return Punto suave de la guía. */
++Vector3 LongHairGuide_Evaluate(const LongHairGuide* guide,float parameter);
++/** @brief Empaqueta sólo guías y controles, no vértices de hijos. @return Filas escritas. */
++size_t LongHairSet_Pack(const LongHairSet* set,float (*rows)[4],size_t capacity);
++#endif
+--- a/include/MonsterVisual.h
++++ b/include/MonsterVisual.h
+@@ -118,6 +118,7 @@
+  * @brief Estructura que gestiona el ciclo de vida del buffer de malla SDF, ojos y bocas para un monstruo.
+  */
+ typedef struct MonsterVisual {
++    LongHairSet longHair; /**< Guías independientes de las generaciones de malla. */
+     MonsterSDF sdf;         /**< Snapshot SDF activo de la geometría */
+     MonsterSDF stagingSdf;  /**< Snapshot SDF de trabajo (reutilizable) */
+     SDFMesher mesher;       /**< Orquestador de poligonización */
+@@ -244,6 +245,9 @@
+  */
+ /** @brief Actualiza sólo recetas; no marca geometría sucia ni toca coordenadas. */
+ void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surface);
++/** @brief Actualiza guías desde anatomía actual, nunca desde un resultado worker.
++ * @return true si la actualización es válida; no remalla el volumen. */
++bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* monster);
+ 
+ bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer);
+ 
+--- a/include/MonsterVisualAsync.h
++++ b/include/MonsterVisualAsync.h
+@@ -179,6 +179,7 @@
+  * @brief Gestor asíncrono desacoplado con arquitectura de triple buffer y coalescencia de solicitudes.
+  */
+ typedef struct MonsterVisualAsync {
++    LongHairSet longHair; /**< Propiedad del hilo de presentación, nunca del worker. */
+     MonsterVisualAsyncConfig config;
+ 
+     /* Front Buffer / Mallas expuestas al hilo principal de renderizado */
+--- a/include/OpenGLRenderer.h
++++ b/include/OpenGLRenderer.h
+@@ -18,6 +18,20 @@
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
++/** @brief Instrumentación exclusiva de ribbons largos; tiempo GPU asíncrono. */
++typedef struct LongHairRenderStats {
++    size_t guides,strands,bufferBytes;
++    unsigned segments;
++    float gpuMs;
++    bool ready,timingValid;
++} LongHairRenderStats;
++/** @brief Calidad 0=apagado, 1/2/3=baja/media/alta, 4=guías; no afecta identidades. */
++void OpenGLRenderer_SetLongHairQuality(Renderer3D* renderer,int quality);
++/** @brief Último dibujo y coste GPU, sin bloquear. */
++LongHairRenderStats OpenGLRenderer_GetLongHairStats(const Renderer3D* renderer);
++/** @brief Captura Catmull-Rom del shader real y lo compara con las guías CPU.
++ * @param maxError Error mundial máximo. @return false si hay NaN, raíz inválida o fallo GL. */
++bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError);
+ 
+ /** @brief Comprueba OpenGL 4.3 y límites de cómputo de la GPU actual. */
+ bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);
+--- a/include/RenderInterfaces.h
++++ b/include/RenderInterfaces.h
+@@ -18,6 +18,7 @@
+ #endif
+ 
+ struct MonsterVisualEye;
++struct LongHairSet;
+ 
+ /**
+  * @struct ICamera
+@@ -51,6 +52,8 @@
+ 
+     /** Ruta ocular opcional; NULL conserva el renderizado de mallas clásico. */
+     void (*renderEye)(struct Renderer3D* self, const struct MonsterVisualEye* eye);
++    /** Guías opcionales; NULL conserva renderizadores anteriores. */
++    void (*renderLongHair)(struct Renderer3D* self,const struct LongHairSet* hair);
+ } Renderer3D;
+ 
+ #ifdef __cplusplus
+--- a/include/Surface.h
++++ b/include/Surface.h
+@@ -6,6 +6,7 @@
+ #include "Color.h"
+ #include "Vector.h"
+ #include "PigmentPattern.h"
++#include "LongHair.h"
+ #include <stdint.h>
+ 
+ typedef enum IntegumentType {
+@@ -86,6 +87,8 @@
+     FurRegionProfile furRegions[SURFACE_REGION_COUNT];
+     FurTuftPhenotype tufts[SURFACE_MAX_FUR_TUFTS];
+     size_t tuftCount; /**< Cero conserva el pelaje anterior; máximo cuatro grupos. */
++    LongHairGroup longHair[LONG_HAIR_MAX_GROUPS];
++    size_t longHairCount; /**< Optativo; cero no reserva guías ni altera el pelo corto. */
+     /** Campo de pigmento de ambos extremos, con orden y semillas inmutables.
+      * La mezcla se evalúa en el dominio anatómico, sin reindexar capas. */
+     struct {
+--- /dev/null
++++ b/shaders/long_hair.frag
+@@ -0,0 +1,10 @@
++#version 330 compatibility
++// Recorte de cobertura: sin ordenación de miles de hijos ni caras desaparecidas.
++in vec4 hairColor;
++in float ribbonSide,hairParameter;
++void main(){
++    float alpha=hairColor.a*(1.0-smoothstep(.55,1.0,abs(ribbonSide)));
++    if(alpha<.35)discard;
++    float lighting=.8+.2*(1.0-ribbonSide*ribbonSide);
++    gl_FragColor=vec4(hairColor.rgb*lighting,1);
++}
+--- /dev/null
++++ b/shaders/long_hair.vert
+@@ -0,0 +1,53 @@
++#version 330 compatibility
++// Sólo diez puntos por guía; hijos y subdivisiones se evalúan en GPU.
++uniform samplerBuffer guideData;
++uniform int children, segments, guideDebug;
++uniform float childFraction;
++out vec4 hairColor;
++out float ribbonSide, hairParameter;
++out vec3 strandPosition;
++uint Hash(uint x){x^=x>>16u;x*=0x7feb352du;x^=x>>15u;x*=0x846ca68bu;return x^(x>>16u);}
++float Random(uint x){return float(Hash(x)&0xffffffu)/16777216.0;}
++vec4 Row(int g,int r){return texelFetch(guideData,g*16+r);}
++vec3 Curve(int g,float t){
++    float x=clamp(t,0.0,1.0)*9.0;int i=min(int(x),8);float u=x-float(i);
++    vec3 a=Row(g,max(i-1,0)).xyz,b=Row(g,i).xyz,c=Row(g,i+1).xyz,d=Row(g,min(i+2,9)).xyz;
++    return .5*((2.0*b)+(-a+c)*u+(2.0*a-5.0*b+4.0*c-d)*u*u+(-a+3.0*b-3.0*c+d)*u*u*u);
++}
++vec3 Child(int g,float t,vec2 scatter,float phase){
++    vec4 groom=Row(g,14),frame=Row(g,12);
++    vec3 tangent=normalize(Curve(g,min(t+.01,1.0))-Curve(g,max(t-.01,0.0))+vec3(1e-8));
++    // Las raíces hijas ocupan el plano cutáneo, no un disco que atraviese la piel.
++    vec3 side=normalize(frame.xyz),normal=normalize(Row(g,13).xyz);
++    vec3 rootAcross=normalize(cross(normal,side)+vec3(1e-8));
++    vec3 crossSide=normalize(mix(rootAcross,normalize(cross(tangent,side)+vec3(1e-8)),t)+vec3(1e-8));
++    float spread=frame.w*(1.0-groom.y*t)*(.75+.25*sin(t*5.0+phase));
++    return Curve(g,t)+(side*scatter.x+crossSide*scatter.y)*spread;
++}
++void main(){
++    int g=gl_InstanceID/children,child=gl_InstanceID%children;
++    vec4 groom=Row(g,14);float t=float(gl_VertexID/2)/float(segments);
++    uint seed=uint(Row(g,15).x)^uint(child)*1717u;
++    strandPosition=Row(g,0).xyz;
++    if(float(child)>=ceil(groom.z*childFraction)||(guideDebug==0&&Random(seed+333u)>groom.w)||groom.w<=0.0||(guideDebug>0&&child>0)){
++        gl_Position=vec4(2,2,2,1);hairColor=vec4(0);ribbonSide=0;hairParameter=0;return;}
++    float angle=Random(seed+13u)*6.2831853,r=sqrt(Random(seed+51u));
++    vec2 scatter=vec2(cos(angle),sin(angle))*r;
++    float lengthFactor=1.0-groom.x*Random(seed+123u)*.55;
++    if(guideDebug>0){scatter=vec2(0);lengthFactor=1.0;}
++    float u=t*lengthFactor,phase=Random(seed+71u)*6.2831853;
++    vec3 pos=Child(g,u,scatter,phase),next=Child(g,min(u+.005,1.0),scatter,phase),prev=Child(g,max(u-.005,0.0),scatter,phase);
++    strandPosition=pos;
++    vec3 viewPos=(gl_ModelViewMatrix*vec4(pos,1)).xyz;
++    vec3 tangent=normalize(mat3(gl_ModelViewMatrix)*(next-prev)+vec3(1e-8));
++    vec3 side=normalize(cross(tangent,normalize(-viewPos))+vec3(1e-8));
++    ribbonSide=(gl_VertexID%2==0)?-1.0:1.0;
++    float width=Row(g,13).w*pow(max(1.0-t,.01),.65);
++    if(guideDebug>0)width=max(width*2.0,.002);
++    viewPos+=side*ribbonSide*width;
++    gl_Position=gl_ProjectionMatrix*vec4(viewPos,1);
++    hairColor=mix(Row(g,10),Row(g,11),t);
++    hairColor.rgb*=.82+.18*Random(seed+193u);
++    if(guideDebug>0)hairColor=vec4(mix(vec3(.05,.9,.25),vec3(1,.2,.05),t),1);
++    hairParameter=t;
++}
+--- a/src/AnimatedVisual.c
++++ b/src/AnimatedVisual.c
+@@ -54,6 +54,7 @@
+     if(!a || !v || !m || !m->animation || !a->bound || a->generation!=v->rebuildGeneration ||
+        a->restFingerprint!=m->animation->restFingerprint || a->rigGeneration!=m->animation->rigGeneration || a->eyeCount!=v->eyeCount)return false;
+     MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);
++    if(!MonsterVisual_UpdateLongHair(&v->longHair,m))return false;
+     const MonsterAnimation* animation=m->animation; const Rig* rig=&animation->rig; const SkeletonPose* p=&animation->pose;
+     if(body&&!AnatomyDeformer_DeformPose(a->body,&rig->skeleton,p,&v->mesh))return false;
+     int head=rig->headJoint; if(head<0)return true;
+--- a/src/CreatureRecipe.c
++++ b/src/CreatureRecipe.c
+@@ -112,6 +112,14 @@
+ 
+     size_t order[CREATURE_MAX_MODULES];
+     if (!CreatureRecipe_ResolutionOrder(r, order)) return false;
++    if(p->surface.longHairCount>LONG_HAIR_MAX_GROUPS)return false;
++    for(size_t i=0;i<p->surface.longHairCount;++i){const LongHairGroup* g=&p->surface.longHair[i];const LongHairDomain* d=&g->domain;
++        if(!g->id||!d->hostModuleId||d->hostModuleId>65534||d->kind<LONG_HAIR_CURVE||d->kind>LONG_HAIR_REGION||
++            d->anchorCount>LONG_HAIR_MAX_ANCHORS||g->guideCount>256||g->childrenPerGuide>64)return false;
++        if(d->kind!=LONG_HAIR_REGION&&!d->anchorCount)return false;
++        for(size_t j=0;j<i;++j)if(p->surface.longHair[j].id==g->id)return false;
++        for(size_t j=0;j<d->anchorCount;++j)if((d->anchors[j]>>16)!=d->hostModuleId||!(d->anchors[j]&65535u))return false;
++    }
+ 
+     /* Validar que la referencia a la raíz del BodyPlan sea coherente */
+     if (!r->bodyPlan.root.moduleInstanceId || !r->bodyPlan.root.localNodeId ||
+--- a/src/CreatureRecipeSchema.inc
++++ b/src/CreatureRecipeSchema.inc
+@@ -338,6 +338,40 @@
+     {"color",offsetof(FurTuftPhenotype,color),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+     {0}
+ };
++static const Field LongHairDomain_fields[] = {
++    {"kind",offsetof(LongHairDomain,kind),sizeof(LongHairDomainKind),1,F_ENUM,LONG_HAIR_REGION,NULL,NO_COUNT,"LONG_HAIR_CURVE|LONG_HAIR_PATCH|LONG_HAIR_REGION",false},
++    {"hostModuleId",offsetof(LongHairDomain,hostModuleId),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
++    {"region",offsetof(LongHairDomain,region),sizeof(AnatomyRegion),1,F_ENUM,ANATOMY_REGION_ORNAMENT,NULL,NO_COUNT,"ANATOMY_REGION_UNKNOWN|ANATOMY_REGION_HEAD|ANATOMY_REGION_NECK|ANATOMY_REGION_TRUNK|ANATOMY_REGION_PELVIS|ANATOMY_REGION_FORELIMB|ANATOMY_REGION_HINDLIMB|ANATOMY_REGION_LIMB|ANATOMY_REGION_WING|ANATOMY_REGION_TAIL|ANATOMY_REGION_DIGIT|ANATOMY_REGION_ORNAMENT",false},
++    {"anchors",offsetof(LongHairDomain,anchors),sizeof(AnatomyId),LONG_HAIR_MAX_ANCHORS,F_U32,UINT32_MAX,NULL,offsetof(LongHairDomain,anchorCount),NULL,false},
++    {"anchorCount",offsetof(LongHairDomain,anchorCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,false},
++    {"offset",offsetof(LongHairDomain,offset),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
++    {"normal",offsetof(LongHairDomain,normal),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
++    {"angle",offsetof(LongHairDomain,angle),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"angularSpread",offsetof(LongHairDomain,angularSpread),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"start",offsetof(LongHairDomain,start),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"end",offsetof(LongHairDomain,end),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"patchRadius",offsetof(LongHairDomain,patchRadius),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {0}
++};
++static const Field LongHairGroup_fields[] = {
++    {"id",offsetof(LongHairGroup,id),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
++    {"seed",offsetof(LongHairGroup,seed),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
++    {"domain",offsetof(LongHairGroup,domain),sizeof(LongHairDomain),1,F_OBJECT,0,LongHairDomain_fields,NO_COUNT,NULL,false},
++    {"guideCount",offsetof(LongHairGroup,guideCount),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,false},
++    {"childrenPerGuide",offsetof(LongHairGroup,childrenPerGuide),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,false},
++    {"direction",offsetof(LongHairGroup,direction),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
++    {"length",offsetof(LongHairGroup,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"lengthVariation",offsetof(LongHairGroup,lengthVariation),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"width",offsetof(LongHairGroup,width),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"rootSpread",offsetof(LongHairGroup,rootSpread),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"clumping",offsetof(LongHairGroup,clumping),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"stiffness",offsetof(LongHairGroup,stiffness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"gravityInfluence",offsetof(LongHairGroup,gravityInfluence),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"density",offsetof(LongHairGroup,density),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
++    {"rootColor",offsetof(LongHairGroup,rootColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
++    {"tipColor",offsetof(LongHairGroup,tipColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
++    {0}
++};
+ static const Field SurfacePhenotype_transition_fields[] = {
+     {"from",offsetof(SurfacePhenotype,transition.from)-offsetof(SurfacePhenotype,transition),sizeof(PigmentPhenotype),1,F_OBJECT,0,PigmentPhenotype_fields,NO_COUNT,NULL,false},
+     {"to",offsetof(SurfacePhenotype,transition.to)-offsetof(SurfacePhenotype,transition),sizeof(PigmentPhenotype),1,F_OBJECT,0,PigmentPhenotype_fields,NO_COUNT,NULL,false},
+@@ -355,6 +389,8 @@
+     {"furRegions",offsetof(SurfacePhenotype,furRegions),sizeof(FurRegionProfile),SURFACE_REGION_COUNT,F_OBJECT,0,FurRegionProfile_fields,NO_COUNT,NULL,false},
+     {"tufts",offsetof(SurfacePhenotype,tufts),sizeof(FurTuftPhenotype),SURFACE_MAX_FUR_TUFTS,F_OBJECT,0,FurTuftPhenotype_fields,offsetof(SurfacePhenotype,tuftCount),NULL,true},
+     {"tuftCount",offsetof(SurfacePhenotype,tuftCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
++    {"longHair",offsetof(SurfacePhenotype,longHair),sizeof(LongHairGroup),LONG_HAIR_MAX_GROUPS,F_OBJECT,0,LongHairGroup_fields,offsetof(SurfacePhenotype,longHairCount),NULL,true},
++    {"longHairCount",offsetof(SurfacePhenotype,longHairCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
+     {"transition",offsetof(SurfacePhenotype,transition),sizeof(((SurfacePhenotype*)0)->transition),1,F_OBJECT,0,SurfacePhenotype_transition_fields,NO_COUNT,NULL,false},
+     {0}
+ };
+--- a/src/CreatureVariation.c
++++ b/src/CreatureVariation.c
+@@ -120,6 +120,7 @@
+     HashPhenotypeBytes(&hash,p->ornaments,fmin(p->ornamentCount,CREATURE_MAX_ORNAMENTS)*sizeof(p->ornaments[0]));
+     SurfaceRecipe surface=SurfaceRecipe_Compile(&p->surface);
+     HashPhenotypeBytes(&hash,&surface,sizeof(surface));
++    if(p->surface.longHairCount){uint64_t hair=LongHairGroups_Fingerprint(p->surface.longHair,p->surface.longHairCount);HashPhenotypeBytes(&hash,&hair,sizeof(hair));}
+     for(size_t i=0;i<p->surface.pigment.layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i)
+         HashPhenotypeBytes(&hash,&p->surface.pigment.layers[i].domain.anchorNode,sizeof(uint32_t));
+     HASH_FIELD(development);HASH_FIELD(dorsalColor);HASH_FIELD(ventralColor);HASH_FIELD(unpigmentedVentralColor);
+--- /dev/null
++++ b/src/LongHair.c
+@@ -0,0 +1,155 @@
++/** @file LongHair.c
++ * @brief Generación estable sobre estaciones anatómicas y transporte de guías. */
++#include "LongHair.h"
++#include "Fur.h"
++#include <math.h>
++#include <stdlib.h>
++#include <string.h>
++static float Clamp(float x,float lo,float hi,float fallback){return isfinite(x)?fminf(hi,fmaxf(lo,x)):fallback;}
++static Vector3 Unit(Vector3 p,Vector3 fallback){float l=Vec3_Length(p);return isfinite(l)&&l>1e-6f?Vec3_Scale(p,1/l):fallback;}
++static Vector3 Product(Vector3 a,Vector3 b){return Vec3_Create(a.x*b.x,a.y*b.y,a.z*b.z);}
++static uint32_t Hash(uint32_t x){x^=x>>16;x*=0x7feb352du;x^=x>>15;x*=0x846ca68bu;return x^(x>>16);}
++LongHairGroup LongHairGroup_Default(void){return (LongHairGroup){.id=1,.seed=17,.domain={.normal={0,1,0},.end=1,.patchRadius=.15f},
++    .guideCount=48,.childrenPerGuide=32,.direction={1,-.3f,0},.length=.7f,.lengthVariation=.2f,.width=.0025f,
++    .rootSpread=.025f,.clumping=.55f,.stiffness=.35f,.gravityInfluence=.65f,.density=1,
++    .rootColor={35,24,18,255},.tipColor={64,43,28,255}};}
++void LongHairGroup_Normalize(LongHairGroup* g){
++    if(!g)return;
++    if(g->domain.kind<LONG_HAIR_CURVE||g->domain.kind>LONG_HAIR_REGION)g->domain.kind=LONG_HAIR_CURVE;
++    if(g->domain.anchorCount>LONG_HAIR_MAX_ANCHORS)g->domain.anchorCount=LONG_HAIR_MAX_ANCHORS;
++    if(g->guideCount>256)g->guideCount=256;
++    if(g->childrenPerGuide>64)g->childrenPerGuide=64;
++    g->domain.normal=Unit(g->domain.normal,Vec3_Create(0,1,0));g->direction=Unit(g->direction,Vec3_Create(1,0,0));
++    g->domain.offset.x=Clamp(g->domain.offset.x,-4,4,0);g->domain.offset.y=Clamp(g->domain.offset.y,-4,4,0);g->domain.offset.z=Clamp(g->domain.offset.z,-4,4,0);
++    g->domain.start=Clamp(g->domain.start,0,1,0);g->domain.end=Clamp(g->domain.end,g->domain.start,1,1);
++    g->domain.angle=Clamp(g->domain.angle,-6.284f,6.284f,0);g->domain.angularSpread=Clamp(g->domain.angularSpread,0,6.284f,0);
++    g->domain.patchRadius=Clamp(g->domain.patchRadius,0,2,.15f);
++    g->length=Clamp(g->length,0,8,.7f);g->lengthVariation=Clamp(g->lengthVariation,0,.9f,.2f);
++    g->width=Clamp(g->width,.0001f,.03f,.0025f);g->rootSpread=Clamp(g->rootSpread,0,.3f,.025f);
++    g->clumping=Clamp(g->clumping,0,1,.55f);g->stiffness=Clamp(g->stiffness,0,1,.35f);
++    g->gravityInfluence=Clamp(g->gravityInfluence,0,2,.65f);g->density=Clamp(g->density,0,1,1);
++}
++void LongHairSet_Free(LongHairSet* s){if(s){free(s->guides);memset(s,0,sizeof(*s));}}
++static void Bytes(uint64_t* h,const void* p,size_t size){const unsigned char* b=p;for(size_t i=0;i<size;++i){*h^=b[i];*h*=1099511628211ULL;}}
++uint64_t LongHairGroups_Fingerprint(const LongHairGroup* groups,size_t count){
++    uint64_t h=14695981039346656037ULL;Bytes(&h,&count,sizeof(count));if(count>LONG_HAIR_MAX_GROUPS||(count&&!groups))return 0;
++    for(size_t i=0;i<count;++i){LongHairGroup g=groups[i];LongHairGroup_Normalize(&g);
++#define FIELD(x) Bytes(&h,&g.x,sizeof(g.x))
++        FIELD(id);FIELD(seed);FIELD(domain.kind);FIELD(domain.hostModuleId);FIELD(domain.region);FIELD(domain.anchorCount);
++        for(size_t j=0;j<g.domain.anchorCount;++j)FIELD(domain.anchors[j]);
++        FIELD(domain.offset);FIELD(domain.normal);FIELD(domain.angle);FIELD(domain.angularSpread);FIELD(domain.start);FIELD(domain.end);FIELD(domain.patchRadius);
++        FIELD(guideCount);FIELD(childrenPerGuide);FIELD(direction);FIELD(length);FIELD(lengthVariation);FIELD(width);FIELD(rootSpread);
++        FIELD(clumping);FIELD(stiffness);FIELD(gravityInfluence);FIELD(density);FIELD(rootColor);FIELD(tipColor);
++#undef FIELD
++    }return h;
++}
++static Vector3 Radii(const AnatomyNode* n){Vector3 r=n->envelopeRadii;if(r.x<=0)r.x=n->widthRadius;if(r.y<=0)r.y=n->heightRadius;if(r.z<=0)r.z=n->widthRadius;return r;}
++static Vector3 Normal(LongHairDistance d,const void* ctx,Vector3 p,float eps){
++    return Unit(Vec3_Create(d(ctx,Vec3_Add(p,Vec3_Create(eps,0,0)))-d(ctx,Vec3_Sub(p,Vec3_Create(eps,0,0))),
++        d(ctx,Vec3_Add(p,Vec3_Create(0,eps,0)))-d(ctx,Vec3_Sub(p,Vec3_Create(0,eps,0))),
++        d(ctx,Vec3_Add(p,Vec3_Create(0,0,eps)))-d(ctx,Vec3_Sub(p,Vec3_Create(0,0,eps)))),Vec3_Create(0,1,0));
++}
++static size_t Nodes(const LongHairDomain* d,const AnatomyGraph* graph,const AnatomyNode** nodes){
++    size_t count=0;
++    if(d->kind!=LONG_HAIR_REGION){
++        for(size_t i=0;i<d->anchorCount;++i){const AnatomyNode* n=AnatomyGraph_FindNode(graph,d->anchors[i]);
++            if(!n||n->moduleInstanceId!=d->hostModuleId||n->development<=.001f)return 0;
++            nodes[count++]=n;}
++    }else{
++        for(size_t i=0;i<graph->nodeCount;++i){const AnatomyNode* n=&graph->nodes[i];
++            if(n->moduleInstanceId==d->hostModuleId&&n->region==d->region&&n->role==ANATOMY_ROLE_AXIAL&&n->development>.001f){
++                if(count==LONG_HAIR_MAX_ANCHORS)return 0;
++                size_t j=count++;while(j&&nodes[j-1]->id>n->id){nodes[j]=nodes[j-1];--j;}nodes[j]=n;}}
++    }
++    return count;
++}
++bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context){
++    if(!dst||!graph||count>LONG_HAIR_MAX_GROUPS||(count&&!groups)||!isfinite(scale)||scale<=0)return false;
++    LongHairSet next={.groupCount=count,.scale=scale,.generation=dst->generation+1};size_t capacity=0;
++    for(size_t k=0;k<count;++k){next.groups[k]=groups[k];LongHairGroup_Normalize(&next.groups[k]);capacity+=next.groups[k].guideCount;
++        if(!groups[k].id)return false;
++        for(size_t j=0;j<k;++j)if(groups[k].id==groups[j].id)return false;}
++    next.guides=calloc(capacity?capacity:1,sizeof(*next.guides));if(!next.guides)return false;
++    for(size_t k=0;k<count;++k){const LongHairGroup* g=&next.groups[k];const LongHairDomain* d=&g->domain;
++        const AnatomyNode* nodes[LONG_HAIR_MAX_ANCHORS];size_t n=Nodes(d,graph,nodes);
++        if(!n||!g->childrenPerGuide||g->density<=0||g->length<=0)continue;
++        for(unsigned i=0;i<g->guideCount;++i){LongHairGuide v={.groupIndex=(unsigned)k,.visible=true};
++            uint32_t id=Hash(g->id^Hash(i+1)^g->seed);float u=Fur_Random(id),a=d->start+(d->end-d->start)*u;
++            float f=a*(n-1);size_t j=n==1?0:(size_t)f;if(j>=n-1)j=n>1?n-2:0;
++            float t=n==1?0:f-j;const AnatomyNode *na=nodes[j],*nb=nodes[n==1?0:j+1];
++            Vector3 center=Vec3_Lerp(na->center,nb->center,t),radii=Vec3_Lerp(Radii(na),Radii(nb),t);
++            Vector3 tangent=Unit(Vec3_Sub(nb->center,na->center),Vec3_Create(0,0,1));
++            Vector3 fallback=fabsf(tangent.y)>.9f?Vec3_Create(1,0,0):Vec3_Create(0,1,0);
++            fallback=Unit(Vec3_Sub(fallback,Vec3_Scale(tangent,Vec3_Dot(fallback,tangent))),Vec3_Create(1,0,0));
++            Vector3 normal=Unit(Vec3_Sub(d->normal,Vec3_Scale(tangent,Vec3_Dot(d->normal,tangent))),fallback);
++            Vector3 side=Unit(Vec3_Cross(tangent,normal),Vec3_Create(1,0,0));
++            float angle=d->angle+(Fur_Random(id^123u)-.5f)*d->angularSpread;
++            normal=Vec3_Add(Vec3_Scale(normal,cosf(angle)),Vec3_Scale(side,sinf(angle)));
++            Vector3 root=Vec3_Add(center,Product(radii,Vec3_Add(d->offset,normal)));
++            if(d->kind==LONG_HAIR_PATCH){float rr=sqrtf(u)*d->patchRadius,theta=6.2831853f*Fur_Random(id^321u);
++                root=Vec3_Add(root,Product(radii,Vec3_Add(Vec3_Scale(side,rr*cosf(theta)),Vec3_Scale(tangent,rr*sinf(theta)))));}
++            Vector3 candidate=root;
++            if(distance){
++                for(unsigned it=0;it<12;++it){float s=distance(context,root);if(!isfinite(s)){v.visible=false;break;}
++                    if(fabsf(s)<.0001f*scale)break;
++                    Vector3 grad=Normal(distance,context,root,.001f*scale);
++                    root=Vec3_Sub(root,Vec3_Scale(grad,Clamp(s,-.2f*scale,.2f*scale,0)));}
++                normal=Normal(distance,context,root,.001f*scale);
++                if(fabsf(distance(context,root))>.01f*scale)v.visible=false;
++                /* Una estación tapada no debe trasladar sus raíces a la piel de
++                 * otro volumen próximo (p. ej., soporte insertado en el tronco). */
++                float reach=fminf(radii.x,fminf(radii.y,radii.z));
++                if(Vec3_Distance(root,candidate)>reach)v.visible=false;
++            }
++            root=Vec3_Add(root,Vec3_Scale(normal,.002f*scale));
++            v.posedNormal=normal;
++            Vector3 direction=Unit(Vec3_Add(g->direction,Vec3_Scale(normal,.25f)),normal);
++            v.root=(LongHairRoot){.groupId=g->id,.moduleId=d->hostModuleId,.stableRootId=Hash(g->id^Hash(i+1)),
++                .fromId=na->id,.toId=nb->id,.restPosition=root,.restNormal=normal,.restDirection=direction,.rootParameter=a,.segmentParameter=t};
++            v.length=g->length*scale*(1+g->lengthVariation*(2*Fur_Random(id^981u)-1));
++            v.restPoints[0]=root;
++            for(unsigned p=1;p<LONG_HAIR_POINTS;++p){float h=(float)p/(LONG_HAIR_POINTS-1);
++                Vector3 flow=Vec3_Add(direction,Vec3_Create(0,-g->gravityInfluence*h*(1-g->stiffness)*2,0));
++                flow=Vec3_Add(flow,Vec3_Scale(side,.12f*sinf(h*3+Fur_Random(id^717u)*6)));
++                v.restPoints[p]=Vec3_Add(v.restPoints[p-1],Vec3_Scale(Unit(flow,direction),v.length/(LONG_HAIR_POINTS-1)));}
++            memcpy(v.points,v.restPoints,sizeof(v.points));v.rootValid=v.visible;next.guides[next.count++]=v;
++        }
++    }
++    LongHairSet_Free(dst);*dst=next;return true;
++}
++bool LongHairSet_Pose(LongHairSet* s,const Skeleton* skeleton,const SkeletonPose* pose){
++    if(!s||!skeleton||!pose||pose->jointCount!=skeleton->jointCount)return false;
++    SkeletonPose rest;if(!SkeletonPose_Init(&rest,skeleton))return false;bool valid=true;
++    for(size_t i=0;i<s->count;++i){LongHairGuide* g=&s->guides[i];int a=Skeleton_FindJoint(skeleton,g->root.fromId),b=Skeleton_FindJoint(skeleton,g->root.toId);
++        if(a<0||b<0){g->visible=false;valid=false;continue;}
++        g->visible=g->rootValid;
++        Quaternion qa=Quat_Multiply(pose->joints[a].worldRotation,Quat_Inverse(rest.joints[a].worldRotation));
++        Quaternion qb=Quat_Multiply(pose->joints[b].worldRotation,Quat_Inverse(rest.joints[b].worldRotation));
++        g->posedNormal=Unit(Vec3_Lerp(Quat_RotateVector(qa,g->root.restNormal),Quat_RotateVector(qb,g->root.restNormal),g->root.segmentParameter),g->root.restNormal);
++        for(unsigned p=0;p<LONG_HAIR_POINTS;++p){Vector3 pa=Vec3_Add(pose->joints[a].worldPosition,Quat_RotateVector(qa,Vec3_Sub(g->restPoints[p],rest.joints[a].worldPosition)));
++            Vector3 pb=Vec3_Add(pose->joints[b].worldPosition,Quat_RotateVector(qb,Vec3_Sub(g->restPoints[p],rest.joints[b].worldPosition)));
++            g->points[p]=Vec3_Lerp(pa,pb,g->root.segmentParameter);}
++    }return valid;
++}
++Vector3 LongHairGuide_Evaluate(const LongHairGuide* g,float t){
++    if(!g)return Vec3_Create(0,0,0);
++    float x=Clamp(t,0,1,0)*(LONG_HAIR_POINTS-1);int i=(int)x;if(i>=LONG_HAIR_POINTS-1)i=LONG_HAIR_POINTS-2;float u=x-i;
++    Vector3 a=g->points[i?i-1:0],b=g->points[i],c=g->points[i+1],d=g->points[i+2<LONG_HAIR_POINTS?i+2:LONG_HAIR_POINTS-1];
++    return Vec3_Scale(Vec3_Add(Vec3_Add(Vec3_Scale(b,2),Vec3_Scale(Vec3_Sub(c,a),u)),
++        Vec3_Add(Vec3_Scale(Vec3_Add(Vec3_Sub(Vec3_Scale(a,2),Vec3_Scale(b,5)),Vec3_Sub(Vec3_Scale(c,4),d)),u*u),
++        Vec3_Scale(Vec3_Add(Vec3_Sub(Vec3_Scale(b,3),a),Vec3_Sub(d,Vec3_Scale(c,3))),u*u*u))),.5f);
++}
++size_t LongHairSet_Pack(const LongHairSet* s,float (*rows)[4],size_t capacity){
++    if(!s||!rows||capacity<s->count*LONG_HAIR_GPU_ROWS)return 0;
++    for(size_t i=0;i<s->count;++i){const LongHairGuide* g=&s->guides[i];const LongHairGroup* p=&s->groups[g->groupIndex];float (*r)[4]=rows+i*LONG_HAIR_GPU_ROWS;memset(r,0,LONG_HAIR_GPU_ROWS*sizeof(*r));
++        for(unsigned j=0;j<LONG_HAIR_POINTS;++j){r[j][0]=g->points[j].x;r[j][1]=g->points[j].y;r[j][2]=g->points[j].z;}
++        Color colors[]={p->rootColor,p->tipColor};for(unsigned c=0;c<2;++c){r[10+c][0]=colors[c].r/255.f;r[10+c][1]=colors[c].g/255.f;r[10+c][2]=colors[c].b/255.f;r[10+c][3]=colors[c].a/255.f;}
++        Vector3 tangent=Unit(Vec3_Sub(g->points[1],g->points[0]),Vec3_Create(0,0,1));
++        Vector3 fallback=Unit(Vec3_Cross(g->posedNormal,fabsf(g->posedNormal.y)>.9f?Vec3_Create(1,0,0):Vec3_Create(0,1,0)),Vec3_Create(0,0,1));
++        Vector3 side=Unit(Vec3_Cross(g->posedNormal,tangent),fallback);
++        r[12][0]=side.x;r[12][1]=side.y;r[12][2]=side.z;r[12][3]=p->rootSpread*s->scale;
++        r[13][0]=g->posedNormal.x;r[13][1]=g->posedNormal.y;r[13][2]=g->posedNormal.z;
++        r[13][3]=p->width*s->scale;r[14][0]=p->lengthVariation;r[14][1]=p->clumping;r[14][2]=(float)p->childrenPerGuide;r[14][3]=g->visible?p->density:0;
++        r[15][0]=(float)(Hash(g->root.stableRootId^p->seed)&65535u);
++    }return s->count*LONG_HAIR_GPU_ROWS;
++}
+--- a/src/MonsterSurfaceShader.generated.h
++++ b/src/MonsterSurfaceShader.generated.h
+@@ -1,4 +1,71 @@
+ /* Generado por tools/generate_surface_shader.py; editar shaders/. */
++static const char* const longHairVertexSource[] = {
++"#version 330 compatibility\n",
++"// S\u00f3lo diez puntos por gu\u00eda; hijos y subdivisiones se eval\u00faan en GPU.\n",
++"uniform samplerBuffer guideData;\n",
++"uniform int children, segments, guideDebug;\n",
++"uniform float childFraction;\n",
++"out vec4 hairColor;\n",
++"out float ribbonSide, hairParameter;\n",
++"out vec3 strandPosition;\n",
++"uint Hash(uint x){x^=x>>16u;x*=0x7feb352du;x^=x>>15u;x*=0x846ca68bu;return x^(x>>16u);}\n",
++"float Random(uint x){return float(Hash(x)&0xffffffu)/16777216.0;}\n",
++"vec4 Row(int g,int r){return texelFetch(guideData,g*16+r);}\n",
++"vec3 Curve(int g,float t){\n",
++"    float x=clamp(t,0.0,1.0)*9.0;int i=min(int(x),8);float u=x-float(i);\n",
++"    vec3 a=Row(g,max(i-1,0)).xyz,b=Row(g,i).xyz,c=Row(g,i+1).xyz,d=Row(g,min(i+2,9)).xyz;\n",
++"    return .5*((2.0*b)+(-a+c)*u+(2.0*a-5.0*b+4.0*c-d)*u*u+(-a+3.0*b-3.0*c+d)*u*u*u);\n",
++"}\n",
++"vec3 Child(int g,float t,vec2 scatter,float phase){\n",
++"    vec4 groom=Row(g,14),frame=Row(g,12);\n",
++"    vec3 tangent=normalize(Curve(g,min(t+.01,1.0))-Curve(g,max(t-.01,0.0))+vec3(1e-8));\n",
++"    // Las ra\u00edces hijas ocupan el plano cut\u00e1neo, no un disco que atraviese la piel.\n",
++"    vec3 side=normalize(frame.xyz),normal=normalize(Row(g,13).xyz);\n",
++"    vec3 rootAcross=normalize(cross(normal,side)+vec3(1e-8));\n",
++"    vec3 crossSide=normalize(mix(rootAcross,normalize(cross(tangent,side)+vec3(1e-8)),t)+vec3(1e-8));\n",
++"    float spread=frame.w*(1.0-groom.y*t)*(.75+.25*sin(t*5.0+phase));\n",
++"    return Curve(g,t)+(side*scatter.x+crossSide*scatter.y)*spread;\n",
++"}\n",
++"void main(){\n",
++"    int g=gl_InstanceID/children,child=gl_InstanceID%children;\n",
++"    vec4 groom=Row(g,14);float t=float(gl_VertexID/2)/float(segments);\n",
++"    uint seed=uint(Row(g,15).x)^uint(child)*1717u;\n",
++"    strandPosition=Row(g,0).xyz;\n",
++"    if(float(child)>=ceil(groom.z*childFraction)||(guideDebug==0&&Random(seed+333u)>groom.w)||groom.w<=0.0||(guideDebug>0&&child>0)){\n",
++"        gl_Position=vec4(2,2,2,1);hairColor=vec4(0);ribbonSide=0;hairParameter=0;return;}\n",
++"    float angle=Random(seed+13u)*6.2831853,r=sqrt(Random(seed+51u));\n",
++"    vec2 scatter=vec2(cos(angle),sin(angle))*r;\n",
++"    float lengthFactor=1.0-groom.x*Random(seed+123u)*.55;\n",
++"    if(guideDebug>0){scatter=vec2(0);lengthFactor=1.0;}\n",
++"    float u=t*lengthFactor,phase=Random(seed+71u)*6.2831853;\n",
++"    vec3 pos=Child(g,u,scatter,phase),next=Child(g,min(u+.005,1.0),scatter,phase),prev=Child(g,max(u-.005,0.0),scatter,phase);\n",
++"    strandPosition=pos;\n",
++"    vec3 viewPos=(gl_ModelViewMatrix*vec4(pos,1)).xyz;\n",
++"    vec3 tangent=normalize(mat3(gl_ModelViewMatrix)*(next-prev)+vec3(1e-8));\n",
++"    vec3 side=normalize(cross(tangent,normalize(-viewPos))+vec3(1e-8));\n",
++"    ribbonSide=(gl_VertexID%2==0)?-1.0:1.0;\n",
++"    float width=Row(g,13).w*pow(max(1.0-t,.01),.65);\n",
++"    if(guideDebug>0)width=max(width*2.0,.002);\n",
++"    viewPos+=side*ribbonSide*width;\n",
++"    gl_Position=gl_ProjectionMatrix*vec4(viewPos,1);\n",
++"    hairColor=mix(Row(g,10),Row(g,11),t);\n",
++"    hairColor.rgb*=.82+.18*Random(seed+193u);\n",
++"    if(guideDebug>0)hairColor=vec4(mix(vec3(.05,.9,.25),vec3(1,.2,.05),t),1);\n",
++"    hairParameter=t;\n",
++"}\n",
++};
++static const char* const longHairFragmentSource[] = {
++"#version 330 compatibility\n",
++"// Recorte de cobertura: sin ordenaci\u00f3n de miles de hijos ni caras desaparecidas.\n",
++"in vec4 hairColor;\n",
++"in float ribbonSide,hairParameter;\n",
++"void main(){\n",
++"    float alpha=hairColor.a*(1.0-smoothstep(.55,1.0,abs(ribbonSide)));\n",
++"    if(alpha<.35)discard;\n",
++"    float lighting=.8+.2*(1.0-ribbonSide*ribbonSide);\n",
++"    gl_FragColor=vec4(hairColor.rgb*lighting,1);\n",
++"}\n",
++};
+ static const char* const pigmentDomainComputeSource[] = {
+ "#version 430\n",
+ "layout(local_size_x=64) in;\n",
+--- a/src/MonsterVisual.c
++++ b/src/MonsterVisual.c
+@@ -2,6 +2,7 @@
+ #include "PrimitiveMesh.h"
+ #include "SurfaceMapper.h"
+ #include "MathUtils.h"
++#include "MonsterAnimation.h"
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
+@@ -10,6 +11,22 @@
+     const unsigned char* bytes = (const unsigned char*)data;
+     for (size_t i = 0; i < size; ++i) { hash ^= bytes[i]; hash *= 0x100000001b3ULL; }
+     return hash;
++}
++bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
++    if(!hair||!m)return false;
++    size_t count=m->hasSurface?m->surface.longHairCount:0;
++    if(!count){if(hair->count||hair->guides)LongHairSet_Free(hair);return true;}
++    if(!m->hasAnatomyGraph||count>LONG_HAIR_MAX_GROUPS)return false;
++    uint64_t h=LongHairGroups_Fingerprint(m->surface.longHair,count),a=AnatomyGraph_Fingerprint(&m->anatomyGraph);
++    h=HashBytes(&a,sizeof(a),h);h=HashBytes(&m->phenotype.axial.totalScale,sizeof(float),h);
++    if(hair->fingerprint!=h){
++        MonsterSDF sdf=MonsterSDF_Create();
++        if(!MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()))return false;
++        bool ok=LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,MonsterSDF_EvaluateDistanceWrapper,&sdf);
++        MonsterSDF_Free(&sdf);if(!ok)return false;hair->fingerprint=h;
++    }
++    if(m->animation)return LongHairSet_Pose(hair,&m->animation->rig.skeleton,&m->animation->pose);
++    return true;
+ }
+ static uint64_t HashMouth(const Monster* monster) {
+     uint64_t h = 0xcbf29ce484222325ULL;
+@@ -342,7 +359,7 @@
+     MonsterSDF_Free(&snapshot);return true;
+ }
+ MonsterVisual MonsterVisual_Create(SDFMesherConfig cfg) { MonsterVisual v; memset(&v, 0, sizeof(v)); v.sdf=MonsterSDF_Create(); v.stagingSdf=MonsterSDF_Create(); v.mesher=SDFMesher_Create(cfg); SDFMesherConfig hc=SDFMesher_DefaultConfig();hc.voxelSize=.018f;hc.maxCells=1800000;hc.maxResolution=320;v.headMesher=SDFMesher_Create(hc); v.mesh=Mesh_Create(); v.stagingMesh=Mesh_Create();v.headMesh=Mesh_Create();v.stagingHeadMesh=Mesh_Create(); v.isDirty=true; return v; }
+-void MonsterVisual_Free(MonsterVisual* v) { if (!v) return; MonsterSDF_Free(&v->sdf); MonsterSDF_Free(&v->stagingSdf); SDFMesher_Free(&v->mesher);SDFMesher_Free(&v->headMesher); Mesh_Free(&v->mesh); Mesh_Free(&v->stagingMesh);Mesh_Free(&v->headMesh);Mesh_Free(&v->stagingHeadMesh); FreeEyes(v->eyes,v->eyeCount); for(size_t i=0;i<v->mouthCount;++i)MonsterVisualMouth_Free(&v->mouths[i]); free(v->mouths); memset(v,0,sizeof(*v)); }
++void MonsterVisual_Free(MonsterVisual* v) { if (!v) return; LongHairSet_Free(&v->longHair); MonsterSDF_Free(&v->sdf); MonsterSDF_Free(&v->stagingSdf); SDFMesher_Free(&v->mesher);SDFMesher_Free(&v->headMesher); Mesh_Free(&v->mesh); Mesh_Free(&v->stagingMesh);Mesh_Free(&v->headMesh);Mesh_Free(&v->stagingHeadMesh); FreeEyes(v->eyes,v->eyeCount); for(size_t i=0;i<v->mouthCount;++i)MonsterVisualMouth_Free(&v->mouths[i]); free(v->mouths); memset(v,0,sizeof(*v)); }
+ void MonsterVisual_MarkDirty(MonsterVisual* v) { if (v) v->isDirty=true; }
+ uint64_t MonsterVisual_GetGeneration(const MonsterVisual* v) { return v ? v->rebuildGeneration : 0; }
+ uint64_t MonsterVisual_GetMouthVisualGeneration(const MonsterVisual* v) { return v ? v->mouthVisualGeneration : 0; }
+@@ -385,11 +402,11 @@
+     v->mesh.surfaceRecipe.data[11][2]=unit;
+     v->headMesh.surfaceRecipe.data[11][2]=unit;
+     MonsterVisual_SetSurface(v,monster->hasSurface?&monster->surface:NULL);
+-    v->updateTimer=0; v->rebuildGeneration++; return true;
+-}
+-bool MonsterVisual_Update(MonsterVisual* v,const Monster* m,float dt,float interval,MonsterSDFConfig cfg){if(!v||!m)return false;MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);v->updateTimer+=dt;uint64_t body=HashBody(v,m,cfg);if(v->isDirty||v->mesh.vertexCount==0||body!=v->geometryFingerprint){if(interval>0&&v->mesh.vertexCount>0&&v->updateTimer<interval)return false;return MonsterVisual_RebuildNow(v,m,cfg);}for(size_t i=0;i<v->eyeCount&&i<m->eyeCount;++i){v->eyes[i].appearance=m->eyes[i];v->eyes[i].appearanceFingerprint=EyeTexture_Fingerprint(&m->eyes[i]);}if(HashMouth(m)!=v->mouthVisualFingerprint&&!RebuildMouthsOnly(v,m))return false;for(size_t i=0;i<v->mouthCount;++i)MonsterVisual_UpdateMouthArticulation(&v->mouths[i],&m->mouths[i],m);return false;}
++    v->updateTimer=0; v->rebuildGeneration++; return MonsterVisual_UpdateLongHair(&v->longHair,monster);
++}
++bool MonsterVisual_Update(MonsterVisual* v,const Monster* m,float dt,float interval,MonsterSDFConfig cfg){if(!v||!m)return false;if(!MonsterVisual_UpdateLongHair(&v->longHair,m))return false;MonsterVisual_SetSurface(v,m->hasSurface?&m->surface:NULL);v->updateTimer+=dt;uint64_t body=HashBody(v,m,cfg);if(v->isDirty||v->mesh.vertexCount==0||body!=v->geometryFingerprint){if(interval>0&&v->mesh.vertexCount>0&&v->updateTimer<interval)return false;return MonsterVisual_RebuildNow(v,m,cfg);}for(size_t i=0;i<v->eyeCount&&i<m->eyeCount;++i){v->eyes[i].appearance=m->eyes[i];v->eyes[i].appearanceFingerprint=EyeTexture_Fingerprint(&m->eyes[i]);}if(HashMouth(m)!=v->mouthVisualFingerprint&&!RebuildMouthsOnly(v,m))return false;for(size_t i=0;i<v->mouthCount;++i)MonsterVisual_UpdateMouthArticulation(&v->mouths[i],&m->mouths[i],m);return false;}
+ const Mesh* MonsterVisual_GetMesh(const MonsterVisual* v){return v?&v->mesh:NULL;}const Mesh* MonsterVisual_GetHeadMesh(const MonsterVisual* v){return v?&v->headMesh:NULL;} size_t MonsterVisual_GetEyeCount(const MonsterVisual* v){return v?v->eyeCount:0;} const Mesh* MonsterVisual_GetEyeSclera(const MonsterVisual* v,size_t i){return v&&i<v->eyeCount?&v->eyes[i].globe:NULL;} const Mesh* MonsterVisual_GetEyeIris(const MonsterVisual* v,size_t i){(void)v;(void)i;return NULL;} const Mesh* MonsterVisual_GetEyePupil(const MonsterVisual* v,size_t i){(void)v;(void)i;return NULL;} size_t MonsterVisual_GetMouthCount(const MonsterVisual* v){return v?v->mouthCount:0;} const Mesh* MonsterVisual_GetJaw(const MonsterVisual* v,size_t i){return v&&i<v->mouthCount?&v->mouths[i].jaw:NULL;} const Mesh* MonsterVisual_GetHinge(const MonsterVisual* v,size_t i){return v&&i<v->mouthCount?&v->mouths[i].hinge:NULL;}
+-bool MonsterVisual_Render(const MonsterVisual* v,Renderer3D* r){if(!v||!r||!r->renderMesh)return false;r->renderMesh(r,&v->mesh);r->renderMesh(r,&v->headMesh);for(size_t i=0;i<v->mouthCount;++i){r->renderMesh(r,&v->mouths[i].jaw);r->renderMesh(r,&v->mouths[i].hinge);}for(size_t i=0;i<v->eyeCount;++i){if(r->renderEye)r->renderEye(r,&v->eyes[i]);else r->renderMesh(r,&v->eyes[i].globe);}return true;}
++bool MonsterVisual_Render(const MonsterVisual* v,Renderer3D* r){if(!v||!r||!r->renderMesh)return false;r->renderMesh(r,&v->mesh);r->renderMesh(r,&v->headMesh);for(size_t i=0;i<v->mouthCount;++i){r->renderMesh(r,&v->mouths[i].jaw);r->renderMesh(r,&v->mouths[i].hinge);}for(size_t i=0;i<v->eyeCount;++i){if(r->renderEye)r->renderEye(r,&v->eyes[i]);else r->renderMesh(r,&v->eyes[i].globe);}if(r->renderLongHair)r->renderLongHair(r,&v->longHair);return true;}
+ 
+ void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surface) {
+     if(!visual)return;
+--- a/src/MonsterVisualAsync.c
++++ b/src/MonsterVisualAsync.c
+@@ -1438,6 +1438,7 @@
+     pthread_mutex_destroy(&asyncMgr->lock);
+     pthread_cond_destroy(&asyncMgr->cond);
+ 
++    LongHairSet_Free(&asyncMgr->longHair);
+     free(asyncMgr);
+ }
+ 
+@@ -1495,6 +1496,7 @@
+ bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
+     const Monster* monster,const Monster* appearance,float deltaTime) {
+     if (!asyncMgr || !monster || !appearance) return false;
++    if(!MonsterVisual_UpdateLongHair(&asyncMgr->longHair,appearance))return false;
+     double presentationStart=GetTimeMs();
+ 
+     /* 1. Detectar movimiento y actualizar temporizador de tier de calidad */
+@@ -2099,6 +2101,7 @@
+             else renderer->renderMesh(renderer,&asyncMgr->displayEyes[i].globe);
+         }
+     }
++    if(asyncMgr->displayMesh.vertexCount&&renderer->renderLongHair)renderer->renderLongHair(renderer,&asyncMgr->longHair);
+     return true;
+ }
+ 
+--- a/src/OpenGLRenderer.c
++++ b/src/OpenGLRenderer.c
+@@ -112,6 +112,12 @@
+     GLuint sdfProgram,sdfCachedProgram,sdfMouthCache,sdfBuffer,sdfTexture;
+     bool sweepSorted;
+     GLuint surfaceProgram,guardProgram;
++    struct {
++        GLuint program,buffer,texture,vao,queries[2];
++        float (*rows)[4];size_t capacity;
++        bool pending;int quality;
++        LongHairRenderStats stats;
++    } longHair;
+     SurfaceRecipe meshSurfaceOverride;
+     bool meshSurfaceOverrideSet;
+     struct {
+@@ -581,6 +587,12 @@
+         if(data->handoffBuffer)glDeleteBuffers(1,&data->handoffBuffer);
+         if(data->handoffTexture)glDeleteTextures(1,&data->handoffTexture);
+         if(data->guardProgram)glDeleteProgram(data->guardProgram);
++        if(data->longHair.program)glDeleteProgram(data->longHair.program);
++        if(data->longHair.buffer)glDeleteBuffers(1,&data->longHair.buffer);
++        if(data->longHair.texture)glDeleteTextures(1,&data->longHair.texture);
++        if(data->longHair.vao)glDeleteVertexArrays(1,&data->longHair.vao);
++        if(data->longHair.queries[0])glDeleteQueries(2,data->longHair.queries);
++        free(data->longHair.rows);
+         if(data->surfaceProgram)glDeleteProgram(data->surfaceProgram);
+         if(data->skin.program)glDeleteProgram(data->skin.program);
+         if(data->skin.paletteBuffer)glDeleteBuffers(1,&data->skin.paletteBuffer);
+@@ -618,6 +630,7 @@
+     renderer->endFrame = NULL;
+     renderer->renderMesh = NULL;
+     renderer->renderEye = NULL;
++    renderer->renderLongHair = NULL;
+ }
+ 
+ /* ============================================================
+@@ -684,6 +697,7 @@
+     }
+ }
+ 
++static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair);
+ Renderer3D OpenGLRenderer_Create(ICamera* camera) {
+     (void)camera;
+     Renderer3D renderer;
+@@ -694,6 +708,8 @@
+     renderer.endFrame = OpenGL_EndFrame;
+     renderer.renderMesh = OpenGL_RenderMeshCallback;
+     renderer.renderEye = OpenGL_RenderEyeCallback;
++    renderer.renderLongHair = OpenGL_RenderLongHair;
++    if(data)data->longHair.quality=3;
+ 
+     glEnable(GL_DEPTH_TEST);
+     glDepthFunc(GL_LEQUAL);
+@@ -2908,6 +2924,83 @@
+     d->shellCountLocation=glGetUniformLocation(p,"shellCount");
+     return true;
+ }
++void OpenGLRenderer_SetLongHairQuality(Renderer3D* r,int quality){
++    OpenGLRendererData* d=r?r->user_data:NULL;if(d)d->longHair.quality=quality<0?3:quality>4?4:quality;
++}
++LongHairRenderStats OpenGLRenderer_GetLongHairStats(const Renderer3D* r){
++    const OpenGLRendererData* d=r?r->user_data:NULL;return d?d->longHair.stats:(LongHairRenderStats){0};
++}
++static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair){
++    OpenGLRendererData* d=renderer?renderer->user_data:NULL;
++    if(!d||!hair||!hair->count||d->longHair.quality==0)return;
++    if(!d->longHair.program){
++        GLuint vs=CompileShader(GL_VERTEX_SHADER,longHairVertexSource,sizeof(longHairVertexSource)/sizeof(*longHairVertexSource));
++        GLuint fs=CompileShader(GL_FRAGMENT_SHADER,longHairFragmentSource,sizeof(longHairFragmentSource)/sizeof(*longHairFragmentSource));
++        if(!vs||!fs){if(vs)glDeleteShader(vs);if(fs)glDeleteShader(fs);return;}
++        GLuint p=glCreateProgram();glAttachShader(p,vs);glAttachShader(p,fs);
++        const char* varying="strandPosition";glTransformFeedbackVaryings(p,1,&varying,GL_INTERLEAVED_ATTRIBS);
++        glLinkProgram(p);glDeleteShader(vs);glDeleteShader(fs);
++        GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);if(!ok){char log[4096];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[Pelo largo] %s\n",log);glDeleteProgram(p);return;}
++        d->longHair.program=p;glGenBuffers(1,&d->longHair.buffer);glGenTextures(1,&d->longHair.texture);glGenVertexArrays(1,&d->longHair.vao);glGenQueries(2,d->longHair.queries);
++    }
++    if(d->longHair.pending){GLint ready=0;glGetQueryObjectiv(d->longHair.queries[1],GL_QUERY_RESULT_AVAILABLE,&ready);
++        if(ready){GLuint64 a=0,b=0;glGetQueryObjectui64v(d->longHair.queries[0],GL_QUERY_RESULT,&a);glGetQueryObjectui64v(d->longHair.queries[1],GL_QUERY_RESULT,&b);
++            d->longHair.stats.gpuMs=(float)((double)(b-a)*1e-6);d->longHair.stats.timingValid=true;d->longHair.pending=false;}}
++    size_t rows=hair->count*LONG_HAIR_GPU_ROWS;
++    if(rows>d->longHair.capacity){void* memory=realloc(d->longHair.rows,rows*sizeof(*d->longHair.rows));if(!memory)return;d->longHair.rows=memory;d->longHair.capacity=rows;}
++    if(!LongHairSet_Pack(hair,d->longHair.rows,d->longHair.capacity))return;
++    GLint oldProgram=0,oldVao=0,active=0,texture=0,buffer=0;GLboolean depth=GL_TRUE;
++    glGetIntegerv(GL_CURRENT_PROGRAM,&oldProgram);glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&oldVao);glGetIntegerv(GL_ACTIVE_TEXTURE,&active);
++    glActiveTexture(GL_TEXTURE0);glGetIntegerv(GL_TEXTURE_BINDING_BUFFER,&texture);glGetIntegerv(GL_TEXTURE_BUFFER_BINDING,&buffer);glGetBooleanv(GL_DEPTH_WRITEMASK,&depth);
++    GLboolean cull=glIsEnabled(GL_CULL_FACE),blend=glIsEnabled(GL_BLEND);
++    glBindBuffer(GL_TEXTURE_BUFFER,d->longHair.buffer);glBufferData(GL_TEXTURE_BUFFER,rows*sizeof(*d->longHair.rows),d->longHair.rows,GL_STREAM_DRAW);
++    glBindTexture(GL_TEXTURE_BUFFER,d->longHair.texture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->longHair.buffer);
++    unsigned children=1;for(size_t i=0;i<hair->groupCount;++i)if(hair->groups[i].childrenPerGuide>children)children=hair->groups[i].childrenPerGuide;
++    int quality=d->longHair.quality,segments=quality==1?8:quality==2?12:24;
++    float fraction=quality==1?.25f:quality==2?.5f:1;
++    GLuint p=d->longHair.program;glUseProgram(p);glUniform1i(glGetUniformLocation(p,"guideData"),0);
++    glUniform1i(glGetUniformLocation(p,"children"),(GLint)children);glUniform1i(glGetUniformLocation(p,"segments"),segments);
++    glUniform1i(glGetUniformLocation(p,"guideDebug"),quality==4);glUniform1f(glGetUniformLocation(p,"childFraction"),fraction);
++    glBindVertexArray(d->longHair.vao);glDisable(GL_CULL_FACE);glDisable(GL_BLEND);glDepthMask(GL_TRUE);
++    bool timing=!d->longHair.pending;if(timing)glQueryCounter(d->longHair.queries[0],GL_TIMESTAMP);
++    glDrawArraysInstanced(GL_TRIANGLE_STRIP,0,2*(segments+1),(GLsizei)(hair->count*children));
++    if(timing){glQueryCounter(d->longHair.queries[1],GL_TIMESTAMP);d->longHair.pending=true;}
++    d->longHair.stats.ready=true;d->longHair.stats.guides=hair->count;d->longHair.stats.segments=(unsigned)segments;
++    d->longHair.stats.bufferBytes=rows*sizeof(*d->longHair.rows);d->longHair.stats.strands=0;
++    for(size_t i=0;i<hair->count;++i)if(hair->guides[i].visible)d->longHair.stats.strands+=quality==4?1:(size_t)ceilf(hair->groups[hair->guides[i].groupIndex].childrenPerGuide*fraction);
++    glDepthMask(depth);if(cull)glEnable(GL_CULL_FACE);if(blend)glEnable(GL_BLEND);
++    glBindVertexArray((GLuint)oldVao);glUseProgram((GLuint)oldProgram);glBindTexture(GL_TEXTURE_BUFFER,(GLuint)texture);glBindBuffer(GL_TEXTURE_BUFFER,(GLuint)buffer);glActiveTexture((GLenum)active);
++}
++bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError){
++    OpenGLRendererData* d=renderer?renderer->user_data:NULL;
++    if(maxError)*maxError=INFINITY;
++    if(!d||!hair||!hair->count)return false;
++    int quality=d->longHair.quality;d->longHair.quality=4;OpenGL_RenderLongHair(renderer,hair);d->longHair.quality=quality;
++    if(!d->longHair.program)return false;
++    const unsigned segments=24,vertices=2*(segments+1);size_t count=hair->count*vertices;
++    float (*points)[3]=calloc(count,sizeof(*points));if(!points)return false;
++    GLint previous=0,vao=0,active=0,texture=0,binding=0,indexBinding=0;
++    glGetIntegerv(GL_CURRENT_PROGRAM,&previous);glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&vao);glGetIntegerv(GL_ACTIVE_TEXTURE,&active);
++    glActiveTexture(GL_TEXTURE0);glGetIntegerv(GL_TEXTURE_BINDING_BUFFER,&texture);glGetIntegerv(GL_TRANSFORM_FEEDBACK_BUFFER_BINDING,&binding);
++    glGetIntegeri_v(GL_TRANSFORM_FEEDBACK_BUFFER_BINDING,0,&indexBinding);
++    GLuint output=0;glGenBuffers(1,&output);glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER,output);glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER,count*sizeof(*points),NULL,GL_STREAM_READ);
++    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,output);glBindTexture(GL_TEXTURE_BUFFER,d->longHair.texture);
++    GLuint p=d->longHair.program;glUseProgram(p);glBindVertexArray(d->longHair.vao);
++    glUniform1i(glGetUniformLocation(p,"children"),1);glUniform1i(glGetUniformLocation(p,"segments"),segments);
++    glUniform1i(glGetUniformLocation(p,"guideDebug"),1);glUniform1f(glGetUniformLocation(p,"childFraction"),1);
++    GLboolean discard=glIsEnabled(GL_RASTERIZER_DISCARD);glEnable(GL_RASTERIZER_DISCARD);
++    glBeginTransformFeedback(GL_POINTS);glDrawArraysInstanced(GL_POINTS,0,vertices,(GLsizei)hair->count);glEndTransformFeedback();
++    if(!discard)glDisable(GL_RASTERIZER_DISCARD);
++    glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER,0,count*sizeof(*points),points);
++    bool valid=true;float error=0;
++    for(size_t i=0;i<hair->count;++i)for(unsigned j=0;j<vertices;++j){Vector3 expected=hair->guides[i].visible?LongHairGuide_Evaluate(&hair->guides[i],(j/2)/(float)segments):hair->guides[i].points[0];
++        float* got=points[i*vertices+j];if(!isfinite(got[0])||!isfinite(got[1])||!isfinite(got[2]))valid=false;
++        error=fmaxf(error,Vec3_Distance(expected,Vec3_Create(got[0],got[1],got[2])));}
++    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,(GLuint)indexBinding);glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER,(GLuint)binding);glDeleteBuffers(1,&output);
++    glBindTexture(GL_TEXTURE_BUFFER,(GLuint)texture);glActiveTexture((GLenum)active);glBindVertexArray((GLuint)vao);glUseProgram((GLuint)previous);free(points);
++    if(maxError)*maxError=valid?error:INFINITY;
++    return valid&&OpenGLRenderer_CheckErrors();
++}
+ static bool InitGuardProgram(OpenGLRendererData* d) {
+     if(d->guardProgram)return true;
+     GLuint vs=CompileShader(GL_VERTEX_SHADER,furGuardVertexSource,sizeof(furGuardVertexSource)/sizeof(*furGuardVertexSource));
+--- a/src/Surface.c
++++ b/src/Surface.c
+@@ -66,6 +66,8 @@
+ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
+     if(!p)return;
+     if(p->tuftCount>SURFACE_MAX_FUR_TUFTS)p->tuftCount=SURFACE_MAX_FUR_TUFTS;
++    if(p->longHairCount>LONG_HAIR_MAX_GROUPS)p->longHairCount=LONG_HAIR_MAX_GROUPS;
++    for(size_t i=0;i<p->longHairCount;++i)LongHairGroup_Normalize(&p->longHair[i]);
+     for(size_t i=0;i<p->tuftCount;++i) {
+         FurTuftPhenotype* f=&p->tufts[i];
+         if(f->region<0||f->region>=SURFACE_REGION_COUNT)f->region=SURFACE_REGION_UNKNOWN;
+@@ -183,6 +185,25 @@
+         if(t>=.5f){p.tuftCount=q.tuftCount;memcpy(p.tufts,q.tufts,sizeof(p.tufts));}
+         for(size_t i=0;i<p.tuftCount;++i)p.tufts[i].density*=t<.5f?1-2*t:2*t-1;
+     }
++    bool sameHair=p.longHairCount==q.longHairCount;
++    for(size_t i=0;i<p.longHairCount&&sameHair;++i){const LongHairDomain *a=&p.longHair[i].domain,*b=&q.longHair[i].domain;
++        sameHair=p.longHair[i].id==q.longHair[i].id&&p.longHair[i].seed==q.longHair[i].seed&&a->kind==b->kind&&
++            a->hostModuleId==b->hostModuleId&&a->region==b->region&&a->anchorCount==b->anchorCount&&
++            p.longHair[i].guideCount==q.longHair[i].guideCount&&p.longHair[i].childrenPerGuide==q.longHair[i].childrenPerGuide&&
++            Vec3_Distance(a->normal,b->normal)<.00001f&&Vec3_Dot(p.longHair[i].direction,q.longHair[i].direction)>-.95f;
++        for(size_t j=0;j<a->anchorCount&&sameHair;++j)sameHair=a->anchors[j]==b->anchors[j];}
++    if(sameHair)for(size_t i=0;i<p.longHairCount;++i){
++        MIX(longHair[i].length);MIX(longHair[i].lengthVariation);MIX(longHair[i].width);MIX(longHair[i].rootSpread);
++        MIX(longHair[i].clumping);MIX(longHair[i].stiffness);MIX(longHair[i].gravityInfluence);MIX(longHair[i].density);
++        MIX(longHair[i].direction.x);MIX(longHair[i].direction.y);MIX(longHair[i].direction.z);
++        MIX(longHair[i].domain.offset.x);MIX(longHair[i].domain.offset.y);MIX(longHair[i].domain.offset.z);
++        MIX(longHair[i].domain.angle);MIX(longHair[i].domain.angularSpread);MIX(longHair[i].domain.start);MIX(longHair[i].domain.end);MIX(longHair[i].domain.patchRadius);
++        p.longHair[i].rootColor=Color_Lerp(p.longHair[i].rootColor,q.longHair[i].rootColor,t);
++        p.longHair[i].tipColor=Color_Lerp(p.longHair[i].tipColor,q.longHair[i].tipColor,t);
++    }else{
++        if(t>=.5f){p.longHairCount=q.longHairCount;memcpy(p.longHair,q.longHair,sizeof(p.longHair));}
++        for(size_t i=0;i<p.longHairCount;++i)p.longHair[i].density*=t<.5f?1-2*t:2*t-1;
++    }
+ #undef MIX
+     /* Los patrones discretos no se interpolan como números: se mezclan sus
+      * contribuciones. Las semillas de cada capa permanecen inmutables. */
+--- a/tests/main_test.c
++++ b/tests/main_test.c
+@@ -36,6 +36,7 @@
+ 
+ void run_surface_tests(void);
+ void run_fur_tests(void);
++void run_long_hair_tests(void);
+ void run_creature_recipe_tests(void);
+ void run_creature_variation_tests(void);
+ 
+@@ -123,6 +124,7 @@
+     run_local_detail_tests();
+     run_surface_tests();
+     run_fur_tests();
++    run_long_hair_tests();
+ 
+     printf("\n--- Optimizaciones de Rendimiento y Regresión ---\n");
+     run_perf_optimizations_tests();
+--- /dev/null
++++ b/tests/test_long_hair.c
+@@ -0,0 +1,85 @@
++/** @file test_long_hair.c
++ * @brief Identidad, marcos de reposo, curvas y compatibilidad de pelo largo. */
++#include "LongHair.h"
++#include "Surface.h"
++#include "CreatureRecipeIO.h"
++#include "Creature.h"
++#include "MonsterVisual.h"
++#include "MonsterAnimation.h"
++#include "MonsterAger.h"
++#include "MonsterVisualAsync.h"
++#include "test_utils.h"
++#include <math.h>
++#include <stdlib.h>
++#include <string.h>
++static AnatomyGraph Graph(void){AnatomyGraph g={0};for(unsigned i=0;i<3;++i){AnatomyNode n={.id=Anatomy_MakeId(1,i+1),.moduleInstanceId=1,.localNodeId=i+1,
++    .center={0,0,(float)i},.widthRadius=.4f,.heightRadius=.3f,.envelopeRadii={.4f,.3f,.5f},.development=1,.region=ANATOMY_REGION_NECK};
++    TEST_ASSERT(AnatomyGraph_AddNode(&g,n),"estación de pelo");}return g;}
++void run_long_hair_tests(void){
++    AnatomyGraph graph=Graph();LongHairGroup g=LongHairGroup_Default();g.domain.hostModuleId=1;g.domain.anchorCount=3;
++    for(unsigned i=0;i<3;++i)g.domain.anchors[i]=Anatomy_MakeId(1,i+1);
++    LongHairSet a={0},b={0};TEST_ASSERT(LongHairSet_Build(&a,&g,1,&graph,1,NULL,NULL),"guías construidas");
++    TEST_ASSERT(LongHairSet_Build(&b,&g,1,&graph,1,NULL,NULL),"regeneración sin malla");TEST_ASSERT(a.count==g.guideCount,"cantidad acotada");
++    for(size_t i=0;i<a.count;++i){TEST_ASSERT(a.guides[i].root.stableRootId==b.guides[i].root.stableRootId,"identidad reproducible");
++        TEST_ASSERT(a.guides[i].root.moduleId==1,"propiedad anatómica");
++        TEST_ASSERT(Vec3_Distance(a.guides[i].points[0],a.guides[i].root.restPosition)<1e-6f,"raíz anclada");
++        for(unsigned j=1;j<LONG_HAIR_POINTS;++j)TEST_ASSERT(fabsf(Vec3_Distance(a.guides[i].points[j],a.guides[i].points[j-1])-a.guides[i].length/(LONG_HAIR_POINTS-1))<1e-5f,"segmentos de longitud fija");
++        for(unsigned j=0;j<100;++j){Vector3 p=LongHairGuide_Evaluate(&a.guides[i],j/99.f);TEST_ASSERT(isfinite(p.x)&&isfinite(p.y)&&isfinite(p.z),"curva finita");}
++    }
++    /* Cambiar orden o triangulación no participa en la identidad ni el muestreo. */
++    AnatomyNode swap=graph.nodes[0];graph.nodes[0]=graph.nodes[2];graph.nodes[2]=swap;
++    TEST_ASSERT(LongHairSet_Build(&b,&g,1,&graph,1,NULL,NULL),"orden independiente");
++    for(size_t i=0;i<a.count;++i)TEST_ASSERT(Vec3_Distance(a.guides[i].points[0],b.guides[i].points[0])<1e-6f,"raíz estable tras reordenar");
++    LongHairGroup semantic=g;semantic.domain.kind=LONG_HAIR_REGION;semantic.domain.region=ANATOMY_REGION_NECK;
++    TEST_ASSERT(LongHairSet_Build(&b,&semantic,1,&graph,1,NULL,NULL),"dominio semántico");
++    for(size_t i=0;i<a.count;++i)TEST_ASSERT(Vec3_Distance(a.guides[i].points[0],b.guides[i].points[0])<1e-6f,"selección semántica ordenada por identidad");
++    LongHairGroup patch=g;patch.domain.kind=LONG_HAIR_PATCH;patch.domain.anchorCount=1;
++    TEST_ASSERT(LongHairSet_Build(&b,&patch,1,&graph,1,NULL,NULL)&&b.count==patch.guideCount,"parche anatómico sin índices de triángulos");
++    Skeleton skeleton={.jointCount=3};for(unsigned i=0;i<3;++i)skeleton.joints[i]=(SkeletonJoint){.id=Anatomy_MakeId(1,i+1),.anatomyId=Anatomy_MakeId(1,i+1),.parentIndex=(int)i-1,.restPosition={0,0,i?1:0},.restRotation={0,0,0,1}};
++    SkeletonPose pose;TEST_ASSERT(SkeletonPose_Init(&pose,&skeleton),"pose de raíces");pose.joints[0].localPosition.x=.4f;
++    TEST_ASSERT(SkeletonPose_UpdateWorldTransforms(&pose,&skeleton)&&LongHairSet_Pose(&a,&skeleton,&pose),"transporte por pose");
++    for(size_t i=0;i<a.count;++i)TEST_ASSERT(fabsf(a.guides[i].points[0].x-a.guides[i].restPoints[0].x-.4f)<1e-5f,"sin raíz suspendida");
++    float (*packed)[4]=calloc(a.count*LONG_HAIR_GPU_ROWS,sizeof(*packed));TEST_ASSERT(packed,"buffer de prueba");
++    TEST_ASSERT(LongHairSet_Pack(&a,packed,a.count*LONG_HAIR_GPU_ROWS)==a.count*LONG_HAIR_GPU_ROWS,"transporte acotado");
++    for(size_t i=0;i<a.count*LONG_HAIR_GPU_ROWS;++i)for(unsigned j=0;j<4;++j)TEST_ASSERT(isfinite(packed[i][j]),"GPU sin NaN");
++    free(packed);
++    g.domain.anchors[1]=99999;TEST_ASSERT(LongHairSet_Build(&b,&g,1,&graph,1,NULL,NULL)&&b.count==0,"anfitrión retirado sin raíz huérfana");
++    LongHairSet_Free(&a);LongHairSet_Free(&b);
++    SurfacePhenotype x=SurfacePhenotype_Default(),y=x;x.longHairCount=1;x.longHair[0]=LongHairGroup_Default();
++    for(unsigned i=0;i<=20;++i){SurfacePhenotype p=SurfacePhenotype_Interpolate(&x,&y,i/20.f);TEST_ASSERT(p.longHairCount<=1,"retirada segura en morph");}
++    y=x;y.longHair[0].guideCount=24;SurfacePhenotype middle=SurfacePhenotype_Interpolate(&x,&y,.5f);
++    TEST_ASSERT(middle.longHairCount==1&&middle.longHair[0].density==0,"cambio discreto sin salto opaco");
++    CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));Monster* m=malloc(sizeof(*m));TEST_ASSERT(doc&&m,"memoria de integración");char error[256];
++    TEST_ASSERT(CreatureRecipeIO_LoadFile(doc,"recipes/caballo.creature.json",error,sizeof(error)),"receta v1 anterior");
++    CreaturePhenotype phenotype=doc->recipe.adult;phenotype.surface.longHairCount=1;g=LongHairGroup_Default();g.domain.hostModuleId=1;
++    g.domain.anchorCount=2;g.domain.anchors[0]=Anatomy_MakeId(1,1);g.domain.anchors[1]=Anatomy_MakeId(1,2);phenotype.surface.longHair[0]=g;
++    doc->recipe.adult=phenotype;FILE* file=tmpfile();TEST_ASSERT(file&&CreatureRecipeIO_WriteJSON(file,&doc->recipe),"JSON con guías");
++    long bytes=ftell(file);TEST_ASSERT(bytes>0,"JSON escrito");rewind(file);char* json=calloc((size_t)bytes+1,1);TEST_ASSERT(json,"JSON de prueba");
++    TEST_ASSERT(fread(json,1,(size_t)bytes,file)==(size_t)bytes,"lectura completa");fclose(file);
++    CreatureRecipeDocument* restored=calloc(1,sizeof(*restored));TEST_ASSERT(restored,"documento de prueba");
++    TEST_ASSERT(CreatureRecipeIO_ReadJSON(restored,json,error,sizeof(error)),"roundtrip v1 con dominio anatómico");
++    TEST_ASSERT(LongHairGroups_Fingerprint(restored->recipe.adult.surface.longHair,1)==LongHairGroups_Fingerprint(phenotype.surface.longHair,1),"controles sin pérdida");
++    free(restored);free(json);
++    *m=Monster_Create();TEST_ASSERT(Creature_BuildMonster(m,&doc->recipe,&phenotype),"receta a anatomía con pelo");
++    TEST_ASSERT(MonsterVisual_UpdateLongHair(&a,m)&&a.count==g.guideCount,"pipeline anatómico real");
++    for(size_t i=0;i<a.count;++i)TEST_ASSERT(a.guides[i].visible,"raíces proyectadas sobre cuello real");
++    uint64_t generation=a.generation;TEST_ASSERT(MonsterVisual_UpdateLongHair(&a,m)&&a.generation==generation,"pose sin regenerar raíces");
++    for(unsigned frame=0;frame<20;++frame){MonsterAnimation_Update(m,.016f);TEST_ASSERT(MonsterVisual_UpdateLongHair(&a,m),"animación sin remallado");}
++    Monster* young=malloc(sizeof(*young));MonsterAger* ager=malloc(sizeof(*ager));TEST_ASSERT(young&&ager,"crecimiento de guías");
++    CreaturePhenotype juvenile=doc->recipe.juvenile;juvenile.surface.longHairCount=1;juvenile.surface.longHair[0]=g;
++    *young=Monster_Create();TEST_ASSERT(Creature_BuildMonster(young,&doc->recipe,&juvenile),"etapa joven con guías");
++    *ager=MonsterAger_Create(young,m,0);MonsterAger_SetGeometrySnapshotEnabled(ager,false);
++    uint32_t stable=a.guides[0].root.stableRootId;
++    for(unsigned cycle=0;cycle<3;++cycle)for(unsigned step=0;step<=10;++step){float t=(cycle&1)?1-step/10.f:step/10.f;
++        MonsterAger_SetPerc(ager,t);const Monster* current=MonsterAger_GetResultConst(ager);
++        TEST_ASSERT(MonsterVisual_UpdateLongHair(&a,current)&&a.count==g.guideCount,"morph y crecimiento repetidos");
++        TEST_ASSERT(a.guides[0].root.stableRootId==stable,"identidad después de regeneración anatómica");
++        for(size_t i=0;i<a.count;++i)TEST_ASSERT(isfinite(a.guides[i].points[9].x)&&a.guides[i].visible,"crecimiento finito y anclado");}
++    MonsterVisualAsyncConfig config=MonsterVisualAsync_DefaultConfig();config.workerDelayMs=80;config.interactiveMesherConfig.voxelSize=.2f;
++    MonsterVisualAsync* async=MonsterVisualAsync_Create(config);TEST_ASSERT(async,"runtime asíncrono");
++    MonsterVisualAsync_Update(async,m,.016f);m->surface.longHair[0].rootColor.r=133;
++    MonsterVisualAsync_Update(async,m,.016f);TEST_ASSERT(async->longHair.groups[0].rootColor.r==133,"apariencia actual, no snapshot worker");
++    MonsterVisualAsync_Free(async);
++    MonsterAger_Free(ager);free(ager);Monster_Free(young);free(young);
++    LongHairSet_Free(&a);Monster_Free(m);free(m);free(doc);
++}
+--- /dev/null
++++ b/tools/capture_long_hair.c
+@@ -0,0 +1,83 @@
++/** @file capture_long_hair.c
++ * @brief Evidencia de guías e hijos reales, pose, remallado y costes separados. */
++#include "CreatureRecipeIO.h"
++#include "Creature.h"
++#include "MonsterVisual.h"
++#include "AnimatedVisual.h"
++#include "MonsterAnimation.h"
++#include "MonsterAger.h"
++#include "OpenGLRenderer.h"
++#include <stdlib.h>
++#include <math.h>
++#include <time.h>
++static double Now(void){struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return t.tv_sec*1000.+t.tv_nsec*1e-6;}
++static void Frame(Renderer3D* r,ICamera* c,MonsterVisual* v,float height){r->beginFrame(r);OpenGLRenderer_SetupCameraOrtho(c,height,900,900);MonsterVisual_Render(v,r);}
++int main(int argc,char** argv){
++    if(argc<3||argc>4)return 2;
++    char error[256];int stage=argc==4?atoi(argv[3]):3;
++    CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));Monster* m=malloc(sizeof(*m));MonsterVisual* v=malloc(sizeof(*v));
++    if(!doc||!m||!v||stage<0||stage>3||!CreatureRecipeIO_LoadFile(doc,argv[1],error,sizeof(error))){fprintf(stderr,"receta: %s\n",error);return 1;}
++    *m=Monster_Create();if(!Creature_BuildMonster(m,&doc->recipe,CreatureRecipe_GetStage(&doc->recipe,stage)))return 1;
++    Monster_SetHeadOpenFactor(m,0);float scale=m->phenotype.axial.totalScale;
++    SDFMesherConfig config=SDFMesher_DefaultConfig();config.voxelSize=.045f*scale;config.maxCells=3000000;config.maxResolution=512;
++    *v=MonsterVisual_Create(config);if(!MonsterVisual_RebuildNow(v,m,MonsterSDF_DefaultConfig())||!v->longHair.count)return 1;
++    double begin=Now();LongHairSet temp={0};
++    if(!LongHairSet_Build(&temp,m->surface.longHair,m->surface.longHairCount,&m->anatomyGraph,scale,MonsterSDF_EvaluateDistanceWrapper,&v->sdf))return 1;
++    double rootMs=Now()-begin;LongHairSet_Free(&temp);
++    size_t visible=0;float maxRootError=0;
++    for(size_t i=0;i<v->longHair.count;++i){LongHairGuide* g=&v->longHair.guides[i];visible+=g->visible;if(g->visible)maxRootError=fmaxf(maxRootError,fabsf(MonsterSDF_EvaluateDistance(&v->sdf,g->root.restPosition)));}
++    printf("roots %zu visible %zu root_build_ms %.6f max_root_error %.6g runtime_bytes %zu gpu_bytes %zu\n",v->longHair.count,visible,rootMs,maxRootError,
++        sizeof(LongHairSet)+v->longHair.count*sizeof(LongHairGuide),v->longHair.count*LONG_HAIR_GPU_ROWS*4*sizeof(float));
++    char rootsPath[1024];snprintf(rootsPath,sizeof(rootsPath),"%s/roots.json",argv[2]);FILE* roots=fopen(rootsPath,"w");if(!roots)return 1;
++    fprintf(roots,"[\n");for(size_t i=0;i<v->longHair.count;++i){const LongHairRoot* r=&v->longHair.guides[i].root;
++        fprintf(roots,"%s{\"id\":%u,\"group\":%u,\"module\":%u,\"from\":%u,\"to\":%u,\"parameter\":%.9g,\"visible\":%s}",i?",\n":"",r->stableRootId,r->groupId,r->moduleId,r->fromId,r->toId,r->rootParameter,v->longHair.guides[i].visible?"true":"false");}fprintf(roots,"\n]\n");fclose(roots);
++    OpenGLDemoWindow* window=OpenGLDemoWindow_Create("Guías anatómicas",900,900);if(!window)return 1;
++    ICamera camera={.fov=40,.aspectRatio=1,.nearPlane=.01f,.farPlane=100,.up={0,1,0}};Renderer3D renderer=OpenGLRenderer_Create(&camera);
++    if(!OpenGLRenderer_SurfaceReady(&renderer))return 1;
++    AABB3D hairBounds=AABB_Empty();
++    for(size_t i=0;i<v->longHair.count;++i)if(v->longHair.guides[i].visible)
++        for(unsigned j=0;j<LONG_HAIR_POINTS;++j)AABB_ExpandPoint(&hairBounds,v->longHair.guides[i].points[j]);
++    if(!visible)hairBounds=v->sdf.bounds;
++    Vector3 target=Vec3_Scale(Vec3_Add(hairBounds.start,hairBounds.end),.5f);
++    float height=fmaxf(3.5f*scale,Vec3_Length(AABB_Size(hairBounds))*1.25f);
++    const Vector3 directions[]={{1,0,0},{0,0,1},{.8f,.15f,-.7f}};const char* names[]={"side","front","rear-three-quarter"};bool ok=true;
++    for(unsigned view=0;view<3;++view){camera.target=target;camera.position=Vec3_Add(target,Vec3_Scale(directions[view],20));
++        for(int quality=0;quality<=4;++quality){OpenGLRenderer_SetLongHairQuality(&renderer,quality);Frame(&renderer,&camera,v,height);
++            char path[1024];snprintf(path,sizeof(path),"%s/%s-q%d.ppm",argv[2],names[view],quality);ok=OpenGLRenderer_SavePPM(path,900,900)&&ok;renderer.endFrame(&renderer);}}
++    camera.target=target;camera.position=Vec3_Add(target,Vec3_Create(20,2,-12));
++    for(int quality=0;quality<=3;quality+=3){OpenGLRenderer_SetLongHairQuality(&renderer,quality);double elapsed=0,gpu=0;unsigned timed=0;
++        for(unsigned frame=0;frame<45;++frame){double start=Now();Frame(&renderer,&camera,v,height);OpenGLRenderer_Finish();renderer.endFrame(&renderer);double ms=Now()-start;
++            LongHairRenderStats stats=OpenGLRenderer_GetLongHairStats(&renderer);
++            if(frame>=15){elapsed+=ms;if(quality&&stats.timingValid){gpu+=stats.gpuMs;++timed;}}}
++        printf("draw quality %d frame_ms %.6f fps %.3f hair_gpu_ms %.6f gpu_samples %u\n",quality,elapsed/30,30000/elapsed,timed?gpu/timed:0,timed);}
++    OpenGLRenderer_SetLongHairQuality(&renderer,3);
++    LongHairRenderStats stats=OpenGLRenderer_GetLongHairStats(&renderer);
++    printf("render guides %zu strands %zu segments %u ready %d\n",stats.guides,stats.strands,stats.segments,stats.ready);
++    uint64_t generation=v->rebuildGeneration,hairGeneration=v->longHair.generation;
++    AnimatedVisual animation={0};bool animated=AnimatedVisual_Bind(&animation,v,m);
++    double poseMs=0,animationMs=0;
++    for(unsigned frame=0;frame<300;++frame){begin=Now();if(m->animation)MonsterAnimation_Update(m,.016f);animationMs+=Now()-begin;
++        begin=Now();ok=MonsterVisual_UpdateLongHair(&v->longHair,m)&&ok;poseMs+=Now()-begin;}
++    printf("guide_pose_ms %.6f animation_ms %.6f mesh_generation_unchanged %d hair_generation_unchanged %d\n",poseMs/300,animationMs/300,generation==v->rebuildGeneration,hairGeneration==v->longHair.generation);
++    Vector3 beforePose=v->longHair.guides[0].points[0];
++    if(animated){m->animation->animator.desiredVelocity=Vec3_Create(0,0,.6f*scale);
++        for(unsigned frame=0;frame<3;++frame){m->animation->animator.lookDirection=Vec3_Normalize(Vec3_Create(.35f*sinf(frame*.7f),-.08f,1));
++        for(unsigned j=0;j<12;++j)MonsterAnimation_Update(m,.016f);
++        ok=AnimatedVisual_Deform(&animation,v,m)&&ok;Frame(&renderer,&camera,v,height);char path[1024];snprintf(path,sizeof(path),"%s/pose-%u.ppm",argv[2],frame);ok=OpenGLRenderer_SavePPM(path,900,900)&&ok;renderer.endFrame(&renderer);}}
++    float rootMotion=Vec3_Distance(beforePose,v->longHair.guides[0].points[0]);
++    printf("animation_bound %d root_motion %.9g\n",animated,rootMotion);
++    ok=ok&&(!animated||rootMotion>.0001f*scale);
++    float curveError=0;bool parity=OpenGLRenderer_ValidateLongHair(&renderer,&v->longHair,&curveError);
++    printf("guide_gpu_parity %d max_error %.9g\n",parity,curveError);ok=ok&&parity&&curveError<.00002f*scale;
++    if(stage==3){Monster* young=malloc(sizeof(*young));MonsterAger* ager=malloc(sizeof(*ager));if(!young||!ager)return 1;
++        *young=Monster_Create();if(!Creature_BuildMonster(young,&doc->recipe,&doc->recipe.juvenile))return 1;
++        *ager=MonsterAger_Create(young,m,0);MonsterAger_SetGeometrySnapshotEnabled(ager,false);LongHairSet morphHair={0};double morphMs=0,hairMs=0;
++        for(unsigned frame=0;frame<=20;++frame){begin=Now();MonsterAger_SetPerc(ager,frame/20.f);morphMs+=Now()-begin;
++            begin=Now();ok=MonsterVisual_UpdateLongHair(&morphHair,MonsterAger_GetResultConst(ager))&&ok;hairMs+=Now()-begin;}
++        printf("morph_cpu_ms %.6f morph_hair_update_ms %.6f steps 21\n",morphMs/21,hairMs/21);
++        printf("sizes SurfacePhenotype %zu CreaturePhenotype %zu CreatureRecipe %zu LongHairGroup %zu LongHairGuide %zu\n",sizeof(SurfacePhenotype),sizeof(CreaturePhenotype),sizeof(CreatureRecipe),sizeof(LongHairGroup),sizeof(LongHairGuide));
++        LongHairSet_Free(&morphHair);MonsterAger_Free(ager);free(ager);Monster_Free(young);free(young);}
++    ok=ok&&visible>0&&stats.ready&&OpenGLRenderer_CheckErrors();
++    AnimatedVisual_Free(&animation);OpenGLRenderer_Destroy(&renderer);OpenGLDemoWindow_Free(window);MonsterVisual_Free(v);Monster_Free(m);free(v);free(m);free(doc);
++    return ok?0:1;
++}
+--- /dev/null
++++ b/tools/generate_long_hair_examples.py
+@@ -0,0 +1,54 @@
++#!/usr/bin/env python3
++"""Ejemplos optativos del hito 3; no sustituyen las recetas de producción."""
++import argparse
++import copy
++import json
++import subprocess
++from pathlib import Path
++
++ROOT=Path(__file__).resolve().parents[1]
++
++
++def group():
++    return dict(id=1,seed=17,domain=dict(kind=0,hostModuleId=1,region=2,anchors=[65537,65538],anchorCount=2,
++        offset=dict(x=0,y=0,z=0),normal=dict(x=0,y=1,z=0),angle=0,angularSpread=.08,start=.05,end=.95,patchRadius=.15),
++        guideCount=96,childrenPerGuide=48,direction=dict(x=1,y=-.35,z=0),length=.85,lengthVariation=.25,width=.0025,
++        rootSpread=.035,clumping=.55,stiffness=.35,gravityInfluence=.65,density=1,
++        rootColor=dict(r=29,g=19,b=15,a=255),tipColor=dict(r=66,g=43,b=29,a=255))
++
++
++def main():
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--output',type=Path,default=ROOT/'docs/validation/long-hair-foundation/recipes')
++    args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
++    for species in ('caballo','asno'):
++        source=json.loads((ROOT/f'recipes/{species}.creature.json').read_text())
++        for label in ('curve','patch','tail'):
++            doc=copy.deepcopy(source);g=group()
++            if label=='patch':
++                g['domain'].update(kind=1,hostModuleId=2,anchors=[131073],anchorCount=1,
++                    normal=dict(x=0,y=-1,z=0),patchRadius=.42,offset=dict(x=0,y=0,z=-.1))
++                g.update(direction=dict(x=.1,y=-1,z=0),length=.55,guideCount=64)
++            if label=='tail':
++                count=source['recipe']['adult']['tails'][0]['segmentCount']
++                # La prueba usa el tramo expuesto; el proximal está dentro de la grupa actual.
++                anchors=[(20<<16)+i for i in range(max(1,count-3),count+1)]
++                g['domain'].update(hostModuleId=20,anchors=anchors,anchorCount=len(anchors),angularSpread=6.28)
++                g.update(direction=dict(x=0,y=-1,z=-.25),length=1.35,guideCount=96,rootSpread=.03)
++            for stage in ('seed','larva','juvenile','adult'):
++                if stage in doc['recipe']:
++                    doc['recipe'][stage]['surface'].update(longHair=[copy.deepcopy(g)],longHairCount=1)
++            path=args.output/f'{species}-{label}.creature.json'
++            path.write_text(json.dumps(doc,indent=2)+'\n')
++            print(path.relative_to(ROOT) if path.is_relative_to(ROOT) else path)
++    doc=json.loads(subprocess.check_output([str(ROOT/'build/creature_editor_bridge'),'export','2'],cwd=ROOT))
++    g=group();g['domain'].update(kind=1,hostModuleId=2,anchors=[131073],anchorCount=1,
++        normal=dict(x=0,y=-1,z=0),patchRadius=.35,offset=dict(x=0,y=0,z=.3))
++    g.update(length=.38,guideCount=64,direction=dict(x=.15,y=-1,z=0))
++    for stage in ('seed','larva','juvenile','adult'):
++        doc['recipe'][stage]['surface'].update(longHair=[copy.deepcopy(g)],longHairCount=1)
++    (args.output/'perro-patch.creature.json').write_text(json.dumps(doc,indent=2)+'\n')
++
++
++if __name__=='__main__':
++    main()
+--- a/tools/generate_recipe_schema.py
++++ b/tools/generate_recipe_schema.py
+@@ -5,7 +5,7 @@
+ from pathlib import Path
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+-HEADERS = ('Vector', 'Color', 'PigmentPattern', 'Surface', 'Head', 'Eye',
++HEADERS = ('Vector', 'Color', 'Anatomy', 'LongHair', 'PigmentPattern', 'Surface', 'Head', 'Eye',
+            'RigBuilder', 'CreaturePhenotype', 'Attachment', 'CreatureRecipe')
+ structs, enums = {}, {}
+ for header in HEADERS:
+@@ -26,7 +26,7 @@
+             structs[name[1]] = body
+ 
+ COUNTS = {'modules': 'moduleCount', 'limbs': 'limbCount', 'tails': 'tailCount',
+-          'ornaments': 'ornamentCount', 'layers': 'layerCount', 'tufts': 'tuftCount'}
++          'ornaments': 'ornamentCount', 'layers': 'layerCount', 'tufts': 'tuftCount', 'longHair': 'longHairCount', 'anchors': 'anchorCount'}
+ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
+            'size_t': ('F_SIZE', 'SIZE_MAX'), 'uint32_t': ('F_U32', 'UINT32_MAX'),
+            'uint16_t': ('F_U16', 'UINT16_MAX'), 'uint8_t': ('F_U8', 'UINT8_MAX'),
+@@ -34,7 +34,7 @@
+            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
+            'const char*': ('F_STRING', '191')}
+ OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'anatomyProfile'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask', 'domain'}}
+-OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount'}
++OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount'}
+ output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
+ 
+ 
+--- a/tools/generate_surface_shader.py
++++ b/tools/generate_surface_shader.py
+@@ -21,7 +21,7 @@
+     text = path.read_text()
+     return re.sub(r'^#include "([^"]+)"$', lambda m: expand(path.parent / m[1]), text, flags=re.M)
+ output = ['/* Generado por tools/generate_surface_shader.py; editar shaders/. */']
+-for name, source in [('pigmentDomainComputeSource','pigment_domain.comp'), ('meshSkinComputeSource','mesh_skin.comp'), ('surfaceVertexSource', 'monster_mesh.vert'), ('surfaceFragmentSource', 'monster_surface.frag'), ('furGuardVertexSource','fur_guard.vert'), ('furGuardFragmentSource','fur_guard.frag')]:
++for name, source in [('longHairVertexSource','long_hair.vert'), ('longHairFragmentSource','long_hair.frag'), ('pigmentDomainComputeSource','pigment_domain.comp'), ('meshSkinComputeSource','mesh_skin.comp'), ('surfaceVertexSource', 'monster_mesh.vert'), ('surfaceFragmentSource', 'monster_surface.frag'), ('furGuardVertexSource','fur_guard.vert'), ('furGuardFragmentSource','fur_guard.frag')]:
+     output.append('static const char* const ' + name + '[] = {')
+     output += [json.dumps(line + '\n') + ',' for line in expand(root / 'shaders' / source).splitlines()]
+     output.append('};')
+--- /dev/null
++++ b/tools/validate_long_hair.py
+@@ -0,0 +1,76 @@
++#!/usr/bin/env python3
++"""Capturas C/OpenGL del hito 3; compara apagado, guías y tres calidades."""
++import argparse
++import hashlib
++import json
++import re
++from pathlib import Path
++import subprocess
++from PIL import Image,ImageDraw,ImageChops
++
++ROOT=Path(__file__).resolve().parents[1]
++
++
++def report(out):
++    cases=[]
++    for log in sorted(out.glob('*-stage-*/capture.log')):
++        text=log.read_text();row=dict(case=log.parent.name)
++        patterns={
++            'roots':r'roots (\d+) visible (\d+) root_build_ms ([\d.]+) max_root_error ([\deE.+-]+) runtime_bytes (\d+) gpu_bytes (\d+)',
++            'off':r'draw quality 0 frame_ms ([\d.]+) fps ([\d.]+)',
++            'on':r'draw quality 3 frame_ms ([\d.]+) fps ([\d.]+) hair_gpu_ms ([\d.]+)',
++            'pose':r'guide_pose_ms ([\d.]+) animation_ms ([\d.]+)',
++            'render':r'render guides (\d+) strands (\d+) segments (\d+)',
++            'parity':r'guide_gpu_parity (\d+) max_error ([\deE.+-]+)',
++            'morph':r'morph_cpu_ms ([\d.]+) morph_hair_update_ms ([\d.]+)',
++        }
++        for key,pattern in patterns.items():
++            match=re.search(pattern,text)
++            if match:row[key]=[float(v) for v in match.groups()]
++        cases.append(row)
++    (out/'performance.json').write_text(json.dumps(dict(
++        units='ms, bytes, número de elementos; columnas descritas en README.md',cases=cases),indent=2)+'\n')
++
++
++def main():
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--output',type=Path,default=ROOT/'docs/validation/long-hair-foundation')
++    parser.add_argument('--all-stages',action='store_true')
++    args=parser.parse_args();out=args.output.resolve();out.mkdir(parents=True,exist_ok=True)
++    subprocess.run(['python3',str(ROOT/'tools/generate_long_hair_examples.py'),'--output',str(out/'recipes')],check=True,cwd=ROOT)
++    records=[]
++    cases=['caballo-curve','caballo-patch','caballo-tail','asno-curve','asno-tail','perro-patch']
++    for name in cases:
++        for stage in (range(4) if args.all_stages and name in ('caballo-curve','asno-tail') else (3,)):
++            target=out/f'{name}-stage-{stage}';target.mkdir(exist_ok=True)
++            command=[str(ROOT/'build/capture_long_hair'),str(out/'recipes'/f'{name}.creature.json'),str(target),str(stage)]
++            with (target/'capture.log').open('w') as log:subprocess.run(command,cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,check=True)
++            for ppm in target.glob('*.ppm'):
++                with Image.open(ppm) as image:image.save(ppm.with_suffix('.png'))
++                ppm.unlink()
++            animated=(target/'pose-0.png').exists() and (target/'pose-2.png').exists()
++            if animated:
++                with Image.open(target/'pose-0.png') as first,Image.open(target/'pose-2.png') as last:
++                    assert ImageChops.difference(first,last).getbbox(),name+': poses idénticas'
++            assert animated or name=='perro-patch',name+': falta demostración animada'
++            canvas=Image.new('RGB',(1800,940),'white');draw=ImageDraw.Draw(canvas)
++            for i,quality in enumerate((0,3)):
++                with Image.open(target/f'side-q{quality}.png') as image:canvas.paste(image,(900*i,40))
++                draw.text((900*i+20,12),f'{name} / etapa {stage} / '+('sin pelo largo' if not quality else 'guias + hijos GPU'),fill='black')
++            canvas.save(out/f'{name}-stage-{stage}-comparison.png')
++            records.append(dict(case=name,stage=stage,command=command,log=str(target/'capture.log'),
++                animated=animated,binary_sha256=hashlib.sha256((ROOT/'build/capture_long_hair').read_bytes()).hexdigest()))
++    (out/'captures.json').write_text(json.dumps(records,indent=2)+'\n')
++    if args.all_stages:
++        stable=[]
++        for name in ('caballo-curve','asno-tail'):
++            snapshots=[json.loads((out/f'{name}-stage-{stage}'/'roots.json').read_text()) for stage in range(4)]
++            identities=lambda rows:[(r['id'],r['group'],r['module'],r['from'],r['to'],r['parameter']) for r in rows]
++            assert all(identities(rows)==identities(snapshots[0]) for rows in snapshots[1:]),name+': raíces inestables'
++            stable.append(dict(case=name,stages=4,roots=len(snapshots[0]),stable=True))
++        (out/'root-stability.json').write_text(json.dumps(stable,indent=2)+'\n')
++    report(out)
++
++
++if __name__=='__main__':
++    main()

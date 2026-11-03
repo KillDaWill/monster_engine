@@ -507,6 +507,7 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
     for(size_t v=0;v<mesh->vertexCount;++v) {
         const AnatomyDeformerBinding* binding=&d->bindings[v];
         for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
+            if(binding->weight[k]<=0)continue;
             const BodyConnection* c=&rest->connections[binding->connIndex[k]];
             int a=Skeleton_FindJoint(s,c->fromId),b=Skeleton_FindJoint(s,c->toId);
             if(a<0 || b<0) { free(skin); return false; }
@@ -517,15 +518,19 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
             bool reverse=pa==b||(pa>=0&&!s->joints[pa].anatomyId&&s->joints[pa].parentIndex==b);
             bool forward=pb==a||(pb>=0&&!s->joints[pb].anatomyId&&s->joints[pb].parentIndex==a);
             if(reverse) { int tmp=a;a=b;b=tmp;t=1-t; }
-            else if(!forward) { free(skin); return false; }
+            /* Las estaciones de piel y envolventes pueden cerrar ciclos sobre
+             * el árbol IK. No son huesos adicionales: interpolar los marcos
+             * de ambos extremos permite vincular también estas aristas. */
+            bool surfaceLink=!reverse&&!forward;
             /* Un pivote interpuesto también transporta el segmento: omitirlo
              * dejaba vértices cervicales anclados al tórax durante la flexión. */
             int auxiliary=s->joints[b].parentIndex;
             if(auxiliary>=0&&!s->joints[auxiliary].anatomyId&&s->joints[auxiliary].parentIndex==a)a=auxiliary;
             /* Transición suave alrededor del extremo distal; el centro de
              * la articulación coincide en ambos transformados. Incluye twist. */
-            t=fmaxf(0,(t-.5f)*2); t=t*t*(3-2*t);
-            if(s->joints[b].constraint.type==JOINT_FIXED)t=0;
+            if(!surfaceLink)t=fmaxf(0,(t-.5f)*2);
+            t=t*t*(3-2*t);
+            if(!surfaceLink&&s->joints[b].constraint.type==JOINT_FIXED)t=0;
             skin[v].joints[k*2]=a; skin[v].weights[k*2]=binding->weight[k]*(1-t);
             skin[v].joints[k*2+1]=b; skin[v].weights[k*2+1]=binding->weight[k]*t;
         }

@@ -19,6 +19,30 @@ static double GetTimeMs(void) {
     return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1000000.0;
 }
 
+static bool HasAnchoredPigment(const Monster* m) {
+    const SurfacePhenotype* s=&m->phenotype.surface;
+    const PigmentPhenotype* banks[]={&s->pigment,&s->transition.from,&s->transition.to};
+    for(unsigned b=0;b<3;++b)for(size_t i=0;i<banks[b]->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i)
+        if(banks[b]->layers[i].domain.anchorNode)return true;
+    return false;
+}
+static SurfaceRecipe AppearanceInFrame(const Monster* m,const AnatomyGraph* graph,const SurfaceMapping* map) {
+    SurfacePhenotype surface=m->surface;
+    SurfacePhenotype_CopyAnchoredDomains(&surface,&m->phenotype.surface);
+    SurfaceMapper_ResolvePigmentDomains(&surface,graph,map);
+    SurfaceRecipe recipe=SurfaceRecipe_CompileScaled(&surface,m->surfaceMapping.unitScale);
+    recipe.data[SURFACE_RECIPE_METADATA_ROW][1]=1;
+    return recipe;
+}
+static SurfaceRecipe AdultDomainAppearance(const Monster* m,SurfaceRecipe fallback) {
+    fallback.data[SURFACE_RECIPE_METADATA_ROW][1]=1;
+    if(!m->hasCreaturePhenotype||!HasAnchoredPigment(m))return fallback;
+    AnatomyGraph graph;
+    if(!Creature_ResolveAnatomy(&m->recipe,&m->recipe.adult,&graph))return fallback;
+    SurfaceMapping map=SurfaceMapping_FromAnatomy(&graph,m->recipe.adult.axial.totalScale);
+    return AppearanceInFrame(m,&graph,&map);
+}
+
 static bool CloneMorphMesh(Mesh* destination,const Mesh* source) {
     if(!destination||!source||
        !Mesh_ReserveVertices(destination,source->vertexCount)||
@@ -922,6 +946,9 @@ static void* WorkerThreadRoutine(void* arg) {
                 memcpy(workBodyMesh.indices, canonicalMesh.indices, canonicalMesh.indexCount * sizeof(MeshIndex));
                 workBodyMesh.indexCount = canonicalMesh.indexCount;
                 workBodyMesh.surfaceRecipe = SurfaceRecipe_CompileScaled(&workMonster.surface,workMonster.surfaceMapping.unitScale);
+                if(canonicalReady&&HasAnchoredPigment(&workMonster))
+                    workBodyMesh.surfaceRecipe=AppearanceInFrame(&workMonster,&canonicalMonster.anatomyGraph,&canonicalMonster.surfaceMapping);
+                if(canonicalReady)workBodyMesh.surfaceRecipe.data[SURFACE_RECIPE_METADATA_ROW][1]=1;
                 workBodyMesh.hasSurface = workMonster.hasSurface;
 
                 bool defOk = AnatomyDeformer_Deform(canonicalMorph, &workMonster.anatomyGraph, &workBodyMesh);
@@ -1086,9 +1113,10 @@ static void* WorkerThreadRoutine(void* arg) {
                 stageStart=GetTimeMs();
                 /* La especie aporta el dominio adulto de referencia; el mapeador y
                  * el deformador comparten exactamente las mismas influencias. */
-                if(!bound || !canonicalReady || !workMonster.hasCreaturePhenotype ||
-                   !SurfaceMapper_MapBoundMesh(&workBodyMesh,workerMorph,
-                    &canonicalMonster.anatomyGraph,&canonicalMonster.surfaceMapping,&mappingStats))
+                bool canonicalMapped=bound&&canonicalReady&&workMonster.hasCreaturePhenotype&&
+                    SurfaceMapper_MapBoundMesh(&workBodyMesh,workerMorph,
+                    &canonicalMonster.anatomyGraph,&canonicalMonster.surfaceMapping,&mappingStats);
+                if(!canonicalMapped)
                     SurfaceMapper_MapMeshWithStats(&workBodyMesh,&workMonster.anatomyGraph,&workMonster.surfaceMapping,&mappingStats);
                 SurfaceMapper_MapMeshWithStats(&workHeadMesh,&workMonster.anatomyGraph,&workMonster.surfaceMapping,&headMappingStats);
                 mappingMs=(float)(GetTimeMs()-stageStart);
@@ -1099,6 +1127,9 @@ static void* WorkerThreadRoutine(void* arg) {
                 mappingStats.averageCandidatesPerVertex=mappingStats.verticesProcessed?
                     (float)mappingStats.candidateTests/(float)mappingStats.verticesProcessed:0;
                 workBodyMesh.surfaceRecipe=workHeadMesh.surfaceRecipe=SurfaceRecipe_CompileScaled(&workMonster.surface,workMonster.surfaceMapping.unitScale);
+                if(canonicalMapped&&HasAnchoredPigment(&workMonster))
+                    workBodyMesh.surfaceRecipe=AppearanceInFrame(&workMonster,&canonicalMonster.anatomyGraph,&canonicalMonster.surfaceMapping);
+                if(canonicalMapped)workBodyMesh.surfaceRecipe.data[SURFACE_RECIPE_METADATA_ROW][1]=1;
                 workBodyMesh.hasSurface=workHeadMesh.hasSurface=workMonster.hasSurface;
                 stageStart=GetTimeMs();
                 if(workMonster.hasHead && workMonster.head.anatomy.attachmentBodyPartIndex<workMonster.bodyPartCount)
@@ -1407,6 +1438,7 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
     pthread_mutex_destroy(&asyncMgr->lock);
     pthread_cond_destroy(&asyncMgr->cond);
 
+    LongHairSet_Free(&asyncMgr->longHair);
     free(asyncMgr);
 }
 
@@ -1464,6 +1496,7 @@ bool MonsterVisualAsync_SetMorphEndpoints(MonsterVisualAsync* asyncMgr,
 bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
     const Monster* monster,const Monster* appearance,float deltaTime) {
     if (!asyncMgr || !monster || !appearance) return false;
+    if(!MonsterVisual_UpdateLongHair(&asyncMgr->longHair,appearance))return false;
     double presentationStart=GetTimeMs();
 
     /* 1. Detectar movimiento y actualizar temporizador de tier de calidad */
@@ -1581,7 +1614,9 @@ bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
     bool isDisplayMatch = (asyncMgr->displayFingerprint == targetFingerprint);
     if(asyncMgr->displayGeneration>0) {
         SurfaceRecipe recipe=SurfaceRecipe_CompileScaled(&appearance->surface,appearance->surfaceMapping.unitScale);
-        asyncMgr->displayMesh.surfaceRecipe=asyncMgr->displayHeadMesh.surfaceRecipe=recipe;
+        bool canonical=asyncMgr->displayMesh.surfaceRecipe.data[SURFACE_RECIPE_METADATA_ROW][1]>.5f;
+        asyncMgr->displayMesh.surfaceRecipe=canonical?AdultDomainAppearance(appearance,recipe):recipe;
+        asyncMgr->displayHeadMesh.surfaceRecipe=recipe;
         asyncMgr->displayMesh.hasSurface=asyncMgr->displayHeadMesh.hasSurface=appearance->hasSurface;
         for(size_t i=0;i<asyncMgr->displayMouthCount;++i) {
             asyncMgr->displayMouths[i].jaw.surfaceRecipe=asyncMgr->displayMouths[i].hinge.surfaceRecipe=recipe;
@@ -2066,6 +2101,7 @@ bool MonsterVisualAsync_Render(const MonsterVisualAsync* asyncMgr, Renderer3D* r
             else renderer->renderMesh(renderer,&asyncMgr->displayEyes[i].globe);
         }
     }
+    if(asyncMgr->displayMesh.vertexCount&&renderer->renderLongHair)renderer->renderLongHair(renderer,&asyncMgr->longHair);
     return true;
 }
 

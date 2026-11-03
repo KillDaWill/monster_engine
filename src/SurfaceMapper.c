@@ -8,6 +8,24 @@ static SurfaceRegion Region(const SurfaceMapping* map,AnatomyId id) {
         if(map->tags[i].node==id && map->tags[i].region<SURFACE_REGION_COUNT)return map->tags[i].region;
     return SURFACE_REGION_UNKNOWN;
 }
+void SurfaceMapper_ResolvePigmentDomains(SurfacePhenotype* surface,const AnatomyGraph* graph,const SurfaceMapping* map) {
+    if(!surface||!graph||!map)return;
+    float unit=fmaxf(map->unitScale,1e-6f);
+    PigmentPhenotype* banks[]={&surface->pigment,&surface->transition.from,&surface->transition.to};
+    for(unsigned bank=0;bank<3;++bank)for(size_t i=0;i<banks[bank]->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i) {
+        PigmentLayer* layer=&banks[bank]->layers[i];PigmentDomain* d=&layer->domain;
+        if(!d->anchorNode)continue;
+        const AnatomyNode* n=AnatomyGraph_FindNode(graph,d->anchorNode);
+        if(!n){layer->strength=0;d->materialStrength=0;continue;}
+        Vector3 r=n->envelopeRadii;
+        if(r.x<=0)r.x=n->widthRadius;
+        if(r.y<=0)r.y=n->heightRadius;
+        if(r.z<=0)r.z=fmaxf(r.x,r.y);
+        d->center=Vec3_Scale(Vec3_Sub(Vec3_Add(n->center,Vec3_Create(d->center.x*r.x,d->center.y*r.y,d->center.z*r.z)),map->origin),1/unit);
+        d->radii=Vec3_Create(d->radii.x*r.x/unit,d->radii.y*r.y/unit,d->radii.z*r.z/unit);
+        d->anchorNode=0;
+    }
+}
 typedef struct MapSegment { Vector3 a,ab; float inverseLength,ra,rb; SurfaceRegion aRegion,bRegion; } MapSegment;
 typedef struct MapNode {
     Vector3 lo,hi;

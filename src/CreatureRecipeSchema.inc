@@ -216,6 +216,17 @@ static const Field OrnamentPhenotype_fields[] = {
     {"lateralSweep",offsetof(OrnamentPhenotype,lateralSweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {0}
 };
+static const Field PigmentDomain_fields[] = {
+    {"anchorNode",offsetof(PigmentDomain,anchorNode),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
+    {"center",offsetof(PigmentDomain,center),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"radii",offsetof(PigmentDomain,radii),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"softness",offsetof(PigmentDomain,softness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"irregularity",offsetof(PigmentDomain,irregularity),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"materialStrength",offsetof(PigmentDomain,materialStrength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"furCoverage",offsetof(PigmentDomain,furCoverage),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"roughness",offsetof(PigmentDomain,roughness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {0}
+};
 static const Field PigmentLayer_fields[] = {
     {"pattern",offsetof(PigmentLayer,pattern),sizeof(PigmentPattern),1,F_ENUM,PIGMENT_PATTERN_GRADIENT,NULL,NO_COUNT,"PIGMENT_PATTERN_SOLID|PIGMENT_PATTERN_NOISE|PIGMENT_PATTERN_SPOTS|PIGMENT_PATTERN_BANDS|PIGMENT_PATTERN_STRIPES|PIGMENT_PATTERN_BLOTCHES|PIGMENT_PATTERN_OCELLI|PIGMENT_PATTERN_GRADIENT",false},
     {"color",offsetof(PigmentLayer,color),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
@@ -225,6 +236,7 @@ static const Field PigmentLayer_fields[] = {
     {"direction",offsetof(PigmentLayer,direction),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
     {"seed",offsetof(PigmentLayer,seed),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
     {"regionMask",offsetof(PigmentLayer,regionMask),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,true},
+    {"domain",offsetof(PigmentLayer,domain),sizeof(PigmentDomain),1,F_OBJECT,0,PigmentDomain_fields,NO_COUNT,NULL,true},
     {0}
 };
 static const Field PigmentPhenotype_fields[] = {
@@ -326,6 +338,40 @@ static const Field FurTuftPhenotype_fields[] = {
     {"color",offsetof(FurTuftPhenotype,color),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {0}
 };
+static const Field LongHairDomain_fields[] = {
+    {"kind",offsetof(LongHairDomain,kind),sizeof(LongHairDomainKind),1,F_ENUM,LONG_HAIR_REGION,NULL,NO_COUNT,"LONG_HAIR_CURVE|LONG_HAIR_PATCH|LONG_HAIR_REGION",false},
+    {"hostModuleId",offsetof(LongHairDomain,hostModuleId),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
+    {"region",offsetof(LongHairDomain,region),sizeof(AnatomyRegion),1,F_ENUM,ANATOMY_REGION_ORNAMENT,NULL,NO_COUNT,"ANATOMY_REGION_UNKNOWN|ANATOMY_REGION_HEAD|ANATOMY_REGION_NECK|ANATOMY_REGION_TRUNK|ANATOMY_REGION_PELVIS|ANATOMY_REGION_FORELIMB|ANATOMY_REGION_HINDLIMB|ANATOMY_REGION_LIMB|ANATOMY_REGION_WING|ANATOMY_REGION_TAIL|ANATOMY_REGION_DIGIT|ANATOMY_REGION_ORNAMENT",false},
+    {"anchors",offsetof(LongHairDomain,anchors),sizeof(AnatomyId),LONG_HAIR_MAX_ANCHORS,F_U32,UINT32_MAX,NULL,offsetof(LongHairDomain,anchorCount),NULL,false},
+    {"anchorCount",offsetof(LongHairDomain,anchorCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,false},
+    {"offset",offsetof(LongHairDomain,offset),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"normal",offsetof(LongHairDomain,normal),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"angle",offsetof(LongHairDomain,angle),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"angularSpread",offsetof(LongHairDomain,angularSpread),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"start",offsetof(LongHairDomain,start),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"end",offsetof(LongHairDomain,end),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"patchRadius",offsetof(LongHairDomain,patchRadius),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {0}
+};
+static const Field LongHairGroup_fields[] = {
+    {"id",offsetof(LongHairGroup,id),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
+    {"seed",offsetof(LongHairGroup,seed),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
+    {"domain",offsetof(LongHairGroup,domain),sizeof(LongHairDomain),1,F_OBJECT,0,LongHairDomain_fields,NO_COUNT,NULL,false},
+    {"guideCount",offsetof(LongHairGroup,guideCount),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,false},
+    {"childrenPerGuide",offsetof(LongHairGroup,childrenPerGuide),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,false},
+    {"direction",offsetof(LongHairGroup,direction),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"length",offsetof(LongHairGroup,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"lengthVariation",offsetof(LongHairGroup,lengthVariation),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"width",offsetof(LongHairGroup,width),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"rootSpread",offsetof(LongHairGroup,rootSpread),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"clumping",offsetof(LongHairGroup,clumping),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"stiffness",offsetof(LongHairGroup,stiffness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"gravityInfluence",offsetof(LongHairGroup,gravityInfluence),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"density",offsetof(LongHairGroup,density),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"rootColor",offsetof(LongHairGroup,rootColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {"tipColor",offsetof(LongHairGroup,tipColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {0}
+};
 static const Field SurfacePhenotype_transition_fields[] = {
     {"from",offsetof(SurfacePhenotype,transition.from)-offsetof(SurfacePhenotype,transition),sizeof(PigmentPhenotype),1,F_OBJECT,0,PigmentPhenotype_fields,NO_COUNT,NULL,false},
     {"to",offsetof(SurfacePhenotype,transition.to)-offsetof(SurfacePhenotype,transition),sizeof(PigmentPhenotype),1,F_OBJECT,0,PigmentPhenotype_fields,NO_COUNT,NULL,false},
@@ -343,6 +389,8 @@ static const Field SurfacePhenotype_fields[] = {
     {"furRegions",offsetof(SurfacePhenotype,furRegions),sizeof(FurRegionProfile),SURFACE_REGION_COUNT,F_OBJECT,0,FurRegionProfile_fields,NO_COUNT,NULL,false},
     {"tufts",offsetof(SurfacePhenotype,tufts),sizeof(FurTuftPhenotype),SURFACE_MAX_FUR_TUFTS,F_OBJECT,0,FurTuftPhenotype_fields,offsetof(SurfacePhenotype,tuftCount),NULL,true},
     {"tuftCount",offsetof(SurfacePhenotype,tuftCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
+    {"longHair",offsetof(SurfacePhenotype,longHair),sizeof(LongHairGroup),LONG_HAIR_MAX_GROUPS,F_OBJECT,0,LongHairGroup_fields,offsetof(SurfacePhenotype,longHairCount),NULL,true},
+    {"longHairCount",offsetof(SurfacePhenotype,longHairCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
     {"transition",offsetof(SurfacePhenotype,transition),sizeof(((SurfacePhenotype*)0)->transition),1,F_OBJECT,0,SurfacePhenotype_transition_fields,NO_COUNT,NULL,false},
     {0}
 };

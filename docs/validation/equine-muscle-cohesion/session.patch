@@ -1,0 +1,383 @@
+--- a/Makefile
++++ b/Makefile
+@@ -257,6 +257,10 @@
+ visual-equine: $(BUILD_DIR)/creature_editor_bridge
+ 	python3 tools/validate_equine_anatomy.py
+ 
++.PHONY: visual-equine-muscles
++visual-equine-muscles: $(BUILD_DIR)/capture_bovine_anatomy
++	python3 tools/validate_equine_muscles.py --all-stages
++
+ # Ejecutable del visor 3D principal
+ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.c
+ 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+--- a/src/AnatomyDeformer.c
++++ b/src/AnatomyDeformer.c
+@@ -507,6 +507,7 @@
+     for(size_t v=0;v<mesh->vertexCount;++v) {
+         const AnatomyDeformerBinding* binding=&d->bindings[v];
+         for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
++            if(binding->weight[k]<=0)continue;
+             const BodyConnection* c=&rest->connections[binding->connIndex[k]];
+             int a=Skeleton_FindJoint(s,c->fromId),b=Skeleton_FindJoint(s,c->toId);
+             if(a<0 || b<0) { free(skin); return false; }
+@@ -517,15 +518,19 @@
+             bool reverse=pa==b||(pa>=0&&!s->joints[pa].anatomyId&&s->joints[pa].parentIndex==b);
+             bool forward=pb==a||(pb>=0&&!s->joints[pb].anatomyId&&s->joints[pb].parentIndex==a);
+             if(reverse) { int tmp=a;a=b;b=tmp;t=1-t; }
+-            else if(!forward) { free(skin); return false; }
++            /* Las estaciones de piel y envolventes pueden cerrar ciclos sobre
++             * el árbol IK. No son huesos adicionales: interpolar los marcos
++             * de ambos extremos permite vincular también estas aristas. */
++            bool surfaceLink=!reverse&&!forward;
+             /* Un pivote interpuesto también transporta el segmento: omitirlo
+              * dejaba vértices cervicales anclados al tórax durante la flexión. */
+             int auxiliary=s->joints[b].parentIndex;
+             if(auxiliary>=0&&!s->joints[auxiliary].anatomyId&&s->joints[auxiliary].parentIndex==a)a=auxiliary;
+             /* Transición suave alrededor del extremo distal; el centro de
+              * la articulación coincide en ambos transformados. Incluye twist. */
+-            t=fmaxf(0,(t-.5f)*2); t=t*t*(3-2*t);
+-            if(s->joints[b].constraint.type==JOINT_FIXED)t=0;
++            if(!surfaceLink)t=fmaxf(0,(t-.5f)*2);
++            t=t*t*(3-2*t);
++            if(!surfaceLink&&s->joints[b].constraint.type==JOINT_FIXED)t=0;
+             skin[v].joints[k*2]=a; skin[v].weights[k*2]=binding->weight[k]*(1-t);
+             skin[v].joints[k*2+1]=b; skin[v].weights[k*2+1]=binding->weight[k]*t;
+         }
+--- a/src/AxialBodyUprightTetrapod.c
++++ b/src/AxialBodyUprightTetrapod.c
+@@ -151,6 +151,14 @@
+         .width=pelvisNode->widthRadius*.52f,.height=pelvisNode->heightRadius*.68f};
+ 
+     if(cursorial) {
++        /* La grupa termina en una sección todavía profunda. Estrecharla a
++         * media anchura antes de la tapa redondeada dibujaba un anillo y una
++         * segunda nalga aparente, aunque los miembros ya fueran continuos. */
++        SDFSweepStation* rump=&outStations[count-1];
++        rump->center.y=pelvisNode->center.y-pelvisNode->heightRadius*.08f;
++        rump->center.z=pelvisNode->center.z-pelvisNode->widthRadius*.45f;
++        rump->width=pelvisNode->widthRadius*.80f;
++        rump->height=pelvisNode->heightRadius*.90f;
+         /* La grupa no es una esfera: el dorso baja desde la cruz, se hunde
+          * en el riñón y vuelve a subir en el sacro antes de caer al maslo.
+          * Se desplaza el techo sin mover el vientre para conservar la
+--- a/src/LimbMammal.c
++++ b/src/LimbMammal.c
+@@ -110,26 +110,33 @@
+     if(!hind) {
+         /* Escápula oblicua sobre costillas: origen alto y medial, sección
+          * aplanada en vez de una bola junto a la articulación del hombro. */
+-        v[4]=Vec3_Create(x-side*r*.65f,length*.25f,-length*.17f);
+-        v[5]=Vec3_Lerp(v[0],v[1],.58f);
++        v[4]=Vec3_Create(x-side*r*1.15f,length*.20f,-length*.17f);
++        /* La piel proximal entra en el tórax sin desplazar el pivote IK.
++         * La sección máxima queda arriba, no en una estación intermedia. */
++        v[5]=Vec3_Lerp(v[0],v[1],.42f);
++        v[5].x-=side*r*.22f;
+         v[6]=Vec3_Lerp(v[1],v[2],.36f);
+         w[4]=r*.40f*p->proximalThicknessScale;h[4]=r*.66f;
+         w[0]=r*.58f*p->rootThicknessScale;h[0]=r*.80f;
+-        w[5]=r*.70f*p->proximalThicknessScale;h[5]=w[5]*1.12f;
++        w[5]=r*.62f*p->proximalThicknessScale;h[5]=w[5]*1.12f;
+         w[1]=r*.68f;h[1]=w[1]*1.08f;
+-        w[6]=r*.60f*p->middleThicknessScale;h[6]=w[6]*1.15f;
++        w[6]=r*.55f*p->middleThicknessScale;h[6]=w[6]*1.15f;
+         w[2]=r*.46f*p->distalThicknessScale;h[2]=w[2]*1.08f;
+     } else {
+         /* Muslo y gaskin conservan ejes propios: la masa glútea se distribuye
+          * desde pelvis, sin inflar la babilla ni alterar la cadena IK. */
+-        v[4]=Vec3_Create(x-side*r*.60f,length*.17f,-length*.10f);
+-        v[5]=Vec3_Lerp(v[0],v[1],.58f);
++        v[4]=Vec3_Create(x-side*r*1.25f,length*.17f,length*.06f);
++        /* El vientre caudal del muslo baja desde la grupa hacia la babilla;
++         * dejarlo delante y arriba excavaba una cintura antes del gaskin. */
++        v[5]=Vec3_Lerp(v[0],v[1],.65f);
++        v[5].x-=side*r*.18f;
++        v[5].z-=r*.95f;
+         v[6]=Vec3_Lerp(v[1],v[2],.38f);
+         w[4]=r*.62f*p->proximalThicknessScale;h[4]=r*.80f;
+-        w[0]=r*.70f*p->rootThicknessScale;h[0]=w[0]*1.12f;
+-        w[5]=r*.92f*p->proximalThicknessScale;h[5]=w[5]*1.16f;
++        w[0]=r*.72f*p->rootThicknessScale;h[0]=r*1.25f;
++        w[5]=r*.80f*p->proximalThicknessScale;h[5]=w[5]*1.32f;
+         w[1]=r*.76f;h[1]=w[1]*1.08f;
+-        w[6]=r*.76f*p->middleThicknessScale;h[6]=w[6]*1.12f;
++        w[6]=r*.68f*p->middleThicknessScale;h[6]=w[6]*1.12f;
+         w[2]=r*.46f*p->distalThicknessScale;h[2]=w[2]*1.20f;
+     }
+     for(unsigned i=0;i<10;++i)if(!Node(g,module,i+1,World(slot,v[i]),w[i],h[i],p,false))return false;
+@@ -142,7 +149,9 @@
+         if(!Module_Edge(g,module,10+i,Anatomy_MakeId(module,chain[i]),Anatomy_MakeId(module,chain[i+1]),
+             i==0?BODY_CONNECTION_MUSCLE_UNION:BODY_CONNECTION_LIMB_SEGMENT,p->development))return false;
+         BodyConnection* edge=&g->connections[g->connectionCount-1];edge->transverseAxis=slot->side;
+-        if(i==0){edge->widthBulge=r*.05f;edge->heightBulge=r*.06f;}
++        /* El vientre muscular ya está en las estaciones: añadir otra plenitud
++         * y suavizarla por separado duplicaba volumen junto al anfitrión. */
++        if(i==0){edge->widthBulge=0;edge->heightBulge=0;}
+     }
+     return UngulateFoot(p,module,slot,g,v[3],r,sole);
+ }
+--- a/src/MonsterSDF.c
++++ b/src/MonsterSDF.c
+@@ -31,14 +31,18 @@
+     return SDF_MATERIAL_SKIN;
+ }
+ 
+-/* Una cola colgante no es una función monótona del eje Z del tronco. */
+-static bool MonsterSDF_HangingTail(const Monster* monster,uint32_t module) {
++static const TailPhenotype* MonsterSDF_TailPhenotype(const Monster* monster,uint32_t module) {
+     for(size_t i=0;i<monster->recipe.bodyPlan.moduleCount;++i) {
+         const CreatureModuleInstance* m=&monster->recipe.bodyPlan.modules[i];
+         if(m->instanceId==module&&m->kind==CREATURE_MODULE_TAIL&&m->phenotypeIndex<monster->phenotype.tailCount)
+-            return monster->phenotype.tails[m->phenotypeIndex].droop>0;
+-    }
+-    return false;
++            return &monster->phenotype.tails[m->phenotypeIndex];
++    }
++    return NULL;
++}
++/* Una cola colgante no es una función monótona del eje Z del tronco. */
++static bool MonsterSDF_HangingTail(const Monster* monster,uint32_t module) {
++    const TailPhenotype* tail=MonsterSDF_TailPhenotype(monster,module);
++    return tail&&tail->droop>0;
+ }
+ 
+ MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
+@@ -484,6 +488,17 @@
+             c->r1=Math_Min(c->widthA,c->heightA);c->r2=Math_Min(c->widthB,c->heightB);c->radiusDelta=c->r2-c->r1;
+             c->fromId=edge->fromId;c->toId=edge->toId;c->connectionId=edge->id;c->kind=edge->kind;
+             c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&!MonsterSDF_HangingTail(monster,edge->moduleInstanceId);
++            if(c->kind==BODY_CONNECTION_AXIAL_LOFT&&!c->axialSweepMember&&
++               a->region!=ANATOMY_REGION_TAIL&&b->region==ANATOMY_REGION_TAIL&&
++               MonsterSDF_TailPhenotype(monster,edge->moduleInstanceId)->rootMatchStrength==0) {
++                /* Una cola colgante abandona el loft axial: su pedículo usa
++                 * la sección caudal, no una cápsula del diámetro de la pelvis.
++                 * El origen sigue dentro del anfitrión y conserva sus IDs.
++                 * rootMatchStrength>0 conserva el acoplamiento solicitado y
++                 * la geometría de las recetas anteriores que lo activaban. */
++                c->widthA=b->widthRadius;c->heightA=b->heightRadius;
++                c->r1=Math_Min(c->widthA,c->heightA);c->radiusDelta=c->r2-c->r1;
++            }
+             c->moduleInstanceId=edge->moduleInstanceId;c->region=b->region; c->development=edge->development;
+             c->isHeadNeck=(a->region==ANATOMY_REGION_HEAD&&b->region==ANATOMY_REGION_NECK)||
+                 (b->region==ANATOMY_REGION_HEAD&&a->region==ANATOMY_REGION_NECK);
+--- a/tests/test_equine_anatomy.c
++++ b/tests/test_equine_anatomy.c
+@@ -7,6 +7,7 @@
+ #include "MonsterSDF.h"
+ #include "Limb.h"
+ #include "MonsterVisual.h"
++#include "AnatomyDeformer.h"
+ #include "test_utils.h"
+ #include <math.h>
+ #include <stdlib.h>
+@@ -30,6 +31,64 @@
+     TEST_ASSERT(isfinite(p.muzzleLength)&&isfinite(p.earHeightRatio)&&p.archetype==HEAD_ARCHETYPE_EQUINE,"Normalizar parámetros inválidos sin perder familia");
+ }
+ 
++static void MuscleCohesion(Monster* m,const MonsterSDF* sdf) {
++    Mesh mesh=Mesh_Create();
++    TEST_ASSERT(Mesh_ReserveVertices(&mesh,40),"Reservar sondas musculares de piel");
++    float scale=m->phenotype.axial.totalScale;
++    for(unsigned leg=0;leg<4;++leg) {
++        unsigned module=10+leg;
++        const AnatomyNode* root=AnatomyGraph_FindModuleNode(&m->anatomyGraph,module,1);
++        const AnatomyNode* anchor=AnatomyGraph_FindModuleNode(&m->anatomyGraph,module,5);
++        TEST_ASSERT(anchor->center.y>root->center.y,"Envolvente orientada desde escápula/pelvis hacia miembro");
++        TEST_ASSERT(anchor->widthRadius<anchor->heightRadius,"Sección proximal aplanada, no esfera");
++        float hostDistance=SDF_EllipticalSweepZ(anchor->center,sdf->axialStations,sdf->axialStationCount);
++        if(hostDistance>=0)fprintf(stderr,"muscle anchor module=%u scale=%g host=%g\n",module,scale,hostDistance);
++        TEST_ASSERT(hostDistance<0,"Origen muscular dentro del anfitrión");
++        MonsterSDF local,opposite;MonsterSDFConnector lc[100],rc[100];
++        TEST_ASSERT(MonsterSDF_BuildModuleView(sdf,module,&local,lc,100)&&
++            MonsterSDF_BuildModuleView(sdf,10+(leg^1),&opposite,rc,100),"Campos de ambos miembros sin mezclar el orden global");
++        for(unsigned local=1;local<=10;++local) {
++            const AnatomyNode* node=AnatomyGraph_FindModuleNode(&m->anatomyGraph,module,local);
++            mesh.vertices[mesh.vertexCount++]=(MeshVertex){.position=node->center,.normal={0,1,0}};
++        }
++        for(size_t i=0;i<sdf->connectorCount;++i) {
++            const MonsterSDFConnector* c=&sdf->connectors[i];
++            if(c->moduleInstanceId!=module||c->material==SDF_MATERIAL_HOOF)continue;
++            for(int j=0;j<=12;++j) {
++                Vector3 p=Vec3_Lerp(c->a,c->b,j/12.f),mirror=p;mirror.x=-mirror.x;
++                float a=MonsterSDF_EvaluateDistance(&local,p),b=MonsterSDF_EvaluateDistance(&opposite,mirror);
++                TEST_ASSERT(MonsterSDF_EvaluateDistance(sdf,p)<0,"Tejido continuo en la cadena muscular, sin centros externos aislados");
++                TEST_ASSERT(fabsf(a-b)<.0001f*scale,"Simetría del campo muscular sin constantes por lado");
++            }
++        }
++    }
++    for(size_t i=0;i<sdf->connectorCount;++i) {
++        const MonsterSDFConnector* c=&sdf->connectors[i];
++        if(c->kind!=BODY_CONNECTION_AXIAL_LOFT||c->axialSweepMember)continue;
++        const AnatomyNode* a=AnatomyGraph_FindNode(&m->anatomyGraph,c->fromId);
++        const AnatomyNode* b=AnatomyGraph_FindNode(&m->anatomyGraph,c->toId);
++        if(a->region!=ANATOMY_REGION_TAIL&&b->region==ANATOMY_REGION_TAIL)
++            TEST_ASSERT(FLOAT_NEAR(c->widthA,b->widthRadius)&&FLOAT_NEAR(c->heightA,b->heightRadius),"El pedículo caudal no duplica la pelvis");
++    }
++    AnatomyDeformer* d=AnatomyDeformer_Create();
++    TEST_ASSERT(d&&AnatomyDeformer_BindSkeleton(d,&mesh,&m->anatomyGraph,&m->animation->rig.skeleton),"Vincular estaciones de piel y envolventes cíclicas al árbol IK");
++    SkeletonPose rest;
++    TEST_ASSERT(SkeletonPose_Init(&rest,&m->animation->rig.skeleton)&&AnatomyDeformer_DeformPose(d,&m->animation->rig.skeleton,&rest,&mesh),"Deformación de reposo");
++    for(size_t i=0;i<mesh.vertexCount;++i)
++        TEST_ASSERT(Vec3_Distance(mesh.vertices[i].position,d->basePositions[i])<.0001f*scale,"Vinculación conserva posiciones de reposo");
++    float maxDisplacement=0;
++    for(int frame=0;frame<30;++frame) {
++        m->animation->animator.desiredVelocity=Vec3_Create(0,0,.8f*scale);
++        TEST_ASSERT(MonsterAnimation_Update(m,1.f/60)&&AnatomyDeformer_DeformPose(d,&m->animation->rig.skeleton,&m->animation->pose,&mesh),"Treinta poses musculares sin fallo de vinculación");
++        for(size_t i=0;i<mesh.vertexCount;++i) {
++            TEST_ASSERT(isfinite(Vec3_LengthSq(mesh.vertices[i].position)),"Posiciones finitas durante marcha");
++            maxDisplacement=fmaxf(maxDisplacement,Vec3_Distance(mesh.vertices[i].position,d->basePositions[i]));
++        }
++    }
++    TEST_ASSERT(maxDisplacement>.001f*scale,"La piel vinculada sigue la pose, no queda congelada");
++    AnatomyDeformer_Free(d);Mesh_Free(&mesh);
++}
++
+ static void FeetAndStages(const char* path) {
+     CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));Monster* m=malloc(sizeof(*m));char error[256];
+     TEST_ASSERT(doc&&m,"Reservar receta équida");
+@@ -42,6 +101,7 @@
+         TEST_ASSERT(HeadAnatomy_Validate(&m->head.anatomy)==HEAD_VALID,"Cráneo de receta válido");
+         MonsterSDF sdf=MonsterSDF_Create();
+         TEST_ASSERT(MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()),"Compilar campo y materiales");
++        MuscleCohesion(m,&sdf);
+         TEST_ASSERT(m->mouths[0].openFactor==0,"Équido neutro con boca cerrada, sin heredar apertura 0.5");
+         const MonsterSDFMouth* mouth=&sdf.mouths[0];
+         TEST_ASSERT(mouth->independentMandible&&mouth->jawPosteriorZ<=mouth->hingeCenterLocal.z,"La rama alcanza el cóndilo, no la comisura");
+--- a/tools/capture_bovine_anatomy.c
++++ b/tools/capture_bovine_anatomy.c
+@@ -76,10 +76,36 @@
+     ICamera camera={.fov=40,.aspectRatio=4.f/3,.nearPlane=.01f,.farPlane=100};
+     Renderer3D renderer=OpenGLRenderer_Create(&camera);
+     float s=m->phenotype.axial.totalScale;
++    if(muscles) {
++        char path[1024];snprintf(path,sizeof(path),"%s/anatomy.txt",argv[2]);
++        FILE* out=fopen(path,"w");
++        if(!out)return 1;
++        for(int i=0;i<v->sdf.axialStationCount;++i) {
++            const SDFSweepStation* a=&v->sdf.axialStations[i];
++            fprintf(out,"axial %d center %g %g %g radii %g %g\n",i,a->center.x,a->center.y,a->center.z,a->width,a->height);
++        }
++        for(size_t i=0;i<v->sdf.connectorCount;++i) {
++            const MonsterSDFConnector* c=&v->sdf.connectors[i];
++            fprintf(out,"connector %u kind %d axial %d from %u to %u a %g %g %g b %g %g %g radii %g %g %g %g smooth %g\n",
++                c->moduleInstanceId,c->kind,c->axialSweepMember,c->fromId,c->toId,c->a.x,c->a.y,c->a.z,c->b.x,c->b.y,c->b.z,c->widthA,c->heightA,c->widthB,c->heightB,c->localSmoothness);
++        }
++        fclose(out);
++    }
+     Vector3 target={0,2.8f*s,-.8f*s};
+     Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f}};
+     const char* names[]={"side","front","rear","three-quarter"};bool ok=true;
+     for(unsigned view=0;view<4;++view)ok=Capture(&renderer,&camera,&v->mesh,v,target,directions[view],7.6f*s,argv[2],names[view])&&ok;
++    if(muscles) {
++        /* Caja completa del campo: el encuadre histórico corta el hocico en
++         * lateral. No se oculta ese recorte en las comparaciones antiguas. */
++        Vector3 center=Vec3_Scale(Vec3_Add(v->sdf.bounds.start,v->sdf.bounds.end),.5f);
++        Vector3 extent=Vec3_Sub(v->sdf.bounds.end,v->sdf.bounds.start);
++        float height=fmaxf(extent.y,extent.z*.75f)*1.12f;
++        for(unsigned view=0;view<4;++view) {
++            char name[80];snprintf(name,sizeof(name),"full-%s",names[view]);
++            ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[view],height,argv[2],name)&&ok;
++        }
++    }
+     ok=Capture(&renderer,&camera,&v->mesh,v,target,Vec3_Create(0,1,0),9.5f*s,argv[2],"top")&&ok;
+     const AnatomyNode* head=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_HEAD);
+     if(head&&!muscles) {
+--- a/tools/validate_recipe_gpu.c
++++ b/tools/validate_recipe_gpu.c
+@@ -45,6 +45,19 @@
+             points[count++]=Vec3_Add(m->center,Vec3_Create(b.row0.x*local.x+b.row1.x*local.y+b.row2.x*local.z,b.row0.y*local.x+b.row1.y*local.y+b.row2.y*local.z,b.row0.z*local.x+b.row1.z*local.y+b.row2.z*local.z));
+         }
+     }
++    /* Las envolventes musculares también reciben muestras transversales y
++     * longitudinales: la concordancia facial no valida la cintura escapular. */
++    for(size_t c=0;c<sdf.connectorCount;++c)if(sdf.connectors[c].kind==BODY_CONNECTION_MUSCLE_UNION) {
++        const MonsterSDFConnector* muscle=&sdf.connectors[c];
++        for(unsigned j=0;j<125&&count<8192;++j) {
++            float t=(j/25)*.25f;
++            float w=(1-t)*muscle->widthA+t*muscle->widthB;
++            float h=(1-t)*muscle->heightA+t*muscle->heightB;
++            points[count++]=Vec3_Add(Vec3_Lerp(muscle->a,muscle->b,t),
++                Vec3_Add(Vec3_Scale(muscle->side,((j%5)*.6f-1.2f)*w),
++                         Vec3_Scale(muscle->up,(((j/5)%5)*.6f-1.2f)*h)));
++        }
++    }
+     /* Cada uña y espolón recibe sondeos de corona, hendidura, talón y suela. */
+     for(size_t c=0;c<sdf.connectorCount;++c)if(sdf.connectors[c].material==SDF_MATERIAL_HOOF) {
+         const MonsterSDFConnector* claw=&sdf.connectors[c];
+--- /dev/null
++++ b/tools/validate_equine_muscles.py
+@@ -0,0 +1,73 @@
++#!/usr/bin/env python3
++"""Captura la cohesión muscular real en OpenGL, sin sustituir mallas del motor."""
++import argparse
++import json
++from pathlib import Path
++import subprocess
++import time
++
++from PIL import Image, ImageDraw
++
++ROOT = Path(__file__).resolve().parents[1]
++VIEWS = ('full-side', 'full-front', 'full-three-quarter', 'shoulder-side',
++         'shoulder-front', 'shoulder-three-quarter', 'hip-side', 'hip-rear',
++         'hip-three-quarter')
++
++
++def capture(binary, recipe, folder, stage):
++    """Conserva el registro original y convierte únicamente los PPM capturados."""
++    folder.mkdir(parents=True, exist_ok=True)
++    start = time.perf_counter()
++    result = subprocess.run([str(binary), str(recipe), str(folder), str(stage), 'muscle'],
++                            cwd=ROOT, capture_output=True, text=True)
++    (folder / 'capture.log').write_text(result.stdout + result.stderr)
++    result.check_returncode()
++    for source in folder.glob('*.ppm'):
++        with Image.open(source) as image:
++            image.save(source.with_suffix('.png'))
++        source.unlink()
++    return dict(seconds=time.perf_counter() - start,
++                walking='walk=CAPTURED' in result.stdout)
++
++
++def comparison(before, after, destination):
++    """Mismos encuadres regionales; la vista completa ajusta su caja corporal."""
++    sheet = Image.new('RGB', (1200, len(VIEWS) * 475), 'white')
++    draw = ImageDraw.Draw(sheet)
++    for row, view in enumerate(VIEWS):
++        for col, (folder, label) in enumerate(((before, 'ANTES'), (after, 'DESPUÉS'))):
++            with Image.open(folder / f'{view}.png') as image:
++                image.thumbnail((600, 450))
++                sheet.paste(image, (col * 600, row * 475))
++            draw.text((col * 600 + 10, row * 475 + 455), f'{label} | {view}', fill='black')
++    sheet.save(destination)
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--output', type=Path, default=ROOT / 'build/equine-muscles')
++    parser.add_argument('--baseline-capture', type=Path,
++                        help='Capturador nuevo enlazado con el núcleo local anterior')
++    parser.add_argument('--all-stages', action='store_true')
++    args = parser.parse_args()
++    args.output = args.output.resolve()
++    subprocess.run(['make', 'build/capture_bovine_anatomy'], cwd=ROOT, check=True)
++    results = []
++    for name in ('caballo', 'asno'):
++        recipe = ROOT / 'recipes' / f'{name}.creature.json'
++        for stage in (range(4) if args.all_stages else (3,)):
++            suffix = name if stage == 3 else f'{name}-stage-{stage}'
++            after = args.output / 'after' / suffix
++            row = dict(recipe=name, stage=stage,
++                       after=capture(ROOT / 'build/capture_bovine_anatomy', recipe, after, stage))
++            if args.baseline_capture:
++                before = args.output / 'before' / suffix
++                row['before'] = capture(args.baseline_capture.resolve(), recipe, before, stage)
++                comparison(before, after, args.output / f'{suffix}-comparison.png')
++            results.append(row)
++    (args.output / 'captures.json').write_text(json.dumps(results, indent=2) + '\n')
++    print(f'PASS: {len(results)} capturas anatómicas; {args.output}')
++
++
++if __name__ == '__main__':
++    main()

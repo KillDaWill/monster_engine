@@ -5,6 +5,50 @@
 static float Limit(float x,float lo,float hi,float fallback) {
     return isfinite(x)?fmaxf(lo,fminf(hi,x)):fallback;
 }
+static float RegionCoverage(const PigmentLayer* l,const SurfaceCoordinate* c) {
+        bool ta=(int)c->region==3||(int)c->region==4,tb=(int)c->secondaryRegion==3||(int)c->secondaryRegion==4;
+        float a=PigmentPattern_RegionWeight(l,(unsigned)c->region,(unsigned)c->region,0);
+        float b=PigmentPattern_RegionWeight(l,(unsigned)c->secondaryRegion,(unsigned)c->secondaryRegion,0);
+        float belly=PigmentPattern_RegionWeight(l,SURFACE_REGION_VENTRAL_TRUNK,SURFACE_REGION_VENTRAL_TRUNK,0);
+        return (1-c->blend)*a*(ta?1-c->ventral:1)+c->blend*b*(tb?1-c->ventral:1)+
+            c->ventral*((ta?1-c->blend:0)+(tb?c->blend:0))*belly;
+}
+static SurfaceLocalMaterial LocalMaterialBank(const PigmentPhenotype* p,const SurfaceCoordinate* c,float roughness) {
+    SurfaceLocalMaterial result={1,roughness,0};
+    for(size_t i=0;i<p->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i) {
+        const PigmentLayer* l=&p->layers[i];const PigmentDomain* d=&l->domain;
+        if(d->radii.x<=0||d->radii.y<=0||d->radii.z<=0)continue;
+        float region=RegionCoverage(l,c);
+        float value=PigmentPattern_SampleSurface(l->pattern,c->position,l->scale,l->sharpness,l->direction,p->seed^(l->seed&0xffffu)^(uint32_t)(i*101));
+        float weight=Limit(value*l->strength*region*PigmentDomain_Weight(d,c->position,l->seed),0,1,0)*d->materialStrength;
+        result.furCoverage+=(d->furCoverage-result.furCoverage)*weight;
+        result.roughness+=(d->roughness-result.roughness)*weight;
+        result.skinWeight=1-(1-result.skinWeight)*(1-weight);
+    }
+    return result;
+}
+static float DomainMaskBank(const PigmentPhenotype* p,const SurfaceCoordinate* c) {
+    float mask=0;
+    for(size_t i=0;i<p->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i) {
+        const PigmentLayer* l=&p->layers[i];const PigmentDomain* d=&l->domain;
+        if(d->radii.x>0&&d->radii.y>0&&d->radii.z>0)
+            mask=fmaxf(mask,RegionCoverage(l,c)*PigmentDomain_Weight(d,c->position,l->seed));
+    }
+    return mask;
+}
+float Surface_EvaluatePigmentDomainMask(const SurfacePhenotype* p,const SurfaceCoordinate* c) {
+    if(!p||!c)return 0;
+    if(!p->transition.active)return DomainMaskBank(&p->pigment,c);
+    float a=DomainMaskBank(&p->transition.from,c),b=DomainMaskBank(&p->transition.to,c);
+    return a+(b-a)*p->transition.weight;
+}
+SurfaceLocalMaterial Surface_EvaluateLocalMaterial(const SurfacePhenotype* p,const SurfaceCoordinate* c,float roughness) {
+    if(!p||!c)return (SurfaceLocalMaterial){1,roughness,0};
+    if(!p->transition.active)return LocalMaterialBank(&p->pigment,c,roughness);
+    SurfaceLocalMaterial a=LocalMaterialBank(&p->transition.from,c,roughness),b=LocalMaterialBank(&p->transition.to,c,roughness);
+    float t=p->transition.weight;
+    return (SurfaceLocalMaterial){a.furCoverage+(b.furCoverage-a.furCoverage)*t,a.roughness+(b.roughness-a.roughness)*t,a.skinWeight+(b.skinWeight-a.skinWeight)*t};
+}
 SurfacePhenotype SurfacePhenotype_Default(void) {
     SurfacePhenotype p={0};
     p.pigment=(PigmentPhenotype){.baseColor={150,150,140,255},.secondaryColor={90,90,80,255},
@@ -22,6 +66,8 @@ SurfacePhenotype SurfacePhenotype_Default(void) {
 void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     if(!p)return;
     if(p->tuftCount>SURFACE_MAX_FUR_TUFTS)p->tuftCount=SURFACE_MAX_FUR_TUFTS;
+    if(p->longHairCount>LONG_HAIR_MAX_GROUPS)p->longHairCount=LONG_HAIR_MAX_GROUPS;
+    for(size_t i=0;i<p->longHairCount;++i)LongHairGroup_Normalize(&p->longHair[i]);
     for(size_t i=0;i<p->tuftCount;++i) {
         FurTuftPhenotype* f=&p->tufts[i];
         if(f->region<0||f->region>=SURFACE_REGION_COUNT)f->region=SURFACE_REGION_UNKNOWN;
@@ -79,6 +125,13 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
         l->strength=Limit(l->strength,0,1,1);
         l->scale=Limit(l->scale,.01f,50,1);
         l->sharpness=Limit(l->sharpness,0,1,.5f);
+        PigmentDomain* d=&l->domain;
+        float* center[]={&d->center.x,&d->center.y,&d->center.z};
+        float* radii[]={&d->radii.x,&d->radii.y,&d->radii.z};
+        for(unsigned k=0;k<3;++k){*center[k]=Limit(*center[k],-100,100,0);*radii[k]=Limit(*radii[k],0,100,0);}
+        d->softness=Limit(d->softness,.001f,1,.3f);d->irregularity=Limit(d->irregularity,0,1,0);
+        d->materialStrength=Limit(d->materialStrength,0,1,0);
+        d->furCoverage=Limit(d->furCoverage,0,1,0);d->roughness=Limit(d->roughness,.05f,1,.5f);
     }
 #undef CLAMP
 }
@@ -132,6 +185,25 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
         if(t>=.5f){p.tuftCount=q.tuftCount;memcpy(p.tufts,q.tufts,sizeof(p.tufts));}
         for(size_t i=0;i<p.tuftCount;++i)p.tufts[i].density*=t<.5f?1-2*t:2*t-1;
     }
+    bool sameHair=p.longHairCount==q.longHairCount;
+    for(size_t i=0;i<p.longHairCount&&sameHair;++i){const LongHairDomain *a=&p.longHair[i].domain,*b=&q.longHair[i].domain;
+        sameHair=p.longHair[i].id==q.longHair[i].id&&p.longHair[i].seed==q.longHair[i].seed&&a->kind==b->kind&&
+            a->hostModuleId==b->hostModuleId&&a->region==b->region&&a->anchorCount==b->anchorCount&&
+            p.longHair[i].guideCount==q.longHair[i].guideCount&&p.longHair[i].childrenPerGuide==q.longHair[i].childrenPerGuide&&
+            Vec3_Distance(a->normal,b->normal)<.00001f&&Vec3_Dot(p.longHair[i].direction,q.longHair[i].direction)>-.95f;
+        for(size_t j=0;j<a->anchorCount&&sameHair;++j)sameHair=a->anchors[j]==b->anchors[j];}
+    if(sameHair)for(size_t i=0;i<p.longHairCount;++i){
+        MIX(longHair[i].length);MIX(longHair[i].lengthVariation);MIX(longHair[i].width);MIX(longHair[i].rootSpread);
+        MIX(longHair[i].clumping);MIX(longHair[i].stiffness);MIX(longHair[i].gravityInfluence);MIX(longHair[i].density);
+        MIX(longHair[i].direction.x);MIX(longHair[i].direction.y);MIX(longHair[i].direction.z);
+        MIX(longHair[i].domain.offset.x);MIX(longHair[i].domain.offset.y);MIX(longHair[i].domain.offset.z);
+        MIX(longHair[i].domain.angle);MIX(longHair[i].domain.angularSpread);MIX(longHair[i].domain.start);MIX(longHair[i].domain.end);MIX(longHair[i].domain.patchRadius);
+        p.longHair[i].rootColor=Color_Lerp(p.longHair[i].rootColor,q.longHair[i].rootColor,t);
+        p.longHair[i].tipColor=Color_Lerp(p.longHair[i].tipColor,q.longHair[i].tipColor,t);
+    }else{
+        if(t>=.5f){p.longHairCount=q.longHairCount;memcpy(p.longHair,q.longHair,sizeof(p.longHair));}
+        for(size_t i=0;i<p.longHairCount;++i)p.longHair[i].density*=t<.5f?1-2*t:2*t-1;
+    }
 #undef MIX
     /* Los patrones discretos no se interpolan como números: se mezclan sus
      * contribuciones. Las semillas de cada capa permanecen inmutables. */
@@ -181,6 +253,15 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
     return p;
 }
 static void PackColor(float* out,Color c) { out[0]=c.r/255.f; out[1]=c.g/255.f; out[2]=c.b/255.f; out[3]=c.a/255.f; }
+void SurfacePhenotype_CopyAnchoredDomains(SurfacePhenotype* out,const SurfacePhenotype* source) {
+    if(!out||!source)return;
+    PigmentPhenotype* dst[]={&out->pigment,&out->transition.from,&out->transition.to};
+    const PigmentPhenotype* src[]={&source->pigment,&source->transition.from,&source->transition.to};
+    for(unsigned bank=0;bank<3;++bank)for(size_t i=0;i<dst[bank]->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i)
+        if(i<src[bank]->layerCount&&src[bank]->layers[i].domain.anchorNode&&
+           dst[bank]->layers[i].pattern==src[bank]->layers[i].pattern&&dst[bank]->layers[i].seed==src[bank]->layers[i].seed)
+            dst[bank]->layers[i].domain=src[bank]->layers[i].domain;
+}
 /* Cada banco conserva el índice original de capa, que participa en su ruido.
  * Separar bancos evita cambiar semilla al desaparecer una capa del origen. */
 static void PackPigmentBank(float (*rows)[4],const PigmentPhenotype* p) {
@@ -193,6 +274,15 @@ static void PackPigmentBank(float (*rows)[4],const PigmentPhenotype* p) {
         PackColor(rows[row],l->color);rows[row][3]=l->strength;
         rows[row+1][0]=(float)l->pattern;rows[row+1][1]=l->scale;rows[row+1][2]=l->sharpness;rows[row+1][3]=(float)(l->seed&0xffffu);
         rows[row+2][0]=l->direction.x;rows[row+2][1]=l->direction.y;rows[row+2][2]=l->direction.z;rows[row+2][3]=(float)l->regionMask;
+    }
+}
+static void PackDomains(float (*rows)[4],const PigmentPhenotype* p) {
+    for(size_t i=0;i<p->layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i) {
+        const PigmentDomain* d=&p->layers[i].domain;
+        float data[3][4]={{d->center.x,d->center.y,d->center.z,d->softness},
+            {d->radii.x,d->radii.y,d->radii.z,d->irregularity},
+            {d->materialStrength,d->furCoverage,d->roughness,(float)(p->layers[i].seed&1023u)}};
+        memcpy(rows+3*i,data,sizeof(data));
     }
 }
 SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
@@ -262,7 +352,12 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         memcpy(r.data[row],data,sizeof(data));PackColor(r.data[row+4],f->color);
         r.data[row+4][3]=(float)f->region;
     }
-    r.data[SURFACE_RECIPE_ROWS-1][0]=(float)p.tuftCount;
+    r.data[SURFACE_RECIPE_DOMAIN_BASE-1][0]=(float)p.tuftCount;
+    PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE,&p.pigment);
+    if(p.transition.active) {
+        PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE+SURFACE_RECIPE_DOMAIN_ROWS,&p.transition.from);
+        PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE+2*SURFACE_RECIPE_DOMAIN_ROWS,&p.transition.to);
+    }
     r.pigmentSeed=p.pigment.seed; r.scaleSeed=p.integument.scales.seed; r.furSeed=p.integument.fur.seed; return r;
 }
 

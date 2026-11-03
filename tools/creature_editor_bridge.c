@@ -22,8 +22,12 @@ static void ExportMesh(const Mesh* mesh,const CreaturePhenotype* p,bool skin,con
             float pattern=PigmentPattern_Sample(p->surface.pigment.bands>.5f?PIGMENT_PATTERN_BANDS:PIGMENT_PATTERN_NOISE,
                 q,p->surface.pigment.patternScale,.6f,Vec3_Create(0,0,1),p->surface.pigment.seed);
             c=Color_Lerp(c,p->surface.pigment.secondaryColor,pattern*p->surface.pigment.patternStrength);
-            for(size_t k=0;k<p->surface.pigment.layerCount;++k)
-                c=PigmentPattern_EvaluateLayer(&p->surface.pigment.layers[k],q,c);
+            for(size_t k=0;k<p->surface.pigment.layerCount;++k) {
+                const PigmentLayer* l=&p->surface.pigment.layers[k];
+                bool local=l->domain.radii.x>0&&l->domain.radii.y>0&&l->domain.radii.z>0;
+                c=local?PigmentPattern_EvaluateRegionalLayer(l,v->surface.position,c,
+                    (unsigned)v->surface.region,(unsigned)v->surface.secondaryRegion,v->surface.blend):PigmentPattern_EvaluateLayer(l,q,c);
+            }
         }
         if(eye){Vector3 delta=Vec3_Sub(v->position,eye->center);
             if(Vec3_Dot(delta,eye->forward)>0){
@@ -58,6 +62,7 @@ int main(int argc,char** argv){
     if(!m||!v){free(m);free(v);free(doc);return 1;}
     *m=Monster_Create();const CreaturePhenotype* p=CreatureRecipe_GetStage(&doc->recipe,(CreatureStage)stage);
     bool ok=Creature_ResolveAppearance(m,&doc->recipe,p);
+    CreaturePhenotype preview=*p;preview.surface=m->surface;p=&preview;
     /* Pose neutra de edición; la demo conserva el control de su animación oral. */
     for(size_t i=0;i<m->mouthCount;++i)Mouth_SetOpenFactor(&m->mouths[i],0);
     SDFMesherConfig config=SDFMesher_DefaultConfig();config.voxelSize=fine?.065f:.12f;
@@ -82,9 +87,13 @@ int main(int argc,char** argv){
             fprintf(meta,"],\"nodes\":[");
             for(size_t i=0;i<m->anatomyGraph.nodeCount;++i){const AnatomyNode* n=&m->anatomyGraph.nodes[i];
                 fprintf(meta,"%s{\"id\":%u,\"module\":%u,\"local\":%u,\"position\":[%.7g,%.7g,%.7g],\"radii\":[%.7g,%.7g],\"region\":%u,\"role\":%u}",i?",":"",n->id,n->moduleInstanceId,n->localNodeId,n->center.x,n->center.y,n->center.z,n->widthRadius,n->heightRadius,(unsigned)n->region,(unsigned)n->role);}
-            fprintf(meta,"]}");long length=ftell(meta);rewind(meta);uint32_t size=(uint32_t)length;
+            const SDFMesherStats* stats=SDFMesher_GetLastStats(&v->mesher);
+            fprintf(meta,"],\"mesher\":{\"requestedVoxel\":%.9g,\"minimumVoxel\":%.9g,\"effectiveVoxel\":%.9g,\"detailRatio\":%.9g,\"budgetAdjusted\":%s,\"detailAdjusted\":%s,\"cells\":%zu,\"rawVertices\":%zu,\"keptVertices\":%zu}}",
+                stats->requestedVoxelSize,stats->minimumVoxelSize,stats->effectiveVoxelSize,stats->detailSpacingRatio,
+                stats->cellBudgetAdjusted?"true":"false",stats->detailBudgetAdjusted?"true":"false",stats->cellCount,stats->generatedVertexCount,v->mesh.vertexCount);
+            long length=ftell(meta);rewind(meta);uint32_t size=(uint32_t)length;
             fwrite(&size,sizeof(size),1,stdout);int c;while((c=fgetc(meta))!=EOF)fputc(c,stdout);fclose(meta);
-            for(size_t i=0;i<count;++i)ExportMesh(meshes[i],&m->phenotype,skin[i],eyes[i]);
+            for(size_t i=0;i<count;++i)ExportMesh(meshes[i],p,skin[i],eyes[i]);
         }
     }
     if(!ok)fprintf(stderr,"El motor no pudo construir la vista previa (cuerpo=%zu, cabeza=%zu, bocas=%zu).\n",v->stagingMesh.vertexCount,v->stagingHeadMesh.vertexCount,m->mouthCount);

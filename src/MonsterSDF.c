@@ -31,14 +31,18 @@ static SDFMaterial MonsterSDF_ConnectionMaterial(const Monster* monster,const Bo
     return SDF_MATERIAL_SKIN;
 }
 
-/* Una cola colgante no es una función monótona del eje Z del tronco. */
-static bool MonsterSDF_HangingTail(const Monster* monster,uint32_t module) {
+static const TailPhenotype* MonsterSDF_TailPhenotype(const Monster* monster,uint32_t module) {
     for(size_t i=0;i<monster->recipe.bodyPlan.moduleCount;++i) {
         const CreatureModuleInstance* m=&monster->recipe.bodyPlan.modules[i];
         if(m->instanceId==module&&m->kind==CREATURE_MODULE_TAIL&&m->phenotypeIndex<monster->phenotype.tailCount)
-            return monster->phenotype.tails[m->phenotypeIndex].droop>0;
+            return &monster->phenotype.tails[m->phenotypeIndex];
     }
-    return false;
+    return NULL;
+}
+/* Una cola colgante no es una función monótona del eje Z del tronco. */
+static bool MonsterSDF_HangingTail(const Monster* monster,uint32_t module) {
+    const TailPhenotype* tail=MonsterSDF_TailPhenotype(monster,module);
+    return tail&&tail->droop>0;
 }
 
 MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
@@ -484,6 +488,17 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             c->r1=Math_Min(c->widthA,c->heightA);c->r2=Math_Min(c->widthB,c->heightB);c->radiusDelta=c->r2-c->r1;
             c->fromId=edge->fromId;c->toId=edge->toId;c->connectionId=edge->id;c->kind=edge->kind;
             c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&!MonsterSDF_HangingTail(monster,edge->moduleInstanceId);
+            if(c->kind==BODY_CONNECTION_AXIAL_LOFT&&!c->axialSweepMember&&
+               a->region!=ANATOMY_REGION_TAIL&&b->region==ANATOMY_REGION_TAIL&&
+               MonsterSDF_TailPhenotype(monster,edge->moduleInstanceId)->rootMatchStrength==0) {
+                /* Una cola colgante abandona el loft axial: su pedículo usa
+                 * la sección caudal, no una cápsula del diámetro de la pelvis.
+                 * El origen sigue dentro del anfitrión y conserva sus IDs.
+                 * rootMatchStrength>0 conserva el acoplamiento solicitado y
+                 * la geometría de las recetas anteriores que lo activaban. */
+                c->widthA=b->widthRadius;c->heightA=b->heightRadius;
+                c->r1=Math_Min(c->widthA,c->heightA);c->radiusDelta=c->r2-c->r1;
+            }
             c->moduleInstanceId=edge->moduleInstanceId;c->region=b->region; c->development=edge->development;
             c->isHeadNeck=(a->region==ANATOMY_REGION_HEAD&&b->region==ANATOMY_REGION_NECK)||
                 (b->region==ANATOMY_REGION_HEAD&&a->region==ANATOMY_REGION_NECK);
@@ -1017,12 +1032,37 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         m->headStations[3]=(SDFSweepStation){.center=Vec3_Add(origin,profile->cranialPostorbitalCenter),.width=profile->cranialPostorbitalRadii.x,.height=profile->cranialPostorbitalRadii.y};
         m->headStations[4]=(SDFSweepStation){.center=Vec3_Add(origin,profile->cranialTemporalCenter),.width=profile->cranialTemporalRadii.x,.height=profile->cranialTemporalRadii.y};
         m->headStations[5]=(SDFSweepStation){.center=Vec3_Add(origin,profile->cranialOccipitalCenter),.width=profile->cranialOccipitalRadii.x,.height=profile->cranialOccipitalRadii.y};
+        if(profile->hasCranialProfile)for(int j=0;j<6;++j)m->headStations[j]=(SDFSweepStation){
+            .center=Vec3_Add(origin,profile->cranialCenters[j]),
+            .width=profile->cranialRadii[j].x,.height=profile->cranialRadii[j].y};
         if(!SDF_SweepResolveTangents(m->headStations,6)){MonsterSDF_Free(sdf);return false;}
         /* El maxilar aporta anchura y longitud; la profundidad procede de la
          * mandíbula resuelta. Recortar y escalar el cráneo dejaba un suelo casi
          * nulo al cruzar su curva con el plano oral en hocicos aplanados. */
         float lip=m->entranceCenterLocal.y-m->entranceHalfExtents.y;
         bool equineMouth=monster->hasHead&&monster->head.anatomy.archetype==HEAD_ARCHETYPE_EQUINE;
+        /* Compatibilidad explícita de perfiles antiguos: el evaluador deja de
+         * usar faceCapWeight para decidir cuánto sobrevive de la mandíbula. */
+        m->jawPosteriorZ=Math_Lerp(m->hingeCenterLocal.z,m->entranceCenterLocal.z-m->entranceHalfExtents.z,profile->jawRearClipWeight);
+        if(profile->hasMandibularProfile) {
+            m->independentMandible=true;
+            /* La cavidad interna acaba en la comisura; prolongarla hasta la
+             * premaxila excavaba el labio superior incluso con apertura cero.
+             * La hendidura fina es la única abertura en el tramo incisivo. */
+            float corner=m->entranceCenterLocal.z-m->entranceHalfExtents.z;
+            m->cavityCenterLocal.z=Math_Lerp(m->faceRootLocal.z,corner,.48f);
+            m->cavityCenterLocal.y=m->entranceCenterLocal.y+m->oralSlope*(m->cavityCenterLocal.z-m->entranceCenterLocal.z);
+            m->cavityRadii.z=(corner-m->faceRootLocal.z)*.48f;
+            m->jawPosteriorZ=m->hingeCenterLocal.z-m->jawRadii.y*.45f;
+            for(int j=0;j<6;++j)m->jawStations[j]=(SDFSweepStation){
+                .center=Vec3_Add(origin,profile->mandibularCenters[j]),
+                .width=profile->mandibularRadii[j].x,.height=profile->mandibularRadii[j].y};
+            if(!SDF_SweepResolveTangents(m->jawStations,6)){MonsterSDF_Free(sdf);return false;}
+            m->jawNotchCenter=Vec3_Add(m->jawStations[4].center,Vec3_Create(0,-m->jawStations[4].height*.95f,0));
+            m->jawNotchRadii=Vec3_Create(m->jawStations[4].width*.54f,m->jawStations[4].height*.72f,
+                (m->jawStations[2].center.z-m->jawStations[5].center.z)*.85f);
+            continue;
+        }
         for(int j=0;j<6;++j) {
             m->jawStations[j]=m->headStations[j];
             float flat=Math_Clamp01(fabsf(m->oralSlope)*4);
@@ -1251,8 +1291,12 @@ static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP
         float lip=mouth->entranceCenterLocal.y-mouth->entranceHalfExtents.y;
         float envelope=SDF_EllipticalSweepZ(localP,mouth->jawStations,6);
         float oralPlane=localP.y-mouth->oralSlope*(localP.z-mouth->entranceCenterLocal.z)-lip;
-        float rear= Math_Lerp(mouth->hingeCenterLocal.z,mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z,mouth->faceCapWeight);
-        float rearPlane=rear-localP.z;
+        if(mouth->independentMandible) {
+            envelope=Math_Max(envelope,-SDF_Ellipsoid(Vec3_Sub(localP,mouth->jawNotchCenter),mouth->jawNotchRadii));
+            /* El labio inferior acompaña el borde rostral superior cerrado. */
+            envelope=Math_Max(envelope,localP.z-mouth->faceTipLocal.z-mouth->faceCapDepth);
+        }
+        float rearPlane=mouth->jawPosteriorZ-localP.z;
         return Math_Max(envelope,Math_Max(oralPlane,rearPlane));
     }
     if(mouth->lowerBeak) {

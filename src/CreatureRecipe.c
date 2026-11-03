@@ -112,6 +112,14 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
 
     size_t order[CREATURE_MAX_MODULES];
     if (!CreatureRecipe_ResolutionOrder(r, order)) return false;
+    if(p->surface.longHairCount>LONG_HAIR_MAX_GROUPS)return false;
+    for(size_t i=0;i<p->surface.longHairCount;++i){const LongHairGroup* g=&p->surface.longHair[i];const LongHairDomain* d=&g->domain;
+        if(!g->id||!d->hostModuleId||d->hostModuleId>65534||d->kind<LONG_HAIR_CURVE||d->kind>LONG_HAIR_REGION||
+            d->anchorCount>LONG_HAIR_MAX_ANCHORS||g->guideCount>256||g->childrenPerGuide>64)return false;
+        if(d->kind!=LONG_HAIR_REGION&&!d->anchorCount)return false;
+        for(size_t j=0;j<i;++j)if(p->surface.longHair[j].id==g->id)return false;
+        for(size_t j=0;j<d->anchorCount;++j)if((d->anchors[j]>>16)!=d->hostModuleId||!(d->anchors[j]&65535u))return false;
+    }
 
     /* Validar que la referencia a la raíz del BodyPlan sea coherente */
     if (!r->bodyPlan.root.moduleInstanceId || !r->bodyPlan.root.localNodeId ||

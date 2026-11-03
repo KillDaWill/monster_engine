@@ -1,0 +1,514 @@
+[
+  {
+    "recipe": "caballo",
+    "stage": 0,
+    "seconds": 3.0959856350018526,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00304214866,
+      "effectiveVoxel": 0.0486743785,
+      "detailRatio": 1,
+      "budgetAdjusted": false,
+      "detailAdjusted": false,
+      "cells": 421093,
+      "rawVertices": 73141,
+      "keptVertices": 73095
+    },
+    "vertices": 74671,
+    "meshes": [
+      {
+        "vertices": 73095,
+        "indices": 438594,
+        "materialCounts": {
+          "skin": 66044,
+          "horn": 0,
+          "hoof": 4953
+        }
+      },
+      {
+        "vertices": 56,
+        "indices": 324,
+        "materialCounts": {
+          "skin": 56,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 44,
+        "indices": 228,
+        "materialCounts": {
+          "skin": 44,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "caballo",
+    "stage": 1,
+    "seconds": 3.3607552379980916,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00458902726,
+      "effectiveVoxel": 0.0367122181,
+      "detailRatio": 1,
+      "budgetAdjusted": false,
+      "detailAdjusted": false,
+      "cells": 456590,
+      "rawVertices": 80548,
+      "keptVertices": 80496
+    },
+    "vertices": 82374,
+    "meshes": [
+      {
+        "vertices": 80496,
+        "indices": 482988,
+        "materialCounts": {
+          "skin": 72695,
+          "horn": 0,
+          "hoof": 5617
+        }
+      },
+      {
+        "vertices": 280,
+        "indices": 1584,
+        "materialCounts": {
+          "skin": 170,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 122,
+        "indices": 672,
+        "materialCounts": {
+          "skin": 122,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "caballo",
+    "stage": 2,
+    "seconds": 3.6318835559977742,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00579094747,
+      "effectiveVoxel": 0.0463275798,
+      "detailRatio": 1,
+      "budgetAdjusted": false,
+      "detailAdjusted": false,
+      "cells": 482553,
+      "rawVertices": 88784,
+      "keptVertices": 88716
+    },
+    "vertices": 90936,
+    "meshes": [
+      {
+        "vertices": 88716,
+        "indices": 532308,
+        "materialCounts": {
+          "skin": 79712,
+          "horn": 0,
+          "hoof": 6877
+        }
+      },
+      {
+        "vertices": 528,
+        "indices": 3024,
+        "materialCounts": {
+          "skin": 284,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 216,
+        "indices": 1284,
+        "materialCounts": {
+          "skin": 216,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "caballo",
+    "stage": 3,
+    "seconds": 2.7933554990013363,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00679050991,
+      "effectiveVoxel": 0.0543240793,
+      "detailRatio": 1,
+      "budgetAdjusted": false,
+      "detailAdjusted": false,
+      "cells": 370658,
+      "rawVertices": 58911,
+      "keptVertices": 58881
+    },
+    "vertices": 61291,
+    "meshes": [
+      {
+        "vertices": 58881,
+        "indices": 353370,
+        "materialCounts": {
+          "skin": 54501,
+          "horn": 0,
+          "hoof": 2004
+        }
+      },
+      {
+        "vertices": 684,
+        "indices": 3936,
+        "materialCounts": {
+          "skin": 362,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 250,
+        "indices": 1488,
+        "materialCounts": {
+          "skin": 250,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "asno",
+    "stage": 0,
+    "seconds": 5.039612689997739,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00304214866,
+      "effectiveVoxel": 0.0486743785,
+      "detailRatio": 1,
+      "budgetAdjusted": true,
+      "detailAdjusted": true,
+      "cells": 650000,
+      "rawVertices": 78105,
+      "keptVertices": 78047
+    },
+    "vertices": 79629,
+    "meshes": [
+      {
+        "vertices": 78047,
+        "indices": 468354,
+        "materialCounts": {
+          "skin": 73057,
+          "horn": 0,
+          "hoof": 2962
+        }
+      },
+      {
+        "vertices": 54,
+        "indices": 312,
+        "materialCounts": {
+          "skin": 54,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 52,
+        "indices": 300,
+        "materialCounts": {
+          "skin": 52,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "asno",
+    "stage": 1,
+    "seconds": 5.1073542020021705,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00458902726,
+      "effectiveVoxel": 0.0367122181,
+      "detailRatio": 1,
+      "budgetAdjusted": true,
+      "detailAdjusted": true,
+      "cells": 650000,
+      "rawVertices": 81873,
+      "keptVertices": 81815
+    },
+    "vertices": 83707,
+    "meshes": [
+      {
+        "vertices": 81815,
+        "indices": 490935,
+        "materialCounts": {
+          "skin": 76270,
+          "horn": 0,
+          "hoof": 3363
+        }
+      },
+      {
+        "vertices": 294,
+        "indices": 1644,
+        "materialCounts": {
+          "skin": 132,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 122,
+        "indices": 672,
+        "materialCounts": {
+          "skin": 122,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "asno",
+    "stage": 2,
+    "seconds": 5.163297627997963,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00579094747,
+      "effectiveVoxel": 0.0463275798,
+      "detailRatio": 1,
+      "budgetAdjusted": true,
+      "detailAdjusted": true,
+      "cells": 650000,
+      "rawVertices": 87941,
+      "keptVertices": 87905
+    },
+    "vertices": 90053,
+    "meshes": [
+      {
+        "vertices": 87905,
+        "indices": 527502,
+        "materialCounts": {
+          "skin": 81190,
+          "horn": 0,
+          "hoof": 4414
+        }
+      },
+      {
+        "vertices": 456,
+        "indices": 2628,
+        "materialCounts": {
+          "skin": 288,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 216,
+        "indices": 1284,
+        "materialCounts": {
+          "skin": 216,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  },
+  {
+    "recipe": "asno",
+    "stage": 3,
+    "seconds": 5.3334310589998495,
+    "mesher": {
+      "requestedVoxel": 0.0649999976,
+      "minimumVoxel": 0.00679050991,
+      "effectiveVoxel": 0.0543240793,
+      "detailRatio": 1,
+      "budgetAdjusted": true,
+      "detailAdjusted": true,
+      "cells": 650000,
+      "rawVertices": 94618,
+      "keptVertices": 94548
+    },
+    "vertices": 96954,
+    "meshes": [
+      {
+        "vertices": 94548,
+        "indices": 567324,
+        "materialCounts": {
+          "skin": 87122,
+          "horn": 0,
+          "hoof": 5033
+        }
+      },
+      {
+        "vertices": 680,
+        "indices": 3912,
+        "materialCounts": {
+          "skin": 350,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 250,
+        "indices": 1488,
+        "materialCounts": {
+          "skin": 250,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      },
+      {
+        "vertices": 738,
+        "indices": 4416,
+        "materialCounts": {
+          "skin": 738,
+          "horn": 0,
+          "hoof": 0
+        }
+      }
+    ]
+  }
+]

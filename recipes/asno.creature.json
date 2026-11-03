@@ -162,7 +162,7 @@
         "thoraxWidth": 1.30350006,
         "thoraxHeight": 1.58000004,
         "abdomenWidth": 1.26400006,
-        "abdomenHeight": 1.34300005,
+        "abdomenHeight": 1.48520005,
         "pelvicWidth": 1.14549994,
         "pelvicHeight": 1.43780005,
         "trunkLength": 2.8210001,
@@ -197,8 +197,8 @@
           {
             "longitudinalOffset": 0,
             "verticalOffset": -0.119999997,
-            "widthScale": 1.04999995,
-            "heightScale": 1.08000004
+            "widthScale": 1.01999998,
+            "heightScale": 1.01999998
           },
           {
             "longitudinalOffset": 0,
@@ -602,8 +602,83 @@
           "patternScale": 0.850000024,
           "bands": 0,
           "seed": 3135406928,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 0,
+              "color": {
+                "r": 188,
+                "g": 179,
+                "b": 158,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 71,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -1.54999995,
+                  "z": 1.64999998
+                },
+                "radii": {
+                  "x": 0.939999998,
+                  "y": 0.920000017,
+                  "z": 0.75
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 0.300000012,
+                "furCoverage": 0.699999988,
+                "roughness": 0.550000012
+              }
+            },
+            {
+              "pattern": 0,
+              "color": {
+                "r": 65,
+                "g": 60,
+                "b": 53,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 93,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -2.0999999,
+                  "z": 1.72000003
+                },
+                "radii": {
+                  "x": 0.899999976,
+                  "y": 0.349999994,
+                  "z": 0.579999983
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 1,
+                "furCoverage": 0.0199999996,
+                "roughness": 0.430000007
+              }
+            }
+          ],
+          "layerCount": 2
         },
         "integument": {
           "type": 2,
@@ -1074,7 +1149,7 @@
         "thoraxWidth": 1.39012504,
         "thoraxHeight": 1.68499994,
         "abdomenWidth": 1.34800005,
-        "abdomenHeight": 1.43225002,
+        "abdomenHeight": 1.58389997,
         "pelvicWidth": 1.22162497,
         "pelvicHeight": 1.53334999,
         "trunkLength": 2.92825007,
@@ -1109,8 +1184,8 @@
           {
             "longitudinalOffset": 0,
             "verticalOffset": -0.119999997,
-            "widthScale": 1.04999995,
-            "heightScale": 1.08000004
+            "widthScale": 1.01999998,
+            "heightScale": 1.01999998
           },
           {
             "longitudinalOffset": 0,
@@ -1514,8 +1589,83 @@
           "patternScale": 0.850000024,
           "bands": 0,
           "seed": 3135406928,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 0,
+              "color": {
+                "r": 188,
+                "g": 179,
+                "b": 158,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 71,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -1.54999995,
+                  "z": 1.64999998
+                },
+                "radii": {
+                  "x": 0.939999998,
+                  "y": 0.920000017,
+                  "z": 0.75
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 0.300000012,
+                "furCoverage": 0.699999988,
+                "roughness": 0.550000012
+              }
+            },
+            {
+              "pattern": 0,
+              "color": {
+                "r": 65,
+                "g": 60,
+                "b": 53,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 93,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -2.0999999,
+                  "z": 1.72000003
+                },
+                "radii": {
+                  "x": 0.899999976,
+                  "y": 0.349999994,
+                  "z": 0.579999983
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 1,
+                "furCoverage": 0.0199999996,
+                "roughness": 0.430000007
+              }
+            }
+          ],
+          "layerCount": 2
         },
         "integument": {
           "type": 2,
@@ -1986,7 +2136,7 @@
         "thoraxWidth": 1.5345,
         "thoraxHeight": 1.86000001,
         "abdomenWidth": 1.48800004,
-        "abdomenHeight": 1.58099997,
+        "abdomenHeight": 1.74839997,
         "pelvicWidth": 1.34850001,
         "pelvicHeight": 1.69260001,
         "trunkLength": 3.10700011,
@@ -2021,8 +2171,8 @@
           {
             "longitudinalOffset": 0,
             "verticalOffset": -0.119999997,
-            "widthScale": 1.04999995,
-            "heightScale": 1.08000004
+            "widthScale": 1.01999998,
+            "heightScale": 1.01999998
           },
           {
             "longitudinalOffset": 0,
@@ -2426,8 +2576,83 @@
           "patternScale": 0.850000024,
           "bands": 0,
           "seed": 3135406928,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 0,
+              "color": {
+                "r": 188,
+                "g": 179,
+                "b": 158,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 71,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -1.54999995,
+                  "z": 1.64999998
+                },
+                "radii": {
+                  "x": 0.939999998,
+                  "y": 0.920000017,
+                  "z": 0.75
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 0.300000012,
+                "furCoverage": 0.699999988,
+                "roughness": 0.550000012
+              }
+            },
+            {
+              "pattern": 0,
+              "color": {
+                "r": 65,
+                "g": 60,
+                "b": 53,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 93,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -2.0999999,
+                  "z": 1.72000003
+                },
+                "radii": {
+                  "x": 0.899999976,
+                  "y": 0.349999994,
+                  "z": 0.579999983
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 1,
+                "furCoverage": 0.0199999996,
+                "roughness": 0.430000007
+              }
+            }
+          ],
+          "layerCount": 2
         },
         "integument": {
           "type": 2,
@@ -2898,7 +3123,7 @@
         "thoraxWidth": 1.64999998,
         "thoraxHeight": 2,
         "abdomenWidth": 1.60000002,
-        "abdomenHeight": 1.70000005,
+        "abdomenHeight": 1.88,
         "pelvicWidth": 1.45000005,
         "pelvicHeight": 1.82000005,
         "trunkLength": 3.25,
@@ -2933,8 +3158,8 @@
           {
             "longitudinalOffset": 0,
             "verticalOffset": -0.119999997,
-            "widthScale": 1.04999995,
-            "heightScale": 1.08000004
+            "widthScale": 1.01999998,
+            "heightScale": 1.01999998
           },
           {
             "longitudinalOffset": 0,
@@ -3338,8 +3563,83 @@
           "patternScale": 0.850000024,
           "bands": 0,
           "seed": 3135406928,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 0,
+              "color": {
+                "r": 188,
+                "g": 179,
+                "b": 158,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 71,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -1.54999995,
+                  "z": 1.64999998
+                },
+                "radii": {
+                  "x": 0.939999998,
+                  "y": 0.920000017,
+                  "z": 0.75
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 0.300000012,
+                "furCoverage": 0.699999988,
+                "roughness": 0.550000012
+              }
+            },
+            {
+              "pattern": 0,
+              "color": {
+                "r": 65,
+                "g": 60,
+                "b": 53,
+                "a": 255
+              },
+              "strength": 0.959999979,
+              "scale": 1,
+              "sharpness": 0.5,
+              "direction": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+              },
+              "seed": 93,
+              "regionMask": 0,
+              "domain": {
+                "anchorNode": 131073,
+                "center": {
+                  "x": 0,
+                  "y": -2.0999999,
+                  "z": 1.72000003
+                },
+                "radii": {
+                  "x": 0.899999976,
+                  "y": 0.349999994,
+                  "z": 0.579999983
+                },
+                "softness": 0.379999995,
+                "irregularity": 0.300000012,
+                "materialStrength": 1,
+                "furCoverage": 0.0199999996,
+                "roughness": 0.430000007
+              }
+            }
+          ],
+          "layerCount": 2
         },
         "integument": {
           "type": 2,

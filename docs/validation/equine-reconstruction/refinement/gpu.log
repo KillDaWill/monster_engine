@@ -1,0 +1,90 @@
+
+RECETA 1
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000188619 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000037 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000037 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000149 PASS
+[RECETA GPU] intervalo_error_m=0.000188618898
+[RECETA GPU] etapa=3 muestras=1786 compute_error_m=4.76837158e-07 fragment_error_m=4.76837158e-07 PASS
+
+RECETA 2
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000563 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000097 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000298 PASS
+[RECETA GPU] intervalo_error_m=5.62518835e-07
+[RECETA GPU] etapa=3 muestras=1758 compute_error_m=5.96046448e-07 fragment_error_m=5.96046448e-07 PASS
+
+RECETA 3
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000178695 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000052 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000052 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000179 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000060 PASS
+[RECETA GPU] intervalo_error_m=0.000178694725
+[RECETA GPU] etapa=3 muestras=5204 compute_error_m=0.00014102459 fragment_error_m=0.00014102459 PASS
+
+RECETA 4
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000066429 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000149 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000238 PASS
+[RECETA GPU] intervalo_error_m=6.64293766e-05
+[RECETA GPU] etapa=3 muestras=1766 compute_error_m=6.61611557e-05 fragment_error_m=6.61611557e-05 PASS
+
+RECETA caballo
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000093 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000007 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000093 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000075 PASS
+[RECETA GPU] intervalo_error_m=9.31322575e-08
+[RECETA GPU] etapa=3 muestras=2590 compute_error_m=8.94069672e-07 fragment_error_m=8.94069672e-07 PASS
+
+RECETA asno
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+[SDF compute] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2; extracción experimental sin readback
+[SDF GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000300 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000060 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000149 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000060 PASS
+[RECETA GPU] intervalo_error_m=2.99885869e-07
+[RECETA GPU] etapa=3 muestras=2590 compute_error_m=5.36441803e-07 fragment_error_m=5.36441803e-07 PASS

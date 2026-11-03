@@ -1,0 +1,14 @@
+[
+  {
+    "case": "caballo-curve",
+    "stages": 4,
+    "roots": 96,
+    "stable": true
+  },
+  {
+    "case": "asno-tail",
+    "stages": 4,
+    "roots": 96,
+    "stable": true
+  }
+]

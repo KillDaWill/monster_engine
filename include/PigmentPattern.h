@@ -37,6 +37,16 @@ typedef enum PigmentPattern {
  * @struct PigmentLayer
  * @brief Capa compositiva apilable de pigmentación procedimental.
  */
+/** @brief Dominio elipsoidal opcional; radios nulos conservan la capa global.
+ * anchorNode identifica una estación estable. Centro y radios se expresan en
+ * semiejes de su envolvente; al resolver se convierten al dominio de reposo.
+ * Sin ancla se usan directamente coordenadas canónicas. */
+typedef struct PigmentDomain {
+    uint32_t anchorNode;
+    Vector3 center, radii;
+    float softness, irregularity;
+    float materialStrength, furCoverage, roughness;
+} PigmentDomain;
 typedef struct PigmentLayer {
     PigmentPattern pattern; /**< Tipo de distribución procedural */
     Color color;            /**< Color de la capa */
@@ -46,9 +56,13 @@ typedef struct PigmentLayer {
     Vector3 direction;      /**< Vector directriz para gradientes y bandas */
     uint32_t seed;          /**< Semilla pseudoaleatoria determinista */
     uint32_t regionMask; /**< Bits de SurfaceRegion; cero conserva cobertura global. */
+    PigmentDomain domain; /**< Máscara localizada y respuesta tisular opcional. */
 } PigmentLayer;
 
 #define SURFACE_MAX_PIGMENT_LAYERS 4
+
+/** @brief Peso continuo del dominio en reposo; uno si está desactivado. */
+float PigmentDomain_Weight(const PigmentDomain* domain,Vector3 position,uint32_t seed);
 
 /** @brief Peso de la máscara en dos regiones mezcladas; cero de máscara cubre todo. */
 float PigmentPattern_RegionWeight(const PigmentLayer* layer,unsigned primary,unsigned secondary,float blend);
@@ -87,6 +101,9 @@ float PigmentPattern_Sample(
     float sharpness,
     Vector3 direction,
     uint32_t seed);
+/** @brief Variante del campo superficial: reproduce el hash entero del shader
+ * sin alterar el ruido heredado del preview ni sus recetas anteriores. */
+float PigmentPattern_SampleSurface(PigmentPattern pattern,Vector3 p,float scale,float sharpness,Vector3 direction,uint32_t seed);
 
 /**
  * @brief Evalúa la mezcla de color de una capa sobre un color base existente.

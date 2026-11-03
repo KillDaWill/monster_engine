@@ -156,6 +156,9 @@ typedef struct MonsterSDFMouth {
     bool sweptSkull; /**< Cráneo y rostro del lagarto comparten un único barrido. */
     SDFSweepStation headStations[6]; /**< Perfil cefálico resuelto. */
     SDFSweepStation jawStations[6]; /**< Anchura facial y profundidad mandibular independientes del cráneo. */
+    float jawPosteriorZ; /**< Límite caudal mandibular, independiente del casquete facial. */
+    bool independentMandible; /**< Perfil anatómico con escotadura intermandibular. */
+    Vector3 jawNotchCenter, jawNotchRadii; /**< Espacio ventral entre ramas posteriores. */
     bool anatomicalHead; /**< Activa la receta compilada por HeadAnatomy. */
     Vector3 faceRootLocal; /**< Raíz local del rostro ahusado. */
     Vector3 faceMidLocal; /**< Sección nasal local intermedia. */

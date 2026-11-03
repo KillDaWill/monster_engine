@@ -6,6 +6,7 @@
 #include "Color.h"
 #include "Vector.h"
 #include "PigmentPattern.h"
+#include "LongHair.h"
 #include <stdint.h>
 
 typedef enum IntegumentType {
@@ -86,6 +87,8 @@ typedef struct SurfacePhenotype {
     FurRegionProfile furRegions[SURFACE_REGION_COUNT];
     FurTuftPhenotype tufts[SURFACE_MAX_FUR_TUFTS];
     size_t tuftCount; /**< Cero conserva el pelaje anterior; máximo cuatro grupos. */
+    LongHairGroup longHair[LONG_HAIR_MAX_GROUPS];
+    size_t longHairCount; /**< Optativo; cero no reserva guías ni altera el pelo corto. */
     /** Campo de pigmento de ambos extremos, con orden y semillas inmutables.
      * La mezcla se evalúa en el dominio anatómico, sin reindexar capas. */
     struct {
@@ -102,6 +105,14 @@ typedef struct SurfaceCoordinate {
     float region, secondaryRegion, blend, ventral;
     float integumentMask;       /**< Cobertura tisular: 1=piel cubierta, 0=sin pelo (trufa, boca, etc.). */
 } SurfaceCoordinate;
+/** @brief Respuesta tisular localizada: cobertura de pelo, rugosidad y peso de piel. */
+typedef struct SurfaceLocalMaterial { float furCoverage, roughness, skinWeight; } SurfaceLocalMaterial;
+/** @brief Evalúa las capas localizadas en reposo, incluidos ambos bancos de morph.
+ * @param surface Apariencia resuelta. @param coordinate Coordenada material.
+ * @param roughness Rugosidad sin modificación. @return Respuesta continua. */
+SurfaceLocalMaterial Surface_EvaluateLocalMaterial(const SurfacePhenotype* surface,const SurfaceCoordinate* coordinate,float roughness);
+/** @brief Máscara de diagnóstico de los dominios activos, antes del patrón/color. */
+float Surface_EvaluatePigmentDomainMask(const SurfacePhenotype* surface,const SurfaceCoordinate* coordinate);
 /** @brief Transporte explícito vec4: colores, pigmento, escamas, pelaje, perfiles y capas. */
 #define SURFACE_RECIPE_GLOBAL_ROWS  8
 #define SURFACE_RECIPE_FUR_ROWS     4
@@ -110,7 +121,11 @@ typedef struct SurfaceCoordinate {
 #define SURFACE_RECIPE_TRANSITION_BASE (SURFACE_RECIPE_GLOBAL_ROWS + SURFACE_RECIPE_FUR_ROWS + SURFACE_RECIPE_REGION_ROWS + SURFACE_RECIPE_PIGMENT_ROWS)
 #define SURFACE_RECIPE_PIGMENT_BANK_ROWS (5 + SURFACE_RECIPE_PIGMENT_ROWS)
 #define SURFACE_RECIPE_TUFT_BASE (SURFACE_RECIPE_TRANSITION_BASE + 2 + 2 * SURFACE_RECIPE_PIGMENT_BANK_ROWS)
-#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_TUFT_BASE + 5 * SURFACE_MAX_FUR_TUFTS + 1)
+#define SURFACE_RECIPE_DOMAIN_BASE (SURFACE_RECIPE_TUFT_BASE + 5 * SURFACE_MAX_FUR_TUFTS + 1)
+/** Fila de metadatos: x=tufts, y=dominio adulto canónico del productor de malla. */
+#define SURFACE_RECIPE_METADATA_ROW (SURFACE_RECIPE_DOMAIN_BASE - 1)
+#define SURFACE_RECIPE_DOMAIN_ROWS (3 * SURFACE_MAX_PIGMENT_LAYERS)
+#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_DOMAIN_BASE + 3 * SURFACE_RECIPE_DOMAIN_ROWS)
 typedef struct SurfaceRecipe {
     float data[SURFACE_RECIPE_ROWS][4];
     uint32_t pigmentSeed, scaleSeed, furSeed;
@@ -127,6 +142,9 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* surface);
  * @param t Madurez normalizada.
  * @return Fenotipo válido interpolado. */
 SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const SurfacePhenotype* b,float t);
+/** @brief Copia descriptores anclados homólogos, conservando el color y la mezcla
+ * actuales; permite resolver el mismo dominio en otro marco canónico. */
+void SurfacePhenotype_CopyAnchoredDomains(SurfacePhenotype* destination,const SurfacePhenotype* source);
 /** @brief Compila exclusivamente apariencia, sin tocar SDF, mallas ni anatomía.
  * @param surface Fenotipo fuente; NULL selecciona piel neutra.
  * @return Receta empaquetada y normalizada. */

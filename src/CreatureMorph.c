@@ -555,6 +555,12 @@ bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monst
     }
     out->phenotype.surface=out->surface;
     out->surfaceMapping=SurfaceMapping_FromAnatomy(&out->anatomyGraph,out->phenotype.axial.totalScale);
+    /* Los descriptores locales permanecen en fenotipo; el campo de render se
+     * resuelve contra la anatomía interpolada, no contra un extremo obsoleto. */
+    SurfacePhenotype local=SurfacePhenotype_Interpolate(&a->phenotype.surface,&b->phenotype.surface,u);
+    SurfacePhenotype_CopyAnchoredDomains(&out->phenotype.surface,&local);
+    SurfacePhenotype_CopyAnchoredDomains(&out->surface,&local);
+    SurfaceMapper_ResolvePigmentDomains(&out->surface,&out->anatomyGraph,&out->surfaceMapping);
     size_t colors=a->colorPalette.count<b->colorPalette.count?a->colorPalette.count:b->colorPalette.count;
     for(size_t i=0;i<colors;++i)out->colorPalette.colors[i]=Color_Lerp(a->colorPalette.colors[i],b->colorPalette.colors[i],u);
     if(a->hasHead && b->hasHead) {

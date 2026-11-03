@@ -1,0 +1,2 @@
+python3 tools/validate_equine_anatomy.py
+PASS: 8 casos finitos con casco y cuatro vistas; /home/guillermo/Escritorio/monster_engine/build/equine-validation

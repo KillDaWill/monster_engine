@@ -2,6 +2,20 @@
 #define MONSTER_PIGMENT_REGIONS
 // Cuatro máscaras por banco; cero en el documento significa todas las regiones.
 vec4 pigmentCoverage[3];
+// Tres filas por capa y banco; los índices anteriores de receta no cambian.
+bool PigmentDomainActive(int bank,int layer) {
+    return all(greaterThan(surfaceRecipe[103+12*bank+3*layer+1].xyz,vec3(0)));
+}
+float PigmentDomainWeight(vec3 p,int bank,int layer) {
+    int row=103+12*bank+3*layer;
+    vec4 center=surfaceRecipe[row],radii=surfaceRecipe[row+1];
+    if(any(lessThanEqual(radii.xyz,vec3(0))))return 1.0;
+    vec3 q=(p-center.xyz)/radii.xyz;
+    float phase=surfaceRecipe[row+2].w*.00613592315;
+    float warp=sin(q.x*3.1+phase)*sin(q.y*4.3-phase)*sin(q.z*3.7+phase);
+    float t=clamp((1.0-length(q)-radii.w*.15*warp)/max(center.w,.001),0.0,1.0);
+    return t*t*(3.0-2.0*t);
+}
 float PigmentRegionBit(float encodedMask,int region) {
     uint mask=uint(encodedMask+.5);
     return mask==0u?1.0:float((mask&(1u<<uint(clamp(region,0,10))))!=0u);

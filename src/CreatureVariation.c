@@ -120,6 +120,9 @@ uint64_t CreaturePhenotype_Fingerprint(const CreaturePhenotype* p) {
     HashPhenotypeBytes(&hash,p->ornaments,fmin(p->ornamentCount,CREATURE_MAX_ORNAMENTS)*sizeof(p->ornaments[0]));
     SurfaceRecipe surface=SurfaceRecipe_Compile(&p->surface);
     HashPhenotypeBytes(&hash,&surface,sizeof(surface));
+    if(p->surface.longHairCount){uint64_t hair=LongHairGroups_Fingerprint(p->surface.longHair,p->surface.longHairCount);HashPhenotypeBytes(&hash,&hair,sizeof(hair));}
+    for(size_t i=0;i<p->surface.pigment.layerCount&&i<SURFACE_MAX_PIGMENT_LAYERS;++i)
+        HashPhenotypeBytes(&hash,&p->surface.pigment.layers[i].domain.anchorNode,sizeof(uint32_t));
     HASH_FIELD(development);HASH_FIELD(dorsalColor);HASH_FIELD(ventralColor);HASH_FIELD(unpigmentedVentralColor);
 #undef HASH_FIELD
     return hash;
@@ -877,7 +880,7 @@ static bool CreatureVariation_ApplyInto(
         }
         case CREATURE_TRAIT_PATTERN_LAYER: {
             if (out->phenotype.surface.pigment.layerCount < SURFACE_MAX_PIGMENT_LAYERS) {
-                PigmentLayer l;
+                PigmentLayer l={0};
                 l.pattern = (PigmentPattern)(int)t->paramA;
                 l.color = t->colorA;
                 l.strength = s;
