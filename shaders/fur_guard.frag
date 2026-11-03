@@ -1,5 +1,5 @@
 #version 330 compatibility
-uniform vec4 surfaceRecipe[82];
+uniform vec4 surfaceRecipe[103];
 uniform uint pigmentSeed,furSeed;
 uniform int surfaceDebug;
 uniform bool guardCoverage;
@@ -37,6 +37,7 @@ void main() {
     if(alpha<.001)discard;
     float rootTip=mix(1.0-surfaceRecipe[11].x,1.0+surfaceRecipe[11].y,clamp(fragShellFraction*(.8+.4*shellDelta),0.0,1.0));
     vec3 pigment=EvaluatePigment(mappedCoord,mappedVentral,surfaceRecipe[3],pigmentSeed);
+    pigment=mix(pigment,vertexColor.rgb,vertexColor.a);
     vec3 color=FurLighting(pigment*rootTip*(.94+.12*shellDelta),mappedFlow,viewNormal,viewPosition,surfaceRecipe[10].z,surfaceRecipe[10].w,fragShellFraction);
     if(surfaceDebug==11||surfaceDebug==18)color=mappedFlow*.5+.5;
     if(surfaceDebug==21)color=vec3(ribbonFade);

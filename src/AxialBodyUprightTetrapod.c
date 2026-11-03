@@ -55,6 +55,8 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     const AnatomyGraph* g, uint32_t module,
     SDFSweepStation* outStations, int maxStations, int* outCount) {
     if (!p || !g || !outStations || !outCount || maxStations < 9 || p->archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD) return false;
+    bool cursorial=p->contourProfile==AXIAL_CONTOUR_CURSORIAL;
+    if(cursorial&&maxStations<13)return false;
     float s = p->totalScale;
 
     const AnatomyNode* neckNode = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_NECK);
@@ -82,14 +84,16 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     float ventralW = pectoralNode->center.y - pectoralNode->heightRadius-p->brisketDepth*p->thoraxHeight*s;
     if (z0 <= zW) return false;
     int count = 0;
-    for (unsigned i=0;i<4;++i) {
-        float t=(float)i/3.0f;
+    unsigned cervicalCount=cursorial?6:4;
+    for (unsigned i=0;i<cervicalCount;++i) {
+        float t=(float)i/(cervicalCount-1);
         /* La masa dorsal redistribuye la transición sin crear un máximo
          * intermedio; el estrechamiento retrasa la expansión hacia el pecho. */
         float dorsalT=powf(t,Math_Clamp(dorsalMass,.5f,2.0f));
         float ventralT=powf(t,.8f+.4f*Math_Clamp01(curvature));
         float widthT=powf(t,1.0f/Math_Clamp(midNarrow,.5f,1.0f));
         float dorsal=Math_Lerp(dorsal0,dorsalW,dorsalT);
+        if(cursorial)dorsal+=sinf(t*3.14159265f)*p->neckWidth*s*curvature*.22f;
         float ventral=Math_Lerp(ventral0,ventralW,ventralT);
         outStations[count++]=(SDFSweepStation){
             .center={Math_Lerp(neckNode->center.x,pectoralNode->center.x,t),
@@ -120,7 +124,38 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     outStations[count++] = (SDFSweepStation){.center = abdomenNode->center, .width = abdomenNode->widthRadius, .height = abdomenNode->heightRadius};
 
     /* 9. Pelvis */
+    if(cursorial) {
+        /* El lomo y la grupa tienen sección propia; el pelvis semántico no
+         * se convierte en una esfera sobredimensionada para suplirlos. */
+        Vector3 c=Vec3_Lerp(abdomenNode->center,pelvisNode->center,.55f);
+        c.y+=pelvisNode->heightRadius*.06f;
+        outStations[count++]=(SDFSweepStation){.center=c,
+            .width=Math_Lerp(abdomenNode->widthRadius,pelvisNode->widthRadius,.55f),
+            .height=Math_Lerp(abdomenNode->heightRadius,pelvisNode->heightRadius,.55f)};
+    }
     outStations[count++] = (SDFSweepStation){.center = pelvisNode->center, .width = pelvisNode->widthRadius, .height = pelvisNode->heightRadius};
+    if(cursorial)outStations[count++]=(SDFSweepStation){
+        /* La grupa desciende desde el sacro hasta el maslo en una sola
+         * pendiente. Una sección trasera demasiado pequeña convierte la
+         * unión suave en una esfera; se conserva profundidad y se reduce
+         * el ancho para lograr el afilado lateral del cuarto trasero. */
+        .center={pelvisNode->center.x,pelvisNode->center.y,
+                 pelvisNode->center.z-pelvisNode->widthRadius*.60f},
+        .width=pelvisNode->widthRadius*.64f,.height=pelvisNode->heightRadius*.84f};
+
+    if(cursorial) {
+        /* La grupa no es una esfera: el dorso baja desde la cruz, se hunde
+         * en el riñón y vuelve a subir en el sacro antes de caer al maslo.
+         * Se desplaza el techo sin mover el vientre para conservar la
+         * profundidad torácica y abdominal. */
+        float unit=p->withersHeight*s;
+        const float top[] = {0,0,0,0,0,0,-.010f,-.018f,-.042f,-.055f,-.032f,.004f,-.015f};
+        for(int i=6;i<count;++i) {
+            float d=top[i]*unit;
+            outStations[i].center.y+=d*.5f;
+            outStations[i].height=Math_Max(outStations[i].height-d*.5f,.02f*s);
+        }
+    }
 
     *outCount = count;
     return true;

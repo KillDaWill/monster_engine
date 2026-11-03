@@ -141,6 +141,8 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
         switch (m->kind) {
         case CREATURE_MODULE_AXIAL:
             if (!AxialBody_Supports(p->axial.archetype)) return false;
+            if (p->axial.contourProfile < AXIAL_CONTOUR_LEGACY || p->axial.contourProfile > AXIAL_CONTOUR_CURSORIAL ||
+                (p->axial.contourProfile == AXIAL_CONTOUR_CURSORIAL && p->axial.archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD)) return false;
             ++axial;
             break;
         case CREATURE_MODULE_HEAD:
@@ -152,6 +154,8 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (!Limb_Supports(p->limbs[m->phenotypeIndex].archetype)) return false;
             const LimbPhenotype* limb = &p->limbs[m->phenotypeIndex];
             if (limb->digitCount > CREATURE_MAX_DIGITS) return false;
+            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_CURSORIAL ||
+                (limb->anatomyProfile == LIMB_PROFILE_CURSORIAL && limb->archetype != LIMB_ARCHETYPE_UNGULATE)) return false;
             if (limb->archetype == LIMB_ARCHETYPE_UNGULATE &&
                 ((limb->digitCount != 1 && limb->digitCount != 2) ||
                  (limb->digitCount == 1 && limb->dewclawSize > 0))) return false;

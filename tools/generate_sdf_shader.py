@@ -48,6 +48,10 @@ vec4 dataAt(int index) {return texelFetch(sceneData,index);}
 
 
 '''
+anatomy=(ROOT/'include/Anatomy.h').read_text()
+connection_body=re.search(r'typedef enum BodyConnectionKind\s*\{(.*?)\}',anatomy,re.S)[1]
+connection_body=re.sub(r'/\*.*?\*/','',connection_body,flags=re.S)
+prefix+='\n'.join(f'#define {name.strip()} {value}' for value,name in enumerate(connection_body.split(',')))+'\n'
 pack=['/* Generado por tools/generate_sdf_shader.py. No editar. */']
 access=[]
 header=re.sub(r'/\*.*?\*/','',(ROOT/'include/MonsterSDF.h').read_text(),flags=re.S)
@@ -96,7 +100,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
     pack.extend([f'#define {short}_STRIDE {offset}',*code,'}'])
 
 functions=[]
-for name in ['SDF_KeratinClaw','SDF_SinHalfTurn','SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
+for name in ['SDF_HoofCapsule','SDF_KeratinClaw','SDF_SinHalfTurn','SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
     functions.append(function('src/SDFPrimitives.c',name))
 for name in ['SDF_SmoothUnion','SDF_SmoothSubtract']:
     functions.append(function('src/SDFOperations.c',name))
@@ -172,7 +176,7 @@ def posed_material_source():
     return source
 
 surface_modules=['hash','scales','pigment_regions','pigment','fur_curve','fur','bump','lighting','evaluate']
-surface='uniform vec4 surfaceRecipe[82];\nuniform uint pigmentSeed,scaleSeed,furSeed;\nuniform int sdfHasSurface,sdfFurEnabled;\n'
+surface='uniform vec4 surfaceRecipe[103];\nuniform uint pigmentSeed,scaleSeed,furSeed;\nuniform int sdfHasSurface,sdfFurEnabled;\n'
 surface+='\n'.join(re.sub(r'^#include .*\n','',
     (ROOT/f'shaders/surface/{name}.glsl').read_text(),flags=re.M) for name in surface_modules)
 domain=re.sub(r'^#include .*\n','',(ROOT/'shaders/surface/morph_domain.glsl').read_text(),flags=re.M)
@@ -274,10 +278,10 @@ interval_names=['Interval_Pad','Interval_Constant','Interval_Add','Interval_Subt
     'Interval_Square','Interval_Sqrt','Interval_SinHalfTurn','Interval_Project','SDF_CurvedPinnaInterval',
     'Interval_Lerp','Interval_Length','Interval_Component','Interval_Hull','SDF_EllipsoidInterval',
     'SDF_CapsuleInterval','SDF_RoundedSlotInterval','SDF_SmoothUnionInterval','SDF_SmoothSubtractInterval',
-    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_KeratinClawInterval','SDF_ConnectorPowerInterval','SDF_ConnectorInterval']
+    'Interval_Hermite','SDF_SweepSegmentInterval','Interval_RelativeProject','SDF_KeratinClawInterval','SDF_HoofCapsuleInterval','SDF_ConnectorPowerInterval','SDF_ConnectorInterval']
 interval_code=interval_prefix+'\n'.join(interval_translate(function('src/SDFInterval.c',name)) for name in interval_names)
 compute+=embed('sdfIntervalValidateSource','#version 430 compatibility\n'+core+interval_code+
     (ROOT/'shaders/sdf_interval_validate.comp').read_text())
-compute+=embed('sdfMeshVertexSource','#version 430 compatibility\nuniform vec4 surfaceRecipe[82];\n'+(ROOT/'shaders/surface/pigment_regions.glsl').read_text()+domain+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
+compute+=embed('sdfMeshVertexSource','#version 430 compatibility\nuniform vec4 surfaceRecipe[103];\n'+(ROOT/'shaders/surface/pigment_regions.glsl').read_text()+domain+(ROOT/'shaders/sdf_surface_mesh.vert').read_text())
 compute+=embed('sdfMeshFragmentSource','#version 430 compatibility\n'+core+surface+domain+'\nuniform vec3 cameraPosition,cameraForward,cameraRight,cameraUp;\n'+material+(ROOT/'shaders/sdf_surface_mesh.frag').read_text())
 (ROOT/'src/MonsterSDFCompute.generated.h').write_text('\n'.join(compute)+'\n')

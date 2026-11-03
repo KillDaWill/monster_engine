@@ -69,11 +69,23 @@ typedef struct FurRegionProfile {
     float lengthMultiplier,densityMultiplier,thicknessMultiplier,layMultiplier;
     float undercoatMultiplier,guardMultiplier,clumpMultiplier,variationMultiplier;
 } FurRegionProfile;
+/** Grupo de fibras largas en dominio de reposo; sin módulos ni volumen SDF. */
+typedef struct FurTuftPhenotype {
+    SurfaceRegion region;
+    Vector3 center, halfExtents; /**< Ventana canónica de raíces, independiente de escala/pose. */
+    Vector3 direction, normal; /**< Caída y orientación de superficie en reposo. */
+    float length, density, width, minNormalDot;
+    Color color;
+} FurTuftPhenotype;
+#define SURFACE_MAX_FUR_TUFTS 4
+
 typedef struct SurfacePhenotype {
     PigmentPhenotype pigment;
     IntegumentPhenotype integument;
     SurfaceRegionProfile regions[SURFACE_REGION_COUNT];
     FurRegionProfile furRegions[SURFACE_REGION_COUNT];
+    FurTuftPhenotype tufts[SURFACE_MAX_FUR_TUFTS];
+    size_t tuftCount; /**< Cero conserva el pelaje anterior; máximo cuatro grupos. */
     /** Campo de pigmento de ambos extremos, con orden y semillas inmutables.
      * La mezcla se evalúa en el dominio anatómico, sin reindexar capas. */
     struct {
@@ -97,7 +109,8 @@ typedef struct SurfaceCoordinate {
 #define SURFACE_RECIPE_PIGMENT_ROWS (3 * SURFACE_MAX_PIGMENT_LAYERS)
 #define SURFACE_RECIPE_TRANSITION_BASE (SURFACE_RECIPE_GLOBAL_ROWS + SURFACE_RECIPE_FUR_ROWS + SURFACE_RECIPE_REGION_ROWS + SURFACE_RECIPE_PIGMENT_ROWS)
 #define SURFACE_RECIPE_PIGMENT_BANK_ROWS (5 + SURFACE_RECIPE_PIGMENT_ROWS)
-#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_TRANSITION_BASE + 2 + 2 * SURFACE_RECIPE_PIGMENT_BANK_ROWS)
+#define SURFACE_RECIPE_TUFT_BASE (SURFACE_RECIPE_TRANSITION_BASE + 2 + 2 * SURFACE_RECIPE_PIGMENT_BANK_ROWS)
+#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_TUFT_BASE + 5 * SURFACE_MAX_FUR_TUFTS + 1)
 typedef struct SurfaceRecipe {
     float data[SURFACE_RECIPE_ROWS][4];
     uint32_t pigmentSeed, scaleSeed, furSeed;

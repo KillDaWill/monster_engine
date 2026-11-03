@@ -21,13 +21,14 @@ static Vector3 World(const AttachmentSlot* slot,Vector3 p) {
 static bool UngulateFoot(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,
     AnatomyGraph* g,Vector3 foot,float r,float sole) {
     bool single=p->digitCount==1;
-    float width=r*(single?.95f:.50f)*p->footScale*p->footWidthScale*p->digitThicknessScale;
+    bool capsule=single&&p->anatomyProfile==LIMB_PROFILE_CURSORIAL;
+    float width=r*(capsule?.68f:single?.95f:.50f)*p->footScale*p->footWidthScale*p->digitThicknessScale;
     float height=r*.90f*p->footScale*p->footHeightScale;
     for(unsigned d=0;d<p->digitCount;++d) {
         float sign=d?1:-1;
         float yaw=(p->side==LIMB_RIGHT?-1:1)*p->footYaw+p->digitAngles[d];
         float offset=single?0:sign*(width+r*p->footScale*p->digitSpread*.5f);
-        float length=r*(single?1.65f:1.15f)*p->footScale*p->digitLengths[d];
+        float length=r*(capsule?1.0f:single?1.65f:1.15f)*p->footScale*p->digitLengths[d];
         unsigned count=p->digitPhalanges[d]+2;
         AnatomyId previous=Anatomy_MakeId(module,4);
         for(unsigned j=0;j<count;++j) {
@@ -45,6 +46,7 @@ static bool UngulateFoot(const LimbPhenotype* p,uint32_t module,const Attachment
             unsigned local=Limb_DigitLocalId(d,j);
             BodyConnectionKind kind=j==2?BODY_CONNECTION_DIGIT_SEGMENT:
                 j!=0?BODY_CONNECTION_SUPPORT:BODY_CONNECTION_LIMB_SEGMENT;
+            if(j==2&&capsule)kind=BODY_CONNECTION_HOOF_CAPSULE;
             if(!Node(g,module,local,World(slot,c),w,h,p,true)||
                !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),kind,p->development))return false;
             BodyConnection* e=&g->connections[g->connectionCount-1];
@@ -72,12 +74,61 @@ static bool UngulateFoot(const LimbPhenotype* p,uint32_t module,const Attachment
     }
     return true;
 }
+/* Cuatro controles IK conservan sus IDs. Las estaciones intermedias son
+ * referencias de piel; los soportes primarios mantienen el árbol cinemático
+ * sin emitir tubos duplicados. Todos los puntos se expresan en el marco local. */
+static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,AnatomyGraph* g) {
+    bool hind=p->role==LIMB_HIND;
+    float side=p->side==LIMB_RIGHT?-1:1;
+    float length=p->length*slot->scale*fmaxf(.01f,p->development);
+    float r=p->thickness*slot->scale*fmaxf(.01f,p->development);
+    float x=-side*r*p->attachmentInset;
+    float lateral=side*length*p->sprawl*.18f;
+    float upper=.25f*p->proximalScale,lower=.35f*p->middleScale,distal=.40f*p->distalScale;
+    float total=upper+lower+distal;upper/=total;lower/=total;
+    float sole=r*.55f*p->footScale*p->footHeightScale;
+    Vector3 v[10]={
+        {x,0,0},
+        {x+lateral,-length*upper,length*((hind?.12f:-.065f)+p->proximalSweep)},
+        {x+lateral,-length*(upper+lower),length*((hind?-.12f:-.015f)+p->distalSweep)},
+        {x+lateral,-length,length*(hind?-.10f:.045f)},
+        /* El ancla muscular proximal debe quedar dentro de la grupa; elevarla
+         * por encima del lomo convertía el cuarto trasero en una esfera. */
+        {x-side*r*.30f,r*(hind?.55f:.85f),-r*(hind?.35f:1.40f)}
+    };
+    v[5]=Vec3_Lerp(v[0],v[1],.45f);
+    v[6]=Vec3_Lerp(v[1],v[2],.30f);
+    v[8]=Vec3_Add(v[3],Vec3_Create(0,r*1.05f,-r*1.05f));
+    v[7]=Vec3_Lerp(v[2],v[8],.55f);
+    v[9]=Vec3_Add(v[3],Vec3_Create(0,r*.45f,-r*.45f));
+    float w[]={r*.75f*p->rootThicknessScale,r*.95f,r*.60f*p->distalThicknessScale,
+        r*.43f*p->distalThicknessScale,r*(hind?.85f:.68f)*p->proximalThicknessScale,
+        r*(hind?1.25f:1.0f)*p->proximalThicknessScale,r*(hind?1.02f:.85f)*p->middleThicknessScale,
+        r*.46f*p->distalThicknessScale,r*.62f*p->distalThicknessScale,r*.45f*p->distalThicknessScale};
+    float h[]={w[0]*(hind?1.25f:1.30f),w[1]*1.14f,w[2]*1.10f,sole,
+        r*(hind?.85f:1.0f),w[5]*1.22f,w[6]*1.24f,w[7]*1.24f,w[8]*.95f,w[9]};
+    for(unsigned i=0;i<10;++i)if(!Node(g,module,i+1,World(slot,v[i]),w[i],h[i],p,false))return false;
+    for(unsigned i=1;i<4;++i)
+        if(!Module_Edge(g,module,i,Anatomy_MakeId(module,i),Anatomy_MakeId(module,i+1),BODY_CONNECTION_SUPPORT,p->development))return false;
+    if(!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)||
+       !Module_Edge(g,module,5,slot->hostNode,Anatomy_MakeId(module,5),BODY_CONNECTION_SUPPORT,p->development))return false;
+    const unsigned chain[]={5,1,6,2,7,3,8,9,10,4};
+    for(unsigned i=0;i<9;++i) {
+        if(!Module_Edge(g,module,10+i,Anatomy_MakeId(module,chain[i]),Anatomy_MakeId(module,chain[i+1]),
+            i==0?BODY_CONNECTION_MUSCLE_UNION:BODY_CONNECTION_LIMB_SEGMENT,p->development))return false;
+        BodyConnection* edge=&g->connections[g->connectionCount-1];edge->transverseAxis=slot->side;
+        if(i==0){edge->widthBulge=r*.05f;edge->heightBulge=r*.06f;}
+    }
+    return UngulateFoot(p,module,slot,g,v[3],r,sole);
+}
+
 bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,AnatomyGraph* g) {
     if (!p || !slot || !g || (p->archetype!=LIMB_ARCHETYPE_MAMMAL&&p->archetype!=LIMB_ARCHETYPE_UNGULATE) || p->digitCount>CREATURE_MAX_DIGITS) return false;
     bool hoof=p->archetype==LIMB_ARCHETYPE_UNGULATE;
     if(hoof&&(p->digitCount!=1&&p->digitCount!=2))return false;
     if(hoof&&p->digitCount==1&&p->dewclawSize>0)return false;
     for (unsigned d=0;d<p->digitCount;++d) if (!p->digitPhalanges[d] || p->digitPhalanges[d]>5) return false;
+    if(p->anatomyProfile==LIMB_PROFILE_CURSORIAL)return hoof&&Cursorial(p,module,slot,g);
     bool hind=p->role==LIMB_HIND;
     float side=p->side==LIMB_RIGHT?-1:1;
     float length=p->length*slot->scale*fmaxf(.01f,p->development);

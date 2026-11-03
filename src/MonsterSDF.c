@@ -24,7 +24,7 @@ static SDFMaterial MonsterSDF_ConnectionMaterial(const Monster* monster,const Bo
         if(m->instanceId!=edge->moduleInstanceId)continue;
         if(m->kind==CREATURE_MODULE_ORNAMENT&&m->phenotypeIndex<monster->phenotype.ornamentCount&&
             monster->phenotype.ornaments[m->phenotypeIndex].archetype==ORNAMENT_ARCHETYPE_HORN)return SDF_MATERIAL_HORN;
-        if(m->kind==CREATURE_MODULE_LIMB&&edge->kind==BODY_CONNECTION_DIGIT_SEGMENT&&
+        if(m->kind==CREATURE_MODULE_LIMB&&(edge->kind==BODY_CONNECTION_DIGIT_SEGMENT||edge->kind==BODY_CONNECTION_HOOF_CAPSULE)&&
             m->phenotypeIndex<monster->phenotype.limbCount&&
             monster->phenotype.limbs[m->phenotypeIndex].archetype==LIMB_ARCHETYPE_UNGULATE)return SDF_MATERIAL_HOOF;
     }
@@ -548,6 +548,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         float minR = Math_Min(Math_Min(c->widthA, c->heightA), Math_Min(c->widthB, c->heightB));
         float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ? 0.0f : c->kind == BODY_CONNECTION_LIMB_SEGMENT ? 0.18f : 0.08f;
         c->localSmoothness = Math_Min(config.connectionSmoothness, minR * factor);
+        if(c->kind==BODY_CONNECTION_MUSCLE_UNION)
+            c->localSmoothness=Math_Min(config.connectionSmoothness,minR*.65f);
         /* La masa muscular se integra proporcionalmente a su volumen resuelto. */
         c->localSmoothness = Math_Max(c->localSmoothness, .8f*Math_Max(c->widthBulge,c->heightBulge));
         c->groupCount=0;
@@ -1020,12 +1022,24 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
          * mandíbula resuelta. Recortar y escalar el cráneo dejaba un suelo casi
          * nulo al cruzar su curva con el plano oral en hocicos aplanados. */
         float lip=m->entranceCenterLocal.y-m->entranceHalfExtents.y;
+        bool equineMouth=monster->hasHead&&monster->head.anatomy.archetype==HEAD_ARCHETYPE_EQUINE;
         for(int j=0;j<6;++j) {
             m->jawStations[j]=m->headStations[j];
             float flat=Math_Clamp01(fabsf(m->oralSlope)*4);
-            m->jawStations[j].center.y=lip+m->oralSlope*(m->jawStations[j].center.z-m->entranceCenterLocal.z)-m->jawRadii.y*(1-.6f*flat);
-            m->jawStations[j].height=m->jawRadii.y*(1+.4f*flat);
-            m->jawStations[j].width*=1-.18f*flat;
+            if(equineMouth) {
+                /* La mandíbula cuelga por debajo de la línea oral. Si su techo
+                 * sobresale, el plano oral la recorta en una repisa horizontal
+                 * visible bajo el labio superior. */
+                float jawHalf=m->jawRadii.y*(.95f+.20f*flat);
+                m->jawStations[j].center.y=lip+m->oralSlope*(m->jawStations[j].center.z-m->entranceCenterLocal.z)-jawHalf+m->jawRadii.y*.20f;
+                m->jawStations[j].height=jawHalf;
+                float tipNarrow=j<2?1-.24f*flat:1-.10f*flat;
+                m->jawStations[j].width*=tipNarrow;
+            } else {
+                m->jawStations[j].center.y=lip+m->oralSlope*(m->jawStations[j].center.z-m->entranceCenterLocal.z)-m->jawRadii.y*(1-.6f*flat);
+                m->jawStations[j].height=m->jawRadii.y*(1+.4f*flat);
+                m->jawStations[j].width*=1-.18f*flat;
+            }
             m->jawStations[j].centerSlope=m->oralSlope;m->jawStations[j].heightSlope=0;
         }
 
@@ -1122,6 +1136,9 @@ static inline float MonsterSDF_EvalConnectorDistance(const MonsterSDFConnector* 
     if(conn->length<1e-6f) return SDF_Ellipsoid(Vec3_Sub(point,conn->a),
         Vec3_Create(conn->widthA,conn->heightA,conn->widthA));
     Vector3 p=Vec3_Sub(point,conn->a);
+    if(conn->kind==BODY_CONNECTION_HOOF_CAPSULE)return SDF_HoofCapsule(
+        Vec3_Create(Vec3_Dot(p,conn->side),Vec3_Dot(p,conn->up),Vec3_Dot(p,conn->forward)),
+        conn->length,conn->widthA,conn->widthB,conn->heightA,conn->heightB,conn->crownInset,conn->toeRounding);
     if(conn->material==SDF_MATERIAL_HOOF)return SDF_KeratinClaw(
         Vec3_Create(Vec3_Dot(p,conn->side),Vec3_Dot(p,conn->up),Vec3_Dot(p,conn->forward)),
         conn->length,conn->widthA,conn->widthB,conn->heightA,conn->heightB,conn->crownInset,conn->toeRounding);
@@ -2067,6 +2084,12 @@ static MonsterSDFRange MonsterSDF_ProfileRange(double a,double b,double bulge,do
 }
 static MonsterSDFRange MonsterSDF_ConnectorRange(const MonsterSDFConnector* connector,
     Vector3 center,Vector3 half) {
+    if(connector->kind==BODY_CONNECTION_HOOF_CAPSULE) {
+        SDFInterval range=SDF_HoofCapsuleInterval((AABB3D){Vec3_Sub(center,half),Vec3_Add(center,half)},
+            connector->a,connector->forward,connector->side,connector->up,connector->length,
+            connector->widthA,connector->widthB,connector->heightA,connector->heightB,connector->crownInset,connector->toeRounding);
+        return (MonsterSDFRange){range.lo,range.hi};
+    }
     if(connector->material==SDF_MATERIAL_HOOF) {
         SDFInterval range=SDF_KeratinClawInterval((AABB3D){Vec3_Sub(center,half),Vec3_Add(center,half)},
             connector->a,connector->forward,connector->side,connector->up,connector->length,
@@ -2577,7 +2600,7 @@ static void MonsterSDF_AppendageDetails(const MonsterSDF* sdf, float samples,
         bool hasIndividualCapacity = (capacity >= *count + (size_t)(6 * (moduleCount - limb)));
         for (size_t i = 0; i < sdf->connectorCount; ++i) {
             const MonsterSDFConnector* c = &sdf->connectors[i];
-            bool digit = c->kind==BODY_CONNECTION_DIGIT_SEGMENT&&c->moduleInstanceId==modules[limb];
+            bool digit = (c->kind==BODY_CONNECTION_DIGIT_SEGMENT||c->kind==BODY_CONNECTION_HOOF_CAPSULE)&&c->moduleInstanceId==modules[limb];
             bool lower = c->isDistalLimb&&c->moduleInstanceId==modules[limb];
             if (!digit && !lower) continue;
 

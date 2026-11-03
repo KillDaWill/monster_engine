@@ -141,6 +141,15 @@ float SDF_Box(Vector3 point, Vector3 halfExtents);
 float SDF_KeratinClaw(Vector3 p,float length,float widthA,float widthB,float heightA,float heightB,
     float crownInset,float toeRounding);
 
+/** @brief Cápsula oval con suela exacta, corona estrecha y pared dorsal inclinada.
+ * @param p Punto en marco transversal/vertical/longitudinal del casco.
+ * @param length Separación talón-punta. @param widthA Semiancho posterior.
+ * @param widthB Semiancho anterior. @param heightA Semialto del talón.
+ * @param heightB Semialto anterior. @param crownInset Retracción de corona.
+ * @param toeRounding Plenitud oval anterior. @return Campo acotado en metros. */
+float SDF_HoofCapsule(Vector3 p,float length,float widthA,float widthB,float heightA,float heightB,
+    float crownInset,float toeRounding);
+
 /**
  * @brief SDF de una ranura o cápsula 2D extruida en Z (sección XY horizontal redondeada).
  * @param point Punto a evaluar en espacio local.

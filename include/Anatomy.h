@@ -49,7 +49,9 @@ typedef enum BodyConnectionKind {
     BODY_CONNECTION_LIMB_SEGMENT,
     BODY_CONNECTION_DIGIT_SEGMENT,
     BODY_CONNECTION_SUPPORT, /**< Unión estructural sin volumen adicional (láminas). */
-    BODY_CONNECTION_ORNAMENT_SEGMENT /**< Tramo de cuerno o espina, separado del detalle locomotor. */
+    BODY_CONNECTION_ORNAMENT_SEGMENT, /**< Tramo de cuerno o espina, separado del detalle locomotor. */
+    BODY_CONNECTION_MUSCLE_UNION, /**< Barrido muscular localizado; nunca propaga el radio del anfitrión. */
+    BODY_CONNECTION_HOOF_CAPSULE /**< Cápsula oval de apoyo, distinta de la uña hendida. */
 } BodyConnectionKind;
 
 /** @struct AnatomyNode

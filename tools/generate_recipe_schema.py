@@ -26,14 +26,15 @@ for header in HEADERS:
             structs[name[1]] = body
 
 COUNTS = {'modules': 'moduleCount', 'limbs': 'limbCount', 'tails': 'tailCount',
-          'ornaments': 'ornamentCount', 'layers': 'layerCount'}
+          'ornaments': 'ornamentCount', 'layers': 'layerCount', 'tufts': 'tuftCount'}
 SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'size_t': ('F_SIZE', 'SIZE_MAX'), 'uint32_t': ('F_U32', 'UINT32_MAX'),
            'uint16_t': ('F_U16', 'UINT16_MAX'), 'uint8_t': ('F_U8', 'UINT8_MAX'),
            'bool': ('F_BOOL', '1'), 'CreatureRecipeId': ('F_U32', 'UINT32_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
-OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask'}}
+OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'anatomyProfile'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask'}}
+OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount'}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
 

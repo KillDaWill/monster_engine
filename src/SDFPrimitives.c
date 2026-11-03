@@ -22,6 +22,22 @@ float SDF_KeratinClaw(Vector3 p,float length,float widthA,float widthB,float hei
     return Math_Max(-y,Math_Max(footprint,roof)+k*k*bevel*.25f);
 }
 
+float SDF_HoofCapsule(Vector3 p,float length,float widthA,float widthB,float heightA,float heightB,
+    float crownInset,float toeRounding) {
+    float y=p.y+heightA;
+    float v=Math_Clamp01(y/(2*Math_Max(heightA,heightB)));
+    float shift=v*crownInset*(length+widthA);
+    float t=Math_Clamp01((p.z+shift)/Math_Max(length,.0001f));
+    float rx=Math_Max(Math_Lerp(widthA,widthB,t)*(1-.24f*v),.0001f);
+    float rz=Math_Max(length*.5f+widthA*(.30f+.15f*toeRounding)*(1-.12f*v),.0001f);
+    float z=p.z+shift-length*.5f;
+    float footprint=(sqrtf(p.x*p.x/(rx*rx)+z*z/(rz*rz))-1)*Math_Min(rx,rz);
+    float roof=y-2*Math_Lerp(heightA,heightB,t);
+    float bevel=Math_Min(heightA,heightB)*.18f;
+    float k=Math_Max(bevel-fabsf(footprint-roof),0)/Math_Max(bevel,.0001f);
+    return Math_Max(-y,Math_Max(footprint,roof)+k*k*bevel*.25f);
+}
+
 float SDF_Sphere(Vector3 point, float radius) {
     if (radius <= 0.0001f) return Vec3_Length(point);
     return Vec3_Length(point) - radius;

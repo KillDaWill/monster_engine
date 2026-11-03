@@ -46,6 +46,14 @@ FurCurve Fur_EvaluateCurve(const FurPhenotype* f,Vector3 n,Vector3 flow,float r,
     c.radius=.0015f*f->thickness*(1-h)*(1-h);
     return c;
 }
+Vector3 Fur_TuftOffset(Vector3 normal,Vector3 direction,float length,float random,float h) {
+    float l=length*(.85f+.15f*random);
+    return Vec3_Scale(Vec3_Add(Vec3_Scale(normal,.18f*h*(1-h)),
+        Vec3_Scale(direction,.2f*h+.8f*h*h)),l);
+}
+Vector3 Fur_TuftDerivative(Vector3 normal,Vector3 direction,float h) {
+    return Vec3_Add(Vec3_Scale(normal,.18f-.36f*h),Vec3_Scale(direction,.2f+1.6f*h));
+}
 float Fur_OpticalAlpha(float d,float o,float dh,float cosine) {
     return -expm1f(-fmaxf(0,d)*fmaxf(0,o)*fmaxf(0,dh)/fmaxf(.25f,fabsf(cosine)));
 }
