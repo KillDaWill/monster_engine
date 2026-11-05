@@ -74,10 +74,10 @@ def main():
                 groups=[]
                 for i in range(3):
                     strand=copy.deepcopy(g)
-                    strand.update(id=i+1,seed=17+i*53,guideCount=64,childrenPerGuide=48,
+                    strand.update(id=i+1,seed=17+i*53,guideCount=96,childrenPerGuide=32,
                         rootSpread=.025,rootFullness=1,width=.0025,length=1.35,lengthVariation=.24,
-                        clumping=.25,verticalBias=-1,direction=dict(x=1,y=-.55,z=-.08),bend=0,wave=.08)
-                    strand['domain'].update(angle=-.8,angularSpread=.4)
+                        clumping=.25,verticalBias=-.9,direction=dict(x=1,y=-.55,z=-.08),bend=0,wave=.12)
+                    strand['domain'].update(angle=.3,angularSpread=.45)
                     groups.append(strand)
             for stage in ('seed','larva','juvenile','adult'):
                 if stage in doc['recipe']:

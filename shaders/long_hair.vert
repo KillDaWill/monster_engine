@@ -67,10 +67,9 @@ void main(){
         int neighbor=int(follicle.x);float weight=follicle.y;
         vec3 otherDerivative,other=Curve(neighbor,u,otherDerivative);
         vec3 normal=normalize(mix(Row(g,13).xyz,Row(neighbor,13).xyz,weight));
-        float fade=1.0-smoothstep(0.0,.35,u);
-        float fadeDerivative=u<.35?-6.0*(u/.35)*(1.0-u/.35)/.35:0.0;
-        pos=mix(center,other,weight)+normal*follicle.z*fade;
-        derivative=mix(derivative,otherDerivative,weight)+normal*follicle.z*fadeDerivative;
+        // Conservar la corrección de inserción evita volver a la cuerda interior.
+        pos=mix(center,other,weight)+normal*follicle.z;
+        derivative=mix(derivative,otherDerivative,weight);
         next=pos+derivative*.005;prev=pos-derivative*.005;
     }
     strandPosition=pos;

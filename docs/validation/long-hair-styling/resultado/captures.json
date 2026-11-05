@@ -1,0 +1,54 @@
+[
+  {
+    "case": "caballo-curve",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "605c4edce8bab83e3fe307e0b978d6116bab83d02fd9cc8ec9e7c46ac0b4ef98"
+  },
+  {
+    "case": "caballo-curve",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "605c4edce8bab83e3fe307e0b978d6116bab83d02fd9cc8ec9e7c46ac0b4ef98"
+  },
+  {
+    "case": "caballo-curve",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "605c4edce8bab83e3fe307e0b978d6116bab83d02fd9cc8ec9e7c46ac0b4ef98"
+  },
+  {
+    "case": "caballo-curve",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-styling/resultado/caballo-curve-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "605c4edce8bab83e3fe307e0b978d6116bab83d02fd9cc8ec9e7c46ac0b4ef98"
+  }
+]

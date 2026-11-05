@@ -34,6 +34,9 @@ static void FollicleTests(void){
             Vector3 normal=Vec3_Normalize(Vec3_Lerp(v->posedNormal,neighbor->posedNormal,f[1]));
             Vector3 root=Vec3_Add(Vec3_Lerp(v->points[0],neighbor->points[0],f[1]),Vec3_Scale(normal,f[2]));
             TEST_ASSERT(fabsf(NeckDistance(NULL,root)-.002f)<.0001f,"folículo proyectado a piel curva, no a una cuerda interior");
+            for(unsigned q=1;q<=144;++q){float t=q/144.f;
+                Vector3 point=Vec3_Add(Vec3_Lerp(LongHairGuide_Evaluate(v,t),LongHairGuide_Evaluate(neighbor,t),f[1]),Vec3_Scale(normal,f[2]));
+                TEST_ASSERT(NeckDistance(NULL,point)>-.0001f,"fibra interpolada no atraviesa el cuello entre muestras");}
             distributed+=Vec3_Distance(root,v->points[0])>.0001f;
         }}
     TEST_ASSERT(distributed==a.count*g.childrenPerGuide,"todas las fibras tienen inserción independiente");

@@ -1135,14 +1135,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -1150,7 +1150,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -1169,9 +1169,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 2,
@@ -1195,14 +1195,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -1210,7 +1210,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -1229,9 +1229,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 3,
@@ -1255,14 +1255,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -1270,7 +1270,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -1289,9 +1289,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           }
         ],
         "longHairCount": 3
@@ -2305,14 +2305,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -2320,7 +2320,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -2339,9 +2339,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 2,
@@ -2365,14 +2365,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -2380,7 +2380,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -2399,9 +2399,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 3,
@@ -2425,14 +2425,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -2440,7 +2440,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -2459,9 +2459,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           }
         ],
         "longHairCount": 3
@@ -3475,14 +3475,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -3490,7 +3490,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -3509,9 +3509,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 2,
@@ -3535,14 +3535,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -3550,7 +3550,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -3569,9 +3569,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 3,
@@ -3595,14 +3595,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -3610,7 +3610,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -3629,9 +3629,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           }
         ],
         "longHairCount": 3
@@ -4645,14 +4645,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -4660,7 +4660,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -4679,9 +4679,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 2,
@@ -4705,14 +4705,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -4720,7 +4720,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -4739,9 +4739,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           },
           {
             "id": 3,
@@ -4765,14 +4765,14 @@
                 "y": 1,
                 "z": 0
               },
-              "angle": -0.39,
-              "angularSpread": 0.66,
+              "angle": 0.3,
+              "angularSpread": 0.45,
               "start": 0.02,
               "end": 0.98,
               "patchRadius": 0.15
             },
-            "guideCount": 64,
-            "childrenPerGuide": 48,
+            "guideCount": 96,
+            "childrenPerGuide": 32,
             "direction": {
               "x": 1,
               "y": -0.55,
@@ -4780,7 +4780,7 @@
             },
             "length": 1.35,
             "lengthVariation": 0.24,
-            "width": 0.0018,
+            "width": 0.0025,
             "rootSpread": 0.025,
             "clumping": 0.25,
             "stiffness": 0.18,
@@ -4799,9 +4799,9 @@
               "a": 255
             },
             "rootFullness": 1,
-            "verticalBias": -0.65,
+            "verticalBias": -0.9,
             "bend": 0,
-            "wave": 0.08
+            "wave": 0.12
           }
         ],
         "longHairCount": 3
