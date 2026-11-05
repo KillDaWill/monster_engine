@@ -1,0 +1,30 @@
+{
+  "cases": 24,
+  "stages": 4,
+  "animated_poses_per_case": 3,
+  "posed_body_triangle_exact": false,
+  "collision_rest": {
+    "maximum": 0.0,
+    "case": "perro-patch-stage-3"
+  },
+  "collision_children": {
+    "maximum": 0.0,
+    "case": "perro-patch-stage-3"
+  },
+  "collision_pose": {
+    "maximum": 0.0,
+    "case": "perro-patch-stage-3"
+  },
+  "collision_jaw": {
+    "maximum": 0.0,
+    "case": "perro-patch-stage-3"
+  },
+  "length_error": {
+    "maximum": 0.0443521738,
+    "case": "asno-curve-stage-0"
+  },
+  "parity": {
+    "maximum": 1.45032016e-06,
+    "case": "caballo-patch-stage-3"
+  }
+}

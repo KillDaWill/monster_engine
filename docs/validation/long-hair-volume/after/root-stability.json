@@ -1,0 +1,38 @@
+[
+  {
+    "case": "caballo-curve",
+    "stages": 4,
+    "roots": 96,
+    "stable": true
+  },
+  {
+    "case": "caballo-patch",
+    "stages": 4,
+    "roots": 64,
+    "stable": true
+  },
+  {
+    "case": "caballo-tail",
+    "stages": 4,
+    "roots": 96,
+    "stable": true
+  },
+  {
+    "case": "asno-tail",
+    "stages": 4,
+    "roots": 96,
+    "stable": true
+  },
+  {
+    "case": "perro-patch",
+    "stages": 4,
+    "roots": 64,
+    "stable": true
+  },
+  {
+    "case": "asno-curve",
+    "stages": 4,
+    "roots": 96,
+    "stable": true
+  }
+]

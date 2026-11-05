@@ -368,6 +368,11 @@ static const Field LongHairGroup_fields[] = {
     {"stiffness",offsetof(LongHairGroup,stiffness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"gravityInfluence",offsetof(LongHairGroup,gravityInfluence),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"density",offsetof(LongHairGroup,density),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"rootFullness",offsetof(LongHairGroup,rootFullness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"bend",offsetof(LongHairGroup,bend),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"wave",offsetof(LongHairGroup,wave),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"transparency",offsetof(LongHairGroup,transparency),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"verticalBias",offsetof(LongHairGroup,verticalBias),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"rootColor",offsetof(LongHairGroup,rootColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {"tipColor",offsetof(LongHairGroup,tipColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {0}

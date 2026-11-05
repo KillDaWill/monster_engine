@@ -32,6 +32,16 @@ LongHairRenderStats OpenGLRenderer_GetLongHairStats(const Renderer3D* renderer);
 /** @brief Captura Catmull-Rom del shader real y lo compara con las guías CPU.
  * @param maxError Error mundial máximo. @return false si hay NaN, raíz inválida o fallo GL. */
 bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError);
+/** @brief Auditoría offline de centros de hijos GPU contra un campo de distancia.
+ * @param renderer Renderizador con contexto activo.
+ * @param hair Guías actuales.
+ * @param distance Campo de colisión de referencia.
+ * @param context Contexto del campo.
+ * @param maxPenetration Profundidad máxima encontrada.
+ * @param samples Número de centros examinados; no se ejecuta en el bucle de dibujo.
+ * @return Verdadero si la lectura GPU y todas las muestras son finitas. */
+bool OpenGLRenderer_ValidateLongHairCollision(Renderer3D* renderer,const LongHairSet* hair,
+    LongHairDistance distance,const void* context,float* maxPenetration,size_t* samples);
 
 /** @brief Comprueba OpenGL 4.3 y límites de cómputo de la GPU actual. */
 bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);

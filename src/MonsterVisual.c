@@ -12,6 +12,22 @@ static uint64_t HashBytes(const void* data, size_t size, uint64_t hash) {
     for (size_t i = 0; i < size; ++i) { hash ^= bytes[i]; hash *= 0x100000001b3ULL; }
     return hash;
 }
+typedef struct LongHairJawField {
+    MonsterSDFMouth mouth;Vector3 center,x,y,z,pivot;float scale,bodyScale;AABB3D bounds;
+} LongHairJawField;
+static float LongHairJawDistance(const void* context,Vector3 p){
+    const LongHairJawField* j=context;if(j->scale<=.001f)return 1e6f;
+    Vector3 rel=Vec3_Sub(p,j->center),local=Vec3_Create(Vec3_Dot(rel,j->x),Vec3_Dot(rel,j->y),Vec3_Dot(rel,j->z));
+    local=Vec3_Add(j->pivot,Vec3_Scale(Vec3_Sub(local,j->pivot),1/j->scale));
+    Vector3 delta=Vec3_Create(fmaxf(j->bounds.start.x-local.x,fmaxf(0,local.x-j->bounds.end.x)),
+        fmaxf(j->bounds.start.y-local.y,fmaxf(0,local.y-j->bounds.end.y)),fmaxf(j->bounds.start.z-local.z,fmaxf(0,local.z-j->bounds.end.z)));
+    float lower=Vec3_Length(delta)*j->scale;if(lower>.4f*j->bodyScale)return lower;
+    return MonsterSDF_EvaluateJawSnapshotDistance(&j->mouth,local)*j->scale;
+}
+typedef struct LongHairRestField {const MonsterSDF* body;const LongHairJawField* jaw;} LongHairRestField;
+static float LongHairRestDistance(const void* context,Vector3 p){const LongHairRestField* c=context;
+    return fminf(MonsterSDF_EvaluateDistance(c->body,p),LongHairJawDistance(c->jaw,p));
+}
 bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
     if(!hair||!m)return false;
     size_t count=m->hasSurface?m->surface.longHairCount:0;
@@ -19,11 +35,43 @@ bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
     if(!m->hasAnatomyGraph||count>LONG_HAIR_MAX_GROUPS)return false;
     uint64_t h=LongHairGroups_Fingerprint(m->surface.longHair,count),a=AnatomyGraph_Fingerprint(&m->anatomyGraph);
     h=HashBytes(&a,sizeof(a),h);h=HashBytes(&m->phenotype.axial.totalScale,sizeof(float),h);
+    bool animated=m->animation!=NULL;h=HashBytes(&animated,sizeof(animated),h);
+    if(animated)h=HashBytes(&m->animation->rigGeneration,sizeof(m->animation->rigGeneration),h);
+    if(m->hasHead)h=HashBytes(&m->head.phenotype,sizeof(m->head.phenotype),h);
+    if(m->mouthCount){const Mouth* mouth=&m->mouths[0];
+        h=HashBytes(&mouth->offset,sizeof(mouth->offset),h);h=HashBytes(&mouth->rotation,sizeof(mouth->rotation),h);
+        h=HashBytes(&mouth->jawPivot,sizeof(mouth->jawPivot),h);h=HashBytes(&mouth->jawLength,sizeof(float),h);
+        h=HashBytes(&mouth->jawWidth,sizeof(float),h);h=HashBytes(&mouth->jawThickness,sizeof(float),h);}
     if(hair->fingerprint!=h){
         MonsterSDF sdf=MonsterSDF_Create();
         if(!MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()))return false;
-        bool ok=LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,MonsterSDF_EvaluateDistanceWrapper,&sdf);
-        MonsterSDF_Free(&sdf);if(!ok)return false;hair->fingerprint=h;
+        LongHairJawField* field=NULL;
+        if(sdf.mouthCount&&m->mouthCount){
+            MonsterSDFJawField jawContext;SDFField jaw=MonsterSDF_GetJawField(&sdf,0,&jawContext);
+            Vector3 rotation=m->mouths[0].rotation,x=Transform3D_RotateVector(rotation,Vec3_Create(1,0,0)),
+                y=Transform3D_RotateVector(rotation,Vec3_Create(0,1,0)),z=Transform3D_RotateVector(rotation,Vec3_Create(0,0,1));
+            field=malloc(sizeof(*field));
+            if(!field){MonsterSDF_Free(&sdf);return false;}
+            *field=(LongHairJawField){.mouth=sdf.mouths[0],.center=sdf.mouths[0].center,.x=x,.y=y,.z=z,
+                .pivot=m->mouths[0].jawPivot,.scale=m->phenotype.development.cephalic,.bodyScale=m->phenotype.axial.totalScale,.bounds=jaw.getBounds(jaw.context)};
+        }
+        /* Proyectar desde el principio contra la unión visual real. Proyectar
+         * primero al cráneo y luego a la mandíbula puede enterrar la raíz en el
+         * volumen anterior. El snapshot pequeño sobrevive al SDF temporal. */
+        LongHairRestField combined={&sdf,field};
+        bool ok=LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,
+            field?LongHairRestDistance:MonsterSDF_EvaluateDistanceWrapper,field?(const void*)&combined:(const void*)&sdf);
+        if(!ok){free(field);MonsterSDF_Free(&sdf);return false;}
+        if(field&&hair->count){
+            hair->attachedDistance=LongHairJawDistance;hair->attachedContext=field;hair->freeAttachedContext=free;hair->attachedContextBytes=sizeof(*field);
+            hair->collisionJoint=m->animation&&m->animation->rig.jawJoint>=0?m->animation->rig.skeleton.joints[m->animation->rig.jawJoint].id:0;
+            for(size_t i=0;i<hair->count;++i){LongHairGuide* g=&hair->guides[i];
+                if(!g->visible||g->root.moduleId!=sdf.mouths[0].moduleInstanceId||Vec3_Dot(g->root.restNormal,field->y)>-.15f)continue;
+                float d=LongHairJawDistance(field,g->root.restPosition);
+                if(isfinite(d)&&fabsf(d)<.01f*hair->scale)g->attachmentJoint=hair->collisionJoint;
+            }
+        }else free(field);
+        MonsterSDF_Free(&sdf);hair->fingerprint=h;
     }
     if(m->animation)return LongHairSet_Pose(hair,&m->animation->rig.skeleton,&m->animation->pose);
     return true;

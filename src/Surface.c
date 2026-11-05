@@ -195,6 +195,8 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
     if(sameHair)for(size_t i=0;i<p.longHairCount;++i){
         MIX(longHair[i].length);MIX(longHair[i].lengthVariation);MIX(longHair[i].width);MIX(longHair[i].rootSpread);
         MIX(longHair[i].clumping);MIX(longHair[i].stiffness);MIX(longHair[i].gravityInfluence);MIX(longHair[i].density);
+        MIX(longHair[i].rootFullness);MIX(longHair[i].bend);MIX(longHair[i].wave);MIX(longHair[i].transparency);
+        MIX(longHair[i].verticalBias);
         MIX(longHair[i].direction.x);MIX(longHair[i].direction.y);MIX(longHair[i].direction.z);
         MIX(longHair[i].domain.offset.x);MIX(longHair[i].domain.offset.y);MIX(longHair[i].domain.offset.z);
         MIX(longHair[i].domain.angle);MIX(longHair[i].domain.angularSpread);MIX(longHair[i].domain.start);MIX(longHair[i].domain.end);MIX(longHair[i].domain.patchRadius);

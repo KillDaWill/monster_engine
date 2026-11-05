@@ -2953,6 +2953,11 @@ static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair){
     glGetIntegerv(GL_CURRENT_PROGRAM,&oldProgram);glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&oldVao);glGetIntegerv(GL_ACTIVE_TEXTURE,&active);
     glActiveTexture(GL_TEXTURE0);glGetIntegerv(GL_TEXTURE_BINDING_BUFFER,&texture);glGetIntegerv(GL_TEXTURE_BUFFER_BINDING,&buffer);glGetBooleanv(GL_DEPTH_WRITEMASK,&depth);
     GLboolean cull=glIsEnabled(GL_CULL_FACE),blend=glIsEnabled(GL_BLEND);
+    GLboolean a2c=glIsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    GLint samples=0,viewport[4],srcRGB,dstRGB,srcAlpha,dstAlpha;
+    glGetIntegerv(GL_SAMPLES,&samples);glGetIntegerv(GL_VIEWPORT,viewport);
+    glGetIntegerv(GL_BLEND_SRC_RGB,&srcRGB);glGetIntegerv(GL_BLEND_DST_RGB,&dstRGB);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA,&srcAlpha);glGetIntegerv(GL_BLEND_DST_ALPHA,&dstAlpha);
     glBindBuffer(GL_TEXTURE_BUFFER,d->longHair.buffer);glBufferData(GL_TEXTURE_BUFFER,rows*sizeof(*d->longHair.rows),d->longHair.rows,GL_STREAM_DRAW);
     glBindTexture(GL_TEXTURE_BUFFER,d->longHair.texture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->longHair.buffer);
     unsigned children=1;for(size_t i=0;i<hair->groupCount;++i)if(hair->groups[i].childrenPerGuide>children)children=hair->groups[i].childrenPerGuide;
@@ -2961,23 +2966,32 @@ static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair){
     GLuint p=d->longHair.program;glUseProgram(p);glUniform1i(glGetUniformLocation(p,"guideData"),0);
     glUniform1i(glGetUniformLocation(p,"children"),(GLint)children);glUniform1i(glGetUniformLocation(p,"segments"),segments);
     glUniform1i(glGetUniformLocation(p,"guideDebug"),quality==4);glUniform1f(glGetUniformLocation(p,"childFraction"),fraction);
+    glUniform1f(glGetUniformLocation(p,"viewportHeight"),(float)viewport[3]);
+    GLint coverage=glGetUniformLocation(p,"coveragePass");glUniform1i(coverage,samples>0?2:0);
     glBindVertexArray(d->longHair.vao);glDisable(GL_CULL_FACE);glDisable(GL_BLEND);glDepthMask(GL_TRUE);
+    if(samples>0)glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);else glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
     bool timing=!d->longHair.pending;if(timing)glQueryCounter(d->longHair.queries[0],GL_TIMESTAMP);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP,0,2*(segments+1),(GLsizei)(hair->count*children));
+    if(samples==0){glUniform1i(coverage,1);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);glDepthMask(GL_FALSE);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP,0,2*(segments+1),(GLsizei)(hair->count*children));}
     if(timing){glQueryCounter(d->longHair.queries[1],GL_TIMESTAMP);d->longHair.pending=true;}
     d->longHair.stats.ready=true;d->longHair.stats.guides=hair->count;d->longHair.stats.segments=(unsigned)segments;
     d->longHair.stats.bufferBytes=rows*sizeof(*d->longHair.rows);d->longHair.stats.strands=0;
     for(size_t i=0;i<hair->count;++i)if(hair->guides[i].visible)d->longHair.stats.strands+=quality==4?1:(size_t)ceilf(hair->groups[hair->guides[i].groupIndex].childrenPerGuide*fraction);
-    glDepthMask(depth);if(cull)glEnable(GL_CULL_FACE);if(blend)glEnable(GL_BLEND);
+    glDepthMask(depth);if(cull)glEnable(GL_CULL_FACE);if(blend)glEnable(GL_BLEND);else glDisable(GL_BLEND);
+    if(a2c)glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);else glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    glBlendFuncSeparate((GLenum)srcRGB,(GLenum)dstRGB,(GLenum)srcAlpha,(GLenum)dstAlpha);
     glBindVertexArray((GLuint)oldVao);glUseProgram((GLuint)oldProgram);glBindTexture(GL_TEXTURE_BUFFER,(GLuint)texture);glBindBuffer(GL_TEXTURE_BUFFER,(GLuint)buffer);glActiveTexture((GLenum)active);
 }
-bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError){
+static bool ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError,LongHairDistance distance,const void* context,size_t* samples){
     OpenGLRendererData* d=renderer?renderer->user_data:NULL;
     if(maxError)*maxError=INFINITY;
     if(!d||!hair||!hair->count)return false;
     int quality=d->longHair.quality;d->longHair.quality=4;OpenGL_RenderLongHair(renderer,hair);d->longHair.quality=quality;
     if(!d->longHair.program)return false;
-    const unsigned segments=24,vertices=2*(segments+1);size_t count=hair->count*vertices;
+    unsigned children=1;
+    if(distance)for(size_t i=0;i<hair->groupCount;++i)if(hair->groups[i].childrenPerGuide>children)children=hair->groups[i].childrenPerGuide;
+    const unsigned segments=24,vertices=2*(segments+1);size_t count=hair->count*vertices*children;
     float (*points)[3]=calloc(count,sizeof(*points));if(!points)return false;
     GLint previous=0,vao=0,active=0,texture=0,binding=0,indexBinding=0;
     glGetIntegerv(GL_CURRENT_PROGRAM,&previous);glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&vao);glGetIntegerv(GL_ACTIVE_TEXTURE,&active);
@@ -2986,20 +3000,31 @@ bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hai
     GLuint output=0;glGenBuffers(1,&output);glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER,output);glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER,count*sizeof(*points),NULL,GL_STREAM_READ);
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,output);glBindTexture(GL_TEXTURE_BUFFER,d->longHair.texture);
     GLuint p=d->longHair.program;glUseProgram(p);glBindVertexArray(d->longHair.vao);
-    glUniform1i(glGetUniformLocation(p,"children"),1);glUniform1i(glGetUniformLocation(p,"segments"),segments);
-    glUniform1i(glGetUniformLocation(p,"guideDebug"),1);glUniform1f(glGetUniformLocation(p,"childFraction"),1);
+    glUniform1i(glGetUniformLocation(p,"children"),(GLint)children);glUniform1i(glGetUniformLocation(p,"segments"),segments);
+    glUniform1i(glGetUniformLocation(p,"guideDebug"),distance?0:1);glUniform1f(glGetUniformLocation(p,"childFraction"),1);
     GLboolean discard=glIsEnabled(GL_RASTERIZER_DISCARD);glEnable(GL_RASTERIZER_DISCARD);
-    glBeginTransformFeedback(GL_POINTS);glDrawArraysInstanced(GL_POINTS,0,vertices,(GLsizei)hair->count);glEndTransformFeedback();
+    glBeginTransformFeedback(GL_POINTS);glDrawArraysInstanced(GL_POINTS,0,vertices,(GLsizei)(hair->count*children));glEndTransformFeedback();
     if(!discard)glDisable(GL_RASTERIZER_DISCARD);
     glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER,0,count*sizeof(*points),points);
-    bool valid=true;float error=0;
-    for(size_t i=0;i<hair->count;++i)for(unsigned j=0;j<vertices;++j){Vector3 expected=hair->guides[i].visible?LongHairGuide_Evaluate(&hair->guides[i],(j/2)/(float)segments):hair->guides[i].points[0];
+    bool valid=true;float error=0;size_t checked=0;
+    for(size_t i=0;i<hair->count*children;++i)for(unsigned j=0;j<vertices;j+=distance?2:1){size_t guide=i/children;
         float* got=points[i*vertices+j];if(!isfinite(got[0])||!isfinite(got[1])||!isfinite(got[2]))valid=false;
-        error=fmaxf(error,Vec3_Distance(expected,Vec3_Create(got[0],got[1],got[2])));}
+        Vector3 point=Vec3_Create(got[0],got[1],got[2]);
+        if(distance){if(hair->guides[guide].visible){float d=distance(context,point);valid=valid&&isfinite(d);error=fmaxf(error,-d);++checked;}}
+        else{Vector3 expected=hair->guides[guide].visible?LongHairGuide_Evaluate(&hair->guides[guide],(j/2)/(float)segments):hair->guides[guide].points[0];
+            error=fmaxf(error,Vec3_Distance(expected,point));}}
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,(GLuint)indexBinding);glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER,(GLuint)binding);glDeleteBuffers(1,&output);
     glBindTexture(GL_TEXTURE_BUFFER,(GLuint)texture);glActiveTexture((GLenum)active);glBindVertexArray((GLuint)vao);glUseProgram((GLuint)previous);free(points);
     if(maxError)*maxError=valid?error:INFINITY;
+    if(samples)*samples=checked;
     return valid&&OpenGLRenderer_CheckErrors();
+}
+bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float* maxError){
+    return ValidateLongHair(renderer,hair,maxError,NULL,NULL,NULL);
+}
+bool OpenGLRenderer_ValidateLongHairCollision(Renderer3D* renderer,const LongHairSet* hair,LongHairDistance distance,const void* context,float* maxPenetration,size_t* samples){
+    if(!distance)return false;
+    return ValidateLongHair(renderer,hair,maxPenetration,distance,context,samples);
 }
 static bool InitGuardProgram(OpenGLRendererData* d) {
     if(d->guardProgram)return true;

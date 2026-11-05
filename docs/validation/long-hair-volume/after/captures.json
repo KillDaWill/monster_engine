@@ -1,0 +1,314 @@
+[
+  {
+    "case": "caballo-curve",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-curve",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-curve",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-curve",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-curve-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-patch",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-patch",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-patch",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-patch",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-patch-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-tail",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-tail",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-tail",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "caballo-tail",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/caballo-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/caballo-tail-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-tail",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-tail",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-tail",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-tail",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-tail.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-tail-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "perro-patch",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/perro-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "perro-patch",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/perro-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "perro-patch",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/perro-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "perro-patch",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/perro-patch.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/perro-patch-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-curve",
+    "stage": 0,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-0",
+      "0"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-0/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-curve",
+    "stage": 1,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-1",
+      "1"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-1/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-curve",
+    "stage": 2,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-2",
+      "2"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-2/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  },
+  {
+    "case": "asno-curve",
+    "stage": 3,
+    "command": [
+      "/home/guillermo/Escritorio/monster_engine/build/capture_long_hair",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/recipes/asno-curve.creature.json",
+      "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-3",
+      "3"
+    ],
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after/asno-curve-stage-3/capture.log",
+    "animated": true,
+    "binary_sha256": "7138f08944915da6231b2d4b7c5d1597f29b321d8f0c1f69367c8e585e233fa1"
+  }
+]

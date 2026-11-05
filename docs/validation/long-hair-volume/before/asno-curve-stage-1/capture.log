@@ -1,0 +1,8 @@
+roots 96 visible 96 root_build_ms 5.446027 max_root_error 0.00157718 runtime_bytes 32240 gpu_bytes 24576
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+draw quality 0 frame_ms 4.724471 fps 211.664 hair_gpu_ms 0.000000 gpu_samples 0
+draw quality 3 frame_ms 5.527110 fps 180.926 hair_gpu_ms 0.487208 gpu_samples 30
+render guides 96 strands 4608 segments 24 ready 1
+guide_pose_ms 0.161807 animation_ms 0.218405 mesh_generation_unchanged 1 hair_generation_unchanged 1
+animation_bound 1 root_motion 0.117566995
+guide_gpu_parity 1 max_error 7.17889634e-07

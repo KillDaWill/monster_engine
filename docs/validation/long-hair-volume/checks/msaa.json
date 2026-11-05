@@ -1,0 +1,20 @@
+[
+  {
+    "case": "caballo-curve",
+    "msaa_requested": 4,
+    "returncode": 0,
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after-msaa/caballo-curve-stage-3/capture.log"
+  },
+  {
+    "case": "caballo-tail",
+    "msaa_requested": 4,
+    "returncode": 0,
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after-msaa/caballo-tail-stage-3/capture.log"
+  },
+  {
+    "case": "perro-patch",
+    "msaa_requested": 4,
+    "returncode": 0,
+    "log": "/home/guillermo/Escritorio/monster_engine/docs/validation/long-hair-volume/after-msaa/perro-patch-stage-3/capture.log"
+  }
+]
