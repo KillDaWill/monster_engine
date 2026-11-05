@@ -263,6 +263,9 @@ bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count
         for(unsigned c=0;c<g->childrenPerGuide;++c){size_t j=neighbors[c%4];if(j==i)j=neighbors[0];if(j==i)continue;
             const LongHairGuide* other=&next.guides[j];uint32_t seed=Hash(v->root.stableRootId^g->seed^Hash(c+1));
             float weight=(.05f+.9f*Fur_Random(seed))*g->rootFullness;
+            /* Acercar el folículo a su guía si el cuello es demasiado convexo;
+             * conservar una inserción propia antes de recurrir al tubo. */
+            for(unsigned attempt=0;attempt<5;++attempt,weight*=.5f){
             Vector3 root=Vec3_Lerp(v->points[0],other->points[0],weight);
             Vector3 normal=Unit(Vec3_Lerp(v->posedNormal,other->posedNormal,weight),v->posedNormal);
             float lift=0;
@@ -271,7 +274,18 @@ bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count
                 float delta=.002f*scale-d;lift+=Clamp(delta,-.02f*scale,.02f*scale,0);
                 if(fabsf(delta)<.00001f*scale)break;}
             if(distance&&fabsf(distance(context,Vec3_Add(root,Vec3_Scale(normal,lift)))-.002f*scale)>.0001f*scale)continue;
+            /* Dos guías válidas pueden rodear un obstáculo por lados distintos.
+             * No aceptar su cuerda interior: conservar el hijo tubular existente
+             * cuando la interpolación no supera la auditoría del campo de reposo. */
+            bool safe=true;
+            if(distance)for(unsigned q=1;q<=72;++q){float t=q/72.f;
+                Vector3 point=Vec3_Add(Vec3_Lerp(LongHairGuide_Evaluate(v,t),LongHairGuide_Evaluate(other,t),weight),Vec3_Scale(normal,lift));
+                float d=distance(context,point);
+                if(!isfinite(d)||d<.0005f*scale){safe=false;break;}}
+            if(!safe)continue;
             v->follicles[c][0]=(float)j;v->follicles[c][1]=weight;v->follicles[c][2]=lift;v->follicles[c][3]=1;
+            break;
+            }
         }
     }
     for(size_t i=0;i<next.count;++i){memcpy(next.guides[i].restClearance,next.guides[i].clearance,sizeof(next.guides[i].clearance));next.guides[i].restPenetration=next.guides[i].contactPenetration;next.guides[i].restRootClearance=next.guides[i].rootClearance;}

@@ -1,12 +1,28 @@
 # Controles de peinado y cobertura
 
+## Resultado actual: raíz de la crin
+
+[Informe y reproducción](RESULTADOS_CRIN.md) ·
+[Antes/después lateral](comparacion-crin-side.png) ·
+[Detalle de raíces](comparacion-raiz.png) ·
+[Frontal](comparacion-crin-front.png) ·
+[Tres cuartos](comparacion-crin-rear-three-quarter.png) ·
+[Poses](crin-poses.gif).
+
+La nueva receta [caballo-crin-foliculos.creature.json](caballo-crin-foliculos.creature.json)
+distribuye 9.216 inserciones sobre la piel con 288 guías y caída hacia +X.
+Las capturas originales se conservan como referencia; las secciones históricas
+de este documento describen las implementaciones anteriores.
+
 Los grupos de pelo aceptan cuatro campos opcionales en las recetas v1 y en
 `LongHairGroup`. Si se omiten, valen cero y conservan el peinado anterior.
 También se interpolan durante el crecimiento y participan en la huella visual.
 
-- `rootFullness` (0–1): acelera la apertura del tubo de hijos y aumenta el
-  grosor de las cintas junto a la raíz. La separación sigue limitada por el
-  espacio certificado contra el cuerpo; no se desplazan las raíces.
+- `rootFullness` (0–1): en dominios de curva con guías vecinas compatibles,
+  distribuye los folículos entre ellas y proyecta sus inserciones a la piel.
+  La separación se reduce si la fibra interpolada invade el cuerpo en reposo.
+  Sin vecinos válidos, o en otros dominios, conserva la apertura y el grosor
+  del tubo anteriores. Las raíces de las guías no se desplazan.
 - `bend` (-2–2): curvatura progresiva hacia un lado del marco de la raíz.
 - `wave` (0–2): ondulación de las guías en ese mismo marco. Se combina con
   `direction`, `stiffness` y `gravityInfluence`, que siguen controlando la caída.

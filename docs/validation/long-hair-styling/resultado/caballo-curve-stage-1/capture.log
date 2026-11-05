@@ -1,0 +1,18 @@
+roots 288 visible 288 root_build_ms 1505.793992 max_root_error 0.00148026 runtime_bytes 476292 gpu_bytes 368640
+follicles 9216 max_skin_offset_error 1.39151234e-06 min_parent_separation 0.00027361582 guides_falling_positive_x 288/288
+collision_rest samples 25920 penetrating 0 max_penetration 0 envelope_error 0.00460927049 max_segment_strain 0.0388382673
+curve_length max_relative_error 0.0043208003
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+draw quality 0 frame_ms 5.724865 fps 174.677 hair_gpu_ms 0.000000 gpu_samples 0
+draw quality 3 frame_ms 10.353456 fps 96.586 hair_gpu_ms 2.690485 gpu_samples 30
+collision_children samples 230400 max_sdf_penetration 0
+render guides 288 strands 9216 segments 24 ready 1
+jaw_attached_roots 0
+guide_pose_ms 10.239581 animation_ms 0.245760 mesh_generation_unchanged 1 hair_generation_unchanged 1
+pose 0 covered_roots 0
+pose 1 covered_roots 0
+pose 2 covered_roots 0
+collision_pose max_proxy_penetration 0
+collision_jaw samples 0 max_posed_jaw_penetration 0
+animation_bound 1 root_motion 0.132323369
+guide_gpu_parity 1 max_error 9.6155793e-07

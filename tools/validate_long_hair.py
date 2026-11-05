@@ -95,6 +95,13 @@ def main():
                     with Image.open(ppm) as image:image.save(ppm.with_suffix('.png'))
                     ppm.unlink()
             animated=(target/'pose-0.png').exists() and (target/'pose-2.png').exists()
+            if args.rooted_mane and name=='caballo-curve':
+                text=(target/'capture.log').read_text()
+                follicles=re.search(r'follicles (\d+).*guides_falling_positive_x (\d+)/(\d+)',text)
+                strands=re.search(r'render guides (\d+) strands (\d+)',text)
+                assert follicles and strands,name+': faltan métricas de inserción'
+                assert int(follicles[1])==int(strands[2])>0,name+': quedan hijos sin folículo propio'
+                assert int(follicles[2])==int(follicles[3])==int(strands[1]),name+': caída hacia lados distintos'
             if animated:
                 with Image.open(target/'pose-0.png') as first,Image.open(target/'pose-2.png') as last:
                     assert ImageChops.difference(first,last).getbbox(),name+': poses idénticas'

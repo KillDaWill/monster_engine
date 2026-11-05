@@ -3010,7 +3010,15 @@ static bool ValidateLongHair(Renderer3D* renderer,const LongHairSet* hair,float*
     for(size_t i=0;i<hair->count*children;++i)for(unsigned j=0;j<vertices;j+=distance?2:1){size_t guide=i/children;
         float* got=points[i*vertices+j];if(!isfinite(got[0])||!isfinite(got[1])||!isfinite(got[2]))valid=false;
         Vector3 point=Vec3_Create(got[0],got[1],got[2]);
-        if(distance){if(hair->guides[guide].visible){float d=distance(context,point);valid=valid&&isfinite(d);error=fmaxf(error,-d);++checked;}}
+        if(distance){if(hair->guides[guide].visible){float d=distance(context,point);valid=valid&&isfinite(d);error=fmaxf(error,-d);++checked;
+            /* El primer vértice prueba también la inserción interpolada CPU/GPU,
+             * independientemente de la auditoría de colisión de toda la fibra. */
+            const LongHairGuide* g=&hair->guides[guide];const float* f=g->follicles[i%children];
+            if(j==0&&f[3]>0&&g->visibility==1&&hair->groups[g->groupIndex].density==1){
+                const LongHairGuide* n=&hair->guides[(size_t)f[0]];
+                if(n->visible&&n->visibility==1){Vector3 normal=Vec3_Normalize(Vec3_Lerp(g->posedNormal,n->posedNormal,f[1]));
+                    Vector3 expected=Vec3_Add(Vec3_Lerp(g->points[0],n->points[0],f[1]),Vec3_Scale(normal,f[2]));
+                    valid=valid&&Vec3_Distance(expected,point)<.00002f*hair->scale;}}}}
         else{Vector3 expected=hair->guides[guide].visible?LongHairGuide_Evaluate(&hair->guides[guide],(j/2)/(float)segments):hair->guides[guide].points[0];
             error=fmaxf(error,Vec3_Distance(expected,point));}}
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER,0,(GLuint)indexBinding);glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER,(GLuint)binding);glDeleteBuffers(1,&output);
