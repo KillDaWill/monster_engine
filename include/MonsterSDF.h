@@ -338,6 +338,11 @@ SDFSample MonsterSDF_EvaluateDebug(const MonsterSDF* sdf, Vector3 point, Monster
 
 /** Obtiene el campo local de mandíbula compilado para una boca. */
 SDFField MonsterSDF_GetJawField(const MonsterSDF* sdf, size_t mouthIndex, MonsterSDFJawField* context);
+/** @brief Distancia de mandíbula cerrada desde un snapshot autónomo, sin el campo corporal.
+ * @param mouth Snapshot compilado de la superficie oral.
+ * @param point Punto local de boca antes de su articulación.
+ * @return Distancia firmada; permite contactos locales de guías sin consultar todo el SDF. */
+float MonsterSDF_EvaluateJawSnapshotDistance(const MonsterSDFMouth* mouth,Vector3 point);
 
 /** Obtiene el campo local de tejido blando de costura para una boca. */
 SDFField MonsterSDF_GetSeamField(const MonsterSDF* sdf, size_t mouthIndex, MonsterSDFSeamField* context);

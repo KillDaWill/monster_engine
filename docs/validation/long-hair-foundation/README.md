@@ -1,5 +1,10 @@
 # Hito 3 — Base de pelo largo por guías
 
+> Evidencia de la implementación anterior, conservada como referencia. La mejora
+> de volumen, peinado, mandíbula y colisión se documenta en
+> [long-hair-volume](../long-hair-volume/README.md); `make visual-long-hair` genera
+> ahora las capturas nuevas allí, sin sobrescribir esta referencia.
+
 ## Alcance
 
 Implementación optativa y renderizada: receta v1 → superficie → estaciones

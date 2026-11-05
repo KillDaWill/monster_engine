@@ -1,0 +1,10 @@
+roots 64 visible 64 root_build_ms 3.622511 max_root_error 0.00214117 runtime_bytes 21744 gpu_bytes 16384
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+draw quality 0 frame_ms 9.182912 fps 108.898 hair_gpu_ms 0.000000 gpu_samples 0
+draw quality 3 frame_ms 9.661859 fps 103.500 hair_gpu_ms 0.323697 gpu_samples 30
+render guides 64 strands 3072 segments 24 ready 1
+guide_pose_ms 0.012281 animation_ms 0.000028 mesh_generation_unchanged 1 hair_generation_unchanged 1
+animation_bound 0 root_motion 0
+guide_gpu_parity 1 max_error 9.53790732e-07
+morph_cpu_ms 0.081939 morph_hair_update_ms 4.177200 steps 21
+sizes SurfacePhenotype 3080 CreaturePhenotype 9808 CreatureRecipe 42856 LongHairGroup 176 LongHairGuide 328

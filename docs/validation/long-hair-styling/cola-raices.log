@@ -1,0 +1,19 @@
+roots 160 visible 155 root_build_ms 91.899947 max_root_error 0.0020057 runtime_bytes 106372 gpu_bytes 40960
+collision_rest samples 13950 penetrating 0 max_penetration 0 envelope_error 0.0577518418 max_segment_strain 1.60975575
+curve_length max_relative_error 0.178861737
+[GPU] AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) | 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2 | MSAA=0
+draw quality 0 frame_ms 4.253160 fps 235.119 hair_gpu_ms 0.000000 gpu_samples 0
+draw quality 3 frame_ms 7.620009 fps 131.233 hair_gpu_ms 2.364356 gpu_samples 30
+collision_children samples 186000 max_sdf_penetration 0
+render guides 160 strands 7440 segments 24 ready 1
+jaw_attached_roots 0
+guide_pose_ms 23.792708 animation_ms 0.213576 mesh_generation_unchanged 1 hair_generation_unchanged 1
+pose 0 covered_roots 0
+pose 1 covered_roots 0
+pose 2 covered_roots 0
+collision_pose max_proxy_penetration 0
+collision_jaw samples 0 max_posed_jaw_penetration 0
+animation_bound 1 root_motion 0.207114771
+guide_gpu_parity 1 max_error 1.45026274e-06
+morph_cpu_ms 0.089683 morph_hair_update_ms 94.709376 steps 21
+sizes SurfacePhenotype 3144 CreaturePhenotype 9872 CreatureRecipe 43112 LongHairGroup 192 LongHairGuide 568

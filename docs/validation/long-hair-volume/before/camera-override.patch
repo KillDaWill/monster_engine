@@ -1,0 +1,9 @@
+--- a/tools/capture_long_hair.c
++++ b/tools/capture_long_hair.c
+@@ -41,3 +41,6 @@
+     Vector3 target=Vec3_Scale(Vec3_Add(hairBounds.start,hairBounds.end),.5f);
+     float height=fmaxf(3.5f*scale,Vec3_Length(AABB_Size(hairBounds))*1.25f);
++    const char* cameraPath=getenv("LONG_HAIR_CAMERA");
++    if(cameraPath){FILE* f=fopen(cameraPath,"r");if(f){if(fscanf(f,"%f %f %f %f",&target.x,&target.y,&target.z,&height)!=4)return 1;fclose(f);}
++        else {f=fopen(cameraPath,"w");if(!f)return 1;fprintf(f,"%.9g %.9g %.9g %.9g\n",target.x,target.y,target.z,height);fclose(f);}}
+     const Vector3 directions[]={{1,0,0},{0,0,1},{.8f,.15f,-.7f}};const char* names[]={"side","front","rear-three-quarter"};bool ok=true;

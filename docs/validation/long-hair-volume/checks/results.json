@@ -1,0 +1,27 @@
+[
+  {
+    "command": "make visual-long-hair",
+    "returncode": 0,
+    "log": "docs/validation/long-hair-volume/checks/visual-long-hair.log"
+  },
+  {
+    "command": "make visual-morph-ownership",
+    "returncode": 0,
+    "log": "docs/validation/long-hair-volume/checks/visual-morph-ownership.log"
+  },
+  {
+    "command": "make visual-morph-gpu-regressions",
+    "returncode": 0,
+    "log": "docs/validation/long-hair-volume/checks/visual-morph-gpu-regressions.log"
+  },
+  {
+    "command": "make test",
+    "returncode": 0,
+    "log": "docs/validation/long-hair-volume/checks/test.log"
+  },
+  {
+    "command": "make editor-test",
+    "returncode": 0,
+    "log": "docs/validation/long-hair-volume/checks/editor-test.log"
+  }
+]

@@ -1971,6 +1971,9 @@ SDFField MonsterSDF_GetJawField(const MonsterSDF* sdf, size_t mouthIndex, Monste
     context->owner=sdf; context->mouthIndex=mouthIndex;
     return (SDFField){.evaluate=MonsterSDF_EvaluateJawWrapper,.evaluateDistance=MonsterSDF_EvaluateJawDistanceWrapper,.getBounds=MonsterSDF_GetJawBoundsWrapper,.getComponentBounds=MonsterSDF_GetJawFieldComponentBoundsWrapper,.context=context};
 }
+float MonsterSDF_EvaluateJawSnapshotDistance(const MonsterSDFMouth* mouth,Vector3 point){
+    return mouth?MonsterSDF_EvalJawCarvedDistance(mouth,point):1e6f;
+}
 static SDFSample MonsterSDF_EvaluateSeamWrapper(const void* context, Vector3 point) {
     const MonsterSDFSeamField* field=(const MonsterSDFSeamField*)context;
     if (!field || !field->owner || field->mouthIndex >= field->owner->mouthCount) return SDFSample_Create(1e6f, COLOR_WHITE, SDF_MATERIAL_UNKNOWN);
