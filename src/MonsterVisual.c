@@ -34,11 +34,15 @@ static int LongHairOptInThreads(void){const char* value=getenv("MONSTER_LONG_HAI
 bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
     if(!hair||!m)return false;
     size_t count=m->hasSurface?m->surface.longHairCount:0;
-    if(!count){if(hair->count||hair->guides)LongHairSet_Free(hair);return true;}
+    if(!count){if(hair->count||hair->guides||hair->colliders||hair->scheduler||hair->attachedContext)LongHairSet_Free(hair);return true;}
     if(!m->hasAnatomyGraph||count>LONG_HAIR_MAX_GROUPS)return false;
     int requestedThreads=LongHairOptInThreads();
+    /* La cantidad del pool se fija al primer uso del runtime; cambiar de 2/4/8
+     * después no reconfigura workers vivos. Un mismatch cae a serial. El valor
+     * 1 siempre fuerza serial aunque quede un pool persistente en propiedad. */
     if(requestedThreads>1&&!hair->scheduler){LongHairSchedulerConfig config=LongHairScheduler_DefaultConfig();config.threadCount=requestedThreads;config.maxThreads=requestedThreads;
         hair->scheduler=LongHairScheduler_Create(&config);}
+    bool useParallel=requestedThreads>1&&hair->scheduler&&LongHairScheduler_GetThreadCount(hair->scheduler)==requestedThreads;
     uint64_t h=LongHairGroups_Fingerprint(m->surface.longHair,count),a=AnatomyGraph_Fingerprint(&m->anatomyGraph);
     h=HashBytes(&a,sizeof(a),h);h=HashBytes(&m->phenotype.axial.totalScale,sizeof(float),h);
     bool animated=m->animation!=NULL;h=HashBytes(&animated,sizeof(animated),h);
@@ -67,7 +71,7 @@ bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
         LongHairRestField combined={&sdf,field};
         LongHairDistance distanceFn=field?LongHairRestDistance:MonsterSDF_EvaluateDistanceWrapper;
         const void* distanceContext=field?(const void*)&combined:(const void*)&sdf;
-        bool ok=hair->scheduler?LongHairSet_BuildParallel(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext,hair->scheduler):
+        bool ok=useParallel?LongHairSet_BuildParallel(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext,hair->scheduler):
             LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext);
         if(!ok){free(field);MonsterSDF_Free(&sdf);return false;}
         if(field&&hair->count){

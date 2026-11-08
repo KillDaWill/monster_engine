@@ -10,6 +10,14 @@ typedef struct LongHairScheduler LongHairScheduler;
 #define LONG_HAIR_MAX_ANCHORS 8
 #define LONG_HAIR_POINTS 10
 #define LONG_HAIR_GPU_ROWS 80
+#define LONG_HAIR_BUILD_PHASES 3
+#define LONG_HAIR_BUILD_MAX_THREADS 8
+/** @brief Medidas optativas de construcción; sin este puntero no se lee el reloj ni se cuentan consultas. */
+typedef struct LongHairBuildStats {
+    uint64_t distanceCalls[LONG_HAIR_BUILD_PHASES][LONG_HAIR_BUILD_MAX_THREADS];
+    double phaseMilliseconds[LONG_HAIR_BUILD_PHASES];
+    int participants;
+} LongHairBuildStats;
 typedef enum LongHairDomainKind { LONG_HAIR_CURVE, LONG_HAIR_PATCH, LONG_HAIR_REGION } LongHairDomainKind;
 /** @brief Coordenadas anatómicas estables, no índices de una triangulación. */
 typedef struct LongHairDomain {
@@ -80,7 +88,7 @@ typedef struct LongHairSet {
     void (*freeAttachedContext)(void*);
     size_t attachedContextBytes;
     uint32_t collisionJoint; /**< Articulación del campo; cero mantiene un campo mundial estático. */
-    LongHairScheduler* scheduler; /**< Pool privado opcional; propiedad del runtime. */
+    LongHairScheduler* scheduler; /**< Pool privado opcional; propiedad exclusiva de este runtime. */
 } LongHairSet;
 /** @brief Configuración neutra válida. @return Descriptor sin anfitrión. */
 LongHairGroup LongHairGroup_Default(void);
@@ -93,12 +101,25 @@ uint64_t LongHairGroups_Fingerprint(const LongHairGroup* groups,size_t count);
  * @return false si falla validación o asignación; conserva el runtime anterior. */
 bool LongHairSet_Build(LongHairSet* set,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,
     float scale,LongHairDistance distance,const void* context);
-/** @brief Igual que Build, pero opt-in: el callback/contexto debe ser inmutable y thread-safe.
- * @param scheduler Scheduler privado del dueño; NULL conserva ejecución serial.
- * @return false ante error; conserva el runtime previo. */
+/** @brief Igual que Build, pero opt-in: callback y contexto deben ser inmutables/thread-safe.
+ * @param set Runtime mutable; el scheduler no se transfiere a este runtime.
+ * @param scheduler Scheduler prestado, privado del llamador; NULL conserva ejecución serial.
+ * @return false ante error; conserva el runtime previo. Ningún worker retiene callback,
+ *         scheduler ni contexto al retornar (join síncrono de todas las fases). El callback
+ *         no debe destruir el scheduler ni liberar/modificar el runtime propietario.
+ * @warning Build/BuildParallel/Pose/Free requieren exclusión externa para el mismo set.
+ *          Antes de Free, impedir nuevos submitters/lectores y hacer join de submitters
+ *          existentes; Free destruye el scheduler runtime-owned. Nunca liberar el set desde
+ *          un callback activo. El caller conserva ownership del scheduler prestado. */
 bool LongHairSet_BuildParallel(LongHairSet* set,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,
     float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler);
-/** @brief Libera sólo memoria propia. @param set Runtime, admite NULL. */
+/** @brief Variante de perfilado optativo; añade costes de reloj/contadores por fase y partición.
+ * `stats` se sobrescribe; los hilos sólo escriben su propia ranura. */
+bool LongHairSet_BuildParallelProfiled(LongHairSet* set,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,
+    float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler,LongHairBuildStats* stats);
+/** @brief Libera memoria y pool propios. @param set Runtime, admite NULL.
+ * @warning Requiere quiescencia externa: bloquear nuevas llamadas y hacer join de submitters
+ *          y lectores activos antes de destruir el runtime. Nunca llamar desde un callback. */
 void LongHairSet_Free(LongHairSet* set);
 /** @brief Transporta guías por las dos estaciones propietarias, sin regenerar hijos.
  * @return false ante pose incompatible; las guías no válidas quedan ocultas. */

@@ -18,10 +18,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#ifdef __linux__
-#include <stdio.h>
-#endif
-
 #define TEST_MAX_ITEMS 1024
 
 void run_long_hair_scheduler_tests(void);
@@ -37,11 +33,13 @@ static void SleepMillis(long milliseconds) {
     nanosleep(&delay, NULL);
 }
 
+#ifdef LONG_HAIR_SCHEDULER_STANDALONE
 static double NowSeconds(void) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     return (double)now.tv_sec + (double)now.tv_nsec * 1e-9;
 }
+#endif
 
 static LongHairScheduler* MakeScheduler(int threads) {
     LongHairSchedulerConfig config = LongHairScheduler_DefaultConfig();
@@ -61,20 +59,6 @@ static int ExpectedPartition(int item, int total, int partitions) {
     return -1;
 }
 
-#ifdef __linux__
-static int CountProcessThreads(void) {
-    FILE* status = fopen("/proc/self/status", "r");
-    if (!status) return -1;
-    char line[256];
-    int count = -1;
-    while (fgets(line, sizeof(line), status)) {
-        if (sscanf(line, "Threads: %d", &count) == 1) break;
-    }
-    fclose(status);
-    return count;
-}
-#endif
-
 /* ------------------------------------------------------------------------- */
 /* Cobertura de rangos y determinismo                                        */
 /* ------------------------------------------------------------------------- */
@@ -90,7 +74,8 @@ typedef struct CoverageContext {
 static bool CoverageWork(void* opaque, int start, int end, int threadIndex) {
     CoverageContext* context = (CoverageContext*)opaque;
     if (start < 0 || end < start || end > context->total ||
-        threadIndex < 0 || threadIndex >= LONG_HAIR_SCHEDULER_MAX_THREADS) {
+        threadIndex < 0 || threadIndex >= LONG_HAIR_SCHEDULER_MAX_THREADS ||
+        LongHairScheduler_CurrentPartitionIndex() != threadIndex) {
         atomic_store(&context->badRange, 1);
         return false;
     }
@@ -99,6 +84,35 @@ static bool CoverageWork(void* opaque, int start, int end, int threadIndex) {
         context->visits[i]++;
         context->threadOf[i] = threadIndex;
     }
+    return true;
+}
+
+typedef struct PersistentContext {
+    int total;
+    pthread_t threadByPartition[LONG_HAIR_SCHEDULER_MAX_THREADS];
+    bool seen[LONG_HAIR_SCHEDULER_MAX_THREADS];
+    atomic_int changed;
+    atomic_int callbacks;
+} PersistentContext;
+
+static bool PersistentWork(void* opaque, int start, int end, int threadIndex) {
+    PersistentContext* context = opaque;
+    if (start < 0 || end < start || end > context->total || threadIndex < 0 ||
+        threadIndex >= LONG_HAIR_SCHEDULER_MAX_THREADS ||
+        LongHairScheduler_CurrentPartitionIndex() != threadIndex) {
+        atomic_store(&context->changed, 1);
+        return false;
+    }
+    pthread_t current = pthread_self();
+    if (context->seen[threadIndex]) {
+        if (!pthread_equal(context->threadByPartition[threadIndex], current)) {
+            atomic_store(&context->changed, 1);
+        }
+    } else {
+        context->threadByPartition[threadIndex] = current;
+        context->seen[threadIndex] = true;
+    }
+    atomic_fetch_add(&context->callbacks, 1);
     return true;
 }
 
@@ -752,25 +766,23 @@ static void TestRepeatedLifecycle(void) {
 }
 
 static void TestPersistentWorkers(void) {
-#ifdef __linux__
     LongHairScheduler* scheduler = MakeScheduler(4);
-    CoverageContext coverage;
-    memset(&coverage, 0, sizeof(coverage));
-    coverage.total = 16;
-    atomic_init(&coverage.calls, 0);
-    atomic_init(&coverage.badRange, 0);
-    TEST_ASSERT(LongHairScheduler_ParallelFor(scheduler, 16, CoverageWork, &coverage) ==
+    PersistentContext context = {.total=16};
+    atomic_init(&context.changed, 0);
+    atomic_init(&context.callbacks, 0);
+    TEST_ASSERT(LongHairScheduler_ParallelFor(scheduler, 16, PersistentWork, &context) ==
         LONG_HAIR_SCHEDULER_OK, "trabajo inicial");
-
-    int before = CountProcessThreads();
+    LongHairSchedulerStats before;
+    LongHairScheduler_GetStats(scheduler, &before);
+    atomic_store(&context.callbacks, 0);
     LongHairScheduler_ResetStats(scheduler);
     for (int iteration = 0; iteration < 100; ++iteration) {
-        TEST_ASSERT(LongHairScheduler_ParallelFor(scheduler, 16, CoverageWork, &coverage) ==
+        TEST_ASSERT(LongHairScheduler_ParallelFor(scheduler, 16, PersistentWork, &context) ==
             LONG_HAIR_SCHEDULER_OK, "trabajo repetido");
     }
-    int after = CountProcessThreads();
-    TEST_ASSERT(before > 0 && after == before,
-        "no se crean ni destruyen hilos entre trabajos");
+    TEST_ASSERT(!atomic_load(&context.changed), "cada partición conserva su hilo persistente");
+    TEST_ASSERT(atomic_load(&context.callbacks) == 100 * LongHairScheduler_GetThreadCount(scheduler),
+        "todas las particiones ejecutan cada trabajo repetido");
 
     LongHairSchedulerStats stats;
     LongHairScheduler_GetStats(scheduler, &stats);
@@ -778,8 +790,8 @@ static void TestPersistentWorkers(void) {
     TEST_ASSERT(stats.jobsStarted == 100, "cien trabajos iniciados");
     TEST_ASSERT(stats.threadCount == LongHairScheduler_GetThreadCount(scheduler),
         "los contadores reflejan los participantes efectivos");
+    TEST_ASSERT(before.threadCount == stats.threadCount, "el número de participantes permanece fijo");
     LongHairScheduler_Destroy(scheduler);
-#endif
 }
 
 static void TestStatsReset(void) {

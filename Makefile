@@ -129,6 +129,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_long_hair.c \
             $(TEST_DIR)/test_long_hair_concurrency.c \
+            $(TEST_DIR)/test_long_hair_scheduler.c \
             $(TEST_DIR)/test_equine_anatomy.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
@@ -182,6 +183,9 @@ TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 # Ejecutables
 TEST_BIN = run_tests
 LONG_HAIR_PARALLEL_BENCH = benchmarks/benchmark_long_hair_parallel
+LONG_HAIR_BENCH_REFERENCE ?=
+LONG_HAIR_BENCH_RECIPE ?= docs/validation/long-hair-styling/caballo-crin-foliculos.creature.json
+LONG_HAIR_BENCH_OUT ?= /tmp/monster-long-hair-benchmark
 BENCHMARK_BIN = benchmarks/benchmark_sdf
 DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
@@ -194,14 +198,15 @@ LIZARD_VIEWER_BIN = lizard_viewer
 
 .PHONY: all clean test benchmark docs demos visual-morph-ownership
 
+all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
+
 $(LONG_HAIR_PARALLEL_BENCH): $(CORE_OBJS) benchmarks/benchmark_long_hair_parallel.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 .PHONY: benchmark-long-hair-parallel
 benchmark-long-hair-parallel: $(LONG_HAIR_PARALLEL_BENCH)
-	python3 tools/benchmark_long_hair_parallel.py ./$(LONG_HAIR_PARALLEL_BENCH)
-
-all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
+	test -n "$(LONG_HAIR_BENCH_REFERENCE)" || (echo "set LONG_HAIR_BENCH_REFERENCE to frozen serial benchmark binary" >&2; exit 2)
+	python3 tools/benchmark_long_hair_parallel.py --binary ./$(LONG_HAIR_PARALLEL_BENCH) --reference "$(LONG_HAIR_BENCH_REFERENCE)" --recipe "$(LONG_HAIR_BENCH_RECIPE)" --outdir "$(LONG_HAIR_BENCH_OUT)"
 
 # Editor local; las recetas se cargan como datos sin recompilar el núcleo.
 .PHONY: creature-editor creature-editor-server editor-test run-morph

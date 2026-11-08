@@ -147,6 +147,10 @@ bool LongHairScheduler_IsRunning(const LongHairScheduler* scheduler);
  */
 int LongHairScheduler_GetThreadCount(const LongHairScheduler* scheduler);
 
+/** @brief Índice de partición durante callback del scheduler actual; 0 fuera de callback.
+ * Útil para contadores/scratch worker-locales sin atomics por elemento. */
+int LongHairScheduler_CurrentPartitionIndex(void);
+
 /**
  * @brief Ejecuta una única fase paralela determinista.
  *

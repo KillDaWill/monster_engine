@@ -18,6 +18,7 @@
  * no como NESTED. Se guarda/restaura para permitir schedulers distintos.
  */
 static _Thread_local LongHairScheduler* g_activeScheduler = NULL;
+static _Thread_local int g_activePartitionIndex = 0;
 /* Profundidad de callbacks de cualquier scheduler en este hilo. Destroy se
  * rechaza desde cualquier callback, incluso para otro scheduler, porque la
  * destrucción puede esperar por un trabajo que depende del callback actual. */
@@ -150,6 +151,10 @@ int LongHairScheduler_GetThreadCount(const LongHairScheduler* scheduler) {
     return scheduler ? scheduler->threadCount : 1;
 }
 
+int LongHairScheduler_CurrentPartitionIndex(void) {
+    return g_activePartitionIndex;
+}
+
 const char* LongHairScheduler_StatusName(LongHairSchedulerStatus status) {
     switch (status) {
         case LONG_HAIR_SCHEDULER_OK: return "ok";
@@ -191,11 +196,14 @@ static void RunPartitionRange(LongHairSchedulerJob* job, int firstPartition, int
 
         LongHairScheduler* scheduler = job->scheduler;
         LongHairScheduler* previous = g_activeScheduler;
+        int previousPartition = g_activePartitionIndex;
         g_activeScheduler = scheduler;
+        g_activePartitionIndex = partition;
         g_callbackDepth++;
         bool keepGoing = job->workFn(job->context, start, end, partition);
         g_callbackDepth--;
         g_activeScheduler = previous;
+        g_activePartitionIndex = previousPartition;
 
         if (!keepGoing) {
             atomic_store_explicit(&job->stop, true, memory_order_release);

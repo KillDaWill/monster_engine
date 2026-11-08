@@ -38,6 +38,7 @@ void run_surface_tests(void);
 void run_fur_tests(void);
 void run_long_hair_tests(void);
 void run_long_hair_concurrency_tests(void);
+void run_long_hair_scheduler_tests(void);
 void run_creature_recipe_tests(void);
 void run_creature_variation_tests(void);
 
@@ -126,6 +127,7 @@ int main(void) {
     run_surface_tests();
     run_fur_tests();
     run_long_hair_tests();
+    run_long_hair_scheduler_tests();
     run_long_hair_concurrency_tests();
 
     printf("\n--- Optimizaciones de Rendimiento y Regresión ---\n");
