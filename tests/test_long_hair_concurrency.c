@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include <math.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,6 +14,14 @@ static AnatomyGraph ConcurrencyGraph(void){AnatomyGraph graph={0};
         .center={0,0,(float)i},.widthRadius=.4f,.heightRadius=.3f,.envelopeRadii={.4f,.3f,.5f},.development=1,.region=ANATOMY_REGION_NECK};
         TEST_ASSERT(AnatomyGraph_AddNode(&graph,node),"crear estación para cabello concurrente");}return graph;}
 static float SafeField(const void* context,Vector3 p){const float* floor=context;return p.y-*floor;}
+typedef struct ReentrantBuild {
+    const LongHairGroup* group;const AnatomyGraph* graph;const float* floor;
+    atomic_uint outerCalls,innerCalls;bool nestedAttempted,nestedSucceeded;
+} ReentrantBuild;
+static float NestedCountedField(const void* context,Vector3 p){ReentrantBuild* r=(ReentrantBuild*)context;atomic_fetch_add(&r->innerCalls,1);return p.y-*r->floor;}
+static float ReentrantField(const void* context,Vector3 p){ReentrantBuild* r=(ReentrantBuild*)context;atomic_fetch_add(&r->outerCalls,1);
+    if(!r->nestedAttempted){r->nestedAttempted=true;LongHairSet nested={0};r->nestedSucceeded=LongHairSet_Build(&nested,r->group,1,r->graph,1,NestedCountedField,(void*)r);
+        LongHairSet_Free(&nested);}return p.y-*r->floor;}
 typedef struct WorkerCounts {float floor;uint64_t calls[LONG_HAIR_BUILD_MAX_THREADS];} WorkerCounts;
 static float CountedField(const void* context,Vector3 p){WorkerCounts* counts=(WorkerCounts*)context;int index=LongHairScheduler_CurrentPartitionIndex();
     if(index<0||index>=LONG_HAIR_BUILD_MAX_THREADS)index=0;
@@ -26,8 +35,11 @@ static bool EqualGuide(const LongHairGuide* a,const LongHairGuide* b){
     EQ(restPoints);EQ(points);EQ(restSide);EQ(posedSide);EQ(posedNormal);EQ(corrections);EQ(clearance);EQ(restClearance);EQ(restPenetration);EQ(rootClearance);EQ(restRootClearance);EQ(length);EQ(contactPenetration);EQ(visibility);EQ(attachmentJoint);EQ(groupIndex);EQ(visible);EQ(rootValid);EQ(follicles);
 #undef EQ
     return true;}
-typedef struct ConcurrentBuild {LongHairSet set;LongHairScheduler* scheduler;const LongHairGroup* group;const AnatomyGraph* graph;const float* floor;bool ok;} ConcurrentBuild;
-static void* BuildConcurrently(void* opaque){ConcurrentBuild* work=opaque;work->ok=LongHairSet_BuildParallel(&work->set,work->group,1,work->graph,1,SafeField,work->floor,work->scheduler);return NULL;}
+typedef struct ConcurrentBuild {LongHairSet set;LongHairScheduler* scheduler;const LongHairGroup* group;const AnatomyGraph* graph;const float* floor;unsigned iterations;bool ok;} ConcurrentBuild;
+static void* BuildConcurrently(void* opaque){ConcurrentBuild* work=opaque;work->ok=true;
+    for(unsigned i=0;i<work->iterations&&work->ok;++i){
+        work->ok=LongHairSet_BuildParallel(&work->set,work->group,1,work->graph,1,SafeField,work->floor,work->scheduler);}
+    return NULL;}
 void run_long_hair_concurrency_tests(void){
     AnatomyGraph graph=ConcurrencyGraph();LongHairGroup group=LongHairGroup_Default();group.domain.hostModuleId=1;group.domain.anchorCount=3;
     for(unsigned i=0;i<3;++i)group.domain.anchors[i]=Anatomy_MakeId(1,i+1);
@@ -52,6 +64,16 @@ void run_long_hair_concurrency_tests(void){
         TEST_ASSERT(l==r&&memcmp(left,right,l*sizeof(*left))==0,"pack GPU bit a bit idéntico");free(left);free(right);
         LongHairSet_Free(&parallel);LongHairScheduler_Destroy(scheduler);
     }
+    LongHairSchedulerConfig profileConfig=LongHairScheduler_DefaultConfig();profileConfig.threadCount=4;profileConfig.maxThreads=4;
+    LongHairScheduler* profileScheduler=LongHairScheduler_Create(&profileConfig);TEST_ASSERT(profileScheduler,"scheduler para aislamiento de profiling");
+    ReentrantBuild reentrant={.group=&group,.graph=&graph,.floor=&floor};atomic_init(&reentrant.outerCalls,0);atomic_init(&reentrant.innerCalls,0);
+    LongHairBuildStats isolatedStats;LongHairSet profiled={0};
+    TEST_ASSERT(LongHairSet_BuildParallelProfiled(&profiled,&group,1,&graph,1,ReentrantField,&reentrant,profileScheduler,&isolatedStats),"construcción profileada con callback reentrante");
+    uint64_t profileCalls=0;for(int phase=0;phase<LONG_HAIR_BUILD_PHASES;++phase)for(int worker=0;worker<isolatedStats.participants;++worker)profileCalls+=isolatedStats.distanceCalls[phase][worker];
+    TEST_ASSERT(reentrant.nestedAttempted&&reentrant.nestedSucceeded&&atomic_load(&reentrant.innerCalls)>0,"construcción serial anidada completada");
+    TEST_ASSERT(profileCalls==atomic_load(&reentrant.outerCalls),"las llamadas del builder serial anidado no contaminan el perfil exterior");
+    LongHairSet_Free(&profiled);LongHairScheduler_Destroy(profileScheduler);
+
     const LongHairGuide* preserved=serial.guides;uint64_t generation=serial.generation;LongHairGroup invalid=group;invalid.id=0;
     LongHairSchedulerConfig serialConfig=LongHairScheduler_DefaultConfig();serialConfig.threadCount=1;LongHairScheduler* rollbackScheduler=LongHairScheduler_Create(&serialConfig);
     TEST_ASSERT(rollbackScheduler,"scheduler para rollback");
@@ -60,11 +82,11 @@ void run_long_hair_concurrency_tests(void){
     LongHairScheduler_Destroy(rollbackScheduler);
 
     LongHairSchedulerConfig ca=LongHairScheduler_DefaultConfig(),cb=LongHairScheduler_DefaultConfig();ca.threadCount=2;ca.maxThreads=2;cb.threadCount=4;cb.maxThreads=4;
-    ConcurrentBuild a={.scheduler=LongHairScheduler_Create(&ca),.group=&group,.graph=&graph,.floor=&floor},b={.scheduler=LongHairScheduler_Create(&cb),.group=&group,.graph=&graph,.floor=&floor};
+    ConcurrentBuild a={.scheduler=LongHairScheduler_Create(&ca),.group=&group,.graph=&graph,.floor=&floor,.iterations=8},b={.scheduler=LongHairScheduler_Create(&cb),.group=&group,.graph=&graph,.floor=&floor,.iterations=8};
     TEST_ASSERT(a.scheduler&&b.scheduler,"dos dueños scheduler independientes");pthread_t ta,tb;
     TEST_ASSERT(pthread_create(&ta,NULL,BuildConcurrently,&a)==0&&pthread_create(&tb,NULL,BuildConcurrently,&b)==0,"crear submitters concurrentes independientes");
     pthread_join(ta,NULL);pthread_join(tb,NULL);TEST_ASSERT(a.ok&&b.ok,"ambos dueños terminan sin interferencia");
-    TEST_ASSERT(a.set.count==serial.count&&b.set.count==serial.count,"conteos estables entre dueños concurrentes");
+    TEST_ASSERT(a.set.count==serial.count&&b.set.count==serial.count&&a.set.generation==a.iterations&&b.set.generation==b.iterations,"conteos y ciclos de vida estables entre dueños concurrentes");
     for(size_t i=0;i<serial.count;++i)TEST_ASSERT(EqualGuide(&serial.guides[i],&a.set.guides[i])&&EqualGuide(&serial.guides[i],&b.set.guides[i]),"geometría exacta bajo trabajos concurrentes independientes");
     LongHairSet_Free(&a.set);LongHairSet_Free(&b.set);LongHairScheduler_Destroy(a.scheduler);LongHairScheduler_Destroy(b.scheduler);
     LongHairSet_Free(&serial);

@@ -200,7 +200,7 @@ static bool ChildrenRange(void* context,int start,int end,int threadIndex){(void
                 v->follicles[c][0]=(float)j;v->follicles[c][1]=weight;v->follicles[c][2]=lift;v->follicles[c][3]=1;break;}}
     }
     g_buildStats=previousStats;g_buildPhase=previousPhase;return true;}
-static bool LongHairSet_BuildInternal(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler,LongHairBuildStats* stats){
+static bool LongHairSet_BuildInternalImpl(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler,LongHairBuildStats* stats){
     if(!dst||!graph||graph->nodeCount>ANATOMY_MAX_NODES||graph->connectionCount>ANATOMY_MAX_CONNECTIONS||count>LONG_HAIR_MAX_GROUPS||(count&&!groups)||!isfinite(scale)||scale<=0)return false;
     if(stats){memset(stats,0,sizeof(*stats));stats->participants=LongHairScheduler_GetThreadCount(scheduler);}
     LongHairSet next={.groupCount=count,.scale=scale,.generation=dst->generation+1};size_t capacity=0;
@@ -341,6 +341,14 @@ static bool LongHairSet_BuildInternal(LongHairSet* dst,const LongHairGroup* grou
     if(stats)stats->phaseMilliseconds[LONG_HAIR_PHASE_FOLLICLES]=LongHairNowMs()-phaseBegin;
     for(size_t i=0;i<next.count;++i){memcpy(next.guides[i].restClearance,next.guides[i].clearance,sizeof(next.guides[i].clearance));next.guides[i].restPenetration=next.guides[i].contactPenetration;next.guides[i].restRootClearance=next.guides[i].rootClearance;}
     LongHairScheduler* owner=dst->scheduler;dst->scheduler=NULL;LongHairSet_Free(dst);next.scheduler=owner;*dst=next;return true;
+}
+static bool LongHairSet_BuildInternal(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler,LongHairBuildStats* stats){
+    /* Every build owns its profiling scope. In particular, a legacy serial
+     * build re-entered by a callback must not inherit its caller's counters. */
+    LongHairBuildStats* previousStats=g_buildStats;int previousPhase=g_buildPhase;
+    g_buildStats=stats;g_buildPhase=LONG_HAIR_PHASE_GUIDES;
+    bool result=LongHairSet_BuildInternalImpl(dst,groups,count,graph,scale,distance,context,scheduler,stats);
+    g_buildStats=previousStats;g_buildPhase=previousPhase;return result;
 }
 bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context){
     return LongHairSet_BuildInternal(dst,groups,count,graph,scale,distance,context,NULL,NULL);

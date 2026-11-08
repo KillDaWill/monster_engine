@@ -28,16 +28,17 @@ static int Row(FILE* out,const char* mode,int stage,int rep,int step,float age,d
 }
 static int RunUpdate(FILE* out,LongHairSet* hair,const Monster* m,const char* mode,int stage,int rep,int step,float age,double agerMs){double cpu=CpuMs(),begin=NowMs();int ok=MonsterVisual_UpdateLongHair(hair,m);double wall=NowMs()-begin;cpu=CpuMs()-cpu;return ok&&(rep<0||Row(out,mode,stage,rep,step,age,agerMs,wall,cpu,hair));}
 int main(int argc,char** argv){
-    if(argc!=8){fprintf(stderr,"Usage: %s RECIPE OUTPUT WARMUPS SAMPLES GROWTH_WARMUPS GROWTH_SAMPLES MODE(all|stages|growth)\n",argv[0]);return 2;}
+    if(argc!=8){fprintf(stderr,"Usage: %s RECIPE OUTPUT WARMUPS SAMPLES GROWTH_WARMUPS GROWTH_SAMPLES MODE(all|stages|growth|adult)\n",argv[0]);return 2;}
     unsigned warmups=(unsigned)strtoul(argv[3],NULL,10),samples=(unsigned)strtoul(argv[4],NULL,10),gw=(unsigned)strtoul(argv[5],NULL,10),gs=(unsigned)strtoul(argv[6],NULL,10);
     if(!samples||!gs||warmups>100||samples>100||gw>100||gs>100)return 2;
-    int stages=strcmp(argv[7],"growth")!=0,growth=strcmp(argv[7],"stages")!=0;
-    if(strcmp(argv[7],"all")&&strcmp(argv[7],"stages")&&strcmp(argv[7],"growth"))return 2;
+    int adultOnly=!strcmp(argv[7],"adult");
+    int stages=strcmp(argv[7],"growth")!=0,growth=strcmp(argv[7],"stages")!=0&&!adultOnly;
+    if(strcmp(argv[7],"all")&&strcmp(argv[7],"stages")&&strcmp(argv[7],"growth")&&!adultOnly)return 2;
     CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));Monster* m=malloc(sizeof(*m)),*young=malloc(sizeof(*young));MonsterAger* ager=malloc(sizeof(*ager));if(!doc||!m||!young||!ager)return 1;
     char error[256]={0};if(!CreatureRecipeIO_LoadFile(doc,argv[1],error,sizeof(error))){fprintf(stderr,"recipe load failed: %s\n",error);return 1;}
     FILE* out=fopen(argv[2],"w");if(!out)return 1;fputs("mode,requested_threads,stage,rep,step,age,ager_ms,hair_ms,process_cpu_ms,guides,visible,valid_children,stable_ids_fnv64,packed_fnv64,process_threads,maxrss_kib\n",out);
     *m=Monster_Create();*young=Monster_Create();LongHairSet hair={0};int ok=1;
-    if(stages)for(int stage=0;stage<4&&ok;stage++){Monster_Free(m);*m=Monster_Create();ok=Creature_BuildMonster(m,&doc->recipe,CreatureRecipe_GetStage(&doc->recipe,(CreatureStage)stage));if(!ok)break;Monster_SetHeadOpenFactor(m,0);
+    if(stages)for(int stage=adultOnly?3:0;stage<4&&ok;stage++){Monster_Free(m);*m=Monster_Create();ok=Creature_BuildMonster(m,&doc->recipe,CreatureRecipe_GetStage(&doc->recipe,(CreatureStage)stage));if(!ok)break;Monster_SetHeadOpenFactor(m,0);
         for(unsigned rep=0;rep<warmups+samples&&ok;rep++){hair.fingerprint=0;int sample=(int)rep-(int)warmups;ok=RunUpdate(out,&hair,m,"stage",stage,sample,0,stage/3.f,0);}}
     if(growth&&ok){Monster_Free(m);*m=Monster_Create();ok=Creature_BuildMonster(m,&doc->recipe,&doc->recipe.adult)&&Creature_BuildMonster(young,&doc->recipe,&doc->recipe.juvenile);
         if(ok){*ager=MonsterAger_Create(young,m,0);MonsterAger_SetGeometrySnapshotEnabled(ager,false);

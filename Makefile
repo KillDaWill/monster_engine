@@ -185,7 +185,7 @@ TEST_BIN = run_tests
 LONG_HAIR_PARALLEL_BENCH = benchmarks/benchmark_long_hair_parallel
 LONG_HAIR_BENCH_REFERENCE ?=
 LONG_HAIR_BENCH_RECIPE ?= docs/validation/long-hair-styling/caballo-crin-foliculos.creature.json
-LONG_HAIR_BENCH_OUT ?= /tmp/monster-long-hair-benchmark
+LONG_HAIR_BENCH_OUT ?= /tmp/monster-long-hair-benchmark-$(shell date +%Y%m%d-%H%M%S)
 BENCHMARK_BIN = benchmarks/benchmark_sdf
 DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
@@ -206,7 +206,35 @@ $(LONG_HAIR_PARALLEL_BENCH): $(CORE_OBJS) benchmarks/benchmark_long_hair_paralle
 .PHONY: benchmark-long-hair-parallel
 benchmark-long-hair-parallel: $(LONG_HAIR_PARALLEL_BENCH)
 	test -n "$(LONG_HAIR_BENCH_REFERENCE)" || (echo "set LONG_HAIR_BENCH_REFERENCE to frozen serial benchmark binary" >&2; exit 2)
-	python3 tools/benchmark_long_hair_parallel.py --binary ./$(LONG_HAIR_PARALLEL_BENCH) --reference "$(LONG_HAIR_BENCH_REFERENCE)" --recipe "$(LONG_HAIR_BENCH_RECIPE)" --outdir "$(LONG_HAIR_BENCH_OUT)"
+	python3 tools/benchmark_long_hair_parallel.py --binary ./$(LONG_HAIR_PARALLEL_BENCH) --reference "$(LONG_HAIR_BENCH_REFERENCE)" --recipe "$(LONG_HAIR_BENCH_RECIPE)" --outdir "$(LONG_HAIR_BENCH_OUT)" --build-flags "$(CFLAGS) $(LIBS)" --compiler "$(CC)"
+
+.PHONY: test-long-hair-benchmark-helper validate-long-hair-parallel-oracle \
+	validate-long-hair-parallel-asan validate-long-hair-parallel-tsan \
+	test-long-hair-failures test-long-hair-mesh-oversubscription
+test-long-hair-benchmark-helper:
+	python3 tests/test_benchmark_long_hair_parallel.py
+	python3 tests/test_long_hair_validation_helpers.py
+
+validate-long-hair-parallel-oracle: $(filter-out $(BUILD_DIR)/LongHair.o,$(CORE_OBJS))
+	python3 tools/validate_long_hair_parallel.py --scope full --core-objects $(filter-out $(BUILD_DIR)/LongHair.o,$(CORE_OBJS)) --horse-recipe docs/validation/long-hair-styling/caballo-crin-foliculos.creature.json --dog-recipe docs/validation/long-hair-volume/after/recipes/perro-patch.creature.json --outdir $(LONG_HAIR_ORACLE_OUT) --compiler "$(CC)" --build-flags "$(CFLAGS) $(LIBS)"
+
+LONG_HAIR_ORACLE_OUT ?= /tmp/monster-long-hair-oracle-$(shell date +%Y%m%d-%H%M%S)
+LONG_HAIR_SANITIZER_OUT ?= /tmp/monster-long-hair-sanitizer-$(shell date +%Y%m%d-%H%M%S)
+validate-long-hair-parallel-asan:
+	python3 tools/validate_long_hair_parallel.py --scope bounded-horse --sanitizer address --sources $(CORE_SRCS) --horse-recipe docs/validation/long-hair-styling/caballo-crin-foliculos.creature.json --build-dir "$(LONG_HAIR_SANITIZER_OUT)-asan" --compiler "$(CC)" --build-flags "$(CFLAGS) $(LIBS)"
+
+validate-long-hair-parallel-tsan:
+	python3 tools/validate_long_hair_parallel.py --scope bounded-horse --sanitizer thread --sources $(CORE_SRCS) --horse-recipe docs/validation/long-hair-styling/caballo-crin-foliculos.creature.json --build-dir "$(LONG_HAIR_SANITIZER_OUT)-tsan" --compiler "$(CC)" --build-flags "$(CFLAGS) $(LIBS)"
+
+$(BUILD_DIR)/test_long_hair_failure_injection: $(CORE_OBJS) $(TEST_DIR)/test_long_hair_failure_injection.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=free -Wl,--wrap=pthread_create -o $@
+test-long-hair-failures: $(BUILD_DIR)/test_long_hair_failure_injection
+	./$(BUILD_DIR)/test_long_hair_failure_injection
+
+$(BUILD_DIR)/test_long_hair_mesh_oversubscription: $(CORE_OBJS) $(TEST_DIR)/test_long_hair_mesh_oversubscription.c
+	$(CC) $(CFLAGS) -DLONG_HAIR_MESH_STRESS_STANDALONE $^ $(LIBS) -o $@
+test-long-hair-mesh-oversubscription: $(BUILD_DIR)/test_long_hair_mesh_oversubscription
+	./$(BUILD_DIR)/test_long_hair_mesh_oversubscription
 
 # Editor local; las recetas se cargan como datos sin recompilar el núcleo.
 .PHONY: creature-editor creature-editor-server editor-test run-morph
