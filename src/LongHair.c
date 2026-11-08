@@ -2,6 +2,7 @@
  * @brief Generación estable sobre estaciones anatómicas y transporte de guías. */
 #include "LongHair.h"
 #include "Fur.h"
+#include "LongHairScheduler.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +33,7 @@ void LongHairGroup_Normalize(LongHairGroup* g){
     g->wave=Clamp(g->wave,0,2,0);g->transparency=Clamp(g->transparency,0,1,0);
     g->verticalBias=Clamp(g->verticalBias,-1,1,0);
 }
-void LongHairSet_Free(LongHairSet* s){if(s){free(s->guides);free(s->colliders);if(s->freeAttachedContext)s->freeAttachedContext(s->attachedContext);memset(s,0,sizeof(*s));}}
+void LongHairSet_Free(LongHairSet* s){if(s){LongHairScheduler_Destroy(s->scheduler);free(s->guides);free(s->colliders);if(s->freeAttachedContext)s->freeAttachedContext(s->attachedContext);memset(s,0,sizeof(*s));}}
 static void Bytes(uint64_t* h,const void* p,size_t size){const unsigned char* b=p;for(size_t i=0;i<size;++i){*h^=b[i];*h*=1099511628211ULL;}}
 uint64_t LongHairGroups_Fingerprint(const LongHairGroup* groups,size_t count){
     uint64_t h=14695981039346656037ULL;Bytes(&h,&count,sizeof(count));if(count>LONG_HAIR_MAX_GROUPS||(count&&!groups))return 0;
@@ -162,13 +163,36 @@ static float ColliderDistance(const void* context,Vector3 p){
 static Vector3 ColliderNormal(const void* context,Vector3 p){const PosedColliders* c=context;
     if(c->extraNormal)return Normal(AttachedDistance,c,p,c->epsilon);
     return Unit(Quat_RotateVector(c->rotation,c->gradient),Vec3_Create(0,1,0));}
-bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context){
+typedef struct CollideWork {LongHairSet* set;LongHairDistance distance;ContactNormal normal;const void* context;} CollideWork;
+static bool CollideRange(void* context,int start,int end,int threadIndex){(void)threadIndex;CollideWork* w=context;
+    for(int i=start;i<end;++i){LongHairSet one=*w->set;one.guides=&w->set->guides[i];one.count=1;Collide(&one,w->distance,w->normal,w->context);}return true;}
+typedef struct ChildWork {LongHairSet* set;LongHairDistance distance;const void* context;float scale;} ChildWork;
+static bool ChildrenRange(void* context,int start,int end,int threadIndex){(void)threadIndex;ChildWork* w=context;LongHairSet* next=w->set;
+    for(int ii=start;ii<end;++ii){size_t i=(size_t)ii;LongHairGuide* v=&next->guides[i];const LongHairGroup* g=&next->groups[v->groupIndex];
+        if(!v->visible||g->rootFullness<=0||g->domain.kind!=LONG_HAIR_CURVE||g->childrenPerGuide<2)continue;
+        size_t neighbors[4]={i,i,i,i};float distances[4]={INFINITY,INFINITY,INFINITY,INFINITY};
+        for(size_t j=0;j<next->count;++j){const LongHairGuide* other=&next->guides[j];if(j==i||!other->visible||other->groupIndex!=v->groupIndex)continue;
+            if(Vec3_Dot(v->posedNormal,other->posedNormal)<.9f)continue;
+            Vector3 flow=Unit(Vec3_Sub(v->points[9],v->points[0]),v->root.restDirection),otherFlow=Unit(Vec3_Sub(other->points[9],other->points[0]),other->root.restDirection);
+            if(Vec3_Dot(flow,otherFlow)<.9f)continue;
+            float d=Vec3_Distance(v->points[0],other->points[0]);if(d>g->length*w->scale*.35f)continue;
+            for(unsigned n=0;n<4;++n)if(d<distances[n]){for(unsigned k=3;k>n;--k){neighbors[k]=neighbors[k-1];distances[k]=distances[k-1];}neighbors[n]=j;distances[n]=d;break;}}
+        for(unsigned c=0;c<g->childrenPerGuide;++c){size_t j=neighbors[c%4];if(j==i)j=neighbors[0];if(j==i)continue;const LongHairGuide* other=&next->guides[j];
+            uint32_t seed=Hash(v->root.stableRootId^g->seed^Hash(c+1));float weight=(.05f+.9f*Fur_Random(seed))*g->rootFullness;
+            for(unsigned attempt=0;attempt<5;++attempt,weight*=.5f){Vector3 root=Vec3_Lerp(v->points[0],other->points[0],weight),normal=Unit(Vec3_Lerp(v->posedNormal,other->posedNormal,weight),v->posedNormal);float lift=0;
+                if(w->distance)for(unsigned it=0;it<12;++it){float d=w->distance(w->context,Vec3_Add(root,Vec3_Scale(normal,lift)));if(!isfinite(d))break;float delta=.002f*w->scale-d;lift+=Clamp(delta,-.02f*w->scale,.02f*w->scale,0);if(fabsf(delta)<.00001f*w->scale)break;}
+                if(w->distance&&fabsf(w->distance(w->context,Vec3_Add(root,Vec3_Scale(normal,lift)))-.002f*w->scale)>.0001f*w->scale)continue;
+                bool safe=true;if(w->distance)for(unsigned q=1;q<=72;++q){float t=q/72.f;Vector3 point=Vec3_Add(Vec3_Lerp(LongHairGuide_Evaluate(v,t),LongHairGuide_Evaluate(other,t),weight),Vec3_Scale(normal,lift));float d=w->distance(w->context,point);if(!isfinite(d)||d<.0005f*w->scale){safe=false;break;}}
+                if(!safe)continue;
+                v->follicles[c][0]=(float)j;v->follicles[c][1]=weight;v->follicles[c][2]=lift;v->follicles[c][3]=1;break;}}
+    }return true;}
+static bool LongHairSet_BuildInternal(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler){
     if(!dst||!graph||graph->nodeCount>ANATOMY_MAX_NODES||graph->connectionCount>ANATOMY_MAX_CONNECTIONS||count>LONG_HAIR_MAX_GROUPS||(count&&!groups)||!isfinite(scale)||scale<=0)return false;
     LongHairSet next={.groupCount=count,.scale=scale,.generation=dst->generation+1};size_t capacity=0;
     for(size_t k=0;k<count;++k){next.groups[k]=groups[k];LongHairGroup_Normalize(&next.groups[k]);capacity+=next.groups[k].guideCount;
         if(!groups[k].id)return false;
         for(size_t j=0;j<k;++j)if(groups[k].id==groups[j].id)return false;}
-    if(!capacity){LongHairSet_Free(dst);*dst=next;return true;}
+    if(!capacity){LongHairScheduler* owner=dst->scheduler;dst->scheduler=NULL;LongHairSet_Free(dst);next.scheduler=owner;*dst=next;return true;}
     next.guides=calloc(capacity?capacity:1,sizeof(*next.guides));if(!next.guides)return false;
     next.colliders=calloc(graph->nodeCount+graph->connectionCount+1,sizeof(*next.colliders));
     if(!next.colliders){LongHairSet_Free(&next);return false;}
@@ -241,12 +265,16 @@ bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count
             next.guides[next.count-1].rootClearance=1e6f;
         }
     }
-    if(distance){LongHairSet_Collide(&next,distance,context);
+    if(distance){if(scheduler){CollideWork work={&next,distance,NULL,context};
+            if(LongHairScheduler_ParallelFor(scheduler,(int)next.count,CollideRange,&work)!=LONG_HAIR_SCHEDULER_OK){LongHairSet_Free(&next);return false;}}
+        else LongHairSet_Collide(&next,distance,context);
         for(size_t i=0;i<next.count;++i)memcpy(next.guides[i].restPoints,next.guides[i].points,sizeof(next.guides[i].points));}
     /* Los hijos de una curva frondosa nacen entre inserciones próximas, no en
      * el eje de un tubo. Proyectar cada folículo al SDF sólo durante la construcción;
      * la GPU interpola las dos guías ya transportadas durante la animación. */
-    for(size_t i=0;i<next.count;++i){LongHairGuide* v=&next.guides[i];const LongHairGroup* g=&next.groups[v->groupIndex];
+    if(scheduler){ChildWork work={&next,distance,context,scale};
+        if( next.count>(size_t)INT32_MAX || LongHairScheduler_ParallelFor(scheduler,(int)next.count,ChildrenRange,&work)!=LONG_HAIR_SCHEDULER_OK){LongHairSet_Free(&next);return false;}}
+    else for(size_t i=0;i<next.count;++i){LongHairGuide* v=&next.guides[i];const LongHairGroup* g=&next.groups[v->groupIndex];
         if(!v->visible||g->rootFullness<=0||g->domain.kind!=LONG_HAIR_CURVE||g->childrenPerGuide<2)continue;
         size_t neighbors[4]={i,i,i,i};float distances[4]={INFINITY,INFINITY,INFINITY,INFINITY};
         for(size_t j=0;j<next.count;++j){const LongHairGuide* other=&next.guides[j];
@@ -289,7 +317,13 @@ bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count
         }
     }
     for(size_t i=0;i<next.count;++i){memcpy(next.guides[i].restClearance,next.guides[i].clearance,sizeof(next.guides[i].clearance));next.guides[i].restPenetration=next.guides[i].contactPenetration;next.guides[i].restRootClearance=next.guides[i].rootClearance;}
-    LongHairSet_Free(dst);*dst=next;return true;
+    LongHairScheduler* owner=dst->scheduler;dst->scheduler=NULL;LongHairSet_Free(dst);next.scheduler=owner;*dst=next;return true;
+}
+bool LongHairSet_Build(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context){
+    return LongHairSet_BuildInternal(dst,groups,count,graph,scale,distance,context,NULL);
+}
+bool LongHairSet_BuildParallel(LongHairSet* dst,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler){
+    return LongHairSet_BuildInternal(dst,groups,count,graph,scale,distance,context,scheduler);
 }
 bool LongHairSet_Pose(LongHairSet* s,const Skeleton* skeleton,const SkeletonPose* pose){
     if(!s||!skeleton||!pose||pose->jointCount!=skeleton->jointCount)return false;

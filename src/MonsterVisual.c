@@ -3,6 +3,7 @@
 #include "SurfaceMapper.h"
 #include "MathUtils.h"
 #include "MonsterAnimation.h"
+#include "LongHairScheduler.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -28,11 +29,16 @@ typedef struct LongHairRestField {const MonsterSDF* body;const LongHairJawField*
 static float LongHairRestDistance(const void* context,Vector3 p){const LongHairRestField* c=context;
     return fminf(MonsterSDF_EvaluateDistance(c->body,p),LongHairJawDistance(c->jaw,p));
 }
+static int LongHairOptInThreads(void){const char* value=getenv("MONSTER_LONG_HAIR_THREADS");if(!value||!*value)return 1;
+    char* end=NULL;long count=strtol(value,&end,10);return end!=value&&!*end&&(count==1||count==2||count==4||count==8)?(int)count:1;}
 bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
     if(!hair||!m)return false;
     size_t count=m->hasSurface?m->surface.longHairCount:0;
     if(!count){if(hair->count||hair->guides)LongHairSet_Free(hair);return true;}
     if(!m->hasAnatomyGraph||count>LONG_HAIR_MAX_GROUPS)return false;
+    int requestedThreads=LongHairOptInThreads();
+    if(requestedThreads>1&&!hair->scheduler){LongHairSchedulerConfig config=LongHairScheduler_DefaultConfig();config.threadCount=requestedThreads;config.maxThreads=requestedThreads;
+        hair->scheduler=LongHairScheduler_Create(&config);}
     uint64_t h=LongHairGroups_Fingerprint(m->surface.longHair,count),a=AnatomyGraph_Fingerprint(&m->anatomyGraph);
     h=HashBytes(&a,sizeof(a),h);h=HashBytes(&m->phenotype.axial.totalScale,sizeof(float),h);
     bool animated=m->animation!=NULL;h=HashBytes(&animated,sizeof(animated),h);
@@ -59,8 +65,10 @@ bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
          * primero al cráneo y luego a la mandíbula puede enterrar la raíz en el
          * volumen anterior. El snapshot pequeño sobrevive al SDF temporal. */
         LongHairRestField combined={&sdf,field};
-        bool ok=LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,
-            field?LongHairRestDistance:MonsterSDF_EvaluateDistanceWrapper,field?(const void*)&combined:(const void*)&sdf);
+        LongHairDistance distanceFn=field?LongHairRestDistance:MonsterSDF_EvaluateDistanceWrapper;
+        const void* distanceContext=field?(const void*)&combined:(const void*)&sdf;
+        bool ok=hair->scheduler?LongHairSet_BuildParallel(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext,hair->scheduler):
+            LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext);
         if(!ok){free(field);MonsterSDF_Free(&sdf);return false;}
         if(field&&hair->count){
             hair->attachedDistance=LongHairJawDistance;hair->attachedContext=field;hair->freeAttachedContext=free;hair->attachedContextBytes=sizeof(*field);

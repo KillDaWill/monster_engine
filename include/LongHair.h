@@ -5,6 +5,7 @@
 #include "Anatomy.h"
 #include "Color.h"
 #include "Skeleton.h"
+typedef struct LongHairScheduler LongHairScheduler;
 #define LONG_HAIR_MAX_GROUPS 4
 #define LONG_HAIR_MAX_ANCHORS 8
 #define LONG_HAIR_POINTS 10
@@ -79,6 +80,7 @@ typedef struct LongHairSet {
     void (*freeAttachedContext)(void*);
     size_t attachedContextBytes;
     uint32_t collisionJoint; /**< Articulación del campo; cero mantiene un campo mundial estático. */
+    LongHairScheduler* scheduler; /**< Pool privado opcional; propiedad del runtime. */
 } LongHairSet;
 /** @brief Configuración neutra válida. @return Descriptor sin anfitrión. */
 LongHairGroup LongHairGroup_Default(void);
@@ -91,6 +93,11 @@ uint64_t LongHairGroups_Fingerprint(const LongHairGroup* groups,size_t count);
  * @return false si falla validación o asignación; conserva el runtime anterior. */
 bool LongHairSet_Build(LongHairSet* set,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,
     float scale,LongHairDistance distance,const void* context);
+/** @brief Igual que Build, pero opt-in: el callback/contexto debe ser inmutable y thread-safe.
+ * @param scheduler Scheduler privado del dueño; NULL conserva ejecución serial.
+ * @return false ante error; conserva el runtime previo. */
+bool LongHairSet_BuildParallel(LongHairSet* set,const LongHairGroup* groups,size_t count,const AnatomyGraph* graph,
+    float scale,LongHairDistance distance,const void* context,LongHairScheduler* scheduler);
 /** @brief Libera sólo memoria propia. @param set Runtime, admite NULL. */
 void LongHairSet_Free(LongHairSet* set);
 /** @brief Transporta guías por las dos estaciones propietarias, sin regenerar hijos.

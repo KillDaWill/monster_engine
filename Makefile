@@ -18,6 +18,7 @@ BUILD_DIR = build
 # Archivos fuente del núcleo puro (Desacoplado de Render)
 CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/LongHair.c \
+            $(SRC_DIR)/LongHairScheduler.c \
             $(SRC_DIR)/EcosystemAnatomy.c \
             $(SRC_DIR)/SimulationClock.c \
             $(SRC_DIR)/CreaturePhysiology.c \
@@ -127,6 +128,7 @@ RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 # Archivos de Pruebas
 TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_long_hair.c \
+            $(TEST_DIR)/test_long_hair_concurrency.c \
             $(TEST_DIR)/test_equine_anatomy.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
@@ -179,6 +181,7 @@ TEST_OBJS = $(patsubst $(TEST_DIR)/%.o, $(BUILD_DIR)/%.o, $(TEST_SRCS:.c=.o))
 
 # Ejecutables
 TEST_BIN = run_tests
+LONG_HAIR_PARALLEL_BENCH = benchmarks/benchmark_long_hair_parallel
 BENCHMARK_BIN = benchmarks/benchmark_sdf
 DEMO_AGER_BIN = $(DEMO_DIR)/demo_ager_3d
 DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
@@ -190,6 +193,13 @@ DEMO_GAME_SCENE_BIN = $(DEMO_DIR)/demo_game_scene
 LIZARD_VIEWER_BIN = lizard_viewer
 
 .PHONY: all clean test benchmark docs demos visual-morph-ownership
+
+$(LONG_HAIR_PARALLEL_BENCH): $(CORE_OBJS) benchmarks/benchmark_long_hair_parallel.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-long-hair-parallel
+benchmark-long-hair-parallel: $(LONG_HAIR_PARALLEL_BENCH)
+	python3 tools/benchmark_long_hair_parallel.py ./$(LONG_HAIR_PARALLEL_BENCH)
 
 all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
 
