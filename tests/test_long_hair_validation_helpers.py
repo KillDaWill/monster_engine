@@ -44,12 +44,13 @@ class ValidationHelperTests(unittest.TestCase):
             time.sleep(0.05)
         self.fail(f"orphan process(es) remain after cleanup: {remaining}")
 
-    def child_code(self, pid_file):
+    def child_code(self, pid_file, *, leader_exits=False):
         return (
             "import os,subprocess,sys,time; "
-            "g=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']); "
+            "g=subprocess.Popen([sys.executable,'-c',"
+            "'import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)']); "
             f"open({str(pid_file)!r},'w').write(str(os.getpid())+' '+str(g.pid)); "
-            "time.sleep(30)"
+            + ("sys.exit(0)" if leader_exits else "time.sleep(30)")
         )
 
     def test_deadline_cleans_child_and_grandchild(self):
@@ -57,10 +58,10 @@ class ValidationHelperTests(unittest.TestCase):
             pid_file = Path(tmp) / "pids"
             started = time.monotonic()
             with self.assertRaisesRegex(RuntimeError, "process group cleaned up"):
-                helper.run([sys.executable, "-c", self.child_code(pid_file)], capture=True,
+                helper.run([sys.executable, "-c", self.child_code(pid_file, leader_exits=True)], capture=True,
                            timeout=0.2, failure_class="unit timeout")
             self.assert_pids_absent(self.wait_pid_file(pid_file))
-            self.assertLess(time.monotonic() - started, 7.0)
+            self.assertLess(time.monotonic() - started, 5.0)
 
     def test_parent_sigterm_cleans_child_and_grandchild(self):
         with tempfile.TemporaryDirectory() as tmp:

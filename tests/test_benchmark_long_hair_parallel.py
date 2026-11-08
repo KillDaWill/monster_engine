@@ -142,7 +142,7 @@ class BenchmarkValidatorTests(unittest.TestCase):
                 benchmark.run_bounded([sys.executable, "-c", code], env=os.environ.copy(),
                                       stderr=subprocess.DEVNULL, timeout=0.2)
             self.assert_pids_absent(self.wait_pid_file(pid_file))
-            self.assertLess(time.monotonic() - started, 7.0)
+            self.assertLess(time.monotonic() - started, 5.0)
 
     def test_parent_sigterm_kills_benchmark_child_group(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -164,11 +164,24 @@ class BenchmarkValidatorTests(unittest.TestCase):
             self.assertNotEqual(wrapper.returncode, 0)
             self.assert_pids_absent(pids)
 
-    def child_code(self, pid_file):
+    def test_process_group_cleanup_after_leader_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pid_file = Path(tmp) / "pids"
+            leader = subprocess.Popen([sys.executable, "-c", self.child_code(pid_file, leader_exits=True)],
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                      start_new_session=True)
+            pids = self.wait_pid_file(pid_file)
+            leader.wait(timeout=2)
+            self.assertEqual(leader.returncode, 0)
+            benchmark.stop_process_group(leader)
+            self.assert_pids_absent(pids)
+
+    def child_code(self, pid_file, *, leader_exits=False):
         return ("import os,subprocess,sys,time; "
-                "g=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']); "
+                "g=subprocess.Popen([sys.executable,'-c',"
+                "'import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)']); "
                 f"open({str(pid_file)!r},'w').write(str(os.getpid())+' '+str(g.pid)); "
-                "time.sleep(30)")
+                + ("sys.exit(0)" if leader_exits else "time.sleep(30)"))
 
     def wait_pid_file(self, path):
         deadline = time.monotonic() + 5

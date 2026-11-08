@@ -11,6 +11,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 BASE_SHA = "92c7c8feff89f9a0ee852b7140e0313ac4c19e45"
@@ -43,21 +44,61 @@ def _parent_death_preexec(expected_parent):
     return arm
 
 
-def _stop_process_group(process, grace=5):
-    if process is None or process.poll() is not None:
+def _stop_process_group(process, grace=2):
+    """Terminate every process still in the owned session, even after leader exit."""
+    if process is None:
         return
+    pgid = process.pid  # start_new_session=True makes the child the session/group leader.
     try:
-        os.killpg(process.pid, signal.SIGTERM)
+        os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
         pass
+    deadline = time.monotonic() + grace
+    while True:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            break
+        if time.monotonic() >= deadline:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            break
+        try:
+            process.wait(timeout=min(0.05, max(0.0, deadline - time.monotonic())))
+        except subprocess.TimeoutExpired:
+            pass
+        time.sleep(0.01)
+    kill_deadline = time.monotonic() + grace
+    while True:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            break
+        if time.monotonic() >= kill_deadline:
+            raise RuntimeError(f"process group {pgid} survived SIGKILL cleanup")
+        time.sleep(0.01)
     try:
         process.wait(timeout=grace)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"child leader {pgid} was not reaped after group cleanup") from exc
+
+
+def _drain_captured_process(process, timeout=1):
+    """Drain capture pipes briefly, then close them if an escaped holder persists."""
+    if process is None or (process.stdout is None and process.stderr is None):
+        return
+    try:
+        process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        for stream in (process.stdout, process.stderr):
+            if stream is not None:
+                stream.close()
         try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        process.wait()
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"child leader {process.pid} remained alive after cleanup") from exc
 
 
 def sha256(path):
@@ -71,9 +112,21 @@ def sha256(path):
 def run(argv, *, cwd=None, env=None, capture=False, timeout=120, failure_class="command"):
     print("+", shlex.join([str(arg) for arg in argv]), flush=True)
     proc = None
+    pending_signal = None
     previous_handlers = {}
     def interrupted(signum, _frame):
-        _stop_process_group(proc)
+        nonlocal pending_signal
+        if proc is None:
+            pending_signal = signum
+            return
+        for handled_signal in previous_handlers:
+            signal.signal(handled_signal, signal.SIG_IGN)
+        try:
+            _stop_process_group(proc)
+            if capture:
+                _drain_captured_process(proc)
+        except Exception as exc:
+            raise RunInterrupted(f"received signal {signum}; cleanup failed: {exc}") from exc
         raise RunInterrupted(f"received signal {signum}; child process group cleaned up")
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         previous_handlers[sig] = signal.signal(sig, interrupted)
@@ -83,13 +136,17 @@ def run(argv, *, cwd=None, env=None, capture=False, timeout=120, failure_class="
                                 stderr=subprocess.STDOUT if capture else None,
                                 start_new_session=True, stdin=subprocess.DEVNULL,
                                 preexec_fn=_parent_death_preexec(os.getpid()) if sys.platform.startswith("linux") else None)
+        if pending_signal is not None:
+            interrupted(pending_signal, None)
         try:
             output, _ = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             print(f"TIMEOUT after {timeout}s ({failure_class}); terminating process group", file=sys.stderr, flush=True)
+            for handled_signal in previous_handlers:
+                signal.signal(handled_signal, signal.SIG_IGN)
             _stop_process_group(proc)
             if capture:
-                output, _ = proc.communicate()
+                _drain_captured_process(proc)
             raise RuntimeError(f"{failure_class} timed out after {timeout}s; process group cleaned up")
     finally:
         for sig, old_handler in previous_handlers.items():

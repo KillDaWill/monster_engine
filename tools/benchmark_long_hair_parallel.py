@@ -12,6 +12,7 @@ import signal
 import statistics
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -32,21 +33,45 @@ class ValidationError(ValueError):
     """The run cannot be used as benchmark evidence."""
 
 
-def stop_process_group(process):
-    if process is None or process.poll() is not None:
+def stop_process_group(process, grace=2):
+    """Stop/reap the leader and all remaining members of its owned process group."""
+    if process is None:
         return
+    pgid = process.pid
     try:
-        os.killpg(process.pid, signal.SIGTERM)
+        os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
         pass
-    try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
+    deadline = time.monotonic() + grace
+    while True:
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            os.killpg(pgid, 0)
         except ProcessLookupError:
+            break
+        if time.monotonic() >= deadline:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            break
+        try:
+            process.wait(timeout=min(0.05, max(0.0, deadline - time.monotonic())))
+        except subprocess.TimeoutExpired:
             pass
-        process.wait()
+        time.sleep(0.01)
+    kill_deadline = time.monotonic() + grace
+    while True:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            break
+        if time.monotonic() >= kill_deadline:
+            raise RuntimeError(f"process group {pgid} survived SIGKILL cleanup")
+        time.sleep(0.01)
+    try:
+        process.wait(timeout=grace)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"child leader {pgid} was not reaped after group cleanup") from exc
 
 
 def parent_death_preexec(expected_parent):
@@ -70,9 +95,19 @@ def sha256(path):
 
 def run_bounded(args, *, env, stderr, timeout=3600):
     process = None
+    pending_signal = None
     previous_handlers = {}
     def interrupted(signum, _frame):
-        stop_process_group(process)
+        nonlocal pending_signal
+        if process is None:
+            pending_signal = signum
+            return
+        for handled_signal in previous_handlers:
+            signal.signal(handled_signal, signal.SIG_IGN)
+        try:
+            stop_process_group(process)
+        except Exception as exc:
+            raise ValidationError(f"received signal {signum}; cleanup failed: {exc}") from exc
         raise ValidationError(f"received signal {signum}; benchmark process group cleaned up")
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         previous_handlers[sig] = signal.signal(sig, interrupted)
@@ -81,9 +116,13 @@ def run_bounded(args, *, env, stderr, timeout=3600):
                                    start_new_session=True, stdin=subprocess.DEVNULL,
                                    preexec_fn=parent_death_preexec(os.getpid())
                                    if sys.platform.startswith("linux") else None)
+        if pending_signal is not None:
+            interrupted(pending_signal, None)
         returncode = process.wait(timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         print(f"TIMEOUT benchmark process after {timeout}s; terminating process group", flush=True)
+        for handled_signal in previous_handlers:
+            signal.signal(handled_signal, signal.SIG_IGN)
         stop_process_group(process)
         raise ValidationError(f"benchmark timed out after {timeout}s; process group cleaned up") from exc
     finally:
