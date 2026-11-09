@@ -162,6 +162,8 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_visual_async.c \
             $(TEST_DIR)/test_mouth_geometry.c \
             $(TEST_DIR)/test_head.c \
+            $(TEST_DIR)/test_eyelid_cache.c \
+            $(TEST_DIR)/monster_sdf_frozen_oracle.c \
             $(TEST_DIR)/test_lizard.c \
             $(TEST_DIR)/test_creature_recipe.c \
             $(TEST_DIR)/test_dog.c \

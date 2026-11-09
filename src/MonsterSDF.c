@@ -11,10 +11,119 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#if defined(__SSE2__) && defined(__x86_64__) && \
+    (defined(__GNUC__) || defined(__clang__)) && \
+    defined(FLT_EVAL_METHOD) && FLT_EVAL_METHOD == 0 && \
+    FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128
+#include <xmmintrin.h>
+#define MONSTER_SDF_HAS_SUPPORTED_EYELID_FP_CHECK 1
+#else
+#define MONSTER_SDF_HAS_SUPPORTED_EYELID_FP_CHECK 0
+#endif
 
 static void MonsterSDF_ResolveVisualBounds(MonsterSDF* sdf,size_t index);
 static bool MonsterSDF_BuildConnectorNodes(MonsterSDF* sdf);
 static void MonsterSDF_CompileSubtractionBounds(MonsterSDF* sdf);
+
+/* Cachear sólo bajo modos de control x86 predeterminados que podamos inspeccionar
+ * por completo. En arquitecturas/toolchains desconocidos se conserva el evaluador. */
+static bool MonsterSDF_EyelidCacheEnvironmentSupported(void) {
+#if MONSTER_SDF_HAS_SUPPORTED_EYELID_FP_CHECK
+    unsigned int mxcsr = _mm_getcsr();
+    unsigned short x87Control;
+    __asm__ volatile("fnstcw %0" : "=m"(x87Control));
+    /* Exige redondeo al más cercano, precisión extendida x87 por omisión,
+     * FTZ/DAZ desactivados y excepciones FP enmascaradas en ambas unidades.
+     * Así la ruta con descriptores mantiene el contrato de evaluación float. */
+    return (mxcsr & 0x0000ffc0u) == 0x00001f80u &&
+        (x87Control & 0x0f3fu) == 0x033fu;
+#else
+    return false;
+#endif
+}
+
+static MonsterSDFEyelidCapsuleCacheKey MonsterSDF_EyelidCacheKeyFromMouth(
+    const MonsterSDFMouth* mouth) {
+    return (MonsterSDFEyelidCapsuleCacheKey){
+        .leftCenter=mouth->leftOrbitCenterLocal,
+        .rightCenter=mouth->rightOrbitCenterLocal,
+        .leftNormal=mouth->leftOrbitNormal,
+        .rightNormal=mouth->rightOrbitNormal,
+        .orbitRadii=mouth->orbitRadii,
+        .eyelidProfile=mouth->eyelidProfile,
+        .eyelidCoverage=mouth->eyelidCoverage
+    };
+}
+
+static bool MonsterSDF_FloatBitsEqual(float a, float b) {
+    return memcmp(&a,&b,sizeof(a))==0;
+}
+
+static bool MonsterSDF_VectorBitsEqual(Vector3 a, Vector3 b) {
+    return MonsterSDF_FloatBitsEqual(a.x,b.x) &&
+        MonsterSDF_FloatBitsEqual(a.y,b.y) &&
+        MonsterSDF_FloatBitsEqual(a.z,b.z);
+}
+
+static bool MonsterSDF_EyelidCacheKeyMatches(const MonsterSDFEyelidCapsuleCacheKey* a,
+    const MonsterSDFEyelidCapsuleCacheKey* b) {
+    return MonsterSDF_VectorBitsEqual(a->leftCenter,b->leftCenter) &&
+        MonsterSDF_VectorBitsEqual(a->rightCenter,b->rightCenter) &&
+        MonsterSDF_VectorBitsEqual(a->leftNormal,b->leftNormal) &&
+        MonsterSDF_VectorBitsEqual(a->rightNormal,b->rightNormal) &&
+        MonsterSDF_VectorBitsEqual(a->orbitRadii,b->orbitRadii) &&
+        MonsterSDF_VectorBitsEqual(a->eyelidProfile,b->eyelidProfile) &&
+        MonsterSDF_FloatBitsEqual(a->eyelidCoverage,b->eyelidCoverage);
+}
+
+static bool MonsterSDF_EyelidCacheKeyFinite(const MonsterSDFEyelidCapsuleCacheKey* key) {
+    const Vector3 vectors[]={key->leftCenter,key->rightCenter,key->leftNormal,
+        key->rightNormal,key->orbitRadii,key->eyelidProfile};
+    for(size_t i=0;i<sizeof(vectors)/sizeof(vectors[0]);++i)
+        if(!isfinite(vectors[i].x)||!isfinite(vectors[i].y)||!isfinite(vectors[i].z))return false;
+    return isfinite(key->eyelidCoverage);
+}
+
+static bool MonsterSDF_EyelidCapsuleCacheUsable(const MonsterSDFMouth* mouth) {
+    if(!mouth->eyelidCapsuleCacheValid||!MonsterSDF_EyelidCacheEnvironmentSupported())return false;
+    MonsterSDFEyelidCapsuleCacheKey key=MonsterSDF_EyelidCacheKeyFromMouth(mouth);
+    return MonsterSDF_EyelidCacheKeyFinite(&key)&&
+        MonsterSDF_EyelidCacheKeyMatches(&mouth->eyelidCapsuleCacheKey,&key);
+}
+
+static void MonsterSDF_BuildEyelidCapsuleCache(MonsterSDFMouth* mouth) {
+    mouth->eyelidCapsuleCacheValid=false;
+    if(!MonsterSDF_EyelidCacheEnvironmentSupported()||mouth->eyelidCoverage<=.001f)return;
+    MonsterSDFEyelidCapsuleCacheKey key=MonsterSDF_EyelidCacheKeyFromMouth(mouth);
+    if(!MonsterSDF_EyelidCacheKeyFinite(&key))return;
+
+    size_t index=0;
+    for(int eye=0;eye<2;++eye){
+        Vector3 c=eye!=0?mouth->rightOrbitCenterLocal:mouth->leftOrbitCenterLocal;
+        Vector3 n=eye!=0?mouth->rightOrbitNormal:mouth->leftOrbitNormal;
+        Vector3 right=Vec3_Normalize(Vec3_Cross(Vec3_Create(0,1,0),n));
+        Vector3 up=Vec3_Normalize(Vec3_Cross(n,right));
+        float rx=mouth->orbitRadii.x*.84f,ry=mouth->orbitRadii.y*.86f;
+        float lidR=Math_Max(ry*.105f,.012f),front=mouth->orbitRadii.x*mouth->eyelidProfile.z;
+        for(int lid=0;lid<2;++lid){
+            Vector3 prev=Vec3_Add(c,Vec3_Add(Vec3_Scale(n,front),Vec3_Scale(right,-rx)));
+            for(int s=1;s<=4;++s){
+                float t=s==1?.25f:s==2?.50f:s==3?.75f:1.0f,x=(t*2.0f-1.0f)*rx;
+                float arcScale=lid==0?mouth->eyelidProfile.x:mouth->eyelidProfile.y;
+                float arc=sinf(3.14159265f*t)*arcScale*ry;
+                Vector3 q=Vec3_Add(c,Vec3_Add(Vec3_Scale(right,x),Vec3_Add(Vec3_Scale(up,arc),Vec3_Scale(n,front))));
+                if(index>=MONSTER_SDF_EYELID_CAPSULE_SEGMENT_COUNT||
+                   !isfinite(prev.x)||!isfinite(prev.y)||!isfinite(prev.z)||
+                   !isfinite(q.x)||!isfinite(q.y)||!isfinite(q.z)||!isfinite(lidR))return;
+                mouth->eyelidCapsuleSegments[index++]=(MonsterSDFEyelidCapsuleSegment){prev,q,lidR};
+                prev=q;
+            }
+        }
+    }
+    if(index!=MONSTER_SDF_EYELID_CAPSULE_SEGMENT_COUNT)return;
+    mouth->eyelidCapsuleCacheKey=key;
+    mouth->eyelidCapsuleCacheValid=true;
+}
 
 /* La identidad del tejido procede del módulo, no de rangos de IDs ni colores. */
 static SDFMaterial MonsterSDF_ConnectionMaterial(const Monster* monster,const BodyConnection* edge) {
@@ -1117,6 +1226,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         else AABB_Pad(&sdf->bodyBounds,pad);
     }
     MonsterSDF_CompileSubtractionBounds(sdf);
+    for(size_t i=0;i<sdf->mouthCount;++i)
+        MonsterSDF_BuildEyelidCapsuleCache(&sdf->mouths[i]);
     return true;
 }
 
@@ -1452,6 +1563,29 @@ static float MonsterSDF_EvalPeriorbitalDistance(const MonsterSDFMouth* mouth,Vec
     return d;
 }
 
+/* Ruta CPU de datos derivados. El evaluador original sigue siendo fuente GLSL
+ * y fallback exacto ante cache obsoleto o controles FP no admitidos. */
+static float MonsterSDF_EvalPeriorbitalDistanceUsingCache(const MonsterSDFMouth* mouth,Vector3 localP) {
+    float k=Math_Max(mouth->headUnionSmoothness*.24f,.002f);
+    float d=SDF_Ellipsoid(Vec3_Sub(localP,mouth->leftOrbitRimCenterLocal),mouth->orbitRimRadii);
+    d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(localP,mouth->rightOrbitRimCenterLocal),mouth->orbitRimRadii),k);
+    d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(localP,mouth->leftBrowCenterLocal),mouth->browRadii),k);
+    d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(localP,mouth->rightBrowCenterLocal),mouth->browRadii),k);
+    if(mouth->eyelidCoverage<=.001f)return d;
+    for(size_t i=0;i<MONSTER_SDF_EYELID_CAPSULE_SEGMENT_COUNT;++i){
+        const MonsterSDFEyelidCapsuleSegment* segment=&mouth->eyelidCapsuleSegments[i];
+        float band=SDF_Capsule(localP,segment->a,segment->b,segment->radius);
+        d=SDF_SmoothUnion(d,band,k*.45f);
+    }
+    return d;
+}
+
+static float MonsterSDF_EvalPeriorbitalDistanceCached(const MonsterSDFMouth* mouth,Vector3 localP) {
+    if(!MonsterSDF_EyelidCapsuleCacheUsable(mouth))
+        return MonsterSDF_EvalPeriorbitalDistance(mouth,localP);
+    return MonsterSDF_EvalPeriorbitalDistanceUsingCache(mouth,localP);
+}
+
 static float MonsterSDF_EvalNeckCollarDistance(const MonsterSDFMouth* mouth,Vector3 localP) {
     float seg1=SDF_TaperedEllipticalSegmentApprox(localP,
         mouth->neckCollarRootLocal,mouth->neckCollarMidLocal,
@@ -1493,6 +1627,58 @@ static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vect
                 Vector3 rightCheek = mouth->cheekCenterLocal; rightCheek.x *= -1.0f;
                 d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, rightCheek), mouth->cheekRadii), featK * .42f);
                 d = SDF_SmoothUnion(d, MonsterSDF_EvalPeriorbitalDistance(mouth, localP), featK * .85f);
+            }
+        }
+        d = SDF_SmoothUnion(d, MonsterSDF_EvalNeckCollarDistance(mouth, localP), mouth->headBodySmoothness);
+        if (mouth->hasNasalPad) d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->noseCenterLocal), mouth->noseRadii), k * .35f * dev);
+        if (mouth->hasEars) {
+            d = SDF_SmoothUnion(d, SDF_CurvedPinna(Vec3_Sub(localP, mouth->leftEarCenterLocal), mouth->earShape, mouth->earDirection,mouth->leftEarSide,mouth->leftEarNormal, mouth->earTipFraction, mouth->earConcavity,mouth->earLongitudinalCurve,mouth->earRootRoll,mouth->earTipRoundness,mouth->earFold,mouth->earRootFlare,mouth->earMarginBow,mouth->earMarginAsymmetry), k * .42f * dev);
+            d = SDF_SmoothUnion(d, SDF_CurvedPinna(Vec3_Sub(localP, mouth->rightEarCenterLocal), mouth->earShape, mouth->rightEarDirection,mouth->rightEarSide,mouth->rightEarNormal, mouth->earTipFraction, mouth->earConcavity,mouth->earLongitudinalCurve,mouth->earRootRoll,mouth->earTipRoundness,mouth->earFold,mouth->earRootFlare,-mouth->earMarginBow,1.0f-mouth->earMarginAsymmetry), k * .42f * dev);
+        }
+        if (mouth->sweptSkull) {
+            float oralPlane = mouth->entranceCenterLocal.y + mouth->entranceHalfExtents.y - localP.y + mouth->oralSlope*(localP.z-mouth->entranceCenterLocal.z);
+            float rearPlane = localP.z - (mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z);
+            float sidePlane = mouth->entranceHalfExtents.x + mouth->rimBevel - fabsf(localP.x);
+            d = Math_Max(d, Math_Min(oralPlane, Math_Min(rearPlane, sidePlane)));
+        }
+        return d;
+    }
+    float d = SDF_Ellipsoid(Vec3_Sub(localP, mouth->craniumCenterLocal), mouth->craniumRadii);
+    d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->snoutCenterLocal), mouth->snoutRadii), 0.08f);
+    d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->cheekCenterLocal), mouth->cheekRadii), 0.06f);
+    d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, Vec3_Create(-mouth->cheekCenterLocal.x, mouth->cheekCenterLocal.y, mouth->cheekCenterLocal.z)), mouth->cheekRadii), 0.06f);
+    return SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftBrowCenterLocal), mouth->browRadii), 0.05f);
+}
+
+/* Evaluador CPU separado: el generador sigue extrayendo para GLSL la fórmula
+ * original de cabeza superior definida arriba. */
+static float MonsterSDF_EvalUpperHeadDistanceCached(const MonsterSDFMouth* mouth, Vector3 localP) {
+    if(!MonsterSDF_EyelidCapsuleCacheUsable(mouth))
+        return MonsterSDF_EvalUpperHeadDistance(mouth,localP);
+    if (mouth->anatomicalHead) {
+        float dev = mouth->cephalicDevelopment;
+        float k = Math_Max(mouth->headUnionSmoothness, .005f);
+        float d;
+        {
+            float skull;
+            if(mouth->sweptSkull)skull=SDF_EllipticalSweepZ(localP,mouth->headStations,6);
+            else {
+                float cranium=SDF_Ellipsoid(Vec3_Sub(localP,mouth->craniumCenterLocal),mouth->craniumRadii);
+                float face=MonsterSDF_EvalRostrumDistance(mouth,localP);
+                skull=SDF_SmoothUnion(cranium,face,k);
+            }
+            if(mouth->faceCapWeight>0)skull=Math_Lerp(skull,Math_Max(skull,localP.z-mouth->faceTipLocal.z-mouth->faceCapDepth),mouth->faceCapWeight);
+            d = skull;
+            float featK = k;
+            {
+                d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftTemporalCenterLocal), mouth->temporalRadii), featK * .38f);
+                d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->rightTemporalCenterLocal), mouth->temporalRadii), featK * .38f);
+                d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftMaxillaryCenterLocal), mouth->maxillaryRadii), featK * .34f);
+                d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->rightMaxillaryCenterLocal), mouth->maxillaryRadii), featK * .34f);
+                d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->cheekCenterLocal), mouth->cheekRadii), featK * .42f);
+                Vector3 rightCheek = mouth->cheekCenterLocal; rightCheek.x *= -1.0f;
+                d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, rightCheek), mouth->cheekRadii), featK * .42f);
+                d = SDF_SmoothUnion(d, MonsterSDF_EvalPeriorbitalDistanceUsingCache(mouth, localP), featK * .85f);
             }
         }
         d = SDF_SmoothUnion(d, MonsterSDF_EvalNeckCollarDistance(mouth, localP), mouth->headBodySmoothness);
@@ -1558,7 +1744,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
             SDFSample muzzleSample = SDFSample_Create(muzzleDist, mouth->skinColor, SDF_MATERIAL_SKIN);
             accumulated = SDFSample_SmoothUnion(accumulated, muzzleSample, mouth->muzzleSmoothness);
         }
-        float upperHeadDist = MonsterSDF_EvalUpperHeadDistance(mouth, localP);
+        float upperHeadDist = MonsterSDF_EvalUpperHeadDistanceCached(mouth, localP);
         bool nasal=mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(localP,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f;
         accumulated = SDFSample_SmoothUnion(accumulated, SDFSample_Create(upperHeadDist,
             nasal?Color_FromRGB(30,27,24):mouth->skinColor,nasal?SDF_MATERIAL_NASAL_PAD:SDF_MATERIAL_SKIN), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
@@ -1626,7 +1812,7 @@ static float MonsterSDF_EvaluateDistanceInternal(const MonsterSDF* sdf,Vector3 p
             float muzzleDist = MonsterSDF_EvalMuzzleDistance(mouth, localP);
             accumulated = SDF_SmoothUnion(accumulated, muzzleDist, mouth->muzzleSmoothness);
         }
-        accumulated = SDF_SmoothUnion(accumulated, MonsterSDF_EvalUpperHeadDistance(mouth, localP), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
+        accumulated = SDF_SmoothUnion(accumulated, MonsterSDF_EvalUpperHeadDistanceCached(mouth, localP), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
     }
     for (size_t m = 0; m < sdf->mouthCount; ++m) {
         const MonsterSDFMouth* mouth = &sdf->mouths[m];
@@ -1772,7 +1958,7 @@ static float MonsterSDF_EvaluateBodyPartitionDistance(const MonsterSDF* sdf,Vect
 
 static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vector3 point) {
     Vector3 local=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
-    SDFSample sample=SDFSample_Create(MonsterSDF_EvalUpperHeadDistance(mouth,local),mouth->skinColor,SDF_MATERIAL_SKIN);
+    SDFSample sample=SDFSample_Create(MonsterSDF_EvalUpperHeadDistanceCached(mouth,local),mouth->skinColor,SDF_MATERIAL_SKIN);
     if (mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(local,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) {
         sample.color=Color_FromRGB(30,27,24); sample.material=SDF_MATERIAL_NASAL_PAD;
     }
@@ -1785,7 +1971,7 @@ static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vec
 
 static float MonsterSDF_EvaluateHeadDistanceAtWorld(const MonsterSDFMouth* mouth,Vector3 point) {
     Vector3 local=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
-    float d=MonsterSDF_EvalUpperHeadDistance(mouth,local);
+    float d=MonsterSDF_EvalUpperHeadDistanceCached(mouth,local);
     d=SDF_SmoothSubtract(d,MonsterSDF_EvalMouthDistance(mouth,point,NULL),mouth->rimBevel);
     d=SDF_SmoothSubtract(d,MonsterSDF_EvalOrbitCavities(mouth,local),0.0f);
     d=SDF_SmoothSubtract(d,MonsterSDF_EvalNostrilCavities(mouth,local),mouth->headUnionSmoothness*.04f);
@@ -1808,13 +1994,13 @@ SDFSample MonsterSDF_EvaluateDebug(const MonsterSDF* sdf, Vector3 point, Monster
             case MONSTER_HEAD_DEBUG_CRANIUM: distance = SDF_Ellipsoid(Vec3_Sub(local, mouth->craniumCenterLocal), mouth->craniumRadii); material = SDF_MATERIAL_SKIN; color = mouth->skinColor; break;
             case MONSTER_HEAD_DEBUG_SNOUT:
             case MONSTER_HEAD_DEBUG_ROSTRUM: distance = MonsterSDF_EvalRostrumDistance(mouth, local); material = SDF_MATERIAL_SKIN; color = mouth->skinColor; break;
-            case MONSTER_HEAD_DEBUG_UPPER_HEAD: distance = MonsterSDF_EvalUpperHeadDistance(mouth, local); material = SDF_MATERIAL_SKIN; color = mouth->skinColor; break;
+            case MONSTER_HEAD_DEBUG_UPPER_HEAD: distance = MonsterSDF_EvalUpperHeadDistanceCached(mouth, local); material = SDF_MATERIAL_SKIN; color = mouth->skinColor; break;
             case MONSTER_HEAD_DEBUG_JAW: distance = MonsterSDF_EvalJawCarvedDistance(mouth, local); material = SDF_MATERIAL_SKIN; color = mouth->skinColor; break;
             case MONSTER_HEAD_DEBUG_BRIDGES: distance = MonsterSDF_EvalSeamDistance(mouth, local); material = SDF_MATERIAL_SKIN; color = mouth->skinColor; break;
             case MONSTER_HEAD_DEBUG_CAVITY: distance = SDF_Ellipsoid(Vec3_Sub(local, mouth->cavityCenterLocal), mouth->cavityRadii); break;
             case MONSTER_HEAD_DEBUG_SLIT: distance = SDF_RoundedSlotExtruded(Vec3_Sub(local, mouth->entranceCenterLocal), mouth->entranceHalfExtents.x, mouth->entranceHalfExtents.y, mouth->entranceHalfExtents.z); break;
             case MONSTER_HEAD_DEBUG_ORBIT_CAVITIES: distance=MonsterSDF_EvalOrbitCavities(mouth,local);material=SDF_MATERIAL_EYE_SOCKET;color=Color_FromRGB(24,28,19);break;
-            case MONSTER_HEAD_DEBUG_PERIORBITAL: distance=MonsterSDF_EvalPeriorbitalDistance(mouth,local);material=SDF_MATERIAL_SKIN;color=mouth->skinColor;break;
+            case MONSTER_HEAD_DEBUG_PERIORBITAL: distance=MonsterSDF_EvalPeriorbitalDistanceCached(mouth,local);material=SDF_MATERIAL_SKIN;color=mouth->skinColor;break;
             case MONSTER_HEAD_DEBUG_NOSTRILS: distance=MonsterSDF_EvalNostrilCavities(mouth,local);material=SDF_MATERIAL_NOSTRIL;color=Color_FromRGB(18,20,14);break;
             case MONSTER_HEAD_DEBUG_LOCAL_HEAD: return MonsterSDF_EvaluateHeadAtWorld(mouth,point);
             default: break;

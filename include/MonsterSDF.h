@@ -105,6 +105,24 @@ typedef struct MonsterSDFConnectorNode {
     bool hasEligible;
 } MonsterSDFConnectorNode;
 
+#define MONSTER_SDF_EYELID_CAPSULE_SEGMENT_COUNT 16
+
+/** Geometría derivada inline de un segmento palpebral; no posee memoria. */
+typedef struct MonsterSDFEyelidCapsuleSegment {
+    Vector3 a;
+    Vector3 b;
+    float radius;
+} MonsterSDFEyelidCapsuleSegment;
+
+/** Dependencias exactas de la geometría del cache palpebral. */
+typedef struct MonsterSDFEyelidCapsuleCacheKey {
+    Vector3 leftCenter, rightCenter;
+    Vector3 leftNormal, rightNormal;
+    Vector3 orbitRadii;
+    Vector3 eyelidProfile;
+    float eyelidCoverage;
+} MonsterSDFEyelidCapsuleCacheKey;
+
 /**
  * @struct MonsterSDFMouth
  * @brief Snapshot compilado de una cavidad bucal con rotación matricial e invariantes precálculadas.
@@ -224,6 +242,13 @@ typedef struct MonsterSDFMouth {
     Vector3 seamJawAnchorLocal;      /**< Ancla central inferior */
     float seamScale;                 /**< Escala h = max(hingeRadius, throatRadius, slitThickness) */
     AABB3D seamBounds;               /**< Bounds conservadores del tejido blando */
+    /* Cache derivado sin punteros: copiar por valor conserva su vida útil.
+     * La clave se compara bit a bit antes del uso porque MonsterSDFMouth es público
+     * y puede mutarse directamente. Estos campos derivados son de sólo lectura para
+     * los consumidores. Su adición incrementa el tamaño/ABI de esta estructura. */
+    MonsterSDFEyelidCapsuleSegment eyelidCapsuleSegments[MONSTER_SDF_EYELID_CAPSULE_SEGMENT_COUNT];
+    MonsterSDFEyelidCapsuleCacheKey eyelidCapsuleCacheKey;
+    bool eyelidCapsuleCacheValid;
 } MonsterSDFMouth;
 
 /** Contexto de evaluación de la mandíbula en coordenadas locales de boca. */

@@ -8,7 +8,6 @@ import os
 import re
 import shlex
 import signal
-import shutil
 import subprocess
 import sys
 import time
@@ -23,8 +22,9 @@ PUBLIC_SYMBOLS = (
 )
 SANITIZER_FLAGS = {
     "address": ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-O1", "-g"],
-    "thread": ["-fsanitize=thread", "-fno-omit-frame-pointer", "-O1", "-g"],
+    "thread": ["-fsanitize=thread", "-fno-omit-frame-pointer", "-O1", "-g", "-fno-pie"],
 }
+SANITIZER_LINK_FLAGS = {"address": [], "thread": ["-no-pie"]}
 
 
 class RunInterrupted(RuntimeError):
@@ -247,7 +247,8 @@ def build_sanitized(args, outdir):
                                "object": str(obj), "instrumented": True})
     binary = outdir / f"long_hair_{args.sanitizer}"
     libs = [flag for flag in shlex.split(args.build_flags) if flag in ("-lm", "-pthread")]
-    run([args.compiler, *map(str, objects), *sanitizer_flags, *libs, "-o", str(binary)],
+    link_flags = SANITIZER_LINK_FLAGS[args.sanitizer]
+    run([args.compiler, *map(str, objects), *sanitizer_flags, *link_flags, *libs, "-o", str(binary)],
         cwd=args.repo, timeout=180, failure_class=f"{args.sanitizer} sanitizer link")
     command = [str(binary), "--bounded-horse", str(args.horse_recipe)]
     env = os.environ.copy()
@@ -257,15 +258,14 @@ def build_sanitized(args, outdir):
         run(command, cwd=args.repo, env=env, timeout=600, failure_class="bounded adult horse ASan/UBSan test")
     else:
         env["TSAN_OPTIONS"] = "halt_on_error=1"
-        setarch = shutil.which("setarch")
-        if setarch:
-            run([setarch, os.uname().machine, "-R", *command], cwd=args.repo, env=env,
-                timeout=600, failure_class="bounded adult horse TSan test")
-        else:
-            run(command, cwd=args.repo, env=env, timeout=600, failure_class="bounded adult horse TSan test")
+        # The non-PIE link avoids this host's TSAN shadow-memory/PIE collision;
+        # do not rely on setarch -R, which may be forbidden in containers.
+        run(command, cwd=args.repo, env=env, timeout=600,
+            failure_class="bounded adult horse TSan test (non-PIE)")
     return {
         "scope": "bounded-horse", "sanitizer": args.sanitizer,
-        "sanitizer_flags": sanitizer_flags, "base_sha": BASE_SHA,
+        "sanitizer_flags": sanitizer_flags, "sanitizer_link_flags": SANITIZER_LINK_FLAGS[args.sanitizer],
+        "base_sha": BASE_SHA,
         "frozen_source_sha256": original_sha,
         "instrumented_sources": source_records,
         "instrumentation_claim": "all supplied CORE_SRCS plus oracle and frozen LongHair source were compiled with sanitizer flags",

@@ -17,6 +17,55 @@ def function(path,name):
         depth+=(s[i]=='{')-(s[i]=='}');i+=1
     return s[m.start():i]
 
+def normalized_body(source):
+    source=re.sub(r'/\*.*?\*/|//[^\n]*','',source,flags=re.S)
+    start=source.index('{')
+    return re.sub(r'\s+','',source[start+1:])
+
+def validate_upper_head_cache_pair(original,cached):
+    """Require CPU math to track shader-source math except the eyelid call."""
+    body=normalized_body(cached)
+    fallback=('if(!MonsterSDF_EyelidCapsuleCacheUsable(mouth))'
+              'returnMonsterSDF_EvalUpperHeadDistance(mouth,localP);')
+    if not body.startswith(fallback):
+        raise ValueError('upper-head cache must begin with the exact validity fallback')
+    body=body[len(fallback):]
+    replacement='MonsterSDF_EvalPeriorbitalDistanceUsingCache(mouth,localP)'
+    if body.count(replacement)!=1:
+        raise ValueError('upper-head cache must contain exactly one cached periorbital call')
+    body=body.replace(replacement,'MonsterSDF_EvalPeriorbitalDistance(mouth,localP)')
+    if body!=normalized_body(original):
+        raise ValueError('upper-head CPU math diverges from GLSL source evaluator')
+
+def validate_upper_head_cache_guard_selftest(original,cached):
+    """Prove the guard rejects a synthetic mathematical drift, not just F parity."""
+    validate_upper_head_cache_pair(original,cached)
+    changed=re.sub(r'featK\s*\*\s*\.38f','featK * .39f',cached,count=1)
+    if changed==cached:
+        raise ValueError('upper-head cache guard self-test could not create its synthetic drift')
+    try:
+        validate_upper_head_cache_pair(original,changed)
+    except ValueError:
+        return
+    raise ValueError('upper-head cache guard self-test accepted synthetic mathematical drift')
+
+def validate_cached_periorbital_query_loop(source):
+    """Fail if the derived path stops issuing all 16 capsule queries in order."""
+    body=normalized_body(source)
+    loop='for(size_ti=0;i<MONSTER_SDF_EYELID_CAPSULE_SEGMENT_COUNT;++i){'
+    start=body.find(loop)
+    if start<0 or body.count(loop)!=1:
+        raise ValueError('cached eyelid path must traverse the complete ordered descriptor array')
+    depth=1;end=start+len(loop)
+    while depth and end<len(body):
+        depth+=(body[end]=='{')-(body[end]=='}');end+=1
+    if depth:
+        raise ValueError('unterminated cached eyelid descriptor loop')
+    loop_body=body[start:end]
+    capsule='SDF_Capsule(localP,segment->a,segment->b,segment->radius)'
+    if loop_body.count(capsule)!=1 or 'continue;' in loop_body or 'break;' in loop_body:
+        raise ValueError('each cached eyelid descriptor must issue exactly one capsule query without skips')
+
 prefix='''#version 330 compatibility
 uniform samplerBuffer sceneData;
 uniform int partBase, partCount, connectorBase, connectorCount, mouthBase, mouthCount, axialBase, axialCount;
@@ -66,6 +115,8 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
     offset=0;scalar_row=None;scalar_component=4
     code=[f'static void Pack{short}(float (*out)[4], const {typ}* in) {{']
     for t,name in fields:
+        if typ=='MonsterSDFMouth' and (name.startswith('eyelidCapsuleSegments[') or
+            name in ['eyelidCapsuleCacheKey','eyelidCapsuleCacheValid']):continue
         if name in ['isDistalLimb','development'] and typ=='MonsterSDFConnector':continue
         arr=re.fullmatch(r'(\w+)\[(\d+)\]',name)
         if t=='SDFSweepStation' and arr:
@@ -129,6 +180,10 @@ float SDF_EllipticalSweepZ(vec3 p,int base,int count) {
 }
 '''
 heads=[]
+upper_head_source=function('src/MonsterSDF.c','MonsterSDF_EvalUpperHeadDistance')
+upper_head_cached=function('src/MonsterSDF.c','MonsterSDF_EvalUpperHeadDistanceCached')
+validate_upper_head_cache_guard_selftest(upper_head_source,upper_head_cached)
+validate_cached_periorbital_query_loop(function('src/MonsterSDF.c','MonsterSDF_EvalPeriorbitalDistanceUsingCache'))
 for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCutter','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalUpperHeadDistance']:
     heads.append(function('src/MonsterSDF.c',name))
 

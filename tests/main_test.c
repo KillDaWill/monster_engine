@@ -26,6 +26,7 @@ void run_primitive_mesh_tests(void);
 void run_visual_async_tests(void);
 void run_mouth_geometry_tests(void);
 void run_head_tests(void);
+void run_eyelid_cache_tests(void);
 void run_lizard_tests(void);
 void run_local_detail_tests(void);
 void run_perf_optimizations_tests(void);
@@ -119,6 +120,7 @@ int main(void) {
 
     run_mouth_geometry_tests();
     run_head_tests();
+    run_eyelid_cache_tests();
     run_creature_recipe_tests();
     run_dog_tests();
     run_creature_variation_tests();
