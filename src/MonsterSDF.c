@@ -323,10 +323,10 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         AABB_ExpandRadius(&sdf->bounds, sdf->bodyParts[dst].center, sdf->bodyParts[dst].radii);
     }
     /* 2. Conectores: grafo explícito o compatibilidad secuencial heredada. */
+    AnatomyGraphIndex index;
     if(monster->hasAnatomyGraph) {
         const AnatomyGraph* g=&monster->anatomyGraph;
         if(g->connectionCount>ANATOMY_MAX_CONNECTIONS)return false;
-        AnatomyGraphIndex index;
         if(!AnatomyGraphIndex_Build(&index,g))return false;
         unsigned incoming[ANATOMY_MAX_NODES]={0},outgoing[ANATOMY_MAX_NODES]={0};
         /* Resolver cada arista una sola vez, antes de contar grados axiales.
@@ -429,8 +429,10 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         sdf->connectorCount=0;
         for (size_t i=0;i<monster->anatomyGraph.connectionCount;++i) {
             const BodyConnection* candidate=&monster->anatomyGraph.connections[i];
-            const AnatomyNode* candidateFrom=AnatomyGraph_FindNode(&monster->anatomyGraph,candidate->fromId);
-            const AnatomyNode* candidateTo=AnatomyGraph_FindNode(&monster->anatomyGraph,candidate->toId);
+            int from=AnatomyGraphIndex_Find(&index,candidate->fromId);
+            int to=AnatomyGraphIndex_Find(&index,candidate->toId);
+            const AnatomyNode* candidateFrom=from>=0?&monster->anatomyGraph.nodes[from]:NULL;
+            const AnatomyNode* candidateTo=to>=0?&monster->anatomyGraph.nodes[to]:NULL;
             /* Los soportes de ornamentos son parte del volumen de unión: una
              * espina puede nacer fuera de la envolvente axial y necesita esta
              * transición para conservar una malla conectada. Los soportes de
@@ -442,8 +444,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             if(monster->anatomyGraph.dormantConnections[i] ||
                (candidate->kind == BODY_CONNECTION_SUPPORT && !ornamentSupport))continue;
             const BodyConnection* edge=candidate;
-            const AnatomyNode* a=AnatomyGraph_FindNode(&monster->anatomyGraph,edge->fromId);
-            const AnatomyNode* b=AnatomyGraph_FindNode(&monster->anatomyGraph,edge->toId);
+            const AnatomyNode* a=candidateFrom;
+            const AnatomyNode* b=candidateTo;
             if(!a||!b){MonsterSDF_Free(sdf);return false;}
             MonsterSDFConnector* c=&sdf->connectors[sdf->connectorCount++]; memset(c,0,sizeof(*c));
             c->a=a->center;c->b=b->center;
