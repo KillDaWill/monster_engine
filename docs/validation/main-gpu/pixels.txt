@@ -1,0 +1,1 @@
+PASS ages 0,0.5,1: RGB pixels and scene metadata byte-identical.

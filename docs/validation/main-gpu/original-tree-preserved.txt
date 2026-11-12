@@ -1,0 +1,3 @@
+PASS original working tree porcelain is byte-identical to initial recorded status.
+Original branch remains ager-index-demo-20261112 at 0eb37d709433aa08ef6c3416cd76edf1a26108f0.
+Deleted coordination ledger and all original untracked documents preserved.

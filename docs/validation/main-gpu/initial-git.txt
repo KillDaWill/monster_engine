@@ -1,0 +1,158 @@
+$ git status --porcelain=v1
+ M demos/demo_morph_dog_lizard.c
+ D docs/performance/COORDINATION_LEDGER.md
+ M src/MonsterSDF.c
+?? AGER_PATCH_DEMO_RESULTS.md
+?? OPTIMIZACION_CRECIMIENTO_PELO.md
+?? PERFORMANCE_REVIEW_20261106.md
+?? PROMPTS.md
+?? docs/GUIA_ARQUITECTURA_Y_OPTIMIZACION.md
+?? docs/performance/F_EXACT_20261108.md
+?? docs/performance/G3_GENERAL_MESHING_20261109.md
+?? docs/performance/G_CACHE_ELIGIBILITY_FOLLOWUP_20261109.md
+?? docs/performance/G_EYELID_CACHE_20261109.md
+?? docs/performance/G_FIELD_PROFILE_20261109.md
+?? docs/performance/H_DESIGN_20261108.md
+?? docs/performance/H_IMPLEMENT_20261109.md
+?? docs/performance/I_ASYNC_REVIEW_20261110.md
+?? docs/performance/I_ASYNC_VALIDATION_065b903_20261110.md
+?? docs/performance/I_ASYNC_VALIDATION_0ee0df2_20261110.md
+?? docs/performance/I_ASYNC_VALIDATION_51def27_20261110.md
+?? docs/performance/I_ASYNC_VALIDATION_6fa8512_20261110.md
+?? docs/performance/M_OPT_CYCLIC_SAMPLING_ABBA_20261108.md
+?? docs/performance/M_PROFILE_20261108.md
+?? docs/performance/PERFORMANCE_RECOVERY_AGENT_ESSENTIALS_20261110T182419Z_7b9d27e1.zip
+?? docs/performance/RECOVERY_COORDINATION_20261108.md
+?? docs/performance/RECOVERY_HANDOFF_20261110.md
+?? docs/performance/REVIEW_INDEX.md
+?? docs/performance/assignments-20261108/
+?? docs/performance/long-hair-exact-guide-eval-cache-agent-g.md
+?? docs/performance/recovery-20261108/
+?? docs/performance/recovery-20261109/
+?? docs/performance/recovery-20261110/
+?? docs/performance/review-20261106/
+?? docs/performance/v3/
+?? docs/validation/ager-index-demo/
+?? tools/build_ager_index_demo.py
+
+$ git branch -avv
++ agent/a                                             bc83fd5 (/mnt/storage/monster-engine-agents/agent-a) feat(hair): refine mane styling, follicle distribution, and validation results
++ agent/b                                             bc83fd5 (/mnt/storage/monster-engine-agents/agent-b) feat(hair): refine mane styling, follicle distribution, and validation results
++ agent/c                                             bc83fd5 (/mnt/storage/monster-engine-agents/agent-c) feat(hair): refine mane styling, follicle distribution, and validation results
++ agent/d                                             4a84de0 (/mnt/storage/monster-engine-agents/agent-d) feat(hair): add deterministic long-hair scheduler
++ agent/j                                             bc83fd5 (/mnt/storage/monster-engine-agents/agent-j) feat(hair): refine mane styling, follicle distribution, and validation results
++ agent/perf-20261106-a                               849e88f (/tmp/opencode/monster-perf-20261106/a) Record controlled long-hair CPU baseline
++ agent/perf-20261106-b                               5338c9c (/tmp/opencode/monster-perf-20261106/b) docs(perf): assess long-hair body range feasibility
++ agent/perf-20261106-b2                              301bb4a (/tmp/opencode/monster-perf-20261106/b2) Require nearest rounding for jaw certificates
++ agent/perf-20261106-c                               09470ad (/tmp/opencode/monster-perf-20261106/c) Document Agent C2 curve bound feasibility
++ agent/perf-20261106-d                               feadfb7 (/tmp/opencode/monster-perf-20261106/d) bench(hair): recover deterministic scheduler scaling evidence
++ agent/perf-20261106-e                               3927f80 (/tmp/opencode/monster-perf-20261106/e) Validate and time discrete hair audit groups
++ agent/perf-20261106-integration                     30e5496 (/tmp/opencode/monster-perf-20261106/integration) docs(perf): confirm recovered scheduler regression suite passed
++ agent/perf-20261106-j                               ef75c8e (/tmp/opencode/monster-perf-20261106/j) docs: record creature generation profiling results
++ agent/perf-20261108-f-exact                         c9fc96e (/mnt/storage/monster-engine-agents/recovery-20261108/f-exact) harden long hair helper process cleanup
++ agent/perf-20261108-g-exact                         b109ac0 (/mnt/storage/monster-engine-agents/recovery-20261108/g-exact) Record exact long hair cache measurements
++ agent/perf-20261108-h-design                        8e85dc3 (/mnt/storage/monster-engine-agents/recovery-20261108/h-design) docs: correct H design baseline citations
++ agent/perf-20261108-integration                     342aa29 (/mnt/storage/monster-engine-agents/recovery-20261108/integration) docs(performance): publish independent I review and recovery handoff
++ agent/perf-20261108-m-opt                           f9e3dd8 (/mnt/storage/monster-engine-agents/recovery-20261108/m-opt) docs: record M-OPT cyclic sampling results
++ agent/perf-20261108-m-profile                       ef3bdc7 (/mnt/storage/monster-engine-agents/recovery-20261108/m-profile) Correct mesher profile summaries and report runs
++ agent/perf-20261109-g-cache-eligibility             ca6d76b (/mnt/storage/monster-engine-agents/recovery-20261108/g-cache-eligibility) docs(perf): retain cache eligibility inspector provenance
++ agent/perf-20261109-g-eyelid-cache                  4e8008d (/mnt/storage/monster-engine-agents/recovery-20261108/g-eyelid-cache) Record hardened G3 eyelid cache handoff
++ agent/perf-20261109-g-eyelid-review                 4e8008d (/mnt/storage/monster-engine-agents/recovery-20261108/g-eyelid-review) Record hardened G3 eyelid cache handoff
++ agent/perf-20261109-g-field-profile                 5171876 (/mnt/storage/monster-engine-agents/recovery-20261108/g-field-profile) Document long hair field profile results
++ agent/perf-20261109-h-implement                     764654b (/mnt/storage/monster-engine-agents/recovery-20261108/h-implement) test(perf): harden long hair reuse CSV validation
++ agent/perf-20261109-i-async                         0ee0df2 (/mnt/storage/monster-engine-agents/recovery-20261108/i-async) Record matched async performance and BVH audit
++ agent/perf-20261109-mesher-nonfinite-review         4170f0c (/mnt/storage/monster-engine-agents/recovery-20261108/mesher-nonfinite-review) Fix parallel mesher non-finite flag race
++ agent/perf-20261110-i-co-review                     0ee0df2 (/mnt/storage/monster-engine-agents/recovery-20261108/i-co-review) Record matched async performance and BVH audit
++ agent/perf-v3-20261110-gpu                          dfaefeb (/mnt/storage/monster-engine-agents/v3-20261110/gpu) docs(performance): record bounded GPU preflight
++ agent/perf-v3-20261110-h                            be5581c (/mnt/storage/monster-engine-agents/v3-20261110/h) docs(v3): record adult fine counterfactual
++ agent/perf-v3-20261110-integration                  1b95076 (/mnt/storage/monster-engine-agents/v3-20261110/integration) docs(perf): reject audited M hash candidate and summarize V3 gates
++ agent/perf-v3-20261110-m                            dc90657 (/mnt/storage/monster-engine-agents/v3-20261110/m) docs: record V3 M point hash no-go
++ agent/perf-v3-20261110-q                            a24b509 (/mnt/storage/monster-engine-agents/v3-20261110/q) perf: add focused V3-Q mesh verification harness
++ agent/perf-v3-20261110-s                            5d77e08 (/mnt/storage/monster-engine-agents/v3-20261110/s) Document V3-S exploratory benchmark result
++ agent/perf-v3-20261110-t                            4cf8e24 (/mnt/storage/monster-engine-agents/v3-20261110/t) Correct V3-T canonical species matrix
++ agent/perf-v3-20261111-t-co-review                  61c7ce2 (/mnt/storage/monster-engine-agents/v3-20261110/t-co-review) test(perf): exercise temporal repeated-sample color validation
+* ager-index-demo-20261112                            0eb37d7 docs(perf): add coordination ledger for hair optimization program
+  feature/universal-anatomy-foundation                bc83fd5 [origin/feature/universal-anatomy-foundation] feat(hair): refine mane styling, follicle distribution, and validation results
++ integrate/sdf-gpu-20261112                          0eb37d7 (/tmp/opencode/monster-main-gpu) docs(perf): add coordination ledger for hair optimization program
+  main                                                0eb37d7 [origin/main: adelante 1] docs(perf): add coordination ledger for hair optimization program
+  remotes/origin/feature/universal-anatomy-foundation bc83fd5 feat(hair): refine mane styling, follicle distribution, and validation results
+  remotes/origin/main                                 bc83fd5 feat(hair): refine mane styling, follicle distribution, and validation results
+
+$ git log -5 --oneline
+0eb37d7 docs(perf): add coordination ledger for hair optimization program
+bc83fd5 feat(hair): refine mane styling, follicle distribution, and validation results
+1663aea feat(hair): add long hair styling, volume, shaders, and validation docs
+f5f6444 feat(anatomy): implement equine anatomy, muzzle refinement, and long hair systems
+8920a58 feat(equine): reconstrucción cursorial y evidencia de validación
+
+$ git diff -- src/MonsterSDF.c demos/demo_morph_dog_lizard.c
+diff --git a/demos/demo_morph_dog_lizard.c b/demos/demo_morph_dog_lizard.c
+index facbaf0..8de7a61 100644
+--- a/demos/demo_morph_dog_lizard.c
++++ b/demos/demo_morph_dog_lizard.c
+@@ -448,7 +448,7 @@ int main(int argc, char* argv[]) {
+             windowWidth,windowHeight,gridVoxel,gridRefinement,brickCells,noFur?"false":"true",fixedTimestep);
+         for(int i=0;i<argc;++i){if(i)fputc(',',metadata);WriteJSONText(metadata,argv[i]);}
+         fprintf(metadata,"],\"group_pruning\":%s}\n",getenv("MONSTER_SDF_NO_GROUP_PRUNING")?"false":"true");if(fclose(metadata)!=0)return 2;
+-        fprintf(gpuTrace,"age,generation,timing_generation,samples,cells,gpu_bytes,upload_cpu_ms,sampling_gpu_ms,classification_gpu_ms,emission_gpu_ms,render_gpu_ms,total_gpu_ms,slabs,frame_wall_ms,cpu_thread_ms,candidate_bricks,dirty_bricks,new_bricks,active_bricks,resident_sample_bricks,reused_samples,unique_edges,updated_edges,indices,exact_normals,submitted_generation,completed_generation\n");}
++        fprintf(gpuTrace,"age,generation,timing_generation,samples,cells,gpu_bytes,upload_cpu_ms,sampling_gpu_ms,classification_gpu_ms,emission_gpu_ms,render_gpu_ms,total_gpu_ms,slabs,frame_wall_ms,cpu_thread_ms,candidate_bricks,dirty_bricks,new_bricks,active_bricks,resident_sample_bricks,reused_samples,unique_edges,updated_edges,indices,exact_normals,submitted_generation,completed_generation,sdf_build_cpu_wall_ms,ager_cpu_wall_ms,geometry_ager_cpu_wall_ms\n");}
+
+     /* 6. Bucle principal de simulación y renderizado */
+     bool running = true;
+@@ -1033,12 +1033,14 @@ int main(int argc, char* argv[]) {
+                 gs.generation=(uint64_t)totalFrames+1;gs.timingGeneration=renderStats.gpuTimingGeneration;
+                 gs.renderGPUms=gs.totalGPUms=renderStats.gpuRenderMs;
+             }
+-            fprintf(gpuTrace,"%.6f,%llu,%llu,%zu,%zu,%zu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%u,%.4f,%.4f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%llu,%llu\n",
++            fprintf(gpuTrace,"%.6f,%llu,%llu,%zu,%zu,%zu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%u,%.4f,%.4f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%llu,%llu,%.6f,%.6f,%.6f\n",
+                 ageFactor,(unsigned long long)gs.generation,(unsigned long long)gs.timingGeneration,
+                 gs.samples,gs.cells,gs.gpuBytes,gs.uploadCPUms,gs.samplingGPUms,
+                 gs.classificationGPUms,gs.emissionGPUms,gs.renderGPUms,gs.totalGPUms,gs.slabs,wallMs,cpuMs,gs.candidateBricks,gs.dirtyBricks,gs.newBricks,gs.activeBricks,gs.residentSampleBricks,gs.reusedSamples,gs.uniqueEdges,gs.updatedEdges,gs.publishedIndices,gs.exactNormals,
+                 (unsigned long long)(gpuCache?gpuCache->submittedGeneration:gs.generation),
+-                (unsigned long long)(gpuCache?gpuCache->completedGeneration:gs.timingGeneration));
++                (unsigned long long)(gpuCache?gpuCache->completedGeneration:gs.timingGeneration),
++                (double)exactCompileTicks*1000.0/(double)timerFrequency,
++                ager.lastInterpolationMs,ager.lastGeometryInterpolationMs);
+         }
+         ++totalFrames;
+         if(limitFrames>0 && totalFrames>=limitFrames)running=false;
+diff --git a/src/MonsterSDF.c b/src/MonsterSDF.c
+index e182f51..d57d4ff 100644
+--- a/src/MonsterSDF.c
++++ b/src/MonsterSDF.c
+@@ -323,10 +323,10 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig
+         AABB_ExpandRadius(&sdf->bounds, sdf->bodyParts[dst].center, sdf->bodyParts[dst].radii);
+     }
+     /* 2. Conectores: grafo explícito o compatibilidad secuencial heredada. */
++    AnatomyGraphIndex index;
+     if(monster->hasAnatomyGraph) {
+         const AnatomyGraph* g=&monster->anatomyGraph;
+         if(g->connectionCount>ANATOMY_MAX_CONNECTIONS)return false;
+-        AnatomyGraphIndex index;
+         if(!AnatomyGraphIndex_Build(&index,g))return false;
+         unsigned incoming[ANATOMY_MAX_NODES]={0},outgoing[ANATOMY_MAX_NODES]={0};
+         /* Resolver cada arista una sola vez, antes de contar grados axiales.
+@@ -429,8 +429,10 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig
+         sdf->connectorCount=0;
+         for (size_t i=0;i<monster->anatomyGraph.connectionCount;++i) {
+             const BodyConnection* candidate=&monster->anatomyGraph.connections[i];
+-            const AnatomyNode* candidateFrom=AnatomyGraph_FindNode(&monster->anatomyGraph,candidate->fromId);
+-            const AnatomyNode* candidateTo=AnatomyGraph_FindNode(&monster->anatomyGraph,candidate->toId);
++            int from=AnatomyGraphIndex_Find(&index,candidate->fromId);
++            int to=AnatomyGraphIndex_Find(&index,candidate->toId);
++            const AnatomyNode* candidateFrom=from>=0?&monster->anatomyGraph.nodes[from]:NULL;
++            const AnatomyNode* candidateTo=to>=0?&monster->anatomyGraph.nodes[to]:NULL;
+             /* Los soportes de ornamentos son parte del volumen de unión: una
+              * espina puede nacer fuera de la envolvente axial y necesita esta
+              * transición para conservar una malla conectada. Los soportes de
+@@ -442,8 +444,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig
+             if(monster->anatomyGraph.dormantConnections[i] ||
+                (candidate->kind == BODY_CONNECTION_SUPPORT && !ornamentSupport))continue;
+             const BodyConnection* edge=candidate;
+-            const AnatomyNode* a=AnatomyGraph_FindNode(&monster->anatomyGraph,edge->fromId);
+-            const AnatomyNode* b=AnatomyGraph_FindNode(&monster->anatomyGraph,edge->toId);
++            const AnatomyNode* a=candidateFrom;
++            const AnatomyNode* b=candidateTo;
+             if(!a||!b){MonsterSDF_Free(sdf);return false;}
+             MonsterSDFConnector* c=&sdf->connectors[sdf->connectorCount++]; memset(c,0,sizeof(*c));
+             c->a=a->center;c->b=b->center;

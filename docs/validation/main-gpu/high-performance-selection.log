@@ -1,0 +1,4 @@
+[GPU ERROR] 0000:01:00.0: sin driver/render node accesible
+Revise lspci -nnk, /dev/dri y el driver para el kernel actual. No se cambió el sistema.
+
+exit=1

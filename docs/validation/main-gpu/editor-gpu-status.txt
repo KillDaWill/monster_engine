@@ -1,0 +1,2 @@
+GPU auto · Google Inc. (AMD) · ANGLE (AMD, AMD Radeon Graphics (radeonsi renoir ACO), OpenGL 4.6) · WebGL 2.0 (OpenGL ES 3.0 Chromium) · selección confirmada · WebGL mesh; construcción CPU
+exit=0

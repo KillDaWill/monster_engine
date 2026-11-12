@@ -1,0 +1,6 @@
+[GPU WARNING] Fallback: 0000:01:00.0: sin driver/render node accesible
+[GPU WARNING] Usando integrada; preferencia dedicada NO satisfecha (o equipo de una sola GPU).
+[GPU request] policy=auto PCI=0000:07:00.0 driver=amdgpu
+[GPU probe] {"vendor": "AMD", "renderer": "AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic)", "version": "4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2", "vendor_id": 4098, "device_id": 5688, "accelerated": 1, "hardware": true}
+
+exit=0

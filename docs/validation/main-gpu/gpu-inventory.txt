@@ -1,0 +1,167 @@
+$ lspci -nnk | grep -A3 -Ei "VGA|3D|Display"
+01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GA107M [GeForce RTX 3050 Mobile] [10de:25a5] (rev a1)
+	DeviceName: NVIDIA Graphics Device
+	Subsystem: Hewlett-Packard Company GA107M [GeForce RTX 3050 Mobile] [103c:88ec]
+	Kernel modules: nvidiafb, nouveau
+--
+07:00.0 VGA compatible controller [0300]: Advanced Micro Devices, Inc. [AMD/ATI] Cezanne [Radeon Vega Series / Radeon Vega Mobile Series] [1002:1638] (rev c6)
+	DeviceName:  Onboard IGD
+	Subsystem: Hewlett-Packard Company Cezanne [Radeon Vega Series / Radeon Vega Mobile Series] [103c:88ec]
+	Kernel driver in use: amdgpu
+
+exit=0
+
+$ switcherooctl list
+Device: 0
+  Name:        Advanced Micro Devices, Inc. [AMD®/ATI] Cezanne [Radeon Vega Series / Radeon Vega Mobile Series]
+  Default:     yes
+  Environment: DRI_PRIME=pci-0000_07_00_0
+
+exit=0
+
+$ glxinfo -B
+name of display: :0
+display: :0  screen: 0
+direct rendering: Yes
+Extended renderer info (GLX_MESA_query_renderer):
+    Vendor: AMD (0x1002)
+    Device: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic) (0x1638)
+    Version: 25.2.8
+    Accelerated: yes
+    Video memory: 512MB
+    Unified memory: no
+    Preferred profile: core (0x1)
+    Max core profile version: 4.6
+    Max compat profile version: 4.6
+    Max GLES1 profile version: 1.1
+    Max GLES[23] profile version: 3.2
+Memory info (GL_ATI_meminfo):
+    VBO free memory - total: 67 MB, largest block: 67 MB
+    VBO free aux. memory - total: 6791 MB, largest block: 6791 MB
+    Texture free memory - total: 67 MB, largest block: 67 MB
+    Texture free aux. memory - total: 6791 MB, largest block: 6791 MB
+    Renderbuffer free memory - total: 67 MB, largest block: 67 MB
+    Renderbuffer free aux. memory - total: 6791 MB, largest block: 6791 MB
+Memory info (GL_NVX_gpu_memory_info):
+    Dedicated video memory: 512 MB
+    Total available memory: 8169 MB
+    Currently available dedicated video memory: 67 MB
+OpenGL vendor string: AMD
+OpenGL renderer string: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 7.0.0-38-generic)
+OpenGL core profile version string: 4.6 (Core Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+OpenGL core profile shading language version string: 4.60
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+
+OpenGL version string: 4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.2
+OpenGL shading language version string: 4.60
+OpenGL context flags: (none)
+OpenGL profile mask: compatibility profile
+
+OpenGL ES profile version string: OpenGL ES 3.2 Mesa 25.2.8-0ubuntu0.24.04.2
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20
+
+
+exit=0
+
+$ nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv
+NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running.
+
+
+exit=9
+
+$ ls -l /dev/dri /dev/dri/by-path /dev/nvidia*
+ls: no se puede acceder a '/dev/nvidia*': No existe el archivo o el directorio
+/dev/dri:
+total 0
+drwxr-xr-x  2 root root         80 nov  9 18:02 by-path
+crw-rw----+ 1 root video  226,   1 nov 12 16:23 card1
+crw-rw----+ 1 root render 226, 128 nov  9 18:02 renderD128
+
+/dev/dri/by-path:
+total 0
+lrwxrwxrwx 1 root root  8 nov  9 18:02 pci-0000:07:00.0-card -> ../card1
+lrwxrwxrwx 1 root root 13 nov  9 18:02 pci-0000:07:00.0-render -> ../renderD128
+
+exit=2
+
+$ ls -l /sys/bus/pci/devices/0000:01:00.0/driver /sys/bus/pci/devices/0000:07:00.0/driver
+ls: no se puede acceder a '/sys/bus/pci/devices/0000:01:00.0/driver': No existe el archivo o el directorio
+lrwxrwxrwx 1 root root 0 nov 12 17:13 /sys/bus/pci/devices/0000:07:00.0/driver -> ../../../../bus/pci/drivers/amdgpu
+
+exit=2
+
+$ lsmod | grep -E "nvidia|nouveau|amdgpu"
+amdgpu              21204992  25
+amdxcp                 12288  1 amdgpu
+drm_panel_backlight_quirks    12288  1 amdgpu
+gpu_sched              69632  1 amdgpu
+drm_buddy              28672  1 amdgpu
+drm_ttm_helper         20480  1 amdgpu
+ttm                   135168  2 amdgpu,drm_ttm_helper
+drm_exec               12288  1 amdgpu
+drm_suballoc_helper    24576  1 amdgpu
+drm_display_helper    299008  1 amdgpu
+cec                    98304  2 drm_display_helper,amdgpu
+i2c_algo_bit           16384  1 amdgpu
+video                  77824  1 amdgpu
+
+exit=0
+
+$ modinfo nvidia
+modinfo: ERROR: Module nvidia not found.
+
+exit=1
+
+$ mokutil --sb-state
+SecureBoot disabled
+Platform is in Setup Mode
+
+exit=0
+
+$ uname -r
+7.0.0-38-generic
+
+exit=0
+
+$ xrandr --listproviders
+Providers: number : 0
+
+exit=0
+
+$ __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia glxinfo -B
+X Error of failed request:  BadValue (integer parameter out of range for operation)
+  Major opcode of failed request:  149 (GLX)
+  Minor opcode of failed request:  24 (X_GLXCreateNewContext)
+  Value in failed request:  0x0
+  Serial number of failed request:  67
+  Current serial number in output stream:  68
+name of display: :0
+
+exit=1
+
+$ python3 tools/run_monster_engine_gpu.py --list
+[
+  {
+    "pci": "0000:01:00.0",
+    "vendor": 4318,
+    "device": 9637,
+    "name": "01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GA107M [GeForce RTX 3050 Mobile] [10de:25a5] (rev a1)",
+    "driver": "",
+    "integrated": false,
+    "usable": false
+  },
+  {
+    "pci": "0000:07:00.0",
+    "vendor": 4098,
+    "device": 5688,
+    "name": "07:00.0 VGA compatible controller [0300]: Advanced Micro Devices, Inc. [AMD/ATI] Cezanne [Radeon Vega Series / Radeon Vega Mobile Series] [1002:1638] (rev c6)",
+    "driver": "amdgpu",
+    "integrated": true,
+    "usable": true
+  }
+]
+
+exit=0
+
+Session {'DISPLAY': ':0', 'WAYLAND_DISPLAY': 'wayland-0', 'XDG_SESSION_TYPE': 'wayland'}

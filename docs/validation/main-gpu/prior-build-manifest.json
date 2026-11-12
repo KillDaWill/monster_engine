@@ -1,0 +1,7 @@
+{
+  "baseline_commit": "0eb37d709433aa08ef6c3416cd76edf1a26108f0",
+  "src/MonsterSDF.c": "b83369748145fcad59214ef5f9a9b5eecbc62b443afd7f99959750551994e3ed",
+  "demos/demo_morph_dog_lizard.c": "bfa2c565a53186e2ddd3bc0d9a669ef0b5fccd47be757e5ac00010b70f62b3ce",
+  "build/ager-index-demo/demo-baseline": "fbd56e071e2f2e3cf2ccfe3c1f2014a1aa8e24f4ada8a0dcb8a6788edc7f3089",
+  "build/ager-index-demo/demo-patched": "57fd2c675db097d04d2695f9d478ac726d1c8fbaf2e0501f206d0785969cc607"
+}

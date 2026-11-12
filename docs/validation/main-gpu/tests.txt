@@ -1,0 +1,12 @@
+make -j4 test demos/demo_morph_dog_lizard editor-test: exit 0
+Ran 10 tests in 41.362s
+OK
+ ¡TODAS LAS SUITES PASARON CON ÉXITO!
+
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.002s
+
+OK
+
+Viewport JS: node --input-type=module --check PASS

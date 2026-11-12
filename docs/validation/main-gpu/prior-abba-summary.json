@@ -1,0 +1,138 @@
+{
+  "A1": {
+    "variant": "baseline",
+    "frames": 92,
+    "frame_wall_ms": {
+      "median": 54.131,
+      "p95": 85.633,
+      "max": 120.0369
+    },
+    "sdf_build_cpu_wall_ms": {
+      "median": 0.152471,
+      "p95": 0.207458,
+      "max": 0.314719
+    },
+    "render_gpu_ms": {
+      "median": 39.82365,
+      "p95": 62.4586,
+      "max": 71.5145
+    },
+    "cpu_thread_ms": {
+      "median": 3.4650999999999996,
+      "p95": 4.4438,
+      "max": 4.8242
+    },
+    "ager_cpu_wall_ms": {
+      "median": 0.480677,
+      "p95": 0.801607,
+      "max": 0.880253
+    },
+    "geometry_ager_cpu_wall_ms": {
+      "median": 0.0,
+      "p95": 0.471635,
+      "max": 0.687416
+    }
+  },
+  "B1": {
+    "variant": "patched",
+    "frames": 92,
+    "frame_wall_ms": {
+      "median": 54.99225,
+      "p95": 85.3022,
+      "max": 92.5212
+    },
+    "sdf_build_cpu_wall_ms": {
+      "median": 0.14755200000000002,
+      "p95": 0.208631,
+      "max": 0.283141
+    },
+    "render_gpu_ms": {
+      "median": 39.4376,
+      "p95": 63.6126,
+      "max": 72.4348
+    },
+    "cpu_thread_ms": {
+      "median": 3.64045,
+      "p95": 4.5778,
+      "max": 5.3166
+    },
+    "ager_cpu_wall_ms": {
+      "median": 0.49842,
+      "p95": 0.86219,
+      "max": 0.955823
+    },
+    "geometry_ager_cpu_wall_ms": {
+      "median": 0.0,
+      "p95": 0.554549,
+      "max": 0.792902
+    }
+  },
+  "B2": {
+    "variant": "patched",
+    "frames": 92,
+    "frame_wall_ms": {
+      "median": 53.119,
+      "p95": 84.8492,
+      "max": 115.8677
+    },
+    "sdf_build_cpu_wall_ms": {
+      "median": 0.1380785,
+      "p95": 0.198642,
+      "max": 0.45401
+    },
+    "render_gpu_ms": {
+      "median": 39.6856,
+      "p95": 63.1209,
+      "max": 70.7626
+    },
+    "cpu_thread_ms": {
+      "median": 3.56585,
+      "p95": 4.5541,
+      "max": 4.8905
+    },
+    "ager_cpu_wall_ms": {
+      "median": 0.5089945,
+      "p95": 0.814783,
+      "max": 1.194407
+    },
+    "geometry_ager_cpu_wall_ms": {
+      "median": 0.0,
+      "p95": 0.512581,
+      "max": 0.743039
+    }
+  },
+  "A2": {
+    "variant": "baseline",
+    "frames": 92,
+    "frame_wall_ms": {
+      "median": 53.3588,
+      "p95": 80.9769,
+      "max": 99.8202
+    },
+    "sdf_build_cpu_wall_ms": {
+      "median": 0.15105849999999998,
+      "p95": 0.210875,
+      "max": 0.25602
+    },
+    "render_gpu_ms": {
+      "median": 39.9608,
+      "p95": 63.9538,
+      "max": 73.2254
+    },
+    "cpu_thread_ms": {
+      "median": 3.53405,
+      "p95": 4.4276,
+      "max": 4.768
+    },
+    "ager_cpu_wall_ms": {
+      "median": 0.49555499999999997,
+      "p95": 0.790799,
+      "max": 0.841813
+    },
+    "geometry_ager_cpu_wall_ms": {
+      "median": 0.0,
+      "p95": 0.499318,
+      "max": 0.64048
+    }
+  }
+}

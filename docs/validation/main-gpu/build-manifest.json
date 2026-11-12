@@ -1,0 +1,14 @@
+{
+  "baseline_commit": "0eb37d709433aa08ef6c3416cd76edf1a26108f0",
+  "src/MonsterSDF.c": "b83369748145fcad59214ef5f9a9b5eecbc62b443afd7f99959750551994e3ed",
+  "demos/demo_morph_dog_lizard.c": "436420ec0517dfa4cdd1a0fec9d0e490c229c48a180d0c93d16f50700e02bd8f",
+  "build/ager-index-demo/demo-baseline": "cec0aa202bcb45416176f60a3f2684c384b960839d3e887b8d4c49977d5c1a13",
+  "build/ager-index-demo/demo-patched": "d0ea8d1c22b349d937afbfa640f9693b6a57beb9a1a076dd82e7cd7f400991e7",
+  "common_sources": {
+    "src/OpenGLRenderer.c": "fedc474dc84d97f32dfb96682e671d99682d1c0073317f8366d46e9a226d0897",
+    "include/OpenGLRenderer.h": "f8c40a9e0918a28d05bcff31bf79654f117bbb030605bf0b97e99b716ed1cadb",
+    "tools/run_monster_engine_gpu.py": "0c87b4be32531889a59582bf1560e2b79cdccb83d7b215a07503a2987d0cc7b4"
+  },
+  "compiler": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "cflags": "-Wall -Wextra -Wpedantic -O2 -Iinclude -Itests; canonical Make link flags; baseline adds -Isrc"
+}

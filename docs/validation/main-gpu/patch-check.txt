@@ -1,0 +1,4 @@
+Clean main: git apply --check PASS, applied once.
+Original candidate: git apply --reverse --check PASS (already present).
+Applied source byte-identical to original manual candidate; SHA256 b83369748145fcad59214ef5f9a9b5eecbc62b443afd7f99959750551994e3ed.
+No semantic or textual difference from available MonsterSDF_index.patch.
