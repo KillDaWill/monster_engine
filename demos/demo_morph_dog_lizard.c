@@ -340,6 +340,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    if(!OpenGLRenderer_VerifyCurrentGPU()) {
+        SDL_GL_DeleteContext(glContext);SDL_DestroyWindow(window);SDL_Quit();return 2;
+    }
+    printf("[TIMING] MonsterAger y MonsterSDF_Build: CPU wall; render GPU: query asíncrona, no frame CPU.\n");
     SDL_GL_SetSwapInterval(1); // VSync
 
     /* 2. Configurar cámara 3D */
@@ -443,12 +447,15 @@ int main(int argc, char* argv[]) {
         fputs("{\"mode\":",metadata);WriteJSONText(metadata,surfaceMode);
         fputs(",\"revision\":",metadata);WriteJSONText(metadata,MONSTER_BUILD_REVISION);
         fputs(",\"device\":",metadata);WriteJSONText(metadata,(const char*)glGetString(GL_RENDERER));
+        fputs(",\"vendor\":",metadata);WriteJSONText(metadata,(const char*)glGetString(GL_VENDOR));
+        fputs(",\"gpu_policy\":",metadata);WriteJSONText(metadata,getenv("MONSTER_GPU_POLICY")?getenv("MONSTER_GPU_POLICY"):"direct");
+        fputs(",\"gpu_pci\":",metadata);WriteJSONText(metadata,getenv("MONSTER_GPU_PCI")?getenv("MONSTER_GPU_PCI"):"unverified");
         fputs(",\"opengl\":",metadata);WriteJSONText(metadata,(const char*)glGetString(GL_VERSION));
         fprintf(metadata,",\"width\":%d,\"height\":%d,\"voxel\":%.9g,\"refinement\":%u,\"brick_cells\":%u,\"fur\":%s,\"fixed_timestep\":%.9g,\"argv\":[",
             windowWidth,windowHeight,gridVoxel,gridRefinement,brickCells,noFur?"false":"true",fixedTimestep);
         for(int i=0;i<argc;++i){if(i)fputc(',',metadata);WriteJSONText(metadata,argv[i]);}
         fprintf(metadata,"],\"group_pruning\":%s}\n",getenv("MONSTER_SDF_NO_GROUP_PRUNING")?"false":"true");if(fclose(metadata)!=0)return 2;
-        fprintf(gpuTrace,"age,generation,timing_generation,samples,cells,gpu_bytes,upload_cpu_ms,sampling_gpu_ms,classification_gpu_ms,emission_gpu_ms,render_gpu_ms,total_gpu_ms,slabs,frame_wall_ms,cpu_thread_ms,candidate_bricks,dirty_bricks,new_bricks,active_bricks,resident_sample_bricks,reused_samples,unique_edges,updated_edges,indices,exact_normals,submitted_generation,completed_generation\n");}
+        fprintf(gpuTrace,"age,generation,timing_generation,samples,cells,gpu_bytes,upload_cpu_ms,sampling_gpu_ms,classification_gpu_ms,emission_gpu_ms,render_gpu_ms,total_gpu_ms,slabs,frame_wall_ms,cpu_thread_ms,candidate_bricks,dirty_bricks,new_bricks,active_bricks,resident_sample_bricks,reused_samples,unique_edges,updated_edges,indices,exact_normals,submitted_generation,completed_generation,sdf_build_cpu_wall_ms,ager_cpu_wall_ms,geometry_ager_cpu_wall_ms\n");}
 
     /* 6. Bucle principal de simulación y renderizado */
     bool running = true;
@@ -1033,12 +1040,14 @@ int main(int argc, char* argv[]) {
                 gs.generation=(uint64_t)totalFrames+1;gs.timingGeneration=renderStats.gpuTimingGeneration;
                 gs.renderGPUms=gs.totalGPUms=renderStats.gpuRenderMs;
             }
-            fprintf(gpuTrace,"%.6f,%llu,%llu,%zu,%zu,%zu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%u,%.4f,%.4f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%llu,%llu\n",
+            fprintf(gpuTrace,"%.6f,%llu,%llu,%zu,%zu,%zu,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%u,%.4f,%.4f,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu,%llu,%llu,%.6f,%.6f,%.6f\n",
                 ageFactor,(unsigned long long)gs.generation,(unsigned long long)gs.timingGeneration,
                 gs.samples,gs.cells,gs.gpuBytes,gs.uploadCPUms,gs.samplingGPUms,
                 gs.classificationGPUms,gs.emissionGPUms,gs.renderGPUms,gs.totalGPUms,gs.slabs,wallMs,cpuMs,gs.candidateBricks,gs.dirtyBricks,gs.newBricks,gs.activeBricks,gs.residentSampleBricks,gs.reusedSamples,gs.uniqueEdges,gs.updatedEdges,gs.publishedIndices,gs.exactNormals,
                 (unsigned long long)(gpuCache?gpuCache->submittedGeneration:gs.generation),
-                (unsigned long long)(gpuCache?gpuCache->completedGeneration:gs.timingGeneration));
+                (unsigned long long)(gpuCache?gpuCache->completedGeneration:gs.timingGeneration),
+                (double)exactCompileTicks*1000.0/(double)timerFrequency,
+                ager.lastInterpolationMs,ager.lastGeometryInterpolationMs);
         }
         ++totalFrames;
         if(limitFrames>0 && totalFrames>=limitFrames)running=false;

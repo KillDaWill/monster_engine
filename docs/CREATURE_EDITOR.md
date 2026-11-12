@@ -11,12 +11,22 @@ las mallas del motor. No requiere npm, servicios externos ni conexión a Interne
 make creature-editor
 ```
 
-Abrir http://127.0.0.1:8765. Requiere GCC, make, Python 3 y un navegador con WebGL 2.
+Abre Chrome/Chromium con perfil temporal propio y selección GPU por proceso. Requiere GCC,
+make, Python 3, SDL2, X11/Xwayland y WebGL 2. El pie muestra vendor, renderer y verificación
+del contexto WebGL real: el servidor Python/C sólo calcula geometría en CPU.
+`make creature-editor GPU=integrated` fuerza la integrada; `GPU=0000:01:00.0` exige ese PCI.
+No se reutiliza un navegador abierto, porque podría ignorar PRIME. Cerrar el navegador o Ctrl+C
+termina la sesión gestionada; no cambia el perfil normal del usuario.
 Para cambiar el puerto:
 
 ```sh
-python3 tools/creature_editor/server.py --port 8766
+make creature-editor ARGS='--port 8766'
 ```
+
+Sin abrir navegador/sondear GPU (API, headless o navegador distinto):
+`make creature-editor-server` o `python3 tools/creature_editor/server.py --port 8766`.
+Abrir la URL manualmente no garantiza selección GPU. Revisar `chrome://gpu` si aparece
+SIN VERIFICAR; con GPU explícita el visor rechaza una identidad oculta o distinta.
 
 ## Flujo de edición
 

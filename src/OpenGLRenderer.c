@@ -698,6 +698,30 @@ void OpenGLRenderer_SetupCamera(ICamera* camera, int width, int height) {
 }
 
 static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair);
+bool OpenGLRenderer_VerifyCurrentGPU(void) {
+    const char* vendor=(const char*)glGetString(GL_VENDOR);
+    const char* renderer=(const char*)glGetString(GL_RENDERER);
+    const char* version=(const char*)glGetString(GL_VERSION);
+    const char* policy=getenv("MONSTER_GPU_POLICY");
+    const char* expected=getenv("MONSTER_GPU_EXPECT_RENDERER");
+    const char* pci=getenv("MONSTER_GPU_PCI");
+    const char* kind=getenv("MONSTER_GPU_CLASS");
+    if(!vendor||!renderer||!version)return false;
+    bool software=strstr(renderer,"llvmpipe")||strstr(renderer,"softpipe")||
+        strstr(renderer,"Software")||strstr(renderer,"SwiftShader");
+    bool matched=expected&&!strcmp(expected,renderer)&&!software;
+    GLint samples=0;glGetIntegerv(GL_SAMPLES,&samples);
+    printf("[GPU actual] policy=%s | GL_VENDOR=%s | GL_RENDERER=%s | GL_VERSION=%s | MSAA=%d\n",
+        policy?policy:"direct (sin lanzador)",vendor,renderer,version,samples);
+    printf("[GPU verificación] PCI=%s (mapeado por sondeo) | hardware=%s | contexto coincide=%s | preferencia dedicada=%s\n",
+        pci?pci:"sin verificar",software?"NO":matched?"confirmado por sondeo":"sin certificar",
+        matched?"sí":"sin verificar",matched&&kind&&!strcmp(kind,"discrete")?"sí":"NO / no solicitada");
+    if(expected&&!matched) {
+        fprintf(stderr,"[GPU ERROR] El contexto real no coincide con la GPU sondeada; no continuar silenciosamente.\n");
+        return false;
+    }
+    return true;
+}
 Renderer3D OpenGLRenderer_Create(ICamera* camera) {
     (void)camera;
     Renderer3D renderer;
@@ -2432,6 +2456,7 @@ OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int he
         return OpenGLDemoWindow_CreateMSAA(title,width,height,samples);
     }
     if(!w->context) { OpenGLDemoWindow_Free(w); return NULL; }
+    if(!OpenGLRenderer_VerifyCurrentGPU()) { OpenGLDemoWindow_Free(w); return NULL; }
     int actual=0;glGetIntegerv(GL_SAMPLES,&actual);
     if(samples>actual) {
         GLint maximum=0;glGetIntegerv(GL_MAX_SAMPLES,&maximum);

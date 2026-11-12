@@ -11,6 +11,21 @@ export class Viewport{
         this.canvas=canvas;this.gl=canvas.getContext('webgl2',{antialias:true,alpha:false});
         if(!this.gl)throw Error('El editor necesita WebGL 2. Activa la aceleración gráfica del navegador.');
         const gl=this.gl;
+        // El navegador tiene su propio contexto: la GPU del servidor Python no lo selecciona.
+        const debug=gl.getExtension('WEBGL_debug_renderer_info');
+        const vendor=gl.getParameter(debug?debug.UNMASKED_VENDOR_WEBGL:gl.VENDOR);
+        const renderer=gl.getParameter(debug?debug.UNMASKED_RENDERER_WEBGL:gl.RENDERER);
+        const request=new URLSearchParams(location.hash.slice(1));
+        const software=/llvmpipe|softpipe|swiftshader|software/i.test(renderer);
+        const matches=!!debug&&!software&&!!request.get('renderer')&&renderer.includes(request.get('renderer'));
+        const message=`GPU ${request.get('gpu')||'manual'} · ${vendor} · ${renderer} · ${gl.getParameter(gl.VERSION)} · ${matches?'selección confirmada':'SIN VERIFICAR'} · WebGL mesh; construcción CPU`;
+        console.info(message);
+        const status=document.createElement('div');status.id='gpu-status';status.textContent=message;
+        document.querySelector('footer').append(status);
+        if(request.has('gpu')&&!matches){
+            if(request.get('gpu')!=='auto')throw Error('GPU WebGL no coincide o está oculta por privacidad. '+message);
+            console.warn('Fallback WebGL no verificado; revisar chrome://gpu.');
+        }
         const vertex=`#version 300 es
         in vec3 position;in vec3 normal;in vec4 color;uniform mat4 mvp;out vec3 N;out vec4 C;out vec3 P;
         void main(){P=position;N=normal;C=color;gl_Position=mvp*vec4(position,1.);}`;

@@ -12,12 +12,38 @@ Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico
 
 ## Editor de criaturas
 
-Ejecutar `make creature-editor` y abrir http://127.0.0.1:8765 para crear y modificar
+Ejecutar `make creature-editor` (abre un navegador aislado en http://127.0.0.1:8765) para crear y modificar
 criaturas con vista 3D, controles anatómicos, pintura y cuatro etapas de crecimiento.
 Importa las recetas actuales del motor y guarda nuevas recetas JSON en `recipes/`
 sin recompilar sus datos. Incluye la criatura externa de ejemplo **Explorador**.
-Requiere Python 3 y un navegador con WebGL 2; no necesita npm ni servicios externos.
+El arranque GPU requiere Python 3, SDL2, Chrome/Chromium y X11/Xwayland; no necesita npm.
+Sin navegador gestionado: `make creature-editor-server`, abrir la URL manualmente (GPU no seleccionada).
 Ver [manual del editor y API de carga](docs/CREATURE_EDITOR.md).
+
+### Arranque Linux y GPU
+
+```sh
+make run-morph                           # perro ↔ lagarto continuo, GPU auto
+make run-morph GPU=integrated            # diagnóstico / ahorro de energía
+make run-morph GPU=0000:01:00.0          # PCI explícito, error si no funciona
+make run-morph GPU=high-performance      # exige dedicada; nunca fallback silencioso
+make run-morph ARGS='--view=3 --realtime' # argumentos de demo intactos
+make creature-editor GPU=auto            # selecciona también el proceso del navegador
+python3 tools/run_monster_engine_gpu.py --list
+python3 tools/run_monster_engine_gpu.py --gpu auto -- ./demos/demo_game_scene
+```
+
+El helper prefiere dispositivos secundarios/dedicados mediante una **heurística** de PCI/boot VGA,
+no un ranking de potencia medido. Si hay varias dedicadas, avisa y permite escoger PCI; no supone
+que `DRI_PRIME=1` sea la mejor. `auto` prueba contextos SDL ocultos y permite fallback **avisado**;
+una GPU explícita falla si no se puede mapear/verificar o si cae en software. Mesa usa DRI_PRIME
+por PCI; NVIDIA propietario usa PRIME GLX sobre X11/Xwayland. No cambia drivers ni el escritorio.
+IDs Mesa duplicados y sesiones Wayland sin GLX no se certifican: se informa el fallo, no se inventa
+un mapeo. Las variables PRIME se sustituyen sólo en el hijo; usar `--gpu` para elegir.
+La demo confirma GL_VENDOR/GL_RENDERER/GL_VERSION en su contexto real; WebGL confirma por separado
+en el pie del editor (si privacidad oculta la identidad, muestra SIN VERIFICAR).
+Ejecutar el binario directamente evita el helper. MonsterAger y MonsterSDF_Build siguen siendo CPU;
+la GPU acelera el render, no migra automáticamente estas operaciones.
 
 ## 🚀 Arquitectura General
 

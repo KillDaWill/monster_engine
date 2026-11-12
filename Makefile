@@ -194,12 +194,20 @@ LIZARD_VIEWER_BIN = lizard_viewer
 all: $(TEST_BIN) $(LIZARD_VIEWER_BIN) demos docs
 
 # Editor local; las recetas se cargan como datos sin recompilar el núcleo.
-.PHONY: creature-editor editor-test
+.PHONY: creature-editor creature-editor-server editor-test run-morph
+GPU ?= auto
+ARGS ?=
 $(BUILD_DIR)/creature_editor_bridge: $(CORE_OBJS) tools/creature_editor_bridge.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 creature-editor: $(BUILD_DIR)/creature_editor_bridge
+	python3 tools/run_monster_engine_gpu.py --gpu $(GPU) --editor $(ARGS)
+
+creature-editor-server: $(BUILD_DIR)/creature_editor_bridge
 	python3 tools/creature_editor/server.py
+
+run-morph: $(DEMO_MORPH_BIN)
+	python3 tools/run_monster_engine_gpu.py --gpu $(GPU) -- ./$(DEMO_MORPH_BIN) $(ARGS)
 
 editor-test: $(BUILD_DIR)/creature_editor_bridge
 	python3 tools/creature_editor/test_editor.py

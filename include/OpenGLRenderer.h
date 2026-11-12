@@ -18,6 +18,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/** @brief Informa el contexto actual y verifica el renderer esperado por el lanzador.
+ * Debe llamarse después de crear el contexto y antes de cargar recursos GL.
+ * @return false si el renderer no coincide con el sondeo o es software bajo selección explícita. */
+bool OpenGLRenderer_VerifyCurrentGPU(void);
 /** @brief Instrumentación exclusiva de ribbons largos; tiempo GPU asíncrono. */
 typedef struct LongHairRenderStats {
     size_t guides,strands,bufferBytes;
