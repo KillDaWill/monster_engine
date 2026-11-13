@@ -55,14 +55,23 @@ static bool MarkStation(Mesh* mesh,Vector3 position,float radius) {
     Mesh_Free(&marker);return ok;
 }
 int main(int argc,char** argv) {
-    if(argc<3||argc>5)return 2;
+    if(argc<3||argc>6)return 2;
     int stage=argc>=4?atoi(argv[3]):3;
-    bool natural=argc==5&&!strcmp(argv[4],"surface");
-    bool muscles=argc==5&&!strcmp(argv[4],"muscle");
+    bool natural=argc>=5&&!strcmp(argv[4],"surface");
+    bool muscles=argc>=5&&!strcmp(argv[4],"muscle");
+    /* Estudio rápido con encuadre fijo completo, sin remallar diagnósticos. */
+    bool study=argc>=5&&!strcmp(argv[4],"study");
     CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));Monster* m=malloc(sizeof(*m));
     MonsterVisual* v=malloc(sizeof(*v));char error[256];
     if(!doc||!m||!v||stage<0||stage>3||!CreatureRecipeIO_LoadFile(doc,argv[1],error,sizeof(error)))return 1;
-    *m=Monster_Create();if(!Creature_BuildMonster(m,&doc->recipe,CreatureRecipe_GetStage(&doc->recipe,(CreatureStage)stage)))return 1;
+    CreaturePhenotype sampled;
+    const CreaturePhenotype* phenotype=CreatureRecipe_GetStage(&doc->recipe,(CreatureStage)stage);
+    if(argc==6) {
+        char* end;float age=strtof(argv[5],&end);
+        if(*end||!isfinite(age)||age<0||age>1)return 2;
+        sampled=CreatureRecipe_EvaluateDevelopment(&doc->recipe,age);phenotype=&sampled;
+    }
+    *m=Monster_Create();if(!Creature_BuildMonster(m,&doc->recipe,phenotype))return 1;
     for(size_t i=0;i<m->mouthCount;++i)Mouth_SetOpenFactor(&m->mouths[i],0);
     SDFMesherConfig config=SDFMesher_DefaultConfig();config.voxelSize=.055f*m->phenotype.axial.totalScale;
     config.maxCells=2500000;config.maxResolution=512;
@@ -94,7 +103,7 @@ int main(int argc,char** argv) {
     Vector3 target={0,2.8f*s,-.8f*s};
     Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f}};
     const char* names[]={"side","front","rear","three-quarter"};bool ok=true;
-    for(unsigned view=0;view<4;++view)ok=Capture(&renderer,&camera,&v->mesh,v,target,directions[view],7.6f*s,argv[2],names[view])&&ok;
+    for(unsigned view=0;view<4;++view)ok=Capture(&renderer,&camera,&v->mesh,v,target,directions[view],(study?9.5f:7.6f)*s,argv[2],names[view])&&ok;
     if(muscles) {
         /* Caja completa del campo: el encuadre histórico corta el hocico en
          * lateral. No se oculta ese recorte en las comparaciones antiguas. */
@@ -106,9 +115,17 @@ int main(int argc,char** argv) {
             ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[view],height,argv[2],name)&&ok;
         }
     }
-    ok=Capture(&renderer,&camera,&v->mesh,v,target,Vec3_Create(0,1,0),9.5f*s,argv[2],"top")&&ok;
+    ok=Capture(&renderer,&camera,&v->mesh,v,target,Vec3_Create(0,1,0),(study?14.0f:9.5f)*s,argv[2],"top")&&ok;
     const AnatomyNode* head=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_HEAD);
-    if(head&&!muscles) {
+    if(head&&study) {
+        Vector3 center=Vec3_Add(head->center,Vec3_Create(0,0,.3f*s));
+        const unsigned views[]={0,1,3};
+        for(unsigned i=0;i<3;++i) {
+            char name[80];snprintf(name,sizeof(name),"head-%s",names[views[i]]);
+            ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[views[i]],4.8f*s,argv[2],name)&&ok;
+        }
+    }
+    if(head&&!muscles&&!study) {
         Vector3 center=Vec3_Add(head->center,Vec3_Add(m->head.anatomy.surface.faceMid,Vec3_Create(0,.25f,-.10f)));
         ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[0],2.8f*s,argv[2],"head-side")&&ok;
         ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[1],2.8f*s,argv[2],"head-front")&&ok;
@@ -196,7 +213,7 @@ int main(int argc,char** argv) {
             ok=Capture(&renderer,&camera,&v->mesh,v,center,directions[views[view]],3.2f*s,argv[2],name)&&ok;
         }
     }
-    for(unsigned leg=0;!muscles&&leg<4;++leg) {
+    for(unsigned leg=0;!muscles&&!study&&leg<4;++leg) {
         MonsterSDF limb;MonsterSDFConnector connectors[100];
         if(!MonsterSDF_BuildModuleView(&v->sdf,10+leg,&limb,connectors,100)){ok=false;continue;}
         SDFField field=MonsterSDF_GetField(&limb);SDFMesherConfig detail=config;
@@ -228,6 +245,8 @@ int main(int argc,char** argv) {
         } else fprintf(stderr,"WALK_UNAVAILABLE: no se pudo vincular la malla al esqueleto; no se valida marcha\n");
         AnimatedVisual_Free(&binding);
     }
-    printf("anatomy_capture stage=%d vertices=%zu triangles=%zu walk=%s %s\n",stage,v->mesh.vertexCount,v->mesh.indexCount/3,walking?"CAPTURED":"UNAVAILABLE",ok?"PASS":"FAIL");
+    size_t components=0,largest=0,second=0;
+    Mesh_ComponentStatistics(&v->mesh,&components,&largest,&second);
+    printf("anatomy_capture stage=%d vertices=%zu triangles=%zu components=%zu largest=%zu second=%zu walk=%s %s\n",stage,v->mesh.vertexCount,v->mesh.indexCount/3,components,largest,second,walking?"CAPTURED":"UNAVAILABLE",ok?"PASS":"FAIL");
     OpenGLRenderer_Destroy(&renderer);OpenGLDemoWindow_Free(window);MonsterVisual_Free(v);Monster_Free(m);free(v);free(m);free(doc);return ok?0:1;
 }

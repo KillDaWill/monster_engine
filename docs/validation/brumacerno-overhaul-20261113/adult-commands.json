@@ -1,0 +1,141 @@
+[
+  {
+    "name": "walking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--frames=3600",
+      "--capture-state=walking",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/walking.ppm",
+      "--profile=build/brumacerno-overhaul/adult-actions/walking.json"
+    ],
+    "returncode": 0,
+    "stage_enum": "CreatureLifeStage.LIFE_ADULT=1"
+  },
+  {
+    "name": "turning",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--frames=3600",
+      "--capture-state=turning",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/turning.ppm",
+      "--profile=build/brumacerno-overhaul/adult-actions/turning.json"
+    ],
+    "returncode": 0,
+    "stage_enum": "CreatureLifeStage.LIFE_ADULT=1"
+  },
+  {
+    "name": "drinking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--frames=3600",
+      "--capture-state=drinking",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/drinking.ppm",
+      "--profile=build/brumacerno-overhaul/adult-actions/drinking.json"
+    ],
+    "returncode": 0,
+    "stage_enum": "CreatureLifeStage.LIFE_ADULT=1"
+  },
+  {
+    "name": "feeding",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--focus=23",
+      "--frames=2400",
+      "--capture-state=feeding",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/feeding.ppm",
+      "--profile=build/brumacerno-overhaul/adult-actions/feeding.json"
+    ],
+    "returncode": 0,
+    "stage_enum": "CreatureLifeStage.LIFE_ADULT=1"
+  },
+  {
+    "name": "fleeing",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--scenario=E",
+      "--capture-species=1",
+      "--speed=4",
+      "--frames=6000",
+      "--capture-state=fleeing",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/fleeing.ppm",
+      "--profile=build/brumacerno-overhaul/adult-actions/fleeing.json"
+    ],
+    "returncode": 0,
+    "stage_enum": "CreatureLifeStage.LIFE_ADULT=1"
+  },
+  {
+    "name": "coat-before",
+    "command": [
+      "build/brumacerno-overhaul/ecosystem-baseline",
+      "--recipes-dir=build/brumacerno-overhaul/baseline-catalog",
+      "--no-hud",
+      "--zoom=3",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/coat-before.ppm"
+    ],
+    "returncode": 0
+  },
+  {
+    "name": "coat-after",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--recipes-dir=recipes",
+      "--no-hud",
+      "--zoom=3",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/adult-actions/coat-after.ppm"
+    ],
+    "returncode": 0
+  }
+]

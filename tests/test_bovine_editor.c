@@ -17,6 +17,25 @@
 #include <stdlib.h>
 #include <math.h>
 
+/* Diagnóstico sin eliminar geometría: localiza islotes al fallar la regresión. */
+static size_t ComponentRoot(size_t* parent,size_t i) {
+    while(parent[i]!=i){parent[i]=parent[parent[i]];i=parent[i];}return i;
+}
+static void ComponentLocations(const Mesh* mesh) {
+    size_t* parent=malloc(mesh->vertexCount*sizeof(*parent));
+    size_t* triangles=calloc(mesh->vertexCount,sizeof(*triangles));
+    if(!parent||!triangles){free(parent);free(triangles);return;}
+    for(size_t i=0;i<mesh->vertexCount;++i)parent[i]=i;
+    for(size_t i=0;i+2<mesh->indexCount;i+=3)for(unsigned j=1;j<3;++j)
+        parent[ComponentRoot(parent,mesh->indices[i+j])]=ComponentRoot(parent,mesh->indices[i]);
+    for(size_t i=0;i+2<mesh->indexCount;i+=3)++triangles[ComponentRoot(parent,mesh->indices[i])];
+    for(size_t i=0;i<mesh->vertexCount;++i)if(triangles[i]&&triangles[i]<100) {
+        Vector3 p=mesh->vertices[i].position;
+        fprintf(stderr,"  island triangles=%zu position=(%.6f,%.6f,%.6f)\n",triangles[i],p.x,p.y,p.z);
+    }
+    free(parent);free(triangles);
+}
+
 /** @brief Compara campos serializados, incluidas las cuatro etapas del respaldo C. */
 static void BovineCanonical(void) {
     CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));
@@ -44,7 +63,8 @@ static void BovineAnatomy(void) {
         const HeadAnatomy* h=&monster->head.anatomy;
         TEST_ASSERT(h->landmarks.leftMouthCorner.z>Math_Lerp(h->landmarks.muzzleRoot.z,h->landmarks.muzzleTip.z,.5f),"Comisura distal de rumiante, sin sonrisa canina larga");
         TEST_ASSERT(h->archetype==HEAD_ARCHETYPE_BOVID&&HeadAnatomy_Validate(h)==HEAD_VALID,"Landmarks bóvidos finitos y simétricos");
-        TEST_ASSERT(h->surface.faceTipRadii.x>h->surface.faceMidRadii.x*1.2f,"El morro ensancha después del puente nasal");
+        TEST_ASSERT(h->surface.noseRadii.x>h->surface.faceMidRadii.x*1.2f,"El planum ensancha después del puente nasal; la premaxila queda dentro");
+        TEST_ASSERT(h->surface.hasCranialProfile&&h->surface.hasMandibularProfile,"Ganacha y mandíbula bóvidas usan perfiles continuos");
         TEST_ASSERT(h->surface.faceTip.y<h->surface.faceRoot.y&&h->surface.oralSlope<0,"Rostro y labios descienden juntos");
         TEST_ASSERT(h->surface.hasEars&&h->surface.hasNasalPad,"Conservar pabellones y planum nasal");
         MonsterSDF sdf=MonsterSDF_Create();TEST_ASSERT(MonsterSDF_Build(&sdf,monster,MonsterSDF_DefaultConfig()),"Construir SDF bóvido");
@@ -94,6 +114,62 @@ static void BovineAnatomy(void) {
     }
 }
 
+/** @brief Controles musculares efectivos y continuidad entre etapas, sin proxies. */
+static void BovineDevelopment(void) {
+    HeadPhenotype p=HeadPhenotype_BovinePreset();HeadAnatomy lean,strong;
+    p.masseterMass=0;p.maxillaryWidth=0;p.zygomaticWidth=0;
+    TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.6f,.7f,.6f),&lean),"Resolver cabeza de control");
+    p.masseterMass=1;p.maxillaryWidth=1;p.zygomaticWidth=1;
+    TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.6f,.7f,.6f),&strong),"Resolver musculatura desarrollada");
+    TEST_ASSERT(strong.surface.cheekRadii.y>lean.surface.cheekRadii.y&&
+        strong.surface.leftCheekCenter.x>lean.surface.leftCheekCenter.x&&
+        strong.surface.maxillaryRadii.x>lean.surface.maxillaryRadii.x,"Los controles bóvidos modifican las regiones que describen");
+    TEST_ASSERT(strong.surface.cranialRadii[3].y>lean.surface.cranialRadii[3].y&&
+        strong.surface.cranialRadii[3].x>lean.surface.cranialRadii[3].x,"Masetero y arco cigomático modifican también la envolvente craneal");
+    TEST_ASSERT(strong.surface.faceRootRadii.x>lean.surface.faceRootRadii.x,"maxillaryWidth ensancha también la premaxila, no sólo una masa enterrada");
+    p.cheekMass=0;p.jawDepth=0;
+    TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.6f,.7f,.6f),&lean),"Resolver ganacha ligera");
+    p.cheekMass=1;p.jawDepth=1;
+    TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.6f,.7f,.6f),&strong)&&
+        strong.surface.cranialRadii[3].x>lean.surface.cranialRadii[3].x&&
+        strong.surface.mandibularRadii[3].y>lean.surface.mandibularRadii[3].y,"Mejilla y profundidad mandibular gobiernan sus perfiles reales");
+    p.nostrilPosition=0;
+    TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.6f,.7f,.6f),&lean),"Resolver narinas caudales");
+    p.nostrilPosition=1;
+    TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.6f,.7f,.6f),&strong)&&
+        strong.landmarks.leftNostril.z>lean.landmarks.leftNostril.z,"nostrilPosition conserva efecto en el planum bóvido");
+    Monster* m=malloc(sizeof(*m));TEST_ASSERT(m,"Reservar muestras de desarrollo");
+    const CreatureRecipe* recipe=CreatureRecipes_Brumacerno();
+    for(unsigned sample=0;sample<=24;++sample) {
+        CreaturePhenotype phenotype=CreatureRecipe_EvaluateDevelopment(recipe,sample/24.f);
+        *m=Monster_Create();TEST_ASSERT(Creature_BuildMonster(m,recipe,&phenotype),"Construir edades intermedias reales");
+        TEST_ASSERT(HeadAnatomy_Validate(&m->head.anatomy)==HEAD_VALID,"Landmarks válidos durante crecimiento");
+        MonsterSDF sdf=MonsterSDF_Create();
+        TEST_ASSERT(MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()),"Compilar campo intermedio");
+        for(int i=0;i<sdf.axialStationCount;++i)
+            TEST_ASSERT(MonsterSDF_EvaluateDistance(&sdf,sdf.axialStations[i].center)<0,"Tejido cervical y troncal continuo en estaciones");
+        const MonsterSDFMouth* mouth=&sdf.mouths[0];
+        Vector3 normal=Vec3_Normalize(Vec3_Create(1,.2f,.85f));
+        for(unsigned side=0;side<2;++side)for(unsigned step=0;step<=8;++step) {
+            Vector3 n=normal;if(side)n.x=-n.x;
+            Vector3 point=side?mouth->rightNostrilCenterLocal:mouth->leftNostrilCenterLocal;
+            point=Vec3_Add(point,Vec3_Scale(n,mouth->noseRadii.x*step/8.f));
+            float distance=MonsterSDF_EvaluateDistance(&sdf,Vec3_Add(mouth->center,point));
+            float tolerance=1e-5f*phenotype.axial.totalScale;
+            if(distance<-tolerance)fprintf(stderr,"nostril age=%g side=%u step=%u d=%g dev=%g\n",sample/24.f,side,step,distance,mouth->cephalicDevelopment);
+            TEST_ASSERT(distance>=-tolerance,"Narinas abiertas al exterior, sin cavidades selladas");
+        }
+        for(unsigned leg=0;leg<4;++leg) {
+            LimbRigDescriptor rig;
+            TEST_ASSERT(Limb_BuildRigDescriptor(&phenotype.limbs[leg],10+leg,&m->anatomyGraph,&rig),"Rig conservado al crecer");
+            const AnatomyNode* foot=AnatomyGraph_FindNode(&m->anatomyGraph,rig.endEffector);
+            TEST_ASSERT(fabsf(foot->center.y-rig.soleHeight)<.005f*phenotype.axial.totalScale,"Apoyo plantar conservado sin acortar patas a ciegas");
+        }
+        MonsterSDF_Free(&sdf);Monster_Free(m);
+    }
+    free(m);
+}
+
 /** @brief Máscaras anatómicas continuas y persistencia en bancos de metamorfosis. */
 static void BovineRegionalPigment(void) {
     SurfacePhenotype surface=SurfacePhenotype_Default();
@@ -127,6 +203,8 @@ static void BovineNearTemplate(void) {
     }while(now.tv_sec-start.tv_sec<30);
     TEST_ASSERT(packet.ready&&packet.tier==VISUAL_TIER_NEAR&&packet.bodyMesh,"La validación usa geometría NEAR residente");
     size_t count=0,largest=0,second=0;
+    Mesh_ComponentStatistics(packet.bodyMesh,&count,&largest,&second);
+    if(count!=1){fprintf(stderr,"Bovine NEAR components=%zu largest=%zu second=%zu\n",count,largest,second);ComponentLocations(packet.bodyMesh);}
     TEST_ASSERT(Mesh_ComponentStatistics(packet.bodyMesh,&count,&largest,&second)&&count==1,"Cuerpo, cuernos, cascos y cola forman una sola componente sin borrar tejido");
     const VisualTier tiers[]={VISUAL_TIER_MID,VISUAL_TIER_FAR};
     for(unsigned tier=0;tier<2;++tier) {
@@ -150,7 +228,7 @@ static void BovineNearTemplate(void) {
 }
 
 void run_bovine_editor_tests(void){
-    BovineCanonical();BovineAnatomy();BovineRegionalPigment();BovineNearTemplate();
+    BovineCanonical();BovineAnatomy();BovineDevelopment();BovineRegionalPigment();BovineNearTemplate();
     CreatureRecipeDocument* doc=malloc(sizeof(*doc));Monster* monster=malloc(sizeof(*monster));
     TEST_ASSERT(doc&&monster,"Reservar toro externo");char error[256];
     TEST_ASSERT(CreatureRecipeIO_LoadFile(doc,"recipes/brumacerno.creature.json",error,sizeof(error)),"Cargar el toro guardado desde el editor");

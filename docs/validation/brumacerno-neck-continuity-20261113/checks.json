@@ -1,0 +1,287 @@
+[
+  {
+    "version": "before",
+    "case": "drinking",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.53e-07,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.54383,-0.00511496,-3.20136 max=8.36531,1.19069,-0.820641",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  },
+  {
+    "version": "before",
+    "case": "feeding-isolated-side",
+    "metrics": {
+      "frames": 100,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.33e-07,
+      "stance_foot_error_max_m": 0.001292627,
+      "mouth_err_max_m": 0.003009566,
+      "mouth_err_p95_m": 0.002894109
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=8.75017,-0.00177038,-5.30813 max=11.2744,1.22646,-3.77126",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.0154184,0,0,0.999881",
+      "capture_entity=23 species=1 recipe=3 action=eat stage=1"
+    ]
+  },
+  {
+    "version": "before",
+    "case": "feeding-isolated-three-quarter",
+    "metrics": {
+      "frames": 100,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.33e-07,
+      "stance_foot_error_max_m": 0.001292627,
+      "mouth_err_max_m": 0.003066076,
+      "mouth_err_p95_m": 0.002946072
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=8.75017,-0.00177038,-5.30813 max=11.2744,1.22646,-3.77126",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.0154184,0,0,0.999881",
+      "capture_entity=23 species=1 recipe=3 action=eat stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drinking",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.53e-07,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.54383,-0.00511496,-3.20136 max=8.36531,1.19069,-0.820641",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "feeding-isolated-side",
+    "metrics": {
+      "frames": 100,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.33e-07,
+      "stance_foot_error_max_m": 0.001292627,
+      "mouth_err_max_m": 0.003009566,
+      "mouth_err_p95_m": 0.002894109
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=8.75017,-0.00177038,-5.30813 max=11.2744,1.22646,-3.77126",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.0154184,0,0,0.999881",
+      "capture_entity=23 species=1 recipe=3 action=eat stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "feeding-isolated-three-quarter",
+    "metrics": {
+      "frames": 100,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.33e-07,
+      "stance_foot_error_max_m": 0.001292627,
+      "mouth_err_max_m": 0.003066076,
+      "mouth_err_p95_m": 0.002946072
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=8.75017,-0.00177038,-5.30813 max=11.2744,1.22646,-3.77126",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.0154184,0,0,0.999881",
+      "capture_entity=23 species=1 recipe=3 action=eat stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-mid-frame388",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.15e-07,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=1 body_vertices=46454 head_vertices=0",
+      "capture_body_components=2 largest_triangles=92704 second_triangles=212",
+      "capture_world_body_bounds min=6.54417,-0.00442503,-3.20103 max=8.36603,1.19054,-0.826726",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-far-frame388",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.15e-07,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=0 body_vertices=32004 head_vertices=15076",
+      "capture_body_components=2 largest_triangles=63788 second_triangles=212",
+      "capture_world_body_bounds min=6.54417,1.246e-05,-3.2013 max=8.36603,1.18993,-0.906544",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-cpu",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 0.0,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.54383,-0.00511496,-3.20136 max=8.36531,1.19069,-0.820641",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-three-quarter",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.53e-07,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.54383,-0.00511496,-3.20136 max=8.36531,1.19069,-0.820641",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-seed",
+    "metrics": {
+      "frames": 479,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.46e-07,
+      "stance_foot_error_max_m": 0.002397845,
+      "mouth_err_max_m": 0.001804365,
+      "mouth_err_p95_m": 0.00164698
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.92985,-0.00394189,-2.43296 max=7.93599,0.660165,-1.0539",
+      "capture_jaw_scale=0.194023,0.173698,0.189658 rest_rot=0,0,0,1 pose_rot=0.00604221,0,0,0.999982",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=0"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-larva",
+    "metrics": {
+      "frames": 450,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.39e-07,
+      "stance_foot_error_max_m": 0.001899634,
+      "mouth_err_max_m": 0.002200239,
+      "mouth_err_p95_m": 0.002042933
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.82411,-0.00288489,-2.68083 max=8.02856,0.809787,-0.977186",
+      "capture_jaw_scale=0.351307,0.320779,0.342607 rest_rot=0,0,0,1 pose_rot=0.0066391,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=0"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "drink-juvenile",
+    "metrics": {
+      "frames": 419,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.33e-07,
+      "stance_foot_error_max_m": 0.001376811,
+      "mouth_err_max_m": 0.002697149,
+      "mouth_err_p95_m": 0.00257086
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=133073 head_vertices=0",
+      "capture_body_components=1 largest_triangles=266150 second_triangles=0",
+      "capture_world_body_bounds min=6.65776,-0.00537509,-3.00892 max=8.15047,1.03218,-0.869874",
+      "capture_jaw_scale=0.784622,0.769178,0.781783 rest_rot=0,0,0,1 pose_rot=0.00668094,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=0"
+    ]
+  },
+  {
+    "version": "after",
+    "case": "velkar",
+    "metrics": {
+      "frames": 240,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.68e-07,
+      "stance_foot_error_max_m": 0.001558202,
+      "mouth_err_max_m": 0.002021996,
+      "mouth_err_p95_m": 0.001927598
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=2 body_vertices=67588 head_vertices=0",
+      "capture_body_components=17 largest_triangles=133404 second_triangles=712",
+      "capture_world_body_bounds min=10.5542,-0.000251781,-7.16959 max=12.9716,1.41221,-5.27308",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0,0,0,1",
+      "capture_entity=3 species=2 recipe=4 action=search_food stage=1"
+    ]
+  },
+  {
+    "version": "before",
+    "case": "drink-far-frame388",
+    "metrics": {
+      "frames": 388,
+      "skin_position_error_max": 0.0,
+      "skin_normal_error_max": 2.15e-07,
+      "stance_foot_error_max_m": 0.001342231,
+      "mouth_err_max_m": 0.003097648,
+      "mouth_err_p95_m": 0.002923124
+    },
+    "diagnostics": [
+      "capture_mesh_ready=1 tier=0 body_vertices=32004 head_vertices=15076",
+      "capture_body_components=2 largest_triangles=63788 second_triangles=212",
+      "capture_world_body_bounds min=6.54417,1.246e-05,-3.2013 max=8.36603,1.18993,-0.906544",
+      "capture_jaw_scale=1,1,1 rest_rot=0,0,0,1 pose_rot=0.00670375,0,0,0.999978",
+      "capture_entity=3 species=1 recipe=3 action=drink stage=1"
+    ]
+  }
+]
