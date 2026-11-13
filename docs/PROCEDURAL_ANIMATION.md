@@ -1,5 +1,7 @@
 # Animación esquelética procedural
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 La morfología crea la criatura; la pose mueve su malla existente. El primer
 adaptador es el lagarto, pero Skeleton, IK, Locomotion y AnatomyDeformer no
 consultan especies ni identidades reservadas del lagarto.
@@ -212,7 +214,7 @@ transiciones stance/swing, parada, terreno inclinado, snapshots y cambio juvenil
 El benchmark intercepta malloc/calloc/realloc, MonsterSDF_Build y ambos puntos de
 entrada de SDFMesher para comprobar su ausencia durante animación normal.
 
-Resultados y evidencias de la ejecución: [validación](validation/procedural-animation/README.md).
+Resultados y evidencias de la ejecución: validación (evidencia eliminada).
 
 ## Límites de este hito
 

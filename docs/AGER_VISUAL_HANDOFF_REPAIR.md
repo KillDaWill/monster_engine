@@ -1,5 +1,7 @@
 # Reparación visual de la cesión del Ager — 30-09-2026
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 **Estado global: PARTIALLY IMPLEMENTED; aceptación rechazada.** La nueva propiedad
 anatómica está integrada, pero la reparación no satisface todavía continuidad
 visual completa ni 30 FPS continuos. No se debe interpretar una compilación,
@@ -11,22 +13,22 @@ rediseñan el gestor de chunks ni certifican su publicación incremental.
 ## Evidencia y reproducción
 
 - Compilación forzada y suites: `make -B -j6 test demos` (log conservado en
-  [final/build-tests.log](validation/ager-handoff/final/build-tests.log)).
+  final/build-tests.log (evidencia eliminada).
 - `benchmark_morph_dynamic --worker-delays`: 0, 20, 50, 100, 250, 500, 1000 y
-  3000 ms. [Log](validation/ager-handoff/final/benchmark-worker-delays.log).
-- `benchmark_ager_realtime`: [log](validation/ager-handoff/final/benchmark-ager-realtime.log).
+  3000 ms. Log (evidencia eliminada).
+- `benchmark_ager_realtime`: log (evidencia eliminada).
   Es un benchmark de núcleo sin GL; su resultado de FPS no mide el respaldo SDF.
 - La compilación forzada final, posterior a la última edición, terminó con todas
   las suites correctas y sin warnings de compilación.
-- Comparación del endpoint a edad 1 y retardo 3000: [log](validation/ager-handoff/final/endpoint-silhouette.log).
+- Comparación del endpoint a edad 1 y retardo 3000: log (evidencia eliminada).
   Frente al SDF exacto: 3225 píxeles extra (7,7%) y 2293 faltantes (5,5%).
   El límite heredado de 10% da PASS; no certifica ausencia de huecos o costuras.
 - Matriz GPU secuencial, pelaje activado, resolución original 1100×820:
   `DISPLAY=:0 python3 tools/validate_morph_handoff.py docs/validation/ager-handoff/final/matrix --stress`.
-  [Resultados por ejecución](validation/ager-handoff/final/matrix/summary.json),
-  [log del orquestador](validation/ager-handoff/final/matrix-run.log),
-  [tabla de tiempos](validation/ager-handoff/final/measurements.md).
-- `demos/demo_ager_3d --validate-gpu`: [paridad del campo general](validation/ager-handoff/final/gpu-parity.log),
+  Resultados por ejecución (evidencia eliminada),
+  log del orquestador (evidencia eliminada),
+  tabla de tiempos (evidencia eliminada).
+- `demos/demo_ager_3d --validate-gpu`: paridad del campo general (evidencia eliminada),
   diez edades, error máximo observado 0,000000596; no es una certificación de
   gradientes ni de las interfaces perro→lagarto.
 - Edades de cada ciclo: 0, 0,20, 0,35, 0,50, 0,65, 0,80, 1, 0,80, 0,65,
@@ -41,7 +43,7 @@ aparece además en los máximos de CPU. Las consultas GPU entregan tiempos con
 latencia respecto al frame actual. `render_gpu_ms` agrega mesh, SDF y auxiliares;
 `exact_sdf_submit_ms` es tiempo CPU de envío, **no tiempo GPU SDF**.
 
-![Ciclo frontal con pelaje y retardo 0 ms](validation/ager-handoff/final/matrix/cycle-delay0-view2-review.png)
+Ciclo frontal con pelaje y retardo 0 ms (evidencia eliminada)
 
 La vuelta al perro muestra pérdida transitoria de pabellones auriculares en
 la cabeza predicha. Este defecto invalida la aceptación de «una cabeza completa»
@@ -60,7 +62,7 @@ sin pelaje, tres cuartos. Se distinguió el binario antiguo de las fuentes actua
 
 VISUAL RESULT: costuras en hombro/cuello y cambio de patrón entre torso y patas.
 
-![Línea base recompilada](validation/ager-handoff/baseline/current3000-04.png)
+Línea base recompilada (evidencia eliminada)
 
 PERFORMANCE RESULT: GPU p50 24,8445; p95 41,8612; p99 49,9458; máximo 100,656 ms
 (602 muestras positivas). La línea base actual ya falla 33,3 ms.
@@ -83,7 +85,7 @@ con una caja semántica menor. Una distancia negativa al entrar en la caja no
 se acepta como impacto: se busca una raíz con `abs(distance) < hitTolerance`.
 El ensayo aislado expuso el hueco de la propiedad anterior y no fue aceptado.
 
-![Ensayo aislado de bounds](validation/ager-handoff/bounds/delay3000-04.png)
+Ensayo aislado de bounds (evidencia eliminada)
 
 PERFORMANCE RESULT: p50 26,174; p95 34,1388; p99 37,3428; máximo 63,674 ms.
 
@@ -293,9 +295,9 @@ PERFORMANCE RESULT: no se utiliza el modo diagnóstico para medir apariencia nor
 KNOWN LIMITATIONS: no hay contador GPU, vector normal o error angular por interfaz;
 la revisión de hojas de capturas no sustituye primeros planos de cada articulación.
 
-![Diagnóstico de propiedad y banda](validation/ager-handoff/final/band-debug-04.png)
+Diagnóstico de propiedad y banda (evidencia eliminada)
 
-[Conteo de píxeles rojos por captura](validation/ager-handoff/final/band-debug-boundary.json).
+Conteo de píxeles rojos por captura (evidencia eliminada).
 Es una lectura de color de diagnóstico, no un contador GPU de todos los impactos.
 
 ## Fase 12 — Ruta heredada
@@ -336,12 +338,12 @@ p50 40,2005 / p95 56,5014 / p99 66,6020 / máximo 78,078 ms.
 
 KNOWN LIMITATIONS: faltan consultas GPU separadas para mesh/SDF y un presupuesto
 por componente de cesión CPU. Los retardos 50/100/250/1000 ms también se
-ejecutaron en GPU a tres cuartos: [resultados](validation/ager-handoff/final/performance/summary.json). Hay regresión respecto a la línea base de esta
+ejecutaron en GPU a tres cuartos: resultados (evidencia eliminada). Hay regresión respecto a la línea base de esta
 sesión; la coincidencia material y el SDF completo tienen un coste sin resolver.
 No se declara ≥30 FPS continuos. La prioridad pendiente es alinear y certificar
 la geometría de la banda y la cabeza antes de ampliar optimizaciones GPU.
 
-![Ciclo lateral con 3000 ms de retardo](validation/ager-handoff/final/matrix/cycle-delay3000-view1-review.png)
+Ciclo lateral con 3000 ms de retardo (evidencia eliminada)
 
 ## Fase 14 — Regresión visual final
 

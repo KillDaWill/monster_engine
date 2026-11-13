@@ -1,5 +1,7 @@
 # Interacciones orales con límites anatómicos
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 ## Diagnóstico del comportamiento anterior
 
 La longitud de los huesos ya se conservaba: `SkeletonPose_UpdateWorldTransforms`
@@ -232,7 +234,7 @@ significa que la IA y toda la marcha tengan trazas idénticas con cualquier paso
 percepción, navegación y suelo conservan sus planificaciones existentes.
 
 La evidencia ejecutada y las mediciones finales se recogen en
-[el informe de validación](validation/interactions/RESULTADOS.md). La imposibilidad
+el informe de validación (evidencia eliminada). La imposibilidad
 geométrica se distingue de un bloqueo de búsqueda; los rechazos del estanque en
 una postura de lagarto no se ocultan con consumo a distancia. La selección de un
 cuenco alternativo forma parte de la integración de IA.

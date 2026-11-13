@@ -1,5 +1,7 @@
 # Recuperación de ejecución interactiva perro ↔ lagarto
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 ## Causa y corrección
 
 La caída a menos de 1 FPS tiene una causa de selección de backend: la demo arrancaba en `gpu-sdf-dense`, un extractor volumétrico experimental. Con voxel 0,0175, la retícula tiene aproximadamente 209 millones de esquinas; el plan por franjas evalúa 211.208.130 muestras en cada actualización global. Durante un morph la edad cambia cada frame, así que la caché estática no evita ese trabajo. La espera de fences muestra el trabajo acumulado, no es su causa.
@@ -38,7 +40,7 @@ Comprobaciones adicionales:
 - `--sdf-typo`: salida 2 con mensaje de argumento desconocido, antes de abrir ventana.
 - `git diff --check`: pasa.
 
-Los perfiles, manifests y resúmenes están en [validation/interactive-repair-20261006](validation/interactive-repair-20261006). Las capturas están en `build/interactive-repair/`.
+Los perfiles, manifests y resúmenes están en validation/interactive-repair-20261006 (evidencia eliminada). Las capturas están en `build/interactive-repair/`.
 
 ## Uso
 

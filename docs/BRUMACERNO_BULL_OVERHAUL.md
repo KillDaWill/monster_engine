@@ -1,18 +1,20 @@
 # Brumacerno: revisión anatómica bovina
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 La receta 3 conserva sus nueve módulos, las cuatro etapas de desarrollo y la anatomía procedural SDF. El cambio concentra masa en los cuartos delanteros, reconstruye el perfil facial de rumiante y diferencia cara, pelo, planum nasal, cuernos y cascos. Las imágenes proceden del ecosistema real; no son imágenes generadas ni un modelo importado.
 
 ## Referencia y diagnóstico inicial
 
-Referencia: [Realistic Bull 3D Model, WildMesh 3D](https://sketchfab.com/3d-models/realistic-bull-3d-model-b8b9e4eb79454afcb839d720aceeb515). Se pudo consultar su [miniatura pública de 1920 × 1080](validation/bull-overhaul/reference-preview.jpg), una vista de tres cuartos. La página del visor respondió 403. Se observaron frente ancha, cara inclinada y alargada, cuello potente, pecho profundo, orejas bajo los cuernos, pelaje marrón y cara clara. El lado opuesto, la sección ventral y el recorrido tridimensional posterior de los cuernos se estimaron; no se inspeccionó la malla de referencia. [Procedencia de la imagen](validation/bull-overhaul/reference.json).
+Referencia: [Realistic Bull 3D Model, WildMesh 3D](https://sketchfab.com/3d-models/realistic-bull-3d-model-b8b9e4eb79454afcb839d720aceeb515). Se pudo consultar su miniatura pública de 1920 × 1080 (evidencia eliminada), una vista de tres cuartos. La página del visor respondió 403. Se observaron frente ancha, cara inclinada y alargada, cuello potente, pecho profundo, orejas bajo los cuernos, pelaje marrón y cara clara. El lado opuesto, la sección ventral y el recorrido tridimensional posterior de los cuernos se estimaron; no se inspeccionó la malla de referencia. Procedencia de la imagen (evidencia eliminada).
 
 `CreatureRecipes_Find()` consulta primero `CreatureRecipeRegistry_Find()`. `recipes/catalog.txt` incluye `brumacerno.creature.json`: esa receta externa, no la implementación C anterior, produjo las capturas iniciales. La receta incorporada anterior usaba extremidades mamíferas genéricas, ojos mayores y otro pelaje. Cambiarla por sí sola no habría corregido el ecosistema.
 
 La receta externa original tenía cráneo `.72/.68/.60`, envolvente vertical `1.35`, hocico `.46/.96`, pendiente `.08`, párpados `.38`, compresión `.34` y miembros `LIMB_ARCHETYPE_UNGULATE`. El resultado tenía perfil canino casi horizontal, abertura oral larga, cuello poco desarrollado, patas distales finas, cola corta y poca diferenciación regional. El planum se confundía con una trufa de perro y los ojos sobresalían visualmente.
 
-El límite del resolver estaba en la composición, además de los números: el hocico BLUNT conserva una punta de como máximo `.82 × rootWidth`, mientras que su estación intermedia interpola entre raíz y punta. No podía estrechar un puente y volver a ensanchar la premaxila. La [prueba con parámetros existentes](validation/bull-overhaul/parameters-only/side.png) alargó la cara, pero conservó esa composición canina y una mandíbula horizontal.
+El límite del resolver estaba en la composición, además de los números: el hocico BLUNT conserva una punta de como máximo `.82 × rootWidth`, mientras que su estación intermedia interpola entre raíz y punta. No podía estrechar un puente y volver a ensanchar la premaxila. La prueba con parámetros existentes (evidencia eliminada) alargó la cara, pero conservó esa composición canina y una mandíbula horizontal.
 
-La [receta inicial completa](validation/bull-overhaul/before/recipe.creature.json), su [identificación de versión](validation/bull-overhaul/before/baseline.json), los comandos y las capturas se conservan. El ejecutable inicial queda en `build/bull-overhaul-baseline`; es un artefacto local que `make clean` puede eliminar. Las vistas ortogonales se instrumentaron antes de modificar la morfología. Todas las capturas enfocadas exigen una malla residente del LOD solicitado y registran su número de vértices: no se compararon proxies con el toro final.
+La receta inicial completa (evidencia eliminada), su identificación de versión (evidencia eliminada), los comandos y las capturas se conservan. El ejecutable inicial queda en `build/bull-overhaul-baseline`; es un artefacto local que `make clean` puede eliminar. Las vistas ortogonales se instrumentaron antes de modificar la morfología. Todas las capturas enfocadas exigen una malla residente del LOD solicitado y registran su número de vértices: no se compararon proxies con el toro final.
 
 ## Cambios anatómicos
 
@@ -42,13 +44,13 @@ Misma iluminación del motor, sin HUD, cámaras relativas al individuo y encuadr
 
 | Vista | Antes | Después |
 |---|---|---|
-| Frente | ![Frente inicial](validation/bull-overhaul/before/brumacerno-adult-front.png) | ![Frente final](validation/bull-overhaul/after/brumacerno-adult-front.png) |
-| Lateral | ![Lateral inicial](validation/bull-overhaul/before/brumacerno-adult-side.png) | ![Lateral final](validation/bull-overhaul/after/brumacerno-adult-side.png) |
-| Tres cuartos | ![Tres cuartos inicial](validation/bull-overhaul/before/brumacerno-adult-three-quarter.png) | ![Tres cuartos final](validation/bull-overhaul/after/brumacerno-adult-three-quarter.png) |
+| Frente | Frente inicial (evidencia eliminada) | Frente final (evidencia eliminada) |
+| Lateral | Lateral inicial (evidencia eliminada) | Lateral final (evidencia eliminada) |
+| Tres cuartos | Tres cuartos inicial (evidencia eliminada) | Tres cuartos final (evidencia eliminada) |
 
-Detalles finales: [cabeza frontal](validation/bull-overhaul/after/brumacerno-head-front.png), [cabeza lateral](validation/bull-overhaul/after/brumacerno-head-side.png), [ojos, narinas y concha](validation/bull-overhaul/after/brumacerno-head-three-quarter.png), [cuernos completos](validation/bull-overhaul/correctness/horns-front.png), [cascos frontales](validation/bull-overhaul/after/brumacerno-feet-front.png), [cascos laterales](validation/bull-overhaul/after/brumacerno-feet-side.png), [cuello y hombros](validation/bull-overhaul/after/brumacerno-neck-side.png).
+Detalles finales: cabeza frontal (evidencia eliminada), cabeza lateral (evidencia eliminada), ojos, narinas y concha (evidencia eliminada), cuernos completos (evidencia eliminada), cascos frontales (evidencia eliminada), cascos laterales (evidencia eliminada), cuello y hombros (evidencia eliminada).
 
-Desarrollo y acciones reales: [neonato](validation/bull-overhaul/after/brumacerno-newborn-side.png), [juvenil](validation/bull-overhaul/after/brumacerno-juvenile-side.png), [marcha](validation/bull-overhaul/after/brumacerno-walking.png), [bebida](validation/bull-overhaul/after/brumacerno-drinking.png), [alimentación](validation/bull-overhaul/after/brumacerno-feeding.png), [huida](validation/bull-overhaul/after/brumacerno-fleeing.png). Se conserva también la captura de Velkar y sus acciones para detectar regresiones del camino compartido.
+Desarrollo y acciones reales: neonato (evidencia eliminada), juvenil (evidencia eliminada), marcha (evidencia eliminada), bebida (evidencia eliminada), alimentación (evidencia eliminada), huida (evidencia eliminada). Se conserva también la captura de Velkar y sus acciones para detectar regresiones del camino compartido.
 
 Los manifiestos guardan comandos, códigos de salida, SHA-256 del ejecutable y hashes de los documentos externos. Cada captura tiene un `.log` y un perfil `.json` junto al PNG. Los perfiles de un solo frame incluyen subidas iniciales y no representan FPS estable.
 
@@ -105,9 +107,9 @@ La limitación de la plantilla adulta es visible en el neonato: conserva una rel
 
 ## Resultados medidos
 
-`make test` terminó con todas las suites correctas y `make demos` compiló todas las demos sin advertencias. La comprobación del inicializador canónico, la sintaxis de las herramientas Python y `git diff --check` también pasaron. Los logs de compilación y pruebas están en [correctness](validation/bull-overhaul/correctness/).
+`make test` terminó con todas las suites correctas y `make demos` compiló todas las demos sin advertencias. La comprobación del inicializador canónico, la sintaxis de las herramientas Python y `git diff --check` también pasaron. Los logs de compilación y pruebas están en correctness (evidencia eliminada).
 
-La ejecución final de `capture_ecosystem_creatures.py --actions --details` produjo **38 casos correctos**, con un único SHA-256 de ejecutable y la receta externa identificada en [captures.json](validation/bull-overhaul/after/captures.json). Las capturas enfocadas acreditan residencia NEAR. El adulto tiene 53.675 vértices en el cuerpo y una sola componente conectada; ojos y piezas mandibulares articuladas se mantienen como representaciones anatómicas separadas.
+La ejecución final de `capture_ecosystem_creatures.py --actions --details` produjo **38 casos correctos**, con un único SHA-256 de ejecutable y la receta externa identificada en captures.json (evidencia eliminada). Las capturas enfocadas acreditan residencia NEAR. El adulto tiene 53.675 vértices en el cuerpo y una sola componente conectada; ojos y piezas mandibulares articuladas se mantienen como representaciones anatómicas separadas.
 
 Medidas del adulto canónico, en unidades locales del modelo, antes de su calibración ecológica:
 
@@ -121,7 +123,7 @@ Medidas del adulto canónico, en unidades locales del modelo, antes de su calibr
 | Distancia entre ojos | 1,6130 | 2,0563 |
 | Pendiente labial resuelta | 0 | −0,6863 |
 
-Los [landmarks completos](validation/bull-overhaul/correctness/anatomy.json) incluyen cotas del campo, ojos, narinas, boca y extremos de ambos cuernos en las cuatro etapas. Los ejes centrales muestreados de cuernos, cascos y cola no tienen huecos: 510/748/748/748 muestras según etapa. Esta prueba complementa la conectividad de la malla NEAR; no sustituye una demostración topológica para todos los fenotipos aleatorios ni para todas las resoluciones.
+Los landmarks completos (evidencia eliminada) incluyen cotas del campo, ojos, narinas, boca y extremos de ambos cuernos en las cuatro etapas. Los ejes centrales muestreados de cuernos, cascos y cola no tienen huecos: 510/748/748/748 muestras según etapa. Esta prueba complementa la conectividad de la malla NEAR; no sustituye una demostración topológica para todos los fenotipos aleatorios ni para todas las resoluciones.
 
 | Comprobación | Resultado |
 |---|---|
@@ -137,9 +139,9 @@ Los [landmarks completos](validation/bull-overhaul/correctness/anatomy.json) inc
 
 Los errores de boca miden alineación visual con el landmark físico, no distancia al recurso. Las pruebas ecológicas existentes verifican alcance real, rechazo de objetivos imposibles, contacto sostenido y transferencia autorizada; las capturas de bebida y alimentación corresponden a esos estados del controlador, sin colocar la cabeza manualmente.
 
-El [fallback CPU](validation/bull-overhaul/correctness/matrix.json) produjo imágenes prácticamente iguales al camino GPU: neonato idéntico; adulto con diferencia media de canal 0,00156/255 y 159 píxeles con diferencia superior a 3; bebida con 0,00097/255 y 103 píxeles. Los máximos aislados son 45–46/255 en contornos rasterizados. No se exige identidad binaria de píxeles para afirmar la paridad geométrica. [Mediciones](validation/bull-overhaul/correctness/cpu-gpu-images.json).
+El fallback CPU (evidencia eliminada) produjo imágenes prácticamente iguales al camino GPU: neonato idéntico; adulto con diferencia media de canal 0,00156/255 y 159 píxeles con diferencia superior a 3; bebida con 0,00097/255 y 103 píxeles. Los máximos aislados son 45–46/255 en contornos rasterizados. No se exige identidad binaria de píxeles para afirmar la paridad geométrica. Mediciones (evidencia eliminada).
 
-El LOD FAR conserva cabeza independiente; su cuerpo aislado no debe confundirse con la representación completa al contar componentes. Las [vistas forzadas NEAR](validation/bull-overhaul/correctness/lod-near.png), [MID](validation/bull-overhaul/correctness/lod-mid.png) y [FAR](validation/bull-overhaul/correctness/lod-far.png) muestran la pérdida de microdetalle. El ciclo comprueba el cambio de representación y la continuidad de landmarks, pero no certifica invisibilidad perceptual de toda transición.
+El LOD FAR conserva cabeza independiente; su cuerpo aislado no debe confundirse con la representación completa al contar componentes. Las vistas forzadas NEAR (evidencia eliminada), MID (evidencia eliminada) y FAR (evidencia eliminada) muestran la pérdida de microdetalle. El ciclo comprueba el cambio de representación y la continuidad de landmarks, pero no certifica invisibilidad perceptual de toda transición.
 
 ## Rendimiento del ecosistema
 
@@ -157,4 +159,4 @@ El detalle adicional aumenta el calentamiento inicial: de 1,92 a 3,73 segundos e
 
 En poblaciones mixtas, el error máximo de apoyo alcanza 42,48 mm con 30 animales y 44,35 mm con 100, prácticamente igual al baseline. El máximo que incluye pies en vuelo pasa de 69 a 133 mm en la prueba de 30; no se presenta esa medida como precisión milimétrica global de IK. Las cifras milimétricas de la tabla anterior corresponden exclusivamente a las secuencias bovinas aisladas indicadas.
 
-[Comandos, hashes y resultados de cámara fija](validation/bull-overhaul/performance/manifest.json), [escena de 30 animales](validation/bull-overhaul/performance/fixed-after-30.png) y [escena de 100](validation/bull-overhaul/performance/fixed-after-100.png). Los perfiles `before-*` y `after-*` sin prefijo `fixed-` corresponden a la pasada preliminar con seguimiento: se excluyen de la comparación principal porque en la de 100 el seguimiento cambió el número de individuos visibles.
+Comandos, hashes y resultados de cámara fija (evidencia eliminada), escena de 30 animales (evidencia eliminada) y escena de 100 (evidencia eliminada). Los perfiles `before-*` y `after-*` sin prefijo `fixed-` corresponden a la pasada preliminar con seguimiento: se excluyen de la comparación principal porque en la de 100 el seguimiento cambió el número de individuos visibles.

@@ -1,5 +1,7 @@
 # Reparación de morphing asíncrono por bloques
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 ## Fallo reproducido
 
 En el ciclo perro → lagarto → perro con `--worker-delay=3000`, la captura
@@ -74,12 +76,12 @@ representación antigua.
 - La primera vista filtrada únicamente por conectores dejaba el torso vacío;
   se corrigió la selección de malla para conservar regiones de tronco. Esa
   captura descartada se conserva como `build/morph-repair-module-04.ppm`.
-- [Fallo original](validation/ager-chunked-repair/before-double-body.png):
+- Fallo original (evidencia eliminada):
   cuerpo viejo y SDF actual visibles juntos.
-- [Ciclo de cuatro vistas a 3000 ms](validation/ager-chunked-repair/four-views-3000ms.png)
-  y [ciclo final con pelaje](validation/ager-chunked-repair/furred-cycle-head-owned-3000ms.png):
+- Ciclo de cuatro vistas a 3000 ms (evidencia eliminada)
+  y ciclo final con pelaje (evidencia eliminada):
   en las capturas inspeccionadas se ve una sola criatura. El
-  [ciclo con AABB compactos](validation/ager-chunked-repair/compact-regions-cycle-3000ms.png)
+  ciclo con AABB compactos (evidencia eliminada)
   mantiene esa forma. Estas capturas no demuestran ausencia de costuras en
   todos los fotogramas ni todas las criaturas.
 

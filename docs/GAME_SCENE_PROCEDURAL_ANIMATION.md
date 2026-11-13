@@ -1,5 +1,7 @@
 # Marcha y giros procedurales de la escena
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 La demo del juego usa ahora `GaitPreset_CanidWalk`: paso de cuatro tiempos,
 zancada calculada con todos los segmentos de las patas y elevación proporcional
 al metapodio más corto. La receta estática del perro conserva su comportamiento;
@@ -40,7 +42,7 @@ por debajo del límite de regresión de `0.004`. No se declara convergencia cuan
 el residuo supera el objetivo nominal.
 
 Las capturas y perfiles están en
-[`validation/game-scene/animation-20261008`](validation/game-scene/animation-20261008/).
+`validation/game-scene/animation-20261008` (evidencia eliminada).
 Las hojas de cuatro fotogramas muestran vistas lateral/frontal del perro y el
 lagarto girando. Las tres secuencias usan las dos criaturas, pelaje activo,
 212 fotogramas, semilla 137 y paso fijo de 1/60 s.

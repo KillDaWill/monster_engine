@@ -1,5 +1,7 @@
 # Mutación continua y rendimiento de Game Scene
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 Fecha: 6 de octubre de 2026.
 
 La optimización posterior de IK y contacto, el límite de 60 FPS y la detección de órbitas se documentan en [GAME_SCENE_AGER_PACING.md](GAME_SCENE_AGER_PACING.md), con comparaciones sobre variantes completas.

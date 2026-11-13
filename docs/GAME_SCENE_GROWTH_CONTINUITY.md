@@ -1,5 +1,7 @@
 # Crecimiento de accesorios y continuidad de pigmentos en Game Scene
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 7 de octubre de 2026. Evidencia: `docs/validation/game-scene/continuity-20261007/`.
 
 ## Causas y reparación

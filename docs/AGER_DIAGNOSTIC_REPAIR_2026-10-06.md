@@ -1,5 +1,7 @@
 # Correcciones del diagnóstico perro ↔ lagarto — 6 de octubre de 2026
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 ## Estado real
 
 **PARTIALLY IMPLEMENTED.** Se han reparado errores concretos de trazado, invalidación, finalización y aceptación, y reducido trabajo GPU. La misión de 30 FPS estables sin defectos visuales **no está cumplida**. Las capturas actuales siguen rechazando la cobertura regional y la auditoría de extracción encuentra triángulos opuestos y degenerados.
@@ -36,7 +38,7 @@ El denso estático deja de remuestrear sus 211.208.130 esquinas después del pri
 
 Cinco recorridos muestreados por las edades del diagnóstico, seguidos de saltos abruptos, ejecutaron 94 frames y terminaron con salida 0. Wall: p50 2297,86 ms, p95 2826,79 ms, p99 3176,30 ms, máximo 3619,76 ms; **94/94 exceden presupuesto**. Se recogieron 92 consultas GPU; las dos últimas quedaron pendientes. Esos recorridos discretos no sustituyen cinco ciclos continuos ni certifican las últimas generaciones sin inspección adicional. El registro incluye el arranque; no se excluyó calentamiento.
 
-Los CSV, manifests, resúmenes y logs relevantes están en [validation/diagnostico-20261006](validation/diagnostico-20261006). Capturas y salidas extensas de esta sesión están en `build/diagnostico-20261006/`.
+Los CSV, manifests, resúmenes y logs relevantes están en validation/diagnostico-20261006 (evidencia eliminada). Capturas y salidas extensas de esta sesión están en `build/diagnostico-20261006/`.
 
 ## Validación ejecutada
 

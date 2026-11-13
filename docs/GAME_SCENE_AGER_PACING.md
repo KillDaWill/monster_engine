@@ -1,5 +1,7 @@
 # Ager, límite de frecuencia y navegación
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 Medición del 7 de octubre de 2026 en AMD Renoir, Mesa 25.2.8, 1200 × 850,
 MSAA 4, pelaje activo, plataforma de 56 × 56 y voxel SDF de 0,075.
 
@@ -101,4 +103,4 @@ monitor; los giros iniciales y los avances continuos conservan su plazo.
 ```
 
 Los CSV, logs y resúmenes de estas ejecuciones se conservan en
-[`validation/game-scene/ager-pacing/`](validation/game-scene/ager-pacing/).
+`validation/game-scene/ager-pacing/` (evidencia eliminada).

@@ -1,5 +1,7 @@
 # Diagnóstico de Monster Engine: morph perro ↔ lagarto
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 Fecha: 6 de octubre de 2026. Repositorio: KillDaWill/monster_engine. Revisión fijada al commit [`75b199b1fa69a3c1a0772c4c61d104eea8529742`](https://github.com/KillDaWill/monster_engine/commit/75b199b1fa69a3c1a0772c4c61d104eea8529742), publicado hoy. No se ha modificado el repositorio.
 
 ## Resultado y alcance
@@ -38,7 +40,7 @@ La retícula registrada para voxel 0,0175 tiene 422 × 489 × 1011 celdas y 209.
 | AMD Renoir, denso compacto, voxel 0,035 | 618,02 ms | 129,56 ms | 785,05 ms | 794,13 ms |
 | RTX 3050 Laptop, denso, voxel 0,0175 | 1786,73 ms | 387,52 ms | 2200,00 ms | 2203,99 ms |
 
-Fuentes: [perfil AMD](https://github.com/KillDaWill/monster_engine/blob/75b199b1fa69a3c1a0772c4c61d104eea8529742/docs/validation/ager-gpu-sdf/mesa-compact-profile.json) y [perfil NVIDIA](https://github.com/KillDaWill/monster_engine/blob/75b199b1fa69a3c1a0772c4c61d104eea8529742/docs/validation/ager-gpu-sdf/nvidia-fence-sleep-profile.json). Son ensayos estáticos cortos, no mediciones nuevas ni una comparación controlada entre GPUs. Demuestran que esa configuración medida está muy lejos del presupuesto de 33,33 ms.
+Fuentes: perfil AMD (evidencia eliminada) y perfil NVIDIA (evidencia eliminada). Son ensayos estáticos cortos, no mediciones nuevas ni una comparación controlada entre GPUs. Demuestran que esa configuración medida está muy lejos del presupuesto de 33,33 ms.
 
 Las fences limitan dos frames pendientes; su espera revela el trabajo acumulado. `SDL_Delay(1)` reduce ocupación CPU, pero no reduce el trabajo GPU. Eliminar la espera solo permitiría acumular cola y falsear la impresión de fluidez.
 
@@ -54,7 +56,7 @@ Contraejemplo ejecutado: una lámina de espesor 0,004 dentro de una celda de lad
 
 `CreatureMorph.c::MixHead` contrae `earShape` y `earRadii` con el peso de la especie que tiene orejas. Durante la desaparición/reaparición habrá detalles inferiores al paso de rejilla. Al desplazarse respecto a la retícula pueden desaparecer y volver a aparecer. Refinar raíces en `sdf_surface_emit.comp::edgeRoot` o `sdf_sparse_root.comp::edgeRoot` no recupera una celda que nunca se clasificó activa.
 
-La auditoría guardada de voxel 0,0175 registra 56–179 triángulos opuestos y 241–436 degenerados según edad, aunque no hay aristas abiertas. Una superficie cerrada puede omitir una lámina completa; cero boundary edges no certifica fidelidad anatómica. Fuente: [dense-center0175-field-audit.json](https://github.com/KillDaWill/monster_engine/blob/75b199b1fa69a3c1a0772c4c61d104eea8529742/docs/validation/ager-gpu-sdf/dense-center0175-field-audit.json).
+La auditoría guardada de voxel 0,0175 registra 56–179 triángulos opuestos y 241–436 degenerados según edad, aunque no hay aristas abiertas. Una superficie cerrada puede omitir una lámina completa; cero boundary edges no certifica fidelidad anatómica. Fuente: dense-center0175-field-audit.json (evidencia eliminada).
 
 **Corrección:** clasificar también incertidumbre del intervalo del campo. Si el intervalo puede contener cero, no descartar una celda solo por sus esquinas. Subdividir o muestrear su interior hasta resolver la feature con una tolerancia geométrica explícita. Una muestra central aislada tampoco certifica ausencia de superficie. Mantener fronteras conformes y claves compartidas entre celdas/bricks; resolver casos ambiguos de MC con un método topológicamente consistente. Si se exige retícula uniforme, usar una resolución suficientemente fina en el soporte disperso; si se permite refinamiento local, añadir transición de fronteras certificada. No engrosar orejas artificialmente ni reducir resolución para ocultar el coste.
 

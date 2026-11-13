@@ -1,5 +1,7 @@
 # Contención y navegación de la escena
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 La plataforma de `demo_game_scene` mide ahora 56×56 m. Las paredes invisibles
 están en X/Z = ±28; las guías de depuración coinciden con ellas. `--stage-half`
 permite ensayar otras dimensiones sin modificar la geometría de las criaturas.
@@ -71,7 +73,7 @@ original de 26×26 m. En la escena entregada, la mediana estable del contacto es
 aproximadamente 0,07 ms. Estas medidas no certifican 60 FPS para todas las variantes
 ni eliminan los picos heredados de extracción GPU durante mutaciones complejas.
 
-[Perfiles, registros y capturas](validation/game-scene/boundary-performance/).
+Perfiles, registros y capturas (evidencia eliminada).
 Evidencia final: `build-tests-pose.log`, `after-pose.csv`, `after-realtime.csv`,
 `verified-long.log` y `verified-long.png`. Los archivos `weighted*` documentan
 experimentos de diagnóstico y no corresponden al código entregado.

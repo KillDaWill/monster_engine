@@ -1,5 +1,7 @@
 # Lagarto: anatomía, detalle local y crecimiento
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 ## Estado y referencia
 
 Implementación sobre el árbol de trabajo recibido, basado en `4453204` y con
@@ -152,7 +154,7 @@ usa ahora el mismo preset adulto y conserva su pose mientras orbita la cámara.
 | 1,00 | Silueta adulta profunda, rostro ahusado y mandíbula con suelo continuo. |
 
 Las imágenes son renders OpenGL reales, no ilustraciones. Los paneles comparan
-cámaras idénticas. Se conservan en [validation/lizard-growth](validation/lizard-growth/).
+cámaras idénticas. Se conservan en validation/lizard-growth (evidencia eliminada).
 El resultado es una anatomía procedural simplificada: dedos agrupados y ausencia
 de escamas/locomoción limitan el realismo. Las pruebas de estanqueidad acreditan
 los casos medidos, no todas las configuraciones arbitrarias posibles de CSG.
@@ -223,15 +225,15 @@ producción: ese residuo ya pequeño no acredita una mejora visual suficiente pa
 sumar cerca del 49 % al coste de esta cabeza. Se conservan los gradientes de
 rejilla corregidos por espaciado real; la herramienta permite repetir el ensayo.
 
-Datos: [referencia](validation/lizard-growth/baseline-benchmark.txt),
-[18 mediciones finales](validation/lizard-growth/benchmark-after.csv),
-[cabeza y proyección](validation/lizard-growth/benchmark-head.txt).
+Datos: referencia (evidencia eliminada),
+18 mediciones finales (evidencia eliminada),
+cabeza y proyección (evidencia eliminada).
 
 ## Resultado de las comprobaciones finales
 
 `make -B test demos benchmarks/benchmark_lizard lizard_viewer` terminó con código
 0, sin avisos del compilador y con todas las suites aprobadas. `git diff --check`
-también pasó. Registro: [build-test.log](validation/lizard-growth/build-test.log).
+también pasó. Registro: build-test.log (evidencia eliminada).
 
 Se ejecutó la suite completa con AddressSanitizer y UndefinedBehaviorSanitizer:
 
@@ -245,7 +247,7 @@ make BUILD_DIR=/tmp/monster-sanitize TEST_BIN=/tmp/monster-sanitize-tests \
 Terminó con código 0, sin errores ni fugas. Se corrigieron liberaciones omitidas
 en fixtures antiguos: tres scratch buffers de mesher y el endpoint adulto de
 una prueba de transición ocular. Registro:
-[sanitizers.log](validation/lizard-growth/sanitizers.log).
+sanitizers.log (evidencia eliminada).
 
 La captura final se ejecutó mediante la herramienta reproducible y se revisaron
 los ocho paneles de cinco edades y las cuatro aperturas mandibulares. Además,
@@ -255,10 +257,10 @@ smoothstep semántico solicitado. No hubo solicitudes duplicadas en este recorri
 El visor principal se ejecutó durante 8 segundos. Ambos procesos atendieron el
 cierre; el comando `timeout` devuelve 124 al alcanzar el límite previsto. Esta
 comprobación automática corta no equivale a observar un ciclo completo de edad.
-Véanse [automatic.log](validation/lizard-growth/automatic.log) y
-[viewer.log](validation/lizard-growth/viewer.log).
+Véanse automatic.log (evidencia eliminada) y
+viewer.log (evidencia eliminada).
 
-![Comparación con cámaras idénticas](validation/lizard-growth/before-after.png)
+Comparación con cámaras idénticas (evidencia eliminada)
 
 ## Archivos modificados en esta ejecución
 

@@ -1,5 +1,7 @@
 # Análisis y estrategia de optimización del Ager en la escena del juego
 
+> **Nota (2026-11-13):** la evidencia visual de este informe se retiró del repositorio para reducir su tamaño; el análisis y las mediciones se conservan.
+
 8 de octubre de 2026. Estado: análisis de código y medición; las optimizaciones propuestas todavía no están implementadas.
 
 La caída al pulsar T procede principalmente de recompilar estructuras de contacto y certificar el campo SDF en CPU, con extracción GPU adicional. La interpolación semántica de MonsterAger representa una fracción pequeña del fotograma. El primer cambio concreto debería eliminar las búsquedas repetidas del recorrido axial en MonsterSDF_Build; después hay que convertir el contacto y las consultas conservadoras en actualizaciones de estructuras persistentes.
@@ -158,4 +160,4 @@ Si se cambian interfaces compartidas, realizar make -B test demos; regenerar hea
 MONSTER_SPARSE_NO_RANGE_CERTIFICATION=1 ./demos/demo_game_scene --headless --benchmark-uncapped --frames=300 --target=7 --seed=42 --profile=/tmp/sailback-no-cert.csv
 ```
 
-[CSV, logs, hashes, resúmenes y parches de instrumentación](validation/game-scene/ager-analysis-20261008/).
+CSV, logs, hashes, resúmenes y parches de instrumentación (evidencia eliminada).
