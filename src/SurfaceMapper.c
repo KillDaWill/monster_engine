@@ -372,8 +372,9 @@ bool SurfaceMapper_BuildMorphDomain(SurfaceMorphDomain* domain,const AnatomyGrap
             data[j][0]=points[j].x;data[j][1]=points[j].y;data[j][2]=points[j].z;data[j][3]=radii[j];
         }
         data[4][0]=q.x;data[4][1]=q.y;data[4][2]=q.z;data[4][3]=q.w;
-        data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:Region(mapping,rb->id));
-        data[5][1]=data[5][2]=data[5][3]=0;
+        data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:Region(mapping,ra->id));
+        data[5][1]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:Region(mapping,rb->id));
+        data[5][2]=data[5][3]=0;
     }
     if(!domain->count)return false;
     MapAcceleration accel;BuildAcceleration(&accel,segments,domain->count);

@@ -489,6 +489,35 @@ typedef struct MonsterSDFSurfaceFeature {
  */
 size_t MonsterSDF_CollectSurfaceFeatures(const MonsterSDF* sdf,MonsterSDFSurfaceFeature* out,size_t capacity,float band);
 
+/** @brief Malla espacial compacta de sólo lectura para acelerar consultas puntuales exactas de MonsterSDF. */
+#define MONSTER_SDF_DISTANCE_GRID_RES 12
+#define MONSTER_SDF_DISTANCE_GRID_CELLS (MONSTER_SDF_DISTANCE_GRID_RES * MONSTER_SDF_DISTANCE_GRID_RES * MONSTER_SDF_DISTANCE_GRID_RES)
+typedef struct MonsterSDFDistanceCell {
+    uint64_t connectorMask[4];
+    uint32_t mouthMask;
+    uint8_t useAllConnectors;
+    uint8_t useCutters;
+} MonsterSDFDistanceCell;
+
+typedef struct MonsterSDFDistanceGrid {
+    const MonsterSDF* sdf;
+    Vector3 origin;
+    Vector3 cellSize;
+    Vector3 invCellSize;
+    AABB3D bounds;
+    bool valid;
+    MonsterSDFDistanceCell cells[MONSTER_SDF_DISTANCE_GRID_CELLS];
+} MonsterSDFDistanceGrid;
+
+/** @brief Inicializa un acelerador espacial vacío. */
+void MonsterSDFDistanceGrid_Init(MonsterSDFDistanceGrid* grid);
+/** @brief Precompila máscaras conservadoras por celda para acelerar MonsterSDFDistanceGrid_EvaluateDistance sin cambiar el resultado. */
+bool MonsterSDFDistanceGrid_Build(MonsterSDFDistanceGrid* grid, const MonsterSDF* sdf);
+/** @brief Evalúa exactamente la distancia SDF usando el acelerador espacial precompilado (seguro para múltiples hilos en lectura). */
+float MonsterSDFDistanceGrid_EvaluateDistance(const MonsterSDFDistanceGrid* grid, Vector3 point);
+/** @brief Adaptador de callback genérico para subsistemas como LongHair. */
+float MonsterSDFDistanceGrid_EvaluateDistanceWrapper(const void* context, Vector3 point);
+
 #ifdef __cplusplus
 }
 #endif

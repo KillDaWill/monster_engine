@@ -180,24 +180,24 @@ make clean
    Presenta un estudio cercano de cabeza, cuello y hombros de lagarto con ojos embebidos, rostrum largo, narinas sustractivas, mandíbula articulada y transición de tejido blando.
    `ESPACIO` alterna la animación, las flechas ajustan `openFactor` y `R` reinicia.
 
-5. **Metamorfosis Extrema Inter-Especies (`demos/demo_morph_dog_lizard`)**:
-   Prueba el `MonsterAger` al extremo conectando dos especies biológicamente dispares: un Perro digitígrado con pelaje (`CreatureRecipes_Dog()`) y un Lagarto de andadura baja con escamas (`CreatureRecipes_Lizard()`).
+5. **Metamorfosis Universal Inter-Especies (`demos/demo_morph_species`)**:
+   Prueba el `MonsterAger` conectando de forma continua e interpolada cualquier criatura `X` con cualquier otra receta `Y` del catálogo (incluyendo criaturas aleatorias generadas con `CreatureVariation` y las especies `Lagarto`, `Perro`, `Brumacerno`, `Velkar`, `Explorador`, `Caballo`, `Asno`).
    El arranque normal y `--sdf` usan `sdf-raymarch`: trazado GPU por píxel del campo actual, sin extracción de una rejilla volumétrica. `--surface-mode=exact-sdf` activa el trazado de referencia para diagnóstico. `gpu-sdf-dense`, `gpu-sdf-sparse` y `legacy-handoff` requieren selección explícita con `--surface-mode=...`.
-   - El pelaje canino se acorta y reduce su densidad hasta desaparecer en la primera mitad (0% a 45%).
-   - Se atraviesa una fase de piel desnuda intermedia (45% a 55%) donde se repliegan las orejas, el tórax se aplana y las patas se abren hacia los lados (*sprawl*).
-   - El Ager interpola anatomía resuelta mediante IDs semánticos; las ramas ausentes se contraen hacia su ancestro compartido. El SDF interactivo utiliza la edad actual; `--legacy-lag` conserva el control experimental por desfase de malla.
-   - En la segunda mitad (55% a 100%), brotan las escamas reptilianas ganando relieve y quilla junto con la paleta de pigmentos esmeralda y amarilla.
-   - **ESPACIO**: Alternar metamorfosis automática (oscilación fluida de ida y vuelta).
-   - **Flechas DERECHA / IZQUIERDA**: Control manual fino del porcentaje de metamorfosis.
-   - **0, 1, 2, 3, 4**: Atajos a etapas clave (0%: Perro con pelo, 25%: Adelgazamiento, 50%: Piel desnuda, 75%: Escamas incipientes, 100%: Lagarto).
+   - Inicia mostrando una criatura aleatoria; pulsar cualquier tecla numérica muta suavemente la criatura mostrada hacia esa receta destino (`0% -> 100%`).
+   - **1..9**: Mutar desde la criatura actual hacia la especie correspondiente del catálogo (`Caballo`, `Brumacerno`, `Lagarto`, `Perro`, `Velkar`, `Explorador`, `Asno`, ...).
+   - **0**: Generar una nueva criatura aleatoria y mutar suavemente hacia ella.
+   - **ESPACIO**: Alternar oscilación continua de ida y vuelta entre origen y destino actuales.
+   - **Flechas DERECHA / IZQUIERDA**: Control manual fino del porcentaje de metamorfosis (0% a 100%).
+   - **W**: Invertir origen y destino.
    - **F1..F5**: Vistas de cámara (Lateral, Frontal, 3/4, Primer plano cabeza, Cola).
    - **R**: Pausar / reanudar giro de cámara.
    - **A**: Alternar overlay de esqueleto anatómico.
    ```bash
-   ./demos/demo_morph_dog_lizard
+   ./demos/demo_morph_species
+   ./demos/demo_morph_species --from=caballo --to=brumacerno
    # Captura estable y ciclo instrumentado.
-   ./demos/demo_morph_dog_lizard --age=0.5 --view=3 --capture-prefix=/tmp/morph-mitad
-   ./demos/demo_morph_dog_lizard --validate-cycle=/tmp/morph-ciclo
+   ./demos/demo_morph_species --from=dog --to=lizard --age=0.5 --view=3 --capture-prefix=/tmp/morph-mitad
+   ./demos/demo_morph_species --from=random --to=caballo --validate-cycle=/tmp/morph-ciclo
    ```
    El [informe de metamorfosis](docs/AGER_MORPH_REPORT.md) describe la implementación, validación y límites de correspondencia.
 

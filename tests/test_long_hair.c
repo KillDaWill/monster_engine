@@ -203,6 +203,29 @@ void run_long_hair_tests(void){
     MonsterVisualAsync_Update(async,m,.016f);m->surface.longHair[0].rootColor.r=133;
     MonsterVisualAsync_Update(async,m,.016f);TEST_ASSERT(async->longHair.groups[0].rootColor.r==133,"apariencia actual, no snapshot worker");
     MonsterVisualAsync_Free(async);
+
+    /* Transporte ligero de guías y construcción asíncrona no bloqueante */
+    LongHairSet transported={0};
+    TEST_ASSERT(MonsterVisual_UpdateLongHair(&transported,m)&&transported.count==g.guideCount,"base para transporte");
+    Vector3 beforeRoot=transported.guides[0].restPoints[0];
+    AnatomyGraph moved=m->anatomyGraph;
+    for(size_t i=0;i<moved.nodeCount;++i){moved.nodes[i].center.y+=.12f;}
+    TEST_ASSERT(LongHairSet_TransportToAnatomyGraph(&transported,&moved,m->phenotype.axial.totalScale),"transporte por estaciones");
+    TEST_ASSERT(FLOAT_NEAR(transported.guides[0].restPoints[0].y-beforeRoot.y,.12f),"raíz transportada con la estación");
+    LongHairSet_Free(&transported);
+
+    LongHairAsync* hairAsync=LongHairAsync_Create();TEST_ASSERT(hairAsync,"creación LongHairAsync");
+    TEST_ASSERT(LongHairAsync_Update(hairAsync,m,true),"envío no bloqueante");
+    MonsterAger_SetPerc(ager,.35f);
+    TEST_ASSERT(LongHairAsync_Update(hairAsync,MonsterAger_GetResultConst(ager),true),"coalescencia intermedia");
+    MonsterAger_SetPerc(ager,.80f);
+    const Monster* finalTarget=MonsterAger_GetResultConst(ager);
+    TEST_ASSERT(LongHairAsync_Flush(hairAsync,finalTarget),"flush final de pelo asíncrono");
+    const LongHairSet* flushed=LongHairAsync_GetDisplay(hairAsync);
+    TEST_ASSERT(flushed&&flushed->count==g.guideCount,"resultado final completo tras flush");
+    TEST_ASSERT(flushed->groups[0].rootColor.r==finalTarget->surface.longHair[0].rootColor.r,"apariencia reflejada en flush");
+    LongHairAsync_Destroy(hairAsync);
+
     MonsterAger_Free(ager);free(ager);Monster_Free(young);free(young);
     LongHairSet_Free(&a);Monster_Free(m);free(m);free(doc);
 }

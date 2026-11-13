@@ -12,7 +12,7 @@ CAPTURE_FUR=False
 def capture(out,mode,age,view,voxel,debug='material',history=None):
     history_tag=('history-'+('-'.join(f'{x:.4f}'for x in history)))if history else 'static'
     prefix=out/f'{mode}-a{age:.2f}-v{view}-{debug}-{history_tag}'
-    cmd=[str(ROOT/'demos/demo_morph_dog_lizard'),f'--surface-mode={mode}',f'--age={age}',f'--view={view}',
+    cmd=[str(ROOT/'demos/demo_morph_species'),'--from=dog','--to=lizard',f'--surface-mode={mode}',f'--age={age}',f'--view={view}',
          f'--gpu-voxel={voxel}',f'--capture-prefix={prefix}','--no-msaa']
     if not CAPTURE_FUR:cmd.append('--no-fur')
     if debug=='normal':cmd.append('--capture-normals')

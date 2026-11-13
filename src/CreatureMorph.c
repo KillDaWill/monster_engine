@@ -7,8 +7,64 @@
 #include <math.h>
 #include <string.h>
 
+static void Morph_HeadCranialStations(const HeadSurfaceRecipe* s,Vector3 centers[6],Vector3 radii[6]) {
+    if(s->hasCranialProfile) {
+        for(int i=0;i<6;++i){centers[i]=s->cranialCenters[i];radii[i]=s->cranialRadii[i];}
+        return;
+    }
+    centers[0]=s->faceTip;                  radii[0]=s->faceTipRadii;
+    centers[1]=s->faceMid;                  radii[1]=s->faceMidRadii;
+    centers[2]=s->faceRoot;                 radii[2]=s->faceRootRadii;
+    centers[3]=s->cranialPostorbitalCenter; radii[3]=s->cranialPostorbitalRadii;
+    centers[4]=s->cranialTemporalCenter;    radii[4]=s->cranialTemporalRadii;
+    centers[5]=s->cranialOccipitalCenter;   radii[5]=s->cranialOccipitalRadii;
+}
+
+static void Morph_HeadJawStations(const HeadAnatomy* h,Vector3 centers[6],Vector3 radii[6]) {
+    const HeadSurfaceRecipe* s=&h->surface;
+    if(s->hasMandibularProfile) {
+        for(int i=0;i<6;++i){centers[i]=s->mandibularCenters[i];radii[i]=s->mandibularRadii[i];}
+        return;
+    }
+    Vector3 headC[6],headR[6];
+    Morph_HeadCranialStations(s,headC,headR);
+    Mouth m=h->oralSystem;
+    Mouth_Normalize(&m);
+    float slitThickness=m.slitThickness;
+    float cutHalfHeight=slitThickness*.5f;
+    float front=s->faceTip.z+s->faceTipRadii.z+0.04f;
+    float rear=h->landmarks.leftMouthCorner.z;
+    float entrZ=(front+rear)*.5f;
+    float entrY=h->landmarks.leftMouthCorner.y+s->oralSlope*(entrZ-h->landmarks.leftMouthCorner.z);
+    float lip=entrY-cutHalfHeight;
+    float hh=Math_Max(m.hingeRadius,Math_Max(m.throatRadius,cutHalfHeight*2.0f));
+    if(hh<1e-4f)hh=cutHalfHeight*2.0f+0.02f;
+    float ry=Math_Max(m.jawThickness*.5f,Math_Max(hh*.55f,cutHalfHeight*1.70f));
+    ry=Math_Max(ry,m.throatRadius*.60f);
+    float flat=Math_Clamp01(fabsf(s->oralSlope)*4.0f);
+    bool equine=h->archetype==HEAD_ARCHETYPE_EQUINE;
+    for(int j=0;j<6;++j) {
+        Vector3 lc=Vec3_Sub(headC[j],m.offset);
+        Vector3 lr=headR[j];
+        if(equine) {
+            float jawHalf=ry*(.95f+.20f*flat);
+            lc.y=lip+s->oralSlope*(lc.z-entrZ)-jawHalf+ry*.20f;
+            lr.y=jawHalf;
+            lr.x*=(j<2?1.0f-.24f*flat:1.0f-.10f*flat);
+        } else {
+            lc.y=lip+s->oralSlope*(lc.z-entrZ)-ry*(1.0f-.6f*flat);
+            lr.y=ry*(1.0f+.4f*flat);
+            lr.x*=1.0f-.18f*flat;
+        }
+        centers[j]=Vec3_Add(lc,m.offset);
+        radii[j]=lr;
+    }
+}
+
 static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatomy* out) {
-    *out=*a;
+    if(t<=0.0f){*out=*a;return;}
+    if(t>=1.0f){*out=*b;return;}
+    *out=t<0.5f?*a:*b;
     out->landmarks.neckAttachment=Vec3_Lerp(a->landmarks.neckAttachment,b->landmarks.neckAttachment,t);
     out->landmarks.skullCenter=Vec3_Lerp(a->landmarks.skullCenter,b->landmarks.skullCenter,t);
     out->landmarks.leftOrbit=Vec3_Lerp(a->landmarks.leftOrbit,b->landmarks.leftOrbit,t);
@@ -107,15 +163,40 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->surface.headBodySmoothness=Math_Lerp(a->surface.headBodySmoothness,b->surface.headBodySmoothness,t);
     out->surface.hasNasalPad=a->surface.hasNasalPad || b->surface.hasNasalPad;
     out->surface.hasEars=a->surface.hasEars || b->surface.hasEars;
-    out->surface.sweptSkull=a->surface.sweptSkull || b->surface.sweptSkull;
-    out->surface.isBeak=a->surface.isBeak || b->surface.isBeak;
+    out->surface.sweptSkull=t<0.5f?a->surface.sweptSkull:b->surface.sweptSkull;
+    out->surface.isBeak=t<0.5f?a->surface.isBeak:b->surface.isBeak;
     out->surface.tympanumDevelopment=Math_Lerp(a->surface.hasTympana?a->surface.tympanumDevelopment:0,b->surface.hasTympana?b->surface.tympanumDevelopment:0,t);
-    out->surface.hasTympana=a->surface.hasTympana || b->surface.hasTympana;
+    out->surface.hasTympana=(a->surface.hasTympana && t<1.0f)||(b->surface.hasTympana && t>0.0f);
     out->surface.faceCapWeight=Math_Lerp(a->surface.faceCapWeight,b->surface.faceCapWeight,t);
     out->surface.faceCapDepth=Math_Lerp(a->surface.faceCapDepth,b->surface.faceCapDepth,t);
+    out->surface.jawRearClipWeight=Math_Lerp(a->surface.jawRearClipWeight,b->surface.jawRearClipWeight,t);
     out->surface.oralSlope=Math_Lerp(a->surface.oralSlope,b->surface.oralSlope,t);
     out->surface.nostrilCurve=Math_Lerp(a->surface.nostrilCurve,b->surface.nostrilCurve,t);
     out->surface.faceRounding=Math_Lerp(a->surface.faceRounding,b->surface.faceRounding,t);
+    if(a->surface.hasCranialProfile || b->surface.hasCranialProfile) {
+        Vector3 ca[6],cb[6],ra[6],rb[6];
+        Morph_HeadCranialStations(&a->surface,ca,ra);
+        Morph_HeadCranialStations(&b->surface,cb,rb);
+        for(int i=0;i<6;++i) {
+            out->surface.cranialCenters[i]=Vec3_Lerp(ca[i],cb[i],t);
+            out->surface.cranialRadii[i]=Vec3_Lerp(ra[i],rb[i],t);
+        }
+        out->surface.hasCranialProfile=true;
+    } else {
+        out->surface.hasCranialProfile=false;
+    }
+    if(a->surface.hasMandibularProfile || b->surface.hasMandibularProfile) {
+        Vector3 ja[6],jb[6],ra[6],rb[6];
+        Morph_HeadJawStations(a,ja,ra);
+        Morph_HeadJawStations(b,jb,rb);
+        for(int i=0;i<6;++i) {
+            out->surface.mandibularCenters[i]=Vec3_Lerp(ja[i],jb[i],t);
+            out->surface.mandibularRadii[i]=Vec3_Lerp(ra[i],rb[i],t);
+        }
+        out->surface.hasMandibularProfile=true;
+    } else {
+        out->surface.hasMandibularProfile=false;
+    }
     out->oralSystem.offset=Vec3_Lerp(a->oralSystem.offset,b->oralSystem.offset,t);
     out->oralSystem.rotation=Vec3_Lerp(a->oralSystem.rotation,b->oralSystem.rotation,t);
     out->oralSystem.scale=Vec3_Lerp(a->oralSystem.scale,b->oralSystem.scale,t);
@@ -183,6 +264,20 @@ static const BodyConnection* Edge(const AnatomyGraph* g,const BodyConnection* e)
     }
     return NULL;
 }
+static bool Morph_IsNonOrnamentSupport(const AnatomyGraph* g,const BodyConnection* e) {
+    if(!g||!e||e->kind!=BODY_CONNECTION_SUPPORT)return false;
+    const AnatomyNode* from=AnatomyGraph_FindNode(g,e->fromId);
+    const AnatomyNode* to=AnatomyGraph_FindNode(g,e->toId);
+    return (!from||from->region!=ANATOMY_REGION_ORNAMENT)&&
+           (!to||to->region!=ANATOMY_REGION_ORNAMENT);
+}
+static const BodyConnection* EdgeSameEnds(const AnatomyGraph* g,const BodyConnection* e) {
+    for(size_t i=0;i<g->connectionCount;++i) {
+        const BodyConnection* x=&g->connections[i];
+        if(x->fromId==e->fromId && x->toId==e->toId)return x;
+    }
+    return NULL;
+}
 static AnatomyNode Counterpart(const AnatomyGraph* own,const AnatomyGraph* other,const AnatomyNode* n) {
     const AnatomyNode* match=AnatomyGraph_FindNode(other,n->id);
     if(match)return *match;
@@ -240,12 +335,75 @@ static AnatomyId Morph_RemapId(AnatomyId id,const uint32_t* oldModules,
     uint32_t module=Morph_RemapModule(id>>16,oldModules,newModules,count);
     return Anatomy_MakeId(module,(uint16_t)id);
 }
+static bool Morph_LocalDigitUsed(const AnatomyGraph* g,uint32_t module,uint16_t local) {
+    AnatomyId id=Anatomy_MakeId(module,local);
+    if(!id||AnatomyGraph_FindNode(g,id))return true;
+    for(size_t i=0;i<g->connectionCount;++i)
+        if(g->connections[i].id==id)return true;
+    return false;
+}
+
+static bool Morph_ShiftConflictingDigits(const AnatomyGraph* a,const AnatomyGraph* b,
+    AnatomyGraph* remapped,uint32_t module) {
+    AnatomyId oldIds[ANATOMY_MAX_NODES],newIds[ANATOMY_MAX_NODES];
+    size_t shiftCount=0;
+    uint16_t nextLocal=120;
+    for(size_t i=0;i<remapped->nodeCount;++i) {
+        AnatomyNode* node=&remapped->nodes[i];
+        if(node->moduleInstanceId!=module||node->role!=ANATOMY_ROLE_DIGIT||
+           node->localNodeId<32||node->localNodeId>=200)continue;
+        while(nextLocal<200&&(Morph_LocalDigitUsed(a,module,nextLocal)||
+              Morph_LocalDigitUsed(b,module,nextLocal)||
+              Morph_LocalDigitUsed(remapped,module,nextLocal)))nextLocal++;
+        if(nextLocal>=200)return false;
+        oldIds[shiftCount]=node->id;
+        newIds[shiftCount]=Anatomy_MakeId(module,nextLocal);
+        shiftCount++;
+        node->localNodeId=nextLocal;
+        node->id=Anatomy_MakeId(module,nextLocal);
+        nextLocal++;
+    }
+    for(size_t i=0;i<remapped->connectionCount;++i) {
+        BodyConnection* edge=&remapped->connections[i];
+        if(edge->moduleInstanceId!=module)continue;
+        AnatomyId shiftedTo=0;
+        for(size_t k=0;k<shiftCount;++k) {
+            if(edge->fromId==oldIds[k])edge->fromId=newIds[k];
+            if(edge->toId==oldIds[k]){edge->toId=newIds[k];shiftedTo=newIds[k];}
+            if(edge->id==oldIds[k])edge->id=newIds[k];
+        }
+        bool edgeConflict=false;
+        for(size_t j=0;j<a->connectionCount;++j) {
+            const BodyConnection* peer=&a->connections[j];
+            if(peer->id==edge->id&&(peer->fromId!=edge->fromId||peer->toId!=edge->toId||
+               (peer->kind!=edge->kind&&!(Morph_IsNonOrnamentSupport(a,peer)||Morph_IsNonOrnamentSupport(remapped,edge))))) {
+                edgeConflict=true;break;
+            }
+        }
+        if(edgeConflict) {
+            if(shiftedTo && !Morph_LocalDigitUsed(a,module,(uint16_t)shiftedTo) &&
+               !Morph_LocalDigitUsed(remapped,module,(uint16_t)shiftedTo)) {
+                edge->id=shiftedTo;
+            } else {
+                while(nextLocal<200&&(Morph_LocalDigitUsed(a,module,nextLocal)||
+                      Morph_LocalDigitUsed(b,module,nextLocal)||
+                      Morph_LocalDigitUsed(remapped,module,nextLocal)))nextLocal++;
+                if(nextLocal>=200)return false;
+                edge->id=Anatomy_MakeId(module,nextLocal++);
+            }
+        }
+    }
+    return true;
+}
+
 static bool Morph_RemapConflictingModules(const AnatomyGraph* a,const AnatomyGraph* b,
-    AnatomyGraph* remapped) {
+    AnatomyGraph* remapped,uint32_t* outOld,uint32_t* outNew,size_t* outCount) {
     *remapped=*b;
     uint32_t oldModules[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS];
     uint32_t newModules[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS];
     size_t count=0;
+    uint32_t digitShiftModules[ANATOMY_MAX_NODES];
+    size_t digitShiftCount=0;
     for(size_t i=0;i<b->nodeCount;++i) {
         const AnatomyNode* source=&b->nodes[i];
         const AnatomyNode* peer=AnatomyGraph_FindNode(a,source->id);
@@ -259,18 +417,44 @@ static bool Morph_RemapConflictingModules(const AnatomyGraph* a,const AnatomyGra
     for(size_t i=0;i<b->connectionCount;++i) {
         const BodyConnection* source=&b->connections[i];
         if(source->moduleInstanceId==0)continue;
+        bool alreadyWhole=false;
+        for(size_t j=0;j<count;++j)alreadyWhole|=oldModules[j]==source->moduleInstanceId;
+        if(alreadyWhole)continue;
         bool conflict=false;
+        bool digitOnlyConflict=false;
         for(size_t j=0;j<a->connectionCount;++j) {
             const BodyConnection* peer=&a->connections[j];
-            if(peer->id!=source->id)continue;
-            conflict=peer->fromId!=source->fromId||peer->toId!=source->toId||
-                peer->kind!=source->kind;
-            break;
+            if(peer->id!=source->id && !(peer->fromId==source->fromId && peer->toId==source->toId))continue;
+            if(peer->fromId!=source->fromId||peer->toId!=source->toId) {
+                conflict=true;break;
+            }
+            if(peer->kind!=source->kind) {
+                if(Morph_IsNonOrnamentSupport(a,peer)!=Morph_IsNonOrnamentSupport(b,source))
+                    continue;
+                const AnatomyNode* toNode=AnatomyGraph_FindNode(b,source->toId);
+                if(toNode&&toNode->role==ANATOMY_ROLE_DIGIT&&toNode->localNodeId>=32&&toNode->localNodeId<200) {
+                    digitOnlyConflict=true;
+                } else {
+                    conflict=true;break;
+                }
+            }
         }
-        if(!conflict)continue;
-        bool known=false;
-        for(size_t j=0;j<count;++j)known|=oldModules[j]==source->moduleInstanceId;
-        if(!known)oldModules[count++]=source->moduleInstanceId;
+        if(conflict) {
+            bool known=false;
+            for(size_t j=0;j<count;++j)known|=oldModules[j]==source->moduleInstanceId;
+            if(!known)oldModules[count++]=source->moduleInstanceId;
+        } else if(digitOnlyConflict) {
+            bool known=false;
+            for(size_t j=0;j<digitShiftCount;++j)known|=digitShiftModules[j]==source->moduleInstanceId;
+            if(!known)digitShiftModules[digitShiftCount++]=source->moduleInstanceId;
+        }
+    }
+    for(size_t i=0;i<digitShiftCount;++i) {
+        bool whole=false;
+        for(size_t j=0;j<count;++j)whole|=oldModules[j]==digitShiftModules[i];
+        if(whole)continue;
+        if(!Morph_ShiftConflictingDigits(a,b,remapped,digitShiftModules[i]))
+            oldModules[count++]=digitShiftModules[i];
     }
     for(size_t i=0;i<count;++i) {
         uint32_t candidate=1;
@@ -296,6 +480,9 @@ static bool Morph_RemapConflictingModules(const AnatomyGraph* a,const AnatomyGra
         edge->moduleInstanceId=Morph_RemapModule(edge->moduleInstanceId,
             oldModules,newModules,count);
     }
+    if(outOld&&count)memcpy(outOld,oldModules,count*sizeof(*outOld));
+    if(outNew&&count)memcpy(outNew,newModules,count*sizeof(*outNew));
+    if(outCount)*outCount=count;
     return AnatomyGraph_Validate(remapped);
 }
 static bool Morph_ModuleTopologyDifferent(const AnatomyGraph* a,const AnatomyGraph* b,
@@ -335,7 +522,7 @@ size_t CreatureMorph_CollectTopologyEvents(const Monster* a,const Monster* b,
        !AnatomyGraph_Validate(&a->anatomyGraph)||
        !AnatomyGraph_Validate(&b->anatomyGraph))return SIZE_MAX;
     AnatomyGraph remapped;
-    if(!Morph_RemapConflictingModules(&a->anatomyGraph,&b->anatomyGraph,&remapped))
+    if(!Morph_RemapConflictingModules(&a->anatomyGraph,&b->anatomyGraph,&remapped,NULL,NULL,NULL))
         return SIZE_MAX;
     uint32_t modules[ANATOMY_MAX_NODES*2+ANATOMY_MAX_CONNECTIONS*2];
     size_t count=0;
@@ -388,18 +575,29 @@ static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,Anatomy
         const AnatomyGraph* g=pass?b:a;
         for(size_t i=0;i<g->connectionCount;++i) {
             const BodyConnection* e=&g->connections[i];
-            if(Edge(out,e))continue;
+            if(EdgeSameEnds(out,e))continue;
             const BodyConnection* x=Edge(a,e),*y=Edge(b,e);
+            const BodyConnection* xe=EdgeSameEnds(a,e),*ye=EdgeSameEnds(b,e);
+            bool supA=xe&&Morph_IsNonOrnamentSupport(a,xe);
+            bool supB=ye&&Morph_IsNonOrnamentSupport(b,ye);
+            bool supOverride=(xe&&ye&&xe->kind!=ye->kind&&(supA!=supB));
+            if(supOverride){x=xe;y=ye;}
             BodyConnection v=*e;
-            v.widthBulge=Math_Lerp(x?x->widthBulge:0,y?y->widthBulge:0,t);
-            v.heightBulge=Math_Lerp(x?x->heightBulge:0,y?y->heightBulge:0,t);
+            if(supOverride) {
+                const BodyConnection* active=supA?y:x;
+                v.id=active->id;
+                v.kind=active->kind;
+                v.moduleInstanceId=active->moduleInstanceId;
+            }
+            v.widthBulge=Math_Lerp(x&&!supA?x->widthBulge:0,y&&!supB?y->widthBulge:0,t);
+            v.heightBulge=Math_Lerp(x&&!supA?x->heightBulge:0,y&&!supB?y->heightBulge:0,t);
             v.crownInset=Math_Lerp(x?x->crownInset:0,y?y->crownInset:0,t);
             v.toeRounding=Math_Lerp(x?x->toeRounding:0,y?y->toeRounding:0,t);
             v.transverseAxis=Vec3_Lerp(x?x->transverseAxis:e->transverseAxis,y?y->transverseAxis:e->transverseAxis,t);
             v.development=Math_Lerp(x?x->development:0,y?y->development:0,t);
             if(!AnatomyGraph_Connect(out,v))return false;
-            bool dormantA=!x || a->dormantConnections[x-a->connections];
-            bool dormantB=!y || b->dormantConnections[y-b->connections];
+            bool dormantA=!x || a->dormantConnections[x-a->connections] || (supOverride&&supA);
+            bool dormantB=!y || b->dormantConnections[y-b->connections] || (supOverride&&supB);
             out->dormantConnections[out->connectionCount-1]=(dormantA && dormantB)||(t<=0 && dormantA)||(t>=1 && dormantB);
         }
     }
@@ -422,6 +620,17 @@ static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,Anatomy
     return AnatomyGraph_Validate(out);
 }
 
+static bool Morph_HangingTail(const Monster* m,uint32_t module) {
+    if(!m||!m->hasCreaturePhenotype)return false;
+    for(size_t i=0;i<m->recipe.bodyPlan.moduleCount;++i) {
+        const CreatureModuleInstance* inst=&m->recipe.bodyPlan.modules[i];
+        if(inst->instanceId==module&&inst->kind==CREATURE_MODULE_TAIL&&
+           inst->phenotypeIndex<m->phenotype.tailCount)
+            return m->phenotype.tails[inst->phenotypeIndex].droop>0.0f;
+    }
+    return false;
+}
+
 /* Resolver el mismo perfil axial que consume el SDF, antes de la interpolación. */
 static int Profile(const Monster* m,SDFSweepStation* stations) {
     const AnatomyGraph* g=&m->anatomyGraph;
@@ -432,12 +641,13 @@ static int Profile(const Monster* m,SDFSweepStation* stations) {
     const AnatomyNode* start=NULL;
     for(size_t i=0;i<g->nodeCount;++i) {
         const AnatomyNode* n=&g->nodes[i];
-        if(n->role!=ANATOMY_ROLE_AXIAL || n->region==ANATOMY_REGION_HEAD)continue;
+        if(n->role!=ANATOMY_ROLE_AXIAL || n->region==ANATOMY_REGION_HEAD || n->region==ANATOMY_REGION_ORNAMENT)continue;
         bool incoming=false;
         for(size_t j=0;j<g->connectionCount;++j) {
             const BodyConnection* e=&g->connections[j];
             const AnatomyNode* from=AnatomyGraph_FindNode(g,e->fromId);
-            if(e->toId==n->id && e->kind==BODY_CONNECTION_AXIAL_LOFT && from && from->region!=ANATOMY_REGION_HEAD)incoming=true;
+            if(e->toId==n->id && e->kind==BODY_CONNECTION_AXIAL_LOFT && from &&
+               from->region!=ANATOMY_REGION_HEAD && from->region!=ANATOMY_REGION_ORNAMENT)incoming=true;
         }
         if(!incoming){if(start)return 0;start=n;}
     }
@@ -454,7 +664,12 @@ static int Profile(const Monster* m,SDFSweepStation* stations) {
             const BodyConnection* e=&g->connections[i];
             if(e->fromId!=n->id || e->kind!=BODY_CONNECTION_AXIAL_LOFT)continue;
             const AnatomyNode* candidate=AnatomyGraph_FindNode(g,e->toId);
-            if(candidate && candidate->region!=ANATOMY_REGION_HEAD){if(next)return 0;next=candidate;}
+            if(candidate && candidate->region!=ANATOMY_REGION_HEAD) {
+                /* Una cola colgante abandona el loft axial en la pelvis, igual que MonsterSDF_Build. */
+                if(candidate->region==ANATOMY_REGION_TAIL && Morph_HangingTail(m,candidate->moduleInstanceId))continue;
+                if(next)return 0;
+                next=candidate;
+            }
         }
         n=next;
         if(n){if(count==ANATOMY_MAX_SWEEP_STATIONS)return 0;stations[count++]=(SDFSweepStation){.center=n->center,.width=n->widthRadius,.height=n->heightRadius};}
@@ -487,36 +702,125 @@ static bool MixProfile(const Monster* a,const Monster* b,float t,AnatomyGraph* g
     SDFSweepStation x[ANATOMY_MAX_SWEEP_STATIONS],y[ANATOMY_MAX_SWEEP_STATIONS];
     int nx=Profile(a,x),ny=Profile(b,y);
     if(nx<2 || ny<2)return true; /* Las anatomías ramificadas conservan sus conexiones. */
+    if(t<=0.0f) {
+        memcpy(g->axialProfile,x,(size_t)nx*sizeof(g->axialProfile[0]));
+        g->axialProfileCount=(size_t)nx;
+        return true;
+    }
+    if(t>=1.0f) {
+        memcpy(g->axialProfile,y,(size_t)ny*sizeof(g->axialProfile[0]));
+        g->axialProfileCount=(size_t)ny;
+        return true;
+    }
     const AnatomyNode* pa=AnatomyGraph_FindFirstRegion(&a->anatomyGraph,ANATOMY_REGION_PELVIS);
     const AnatomyNode* pb=AnatomyGraph_FindFirstRegion(&b->anatomyGraph,ANATOMY_REGION_PELVIS);
-    float pelvisX=pa?pa->center.z:(x[0].center.z+x[nx-1].center.z)*.5f;
-    float pelvisY=pb?pb->center.z:(y[0].center.z+y[ny-1].center.z)*.5f;
-    if(pelvisX>=x[0].center.z || pelvisX<=x[nx-1].center.z)pelvisX=(x[0].center.z+x[nx-1].center.z)*.5f;
-    if(pelvisY>=y[0].center.z || pelvisY<=y[ny-1].center.z)pelvisY=(y[0].center.z+y[ny-1].center.z)*.5f;
+    float pelvisX=pa?pa->center.z:x[nx-1].center.z;
+    float pelvisY=pb?pb->center.z:y[ny-1].center.z;
+    bool hasTailX=pelvisX<x[0].center.z-1e-5f && pelvisX>x[nx-1].center.z+1e-5f;
+    bool hasTailY=pelvisY<y[0].center.z-1e-5f && pelvisY>y[ny-1].center.z+1e-5f;
+    if(!hasTailX)pelvisX=x[nx-1].center.z;
+    if(!hasTailY)pelvisY=y[ny-1].center.z;
+    if(pelvisX>=x[0].center.z-1e-5f)pelvisX=(x[0].center.z+x[nx-1].center.z)*.5f;
+    if(pelvisY>=y[0].center.z-1e-5f)pelvisY=(y[0].center.z+y[ny-1].center.z)*.5f;
     float knots[ANATOMY_MAX_SWEEP_STATIONS];int count=0;
     for(int pass=0;pass<2;++pass) {
         const SDFSweepStation* p=pass?y:x;int n=pass?ny:nx;
         for(int i=0;i<n;++i) {
             float u=ProfileCoordinate(p[i].center.z,p,n,pass?pelvisY:pelvisX);
+            if(u>1.00001f && !((hasTailX && t<1.0f)||(hasTailY && t>0.0f)))continue;
             int j=0;while(j<count && knots[j]<u-1e-6f)++j;
             if(j<count && fabsf(knots[j]-u)<1e-6f)continue;
             if(count==ANATOMY_MAX_SWEEP_STATIONS)return false;
             memmove(knots+j+1,knots+j,(count-j)*sizeof(*knots));knots[j]=u;++count;
         }
     }
+    int outCount=0;
     for(int i=0;i<count;++i) {
-        SDFSweepStation p=SampleProfile(x,nx,ProfileZ(knots[i],x,nx,pelvisX)),q=SampleProfile(y,ny,ProfileZ(knots[i],y,ny,pelvisY));
-        float dx=knots[i]<=1?pelvisX-x[0].center.z:x[nx-1].center.z-pelvisX;
-        float dy=knots[i]<=1?pelvisY-y[0].center.z:y[ny-1].center.z-pelvisY;
+        bool tail=knots[i]>1.00001f;
+        float px=tail && !hasTailX?pelvisX:ProfileZ(knots[i],x,nx,pelvisX);
+        float py=tail && !hasTailY?pelvisY:ProfileZ(knots[i],y,ny,pelvisY);
+        SDFSweepStation p=SampleProfile(x,nx,px),q=SampleProfile(y,ny,py);
+        float dx=tail?(hasTailX?x[nx-1].center.z-pelvisX:0.0f):pelvisX-x[0].center.z;
+        float dy=tail?(hasTailY?y[ny-1].center.z-pelvisY:0.0f):pelvisY-y[0].center.z;
         float dz=Math_Lerp(dx,dy,t);
-        g->axialProfile[i]=(SDFSweepStation){.center=Vec3_Lerp(p.center,q.center,t),
+        if(fabsf(dz)<1e-6f)continue;
+        g->axialProfile[outCount++]=(SDFSweepStation){.center=Vec3_Lerp(p.center,q.center,t),
             .width=Math_Lerp(p.width,q.width,t),.height=Math_Lerp(p.height,q.height,t),
             .widthSlope=Math_Lerp(p.widthSlope*dx,q.widthSlope*dy,t)/dz,
             .heightSlope=Math_Lerp(p.heightSlope*dx,q.heightSlope*dy,t)/dz,
             .centerSlope=Math_Lerp(p.centerSlope*dx,q.centerSlope*dy,t)/dz};
     }
-    g->axialProfileCount=(size_t)count;
+    g->axialProfileCount=(size_t)outCount;
     return true;
+}
+
+static bool Morph_GraphUsesModule(const AnatomyGraph* g,uint32_t module) {
+    if(!module)return false;
+    for(size_t i=0;i<g->nodeCount;++i)if(g->nodes[i].moduleInstanceId==module)return true;
+    for(size_t i=0;i<g->connectionCount;++i)if(g->connections[i].moduleInstanceId==module)return true;
+    return false;
+}
+static const CreatureModuleInstance* Morph_FindBodyModule(const BodyPlan* plan,uint32_t id) {
+    for(size_t i=0;i<plan->moduleCount;++i)if(plan->modules[i].instanceId==id)return &plan->modules[i];
+    return NULL;
+}
+static void Morph_AppendModule(CreatureRecipe* recipe,CreaturePhenotype* phen,
+    const CreatureModuleInstance* srcMod,const CreaturePhenotype* srcPhen,uint32_t instanceId) {
+    if(recipe->bodyPlan.moduleCount>=CREATURE_MAX_MODULES)return;
+    CreatureModuleInstance dstMod=*srcMod;
+    dstMod.instanceId=instanceId;
+    if(srcMod->kind==CREATURE_MODULE_LIMB) {
+        if(srcMod->phenotypeIndex>=srcPhen->limbCount||phen->limbCount>=CREATURE_MAX_LIMBS)return;
+        dstMod.phenotypeIndex=(unsigned)phen->limbCount;
+        phen->limbs[phen->limbCount++]=srcPhen->limbs[srcMod->phenotypeIndex];
+    } else if(srcMod->kind==CREATURE_MODULE_TAIL) {
+        if(srcMod->phenotypeIndex>=srcPhen->tailCount||phen->tailCount>=CREATURE_MAX_TAILS)return;
+        dstMod.phenotypeIndex=(unsigned)phen->tailCount;
+        phen->tails[phen->tailCount++]=srcPhen->tails[srcMod->phenotypeIndex];
+    } else if(srcMod->kind==CREATURE_MODULE_ORNAMENT) {
+        if(srcMod->phenotypeIndex>=srcPhen->ornamentCount||phen->ornamentCount>=CREATURE_MAX_ORNAMENTS)return;
+        dstMod.phenotypeIndex=(unsigned)phen->ornamentCount;
+        phen->ornaments[phen->ornamentCount++]=srcPhen->ornaments[srcMod->phenotypeIndex];
+    }
+    recipe->bodyPlan.modules[recipe->bodyPlan.moduleCount++]=dstMod;
+}
+static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
+    const uint32_t* oldModules,const uint32_t* newModules,size_t remapCount,Monster* out) {
+    if(!a->hasCreaturePhenotype||!b->hasCreaturePhenotype)return;
+    out->recipe.bodyPlan.moduleCount=0;
+    out->phenotype.limbCount=0;
+    out->phenotype.tailCount=0;
+    out->phenotype.ornamentCount=0;
+    for(size_t i=0;i<a->recipe.bodyPlan.moduleCount;++i) {
+        const CreatureModuleInstance* ma=&a->recipe.bodyPlan.modules[i];
+        if(ma->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,ma->instanceId))continue;
+        const CreatureModuleInstance* mb=Morph_FindBodyModule(&b->recipe.bodyPlan,ma->instanceId);
+        bool sharedUnremapped=mb && mb->kind==ma->kind &&
+            Morph_RemapModule(mb->instanceId,oldModules,newModules,remapCount)==mb->instanceId;
+        if(sharedUnremapped && ma->kind==CREATURE_MODULE_TAIL &&
+           ma->phenotypeIndex<a->phenotype.tailCount && mb->phenotypeIndex<b->phenotype.tailCount) {
+            Morph_AppendModule(&out->recipe,&out->phenotype,t>=0.5f?mb:ma,
+                t>=0.5f?&b->phenotype:&a->phenotype,ma->instanceId);
+            if(out->phenotype.tailCount>0) {
+                const TailPhenotype* ta=&a->phenotype.tails[ma->phenotypeIndex];
+                const TailPhenotype* tb=&b->phenotype.tails[mb->phenotypeIndex];
+                TailPhenotype* dt=&out->phenotype.tails[out->phenotype.tailCount-1];
+                dt->droop=Math_Lerp(ta->droop,tb->droop,u);
+                dt->rootMatchStrength=Math_Lerp(ta->rootMatchStrength,tb->rootMatchStrength,u);
+            }
+        } else if(sharedUnremapped && t>=0.5f) {
+            Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,ma->instanceId);
+        } else {
+            Morph_AppendModule(&out->recipe,&out->phenotype,ma,&a->phenotype,ma->instanceId);
+        }
+    }
+    for(size_t i=0;i<b->recipe.bodyPlan.moduleCount;++i) {
+        const CreatureModuleInstance* mb=&b->recipe.bodyPlan.modules[i];
+        uint32_t effId=Morph_RemapModule(mb->instanceId,oldModules,newModules,remapCount);
+        if(Morph_FindBodyModule(&out->recipe.bodyPlan,effId))continue;
+        if(mb->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,effId))continue;
+        Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,effId);
+    }
 }
 
 bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monster* out) {
@@ -525,10 +829,15 @@ bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monst
     float u=t*t*(3-2*t);
     if(!Monster_CopyInto(out,t<.5f?a:b))return false;
     AnatomyGraph remapped;
-    if(!Morph_RemapConflictingModules(&a->anatomyGraph,&b->anatomyGraph,&remapped)||
+    uint32_t oldModules[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS];
+    uint32_t newModules[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS];
+    size_t remapCount=0;
+    if(!Morph_RemapConflictingModules(&a->anatomyGraph,&b->anatomyGraph,&remapped,
+            oldModules,newModules,&remapCount)||
        !MixGraph(&a->anatomyGraph,&remapped,u,&out->anatomyGraph) ||
        !MixProfile(a,b,u,&out->anatomyGraph))return false;
     if(!AnatomyGraph_Validate(&out->anatomyGraph))return false;
+    Morph_SyncModules(a,b,t,u,oldModules,newModules,remapCount,out);
     out->hasResolvedMorph=true;
     out->hasGrowthAge=true;out->growthAge=t;
     out->phenotype.axial.totalScale=Math_Lerp(a->phenotype.axial.totalScale,b->phenotype.axial.totalScale,u);
@@ -537,20 +846,29 @@ bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monst
     if(a->surface.integument.type!=b->surface.integument.type) {
         if(t<.45f) {
             out->surface.integument=a->surface.integument;
-            float k=Math_Clamp01(t/.45f);float blend=k*k*(3-2*k);
-            out->surface.integument.coverage*=1-blend;
-            out->surface.integument.fur.length=Math_Lerp(a->surface.integument.fur.length,0.002f,blend);
-            out->surface.integument.fur.density=Math_Lerp(a->surface.integument.fur.density,0.05f,blend);
-            out->surface.integument.fur.seed=a->surface.integument.fur.seed;
-        } else if(t>.55f) {
-            out->surface.integument=b->surface.integument;
-            float k=Math_Clamp01((t-.55f)/.45f);float blend=k*k*(3-2*k);
+            float k=Math_Clamp01(t/.45f);float blend=1.0f-k*k*(3.0f-2.0f*k);
             out->surface.integument.coverage*=blend;
             out->surface.integument.scales.relief*=blend;
+            out->surface.integument.plates.relief*=blend;
+            out->surface.integument.fur.length=Math_Lerp(0.002f,a->surface.integument.fur.length,blend);
+            out->surface.integument.fur.density=Math_Lerp(0.05f,a->surface.integument.fur.density,blend);
+            out->surface.integument.fur.seed=a->surface.integument.fur.seed;
+            out->surface.integument.scales.seed=a->surface.integument.scales.seed;
+        } else if(t>.55f) {
+            out->surface.integument=b->surface.integument;
+            float k=Math_Clamp01((t-.55f)/.45f);float blend=k*k*(3.0f-2.0f*k);
+            out->surface.integument.coverage*=blend;
+            out->surface.integument.scales.relief*=blend;
+            out->surface.integument.plates.relief*=blend;
+            out->surface.integument.fur.length=Math_Lerp(0.002f,b->surface.integument.fur.length,blend);
+            out->surface.integument.fur.density=Math_Lerp(0.05f,b->surface.integument.fur.density,blend);
+            out->surface.integument.fur.seed=b->surface.integument.fur.seed;
             out->surface.integument.scales.seed=b->surface.integument.scales.seed;
         } else {
             out->surface.integument.type=INTEGUMENT_SMOOTH_SKIN;
             out->surface.integument.coverage=0;
+            out->surface.integument.scales.relief=0;
+            out->surface.integument.plates.relief=0;
         }
     }
     out->phenotype.surface=out->surface;

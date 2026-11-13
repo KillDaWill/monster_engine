@@ -1,0 +1,3 @@
+age=0: pixels and camera/scene metadata EXACT MATCH
+age=0.5: pixels and camera/scene metadata EXACT MATCH
+age=1: pixels and camera/scene metadata EXACT MATCH

@@ -8,6 +8,8 @@ out vec4 surfaceDomainProfileA,surfaceDomainProfileB;
 out float surfaceDomainVentral;
 flat out uint extractionOverflow;
 flat out uint surfaceTissue;
+flat out uint surfaceRegionId;
+out vec4 surfacePigment0,surfacePigment1,surfacePigment2;
 uniform samplerBuffer surfacePoseData;
 uniform int surfacePoseCount;
 uniform vec4 surfaceCranialPlane;
@@ -110,7 +112,10 @@ void main() {
     surfaceDomainFlow=normalize(vec3(0,0,-1)-v.normal.xyz*dot(vec3(0,0,-1),v.normal.xyz)+vec3(1e-12));
     if(morphMaterialCount>0 && morphMaterialCount!=surfacePoseCount)MorphMaterial(v.position.xyz,v.normal.xyz,surfaceDomainPosition,surfaceDomainNormal,
         surfaceDomainProfileA,surfaceDomainProfileB,surfaceDomainVentral,surfaceDomainFlow);
+    surfaceRegionId=(metadata&131072u)!=0u?1u:0u;
     surfacePosedPosition=SurfacePose(v.position.xyz,v.normal.xyz,jaw>0u?float(jaw-1u)/255.0:-1.0,
         (metadata&131072u)!=0u,surfacePosedNormal);
+    if(morphMaterialCount==0)PigmentSetAnatomyRegion(int(surfaceRegionId),surfaceDomainVentral);
+    surfacePigment0=pigmentCoverage[0];surfacePigment1=pigmentCoverage[1];surfacePigment2=pigmentCoverage[2];
     gl_Position=gl_ModelViewProjectionMatrix*vec4(surfacePosedPosition,1);
 }

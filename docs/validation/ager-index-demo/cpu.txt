@@ -1,0 +1,46 @@
+Arquitectura:                             x86_64
+modo(s) de operación de las CPUs:         32-bit, 64-bit
+Tamaños de las direcciones:               48 bits physical, 48 bits virtual
+Orden de los bytes:                       Little Endian
+CPU(s):                                   12
+Lista de la(s) CPU(s) en línea:           0-11
+ID de fabricante:                         AuthenticAMD
+Nombre del modelo:                        AMD Ryzen 5 5600H with Radeon Graphics
+Familia de CPU:                           25
+Modelo:                                   80
+Hilo(s) de procesamiento por núcleo:      2
+Núcleo(s) por «socket»:                   6
+«Socket(s)»:                              1
+Revisión:                                 0
+Aumento de frecuencia:                    activada
+CPU(s) factor de escala MHz:              77%
+CPU MHz máx.:                             4280,9849
+CPU MHz mín.:                             412,6250
+BogoMIPS:                                 6587,68
+Indicadores:                              fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpb cat_l3 cdp_l3 hw_pstate ssbd mba ibrs ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk clzero irperf xsaveerptr rdpru wbnoinvd cppc arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic v_vmsave_vmload vgif v_spec_ctrl umip pku ospke vaes vpclmulqdq rdpid overflow_recov succor smca fsrm debug_swap
+Virtualización:                           AMD-V
+Caché L1d:                                192 KiB (6 instancias)
+Caché L1i:                                192 KiB (6 instancias)
+Caché L2:                                 3 MiB (6 instancias)
+Caché L3:                                 16 MiB (1 instancia)
+Modo(s) NUMA:                             1
+CPU(s) del nodo NUMA 0:                   0-11
+Vulnerabilidad Gather data sampling:      Not affected
+Vulnerabilidad Ghostwrite:                Not affected
+Vulnerabilidad Indirect target selection: Not affected
+Vulnerabilidad Itlb multihit:             Not affected
+Vulnerabilidad L1tf:                      Not affected
+Vulnerabilidad Mds:                       Not affected
+Vulnerabilidad Meltdown:                  Not affected
+Vulnerabilidad Mmio stale data:           Not affected
+Vulnerabilidad Old microcode:             Not affected
+Vulnerabilidad Reg file data sampling:    Not affected
+Vulnerabilidad Retbleed:                  Not affected
+Vulnerabilidad Spec rstack overflow:      Mitigation; Safe RET
+Vulnerabilidad Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerabilidad Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerabilidad Spectre v2:                Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP always-on; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerabilidad Srbds:                     Not affected
+Vulnerabilidad Tsa:                       Mitigation; Clear CPU buffers
+Vulnerabilidad Tsx async abort:           Not affected
+Vulnerabilidad Vmscape:                   Mitigation; IBPB before exit to userspace

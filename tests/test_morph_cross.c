@@ -8,7 +8,10 @@
 #include "test_utils.h"
 #include "Creature.h"
 #include "CreatureRecipes.h"
+#include "CreatureRecipeRegistry.h"
+#include "CreatureVariation.h"
 #include "CreatureMorph.h"
+#include "SurfaceMapper.h"
 #include "MonsterAger.h"
 #include "MonsterSDF.h"
 #include "MonsterVisualAsync.h"
@@ -312,9 +315,286 @@ static void test_morph_cross_ontogeny_compatibility(void) {
     printf("[PASS] test_morph_cross_ontogeny_compatibility\n");
 }
 
+static bool HasSDFMaterial(const MonsterSDF* sdf, SDFMaterial mat) {
+    for (size_t i = 0; i < sdf->connectorCount; ++i) {
+        if (sdf->connectors[i].material == mat) return true;
+    }
+    return false;
+}
+
+static void AssertNearSurfaceParity(const MonsterSDF* actual, const MonsterSDF* expected, const char* msg) {
+    Vector3 ext = Vec3_Sub(expected->bounds.end, expected->bounds.start);
+    float maxDiff = 0.0f;
+    for (int ix = 0; ix < 6; ++ix) {
+        for (int iy = 0; iy < 6; ++iy) {
+            for (int iz = 0; iz < 6; ++iz) {
+                Vector3 pt = {
+                    expected->bounds.start.x + ext.x * ((float)ix / 5.0f),
+                    expected->bounds.start.y + ext.y * ((float)iy / 5.0f),
+                    expected->bounds.start.z + ext.z * ((float)iz / 5.0f)
+                };
+                float da = MonsterSDF_EvaluateDistance(actual, pt);
+                float db = MonsterSDF_EvaluateDistance(expected, pt);
+                if (fminf(fabsf(da), fabsf(db)) < 0.25f) {
+                    maxDiff = fmaxf(maxDiff, fabsf(da - db));
+                }
+            }
+        }
+    }
+    TEST_ASSERT(maxDiff < 0.01f, msg);
+}
+
+static void BuildRandomizedVariant(const CreatureRecipe* base, uint32_t seed, Monster* out) {
+    CreatureVariation v = CreatureVariation_Create("TestVariant", seed);
+    CreatureTrait candidates[6] = {
+        {.type = CREATURE_TRAIT_BODY_ROBUST, .strength = 0.8f},
+        {.type = CREATURE_TRAIT_LIMBS_LONG, .strength = 0.7f},
+        {.type = CREATURE_TRAIT_HORNS, .strength = 0.6f, .paramA = 0.65f, .paramB = 0.14f},
+        {.type = CREATURE_TRAIT_TAIL_HEAVY, .strength = 0.7f},
+        {.type = CREATURE_TRAIT_COLOR_PALETTE, .strength = 0.7f,
+            .colorA = Color_FromRGB((uint8_t)(60 + (seed & 127u)), (uint8_t)(50 + ((seed >> 4) & 127u)), (uint8_t)(40 + ((seed >> 8) & 127u))),
+            .colorB = Color_FromRGB((uint8_t)(120 + ((seed >> 2) & 127u)), (uint8_t)(110 + ((seed >> 6) & 127u)), (uint8_t)(90 + ((seed >> 10) & 127u)))},
+        {.type = CREATURE_TRAIT_PATTERN_LAYER, .strength = 0.65f, .paramA = 1.0f, .paramB = 0.4f,
+            .colorA = Color_FromRGB(45, 35, 30)}
+    };
+    for (size_t i = 0; i < 6; ++i) {
+        if (CreatureVariation_IsTraitCompatible(&candidates[i], base, &base->adult)) {
+            CreatureVariation_AddTrait(&v, candidates[i]);
+        }
+    }
+    CreatureVariant variant = {0};
+    TEST_ASSERT(CreatureVariation_Apply(base, &base->adult, &v, &variant),
+        "Aplicar variación aleatoria compatible");
+    TEST_ASSERT(Creature_BuildMonster(out, &variant.recipe, &variant.phenotype),
+        "Construir criatura aleatoria variante");
+}
+
+static void EnsureCatalogLoaded(void) {
+    if (CreatureRecipes_Find(1005) != NULL) return;
+    char error[256] = {0};
+    TEST_ASSERT(CreatureRecipeRegistry_LoadDirectory("recipes", error, sizeof(error)),
+        "Cargar catálogo recipes/");
+}
+
+/**
+ * @brief Verifica que cualquier par (especie o variante) X -> Y interpola y construye SDF válido.
+ */
+static void test_morph_cross_all_species_matrix(void) {
+    EnsureCatalogLoaded();
+
+    const CreatureRecipeId ids[] = {1, 2, 3, 4, 1000, 1005, 1006};
+    enum { SPECIES_COUNT = 7, TOTAL_CREATURES = 9 };
+    Monster pool[TOTAL_CREATURES];
+    const char* names[TOTAL_CREATURES] = {0};
+
+    for (size_t i = 0; i < SPECIES_COUNT; ++i) {
+        const CreatureRecipe* rec = CreatureRecipes_Find(ids[i]);
+        TEST_ASSERT(rec != NULL, "Receta del catálogo encontrada");
+        pool[i] = Monster_Create();
+        CreaturePhenotype p = rec->adult;
+        TEST_ASSERT(Creature_BuildMonster(&pool[i], rec, &p), "Construir especie");
+        names[i] = rec->name ? rec->name : "Receta";
+    }
+    pool[7] = Monster_Create();
+    pool[8] = Monster_Create();
+    BuildRandomizedVariant(CreatureRecipes_Find(1), 1337u, &pool[7]);
+    BuildRandomizedVariant(CreatureRecipes_Find(1005), 4242u, &pool[8]);
+    names[7] = "VarianteLagarto";
+    names[8] = "VarianteCaballo";
+
+    MonsterSDF targetSdfs[TOTAL_CREATURES];
+    for (size_t i = 0; i < TOTAL_CREATURES; ++i) {
+        targetSdfs[i] = MonsterSDF_Create();
+        TEST_ASSERT(MonsterSDF_Build(&targetSdfs[i], &pool[i], MonsterSDF_DefaultConfig()),
+            "Construir SDF objetivo de referencia");
+    }
+
+    MonsterSDF sdf = MonsterSDF_Create();
+    const float ages[] = {0.0f, 0.25f, 0.5f, 0.75f, 1.0f};
+    for (size_t a = 0; a < TOTAL_CREATURES; ++a) {
+        for (size_t b = 0; b < TOTAL_CREATURES; ++b) {
+            if (a == b) continue;
+            MonsterAger ager = MonsterAger_Create(&pool[a], &pool[b], 0.5f);
+            Monster reference = Monster_Clone(MonsterAger_GetResultConst(&ager));
+            for (size_t k = 0; k < sizeof(ages)/sizeof(ages[0]); ++k) {
+                MonsterAger_SetPerc(&ager, ages[k]);
+                const Monster* cur = MonsterAger_GetResultConst(&ager);
+                TEST_ASSERT(AnatomyGraph_Validate(&cur->anatomyGraph),
+                    "Grafo anatómico válido en matriz X->Y");
+                for (uint32_t limbMod = 10u; limbMod <= 13u; ++limbMod) {
+                    for (uint16_t local = 1u; local <= 4u; ++local) {
+                        const AnatomyNode* jn = AnatomyGraph_FindNode(
+                            &cur->anatomyGraph, Anatomy_MakeId(limbMod, local));
+                        TEST_ASSERT(jn != NULL && jn->development > 0.1f && jn->widthRadius > 1e-3f,
+                            "Articulación de pata preservada sin atrofia durante X->Y");
+                    }
+                }
+                for (size_t ni = 0; ni < cur->anatomyGraph.nodeCount; ++ni) {
+                    const AnatomyNode* jn = &cur->anatomyGraph.nodes[ni];
+                    if ((jn->region == ANATOMY_REGION_FORELIMB || jn->region == ANATOMY_REGION_HINDLIMB) &&
+                        jn->role == ANATOMY_ROLE_JOINT) {
+                        TEST_ASSERT(jn->moduleInstanceId >= 10u && jn->moduleInstanceId <= 13u,
+                            "Sin módulos duplicados de patas durante X->Y");
+                    }
+                }
+                TEST_ASSERT(MonsterSDF_Build(&sdf, cur, MonsterSDF_DefaultConfig()),
+                    "MonsterSDF_Build válido en matriz X->Y");
+                TEST_ASSERT(sdf.hasSurface, "SDF sin superficie en matriz X->Y");
+                TEST_ASSERT(isfinite(sdf.bounds.start.x) && isfinite(sdf.bounds.end.z),
+                    "Límites finitos en matriz X->Y");
+                SurfaceMorphDomain domain = {0};
+                TEST_ASSERT(SurfaceMapper_BuildMorphDomain(&domain, &cur->anatomyGraph,
+                    &reference.anatomyGraph, &reference.surfaceMapping),
+                    "Dominio superficial de morph válido");
+                if (k == 4u) {
+                    TEST_ASSERT(cur->head.anatomy.surface.isBeak == pool[b].head.anatomy.surface.isBeak &&
+                        cur->head.anatomy.surface.sweptSkull == pool[b].head.anatomy.surface.sweptSkull &&
+                        cur->head.anatomy.surface.hasCranialProfile == pool[b].head.anatomy.surface.hasCranialProfile &&
+                        cur->head.anatomy.surface.hasMandibularProfile == pool[b].head.anatomy.surface.hasMandibularProfile,
+                        "Rasgos craneales convergen exactamente al destino en t=1");
+                    TEST_ASSERT(cur->surface.integument.type == pool[b].surface.integument.type,
+                        "Tegumento converge exactamente al destino en t=1");
+                    AssertNearSurfaceParity(&sdf, &targetSdfs[b],
+                        "Superficie SDF final coincide con la especie destino en t=1");
+                }
+            }
+            (void)names;
+            Monster_Free(&reference);
+            MonsterAger_Free(&ager);
+        }
+    }
+
+    MonsterSDF_Free(&sdf);
+    for (size_t i = 0; i < TOTAL_CREATURES; ++i) {
+        MonsterSDF_Free(&targetSdfs[i]);
+        Monster_Free(&pool[i]);
+    }
+    printf("[PASS] test_morph_cross_all_species_matrix (%d pares probados)\n",
+        TOTAL_CREATURES * (TOTAL_CREATURES - 1));
+}
+
+/**
+ * @brief Verifica materiales (cuernos/cascos), simetría de cobertura y ausencia de saltos en 0.5.
+ */
+static void test_morph_cross_materials_and_continuity(void) {
+    EnsureCatalogLoaded();
+
+    const CreatureRecipe* lizardRec = CreatureRecipes_Find(1);
+    const CreatureRecipe* dogRec = CreatureRecipes_Find(2);
+    const CreatureRecipe* brumaRec = CreatureRecipes_Find(3);
+    const CreatureRecipe* velkarRec = CreatureRecipes_Find(4);
+    const CreatureRecipe* explRec = CreatureRecipes_Find(1000);
+    const CreatureRecipe* horseRec = CreatureRecipes_Find(1005);
+    TEST_ASSERT(lizardRec && dogRec && brumaRec && velkarRec && explRec && horseRec,
+        "Recetas clave disponibles");
+
+    Monster lizard = Monster_Create(), dog = Monster_Create(),
+            bruma = Monster_Create(), velkar = Monster_Create(),
+            expl = Monster_Create(), horse = Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(&lizard, lizardRec, &lizardRec->adult), "Lagarto");
+    TEST_ASSERT(Creature_BuildMonster(&dog, dogRec, &dogRec->adult), "Perro");
+    TEST_ASSERT(Creature_BuildMonster(&bruma, brumaRec, &brumaRec->adult), "Brumacerno");
+    TEST_ASSERT(Creature_BuildMonster(&velkar, velkarRec, &velkarRec->adult), "Velkar");
+    TEST_ASSERT(Creature_BuildMonster(&expl, explRec, &explRec->adult), "Explorador");
+    TEST_ASSERT(Creature_BuildMonster(&horse, horseRec, &horseRec->adult), "Caballo");
+
+    Monster out = Monster_Create();
+    MonsterSDF sdfA = MonsterSDF_Create(), sdfB = MonsterSDF_Create();
+
+    /* 1. Velkar (orejas 30/31) -> Brumacerno (cuernos 30/31): debe conservar MATERIAL_HORN */
+    TEST_ASSERT(CreatureMorph_Interpolate(&velkar, &bruma, 0.25f, &out) &&
+        MonsterSDF_Build(&sdfA, &out, MonsterSDF_DefaultConfig()) &&
+        HasSDFMaterial(&sdfA, SDF_MATERIAL_HORN),
+        "Cuernos conservan material HORN al 25%% en Velkar->Brumacerno");
+    TEST_ASSERT(CreatureMorph_Interpolate(&velkar, &bruma, 0.75f, &out) &&
+        MonsterSDF_Build(&sdfA, &out, MonsterSDF_DefaultConfig()) &&
+        HasSDFMaterial(&sdfA, SDF_MATERIAL_HORN),
+        "Cuernos tras remapeo conservan material HORN al 75%% en Velkar->Brumacerno");
+
+    /* 2. Perro -> Caballo: cascos tras remapeo deben conservar MATERIAL_HOOF */
+    TEST_ASSERT(CreatureMorph_Interpolate(&dog, &horse, 0.30f, &out) &&
+        MonsterSDF_Build(&sdfA, &out, MonsterSDF_DefaultConfig()) &&
+        HasSDFMaterial(&sdfA, SDF_MATERIAL_HOOF),
+        "Cascos conservan material HOOF al 30%% en Perro->Caballo");
+    TEST_ASSERT(CreatureMorph_Interpolate(&dog, &horse, 0.75f, &out) &&
+        MonsterSDF_Build(&sdfA, &out, MonsterSDF_DefaultConfig()) &&
+        HasSDFMaterial(&sdfA, SDF_MATERIAL_HOOF),
+        "Cascos conservan material HOOF al 75%% en Perro->Caballo");
+
+    /* 3. Cobertura y longitud de pelo en transición escamas -> pelaje (Lagarto -> Caballo) */
+    TEST_ASSERT(CreatureMorph_Interpolate(&lizard, &horse, 0.56f, &out),
+        "Lagarto->Caballo al 56%%");
+    TEST_ASSERT(out.surface.integument.type == INTEGUMENT_FUR &&
+        out.surface.integument.coverage < 0.05f &&
+        out.surface.integument.fur.length < horse.surface.integument.fur.length * 0.25f,
+        "El pelo emergente crece suavemente desde raíz tras el 55%%");
+
+    /* 4. Continuidad fina en el cruce del 50% en pares heterogéneos */
+    const Monster* pairs[5][2] = {
+        {&velkar, &bruma}, {&dog, &horse}, {&lizard, &horse},
+        {&dog, &bruma}, {&horse, &expl}
+    };
+    for (size_t p = 0; p < 5; ++p) {
+        Monster prev = Monster_Create();
+        TEST_ASSERT(CreatureMorph_Interpolate(pairs[p][0], pairs[p][1], 0.4999f, &prev), "0.4999");
+        TEST_ASSERT(CreatureMorph_Interpolate(pairs[p][0], pairs[p][1], 0.5001f, &out), "0.5001");
+        TEST_ASSERT(MonsterSDF_Build(&sdfA, &prev, MonsterSDF_DefaultConfig()), "SDF 0.4999");
+        TEST_ASSERT(MonsterSDF_Build(&sdfB, &out, MonsterSDF_DefaultConfig()), "SDF 0.5001");
+        float maxSurface = 0.0f;
+        for (int ix = -4; ix <= 4; ++ix) {
+            for (int iy = -1; iy <= 6; ++iy) {
+                for (int iz = -14; iz <= 6; ++iz) {
+                    Vector3 pt = {(float)ix * 0.5f, (float)iy * 0.5f, (float)iz * 0.5f};
+                    float d0 = MonsterSDF_EvaluateDistance(&sdfA, pt);
+                    float d1 = MonsterSDF_EvaluateDistance(&sdfB, pt);
+                    if (fminf(fabsf(d0), fabsf(d1)) < 0.15f) {
+                        maxSurface = fmaxf(maxSurface, fabsf(d0 - d1));
+                    }
+                }
+            }
+        }
+        printf("  [cruce 0.5] par %zu: maxSurface=%.5f\n", p, maxSurface);
+        TEST_ASSERT(maxSurface < 0.02f, "Sin salto superficial en cruce 50%%");
+        Monster_Free(&prev);
+    }
+
+    /* 5. Encadenamiento intermedio X -> Y (t=0.45) -> Z */
+    Monster mid = Monster_Create();
+    TEST_ASSERT(CreatureMorph_Interpolate(&lizard, &horse, 0.45f, &mid), "X -> Y al 45%%");
+    MonsterAger chained = MonsterAger_Create(&mid, &bruma, 0.0f);
+    TEST_ASSERT(MonsterSDF_Build(&sdfB, &bruma, MonsterSDF_DefaultConfig()), "SDF Z destino");
+    for (int step = 0; step <= 4; ++step) {
+        MonsterAger_SetPerc(&chained, step * 0.25f);
+        const Monster* cur = MonsterAger_GetResultConst(&chained);
+        TEST_ASSERT(MonsterSDF_Build(&sdfA, cur, MonsterSDF_DefaultConfig()) &&
+            sdfA.hasSurface, "Cadena (X->Y) -> Z genera SDF válido");
+        for (uint32_t limbMod = 10u; limbMod <= 13u; ++limbMod) {
+            for (uint16_t local = 1u; local <= 4u; ++local) {
+                const AnatomyNode* jn = AnatomyGraph_FindNode(
+                    &cur->anatomyGraph, Anatomy_MakeId(limbMod, local));
+                TEST_ASSERT(jn != NULL && jn->development > 0.1f,
+                    "Patas preservadas en cadena (X->Y) -> Z");
+            }
+        }
+        if (step == 4) {
+            AssertNearSurfaceParity(&sdfA, &sdfB,
+                "Cadena (X->Y) -> Z converge exactamente a Z en t=1");
+        }
+    }
+    MonsterAger_Free(&chained);
+    Monster_Free(&mid);
+
+    MonsterSDF_Free(&sdfA); MonsterSDF_Free(&sdfB); Monster_Free(&out);
+    Monster_Free(&lizard); Monster_Free(&dog); Monster_Free(&bruma);
+    Monster_Free(&velkar); Monster_Free(&expl); Monster_Free(&horse);
+    printf("[PASS] test_morph_cross_materials_and_continuity\n");
+}
+
 void run_morph_cross_tests(void) {
     test_morph_cross_quadruped_to_snake();
     test_morph_cross_quadruped_to_biped();
     test_morph_cross_snake_to_quadruped_reversible();
     test_morph_cross_ontogeny_compatibility();
+    test_morph_cross_all_species_matrix();
+    test_morph_cross_materials_and_continuity();
 }

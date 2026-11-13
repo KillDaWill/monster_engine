@@ -1,0 +1,8 @@
+[PASS] test_morph_cross_quadruped_to_snake
+[PASS] test_morph_cross_quadruped_to_biped
+[PASS] test_morph_cross_snake_to_quadruped_reversible
+[PASS] test_morph_cross_ontogeny_compatibility
+
+======================================
+ ¡TODAS LAS SUITES PASARON CON ÉXITO! 
+======================================

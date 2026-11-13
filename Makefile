@@ -194,7 +194,7 @@ DEMO_LIZARD_BIN = $(DEMO_DIR)/demo_lizard_console
 DEMO_MOUTH_BIN = $(DEMO_DIR)/demo_mouth_animation
 DEMO_ANIMATION_BIN = $(DEMO_DIR)/demo_lizard_animation
 DEMO_DIVERSITY_BIN = $(DEMO_DIR)/demo_lizard_diversity
-DEMO_MORPH_BIN = $(DEMO_DIR)/demo_morph_dog_lizard
+DEMO_MORPH_BIN = $(DEMO_DIR)/demo_morph_species
 DEMO_GAME_SCENE_BIN = $(DEMO_DIR)/demo_game_scene
 LIZARD_VIEWER_BIN = lizard_viewer
 
@@ -344,14 +344,14 @@ demos: demos/demo_ecosystem demos/demo_ecosystem_headless $(DEMO_AGER_BIN) $(DEM
 $(DEMO_GAME_SCENE_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_game_scene.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
-$(DEMO_MORPH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_morph_dog_lizard.c
+$(DEMO_MORPH_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_morph_species.c
 	$(CC) $(CFLAGS) -DMONSTER_BUILD_REVISION='"$(BUILD_REVISION)"' $^ $(GL_LIBS) -o $@
 
 # Compara la silueta final retardada con el campo exacto del mismo snapshot.
 visual-morph-ownership: $(DEMO_MORPH_BIN)
 	@mkdir -p $(BUILD_DIR)/morph-ownership
-	./$(DEMO_MORPH_BIN) --surface-mode=legacy-handoff --validate-cycle=$(BUILD_DIR)/morph-ownership/delayed --worker-delay=3000 --view=3 --no-fur
-	./$(DEMO_MORPH_BIN) --surface-mode=exact-sdf --age=1 --capture-prefix=$(BUILD_DIR)/morph-ownership/exact --view=3 --no-fur
+	./$(DEMO_MORPH_BIN) --from=dog --to=lizard --surface-mode=legacy-handoff --validate-cycle=$(BUILD_DIR)/morph-ownership/delayed --worker-delay=3000 --view=3 --no-fur
+	./$(DEMO_MORPH_BIN) --from=dog --to=lizard --surface-mode=exact-sdf --age=1 --capture-prefix=$(BUILD_DIR)/morph-ownership/exact --view=3 --no-fur
 	python3 tools/verify_morph_ownership.py $(BUILD_DIR)/morph-ownership/exact.ppm $(BUILD_DIR)/morph-ownership/delayed-06.ppm
 
 $(DEMO_AGER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_ager_3d.c $(DEMO_DIR)/demo_ager_realtime.h
@@ -468,7 +468,7 @@ demos/demo_dog: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_dog.c
 
 # Regresión anatómica del campo disperso: no oculta fallos regionales.
 .PHONY: visual-ager-sparse
-visual-ager-sparse: demos/demo_morph_dog_lizard
+visual-ager-sparse: $(DEMO_MORPH_BIN)
 	python3 tools/validate_ager_features.py --mode=gpu-sdf-sparse --history --out=build/ager-sparse-validation
 
 # Benchmark de inteligencia independiente de GL, superficies y Ager.

@@ -249,6 +249,30 @@ void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surf
  * @return true si la actualización es válida; no remalla el volumen. */
 bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* monster);
 
+typedef struct LongHairAsync LongHairAsync;
+
+/** @brief Crea un orquestador asíncrono que reconstruye pelo largo exacto en segundo plano. */
+LongHairAsync* LongHairAsync_Create(void);
+
+/** @brief Detiene el hilo trabajador y libera todos los recursos de pelo largo asíncrono. */
+void LongHairAsync_Destroy(LongHairAsync* async);
+
+/** @brief Actualiza pelo largo de forma no bloqueante: solicita reconstrucción en worker
+ *  cuando cambia la huella y transporta guías en curso según el grafo anatómico. */
+bool LongHairAsync_Update(LongHairAsync* async,const Monster* monster,bool allowTransport);
+
+/** @brief Espera a que termine la reconstrucción pendiente y publica el conjunto exacto. */
+bool LongHairAsync_Flush(LongHairAsync* async,const Monster* monster);
+
+/** @brief Devuelve el LongHairSet listo para renderizar desde el hilo principal. */
+const LongHairSet* LongHairAsync_GetDisplay(const LongHairAsync* async);
+
+/** @brief Variante mutable para inspección/diagnóstico tras actualización en el hilo propietario. */
+LongHairSet* LongHairAsync_GetDisplayMutable(LongHairAsync* async);
+
+/** @brief Indica si hay reconstrucción exacta de pelo largo pendiente o en curso. */
+bool LongHairAsync_IsBusy(const LongHairAsync* async);
+
 bool MonsterVisual_Render(const MonsterVisual* visual, Renderer3D* renderer);
 
 #ifdef __cplusplus

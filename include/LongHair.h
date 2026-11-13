@@ -80,7 +80,7 @@ typedef struct LongHairSet {
     LongHairGroup groups[LONG_HAIR_MAX_GROUPS];
     size_t groupCount;
     float scale;
-    uint64_t fingerprint, generation;
+    uint64_t fingerprint, generation, poseGeneration;
     LongHairCollider* colliders;
     size_t colliderCount;
     LongHairDistance attachedDistance; /**< Campo en coordenadas mundiales de reposo; opcional. */
@@ -124,6 +124,9 @@ void LongHairSet_Free(LongHairSet* set);
 /** @brief Transporta guías por las dos estaciones propietarias, sin regenerar hijos.
  * @return false ante pose incompatible; las guías no válidas quedan ocultas. */
 bool LongHairSet_Pose(LongHairSet* set,const Skeleton* skeleton,const SkeletonPose* pose);
+/** @brief Ajusta guías y colisionadores existentes a un grafo anatómico reciente sin reconstruir folículos.
+ * @return true si el runtime se actualizó o no tenía guías activas. */
+bool LongHairSet_TransportToAnatomyGraph(LongHairSet* set,const AnatomyGraph* graph,float scale);
 /** @brief Resuelve contactos del tubo guía/hijos contra un campo actual; raíz fija.
  * @param set Runtime mutable; mantiene raíces e identidades.
  * @param distance Distancia firmada en coordenadas de las guías.

@@ -1366,6 +1366,7 @@ MonsterVisualAsync* MonsterVisualAsync_Create(MonsterVisualAsyncConfig config) {
     asyncMgr->displayChunkManager = MorphChunkManager_Create(defaultChunkSize, 0.08f);
     asyncMgr->readyChunkManager = MorphChunkManager_Create(defaultChunkSize, 0.08f);
     asyncMgr->samplingPool = SDFSamplingPool_Create(0);
+    asyncMgr->longHairAsync = LongHairAsync_Create();
 
     pthread_mutex_init(&asyncMgr->lock, NULL);
     pthread_cond_init(&asyncMgr->cond, NULL);
@@ -1438,6 +1439,8 @@ void MonsterVisualAsync_Free(MonsterVisualAsync* asyncMgr) {
     pthread_mutex_destroy(&asyncMgr->lock);
     pthread_cond_destroy(&asyncMgr->cond);
 
+    LongHairAsync_Destroy(asyncMgr->longHairAsync);
+    asyncMgr->longHairAsync = NULL;
     LongHairSet_Free(&asyncMgr->longHair);
     free(asyncMgr);
 }
@@ -1496,7 +1499,16 @@ bool MonsterVisualAsync_SetMorphEndpoints(MonsterVisualAsync* asyncMgr,
 bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
     const Monster* monster,const Monster* appearance,float deltaTime) {
     if (!asyncMgr || !monster || !appearance) return false;
-    if(!MonsterVisual_UpdateLongHair(&asyncMgr->longHair,appearance))return false;
+    if(asyncMgr->longHairAsync){
+        if(!LongHairAsync_Update(asyncMgr->longHairAsync,appearance,true))return false;
+        size_t hairCount=(appearance->hasSurface&&appearance->surface.longHairCount<=LONG_HAIR_MAX_GROUPS)
+            ?appearance->surface.longHairCount:0;
+        asyncMgr->longHair.groupCount=hairCount;
+        for(size_t i=0;i<hairCount;++i){
+            asyncMgr->longHair.groups[i]=appearance->surface.longHair[i];
+            LongHairGroup_Normalize(&asyncMgr->longHair.groups[i]);
+        }
+    }else if(!MonsterVisual_UpdateLongHair(&asyncMgr->longHair,appearance))return false;
     double presentationStart=GetTimeMs();
 
     /* 1. Detectar movimiento y actualizar temporizador de tier de calidad */
@@ -2101,7 +2113,10 @@ bool MonsterVisualAsync_Render(const MonsterVisualAsync* asyncMgr, Renderer3D* r
             else renderer->renderMesh(renderer,&asyncMgr->displayEyes[i].globe);
         }
     }
-    if(asyncMgr->displayMesh.vertexCount&&renderer->renderLongHair)renderer->renderLongHair(renderer,&asyncMgr->longHair);
+    const LongHairSet* hair = asyncMgr->longHairAsync
+        ? LongHairAsync_GetDisplay(asyncMgr->longHairAsync)
+        : &asyncMgr->longHair;
+    if(asyncMgr->displayMesh.vertexCount&&hair&&hair->count&&renderer->renderLongHair)renderer->renderLongHair(renderer,hair);
     return true;
 }
 

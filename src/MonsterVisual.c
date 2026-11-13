@@ -4,6 +4,7 @@
 #include "MathUtils.h"
 #include "MonsterAnimation.h"
 #include "LongHairScheduler.h"
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -25,12 +26,84 @@ static float LongHairJawDistance(const void* context,Vector3 p){
     float lower=Vec3_Length(delta)*j->scale;if(lower>.4f*j->bodyScale)return lower;
     return MonsterSDF_EvaluateJawSnapshotDistance(&j->mouth,local)*j->scale;
 }
-typedef struct LongHairRestField {const MonsterSDF* body;const LongHairJawField* jaw;} LongHairRestField;
+typedef struct LongHairRestField {const MonsterSDFDistanceGrid* grid;const MonsterSDF* body;const LongHairJawField* jaw;} LongHairRestField;
 static float LongHairRestDistance(const void* context,Vector3 p){const LongHairRestField* c=context;
-    return fminf(MonsterSDF_EvaluateDistance(c->body,p),LongHairJawDistance(c->jaw,p));
+    float bodyDist=(c->grid&&c->grid->valid)?MonsterSDFDistanceGrid_EvaluateDistance(c->grid,p):MonsterSDF_EvaluateDistance(c->body,p);
+    return fminf(bodyDist,LongHairJawDistance(c->jaw,p));
 }
-static int LongHairOptInThreads(void){const char* value=getenv("MONSTER_LONG_HAIR_THREADS");if(!value||!*value)return 1;
-    char* end=NULL;long count=strtol(value,&end,10);return end!=value&&!*end&&(count==1||count==2||count==4||count==8)?(int)count:1;}
+static int LongHairOptInThreads(void){const char* value=getenv("MONSTER_LONG_HAIR_THREADS");if(!value||!*value)return LONG_HAIR_SCHEDULER_DEFAULT_MAX_THREADS;
+    char* end=NULL;long count=strtol(value,&end,10);return end!=value&&!*end&&(count==1||count==2||count==4||count==8)?(int)count:LONG_HAIR_SCHEDULER_DEFAULT_MAX_THREADS;}
+static uint64_t ComputeLongHairFingerprint(const Monster* m){
+    if(!m||!m->hasSurface||m->surface.longHairCount==0||!m->hasAnatomyGraph)return 0;
+    size_t count=m->surface.longHairCount;
+    LongHairGroup geomGroups[LONG_HAIR_MAX_GROUPS];
+    size_t safeCount=count>LONG_HAIR_MAX_GROUPS?LONG_HAIR_MAX_GROUPS:count;
+    for(size_t i=0;i<safeCount;++i){
+        geomGroups[i]=m->surface.longHair[i];
+        LongHairGroup_Normalize(&geomGroups[i]);
+        geomGroups[i].rootColor=(Color){0,0,0,0};
+        geomGroups[i].tipColor=(Color){0,0,0,0};
+        geomGroups[i].transparency=0;
+    }
+    uint64_t h=LongHairGroups_Fingerprint(geomGroups,safeCount),a=AnatomyGraph_Fingerprint(&m->anatomyGraph);
+    h=HashBytes(&a,sizeof(a),h);h=HashBytes(&m->phenotype.axial.totalScale,sizeof(float),h);
+    bool animated=m->animation!=NULL;h=HashBytes(&animated,sizeof(animated),h);
+    if(animated)h=HashBytes(&m->animation->rigGeneration,sizeof(m->animation->rigGeneration),h);
+    if(m->hasHead)h=HashBytes(&m->head.phenotype,sizeof(m->head.phenotype),h);
+    if(m->mouthCount){const Mouth* mouth=&m->mouths[0];
+        h=HashBytes(&mouth->offset,sizeof(mouth->offset),h);h=HashBytes(&mouth->rotation,sizeof(mouth->rotation),h);
+        h=HashBytes(&mouth->jawPivot,sizeof(mouth->jawPivot),h);h=HashBytes(&mouth->jawLength,sizeof(float),h);
+        h=HashBytes(&mouth->jawWidth,sizeof(float),h);h=HashBytes(&mouth->jawThickness,sizeof(float),h);}
+    return h;
+}
+static void ExtractJawJointInfo(const Monster* m,bool* outHasJawJoint,uint32_t* outJawJointId){
+    *outHasJawJoint=false;*outJawJointId=0;
+    if(m&&m->animation&&m->animation->rig.jawJoint>=0){
+        int idx=m->animation->rig.jawJoint;
+        if((size_t)idx<m->animation->rig.skeleton.jointCount){
+            *outHasJawJoint=true;
+            *outJawJointId=m->animation->rig.skeleton.joints[idx].id;
+        }
+    }
+}
+static bool BuildLongHairSetData(LongHairSet* hair,const Monster* m,uint64_t h,bool hasJawJoint,uint32_t jawJointId,bool useParallel){
+    size_t count=m->hasSurface?m->surface.longHairCount:0;
+    MonsterSDF sdf=MonsterSDF_Create();
+    if(!MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()))return false;
+    LongHairJawField* field=NULL;
+    if(sdf.mouthCount&&m->mouthCount){
+        MonsterSDFJawField jawContext;SDFField jaw=MonsterSDF_GetJawField(&sdf,0,&jawContext);
+        Vector3 rotation=m->mouths[0].rotation,x=Transform3D_RotateVector(rotation,Vec3_Create(1,0,0)),
+            y=Transform3D_RotateVector(rotation,Vec3_Create(0,1,0)),z=Transform3D_RotateVector(rotation,Vec3_Create(0,0,1));
+        field=malloc(sizeof(*field));
+        if(!field){MonsterSDF_Free(&sdf);return false;}
+        *field=(LongHairJawField){.mouth=sdf.mouths[0],.center=sdf.mouths[0].center,.x=x,.y=y,.z=z,
+            .pivot=m->mouths[0].jawPivot,.scale=m->phenotype.development.cephalic,.bodyScale=m->phenotype.axial.totalScale,.bounds=jaw.getBounds(jaw.context)};
+    }
+    /* Proyectar desde el principio contra la unión visual real. Proyectar
+     * primero al cráneo y luego a la mandíbula puede enterrar la raíz en el
+     * volumen anterior. El snapshot pequeño sobrevive al SDF temporal. */
+    MonsterSDFDistanceGrid* grid=malloc(sizeof(*grid));
+    if(grid&&!MonsterSDFDistanceGrid_Build(grid,&sdf)){free(grid);grid=NULL;}
+    LongHairRestField combined={grid,&sdf,field};
+    LongHairDistance distanceFn=field?LongHairRestDistance:(grid?MonsterSDFDistanceGrid_EvaluateDistanceWrapper:MonsterSDF_EvaluateDistanceWrapper);
+    const void* distanceContext=field?(const void*)&combined:(grid?(const void*)grid:(const void*)&sdf);
+    bool ok=useParallel?LongHairSet_BuildParallel(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext,hair->scheduler):
+        LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext);
+    free(grid);
+    if(!ok){free(field);MonsterSDF_Free(&sdf);return false;}
+    if(field&&hair->count){
+        hair->attachedDistance=LongHairJawDistance;hair->attachedContext=field;hair->freeAttachedContext=free;hair->attachedContextBytes=sizeof(*field);
+        hair->collisionJoint=hasJawJoint?jawJointId:0;
+        for(size_t i=0;i<hair->count;++i){LongHairGuide* g=&hair->guides[i];
+            if(!g->visible||g->root.moduleId!=sdf.mouths[0].moduleInstanceId||Vec3_Dot(g->root.restNormal,field->y)>-.15f)continue;
+            float d=LongHairJawDistance(field,g->root.restPosition);
+            if(isfinite(d)&&fabsf(d)<.01f*hair->scale)g->attachmentJoint=hair->collisionJoint;
+        }
+    }else free(field);
+    MonsterSDF_Free(&sdf);hair->fingerprint=h;
+    return true;
+}
 bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
     if(!hair||!m)return false;
     size_t count=m->hasSurface?m->surface.longHairCount:0;
@@ -43,47 +116,10 @@ bool MonsterVisual_UpdateLongHair(LongHairSet* hair,const Monster* m){
     if(requestedThreads>1&&!hair->scheduler){LongHairSchedulerConfig config=LongHairScheduler_DefaultConfig();config.threadCount=requestedThreads;config.maxThreads=requestedThreads;
         hair->scheduler=LongHairScheduler_Create(&config);}
     bool useParallel=requestedThreads>1&&hair->scheduler&&LongHairScheduler_GetThreadCount(hair->scheduler)==requestedThreads;
-    uint64_t h=LongHairGroups_Fingerprint(m->surface.longHair,count),a=AnatomyGraph_Fingerprint(&m->anatomyGraph);
-    h=HashBytes(&a,sizeof(a),h);h=HashBytes(&m->phenotype.axial.totalScale,sizeof(float),h);
-    bool animated=m->animation!=NULL;h=HashBytes(&animated,sizeof(animated),h);
-    if(animated)h=HashBytes(&m->animation->rigGeneration,sizeof(m->animation->rigGeneration),h);
-    if(m->hasHead)h=HashBytes(&m->head.phenotype,sizeof(m->head.phenotype),h);
-    if(m->mouthCount){const Mouth* mouth=&m->mouths[0];
-        h=HashBytes(&mouth->offset,sizeof(mouth->offset),h);h=HashBytes(&mouth->rotation,sizeof(mouth->rotation),h);
-        h=HashBytes(&mouth->jawPivot,sizeof(mouth->jawPivot),h);h=HashBytes(&mouth->jawLength,sizeof(float),h);
-        h=HashBytes(&mouth->jawWidth,sizeof(float),h);h=HashBytes(&mouth->jawThickness,sizeof(float),h);}
+    uint64_t h=ComputeLongHairFingerprint(m);
     if(hair->fingerprint!=h){
-        MonsterSDF sdf=MonsterSDF_Create();
-        if(!MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()))return false;
-        LongHairJawField* field=NULL;
-        if(sdf.mouthCount&&m->mouthCount){
-            MonsterSDFJawField jawContext;SDFField jaw=MonsterSDF_GetJawField(&sdf,0,&jawContext);
-            Vector3 rotation=m->mouths[0].rotation,x=Transform3D_RotateVector(rotation,Vec3_Create(1,0,0)),
-                y=Transform3D_RotateVector(rotation,Vec3_Create(0,1,0)),z=Transform3D_RotateVector(rotation,Vec3_Create(0,0,1));
-            field=malloc(sizeof(*field));
-            if(!field){MonsterSDF_Free(&sdf);return false;}
-            *field=(LongHairJawField){.mouth=sdf.mouths[0],.center=sdf.mouths[0].center,.x=x,.y=y,.z=z,
-                .pivot=m->mouths[0].jawPivot,.scale=m->phenotype.development.cephalic,.bodyScale=m->phenotype.axial.totalScale,.bounds=jaw.getBounds(jaw.context)};
-        }
-        /* Proyectar desde el principio contra la unión visual real. Proyectar
-         * primero al cráneo y luego a la mandíbula puede enterrar la raíz en el
-         * volumen anterior. El snapshot pequeño sobrevive al SDF temporal. */
-        LongHairRestField combined={&sdf,field};
-        LongHairDistance distanceFn=field?LongHairRestDistance:MonsterSDF_EvaluateDistanceWrapper;
-        const void* distanceContext=field?(const void*)&combined:(const void*)&sdf;
-        bool ok=useParallel?LongHairSet_BuildParallel(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext,hair->scheduler):
-            LongHairSet_Build(hair,m->surface.longHair,count,&m->anatomyGraph,m->phenotype.axial.totalScale,distanceFn,distanceContext);
-        if(!ok){free(field);MonsterSDF_Free(&sdf);return false;}
-        if(field&&hair->count){
-            hair->attachedDistance=LongHairJawDistance;hair->attachedContext=field;hair->freeAttachedContext=free;hair->attachedContextBytes=sizeof(*field);
-            hair->collisionJoint=m->animation&&m->animation->rig.jawJoint>=0?m->animation->rig.skeleton.joints[m->animation->rig.jawJoint].id:0;
-            for(size_t i=0;i<hair->count;++i){LongHairGuide* g=&hair->guides[i];
-                if(!g->visible||g->root.moduleId!=sdf.mouths[0].moduleInstanceId||Vec3_Dot(g->root.restNormal,field->y)>-.15f)continue;
-                float d=LongHairJawDistance(field,g->root.restPosition);
-                if(isfinite(d)&&fabsf(d)<.01f*hair->scale)g->attachmentJoint=hair->collisionJoint;
-            }
-        }else free(field);
-        MonsterSDF_Free(&sdf);hair->fingerprint=h;
+        bool hasJaw=false;uint32_t jawId=0;ExtractJawJointInfo(m,&hasJaw,&jawId);
+        if(!BuildLongHairSetData(hair,m,h,hasJaw,jawId,useParallel))return false;
     }
     if(m->animation)return LongHairSet_Pose(hair,&m->animation->rig.skeleton,&m->animation->pose);
     return true;
@@ -479,4 +515,268 @@ void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surf
         visual->mouths[i].jaw.surfaceRecipe=visual->mouths[i].hinge.surfaceRecipe=recipe;
         visual->mouths[i].jaw.hasSurface=visual->mouths[i].hinge.hasSurface=surface!=NULL;
     }
+}
+
+struct LongHairAsync {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    pthread_t worker;
+    bool threadRunning;
+    bool shutdown;
+
+    Monster pendingSnapshot;
+    uint64_t pendingFingerprint;
+    bool pendingHasJawJoint;
+    uint32_t pendingJawJointId;
+    bool hasPending;
+
+    Monster workerSnapshot;
+    uint64_t workerFingerprint;
+    bool workerHasJawJoint;
+    uint32_t workerJawJointId;
+    bool isWorking;
+
+    LongHairSet workerHair;
+    LongHairSet readyHair;
+    uint64_t readyFingerprint;
+    bool hasReady;
+
+    LongHairSet displayHair;
+    uint64_t displayFingerprint;
+    bool wantEmpty;
+};
+
+static void ClearHairSetDataPreservingScheduler(LongHairSet* set){
+    if(!set)return;
+    LongHairScheduler* sched=set->scheduler;
+    uint64_t gen=set->generation;
+    set->scheduler=NULL;
+    LongHairSet_Free(set);
+    set->scheduler=sched;
+    set->generation=gen;
+}
+
+static void MoveHairSetData(LongHairSet* dst,LongHairSet* src){
+    LongHairScheduler* dstSched=dst->scheduler;
+    uint64_t nextGen=dst->generation+1;
+    dst->scheduler=NULL;
+    LongHairSet_Free(dst);
+    LongHairScheduler* srcSched=src->scheduler;
+    src->scheduler=NULL;
+    *dst=*src;
+    memset(src,0,sizeof(*src));
+    src->scheduler=srcSched;
+    dst->scheduler=dstSched;
+    dst->generation=nextGen;
+    dst->poseGeneration++;
+}
+
+static void SyncLongHairAppearance(LongHairSet* set,const Monster* m){
+    size_t count=m&&m->hasSurface?m->surface.longHairCount:0;
+    if(!set||set->groupCount!=count||!count)return;
+    bool appearanceChanged=false;
+    for(size_t i=0;i<count;++i){
+        LongHairGroup g=m->surface.longHair[i];
+        LongHairGroup_Normalize(&g);
+        if(memcmp(&set->groups[i].rootColor,&g.rootColor,sizeof(Color))!=0||
+           memcmp(&set->groups[i].tipColor,&g.tipColor,sizeof(Color))!=0||
+           set->groups[i].transparency!=g.transparency){
+            set->groups[i].rootColor=g.rootColor;
+            set->groups[i].tipColor=g.tipColor;
+            set->groups[i].transparency=g.transparency;
+            appearanceChanged=true;
+        }
+    }
+    if(appearanceChanged)set->poseGeneration++;
+}
+static void* LongHairAsyncWorker(void* arg){
+    LongHairAsync* async=(LongHairAsync*)arg;
+    int requestedThreads=LongHairOptInThreads();
+    if(requestedThreads>1&&!async->workerHair.scheduler){
+        LongHairSchedulerConfig cfg=LongHairScheduler_DefaultConfig();
+        cfg.threadCount=requestedThreads;
+        cfg.maxThreads=requestedThreads;
+        async->workerHair.scheduler=LongHairScheduler_Create(&cfg);
+    }
+    bool useParallel=requestedThreads>1&&async->workerHair.scheduler&&
+        LongHairScheduler_GetThreadCount(async->workerHair.scheduler)==requestedThreads;
+
+    for(;;){
+        pthread_mutex_lock(&async->lock);
+        while(!async->hasPending&&!async->shutdown){
+            pthread_cond_wait(&async->cond,&async->lock);
+        }
+        if(async->shutdown){
+            pthread_mutex_unlock(&async->lock);
+            break;
+        }
+        Monster_CopyInto(&async->workerSnapshot,&async->pendingSnapshot);
+        async->workerFingerprint=async->pendingFingerprint;
+        async->workerHasJawJoint=async->pendingHasJawJoint;
+        async->workerJawJointId=async->pendingJawJointId;
+        async->hasPending=false;
+        async->isWorking=true;
+        pthread_mutex_unlock(&async->lock);
+
+        bool ok=BuildLongHairSetData(&async->workerHair,&async->workerSnapshot,
+            async->workerFingerprint,async->workerHasJawJoint,async->workerJawJointId,useParallel);
+
+        pthread_mutex_lock(&async->lock);
+        if(ok&&!async->wantEmpty&&!async->shutdown){
+            MoveHairSetData(&async->readyHair,&async->workerHair);
+            async->readyFingerprint=async->workerFingerprint;
+            async->hasReady=true;
+        }else{
+            ClearHairSetDataPreservingScheduler(&async->workerHair);
+        }
+        async->isWorking=false;
+        pthread_cond_broadcast(&async->cond);
+        pthread_mutex_unlock(&async->lock);
+    }
+    LongHairSet_Free(&async->workerHair);
+    return NULL;
+}
+
+LongHairAsync* LongHairAsync_Create(void){
+    LongHairAsync* async=(LongHairAsync*)calloc(1,sizeof(LongHairAsync));
+    if(!async)return NULL;
+    async->pendingSnapshot=Monster_Create();
+    async->workerSnapshot=Monster_Create();
+    pthread_mutex_init(&async->lock,NULL);
+    pthread_cond_init(&async->cond,NULL);
+    async->threadRunning=(pthread_create(&async->worker,NULL,LongHairAsyncWorker,async)==0);
+    return async;
+}
+
+void LongHairAsync_Destroy(LongHairAsync* async){
+    if(!async)return;
+    if(async->threadRunning){
+        pthread_mutex_lock(&async->lock);
+        async->shutdown=true;
+        pthread_cond_broadcast(&async->cond);
+        pthread_mutex_unlock(&async->lock);
+        pthread_join(async->worker,NULL);
+        async->threadRunning=false;
+    }
+    LongHairSet_Free(&async->readyHair);
+    LongHairSet_Free(&async->displayHair);
+    LongHairSet_Free(&async->workerHair);
+    Monster_Free(&async->pendingSnapshot);
+    Monster_Free(&async->workerSnapshot);
+    pthread_mutex_destroy(&async->lock);
+    pthread_cond_destroy(&async->cond);
+    free(async);
+}
+
+bool LongHairAsync_Update(LongHairAsync* async,const Monster* monster,bool allowTransport){
+    if(!async||!monster)return false;
+    size_t count=monster->hasSurface?monster->surface.longHairCount:0;
+    if(!count){
+        pthread_mutex_lock(&async->lock);
+        async->hasPending=false;
+        async->hasReady=false;
+        async->wantEmpty=true;
+        ClearHairSetDataPreservingScheduler(&async->readyHair);
+        pthread_mutex_unlock(&async->lock);
+        ClearHairSetDataPreservingScheduler(&async->displayHair);
+        async->displayFingerprint=0;
+        return true;
+    }
+    if(!monster->hasAnatomyGraph||count>LONG_HAIR_MAX_GROUPS)return false;
+
+    uint64_t h=ComputeLongHairFingerprint(monster);
+    bool hasJaw=false;uint32_t jawId=0;
+    ExtractJawJointInfo(monster,&hasJaw,&jawId);
+
+    bool swappedReady=false;
+    pthread_mutex_lock(&async->lock);
+    async->wantEmpty=false;
+    if(async->hasReady){
+        MoveHairSetData(&async->displayHair,&async->readyHair);
+        async->displayFingerprint=async->readyFingerprint;
+        async->hasReady=false;
+        swappedReady=true;
+    }
+    bool matchesDisplay=(async->displayFingerprint==h);
+    bool matchesWorking=(async->isWorking&&async->workerFingerprint==h);
+    bool matchesPending=(async->hasPending&&async->pendingFingerprint==h);
+    if(!matchesDisplay&&!matchesWorking&&!matchesPending){
+        Monster_CopyInto(&async->pendingSnapshot,monster);
+        async->pendingFingerprint=h;
+        async->pendingHasJawJoint=hasJaw;
+        async->pendingJawJointId=jawId;
+        async->hasPending=true;
+        pthread_cond_signal(&async->cond);
+    }
+    pthread_mutex_unlock(&async->lock);
+
+    if(!async->threadRunning){
+        return MonsterVisual_UpdateLongHair(&async->displayHair,monster);
+    }
+
+    SyncLongHairAppearance(&async->displayHair,monster);
+
+    if(allowTransport&&async->displayHair.count>0&&async->displayFingerprint!=h){
+        LongHairSet_TransportToAnatomyGraph(&async->displayHair,&monster->anatomyGraph,
+            monster->phenotype.axial.totalScale);
+        /* Actualizar también la articulación mandibular adjunta si cambió la pose de animación. */
+        if(hasJaw&&async->displayHair.attachedContext)async->displayHair.collisionJoint=jawId;
+    }
+
+    if(monster->animation&&async->displayHair.count>0){
+        if(!async->displayHair.scheduler){
+            int t=LongHairOptInThreads();
+            if(t>1){
+                LongHairSchedulerConfig cfg=LongHairScheduler_DefaultConfig();
+                cfg.threadCount=t;cfg.maxThreads=t;
+                async->displayHair.scheduler=LongHairScheduler_Create(&cfg);
+            }
+        }
+        return LongHairSet_Pose(&async->displayHair,&monster->animation->rig.skeleton,&monster->animation->pose);
+    }
+    (void)swappedReady;
+    return true;
+}
+
+bool LongHairAsync_Flush(LongHairAsync* async,const Monster* monster){
+    if(!async||!monster)return false;
+    if(!LongHairAsync_Update(async,monster,false))return false;
+    size_t count=monster->hasSurface?monster->surface.longHairCount:0;
+    if(!count)return true;
+    if(!async->threadRunning)return true;
+    uint64_t h=ComputeLongHairFingerprint(monster);
+    pthread_mutex_lock(&async->lock);
+    while((async->isWorking||async->hasPending)&&!async->shutdown){
+        pthread_cond_wait(&async->cond,&async->lock);
+    }
+    if(async->hasReady){
+        MoveHairSetData(&async->displayHair,&async->readyHair);
+        async->displayFingerprint=async->readyFingerprint;
+        async->hasReady=false;
+    }
+    pthread_mutex_unlock(&async->lock);
+    if(async->displayFingerprint!=h){
+        return LongHairAsync_Update(async,monster,false)&&LongHairAsync_Flush(async,monster);
+    }
+    SyncLongHairAppearance(&async->displayHair,monster);
+    if(monster->animation&&async->displayHair.count>0){
+        return LongHairSet_Pose(&async->displayHair,&monster->animation->rig.skeleton,&monster->animation->pose);
+    }
+    return true;
+}
+
+const LongHairSet* LongHairAsync_GetDisplay(const LongHairAsync* async){
+    return async?&async->displayHair:NULL;
+}
+
+LongHairSet* LongHairAsync_GetDisplayMutable(LongHairAsync* async){
+    return async?&async->displayHair:NULL;
+}
+
+bool LongHairAsync_IsBusy(const LongHairAsync* async){
+    if(!async)return false;
+    pthread_mutex_lock((pthread_mutex_t*)&async->lock);
+    bool busy=async->isWorking||async->hasPending||async->hasReady;
+    pthread_mutex_unlock((pthread_mutex_t*)&async->lock);
+    return busy;
 }

@@ -39,6 +39,9 @@ static void reportMeshIslands(const Mesh* mesh) {
 
 static int compareDouble(const void *a,const void *b) {double x=*(const double *)a,y=*(const double *)b;return (x>y)-(x<y);}
 
+/** @brief Techo de presentación; la simulación fija conserva su paso de 1/60 s. */
+#define ECOSYSTEM_MAX_FPS 60.0
+
 typedef enum ViewMode { VIEW_SIDE, VIEW_FRONT, VIEW_THREE_QUARTER, VIEW_OVERVIEW } ViewMode;
 typedef enum CaptureState { CAPTURE_OVERVIEW, CAPTURE_ADULT, CAPTURE_JUVENILE, CAPTURE_NEWBORN,
     CAPTURE_WALKING, CAPTURE_DRINKING, CAPTURE_HUNTING, CAPTURE_FLEEING, CAPTURE_FEEDING, CAPTURE_RESTING, CAPTURE_ATTACKING, CAPTURE_TURNING } CaptureState;
@@ -203,7 +206,7 @@ int main(int argc,char **argv) {
         free(times);free(simulationTimes);free(mouthWindow);for(unsigned i=0;i<4;++i)Mesh_Free(&meshes[i]);EcosystemVisual_Shutdown(&visual);OpenGLRenderer_Destroy(&renderer);OpenGLDemoWindow_Free(window);EcosystemWorld_Free(&w);return 1;
     }
     /* 22 conserva el mapa de 28 unidades legible y da unas 75 px al cuerpo de 2,05. */
-    double last=OpenGLDemoWindow_Time(),angle=.65,zoom=initialZoom,gpuSum=0;unsigned gpuSamples=0,gpuTimingGeneration=0;
+    double last=OpenGLDemoWindow_Time(),angle=.65,zoom=initialZoom,gpuSum=0,displayedFps=ECOSYSTEM_MAX_FPS;unsigned gpuSamples=0,gpuTimingGeneration=0;
     OpenGLMeshPerformanceStats finalGpu={0};float footErrorMax=0,stanceFootErrorMax=0,skinPositionError=0,skinNormalError=0;
     unsigned initialPopulation=w.count,drawnMin=ECOSYSTEM_VISUAL_MAX_SLOTS,drawnMax=0;double drawnSum=0,adapterSum=0,renderSum=0,geometryWarmSeconds=0;
     AIObjectId validatedSkin[ECOSYSTEM_VISUAL_MAX_SLOTS]={0};
@@ -217,7 +220,13 @@ int main(int argc,char **argv) {
     clock_t processStart=clock();
     EcosystemVisualDrawPacket displayedPackets[ECOSYSTEM_VISUAL_MAX_SLOTS];size_t displayedCount=0;
     while(!frames||frame<frames) {
-        double start=OpenGLDemoWindow_Time(),dt=frames?1./60:start-last;last=start;
+        double start=OpenGLDemoWindow_Time(),frameSeconds=start-last;
+        last=start;
+        if(frame>0&&frameSeconds>0.0005&&frameSeconds<1.0) {
+            double instantFps=1.0/frameSeconds;
+            displayedFps+=(instantFps-displayedFps)*0.1;
+        }
+        double dt=frames?1./60:frameSeconds;
         OpenGLDemoInput input=OpenGLDemoWindow_Poll(window);if(input.quit)break;
         if(input.mouseLeftPressed&&displayedCount) {
             Vector3 forward=Vec3_Normalize(Vec3_Sub(camera.target,camera.position));
@@ -315,7 +324,7 @@ int main(int argc,char **argv) {
                     renderer.beginFrame(&renderer);
                     OpenGLRenderer_DrawTextPanel(1280,800,450,380,"GENERANDO ANATOMIA PROCEDURAL");
                     renderer.endFrame(&renderer);OpenGLDemoWindow_Swap(window);
-                    OpenGLDemoWindow_LimitFPS(OpenGLDemoWindow_Time(),100);
+                    OpenGLDemoWindow_LimitFPS(OpenGLDemoWindow_Time(),ECOSYSTEM_MAX_FPS);
                 }
             }
             if(loading){fprintf(stderr,"No se completó el LOD solicitado durante la carga.\n");ok=false;break;}
@@ -406,7 +415,7 @@ int main(int argc,char **argv) {
         OpenGLRenderer_DrawTextPanel(1280,800,24,26,panel);
         if(selected){snprintf(panel,sizeof(panel),"INDIVIDUO %u  ESPECIE %u\nEDAD %.1f  ETAPA %u\nSALUD %.2f  ENERGIA %.2f\nAGUA %.2f  FATIGA %.2f\nOBJETIVO %s\nACCION %s\nDESTINO %u\nREPRODUCCION %s\nHAMBRE %.2f  SED %.2f\nDESCANSO %.2f  SOCIAL %.2f",selected->id,selected->body.species,selected->physiology.age,selected->physiology.stage,selected->physiology.health,selected->physiology.energy,selected->physiology.hydration,selected->physiology.fatigue,CreatureGoal_Name(selected->mind.goal),CreatureAction_Name(selected->mind.action),selected->mind.target,selected->reproduction.gestating?"GESTACION":selected->body.mateReady?"DISPONIBLE":"ESPERA",selected->mind.needs.urgency[NEED_HUNGER],selected->mind.needs.urgency[NEED_HYDRATION],selected->mind.needs.urgency[NEED_REST],selected->mind.needs.urgency[NEED_SOCIAL]);OpenGLRenderer_DrawTextPanel(1280,800,870,26,panel);}
         float graph[160];for(unsigned i=0;i<historyCount;++i)graph[i]=history[(historyIndex+160-historyCount+i)%160];OpenGLRenderer_DrawHistory(1280,800,14,335,360,100,graph,historyCount);
-        double renderCpu=(OpenGLDemoWindow_Time()-start)*1000;snprintf(panel,sizeof(panel),"FPS %.0f  ENVIO %.2f MS",1000/fmax(.01,renderCpu),renderCpu);OpenGLRenderer_DrawTextPanel(1280,800,870,745,panel);
+        double renderCpu=(OpenGLDemoWindow_Time()-start)*1000;snprintf(panel,sizeof(panel),"FPS %.0f  ENVIO %.2f MS",displayedFps,renderCpu);OpenGLRenderer_DrawTextPanel(1280,800,870,745,panel);
         }
         renderSum+=(OpenGLDemoWindow_Time()-renderStart)*1000;
         bool captureNow=capture&&frames&&(captureState==CAPTURE_OVERVIEW?frame+1==frames:
@@ -439,7 +448,7 @@ int main(int argc,char **argv) {
         }
         renderer.endFrame(&renderer);finalGpu=OpenGLRenderer_GetMeshPerformanceStats(&renderer);
         if(finalGpu.gpuTimingGeneration!=gpuTimingGeneration){gpuTimingGeneration=(unsigned)finalGpu.gpuTimingGeneration;gpuSum+=finalGpu.gpuRenderMs;++gpuSamples;}
-        OpenGLDemoWindow_Swap(window);if(times)times[frame]=(OpenGLDemoWindow_Time()-start)*1000;++frame;if(captured&&captureState!=CAPTURE_OVERVIEW)break;if(!frames)OpenGLDemoWindow_LimitFPS(start,60);
+        OpenGLDemoWindow_Swap(window);if(times)times[frame]=(OpenGLDemoWindow_Time()-start)*1000;++frame;if(captured&&captureState!=CAPTURE_OVERVIEW)break;if(!frames||frame<frames)OpenGLDemoWindow_LimitFPS(start,ECOSYSTEM_MAX_FPS);
     }
     if(captureState!=CAPTURE_OVERVIEW&&!captureTargetId&&!captureWarned){fprintf(stderr,"[ADVERTENCIA] --capture-state no encontró una entidad con la heurística solicitada.\n");captureWarned=true;}
     if(capture&&!captured){fprintf(stderr,"No se capturó el estado solicitado.\n");ok=false;}

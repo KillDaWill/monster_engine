@@ -57,10 +57,14 @@ void MorphMaterialFromBindings(vec3 p,vec3 worldNormal,float scores[5],int ids[5
         coord+=weight*(mix(ra.xyz,rb.xyz,t)+MorphRotate(q,delta)*ratio);
         normal+=weight*MorphRotate(q,worldNormal);
         posedFlow+=weight*normalize(b.xyz-a.xyz+vec3(1e-12));
-        int region=clamp(int(texelFetch(morphMaterialData,6*i+5).x+.5),0,10);
-        PigmentAccumulateRegion(region,weight);
-        pa+=weight*surfaceRecipe[12+2*region];pb+=weight*surfaceRecipe[13+2*region];
-        trunk+=weight*float(region==3||region==4);sum+=weight;
+        vec4 regMeta=texelFetch(morphMaterialData,6*i+5);
+        int regA=clamp(int(regMeta.x+.5),0,10);
+        int regB=clamp(int(regMeta.y+.5),0,10);
+        PigmentAccumulateRegion(regA,weight*(1.0-t));
+        PigmentAccumulateRegion(regB,weight*t);
+        pa+=weight*mix(surfaceRecipe[12+2*regA],surfaceRecipe[12+2*regB],t);
+        pb+=weight*mix(surfaceRecipe[13+2*regA],surfaceRecipe[13+2*regB],t);
+        trunk+=weight*((1.0-t)*float(regA==3||regA==4)+t*float(regB==3||regB==4));sum+=weight;
     }
     PigmentNormalizeRegions(sum);
     coord/=max(sum,1e-12);normal=normalize(normal+vec3(1e-12));

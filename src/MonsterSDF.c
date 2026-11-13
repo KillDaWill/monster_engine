@@ -133,9 +133,9 @@ static SDFMaterial MonsterSDF_ConnectionMaterial(const Monster* monster,const Bo
         if(m->instanceId!=edge->moduleInstanceId)continue;
         if(m->kind==CREATURE_MODULE_ORNAMENT&&m->phenotypeIndex<monster->phenotype.ornamentCount&&
             monster->phenotype.ornaments[m->phenotypeIndex].archetype==ORNAMENT_ARCHETYPE_HORN)return SDF_MATERIAL_HORN;
-        if(m->kind==CREATURE_MODULE_LIMB&&(edge->kind==BODY_CONNECTION_DIGIT_SEGMENT||edge->kind==BODY_CONNECTION_HOOF_CAPSULE)&&
-            m->phenotypeIndex<monster->phenotype.limbCount&&
-            monster->phenotype.limbs[m->phenotypeIndex].archetype==LIMB_ARCHETYPE_UNGULATE)return SDF_MATERIAL_HOOF;
+        if(m->kind==CREATURE_MODULE_LIMB&&(edge->kind==BODY_CONNECTION_HOOF_CAPSULE||
+            (edge->kind==BODY_CONNECTION_DIGIT_SEGMENT&&
+             (edge->crownInset>0.0f||edge->toeRounding>0.0f))))return SDF_MATERIAL_HOOF;
     }
     return SDF_MATERIAL_SKIN;
 }
@@ -444,14 +444,18 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             const BodyConnection* e=&g->connections[j];
             int from=AnatomyGraphIndex_Find(&index,e->fromId),to=AnatomyGraphIndex_Find(&index,e->toId);
             if(from<0||to<0){MonsterSDF_Free(sdf);return false;}
-            if(e->kind!=BODY_CONNECTION_AXIAL_LOFT||g->nodes[from].region==ANATOMY_REGION_HEAD||
-               g->nodes[to].region==ANATOMY_REGION_HEAD)continue;
+            if(e->kind!=BODY_CONNECTION_AXIAL_LOFT||
+               g->nodes[from].region==ANATOMY_REGION_HEAD||
+               g->nodes[to].region==ANATOMY_REGION_HEAD||
+               g->nodes[from].region==ANATOMY_REGION_ORNAMENT||
+               g->nodes[to].region==ANATOMY_REGION_ORNAMENT)continue;
             ++outgoing[from];++incoming[to];
         }
         const AnatomyNode* start=NULL;size_t count=0;bool linear=true;
         for(size_t i=0;i<g->nodeCount;++i) {
             const AnatomyNode* n=&g->nodes[i];
-            if(n->role!=ANATOMY_ROLE_AXIAL||n->region==ANATOMY_REGION_HEAD)continue;
+            if(n->role!=ANATOMY_ROLE_AXIAL||n->region==ANATOMY_REGION_HEAD||
+               n->region==ANATOMY_REGION_ORNAMENT)continue;
             ++count;
             if(incoming[i]>1||outgoing[i]>1)linear=false;
             if(!incoming[i]){if(start)linear=false;start=n;}
@@ -514,7 +518,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 for (size_t j = 0; j < g->connectionCount; ++j) {
                     if (g->connections[j].fromId == n->id && g->connections[j].kind == BODY_CONNECTION_AXIAL_LOFT) {
                         const AnatomyNode* candidate = AnatomyGraph_FindNode(g, g->connections[j].toId);
-                        if (candidate && candidate->region != ANATOMY_REGION_HEAD) next = candidate;
+                        if (candidate && candidate->region != ANATOMY_REGION_HEAD &&
+                            candidate->region != ANATOMY_REGION_ORNAMENT) next = candidate;
                     }
                 }
                 n = next;
@@ -598,7 +603,10 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             float lengthSquared=Vec3_Dot(c->ba,c->ba);c->invBaLengthSquared=lengthSquared>1e-8f?1.0f/lengthSquared:0.0f;
             c->r1=Math_Min(c->widthA,c->heightA);c->r2=Math_Min(c->widthB,c->heightB);c->radiusDelta=c->r2-c->r1;
             c->fromId=edge->fromId;c->toId=edge->toId;c->connectionId=edge->id;c->kind=edge->kind;
-            c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&!MonsterSDF_HangingTail(monster,edge->moduleInstanceId);
+            c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&
+                a->region!=ANATOMY_REGION_ORNAMENT&&b->region!=ANATOMY_REGION_ORNAMENT&&
+                a->region!=ANATOMY_REGION_HEAD&&b->region!=ANATOMY_REGION_HEAD&&
+                !MonsterSDF_HangingTail(monster,edge->moduleInstanceId);
             if(c->kind==BODY_CONNECTION_AXIAL_LOFT&&!c->axialSweepMember&&
                a->region!=ANATOMY_REGION_TAIL&&b->region==ANATOMY_REGION_TAIL&&
                MonsterSDF_TailPhenotype(monster,edge->moduleInstanceId)->rootMatchStrength==0) {
@@ -1403,7 +1411,9 @@ static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP
          * y no depende del tamaño de vóxel ni de la forma del cráneo superior. */
         float lip=mouth->entranceCenterLocal.y-mouth->entranceHalfExtents.y;
         float envelope=SDF_EllipticalSweepZ(localP,mouth->jawStations,6);
-        float oralPlane=localP.y-mouth->oralSlope*(localP.z-mouth->entranceCenterLocal.z)-lip;
+        float cornerZ=mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z;
+        float posteriorBlend=Math_Max(0.0f,cornerZ-localP.z);
+        float oralPlane=localP.y-mouth->oralSlope*(localP.z-mouth->entranceCenterLocal.z)-lip-posteriorBlend*1.5f;
         if(mouth->independentMandible) {
             envelope=Math_Max(envelope,-SDF_Ellipsoid(Vec3_Sub(localP,mouth->jawNotchCenter),mouth->jawNotchRadii));
             /* El labio inferior acompaña el borde rostral superior cerrado. */
@@ -3199,4 +3209,325 @@ size_t MonsterSDF_CollectSurfaceFeatures(const MonsterSDF* sdf,MonsterSDFSurface
     }
 #undef FEATURE
     return count;
+}
+
+static inline float MonsterSDF_BoxDistance(const AABB3D* a, const AABB3D* b) {
+    float dx = 0.0f, dy = 0.0f, dz = 0.0f;
+    if (b->end.x < a->start.x) dx = a->start.x - b->end.x;
+    else if (b->start.x > a->end.x) dx = b->start.x - a->end.x;
+    if (b->end.y < a->start.y) dy = a->start.y - b->end.y;
+    else if (b->start.y > a->end.y) dy = b->start.y - a->end.y;
+    if (b->end.z < a->start.z) dz = a->start.z - b->end.z;
+    else if (b->start.z > a->end.z) dz = b->start.z - a->end.z;
+    return sqrtf(dx * dx + dy * dy + dz * dz);
+}
+
+void MonsterSDFDistanceGrid_Init(MonsterSDFDistanceGrid* grid) {
+    if (grid) memset(grid, 0, sizeof(*grid));
+}
+
+bool MonsterSDFDistanceGrid_Build(MonsterSDFDistanceGrid* grid, const MonsterSDF* sdf) {
+    if (!grid || !sdf) return false;
+    memset(grid, 0, sizeof(*grid));
+    grid->sdf = sdf;
+    AABB3D bounds = sdf->bounds;
+    Vector3 size = AABB_Size(bounds);
+    if (size.x <= 0.0f || size.y <= 0.0f || size.z <= 0.0f) return false;
+    float pad = fmaxf(fmaxf(size.x, fmaxf(size.y, size.z)) * 0.05f, 0.05f);
+    AABB_Pad(&bounds, pad);
+    grid->bounds = bounds;
+    grid->origin = bounds.start;
+    size = AABB_Size(bounds);
+    const int res = MONSTER_SDF_DISTANCE_GRID_RES;
+    grid->cellSize = Vec3_Create(fmaxf(size.x / res, 1e-4f), fmaxf(size.y / res, 1e-4f), fmaxf(size.z / res, 1e-4f));
+    grid->invCellSize = Vec3_Create(1.0f / grid->cellSize.x, 1.0f / grid->cellSize.y, 1.0f / grid->cellSize.z);
+    float halfDiag = 0.5f * Vec3_Length(grid->cellSize);
+
+    float maxCutterK = 0.0f;
+    for (size_t m = 0; m < sdf->mouthCount; ++m) {
+        float k = fmaxf(sdf->mouths[m].rimBevel, sdf->mouths[m].headUnionSmoothness * 0.06f);
+        if (k > maxCutterK) maxCutterK = k;
+    }
+    bool overflowConn = sdf->connectorCount > 256;
+
+    for (int iz = 0; iz < res; ++iz) {
+        float z0 = grid->origin.z + iz * grid->cellSize.z;
+        float z1 = z0 + grid->cellSize.z;
+        for (int iy = 0; iy < res; ++iy) {
+            float y0 = grid->origin.y + iy * grid->cellSize.y;
+            float y1 = y0 + grid->cellSize.y;
+            for (int ix = 0; ix < res; ++ix) {
+                float x0 = grid->origin.x + ix * grid->cellSize.x;
+                float x1 = x0 + grid->cellSize.x;
+                AABB3D cellBox = AABB_FromMinMax(Vec3_Create(x0, y0, z0), Vec3_Create(x1, y1, z1));
+                Vector3 center = Vec3_Create((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, (z0 + z1) * 0.5f);
+
+                float cellUpper = 1e6f;
+                for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
+                    const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
+                    float minR = fminf(part->radii.x, fminf(part->radii.y, part->radii.z));
+                    float u = Vec3_Distance(center, part->center) + halfDiag - minR;
+                    if (u < cellUpper) cellUpper = u;
+                }
+                for (size_t i = 0; i < sdf->connectorCount; ++i) {
+                    const MonsterSDFConnector* c = &sdf->connectors[i];
+                    if (c->isHeadNeck || (sdf->axialStationCount > 1 && c->axialSweepMember)) continue;
+                    Vector3 closest = c->a;
+                    if (c->length >= 1e-6f) {
+                        float t = Math_Clamp01(Vec3_Dot(Vec3_Sub(center, c->a), c->forward) / c->length);
+                        closest = Vec3_Add(c->a, Vec3_Scale(c->forward, t * c->length));
+                    }
+                    float minR = fminf(fminf(c->widthA, c->heightA), fminf(c->widthB, c->heightB));
+                    float u = Vec3_Distance(center, closest) + halfDiag - minR;
+                    if (u < cellUpper) cellUpper = u;
+                }
+                if (sdf->axialStationCount > 1) {
+                    float maxSweep = -1e6f;
+                    for (int corner = 0; corner < 8; ++corner) {
+                        Vector3 cp = Vec3_Create((corner & 1) ? x1 : x0, (corner & 2) ? y1 : y0, (corner & 4) ? z1 : z0);
+                        float d = SDF_EllipticalSweepZ(cp, sdf->axialStations, sdf->axialStationCount);
+                        if (d > maxSweep) maxSweep = d;
+                    }
+                    float u = maxSweep + 0.10f * halfDiag;
+                    if (u < cellUpper) cellUpper = u;
+                }
+
+                MonsterSDFDistanceCell* cell = &grid->cells[(iz * res + iy) * res + ix];
+                cell->useAllConnectors = overflowConn ? 1 : 0;
+                if (!overflowConn) {
+                    for (size_t i = 0; i < sdf->connectorCount; ++i) {
+                        const MonsterSDFConnector* c = &sdf->connectors[i];
+                        if (c->isHeadNeck || (sdf->axialStationCount > 1 && c->axialSweepMember)) continue;
+                        if (sdf->config.enableConnectorPruning) {
+                            float cutoff = cellUpper + c->localSmoothness;
+                            if (cutoff > 0.0f) {
+                                float boxD = MonsterSDF_BoxDistance(&c->bounds, &cellBox);
+                                if (boxD * fmaxf(c->distanceLowerBoundScale, 0.0001f) >= cutoff) continue;
+                            } else {
+                                float boxD = MonsterSDF_BoxDistance(&c->bounds, &cellBox);
+                                if (boxD > 0.0f) continue;
+                            }
+                        }
+                        cell->connectorMask[i >> 6] |= (UINT64_C(1) << (i & 63));
+                    }
+                }
+                for (size_t m = 0; m < sdf->mouthCount; ++m) {
+                    if (m >= 32) break;
+                    const MonsterSDFMouth* mouth = &sdf->mouths[m];
+                    if (sdf->config.enableConnectorPruning && mouth->anatomicalHead) {
+                        float dBox = MonsterSDF_BoxDistance(&mouth->positiveHeadBounds, &cellBox);
+                        if (dBox > 0.0f && dBox * 0.20f >= fmaxf(0.0f, cellUpper) + mouth->headBodySmoothness) {
+                            continue;
+                        }
+                    }
+                    cell->mouthMask |= (UINT32_C(1) << m);
+                }
+                cell->useCutters = 1;
+                if (sdf->config.enableConnectorPruning && sdf->hasSubtractionBounds) {
+                    float dCut = MonsterSDF_BoxDistance(&sdf->subtractionBounds, &cellBox);
+                    if (dCut * 0.20f >= maxCutterK) cell->useCutters = 0;
+                }
+            }
+        }
+    }
+    grid->valid = true;
+    return true;
+}
+
+static inline bool MonsterSDF_PruneLocalEllipsoid(Vector3 localP, Vector3 center, Vector3 radii, float cutoff) {
+    float rx = fmaxf(radii.x, 1e-4f), ry = fmaxf(radii.y, 1e-4f), rz = fmaxf(radii.z, 1e-4f);
+    float maxR = fmaxf(rx, fmaxf(ry, rz));
+    float minR = fminf(rx, fminf(ry, rz));
+    float dx = localP.x - center.x, dy = localP.y - center.y, dz = localP.z - center.z;
+    float d2 = dx * dx + dy * dy + dz * dz;
+    if (cutoff <= 0.0f) return d2 >= maxR * maxR;
+    float safeR = maxR + cutoff * (maxR / minR);
+    return d2 >= safeR * safeR;
+}
+
+static inline float MonsterSDF_EvalUpperHeadPruned(const MonsterSDFMouth* mouth, Vector3 localP) {
+    if (!mouth->anatomicalHead || !MonsterSDF_EyelidCapsuleCacheUsable(mouth)) {
+        return MonsterSDF_EvalUpperHeadDistanceCached(mouth, localP);
+    }
+    float dev = mouth->cephalicDevelopment;
+    float k = Math_Max(mouth->headUnionSmoothness, 0.005f);
+    float d;
+    if (mouth->sweptSkull) {
+        d = SDF_EllipticalSweepZ(localP, mouth->headStations, 6);
+    } else {
+        float cranium = SDF_Ellipsoid(Vec3_Sub(localP, mouth->craniumCenterLocal), mouth->craniumRadii);
+        float face = MonsterSDF_EvalRostrumDistance(mouth, localP);
+        d = SDF_SmoothUnion(cranium, face, k);
+    }
+    if (mouth->faceCapWeight > 0.0f) {
+        d = Math_Lerp(d, Math_Max(d, localP.z - mouth->faceTipLocal.z - mouth->faceCapDepth), mouth->faceCapWeight);
+    }
+    float featK = k;
+    float kTemp = featK * 0.38f;
+    if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->leftTemporalCenterLocal, mouth->temporalRadii, d + kTemp))
+        d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftTemporalCenterLocal), mouth->temporalRadii), kTemp);
+    if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->rightTemporalCenterLocal, mouth->temporalRadii, d + kTemp))
+        d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->rightTemporalCenterLocal), mouth->temporalRadii), kTemp);
+    float kMax = featK * 0.34f;
+    if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->leftMaxillaryCenterLocal, mouth->maxillaryRadii, d + kMax))
+        d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftMaxillaryCenterLocal), mouth->maxillaryRadii), kMax);
+    if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->rightMaxillaryCenterLocal, mouth->maxillaryRadii, d + kMax))
+        d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->rightMaxillaryCenterLocal), mouth->maxillaryRadii), kMax);
+    float kCheek = featK * 0.42f;
+    if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->cheekCenterLocal, mouth->cheekRadii, d + kCheek))
+        d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->cheekCenterLocal), mouth->cheekRadii), kCheek);
+    Vector3 rightCheek = mouth->cheekCenterLocal;
+    rightCheek.x *= -1.0f;
+    if (!MonsterSDF_PruneLocalEllipsoid(localP, rightCheek, mouth->cheekRadii, d + kCheek))
+        d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, rightCheek), mouth->cheekRadii), kCheek);
+
+    float kPeri = featK * 0.85f;
+    /* Poda exacta por cada elipsoide periorbital y por esfera unitaria de cápsulas
+     * palpebrales (evita expandir el radio con orbitSpan / minR). */
+    float kLid = kPeri + kPeri * 0.108f;
+    float lidR = fmaxf(mouth->orbitRadii.x, fmaxf(mouth->orbitRadii.y, mouth->orbitRadii.z)) * 1.6f + 0.05f;
+    float lidSafe = lidR + fmaxf(d + kLid, 0.0f);
+    float lidSafe2 = lidSafe * lidSafe;
+    Vector3 dLO = Vec3_Sub(localP, mouth->leftOrbitCenterLocal);
+    Vector3 dRO = Vec3_Sub(localP, mouth->rightOrbitCenterLocal);
+    bool needPeri =
+        !MonsterSDF_PruneLocalEllipsoid(localP, mouth->leftOrbitRimCenterLocal, mouth->orbitRimRadii, d + kPeri) ||
+        !MonsterSDF_PruneLocalEllipsoid(localP, mouth->rightOrbitRimCenterLocal, mouth->orbitRimRadii, d + kPeri) ||
+        !MonsterSDF_PruneLocalEllipsoid(localP, mouth->leftBrowCenterLocal, mouth->browRadii, d + kPeri) ||
+        !MonsterSDF_PruneLocalEllipsoid(localP, mouth->rightBrowCenterLocal, mouth->browRadii, d + kPeri) ||
+        (mouth->eyelidCoverage > 0.001f && (Vec3_Dot(dLO, dLO) < lidSafe2 || Vec3_Dot(dRO, dRO) < lidSafe2));
+    if (needPeri) {
+        d = SDF_SmoothUnion(d, MonsterSDF_EvalPeriorbitalDistanceUsingCache(mouth, localP), kPeri);
+    }
+
+    d = SDF_SmoothUnion(d, MonsterSDF_EvalNeckCollarDistance(mouth, localP), mouth->headBodySmoothness);
+
+    if (mouth->hasNasalPad) {
+        float kNose = k * 0.35f * dev;
+        if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->noseCenterLocal, mouth->noseRadii, d + kNose))
+            d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->noseCenterLocal), mouth->noseRadii), kNose);
+    }
+    if (mouth->hasEars) {
+        float kEar = k * 0.42f * dev;
+        float earBoundR = fmaxf(mouth->earRadii.x, fmaxf(mouth->earRadii.y, mouth->earRadii.z)) +
+            0.5f * fabsf(mouth->earShape.y) + fabsf(mouth->earShape.x) * (1.2f + fabsf(mouth->earMarginBow)) +
+            fabsf(mouth->earShape.z) * (1.5f + fabsf(mouth->earConcavity) * 2.0f + fabsf(mouth->earRootRoll)) +
+            fabsf(mouth->earLongitudinalCurve) + fabsf(mouth->earFold) + 0.05f;
+        /* SDF_CurvedPinna usa max(shell, cap) (norma L_inf): acotar con factor sqrt(3) < 2. */
+        float earSafe = earBoundR + fmaxf(d + kEar, 0.0f) * 2.0f;
+        float earSafe2 = earSafe * earSafe;
+        Vector3 relLE = Vec3_Sub(localP, mouth->leftEarCenterLocal);
+        if (Vec3_Dot(relLE, relLE) < earSafe2) {
+            d = SDF_SmoothUnion(d, SDF_CurvedPinna(relLE, mouth->earShape, mouth->earDirection, mouth->leftEarSide, mouth->leftEarNormal,
+                mouth->earTipFraction, mouth->earConcavity, mouth->earLongitudinalCurve, mouth->earRootRoll, mouth->earTipRoundness,
+                mouth->earFold, mouth->earRootFlare, mouth->earMarginBow, mouth->earMarginAsymmetry), kEar);
+        }
+        Vector3 relRE = Vec3_Sub(localP, mouth->rightEarCenterLocal);
+        if (Vec3_Dot(relRE, relRE) < earSafe2) {
+            d = SDF_SmoothUnion(d, SDF_CurvedPinna(relRE, mouth->earShape, mouth->rightEarDirection, mouth->rightEarSide, mouth->rightEarNormal,
+                mouth->earTipFraction, mouth->earConcavity, mouth->earLongitudinalCurve, mouth->earRootRoll, mouth->earTipRoundness,
+                mouth->earFold, mouth->earRootFlare, -mouth->earMarginBow, 1.0f - mouth->earMarginAsymmetry), kEar);
+        }
+    }
+    if (mouth->sweptSkull) {
+        float oralPlane = mouth->entranceCenterLocal.y + mouth->entranceHalfExtents.y - localP.y + mouth->oralSlope * (localP.z - mouth->entranceCenterLocal.z);
+        float rearPlane = localP.z - (mouth->entranceCenterLocal.z - mouth->entranceHalfExtents.z);
+        float sidePlane = mouth->entranceHalfExtents.x + mouth->rimBevel - fabsf(localP.x);
+        d = Math_Max(d, Math_Min(oralPlane, Math_Min(rearPlane, sidePlane)));
+    }
+    return d;
+}
+
+float MonsterSDFDistanceGrid_EvaluateDistance(const MonsterSDFDistanceGrid* grid, Vector3 point) {
+    if (!grid || !grid->valid || !grid->sdf) return 1e6f;
+    const MonsterSDF* sdf = grid->sdf;
+    if (point.x < grid->bounds.start.x || point.x >= grid->bounds.end.x ||
+        point.y < grid->bounds.start.y || point.y >= grid->bounds.end.y ||
+        point.z < grid->bounds.start.z || point.z >= grid->bounds.end.z) {
+        return MonsterSDF_EvaluateDistance(sdf, point);
+    }
+    const int res = MONSTER_SDF_DISTANCE_GRID_RES;
+    int ix = (int)((point.x - grid->origin.x) * grid->invCellSize.x);
+    int iy = (int)((point.y - grid->origin.y) * grid->invCellSize.y);
+    int iz = (int)((point.z - grid->origin.z) * grid->invCellSize.z);
+    if (ix < 0) ix = 0; else if (ix >= res) ix = res - 1;
+    if (iy < 0) iy = 0; else if (iy >= res) iy = res - 1;
+    if (iz < 0) iz = 0; else if (iz >= res) iz = res - 1;
+    const MonsterSDFDistanceCell* cell = &grid->cells[(iz * res + iy) * res + ix];
+    if (cell->useAllConnectors) return MonsterSDF_EvaluateDistance(sdf, point);
+
+    float accumulated = sdf->axialStationCount > 1
+        ? SDF_EllipticalSweepZ(point, sdf->axialStations, sdf->axialStationCount)
+        : 1e6f;
+    bool hasInitial = sdf->axialStationCount > 1;
+    for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
+        const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
+        float dist = MonsterSDF_EvalBodyPartDistance(part, point);
+        if (!hasInitial) { accumulated = dist; hasInitial = true; }
+        else accumulated = SDF_SmoothUnion(accumulated, dist, sdf->config.bodySmoothness);
+    }
+    for (int word = 0; word < 4; ++word) {
+        uint64_t w = cell->connectorMask[word];
+        size_t base = (size_t)word << 6;
+        while (w) {
+#if defined(__GNUC__) || defined(__clang__)
+            int bit = __builtin_ctzll(w);
+            w &= (w - 1);
+#else
+            int bit = 0;
+            while (((w >> bit) & 1ULL) == 0ULL) ++bit;
+            w &= ~(1ULL << bit);
+#endif
+            const MonsterSDFConnector* conn = &sdf->connectors[base + (size_t)bit];
+            float localSmoothness = conn->localSmoothness;
+            if (sdf->config.enableConnectorPruning && hasInitial &&
+                MonsterSDF_ShouldPruneConnector(conn, point, accumulated + localSmoothness)) {
+                continue;
+            }
+            float dist = MonsterSDF_EvalConnectorDistance(conn, point);
+            if (!hasInitial) { accumulated = dist; hasInitial = true; }
+            else accumulated = SDF_SmoothUnion(accumulated, dist, localSmoothness);
+        }
+    }
+    uint32_t mouths = cell->mouthMask;
+    float maxCutterK = 0.0f;
+    for (size_t m = 0; m < sdf->mouthCount; ++m) {
+        float k = fmaxf(sdf->mouths[m].rimBevel, sdf->mouths[m].headUnionSmoothness * 0.06f);
+        if (k > maxCutterK) maxCutterK = k;
+        if (m < 32 && !(mouths & (UINT32_C(1) << m))) continue;
+        const MonsterSDFMouth* mouth = &sdf->mouths[m];
+        if (sdf->config.enableConnectorPruning && mouth->anatomicalHead && hasInitial &&
+            MonsterSDF_PruneBox(&mouth->positiveHeadBounds, 0.15f, point, fmaxf(0.0f, accumulated))) {
+            continue;
+        }
+        Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, Vec3_Sub(point, mouth->center));
+        if (!mouth->anatomicalHead) {
+            float muzzleDist = MonsterSDF_EvalMuzzleDistance(mouth, localP);
+            accumulated = SDF_SmoothUnion(accumulated, muzzleDist, mouth->muzzleSmoothness);
+        }
+        accumulated = SDF_SmoothUnion(accumulated, MonsterSDF_EvalUpperHeadPruned(mouth, localP),
+            mouth->anatomicalHead ? mouth->headBodySmoothness : mouth->muzzleSmoothness);
+    }
+    if ((cell->useCutters || !hasInitial || accumulated < 0.0f) &&
+        (!sdf->config.enableConnectorPruning || !sdf->hasSubtractionBounds || !hasInitial ||
+         accumulated < 0.0f || !MonsterSDF_PruneBox(&sdf->subtractionBounds, 0.20f, point, maxCutterK))) {
+        for (size_t m = 0; m < sdf->mouthCount; ++m) {
+            const MonsterSDFMouth* mouth = &sdf->mouths[m];
+            float cutterDist = MonsterSDF_EvalMouthDistance(mouth, point, NULL);
+            float devMouth = Math_Clamp01((mouth->cephalicDevelopment - 0.05f) / 0.25f);
+            cutterDist += (1.0f - devMouth) * Math_Max(mouth->hostRadii.x, Math_Max(mouth->hostRadii.y, mouth->hostRadii.z)) * 2.0f;
+            accumulated = SDF_SmoothSubtract(accumulated, cutterDist, mouth->rimBevel);
+            if (mouth->anatomicalHead) {
+                Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, Vec3_Sub(point, mouth->center));
+                accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalOrbitCavities(mouth, localP), mouth->headUnionSmoothness * .06f);
+                accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalNostrilCavities(mouth, localP), mouth->headUnionSmoothness * .04f);
+                if (mouth->hasTympana) accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalTympanumCavities(mouth, localP), mouth->headUnionSmoothness * .04f);
+            }
+        }
+    }
+    return accumulated;
+}
+
+float MonsterSDFDistanceGrid_EvaluateDistanceWrapper(const void* context, Vector3 point) {
+    return MonsterSDFDistanceGrid_EvaluateDistance((const MonsterSDFDistanceGrid*)context, point);
 }

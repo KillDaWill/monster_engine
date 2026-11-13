@@ -221,7 +221,16 @@ static float SDF_Hermite(float a,float b,float da,float db,float h,float t) {
 float SDF_EllipticalSweepZ(Vector3 p,const SDFSweepStation* stations,int count) {
     if (!stations || count<2) return 1e6f;
     int i=0;
-    while(i<count-2 && p.z<stations[i+1].center.z) ++i;
+    if (count > 8) {
+        int last = count - 2;
+        while (i < last) {
+            int middle = (i + last) >> 1;
+            if (p.z < stations[middle + 1].center.z) i = middle + 1;
+            else last = middle;
+        }
+    } else {
+        while(i<count-2 && p.z<stations[i+1].center.z) ++i;
+    }
     const SDFSweepStation *a=&stations[i],*b=&stations[i+1];
     float h=b->center.z-a->center.z;
     float t=Math_Clamp01((p.z-a->center.z)/h);

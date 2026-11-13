@@ -2,7 +2,7 @@
 uniform int sdfSurfaceDebug;
 vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 displayNormal,vec4 sampleValue,SDFResult semantic,
     vec3 materialCoord,vec3 materialNormal,vec4 profileA,vec4 profileB,float ventral,vec3 flow) {
-    PigmentSetAnatomyRegion(int(semantic.regionId),ventral);
+    if(morphMaterialCount==0)PigmentSetAnatomyRegion(int(semantic.regionId),ventral);
     if(sdfSurfaceDebug==25)return n*.5+.5;
     if(sdfSurfaceDebug==26)return vec3(1);
     vec3 viewDelta=displayPosition-cameraPosition;

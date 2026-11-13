@@ -51,7 +51,7 @@ make creature-editor               # Local editor: http://127.0.0.1:8765
 | Graphics/GPU | `src/OpenGLRenderer.c`, `src/GpuSDFSurfaceCache.c`, `shaders/`, `tools/generate_sdf_shader.py`, `tools/generate_surface_shader.py` |
 | Animation and IK | `src/CreatureRig.c`, `src/RigBuilder.c`, `src/IK.c`, `src/ProceduralAnimator.c`, `src/AnatomicalReach.c` |
 | AI/ecosystem | `src/CreatureMind.c`, `src/CreatureActions.c`, `src/CreatureNavigation.c`, `src/EcosystemWorld.c`, `src/EcosystemScenario.c` |
-| End-to-end demos | `demos/demo_morph_dog_lizard.c`, `demos/demo_game_scene.c`, `demos/demo_ecosystem.c`, `demos/demo_ecosystem_headless.c` |
+| End-to-end demos | `demos/demo_morph_species.c`, `demos/demo_game_scene.c`, `demos/demo_ecosystem.c`, `demos/demo_ecosystem_headless.c` |
 | Editor (extra instructions) | `tools/creature_editor/AGENTS.md`, `docs/CREATURE_EDITOR.md`, `tools/creature_editor/` |
 | Verification | `tests/`, `benchmarks/`, `tools/validate_*.py`, `docs/validation/` |
 

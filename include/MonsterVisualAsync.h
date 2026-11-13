@@ -180,6 +180,7 @@ typedef MonsterVisualEye MonsterVisualEyeAsync;
  */
 typedef struct MonsterVisualAsync {
     LongHairSet longHair; /**< Propiedad del hilo de presentación, nunca del worker. */
+    LongHairAsync* longHairAsync; /**< Orquestador no bloqueante para reconstrucciones de pelo largo. */
     MonsterVisualAsyncConfig config;
 
     /* Front Buffer / Mallas expuestas al hilo principal de renderizado */

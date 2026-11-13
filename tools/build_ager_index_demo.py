@@ -17,12 +17,12 @@ def run(args, **kwargs):
 
 def main():
     (ROOT / OUT).mkdir(parents=True, exist_ok=True)
-    run(["make", "-j4", "demos/demo_morph_dog_lizard"])
+    run(["make", "-j4", "demos/demo_morph_species"])
     # Obtener la orden canónica de enlace sin reconstruir ni tocar las fuentes.
-    plan = run(["make", "-n", "-W", "demos/demo_morph_dog_lizard.c",
-                "demos/demo_morph_dog_lizard"], capture_output=True, text=True).stdout
+    plan = run(["make", "-n", "-W", "demos/demo_morph_species.c",
+                "demos/demo_morph_species"], capture_output=True, text=True).stdout
     link = shlex.split(next(line for line in reversed(plan.splitlines())
-                            if " -o demos/demo_morph_dog_lizard" in line))
+                            if " -o demos/demo_morph_species" in line))
     source = run(["git", "show", BASELINE + ":src/MonsterSDF.c"],
                  capture_output=True).stdout
     baseline_source = OUT / "MonsterSDF.baseline.c"
@@ -40,7 +40,7 @@ def main():
         command[command.index("-o") + 1] = str(OUT / ("demo-" + variant))
         run(command)
     manifest = {"baseline_commit": BASELINE}
-    for name in ("src/MonsterSDF.c", "demos/demo_morph_dog_lizard.c",
+    for name in ("src/MonsterSDF.c", "demos/demo_morph_species.c",
                  str(OUT / "demo-baseline"), str(OUT / "demo-patched")):
         manifest[name] = hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
     import json

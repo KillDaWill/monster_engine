@@ -59,9 +59,11 @@ uint64_t LongHairGroups_Fingerprint(const LongHairGroup* groups,size_t count){
 }
 static Vector3 Radii(const AnatomyNode* n){Vector3 r=n->envelopeRadii;if(r.x<=0)r.x=n->widthRadius;if(r.y<=0)r.y=n->heightRadius;if(r.z<=0)r.z=n->widthRadius;return r;}
 static Vector3 Normal(LongHairDistance d,const void* ctx,Vector3 p,float eps){
-    return Unit(Vec3_Create(EvalDistance(d,ctx,Vec3_Add(p,Vec3_Create(eps,0,0)))-EvalDistance(d,ctx,Vec3_Sub(p,Vec3_Create(eps,0,0))),
-        EvalDistance(d,ctx,Vec3_Add(p,Vec3_Create(0,eps,0)))-EvalDistance(d,ctx,Vec3_Sub(p,Vec3_Create(0,eps,0))),
-        EvalDistance(d,ctx,Vec3_Add(p,Vec3_Create(0,0,eps)))-EvalDistance(d,ctx,Vec3_Sub(p,Vec3_Create(0,0,eps)))),Vec3_Create(0,1,0));
+    float d1=EvalDistance(d,ctx,Vec3_Create(p.x+eps,p.y-eps,p.z-eps));
+    float d2=EvalDistance(d,ctx,Vec3_Create(p.x-eps,p.y-eps,p.z+eps));
+    float d3=EvalDistance(d,ctx,Vec3_Create(p.x-eps,p.y+eps,p.z-eps));
+    float d4=EvalDistance(d,ctx,Vec3_Create(p.x+eps,p.y+eps,p.z+eps));
+    return Unit(Vec3_Create(d1-d2-d3+d4,-d1-d2+d3+d4,-d1+d2-d3+d4),Vec3_Create(0,1,0));
 }
 static size_t Nodes(const LongHairDomain* d,const AnatomyGraph* graph,const AnatomyNode** nodes){
     size_t count=0;
@@ -111,25 +113,43 @@ static void Collide(LongHairSet* s,LongHairDistance distance,ContactNormal conta
         }
         /* Pulido de la curva continua: repartir el contacto entre los dos
          * controles positivos de Catmull evita dejar una panza entre nodos. */
+        float polishSegMin[LONG_HAIR_POINTS-1];
+        float polishPoint1Dist=0;
+        bool haveCleanPolish=false;
         for(unsigned it=0;it<3;++it){float correction=0;
-            for(unsigned p=0;p<LONG_HAIR_POINTS-1;++p)for(unsigned q=1;q<=4;++q){float u=q/4.f,t=(p+u)/9.f;
-                Vector3 pos=LongHairGuide_Evaluate(v,t);float d=EvalDistance(distance,ctx,pos),clearance=s->scale*(.003f+g->width*1.5f*(1+g->rootFullness)*fminf(1,t*9));
-                if(!isfinite(d)||d>=clearance)continue;
-                Vector3 normal=contactNormal?contactNormal(ctx,pos):Normal(distance,ctx,pos,.001f*s->scale);
-                float wb=p?1-2.5f*u*u+1.5f*u*u*u:0,wc=.5f*u+2*u*u-1.5f*u*u*u,denom=wb*wb+wc*wc;
-                float push=fminf(clearance-d,.1f*s->scale);if(denom<1e-5f)continue;
-                if(p)v->points[p]=Vec3_Add(v->points[p],Vec3_Scale(normal,push*wb/denom));
-                v->points[p+1]=Vec3_Add(v->points[p+1],Vec3_Scale(normal,push*wc/denom));correction=fmaxf(correction,push);}
+            for(unsigned p=0;p<LONG_HAIR_POINTS-1;++p){
+                float segMin=1e6f;
+                for(unsigned q=1;q<=4;++q){float u=q/4.f,t=(p+u)/9.f;
+                    Vector3 pos=LongHairGuide_Evaluate(v,t);float d=EvalDistance(distance,ctx,pos),clearance=s->scale*(.003f+g->width*1.5f*(1+g->rootFullness)*fminf(1,t*9));
+                    if(!isfinite(d)){segMin=NAN;continue;}
+                    if(d<segMin)segMin=d;
+                    if(p==0&&q==4)polishPoint1Dist=d;
+                    if(d>=clearance)continue;
+                    Vector3 normal=contactNormal?contactNormal(ctx,pos):Normal(distance,ctx,pos,.001f*s->scale);
+                    float wb=p?1-2.5f*u*u+1.5f*u*u*u:0,wc=.5f*u+2*u*u-1.5f*u*u*u,denom=wb*wb+wc*wc;
+                    float push=fminf(clearance-d,.1f*s->scale);if(denom<1e-5f)continue;
+                    if(p)v->points[p]=Vec3_Add(v->points[p],Vec3_Scale(normal,push*wb/denom));
+                    v->points[p+1]=Vec3_Add(v->points[p+1],Vec3_Scale(normal,push*wc/denom));correction=fmaxf(correction,push);}
+                polishSegMin[p]=segMin;
+            }
+            if(correction==0){haveCleanPolish=true;break;}
             if(correction<.0002f*s->scale)break;
         }
         v->contactPenetration=0;
         for(unsigned p=0;p<LONG_HAIR_POINTS;++p){v->corrections[p]=Vec3_Sub(v->points[p],original[p]);v->clearance[p]=1e6f;}
-        float rootD=EvalDistance(distance,ctx,v->points[1]);
+        float rootD=haveCleanPolish&&isfinite(polishPoint1Dist)?polishPoint1Dist:EvalDistance(distance,ctx,v->points[1]);
         v->rootClearance=isfinite(rootD)?fmaxf(0,rootD-.003f*s->scale-g->width*s->scale*1.5f*(1+g->rootFullness)):0;
         /* Certificado local del tubo sobre la curva final, no sólo sus nodos. */
+        float prevEndDist=haveCleanPolish?EvalDistance(distance,ctx,v->points[0]):0;
         for(unsigned p=0;p<LONG_HAIR_POINTS-1;++p){float safe=1e6f;
-            for(unsigned q=0;q<=4;++q){Vector3 pos=LongHairGuide_Evaluate(v,(p+q/4.f)/9.f);float d=EvalDistance(distance,ctx,pos);
-                if(!isfinite(d)){safe=0;v->rootClearance=0;v->contactPenetration=INFINITY;break;}safe=fminf(safe,d);v->contactPenetration=fmaxf(v->contactPenetration,-d);}
+            if(haveCleanPolish&&isfinite(prevEndDist)&&isfinite(polishSegMin[p])){
+                safe=fminf(prevEndDist,polishSegMin[p]);
+                v->contactPenetration=fmaxf(v->contactPenetration,-safe);
+                prevEndDist=EvalDistance(distance,ctx,v->points[p+1]);
+            }else{
+                for(unsigned q=0;q<=4;++q){Vector3 pos=LongHairGuide_Evaluate(v,(p+q/4.f)/9.f);float d=EvalDistance(distance,ctx,pos);
+                    if(!isfinite(d)){safe=0;v->rootClearance=0;v->contactPenetration=INFINITY;break;}safe=fminf(safe,d);v->contactPenetration=fmaxf(v->contactPenetration,-d);}
+            }
             Vector3 a=v->points[p?p-1:0],b=v->points[p],c=v->points[p+1],d=v->points[p+2<LONG_HAIR_POINTS?p+2:LONG_HAIR_POINTS-1];
             Vector3 d0=Vec3_Scale(Vec3_Sub(c,a),.5f),d2=Vec3_Scale(Vec3_Sub(d,b),.5f),d1=Vec3_Sub(Vec3_Scale(Vec3_Sub(c,b),3),Vec3_Add(d0,d2));
             float speed=fmaxf(Vec3_Length(d0),fmaxf(Vec3_Length(d1),Vec3_Length(d2)));
@@ -178,24 +198,106 @@ static bool CollideRange(void* context,int start,int end,int threadIndex){(void)
     LongHairBuildStats* previousStats=g_buildStats;int previousPhase=g_buildPhase;g_buildStats=w->stats;g_buildPhase=LONG_HAIR_PHASE_COLLISION;
     for(int i=start;i<end;++i){LongHairSet one=*w->set;one.guides=&w->set->guides[i];one.count=1;Collide(&one,w->distance,w->normal,w->context);}
     g_buildStats=previousStats;g_buildPhase=previousPhase;return true;}
-typedef struct ChildWork {LongHairSet* set;LongHairDistance distance;const void* context;float scale;LongHairBuildStats* stats;} ChildWork;
+typedef struct ChildWork {
+    LongHairSet* set;LongHairDistance distance;const void* context;float scale;LongHairBuildStats* stats;
+    Vector3 (*curves)[73];float (*guideD)[73];const size_t* activeIndices;size_t activeCount;
+} ChildWork;
+static bool PrecomputeChildCurvesRange(void* context,int start,int end,int threadIndex){(void)threadIndex;ChildWork* w=context;LongHairSet* next=w->set;
+    LongHairBuildStats* previousStats=g_buildStats;int previousPhase=g_buildPhase;g_buildStats=w->stats;g_buildPhase=LONG_HAIR_PHASE_FOLLICLES;
+    for(int ii=start;ii<end;++ii){size_t i=w->activeIndices[ii];const LongHairGuide* v=&next->guides[i];
+        for(unsigned q=0;q<=72;++q){
+            Vector3 p=LongHairGuide_Evaluate(v,q/72.f);
+            w->curves[i][q]=p;
+            if(w->guideD&&w->distance&&(q&1u)==0u)w->guideD[i][q]=EvalDistance(w->distance,w->context,p);
+        }
+    }
+    g_buildStats=previousStats;g_buildPhase=previousPhase;return true;}
 static bool ChildrenRange(void* context,int start,int end,int threadIndex){(void)threadIndex;ChildWork* w=context;LongHairSet* next=w->set;
     LongHairBuildStats* previousStats=g_buildStats;int previousPhase=g_buildPhase;g_buildStats=w->stats;g_buildPhase=LONG_HAIR_PHASE_FOLLICLES;
-    for(int ii=start;ii<end;++ii){size_t i=(size_t)ii;LongHairGuide* v=&next->guides[i];const LongHairGroup* g=&next->groups[v->groupIndex];
-        if(!v->visible||g->rootFullness<=0||g->domain.kind!=LONG_HAIR_CURVE||g->childrenPerGuide<2)continue;
+    const float minChildD=.0005f*w->scale, lip=1.35f;
+    for(int ii=start;ii<end;++ii){size_t i=w->activeIndices[ii];LongHairGuide* v=&next->guides[i];const LongHairGroup* g=&next->groups[v->groupIndex];
         size_t neighbors[4]={i,i,i,i};float distances[4]={INFINITY,INFINITY,INFINITY,INFINITY};
+        Vector3 flow=Unit(Vec3_Sub(v->points[9],v->points[0]),v->root.restDirection);
+        float maxNeighborDist=g->length*w->scale*.35f;
         for(size_t j=0;j<next->count;++j){const LongHairGuide* other=&next->guides[j];if(j==i||!other->visible||other->groupIndex!=v->groupIndex)continue;
             if(Vec3_Dot(v->posedNormal,other->posedNormal)<.9f)continue;
-            Vector3 flow=Unit(Vec3_Sub(v->points[9],v->points[0]),v->root.restDirection),otherFlow=Unit(Vec3_Sub(other->points[9],other->points[0]),other->root.restDirection);
+            Vector3 otherFlow=Unit(Vec3_Sub(other->points[9],other->points[0]),other->root.restDirection);
             if(Vec3_Dot(flow,otherFlow)<.9f)continue;
-            float d=Vec3_Distance(v->points[0],other->points[0]);if(d>g->length*w->scale*.35f)continue;
+            float d=Vec3_Distance(v->points[0],other->points[0]);if(d>maxNeighborDist)continue;
             for(unsigned n=0;n<4;++n)if(d<distances[n]){for(unsigned k=3;k>n;--k){neighbors[k]=neighbors[k-1];distances[k]=distances[k-1];}neighbors[n]=j;distances[n]=d;break;}}
         for(unsigned c=0;c<g->childrenPerGuide;++c){size_t j=neighbors[c%4];if(j==i)j=neighbors[0];if(j==i)continue;const LongHairGuide* other=&next->guides[j];
             uint32_t seed=Hash(v->root.stableRootId^g->seed^Hash(c+1));float weight=(.05f+.9f*Fur_Random(seed))*g->rootFullness;
-            for(unsigned attempt=0;attempt<5;++attempt,weight*=.5f){Vector3 root=Vec3_Lerp(v->points[0],other->points[0],weight),normal=Unit(Vec3_Lerp(v->posedNormal,other->posedNormal,weight),v->posedNormal);float lift=0;
-                if(w->distance)for(unsigned it=0;it<12;++it){float d=EvalDistance(w->distance,w->context,Vec3_Add(root,Vec3_Scale(normal,lift)));if(!isfinite(d))break;float delta=.002f*w->scale-d;lift+=Clamp(delta,-.02f*w->scale,.02f*w->scale,0);if(fabsf(delta)<.00001f*w->scale)break;}
-                if(w->distance&&fabsf(EvalDistance(w->distance,w->context,Vec3_Add(root,Vec3_Scale(normal,lift)))-.002f*w->scale)>.0001f*w->scale)continue;
-                bool safe=true;if(w->distance)for(unsigned q=1;q<=72;++q){float t=q/72.f;Vector3 point=Vec3_Add(Vec3_Lerp(LongHairGuide_Evaluate(v,t),LongHairGuide_Evaluate(other,t),weight),Vec3_Scale(normal,lift));float d=EvalDistance(w->distance,w->context,point);if(!isfinite(d)||d<.0005f*w->scale){safe=false;break;}}
+            for(unsigned attempt=0;attempt<5;++attempt,weight*=.5f){
+                Vector3 root=Vec3_Lerp(v->points[0],other->points[0],weight),normal=Unit(Vec3_Lerp(v->posedNormal,other->posedNormal,weight),v->posedNormal);
+                float lift=0,lastLiftD=0;bool haveLiftD=false;
+                if(w->distance){
+                    float target=.002f*w->scale;
+                    for(unsigned it=0;it<12;++it){
+                        float d=EvalDistance(w->distance,w->context,Vec3_Add(root,Vec3_Scale(normal,lift)));
+                        lastLiftD=d;haveLiftD=true;
+                        if(!isfinite(d))break;
+                        float delta=target-d;
+                        if(fabsf(delta)<.00004f*w->scale)break;
+                        lift+=Clamp(delta,-.02f*w->scale,.02f*w->scale,0);
+                        haveLiftD=false;
+                    }
+                    if(!haveLiftD)lastLiftD=EvalDistance(w->distance,w->context,Vec3_Add(root,Vec3_Scale(normal,lift)));
+                    if(!isfinite(lastLiftD)||fabsf(lastLiftD-target)>.0001f*w->scale)continue;
+                }
+                bool safe=true;
+                if(w->distance){
+                    Vector3 liftVec=Vec3_Scale(normal,lift);
+                    float dCoarse[19];Vector3 pCoarse[19];
+                    dCoarse[0]=lastLiftD;pCoarse[0]=Vec3_Add(root,liftVec);
+                    /* Rechazo grueso en nodos (paso 0) y centros de tramo (paso 1) aprovechando
+                     * las cotas precalculadas de las guías antes de refinar submuestras. */
+                    for(int pass=0;pass<2&&safe;++pass){
+                        for(unsigned k=(pass==0?2u:1u);k<=18&&safe;k+=2){
+                            unsigned q=k*4;
+                            Vector3 pv=w->curves[i][q],po=w->curves[j][q];
+                            Vector3 pt=Vec3_Add(Vec3_Lerp(pv,po,weight),liftVec);
+                            pCoarse[k]=pt;
+                            float bv=w->guideD[i][q]-lip*Vec3_Distance(pt,pv);
+                            float bo=w->guideD[j][q]-lip*Vec3_Distance(pt,po);
+                            float bound=fmaxf(bv,bo);
+                            if(isfinite(bound)&&bound>=minChildD){dCoarse[k]=bound;}
+                            else{
+                                float d=EvalDistance(w->distance,w->context,pt);
+                                if(!isfinite(d)||d<minChildD){safe=false;break;}
+                                dCoarse[k]=d;
+                            }
+                        }
+                    }
+                    for(unsigned seg=0;seg<9&&safe;++seg){
+                        for(int half=0;half<2&&safe;++half){
+                            unsigned kA=seg*2+(unsigned)half,kB=kA+1;
+                            float dA=dCoarse[kA],dB=dCoarse[kB];
+                            Vector3 pA=pCoarse[kA],pB=pCoarse[kB];
+                            unsigned q2=kA*4+2;
+                            Vector3 pv2=w->curves[i][q2],po2=w->curves[j][q2];
+                            Vector3 pt2=Vec3_Add(Vec3_Lerp(pv2,po2,weight),liftVec);
+                            float b2=fmaxf(fmaxf(dA-lip*Vec3_Distance(pt2,pA),dB-lip*Vec3_Distance(pt2,pB)),
+                                           fmaxf(w->guideD[i][q2]-lip*Vec3_Distance(pt2,pv2),w->guideD[j][q2]-lip*Vec3_Distance(pt2,po2)));
+                            float d2=b2;
+                            if(!(isfinite(b2)&&b2>=minChildD)){
+                                d2=EvalDistance(w->distance,w->context,pt2);
+                                if(!isfinite(d2)||d2<minChildD){safe=false;break;}
+                            }
+                            for(unsigned sub=1;sub<=3&&safe;sub+=2){
+                                unsigned q=kA*4+sub, qEven=sub==1?kA*4:kA*4+2;
+                                Vector3 pv=w->curves[i][q],po=w->curves[j][q];
+                                Vector3 pt=Vec3_Add(Vec3_Lerp(pv,po,weight),liftVec);
+                                float nearD=sub==1?dA:dB;Vector3 nearP=sub==1?pA:pB;
+                                float bound=fmaxf(fmaxf(nearD-lip*Vec3_Distance(pt,nearP),d2-lip*Vec3_Distance(pt,pt2)),
+                                                  fmaxf(w->guideD[i][qEven]-lip*Vec3_Distance(pt,w->curves[i][qEven]),
+                                                        w->guideD[j][qEven]-lip*Vec3_Distance(pt,w->curves[j][qEven])));
+                                if(isfinite(bound)&&bound>=minChildD)continue;
+                                float d=EvalDistance(w->distance,w->context,pt);
+                                if(!isfinite(d)||d<minChildD){safe=false;break;}
+                            }
+                        }
+                    }
+                }
                 if(!safe)continue;
                 v->follicles[c][0]=(float)j;v->follicles[c][1]=weight;v->follicles[c][2]=lift;v->follicles[c][3]=1;break;}}
     }
@@ -293,51 +395,30 @@ static bool LongHairSet_BuildInternalImpl(LongHairSet* dst,const LongHairGroup* 
      * el eje de un tubo. Proyectar cada folículo al SDF sólo durante la construcción;
      * la GPU interpola las dos guías ya transportadas durante la animación. */
     phaseBegin=stats?LongHairNowMs():0;
-    if(scheduler){ChildWork work={&next,distance,context,scale,stats};
-        if( next.count>(size_t)INT32_MAX || LongHairScheduler_ParallelFor(scheduler,(int)next.count,ChildrenRange,&work)!=LONG_HAIR_SCHEDULER_OK){LongHairSet_Free(&next);return false;}}
-    else if(stats){ChildWork work={&next,distance,context,scale,stats};ChildrenRange(&work,0,(int)next.count,0);}
-    else for(size_t i=0;i<next.count;++i){LongHairGuide* v=&next.guides[i];const LongHairGroup* g=&next.groups[v->groupIndex];
-        if(!v->visible||g->rootFullness<=0||g->domain.kind!=LONG_HAIR_CURVE||g->childrenPerGuide<2)continue;
-        size_t neighbors[4]={i,i,i,i};float distances[4]={INFINITY,INFINITY,INFINITY,INFINITY};
-        for(size_t j=0;j<next.count;++j){const LongHairGuide* other=&next.guides[j];
-            if(j==i||!other->visible||other->groupIndex!=v->groupIndex)continue;
-            if(Vec3_Dot(v->posedNormal,other->posedNormal)<.9f)continue;
-            Vector3 flow=Unit(Vec3_Sub(v->points[9],v->points[0]),v->root.restDirection);
-            Vector3 otherFlow=Unit(Vec3_Sub(other->points[9],other->points[0]),other->root.restDirection);
-            if(Vec3_Dot(flow,otherFlow)<.9f)continue;
-            float d=Vec3_Distance(v->points[0],other->points[0]);
-            if(d>g->length*scale*.35f)continue;
-            for(unsigned n=0;n<4;++n)if(d<distances[n]){
-                for(unsigned k=3;k>n;--k){neighbors[k]=neighbors[k-1];distances[k]=distances[k-1];}
-                neighbors[n]=j;distances[n]=d;break;}}
-        for(unsigned c=0;c<g->childrenPerGuide;++c){size_t j=neighbors[c%4];if(j==i)j=neighbors[0];if(j==i)continue;
-            const LongHairGuide* other=&next.guides[j];uint32_t seed=Hash(v->root.stableRootId^g->seed^Hash(c+1));
-            float weight=(.05f+.9f*Fur_Random(seed))*g->rootFullness;
-            /* Acercar el folículo a su guía si el cuello es demasiado convexo;
-             * conservar una inserción propia antes de recurrir al tubo. */
-            for(unsigned attempt=0;attempt<5;++attempt,weight*=.5f){
-            Vector3 root=Vec3_Lerp(v->points[0],other->points[0],weight);
-            Vector3 normal=Unit(Vec3_Lerp(v->posedNormal,other->posedNormal,weight),v->posedNormal);
-            float lift=0;
-            if(distance)for(unsigned it=0;it<12;++it){float d=EvalDistance(distance,context,Vec3_Add(root,Vec3_Scale(normal,lift)));
-                if(!isfinite(d))break;
-                float delta=.002f*scale-d;lift+=Clamp(delta,-.02f*scale,.02f*scale,0);
-                if(fabsf(delta)<.00001f*scale)break;}
-            if(distance&&fabsf(EvalDistance(distance,context,Vec3_Add(root,Vec3_Scale(normal,lift)))-.002f*scale)>.0001f*scale)continue;
-            /* Dos guías válidas pueden rodear un obstáculo por lados distintos.
-             * No aceptar su cuerda interior: conservar el hijo tubular existente
-             * cuando la interpolación no supera la auditoría del campo de reposo. */
-            bool safe=true;
-            if(distance)for(unsigned q=1;q<=72;++q){float t=q/72.f;
-                Vector3 point=Vec3_Add(Vec3_Lerp(LongHairGuide_Evaluate(v,t),LongHairGuide_Evaluate(other,t),weight),Vec3_Scale(normal,lift));
-                float d=EvalDistance(distance,context,point);
-                if(!isfinite(d)||d<.0005f*scale){safe=false;break;}}
-            if(!safe)continue;
-            v->follicles[c][0]=(float)j;v->follicles[c][1]=weight;v->follicles[c][2]=lift;v->follicles[c][3]=1;
-            break;
-            }
+    size_t activeCount=0;
+    size_t* activeIndices=next.count?malloc(next.count*sizeof(*activeIndices)):NULL;
+    if(next.count&&!activeIndices){LongHairSet_Free(&next);return false;}
+    for(size_t i=0;i<next.count;++i){const LongHairGuide* v=&next.guides[i];const LongHairGroup* g=&next.groups[v->groupIndex];
+        if(v->visible&&g->rootFullness>0&&g->domain.kind==LONG_HAIR_CURVE&&g->childrenPerGuide>=2&&g->density>0&&g->length>0)
+            activeIndices[activeCount++]=i;}
+    if(activeCount>0){
+        Vector3 (*curves)[73]=malloc(next.count*sizeof(*curves));
+        float (*guideD)[73]=distance?malloc(next.count*sizeof(*guideD)):NULL;
+        if(!curves||(distance&&!guideD)){free(curves);free(guideD);free(activeIndices);LongHairSet_Free(&next);return false;}
+        ChildWork work={&next,distance,context,scale,stats,curves,guideD,activeIndices,activeCount};
+        bool ok=true;
+        if(scheduler){
+            if(activeCount>(size_t)INT32_MAX||
+               LongHairScheduler_ParallelFor(scheduler,(int)activeCount,PrecomputeChildCurvesRange,&work)!=LONG_HAIR_SCHEDULER_OK||
+               LongHairScheduler_ParallelFor(scheduler,(int)activeCount,ChildrenRange,&work)!=LONG_HAIR_SCHEDULER_OK){ok=false;}
+        }else{
+            PrecomputeChildCurvesRange(&work,0,(int)activeCount,0);
+            ChildrenRange(&work,0,(int)activeCount,0);
         }
+        free(curves);free(guideD);
+        if(!ok){free(activeIndices);LongHairSet_Free(&next);return false;}
     }
+    free(activeIndices);
     if(stats)stats->phaseMilliseconds[LONG_HAIR_PHASE_FOLLICLES]=LongHairNowMs()-phaseBegin;
     for(size_t i=0;i<next.count;++i){memcpy(next.guides[i].restClearance,next.guides[i].clearance,sizeof(next.guides[i].clearance));next.guides[i].restPenetration=next.guides[i].contactPenetration;next.guides[i].restRootClearance=next.guides[i].rootClearance;}
     LongHairScheduler* owner=dst->scheduler;dst->scheduler=NULL;LongHairSet_Free(dst);next.scheduler=owner;*dst=next;return true;
@@ -360,6 +441,75 @@ bool LongHairSet_BuildParallelProfiled(LongHairSet* dst,const LongHairGroup* gro
     if(!stats)return LongHairSet_BuildParallel(dst,groups,count,graph,scale,distance,context,scheduler);
     return LongHairSet_BuildInternal(dst,groups,count,graph,scale,distance,context,scheduler,stats);
 }
+typedef struct PoseJointMapEntry { AnatomyId id; int index; } PoseJointMapEntry;
+static int PoseFindJointFast(const PoseJointMapEntry* map, size_t count, const Skeleton* skeleton, AnatomyId id) {
+    if (map && count > 0) {
+        size_t lo = 0, hi = count;
+        while (lo < hi) {
+            size_t mid = lo + (hi - lo) / 2;
+            if (map[mid].id < id) lo = mid + 1;
+            else hi = mid;
+        }
+        if (lo < count && map[lo].id == id) return map[lo].index;
+        return -1;
+    }
+    return Skeleton_FindJoint(skeleton, id);
+}
+typedef struct PoseCollideJob {
+    LongHairSet* set;
+    const LongHairCollider* volumes;
+    const Vector3* volLo;
+    const Vector3* volHi;
+    const float* volR;
+    PosedColliders attached;
+} PoseCollideJob;
+static bool PoseCollideGuideRange(void* opaque, int start, int end, int threadIndex) {
+    (void)threadIndex;
+    PoseCollideJob* job = opaque;
+    LongHairSet* s = job->set;
+    for (int i = start; i < end; ++i) {
+        LongHairGuide* guide = &s->guides[i];
+        if (!guide->visible) continue;
+        Vector3 lo = guide->points[0], hi = lo;
+        const LongHairGroup* group = &s->groups[guide->groupIndex];
+        float margin = guide->length * .25f + group->rootSpread * s->scale;
+        for (unsigned p = 1; p < LONG_HAIR_POINTS; ++p) {
+            Vector3 v = guide->points[p];
+            lo = Vec3_Create(fminf(lo.x, v.x), fminf(lo.y, v.y), fminf(lo.z, v.z));
+            hi = Vec3_Create(fmaxf(hi.x, v.x), fmaxf(hi.y, v.y), fmaxf(hi.z, v.z));
+        }
+        LongHairCollider local[ANATOMY_MAX_NODES + ANATOMY_MAX_CONNECTIONS + 1];
+        size_t count = 0;
+        for (size_t k = 0; k < s->colliderCount; ++k) {
+            float r = job->volR[k] + margin;
+            if (job->volLo[k].x - r > hi.x || job->volHi[k].x + r < lo.x ||
+                job->volLo[k].y - r > hi.y || job->volHi[k].y + r < lo.y ||
+                job->volLo[k].z - r > hi.z || job->volHi[k].z + r < lo.z) continue;
+            LongHairCollider v = job->volumes[k];
+            PosedColliders calibration = {.volumes = &s->colliders[k], .count = 1, .limit = 1e6f};
+            float d = ColliderDistance(&calibration, guide->root.restPosition);
+            v.surfaceOffset = fmaxf(0, .002f * s->scale - d);
+            calibration.volumes = &v;
+            d = ColliderDistance(&calibration, guide->points[0]);
+            v.surfaceOffset += fmaxf(0, .002f * s->scale - d);
+            local[count++] = v;
+        }
+        PosedColliders context = job->attached;
+        float limit = (group->rootSpread + group->width * 1.5f * (1 + group->rootFullness) + .004f) * s->scale;
+        if (context.distance) {
+            float rootJawD = AttachedDistance(&context, guide->points[0]);
+            if (rootJawD > guide->length * 1.4f + limit) context.distance = NULL;
+        }
+        context.volumes = local;
+        context.count = count;
+        context.limit = limit;
+        LongHairSet single = *s;
+        single.guides = guide;
+        single.count = 1;
+        Collide(&single, ColliderDistance, ColliderNormal, &context);
+    }
+    return true;
+}
 bool LongHairSet_Pose(LongHairSet* s,const Skeleton* skeleton,const SkeletonPose* pose){
     if(!s||!skeleton||!pose||pose->jointCount!=skeleton->jointCount)return false;
     if(!s->count)return true;
@@ -369,15 +519,38 @@ bool LongHairSet_Pose(LongHairSet* s,const Skeleton* skeleton,const SkeletonPose
         float sign=a.x*b.x+a.y*b.y+a.z*b.z+a.w*b.w<0?-1:1;
         if(Vec3_Distance(rest.joints[i].worldPosition,pose->joints[i].worldPosition)>1e-6f*s->scale||
             fabsf(a.x-sign*b.x)>1e-7f||fabsf(a.y-sign*b.y)>1e-7f||fabsf(a.z-sign*b.z)>1e-7f||fabsf(a.w-sign*b.w)>1e-7f){exactRest=false;break;}}
+    PoseJointMapEntry jointMapStorage[ANATOMY_MAX_NODES + 8];
+    const PoseJointMapEntry* jointMap = NULL;
+    size_t jointMapCount = 0;
+    if (skeleton->jointCount <= sizeof(jointMapStorage) / sizeof(jointMapStorage[0])) {
+        jointMapCount = skeleton->jointCount;
+        for (size_t i = 0; i < jointMapCount; ++i) {
+            PoseJointMapEntry key = {skeleton->joints[i].id, (int)i};
+            size_t j = i;
+            while (j > 0 && jointMapStorage[j - 1].id > key.id) {
+                jointMapStorage[j] = jointMapStorage[j - 1];
+                --j;
+            }
+            jointMapStorage[j] = key;
+        }
+        jointMap = jointMapStorage;
+    }
     PosedColliders attached={0};
     if(s->attachedDistance){
         attached.distance=s->attachedDistance;attached.context=s->attachedContext;attached.epsilon=.001f*s->scale;
         attached.inverse=Quat_Identity();
-        if(s->collisionJoint){int j=Skeleton_FindJoint(skeleton,s->collisionJoint);if(j<0)return false;
+        if(s->collisionJoint){int j=PoseFindJointFast(jointMap,jointMapCount,skeleton,s->collisionJoint);if(j<0)return false;
         attached.restOrigin=rest.joints[j].worldPosition;attached.posedOrigin=pose->joints[j].worldPosition;
         attached.inverse=Quat_Inverse(Quat_Multiply(pose->joints[j].worldRotation,Quat_Inverse(rest.joints[j].worldRotation)));}}
-    for(size_t i=0;i<s->count;++i){LongHairGuide* g=&s->guides[i];int a=Skeleton_FindJoint(skeleton,g->root.fromId),b=Skeleton_FindJoint(skeleton,g->root.toId);
-        if(g->attachmentJoint)a=b=Skeleton_FindJoint(skeleton,g->attachmentJoint);
+    int attachJointIndex = s->collisionJoint ? PoseFindJointFast(jointMap, jointMapCount, skeleton, s->collisionJoint) : -1;
+    for(size_t i=0;i<s->count;++i){LongHairGuide* g=&s->guides[i];
+        int a,b;
+        if(g->attachmentJoint){
+            a=b=(g->attachmentJoint==s->collisionJoint)?attachJointIndex:PoseFindJointFast(jointMap,jointMapCount,skeleton,g->attachmentJoint);
+        }else{
+            a=PoseFindJointFast(jointMap,jointMapCount,skeleton,g->root.fromId);
+            b=PoseFindJointFast(jointMap,jointMapCount,skeleton,g->root.toId);
+        }
         if(a<0||b<0){g->visible=false;valid=false;continue;}
         g->visible=g->rootValid;g->visibility=1;
         Quaternion qa=Quat_Multiply(pose->joints[a].worldRotation,Quat_Inverse(rest.joints[a].worldRotation));
@@ -398,42 +571,37 @@ bool LongHairSet_Pose(LongHairSet* s,const Skeleton* skeleton,const SkeletonPose
              * través de ella. La identidad y el anclaje se conservan al destaparse. */
             if(d<=.0001f*s->scale){g->visible=false;g->contactPenetration=0;}}
     }
-    if(exactRest){for(size_t i=0;i<s->count;++i){LongHairGuide* g=&s->guides[i];memcpy(g->points,g->restPoints,sizeof(g->points));
-        memcpy(g->clearance,g->restClearance,sizeof(g->clearance));g->contactPenetration=g->restPenetration;g->rootClearance=g->restRootClearance;}return valid;}
+    if(exactRest){
+        bool anyDiff=false;
+        for(size_t i=0;i<s->count;++i){LongHairGuide* g=&s->guides[i];
+            if(memcmp(g->points,g->restPoints,sizeof(g->points))!=0)anyDiff=true;
+            memcpy(g->points,g->restPoints,sizeof(g->points));
+            memcpy(g->clearance,g->restClearance,sizeof(g->clearance));g->contactPenetration=g->restPenetration;g->rootClearance=g->restRootClearance;}
+        if(anyDiff)s->poseGeneration++;
+        return valid;
+    }
     LongHairCollider volumes[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS+1];
-    for(size_t i=0;i<s->colliderCount;++i){volumes[i]=s->colliders[i];int j=Skeleton_FindJoint(skeleton,volumes[i].id);
+    Vector3 volLo[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS+1], volHi[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS+1];
+    float volR[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS+1];
+    for(size_t i=0;i<s->colliderCount;++i){volumes[i]=s->colliders[i];int j=PoseFindJointFast(jointMap,jointMapCount,skeleton,volumes[i].id);
         if(j>=0){Quaternion q=Quat_Multiply(pose->joints[j].worldRotation,Quat_Inverse(rest.joints[j].worldRotation));
             volumes[i].center=Vec3_Add(pose->joints[j].worldPosition,Quat_RotateVector(q,Vec3_Sub(volumes[i].center,rest.joints[j].worldPosition)));
             volumes[i].inverseRotation=Quat_Multiply(volumes[i].inverseRotation,Quat_Inverse(q));}
-        j=Skeleton_FindJoint(skeleton,volumes[i].endId);
+        j=PoseFindJointFast(jointMap,jointMapCount,skeleton,volumes[i].endId);
         if(j>=0){Quaternion q=Quat_Multiply(pose->joints[j].worldRotation,Quat_Inverse(rest.joints[j].worldRotation));
-            volumes[i].end=Vec3_Add(pose->joints[j].worldPosition,Quat_RotateVector(q,Vec3_Sub(volumes[i].end,rest.joints[j].worldPosition)));}}
-    for(size_t i=0;i<s->count;++i){LongHairGuide* guide=&s->guides[i];if(!guide->visible)continue;
-        Vector3 lo=guide->points[0],hi=lo;float margin=guide->length*.25f+s->groups[guide->groupIndex].rootSpread*s->scale;
-        for(unsigned p=1;p<LONG_HAIR_POINTS;++p){Vector3 v=guide->points[p];
-            lo=Vec3_Create(fminf(lo.x,v.x),fminf(lo.y,v.y),fminf(lo.z,v.z));hi=Vec3_Create(fmaxf(hi.x,v.x),fmaxf(hi.y,v.y),fmaxf(hi.z,v.z));}
-        LongHairCollider local[ANATOMY_MAX_NODES+ANATOMY_MAX_CONNECTIONS+1];size_t count=0;
-        for(size_t k=0;k<s->colliderCount;++k){LongHairCollider v=volumes[k];
-            float r=fmaxf(fmaxf(v.radii.x,fmaxf(v.radii.y,v.radii.z)),fmaxf(v.endRadii.x,fmaxf(v.endRadii.y,v.endRadii.z)))+margin;
-            if(fminf(v.center.x,v.end.x)-r>hi.x||fmaxf(v.center.x,v.end.x)+r<lo.x||
-               fminf(v.center.y,v.end.y)-r>hi.y||fmaxf(v.center.y,v.end.y)+r<lo.y||
-               fminf(v.center.z,v.end.z)-r>hi.z||fmaxf(v.center.z,v.end.z)+r<lo.z)continue;
-            /* Ajuste estático a la raíz exacta de reposo: un proxy que la contiene
-             * sobreestima la piel. El sesgo NO depende de la pose actual, así
-             * que una pata o mandíbula que se acerque sigue produciendo contacto. */
-            PosedColliders calibration={.volumes=&s->colliders[k],.count=1,.limit=1e6f};
-            float d=ColliderDistance(&calibration,guide->root.restPosition);v.surfaceOffset=fmaxf(0,.002f*s->scale-d);
-            /* La raíz transportada es el dato de inserción, no el proxy. Si una
-             * envolvente la contiene al doblarse el cuello, ajustar su superficie
-             * evita un contacto imposible en el punto inmóvil. Esto no desactiva
-             * el volumen: sigue resolviendo contacto a lo largo del resto del pelo. */
-            calibration.volumes=&v;d=ColliderDistance(&calibration,guide->points[0]);v.surfaceOffset+=fmaxf(0,.002f*s->scale-d);
-            local[count++]=v;}
-        const LongHairGroup* group=&s->groups[guide->groupIndex];
-        PosedColliders context=attached;context.volumes=local;context.count=count;context.limit=(group->rootSpread+group->width*1.5f*(1+group->rootFullness)+.004f)*s->scale;
-        LongHairSet single=*s;single.guides=guide;single.count=1;
-        Collide(&single,ColliderDistance,ColliderNormal,&context);
+            volumes[i].end=Vec3_Add(pose->joints[j].worldPosition,Quat_RotateVector(q,Vec3_Sub(volumes[i].end,rest.joints[j].worldPosition)));}
+        LongHairCollider v=volumes[i];
+        volR[i]=fmaxf(fmaxf(v.radii.x,fmaxf(v.radii.y,v.radii.z)),fmaxf(v.endRadii.x,fmaxf(v.endRadii.y,v.endRadii.z)));
+        volLo[i]=Vec3_Create(fminf(v.center.x,v.end.x),fminf(v.center.y,v.end.y),fminf(v.center.z,v.end.z));
+        volHi[i]=Vec3_Create(fmaxf(v.center.x,v.end.x),fmaxf(v.center.y,v.end.y),fmaxf(v.center.z,v.end.z));
     }
+    PoseCollideJob job={.set=s,.volumes=volumes,.volLo=volLo,.volHi=volHi,.volR=volR,.attached=attached};
+    if(s->scheduler && s->count>=32 && LongHairScheduler_IsRunning(s->scheduler)){
+        LongHairScheduler_ParallelFor(s->scheduler,(int)s->count,PoseCollideGuideRange,&job);
+    }else{
+        PoseCollideGuideRange(&job,0,(int)s->count,0);
+    }
+    s->poseGeneration++;
     return valid;
 }
 Vector3 LongHairGuide_Evaluate(const LongHairGuide* g,float t){
@@ -458,4 +626,84 @@ size_t LongHairSet_Pack(const LongHairSet* s,float (*rows)[4],size_t capacity){
         memcpy(r+16,g->follicles,sizeof(g->follicles));
         for(unsigned j=0;j<LONG_HAIR_POINTS;++j)r[15][1]=fmaxf(r[15][1],Vec3_Length(g->corrections[j])/s->scale);
     }return s->count*LONG_HAIR_GPU_ROWS;
+}
+static Quaternion ShortestArcQuat(Vector3 from,Vector3 to){
+    float d=Clamp(Vec3_Dot(from,to),-1.f,1.f,1.f);
+    if(d>.9999f)return (Quaternion){0,0,0,1};
+    Vector3 axis=Vec3_Cross(from,to);
+    float len=Vec3_Length(axis);
+    if(len<1e-6f){
+        axis=fabsf(from.y)<.9f?Vec3_Create(0,1,0):Vec3_Create(1,0,0);
+        axis=Unit(Vec3_Cross(from,axis),Vec3_Create(1,0,0));
+        return Quat_FromAxisAngle(axis,3.14159265f);
+    }
+    return Quat_FromAxisAngle(Vec3_Scale(axis,1.f/len),acosf(d));
+}
+static const LongHairCollider* FindColliderForNode(const LongHairSet* s,AnatomyId id){
+    for(size_t k=0;k<s->colliderCount;++k){
+        if(s->colliders[k].id==id&&s->colliders[k].endId==id)return &s->colliders[k];
+    }
+    return NULL;
+}
+bool LongHairSet_TransportToAnatomyGraph(LongHairSet* s,const AnatomyGraph* graph,float scale){
+    if(!s||!graph||!isfinite(scale)||scale<=1e-4f)return false;
+    if(!s->count||!s->guides)return true;
+    float scaleRatio=(s->scale>1e-4f)?Clamp(scale/s->scale,.5f,2.f,1.f):1.f;
+    bool anyVisible=false;
+    for(size_t i=0;i<s->count;++i){
+        LongHairGuide* g=&s->guides[i];
+        if(!g->visible)continue;
+        const AnatomyNode* from1=AnatomyGraph_FindNode(graph,g->root.fromId);
+        const AnatomyNode* to1=AnatomyGraph_FindNode(graph,g->root.toId);
+        if(!from1||!to1||from1->development<=.001f||to1->development<=.001f){
+            g->visible=false;
+            continue;
+        }
+        anyVisible=true;
+        const LongHairCollider* from0=FindColliderForNode(s,g->root.fromId);
+        const LongHairCollider* to0=FindColliderForNode(s,g->root.toId);
+        if(!from0||!to0)continue;
+        float t=Clamp(g->root.segmentParameter,0.f,1.f,0.f);
+        Vector3 anchor0=Vec3_Lerp(from0->center,to0->center,t);
+        Vector3 anchor1=Vec3_Lerp(from1->center,to1->center,t);
+        Vector3 r0=Vec3_Lerp(from0->radii,to0->radii,t);
+        Vector3 r1=Vec3_Lerp(Radii(from1),Radii(to1),t);
+        float sumR0=r0.x+r0.y+r0.z, sumR1=r1.x+r1.y+r1.z;
+        float radRatio=(sumR0>1e-4f)?Clamp(sumR1/sumR0,.5f,2.f,scaleRatio):scaleRatio;
+        Vector3 seg0=Vec3_Sub(to0->center,from0->center), seg1=Vec3_Sub(to1->center,from1->center);
+        Quaternion qSeg=(Vec3_Length(seg0)>1e-4f&&Vec3_Length(seg1)>1e-4f)
+            ?ShortestArcQuat(Unit(seg0,Vec3_Create(0,0,1)),Unit(seg1,Vec3_Create(0,0,1)))
+            :(Quaternion){0,0,0,1};
+        Vector3 oldRoot=g->restPoints[0];
+        Vector3 newRoot=Vec3_Add(anchor1,Vec3_Scale(Quat_RotateVector(qSeg,Vec3_Sub(oldRoot,anchor0)),radRatio));
+        for(unsigned p=0;p<LONG_HAIR_POINTS;++p){
+            Vector3 rel=Vec3_Sub(g->restPoints[p],oldRoot);
+            Vector3 transported=Vec3_Add(newRoot,Vec3_Scale(Quat_RotateVector(qSeg,rel),scaleRatio));
+            g->restPoints[p]=transported;
+            g->points[p]=transported;
+        }
+        g->root.restPosition=g->restPoints[0];
+        g->root.restNormal=Unit(Quat_RotateVector(qSeg,g->root.restNormal),g->root.restNormal);
+        g->restSide=Unit(Quat_RotateVector(qSeg,g->restSide),g->restSide);
+        g->posedSide=g->restSide;
+        g->posedNormal=Unit(Quat_RotateVector(qSeg,g->posedNormal),g->posedNormal);
+        g->length*=scaleRatio;
+        for(unsigned p=0;p<LONG_HAIR_POINTS;++p){
+            g->restClearance[p]*=scaleRatio;
+            g->clearance[p]=g->restClearance[p];
+        }
+        g->restRootClearance*=scaleRatio;
+        g->rootClearance=g->restRootClearance;
+    }
+    (void)anyVisible;
+    for(size_t k=0;k<s->colliderCount;++k){
+        LongHairCollider* c=&s->colliders[k];
+        const AnatomyNode* na=AnatomyGraph_FindNode(graph,c->id);
+        const AnatomyNode* nb=(c->endId==c->id)?na:AnatomyGraph_FindNode(graph,c->endId);
+        if(na){c->center=na->center;c->radii=Radii(na);}
+        if(nb){c->end=nb->center;c->endRadii=Radii(nb);}
+    }
+    s->scale=scale;
+    s->poseGeneration++;
+    return true;
 }

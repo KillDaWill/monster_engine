@@ -218,7 +218,7 @@ def main():
     device, info, env = select(args.gpu, devices)
     if args.editor:
         return editor(args, info, device, env)
-    command = args.command or [str(ROOT / 'demos/demo_morph_dog_lizard'), '--realtime']
+    command = args.command or [str(ROOT / 'demos/demo_morph_species'), '--realtime']
     os.execvpe(command[0], command, env)
 
 

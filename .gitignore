@@ -52,6 +52,8 @@ __pycache__/
 /demos/demo_dog
 /demos/demo_lizard_diversity
 /demos/demo_morph_dog_lizard
+/demos/demo_morph_species
+/benchmarks/benchmark_long_hair_parallel
 demos/demo_game_scene
 /benchmarks/benchmark_morph_dynamic
 /benchmarks/benchmark_gpu_sparse_surface

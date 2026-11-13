@@ -1111,7 +1111,248 @@
           "scaleCoverage": 0,
           "targetScaleSeed": 0,
           "active": false
-        }
+        },
+        "longHair": [
+          {
+            "id": 1,
+            "seed": 17,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 2,
+            "seed": 70,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 3,
+            "seed": 123,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 4,
+            "seed": 71,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 2,
+              "anchors": [
+                1310727,
+                1310728,
+                1310729,
+                1310730
+              ],
+              "anchorCount": 4,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 48,
+            "direction": {
+              "x": 0.12,
+              "y": -0.35,
+              "z": -1
+            },
+            "length": 1.65,
+            "lengthVariation": 0.4,
+            "width": 0.0032,
+            "rootSpread": 0.19,
+            "clumping": 0.38,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.15,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            }
+          }
+        ],
+        "longHairCount": 4
       },
       "development": {
         "appendages": 1,
@@ -2098,7 +2339,248 @@
           "scaleCoverage": 0,
           "targetScaleSeed": 0,
           "active": false
-        }
+        },
+        "longHair": [
+          {
+            "id": 1,
+            "seed": 17,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 2,
+            "seed": 70,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 3,
+            "seed": 123,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 4,
+            "seed": 71,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 2,
+              "anchors": [
+                1310727,
+                1310728,
+                1310729,
+                1310730
+              ],
+              "anchorCount": 4,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 48,
+            "direction": {
+              "x": 0.12,
+              "y": -0.35,
+              "z": -1
+            },
+            "length": 1.65,
+            "lengthVariation": 0.4,
+            "width": 0.0032,
+            "rootSpread": 0.19,
+            "clumping": 0.38,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.15,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            }
+          }
+        ],
+        "longHairCount": 4
       },
       "development": {
         "appendages": 1,
@@ -3085,7 +3567,248 @@
           "scaleCoverage": 0,
           "targetScaleSeed": 0,
           "active": false
-        }
+        },
+        "longHair": [
+          {
+            "id": 1,
+            "seed": 17,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 2,
+            "seed": 70,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 3,
+            "seed": 123,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 4,
+            "seed": 71,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 2,
+              "anchors": [
+                1310727,
+                1310728,
+                1310729,
+                1310730
+              ],
+              "anchorCount": 4,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 48,
+            "direction": {
+              "x": 0.12,
+              "y": -0.35,
+              "z": -1
+            },
+            "length": 1.65,
+            "lengthVariation": 0.4,
+            "width": 0.0032,
+            "rootSpread": 0.19,
+            "clumping": 0.38,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.15,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            }
+          }
+        ],
+        "longHairCount": 4
       },
       "development": {
         "appendages": 1,
@@ -4072,7 +4795,248 @@
           "scaleCoverage": 0,
           "targetScaleSeed": 0,
           "active": false
-        }
+        },
+        "longHair": [
+          {
+            "id": 1,
+            "seed": 17,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 2,
+            "seed": 70,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 3,
+            "seed": 123,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 1,
+              "region": 2,
+              "anchors": [
+                65537,
+                65538
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0.3,
+              "angularSpread": 0.45,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 32,
+            "direction": {
+              "x": 1,
+              "y": -0.55,
+              "z": -0.08
+            },
+            "length": 1.35,
+            "lengthVariation": 0.24,
+            "width": 0.0025,
+            "rootSpread": 0.025,
+            "clumping": 0.25,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.25,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            },
+            "rootFullness": 1,
+            "verticalBias": -0.9,
+            "bend": 0,
+            "wave": 0.12
+          },
+          {
+            "id": 4,
+            "seed": 71,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 2,
+              "anchors": [
+                1310727,
+                1310728,
+                1310729,
+                1310730
+              ],
+              "anchorCount": 4,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28,
+              "start": 0.02,
+              "end": 0.98,
+              "patchRadius": 0.15
+            },
+            "guideCount": 96,
+            "childrenPerGuide": 48,
+            "direction": {
+              "x": 0.12,
+              "y": -0.35,
+              "z": -1
+            },
+            "length": 1.65,
+            "lengthVariation": 0.4,
+            "width": 0.0032,
+            "rootSpread": 0.19,
+            "clumping": 0.38,
+            "stiffness": 0.18,
+            "gravityInfluence": 1.15,
+            "density": 1,
+            "rootColor": {
+              "r": 29,
+              "g": 19,
+              "b": 15,
+              "a": 255
+            },
+            "tipColor": {
+              "r": 66,
+              "g": 43,
+              "b": 29,
+              "a": 255
+            }
+          }
+        ],
+        "longHairCount": 4
       },
       "development": {
         "appendages": 1,
