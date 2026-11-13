@@ -1,0 +1,9 @@
+{
+  "src/AnatomyDeformer.c": "9b02577b64597f1913278bc7980372ac5d5dfe6b41665ccf32e5d6a7f6ee17b6",
+  "tests/test_anatomical_reach.c": "e8a5f0387e3637ea326f79262a22b31b2648586d278817f47ee568c70f17da99",
+  "demos/demo_ecosystem.c": "3aca134172dd93fe0876954aed82e23fbb73fc0737bd1af2e3853abcace587b2",
+  "demos/demo_morph_dog_lizard.c": "bfa2c565a53186e2ddd3bc0d9a669ef0b5fccd47be757e5ac00010b70f62b3ce",
+  "src/MonsterSDF.c": "b83369748145fcad59214ef5f9a9b5eecbc62b443afd7f99959750551994e3ed",
+  "build/brumacerno-neck-seam/ecosystem-before": "8533cbb636f5afa7426fb66813b5c7fc0c7970769a94c9122d075b977837b481",
+  "demos/demo_ecosystem": "a72efac86b42b2ea75355133e4555863a4c4bf04864ad77523cd5e17eda2f6ae"
+}

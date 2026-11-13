@@ -564,14 +564,27 @@ bool AnatomyDeformer_BindCranium(AnatomyDeformer* d,const Skeleton* s,
     for(size_t v=0;v<d->vertexCount;++v) {
         float w=AnatomyDeformer_CranialWeight(d->basePositions[v],attachment,axis,collar);
         if(w<=0)continue;
-        const BodyConnection* c=&d->refGraph.connections[d->bindings[v].connIndex[0]];
-        /* La propiedad anatómica evita que un pie cercano al morro siga al cráneo. */
-        if(c->fromId!=headId&&c->toId!=headId) {
-            /* La cara puede estar más cerca de un segmento ancho del tórax
-             * tras mutar. Su superficie cefálica tiene prioridad semántica. */
-            if(!field.evaluateDistance||field.evaluateDistance(field.context,d->basePositions[v])>
-               sdf->mouths[0].headBodySmoothness*.5f)continue;
+        /* La conexión más cercana cambia de identidad dentro de la papada.
+         * Usarla como interruptor cortaba el collar en dos al flexionar. La
+         * suma de influencias conserva continuidad incluso si empatan vecinos. */
+        float ownership=0;
+        for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
+            const BodyConnection* c=&d->refGraph.connections[d->bindings[v].connIndex[k]];
+            if(c->fromId==headId||c->toId==headId)ownership+=d->bindings[v].weight[k];
         }
+        if(field.evaluateDistance) {
+            /* La cara sigue siendo rígida aunque gane un vecino torácico.
+             * Fuera de su campo, desvanecer en vez de cortar por un umbral. */
+            float smooth=sdf->mouths[0].headBodySmoothness;
+            float distance=field.evaluateDistance(field.context,d->basePositions[v]);
+            float support=Math_Clamp01(1-(distance-smooth*.5f)/fmaxf(collar,smooth));
+            ownership=fmaxf(ownership,support*support*(3-2*support));
+            w*=Math_Clamp01(ownership);
+        } else {
+            const BodyConnection* c=&d->refGraph.connections[d->bindings[v].connIndex[0]];
+            if(c->fromId!=headId&&c->toId!=headId)continue;
+        }
+        if(w<=0)continue;
         AnatomySkinBinding old=d->skinBindings[v],next={0};
         next.joints[0]=head;next.weights[0]=w;int count=1;
         for(int k=0;k<2*ANATOMY_MORPH_INFLUENCES;++k) {

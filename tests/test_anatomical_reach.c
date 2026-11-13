@@ -9,6 +9,7 @@
 #include "GaitPresets.h"
 #include "AnatomyDeformer.h"
 #include "MonsterVisual.h"
+#include "MathUtils.h"
 #include "ai_test_helpers.h"
 static Rig simpleRig(void) {
     Rig r={0};r.headJoint=3;r.neckJoint=2;r.cervicalBaseJoint=1;r.jawJoint=-1;
@@ -166,6 +167,77 @@ static void auxiliarySkinTest(void) {
     TEST_ASSERT(fabsf(Vec3_Length(mesh.vertices[0].position)-sqrtf(.1f*.1f+.25f*.25f))<1e-6f,"volumen local no se estira por pivote omitido");
     AnatomyDeformer_Free(d);Mesh_Free(&mesh);
 }
+/* Dos vecinos empatados describen la misma mezcla, independientemente de su
+ * orden. Antes, el primero decidía qué mitad de la papada seguía al cráneo. */
+static void cervicalOwnershipTest(void) {
+    static Monster m;
+    const CreatureRecipe* recipe=CreatureRecipes_Brumacerno();
+    for(int sample=0;sample<=6;++sample) {
+        m=Monster_Create();
+        CreaturePhenotype phenotype=CreatureRecipe_EvaluateDevelopment(recipe,sample/6.f);
+        TEST_ASSERT(Creature_BuildMonster(&m,recipe,&phenotype),"Construir collar multietapa e intermedio");
+        Rig rig;TEST_ASSERT(CreatureRig_Build(&m,&rig),"Rig cervical real");
+        MonsterSDF sdf=MonsterSDF_Create();
+        TEST_ASSERT(MonsterSDF_Build(&sdf,&m,MonsterSDF_DefaultConfig()),"Campo de cabeza y papada");
+        MonsterSDFHeadField context;SDFField field=MonsterSDF_GetHeadField(&sdf,0,&context);
+        float smooth=sdf.mouths[0].headBodySmoothness;
+        float band=fmaxf(rig.cranialCollar,smooth);
+        Vector3 point=Vec3_Zero();bool found=false;
+        AABB3D bounds=sdf.mouths[0].headBounds;
+        for(int y=0;y<=32&&!found;++y)for(int z=0;z<=32&&!found;++z) {
+            Vector3 p={0,Math_Lerp(bounds.start.y,bounds.end.y,y/32.f),
+                Math_Lerp(bounds.start.z,bounds.end.z,z/32.f)};
+            float distance=field.evaluateDistance(field.context,p);
+            if(distance>smooth*.5f+band*.1f&&distance<smooth*.5f+band*.9f&&
+               AnatomyDeformer_CranialWeight(p,rig.cranialAttachment,rig.cranialAxis,rig.cranialCollar)>.5f) {
+                point=p;found=true;
+            }
+        }
+        TEST_ASSERT(found,"Encontrar transición exterior del campo cefálico");
+        Mesh mesh=Mesh_Create();TEST_ASSERT(Mesh_ReserveVertices(&mesh,6),"Par cervical y cuatro apoyos");
+        mesh.vertexCount=6;
+        for(int v=0;v<2;++v)mesh.vertices[v]=(MeshVertex){.position=point,.normal={0,1,0}};
+        SkeletonPose pose;SkeletonPose_Init(&pose,&rig.skeleton);
+        TEST_ASSERT(rig.limbCount==4,"Cuatro miembros de apoyo");
+        for(int leg=0;leg<4;++leg) {
+            Vector3 p=pose.joints[rig.limbs[leg].endEffectorJoint].worldPosition;
+            p.y-=rig.limbs[leg].soleHeight;
+            mesh.vertices[2+leg]=(MeshVertex){.position=p,.normal={0,-1,0}};
+        }
+        AnatomyDeformer* d=AnatomyDeformer_Create();
+        TEST_ASSERT(AnatomyDeformer_BindSkeleton(d,&mesh,&m.anatomyGraph,&rig.skeleton),"Vincular collar");
+        AnatomyId headId=rig.skeleton.joints[rig.headJoint].anatomyId;
+        int cranial=-1,body=-1;
+        for(size_t c=0;c<m.anatomyGraph.connectionCount;++c) {
+            const BodyConnection* edge=&m.anatomyGraph.connections[c];
+            if(edge->fromId==headId||edge->toId==headId)cranial=(int)c;
+            else body=(int)c;
+        }
+        TEST_ASSERT(cranial>=0&&body>=0,"Vecinos cefálico y corporal");
+        for(int v=0;v<2;++v) {
+            for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k)d->bindings[v].weight[k]=0;
+            d->bindings[v].connIndex[v]=(uint16_t)cranial;
+            d->bindings[v].connIndex[1-v]=(uint16_t)body;
+            d->bindings[v].weight[0]=d->bindings[v].weight[1]=.5f;
+        }
+        pose.joints[rig.neckJoint].localRotation=Quat_FromAxisAngle(Vec3_Create(1,0,0),.7f);
+        pose.joints[rig.headJoint].localRotation=Quat_FromAxisAngle(Vec3_Create(1,0,0),.5f);
+        SkeletonPose_UpdateWorldTransforms(&pose,&rig.skeleton);
+        AnatomyPosePalette palette;Vector3 feet[4],normal;
+        TEST_ASSERT(AnatomyDeformer_BuildPosePalette(d,&rig.skeleton,&pose,&palette),"Paleta de flexión");
+        for(int leg=0;leg<4;++leg)
+            TEST_ASSERT(AnatomyDeformer_EvaluatePoseVertex(d,&palette,2+leg,&feet[leg],&normal),"Referencia plantar");
+        TEST_ASSERT(AnatomyDeformer_BindCranium(d,&rig.skeleton,rig.headJoint,
+            rig.cranialAttachment,rig.cranialAxis,rig.cranialCollar,&sdf),"Propiedad cervical continua");
+        TEST_ASSERT(AnatomyDeformer_DeformPose(d,&rig.skeleton,&pose,&mesh),"Flexionar papada sin cortar");
+        TEST_ASSERT(Vec3_Distance(mesh.vertices[0].position,mesh.vertices[1].position)<1e-6f*m.phenotype.axial.totalScale,
+            "La piel coincidente no se separa al cambiar el orden de vecinos empatados");
+        for(int leg=0;leg<4;++leg)
+            TEST_ASSERT(Vec3_Distance(mesh.vertices[2+leg].position,feet[leg])<1e-6f*m.phenotype.axial.totalScale,
+                "La corrección cervical no arrastra las cuatro suelas con la cabeza");
+        AnatomyDeformer_Free(d);Mesh_Free(&mesh);MonsterSDF_Free(&sdf);Monster_Free(&m);
+    }
+}
 static void cranialSkinTest(void) {
     static Monster m;
     for(int species=0;species<2;++species) {
@@ -257,4 +329,4 @@ static void cranialSkinTest(void) {
         AnatomyDeformer_Free(d);Mesh_Free(&mesh);Monster_Free(&m);
     }
 }
-void run_anatomical_reach_tests(void) { solverTests();resourceTests();rebuildTests();auxiliarySkinTest();cranialSkinTest(); }
+void run_anatomical_reach_tests(void) { solverTests();resourceTests();rebuildTests();auxiliarySkinTest();cervicalOwnershipTest();cranialSkinTest(); }
