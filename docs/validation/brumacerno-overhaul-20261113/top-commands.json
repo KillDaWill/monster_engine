@@ -1,0 +1,22 @@
+[
+  {
+    "command": [
+      "build/brumacerno-overhaul/complete-top/capture-baseline",
+      "build/brumacerno-overhaul/baseline/recipe.creature.json",
+      "build/brumacerno-overhaul/complete-top/before",
+      "3",
+      "study"
+    ],
+    "returncode": 0
+  },
+  {
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "build/brumacerno-overhaul/complete-top/after",
+      "3",
+      "study"
+    ],
+    "returncode": 0
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "recipes/brumacerno.creature.json": "15bbe9e76ee26bba07f56542115792cd37ac82c285c9b5586e95ed80421499d0",
+  "src/Head.c": "3255a8b645fd44630f7f41096edd157bc7dcbe59e5c809f15a530c2d0728929a",
+  "build/capture_bovine_anatomy": "b7f6966845788ca6c796de90ba3477078bfedecfb73c695ad97da65363e94220",
+  "build/validate_recipe_gpu": "599b6f3abde34612f7996955ff2c8b158a5dd002312eff3d471540f5a086bee9",
+  "demos/demo_ecosystem": "8533cbb636f5afa7426fb66813b5c7fc0c7970769a94c9122d075b977837b481",
+  "build/brumacerno-overhaul/ecosystem-baseline": "7863222952dc72ccca746f41b048f0a249fd7499ed72b63b3e07cfe028f1d4f6",
+  "build/brumacerno-overhaul/baseline/recipe.creature.json": "fae9cded20b499e4113ef179e13d05f86db78b8625d2884429a4ae68c26d5b9f"
+}

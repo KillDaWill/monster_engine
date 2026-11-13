@@ -1,0 +1,419 @@
+[
+  {
+    "name": "inspect",
+    "command": [
+      "./build/inspect_brumacerno",
+      "recipes/brumacerno.creature.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.016422005001004436
+  },
+  {
+    "name": "bovine-anatomy",
+    "command": [
+      "python3",
+      "tools/validate_bovine_body.py",
+      "--anatomy-only",
+      "--output=build/brumacerno-overhaul/final/anatomy"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 126.3700963980009
+  },
+  {
+    "name": "adult-study",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "build/brumacerno-overhaul/final/adult-study",
+      "3",
+      "study"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 32.32979529399927
+  },
+  {
+    "name": "seed",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "build/brumacerno-overhaul/final/seed",
+      "0"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 31.929944583998804
+  },
+  {
+    "name": "age-0167",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "build/brumacerno-overhaul/final/age-0167",
+      "3",
+      "study",
+      "0.166667"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 33.73571130600067
+  },
+  {
+    "name": "age-0500",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "build/brumacerno-overhaul/final/age-0500",
+      "3",
+      "study",
+      "0.5"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 33.03526555999997
+  },
+  {
+    "name": "age-0833",
+    "command": [
+      "./build/capture_bovine_anatomy",
+      "recipes/brumacerno.creature.json",
+      "build/brumacerno-overhaul/final/age-0833",
+      "3",
+      "study",
+      "0.833333"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 36.69642298600047
+  },
+  {
+    "name": "gpu-0",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "0"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.36682826899959764
+  },
+  {
+    "name": "gpu-1",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "1"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.3647256469994318
+  },
+  {
+    "name": "gpu-2",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "2"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.41478652900150337
+  },
+  {
+    "name": "gpu-3",
+    "command": [
+      "./build/validate_recipe_gpu",
+      "recipes/brumacerno.creature.json",
+      "3"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.4146885780010052
+  },
+  {
+    "name": "eco-adult",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/final/eco-adult.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-adult.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 8.582053985999664
+  },
+  {
+    "name": "eco-walking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--frames=3600",
+      "--capture-state=walking",
+      "--capture=build/brumacerno-overhaul/final/eco-walking.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-walking.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 9.731886060000761
+  },
+  {
+    "name": "eco-turning",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--frames=3600",
+      "--capture-state=turning",
+      "--capture=build/brumacerno-overhaul/final/eco-turning.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-turning.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 9.987854959999822
+  },
+  {
+    "name": "eco-drinking",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--frames=3600",
+      "--capture-state=drinking",
+      "--capture=build/brumacerno-overhaul/final/eco-drinking.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-drinking.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 15.296709936999832
+  },
+  {
+    "name": "eco-feeding",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--focus=23",
+      "--frames=2400",
+      "--capture-state=feeding",
+      "--capture=build/brumacerno-overhaul/final/eco-feeding.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-feeding.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 9.784222981999847
+  },
+  {
+    "name": "eco-fleeing",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--scenario=E",
+      "--capture-species=1",
+      "--speed=4",
+      "--frames=6000",
+      "--capture-state=fleeing",
+      "--capture=build/brumacerno-overhaul/final/eco-fleeing.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-fleeing.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 20.307434886999545
+  },
+  {
+    "name": "eco-lod-cycle",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=720",
+      "--lod-cycle",
+      "--capture=build/brumacerno-overhaul/final/eco-lod-cycle.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-lod-cycle.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 21.10916173000078
+  },
+  {
+    "name": "eco-cpu-skinning",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=240",
+      "--cpu-skinning",
+      "--capture=build/brumacerno-overhaul/final/eco-cpu-skinning.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-cpu-skinning.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 13.894274001999293
+  },
+  {
+    "name": "eco-velkar",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=240",
+      "--capture=build/brumacerno-overhaul/final/eco-velkar.ppm",
+      "--profile=build/brumacerno-overhaul/final/eco-velkar.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 10.037974552000378
+  },
+  {
+    "name": "eco-before",
+    "command": [
+      "build/brumacerno-overhaul/ecosystem-baseline",
+      "--recipes-dir=build/brumacerno-overhaul/baseline-catalog",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--herbivores=1",
+      "--carnivores=0",
+      "--plants=0",
+      "--focus=3",
+      "--frames=1",
+      "--initial-age=200",
+      "--capture=build/brumacerno-overhaul/final/eco-before.ppm"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 6.929292930000884
+  },
+  {
+    "name": "baseline-velkar",
+    "command": [
+      "build/brumacerno-overhaul/ecosystem-baseline",
+      "--recipes-dir=build/brumacerno-overhaul/baseline-catalog",
+      "--no-hud",
+      "--inspect=body",
+      "--zoom=3",
+      "--validate-mouth=240",
+      "--validate-skinning",
+      "--herbivores=0",
+      "--carnivores=1",
+      "--plants=0",
+      "--focus=3",
+      "--frames=240",
+      "--capture=build/brumacerno-overhaul/final/baseline-velkar.ppm",
+      "--profile=build/brumacerno-overhaul/final/baseline-velkar.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 9.791301949000626
+  },
+  {
+    "name": "perf-A1",
+    "command": [
+      "build/brumacerno-overhaul/ecosystem-baseline",
+      "--recipes-dir=build/brumacerno-overhaul/baseline-catalog",
+      "--seed=42",
+      "--herbivores=24",
+      "--carnivores=6",
+      "--plants=0",
+      "--frames=600",
+      "--zoom=40",
+      "--view=overview",
+      "--no-hud",
+      "--profile=build/brumacerno-overhaul/final/perf-A1.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 27.722514025001146
+  },
+  {
+    "name": "perf-B1",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--recipes-dir=recipes",
+      "--seed=42",
+      "--herbivores=24",
+      "--carnivores=6",
+      "--plants=0",
+      "--frames=600",
+      "--zoom=40",
+      "--view=overview",
+      "--no-hud",
+      "--profile=build/brumacerno-overhaul/final/perf-B1.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 30.73811387400019
+  },
+  {
+    "name": "perf-B2",
+    "command": [
+      "./demos/demo_ecosystem",
+      "--recipes-dir=recipes",
+      "--seed=42",
+      "--herbivores=24",
+      "--carnivores=6",
+      "--plants=0",
+      "--frames=600",
+      "--zoom=40",
+      "--view=overview",
+      "--no-hud",
+      "--profile=build/brumacerno-overhaul/final/perf-B2.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 30.78067625100084
+  },
+  {
+    "name": "perf-A2",
+    "command": [
+      "build/brumacerno-overhaul/ecosystem-baseline",
+      "--recipes-dir=build/brumacerno-overhaul/baseline-catalog",
+      "--seed=42",
+      "--herbivores=24",
+      "--carnivores=6",
+      "--plants=0",
+      "--frames=600",
+      "--zoom=40",
+      "--view=overview",
+      "--no-hud",
+      "--profile=build/brumacerno-overhaul/final/perf-A2.json"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 27.824875774000247
+  }
+]
