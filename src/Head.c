@@ -601,8 +601,8 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         const float positions[]={1.035f,.82f,.51f,.24f,.08f,0};
         const float widths[]={.94f,.88f,.92f,1.0f,.98f,.75f};
         const float depths[]={.32f,.40f,.54f,.84f,.90f,.48f};
-        const float bovidWidths[]={.86f,.86f,.92f,.94f,.76f,.52f};
-        const float bovidDepths[]={.24f,.30f,.40f,.64f,.74f,.46f};
+        const float bovidWidths[]={.72f,.70f,.76f,.80f,.68f,.48f};
+        const float bovidDepths[]={.18f,.24f,.36f,.58f,.70f,.44f};
         float length=l->mandibularSymphysis.z-hingeZ;
         float symphysisWidth=bovid?r->faceTipRadii.x:tipWidth;
         for(int i=0;i<6;++i) {
