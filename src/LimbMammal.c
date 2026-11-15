@@ -4,6 +4,7 @@
 #include "LimbMammal.h"
 #include "Limb.h"
 #include "CreatureModuleInternal.h"
+#include "MathUtils.h"
 #include <math.h>
 
 static bool Node(AnatomyGraph* g,uint32_t m,unsigned id,Vector3 c,float w,float h,
@@ -89,24 +90,24 @@ static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlo
     float sole=r*.55f*p->footScale*p->footHeightScale;
     Vector3 v[10]={
         {x,0,0},
-        {x+lateral,-length*upper,length*((hind?.12f:-.065f)+p->proximalSweep)},
-        {x+lateral,-length*(upper+lower),length*((hind?-.12f:-.015f)+p->distalSweep)},
-        {x+lateral,-length,length*(hind?-.10f:.045f)},
+        {x+lateral,-length*upper,length*((hind?.075f:-.065f)+p->proximalSweep)},
+        {x+lateral,-length*(upper+lower),length*((hind?-.10f:-.015f)+p->distalSweep)},
+        {x+lateral,-length,length*(hind?-.045f:.045f)},
         /* El ancla muscular proximal debe quedar dentro de la grupa; elevarla
          * por encima del lomo convertía el cuarto trasero en una esfera. */
         {x-side*r*.30f,r*(hind?.55f:.85f),-r*(hind?.35f:1.40f)}
     };
     v[5]=Vec3_Lerp(v[0],v[1],.45f);
     v[6]=Vec3_Lerp(v[1],v[2],.30f);
-    v[8]=Vec3_Add(v[3],Vec3_Create(0,r*1.05f,-r*1.05f));
+    v[8]=Vec3_Add(v[3],Vec3_Create(0,r*1.12f,-r*.88f));
     v[7]=Vec3_Lerp(v[2],v[8],.55f);
-    v[9]=Vec3_Add(v[3],Vec3_Create(0,r*.45f,-r*.45f));
+    v[9]=Vec3_Add(v[3],Vec3_Create(0,r*.48f,-r*.38f));
     float w[]={r*.75f*p->rootThicknessScale,r*.95f,r*.60f*p->distalThicknessScale,
         r*.43f*p->distalThicknessScale,r*(hind?.85f:.68f)*p->proximalThicknessScale,
         r*(hind?1.25f:1.0f)*p->proximalThicknessScale,r*(hind?1.02f:.85f)*p->middleThicknessScale,
-        r*.46f*p->distalThicknessScale,r*.62f*p->distalThicknessScale,r*.45f*p->distalThicknessScale};
+        r*.46f*p->distalThicknessScale,r*.50f*p->distalThicknessScale,r*.44f*p->distalThicknessScale};
     float h[]={w[0]*(hind?1.25f:1.30f),w[1]*1.14f,w[2]*1.10f,sole,
-        r*(hind?.85f:1.0f),w[5]*1.22f,w[6]*1.24f,w[7]*1.24f,w[8]*.95f,w[9]};
+        r*(hind?.85f:1.0f),w[5]*1.22f,w[6]*1.24f,w[7]*1.24f,w[8]*1.04f,w[9]};
     if(!hind) {
         /* Escápula oblicua sobre costillas: origen alto y medial, sección
          * aplanada en vez de una bola junto a la articulación del hombro. */
@@ -123,21 +124,22 @@ static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlo
         w[6]=r*.55f*p->middleThicknessScale;h[6]=w[6]*1.15f;
         w[2]=r*.46f*p->distalThicknessScale;h[2]=w[2]*1.08f;
     } else {
-        /* Muslo y gaskin conservan ejes propios: la masa glútea se distribuye
-         * desde pelvis, sin inflar la babilla ni alterar la cadena IK. */
-        v[4]=Vec3_Create(x-side*r*1.25f,length*.17f,length*.06f);
-        /* El vientre caudal del muslo baja desde la grupa hacia la babilla;
-         * dejarlo delante y arriba excavaba una cintura antes del gaskin. */
-        v[5]=Vec3_Lerp(v[0],v[1],.65f);
-        v[5].x-=side*r*.18f;
-        v[5].z-=r*.95f;
+        /* Muslo, nalga, babilla y pierna siguen el eje locomotor real: el vientre
+         * femoral acompaña la nalga hacia el centro sin sobresalir atrás ni abajo
+         * delante del flanco, y la pierna se ahúsa progresivamente al corvejón. */
+        v[4]=Vec3_Create(x-side*r*1.15f,length*.12f,length*.015f);
+        v[5]=Vec3_Lerp(v[0],v[1],.44f);
+        v[5].x-=side*r*.26f;
+        v[5].z-=r*.44f;
         v[6]=Vec3_Lerp(v[1],v[2],.38f);
-        w[4]=r*.62f*p->proximalThicknessScale;h[4]=r*.80f;
-        w[0]=r*.72f*p->rootThicknessScale;h[0]=r*1.25f;
-        w[5]=r*.80f*p->proximalThicknessScale;h[5]=w[5]*1.32f;
-        w[1]=r*.76f;h[1]=w[1]*1.08f;
-        w[6]=r*.68f*p->middleThicknessScale;h[6]=w[6]*1.12f;
-        w[2]=r*.46f*p->distalThicknessScale;h[2]=w[2]*1.20f;
+        v[6].z-=r*.04f;
+        w[4]=r*.55f*p->proximalThicknessScale;h[4]=r*.88f;
+        w[0]=r*.72f*p->rootThicknessScale;h[0]=r*1.32f;
+        w[5]=r*.74f*p->proximalThicknessScale;h[5]=w[5]*1.34f;
+        w[1]=r*.62f*Math_Lerp(1.f,p->middleThicknessScale,.5f);
+        h[1]=r*.90f*Math_Lerp(1.f,p->proximalThicknessScale,.25f);
+        w[6]=r*.52f*p->middleThicknessScale;h[6]=r*.72f*p->middleThicknessScale;
+        w[2]=r*.42f*p->distalThicknessScale;h[2]=w[2]*1.60f;
     }
     for(unsigned i=0;i<10;++i)if(!Node(g,module,i+1,World(slot,v[i]),w[i],h[i],p,false))return false;
     for(unsigned i=1;i<4;++i)
@@ -146,12 +148,15 @@ static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlo
        !Module_Edge(g,module,5,slot->hostNode,Anatomy_MakeId(module,5),BODY_CONNECTION_SUPPORT,p->development))return false;
     const unsigned chain[]={5,1,6,2,7,3,8,9,10,4};
     for(unsigned i=0;i<9;++i) {
+        /* Los tramos proximales del cuarto trasero se funden con pelvis y flanco
+         * sin afectar la definición anatómica de babilla, corvejón y caña. */
+        bool proximalMuscle=(i==0)||(hind&&i<=2);
         if(!Module_Edge(g,module,10+i,Anatomy_MakeId(module,chain[i]),Anatomy_MakeId(module,chain[i+1]),
-            i==0?BODY_CONNECTION_MUSCLE_UNION:BODY_CONNECTION_LIMB_SEGMENT,p->development))return false;
+            proximalMuscle?BODY_CONNECTION_MUSCLE_UNION:BODY_CONNECTION_LIMB_SEGMENT,p->development))return false;
         BodyConnection* edge=&g->connections[g->connectionCount-1];edge->transverseAxis=slot->side;
         /* El vientre muscular ya está en las estaciones: añadir otra plenitud
          * y suavizarla por separado duplicaba volumen junto al anfitrión. */
-        if(i==0){edge->widthBulge=0;edge->heightBulge=0;}
+        if(proximalMuscle){edge->widthBulge=0;edge->heightBulge=0;}
     }
     return UngulateFoot(p,module,slot,g,v[3],r,sole);
 }
@@ -273,7 +278,7 @@ void LimbMammal_ConfigureRig(const LimbRigDescriptor* d,const AnatomyGraph* g,Ri
                 float bend=atan2f(Vec3_Cross(incoming,outgoing).x,Vec3_Dot(incoming,outgoing));
                 /* Codo, rodilla y corvejón conservan el lado de flexión que
                  * resuelve la anatomía. Los límites son relativos al reposo. */
-                float limit=(j+2==l->chain.jointCount?.5f:1.2f)*flexion;
+                float limit=(j+2==l->chain.jointCount?(d->archetype==LIMB_ARCHETYPE_UNGULATE?.5f:(d->role==LIMB_HIND?.78f:.46f)):1.2f)*flexion;
                 float min=-limit,max=limit;
                 float margin=fminf(.02f,fabsf(bend)*.25f);
                 if(bend>0)min=fmaxf(min,-bend+margin);

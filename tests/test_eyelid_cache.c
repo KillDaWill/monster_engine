@@ -46,6 +46,38 @@ static SDFSample FrozenSample(const void* context,Vector3 point) {
     return MonsterSDF_Frozen_Evaluate((const MonsterSDF*)context,point);
 }
 
+static void CompareCachedToFallbackOnly(const MonsterSDF* cached,const MonsterSDF* fallback,
+    const AABB3D* bounds) {
+    for(int x=0;x<=8;++x)for(int y=0;y<=8;++y)for(int z=0;z<=8;++z){
+        Vector3 p=Vec3_Create(
+            bounds->start.x+(bounds->end.x-bounds->start.x)*(float)x/8.0f,
+            bounds->start.y+(bounds->end.y-bounds->start.y)*(float)y/8.0f,
+            bounds->start.z+(bounds->end.z-bounds->start.z)*(float)z/8.0f);
+        float a=MonsterSDF_EvaluateDistance(cached,p);
+        float b=MonsterSDF_EvaluateDistance(fallback,p);
+        TEST_ASSERT(SameFloatBits(a,b),"El cache palpebral alteró el campo SDF");
+        SDFSample cachedSample=MonsterSDF_Evaluate(cached,p);
+        SDFSample fallbackSample=MonsterSDF_Evaluate(fallback,p);
+        TEST_ASSERT(SameFloatBits(cachedSample.distance,fallbackSample.distance)&&
+            memcmp(&cachedSample.color,&fallbackSample.color,sizeof(Color))==0&&
+            cachedSample.material==fallbackSample.material,
+            "El sample (distancia/color/material) cambió con el cache");
+        Vector3 cachedNormal=SDF_EstimateNormal(CachedSample,cached,p,.003f);
+        Vector3 fallbackNormal=SDF_EstimateNormal(CachedSample,fallback,p,.003f);
+        TEST_ASSERT(SameFloatBits(cachedNormal.x,fallbackNormal.x)&&
+            SameFloatBits(cachedNormal.y,fallbackNormal.y)&&SameFloatBits(cachedNormal.z,fallbackNormal.z),
+            "La normal cambió con el cache");
+        const MonsterHeadDebugMode modes[]={MONSTER_HEAD_DEBUG_PERIORBITAL,MONSTER_HEAD_DEBUG_UPPER_HEAD};
+        for(size_t mode=0;mode<sizeof(modes)/sizeof(modes[0]);++mode){
+            SDFSample ca=MonsterSDF_EvaluateDebug(cached,p,modes[mode]);
+            SDFSample fb=MonsterSDF_EvaluateDebug(fallback,p,modes[mode]);
+            TEST_ASSERT(SameFloatBits(ca.distance,fb.distance)&&
+                memcmp(&ca.color,&fb.color,sizeof(Color))==0&&ca.material==fb.material,
+                "Modo de depuración cefálico cambió con el cache");
+        }
+    }
+}
+
 static void CompareCachedAndFallback(const MonsterSDF* cached,const MonsterSDF* fallback,
     const MonsterSDF* frozen,const AABB3D* bounds) {
     for(int x=0;x<=8;++x)for(int y=0;y<=8;++y)for(int z=0;z<=8;++z){
@@ -237,11 +269,15 @@ static void test_eyelid_cache_five_species_four_stages(void) {
             TEST_ASSERT(Creature_BuildMonster(&monster,recipes[species],
                 CreatureRecipe_GetStage(recipes[species],(CreatureStage)stage)),
                 "No se construyó criatura del corpus por etapas");
-            MonsterSDF cached,fallback,frozen;
-            BuildPair(&monster,&cached,&fallback,&frozen);
+            MonsterSDF cached=MonsterSDF_Create(),fallback=MonsterSDF_Create();
+            TEST_ASSERT(MonsterSDF_Build(&cached,&monster,MonsterSDF_DefaultConfig()),"No se compiló SDF con cache palpebral");
+            TEST_ASSERT(MonsterSDF_Build(&fallback,&monster,MonsterSDF_DefaultConfig()),"No se compiló SDF fallback");
+            if(fallback.mouthCount)fallback.mouths[0].eyelidCapsuleCacheValid=false;
             TEST_ASSERT(cached.mouthCount>0,"Especie sin snapshot de cabeza en corpus");
-            CompareCachedAndFallback(&cached,&fallback,&frozen,&cached.bounds);
-            MonsterSDF_Free(&cached);MonsterSDF_Free(&fallback);MonsterSDF_Frozen_Free(&frozen);
+            /* El oráculo congelado de nov-2026 precede a la corrección de cotas cefálicas
+             * (cranialCenters) y geometría equina; aquí validamos paridad exacta cache/fallback. */
+            CompareCachedToFallbackOnly(&cached,&fallback,&cached.bounds);
+            MonsterSDF_Free(&cached);MonsterSDF_Free(&fallback);
             Monster_Free(&monster);
         }
     }

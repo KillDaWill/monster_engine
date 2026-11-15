@@ -1073,6 +1073,15 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 INCLUDE_ELLIPSOID(sdf->mouths[m].faceRootLocal,sdf->mouths[m].faceRootRadii);
                 INCLUDE_ELLIPSOID(sdf->mouths[m].faceMidLocal,sdf->mouths[m].faceMidRadii);
                 INCLUDE_ELLIPSOID(sdf->mouths[m].faceTipLocal,sdf->mouths[m].faceTipRadii);
+                const HeadSurfaceRecipe* headBoundsProfile=monster->hasHead?&monster->head.anatomy.surface:NULL;
+                Vector3 headOriginLocal=headBoundsProfile?Vec3_Sub(sdf->mouths[m].craniumCenterLocal,headBoundsProfile->craniumCenter):Vec3_Zero();
+                if(headBoundsProfile&&headBoundsProfile->hasCranialProfile) {
+                    for(int j=0;j<6;++j) {
+                        float rx=headBoundsProfile->cranialRadii[j].x,ry=headBoundsProfile->cranialRadii[j].y;
+                        float rz=(j==0||j==5)?Math_Min(rx,ry):.02f;
+                        INCLUDE_ELLIPSOID(Vec3_Add(headOriginLocal,headBoundsProfile->cranialCenters[j]),Vec3_Create(rx,ry,rz));
+                    }
+                }
                 INCLUDE_ELLIPSOID(sdf->mouths[m].leftTemporalCenterLocal,sdf->mouths[m].temporalRadii);
                 INCLUDE_ELLIPSOID(sdf->mouths[m].rightTemporalCenterLocal,sdf->mouths[m].temporalRadii);
                 INCLUDE_ELLIPSOID(sdf->mouths[m].leftMaxillaryCenterLocal,sdf->mouths[m].maxillaryRadii);
@@ -1096,6 +1105,13 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 EXPAND_HEAD(sdf->mouths[m].faceRootLocal,sdf->mouths[m].faceRootRadii);
                 EXPAND_HEAD(sdf->mouths[m].faceMidLocal,sdf->mouths[m].faceMidRadii);
                 EXPAND_HEAD(sdf->mouths[m].faceTipLocal,sdf->mouths[m].faceTipRadii);
+                if(headBoundsProfile&&headBoundsProfile->hasCranialProfile) {
+                    for(int j=0;j<6;++j) {
+                        float rx=headBoundsProfile->cranialRadii[j].x,ry=headBoundsProfile->cranialRadii[j].y;
+                        float rz=(j==0||j==5)?Math_Min(rx,ry):.02f;
+                        EXPAND_HEAD(Vec3_Add(headOriginLocal,headBoundsProfile->cranialCenters[j]),Vec3_Create(rx,ry,rz));
+                    }
+                }
                 EXPAND_HEAD(sdf->mouths[m].leftTemporalCenterLocal,sdf->mouths[m].temporalRadii);
                 EXPAND_HEAD(sdf->mouths[m].rightTemporalCenterLocal,sdf->mouths[m].temporalRadii);
                 EXPAND_HEAD(sdf->mouths[m].leftMaxillaryCenterLocal,sdf->mouths[m].maxillaryRadii);
@@ -1179,7 +1195,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             if(!SDF_SweepResolveTangents(m->jawStations,6)){MonsterSDF_Free(sdf);return false;}
             m->jawNotchCenter=Vec3_Add(m->jawStations[4].center,Vec3_Create(0,-m->jawStations[4].height*.95f,0));
             m->jawNotchRadii=Vec3_Create(m->jawStations[4].width*.54f,m->jawStations[4].height*.72f,
-                (m->jawStations[2].center.z-m->jawStations[5].center.z)*.85f);
+                (m->jawStations[2].center.z-m->jawStations[5].center.z)*(equineMouth?.58f:.85f));
             continue;
         }
         for(int j=0;j<6;++j) {
@@ -1382,6 +1398,20 @@ static float MonsterSDF_EvalNostrilCutter(const MonsterSDFMouth* mouth,Vector3 p
     Vector3 rel=Vec3_Sub(p,center);
     float sign=right?-1.0f:1.0f;
     float curve=mouth->nostrilCurve;
+    if(!mouth->hasNasalPad&&curve>.70f) {
+        /* Narina equina amplia en coma sobre la cara lateral del ala nasal:
+         * cavidad limpia sin perforar tabique ni morder el perfil nasal dorsal. */
+        float uPerp=rel.y*.809f+rel.z*.588f;
+        float uLong=rel.z*.809f-rel.y*.588f;
+        float tL=Math_Clamp(uLong/Math_Max(mouth->nostrilRadii.z,.001f),-1.0f,1.0f);
+        float tP=uPerp/Math_Max(mouth->nostrilRadii.y,.001f);
+        float commaX=rel.x+sign*(.12f*tL*mouth->nostrilRadii.x+.10f*tP*tP*mouth->nostrilRadii.x);
+        float commaY=uPerp+.16f*tL*mouth->nostrilRadii.y;
+        Vector3 rotated=Vec3_Create(commaX,commaY,uLong);
+        Vector3 eqNormal=Vec3_Normalize(Vec3_Create(sign*.72f,-.04f,.69f));
+        float eqDepth=mouth->nostrilRadii.x*.28f;
+        return MonsterSDF_EvalShallowCutter(rotated,Vec3_Zero(),mouth->nostrilRadii,eqNormal,eqDepth);
+    }
     float y=rel.y/Math_Max(mouth->nostrilRadii.y,.001f);
     Vector3 warped=Vec3_Create(rel.x+sign*curve*(rel.y*.35f+y*y*mouth->nostrilRadii.x*.60f),rel.y,
         rel.z+curve*y*y*mouth->nostrilRadii.z*.45f);
@@ -1767,10 +1797,13 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
         SDFSample cutterSample = SDFSample_Create(cutterDist, mouth->insideColor, SDF_MATERIAL_MOUTH);
         accumulated = SDFSample_Subtract(accumulated, cutterSample, mouth->rimBevel);
         if(mouth->anatomicalHead) {
+            bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
+            float eqOrbitK=mouth->headUnionSmoothness*(eqRim?.28f:.06f);
+            float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.42f:.04f);
             accumulated=SDFSample_Subtract(accumulated,SDFSample_Create(
-                MonsterSDF_EvalOrbitCavities(mouth,localP),Color_FromRGB(24,28,19),SDF_MATERIAL_EYE_SOCKET),mouth->headUnionSmoothness*.06f);
+                MonsterSDF_EvalOrbitCavities(mouth,localP),Color_FromRGB(24,28,19),SDF_MATERIAL_EYE_SOCKET),eqOrbitK);
             accumulated=SDFSample_Subtract(accumulated,SDFSample_Create(
-                MonsterSDF_EvalNostrilCavities(mouth,localP),Color_FromRGB(18,20,14),SDF_MATERIAL_NOSTRIL),mouth->headUnionSmoothness*.04f);
+                MonsterSDF_EvalNostrilCavities(mouth,localP),Color_FromRGB(18,20,14),SDF_MATERIAL_NOSTRIL),eqNostrilK);
             if(mouth->hasTympana) accumulated=SDFSample_Subtract(accumulated,SDFSample_Create(
                 MonsterSDF_EvalTympanumCavities(mouth,localP),Color_FromRGB(25,24,16),SDF_MATERIAL_TYMPANUM),mouth->headUnionSmoothness*.04f);
         }
@@ -1832,8 +1865,11 @@ static float MonsterSDF_EvaluateDistanceInternal(const MonsterSDF* sdf,Vector3 p
         accumulated = SDF_SmoothSubtract(accumulated, cutterDist, mouth->rimBevel);
         if(mouth->anatomicalHead) {
             Vector3 localP=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
-            accumulated=SDF_SmoothSubtract(accumulated,MonsterSDF_EvalOrbitCavities(mouth,localP),mouth->headUnionSmoothness*.06f);
-            accumulated=SDF_SmoothSubtract(accumulated,MonsterSDF_EvalNostrilCavities(mouth,localP),mouth->headUnionSmoothness*.04f);
+            bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
+            float eqOrbitK=mouth->headUnionSmoothness*(eqRim?.28f:.06f);
+            float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.42f:.04f);
+            accumulated=SDF_SmoothSubtract(accumulated,MonsterSDF_EvalOrbitCavities(mouth,localP),eqOrbitK);
+            accumulated=SDF_SmoothSubtract(accumulated,MonsterSDF_EvalNostrilCavities(mouth,localP),eqNostrilK);
             if(mouth->hasTympana) accumulated=SDF_SmoothSubtract(accumulated,MonsterSDF_EvalTympanumCavities(mouth,localP),mouth->headUnionSmoothness*.04f);
         }
     }
@@ -1973,8 +2009,11 @@ static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vec
         sample.color=Color_FromRGB(30,27,24); sample.material=SDF_MATERIAL_NASAL_PAD;
     }
     sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalMouthDistance(mouth,point,NULL),mouth->insideColor,SDF_MATERIAL_MOUTH),mouth->rimBevel);
-    sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalOrbitCavities(mouth,local),Color_FromRGB(24,28,19),SDF_MATERIAL_EYE_SOCKET),0.0f);
-    sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalNostrilCavities(mouth,local),Color_FromRGB(18,20,14),SDF_MATERIAL_NOSTRIL),mouth->headUnionSmoothness*.04f);
+    bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
+    float eqOrbitK=eqRim?mouth->headUnionSmoothness*.24f:0.0f;
+    float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.42f:.04f);
+    sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalOrbitCavities(mouth,local),Color_FromRGB(24,28,19),SDF_MATERIAL_EYE_SOCKET),eqOrbitK);
+    sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalNostrilCavities(mouth,local),Color_FromRGB(18,20,14),SDF_MATERIAL_NOSTRIL),eqNostrilK);
     if(mouth->hasTympana)sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalTympanumCavities(mouth,local),Color_FromRGB(25,24,16),SDF_MATERIAL_TYMPANUM),mouth->headUnionSmoothness*.04f);
     return sample;
 }
@@ -1982,9 +2021,12 @@ static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vec
 static float MonsterSDF_EvaluateHeadDistanceAtWorld(const MonsterSDFMouth* mouth,Vector3 point) {
     Vector3 local=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
     float d=MonsterSDF_EvalUpperHeadDistanceCached(mouth,local);
+    bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
+    float eqOrbitK=eqRim?mouth->headUnionSmoothness*.24f:0.0f;
+    float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.42f:.04f);
     d=SDF_SmoothSubtract(d,MonsterSDF_EvalMouthDistance(mouth,point,NULL),mouth->rimBevel);
-    d=SDF_SmoothSubtract(d,MonsterSDF_EvalOrbitCavities(mouth,local),0.0f);
-    d=SDF_SmoothSubtract(d,MonsterSDF_EvalNostrilCavities(mouth,local),mouth->headUnionSmoothness*.04f);
+    d=SDF_SmoothSubtract(d,MonsterSDF_EvalOrbitCavities(mouth,local),eqOrbitK);
+    d=SDF_SmoothSubtract(d,MonsterSDF_EvalNostrilCavities(mouth,local),eqNostrilK);
     if(mouth->hasTympana)d=SDF_SmoothSubtract(d,MonsterSDF_EvalTympanumCavities(mouth,local),mouth->headUnionSmoothness*.04f);
     return d;
 }
@@ -3519,8 +3561,11 @@ float MonsterSDFDistanceGrid_EvaluateDistance(const MonsterSDFDistanceGrid* grid
             accumulated = SDF_SmoothSubtract(accumulated, cutterDist, mouth->rimBevel);
             if (mouth->anatomicalHead) {
                 Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, Vec3_Sub(point, mouth->center));
-                accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalOrbitCavities(mouth, localP), mouth->headUnionSmoothness * .06f);
-                accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalNostrilCavities(mouth, localP), mouth->headUnionSmoothness * .04f);
+                bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
+                float eqOrbitK=mouth->headUnionSmoothness*(eqRim?.28f:.06f);
+                float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.42f:.04f);
+                accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalOrbitCavities(mouth, localP), eqOrbitK);
+                accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalNostrilCavities(mouth, localP), eqNostrilK);
                 if (mouth->hasTympana) accumulated = SDF_SmoothSubtract(accumulated, MonsterSDF_EvalTympanumCavities(mouth, localP), mouth->headUnionSmoothness * .04f);
             }
         }

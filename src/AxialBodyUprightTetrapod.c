@@ -40,7 +40,19 @@ bool AxialBodyUprightTetrapod_Resolve(const AxialPhenotype* p, uint32_t module,
             .hostNode=n->id,.position=n->center,.forward={0,0,1},.up={0,1,0},.side={1,0,0},
             .hostRadii={n->widthRadius,n->heightRadius,n->widthRadius},.scale=s};
         if (i>=1 && i<=4) slot.position.x=(i%2?1:-1)*n->widthRadius*p->limbAttachmentLateral;
-        if (i==5) { slot.position.y+=n->heightRadius*.55f; slot.position.z-=n->widthRadius*.65f; slot.forward=Vec3_Normalize(Vec3_Create(0,-.65f,-1)); slot.up=Vec3_Normalize(Vec3_Create(0,1,-.65f)); }
+        if (i==5) {
+            if (p->contourProfile==AXIAL_CONTOUR_CURSORIAL) {
+                /* El maslo nace embebido en la curvatura superior-caudal de la grupa
+                 * sin formar un saliente superior ni quedar atrapado dentro de la nalga. */
+                float span=Math_Max(n->widthRadius,n->heightRadius);
+                slot.position.y+=n->heightRadius*.22f;
+                slot.position.z-=span*.28f+n->widthRadius*.50f;
+                slot.forward=Vec3_Normalize(Vec3_Create(0,-.26f,-1));
+                slot.up=Vec3_Normalize(Vec3_Create(0,1,-.26f));
+            } else {
+                slot.position.y+=n->heightRadius*.14f; slot.position.z-=n->widthRadius*.40f; slot.forward=Vec3_Normalize(Vec3_Create(0,-.64f,-1)); slot.up=Vec3_Normalize(Vec3_Create(0,1,-.64f));
+            }
+        }
         if (i==6) slot.position.y+=n->heightRadius;
         if (i==7) slot.position.y-=n->heightRadius;
         if (slots->count>=ATTACHMENT_MAX_SLOTS) return false;
@@ -80,7 +92,7 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     float deltaW = withersElev * p->withersHeight * s * .5f;
     float dorsal0 = neckNode->center.y + neckNode->heightRadius;
     float ventral0 = neckNode->center.y - neckNode->heightRadius-p->dewlapDepth*p->neckWidth*s;
-    float dorsalW = pectoralNode->center.y + pectoralNode->heightRadius + deltaW;
+    float dorsalW = pectoralNode->center.y + pectoralNode->heightRadius + deltaW * (cursorial ? .72f : 1.0f);
     float ventralW = pectoralNode->center.y - pectoralNode->heightRadius-p->brisketDepth*p->thoraxHeight*s;
     if (z0 <= zW) return false;
     int count = 0;
@@ -94,12 +106,12 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
         float widthT=powf(t,1.0f/Math_Clamp(midNarrow,.5f,1.0f));
         float dorsal=Math_Lerp(dorsal0,dorsalW,dorsalT);
         if(cursorial) {
-            /* Cresta y garganta independientes. La potencia dorsal anterior
-             * retenía toda la masa junto al poll y sumaba una joroba senoidal.
-             * La cresta baja hacia la cruz; la garganta se abre más tarde. */
-            dorsal=Math_Lerp(dorsal0,dorsalW,t)+sinf(t*3.14159265f)*p->neckWidth*s*curvature*.045f;
-            ventralT=powf(t,1.55f+.30f*Math_Clamp01(curvature));
-            widthT=powf(t,1.35f/Math_Clamp(midNarrow,.5f,1));
+            /* Nuca estrecha con cresta cervical arqueada hacia el tercio craneal-medio
+             * y garganta firme antes de abrirse en el pecho. */
+            dorsal=Math_Lerp(dorsal0,dorsalW,t)+
+                (1.0f-.30f*t)*sinf(t*3.14159265f)*p->neckWidth*s*curvature*.20f;
+            ventralT=powf(t,1.05f+.15f*Math_Clamp01(curvature));
+            widthT=powf(t,.85f/Math_Clamp(midNarrow,.55f,1.0f));
         }
         float ventral=Math_Lerp(ventral0,ventralW,ventralT);
         outStations[count++]=(SDFSweepStation){
@@ -115,7 +127,7 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     float wPW = (pectoralNode->widthRadius + thoraxANode->widthRadius) * .5f;
     /* Interpolar ambos contornos semánticos respeta perfiles escapulares
      * desplazados, en lugar de imponer otra sección cilíndrica al tórax. */
-    float dorsalPW=Math_Lerp(dorsalW,thoraxANode->center.y+thoraxANode->heightRadius,.5f);
+    float dorsalPW=Math_Lerp(dorsalW,thoraxANode->center.y+thoraxANode->heightRadius,cursorial?.42f:.5f);
     float ventralPW=Math_Lerp(ventralW,thoraxANode->center.y-thoraxANode->heightRadius,.5f);
     float hPW = (dorsalPW-ventralPW)*.5f;
     float yPW = (dorsalPW+ventralPW)*.5f;
@@ -132,44 +144,28 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
 
     /* 9. Pelvis */
     if(cursorial) {
-        /* El lomo y la grupa tienen sección propia; el pelvis semántico no
-         * se convierte en una esfera sobredimensionada para suplirlos. */
-        Vector3 c=Vec3_Lerp(abdomenNode->center,pelvisNode->center,.55f);
-        c.y+=pelvisNode->heightRadius*.06f;
+        /* El lomo y la cresta sacra culminan suavemente antes de caer hacia pelvis
+         * y grupa con pendiente continua y anchos amplios en las nalgas. */
+        Vector3 c=Vec3_Lerp(abdomenNode->center,pelvisNode->center,.38f);
         outStations[count++]=(SDFSweepStation){.center=c,
-            .width=Math_Lerp(abdomenNode->widthRadius,pelvisNode->widthRadius,.55f),
-            .height=Math_Lerp(abdomenNode->heightRadius,pelvisNode->heightRadius,.55f)};
+            .width=Math_Lerp(abdomenNode->widthRadius,pelvisNode->widthRadius,.38f),
+            .height=Math_Lerp(abdomenNode->heightRadius,pelvisNode->heightRadius,.38f)};
     }
     outStations[count++] = (SDFSweepStation){.center = pelvisNode->center, .width = pelvisNode->widthRadius, .height = pelvisNode->heightRadius};
-    if(cursorial)outStations[count++]=(SDFSweepStation){
-        /* La grupa desciende desde el sacro hasta el maslo en una sola
-         * pendiente. Una sección trasera demasiado pequeña convierte la
-         * unión suave en una esfera; se conserva profundidad y se reduce
-         * el ancho para lograr el afilado lateral del cuarto trasero. */
-        .center={pelvisNode->center.x,pelvisNode->center.y-pelvisNode->heightRadius*.12f,
-                  pelvisNode->center.z-pelvisNode->widthRadius*.65f},
-        .width=pelvisNode->widthRadius*.52f,.height=pelvisNode->heightRadius*.68f};
-
     if(cursorial) {
-        /* La grupa termina en una sección todavía profunda. Estrecharla a
-         * media anchura antes de la tapa redondeada dibujaba un anillo y una
-         * segunda nalga aparente, aunque los miembros ya fueran continuos. */
-        SDFSweepStation* rump=&outStations[count-1];
-        rump->center.y=pelvisNode->center.y-pelvisNode->heightRadius*.08f;
-        rump->center.z=pelvisNode->center.z-pelvisNode->widthRadius*.45f;
-        rump->width=pelvisNode->widthRadius*.80f;
-        rump->height=pelvisNode->heightRadius*.90f;
-        /* La grupa no es una esfera: el dorso baja desde la cruz, se hunde
-         * en el riñón y vuelve a subir en el sacro antes de caer al maslo.
-         * Se desplaza el techo sin mover el vientre para conservar la
-         * profundidad torácica y abdominal. */
+        float span=Math_Max(pelvisNode->widthRadius,pelvisNode->heightRadius);
+        outStations[count++]=(SDFSweepStation){
+            .center={pelvisNode->center.x,pelvisNode->center.y-pelvisNode->heightRadius*.12f,
+                     pelvisNode->center.z-span*.30f},
+            .width=pelvisNode->widthRadius*.74f,
+            .height=pelvisNode->heightRadius*.80f};
+        /* La caída dorsal se reparte progresivamente desde el sacro hacia pelvis y
+         * grupa conservando anchura pélvica para evitar un tapón central atrás. */
         float unit=p->withersHeight*s;
-        const float top[] = {0,0,0,0,0,0,-.010f,-.018f,-.042f,-.055f,-.032f,.004f,-.015f};
+        const float top[] = {0,0,0,0,0,0,-.004f,-.010f,-.012f,-.008f,-.008f,-.036f,-.032f};
         for(int i=6;i<count;++i) {
             float d=top[i]*unit;
             outStations[i].center.y+=d*.5f;
-            /* Desplazar techo sin mover vientre: h también cambia con d/2.
-             * El signo anterior anulaba el descenso dorsal previsto. */
             outStations[i].height=Math_Max(outStations[i].height+d*.5f,.02f*s);
         }
     }
