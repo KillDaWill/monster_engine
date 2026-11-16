@@ -358,6 +358,46 @@ static void EquineMaxillarySculptAndSections(void) {
                 float dSkull=headNoEars.evaluateDistance(headNoEars.context,earWorld);
                 TEST_ASSERT(dSkull<-0.02f,"Raíz auricular equina enterrada en el cráneo en todas las etapas");
             }
+            if(stage==CREATURE_STAGE_ADULT) {
+                const RotationBasis3D* inv=&mt->inverseRotation;
+                float cornerZ=mt->entranceCenterLocal.z-mt->entranceHalfExtents.z;
+                /* Detrás de la comisura, la carrilla y el masetero se funden en una
+                 * pieza continua sin grieta ni pérdida de volumen mandibular. */
+                float zCheek=Math_Lerp(mt->jawStations[2].center.z,mt->jawStations[3].center.z,.50f);
+                MonsterSDFJawField jfc;
+                SDFField jawF=MonsterSDF_GetJawField(&sdf,0,&jfc);
+                float bestDiff=1e6f,bestDUpper=0,bestDJaw=0,bestDVis=0;
+                for(float y=mt->jawStations[3].center.y-mt->jawStations[3].height;y<=mt->headStations[2].center.y;y+=.01f) {
+                    for(float x=.04f;x<=mt->headStations[3].width*1.2f;x+=.01f) {
+                        Vector3 v=Vec3_Create(x,y,zCheek);
+                        Vector3 pw=Vec3_Add(mt->center,Vec3_Create(
+                            inv->row0.x*v.x+inv->row1.x*v.y+inv->row2.x*v.z,
+                            inv->row0.y*v.x+inv->row1.y*v.y+inv->row2.y*v.z,
+                            inv->row0.z*v.x+inv->row1.z*v.y+inv->row2.z*v.z));
+                        float du=MonsterSDF_EvaluateDistance(&sdf,pw);
+                        float dj=jawF.evaluateDistance(jawF.context,v);
+                        float score=fabsf(du)+fabsf(dj);
+                        if(score<bestDiff){bestDiff=score;bestDUpper=du;bestDJaw=dj;bestDVis=MonsterSDF_EvaluateVisualDistance(&sdf,pw);}
+                    }
+                }
+                TEST_ASSERT(bestDiff<.04f&&bestDVis<fminf(bestDUpper,bestDJaw)-.005f,
+                    "La unión posterior a la comisura suaviza el surco entre mandíbulas");
+                /* En la apertura de la boca (por delante de la comisura) no hay puente artificial. */
+                Monster_SetHeadOpenFactor(m,1.0f);
+                MonsterSDF openSdf=MonsterSDF_Create();
+                TEST_ASSERT(MonsterSDF_Build(&openSdf,m,MonsterSDF_DefaultConfig()),"Construir SDF equino con boca abierta");
+                Vector3 lipMid=Vec3_Create(0,openSdf.mouths[0].entranceCenterLocal.y,
+                    Math_Lerp(cornerZ,openSdf.mouths[0].faceTipLocal.z,.50f));
+                const RotationBasis3D* oinv=&openSdf.mouths[0].inverseRotation;
+                Vector3 lipWorld=Vec3_Add(openSdf.mouths[0].center,Vec3_Create(
+                    oinv->row0.x*lipMid.x+oinv->row1.x*lipMid.y+oinv->row2.x*lipMid.z,
+                    oinv->row0.y*lipMid.x+oinv->row1.y*lipMid.y+oinv->row2.y*lipMid.z,
+                    oinv->row0.z*lipMid.x+oinv->row1.z*lipMid.y+oinv->row2.z*lipMid.z));
+                TEST_ASSERT(MonsterSDF_EvaluateVisualDistance(&openSdf,lipWorld)>.015f,
+                    "La apertura bucal permanece abierta sin pegarse al abrir la mandíbula");
+                MonsterSDF_Free(&openSdf);
+                Monster_SetHeadOpenFactor(m,0.0f);
+            }
             sdf.mouths[0].hasEars=prevHasEars;
             MonsterSDF_Free(&sdf);
             Monster_Free(m);

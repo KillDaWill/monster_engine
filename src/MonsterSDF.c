@@ -3200,6 +3200,20 @@ size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf,float samples,
     return n;
 }
 
+/* Suavizado anatómico posterior a la comisura en equinos: une carrillada,
+ * buccinador y masetero con la mandíbula detrás de la apertura bucal sin
+ * alterar la separación nítida de los labios hacia el morro. */
+static float MonsterSDF_EquineCheekSmoothness(const MonsterSDFMouth* mouth,Vector3 localP) {
+    if(mouth->equineSculptWeight<=.0001f||!mouth->sweptSkull)return 0.0f;
+    float cornerZ=mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z;
+    float span=Math_Max(mouth->entranceHalfExtents.z*.20f,.024f);
+    float behind=Math_Clamp01((cornerZ-localP.z)/span);
+    float wZ=behind*behind*(3.0f-2.0f*behind);
+    float openFade=Math_Clamp01(1.0f-fabsf(mouth->visualJawAngle)/.85f);
+    float baseK=Math_Min(Math_Max(mouth->headUnionSmoothness*3.8f,mouth->jawRadii.y*.45f),.105f);
+    return baseK*wZ*openFade*Math_Clamp01(mouth->equineSculptWeight)*mouth->visualJawScale;
+}
+
 /* Inversa de la articulación continua usada por TransformJaw. El desarrollo
  * escala alrededor del pivote; la costura usa el mismo peso de anclajes. */
 static float MonsterSDF_EvalPosedMouthDistance(const MonsterSDFMouth* mouth,Vector3 localP) {
@@ -3232,7 +3246,9 @@ float MonsterSDF_EvaluateVisualDistance(const MonsterSDF* sdf,Vector3 point) {
     for(size_t i=0;i<sdf->mouthCount;++i) {
         const MonsterSDFMouth* mouth=&sdf->mouths[i];
         Vector3 local=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
-        distance=Math_Min(distance,MonsterSDF_EvalPosedMouthDistance(mouth,local));
+        float posed=MonsterSDF_EvalPosedMouthDistance(mouth,local);
+        float cheekK=MonsterSDF_EquineCheekSmoothness(mouth,local);
+        distance=cheekK>1e-5f?SDF_SmoothUnion(distance,posed,cheekK):Math_Min(distance,posed);
     }
     return distance;
 }

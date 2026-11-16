@@ -112,12 +112,20 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         float jawWeight,tongueDistance;
         float d=MonsterSDF_EvalPosedMouthMaterial(m,local,jawWeight,tongueDistance);
-        if(d<result.w) {
+        float kCheek=MonsterSDF_EquineCheekSmoothness(m,local);
+        float hCheek=kCheek<=1e-5?(result.w<d?1.0:0.0):clamp(.5+.5*(d-result.w)/kCheek,0.0,1.0);
+        if(hCheek<1.0) {
             vec3 col=M_skinColor(m);float jawSkin=1.0;uint jawMaterial=1u;
             if(M_taperedMandible(m)&&tongueDistance<=d+0.005){col=M_insideColor(m);jawSkin=0.0;jawMaterial=2u;}
-            // Transportar el anclaje ya resuelto; no repetir la inversa de la costura.
-            uint anchor=1u+uint(round(jawWeight*255.0));
-            result=vec4(col,d);semantic=SDFResult(d,uint(M_moduleInstanceId(m)),1u,jawMaterial|256u|(anchor<<9),jawSkin);
+            semantic.skinWeight=mix(jawSkin,semantic.skinWeight,hCheek);
+            if(hCheek<.5) {
+                // Transportar el anclaje ya resuelto; no repetir la inversa de la costura.
+                uint anchor=1u+uint(round(jawWeight*255.0));
+                semantic.moduleId=uint(M_moduleInstanceId(m));
+                semantic.regionId=1u;
+                semantic.materialId=jawMaterial|256u|(anchor<<9);
+            }
+            result=vec4(mix(col,result.xyz,hCheek),kCheek>1e-5?SDF_SmoothUnion(result.w,d,kCheek):min(result.w,d));
         }
     }
     semantic.distance=result.w;return result;
@@ -192,7 +200,9 @@ float sceneDistance(vec3 p) {
             if(outside>.02){result=min(result,outside);continue;}
         }
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
-        result=min(result,MonsterSDF_EvalPosedMouthDistance(m,local));
+        float d=MonsterSDF_EvalPosedMouthDistance(m,local);
+        float cheekK=MonsterSDF_EquineCheekSmoothness(m,local);
+        result=cheekK>1e-5?SDF_SmoothUnion(result,d,cheekK):min(result,d);
     }
     return result;
 }
