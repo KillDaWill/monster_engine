@@ -173,6 +173,23 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->surface.oralSlope=Math_Lerp(a->surface.oralSlope,b->surface.oralSlope,t);
     out->surface.nostrilCurve=Math_Lerp(a->surface.nostrilCurve,b->surface.nostrilCurve,t);
     out->surface.faceRounding=Math_Lerp(a->surface.faceRounding,b->surface.faceRounding,t);
+    out->surface.equineSculptWeight=Math_Lerp(a->surface.equineSculptWeight,b->surface.equineSculptWeight,t);
+    if(a->surface.equineSculptWeight>0.0f && b->surface.equineSculptWeight>0.0f) {
+        out->surface.equineNasalRoot=Vec3_Lerp(a->surface.equineNasalRoot,b->surface.equineNasalRoot,t);
+        out->surface.equineNasalTip=Vec3_Lerp(a->surface.equineNasalTip,b->surface.equineNasalTip,t);
+        out->surface.equineNasalRoof=Vec3_Lerp(a->surface.equineNasalRoof,b->surface.equineNasalRoof,t);
+        out->surface.equineCrestStart=Vec3_Lerp(a->surface.equineCrestStart,b->surface.equineCrestStart,t);
+        out->surface.equineCrestEnd=Vec3_Lerp(a->surface.equineCrestEnd,b->surface.equineCrestEnd,t);
+        out->surface.equineCrestRadii=Vec3_Lerp(a->surface.equineCrestRadii,b->surface.equineCrestRadii,t);
+    } else if(a->surface.equineSculptWeight>0.0f || b->surface.equineSculptWeight>0.0f) {
+        const HeadSurfaceRecipe* eq=a->surface.equineSculptWeight>0.0f?&a->surface:&b->surface;
+        out->surface.equineNasalRoot=eq->equineNasalRoot;
+        out->surface.equineNasalTip=eq->equineNasalTip;
+        out->surface.equineNasalRoof=eq->equineNasalRoof;
+        out->surface.equineCrestStart=eq->equineCrestStart;
+        out->surface.equineCrestEnd=eq->equineCrestEnd;
+        out->surface.equineCrestRadii=eq->equineCrestRadii;
+    }
     if(a->surface.hasCranialProfile || b->surface.hasCranialProfile) {
         Vector3 ca[6],cb[6],ra[6],rb[6];
         Morph_HeadCranialStations(&a->surface,ca,ra);

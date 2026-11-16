@@ -153,7 +153,7 @@ for typ,short in [('MonsterSDFBodyPart','P'),('MonsterSDFConnector','C'),('Monst
 functions=[]
 for name in ['SDF_HoofCapsule','SDF_KeratinClaw','SDF_SinHalfTurn','SDF_CurvedPinna','SDF_TaperedPinna','SDF_Sphere','SDF_Ellipsoid','SDF_Capsule','SDF_TaperedCapsuleApprox','SDF_TaperedEllipticalCapsuleApprox','SDF_ThreeSectionEllipticalLoftApprox','SDF_TaperedEllipticalSegmentApprox','SDF_RoundedSlotExtruded','SDF_Hermite']:
     functions.append(function('src/SDFPrimitives.c',name))
-for name in ['SDF_SmoothUnion','SDF_SmoothSubtract']:
+for name in ['SDF_SmoothUnion','SDF_SmoothSubtract','SDF_SmoothIntersection']:
     functions.append(function('src/SDFOperations.c',name))
 # Declaraciones para llamadas hacia delante.
 prototypes='float SDF_SmoothUnion(float a,float b,float k);\n'
@@ -184,7 +184,7 @@ upper_head_source=function('src/MonsterSDF.c','MonsterSDF_EvalUpperHeadDistance'
 upper_head_cached=function('src/MonsterSDF.c','MonsterSDF_EvalUpperHeadDistanceCached')
 validate_upper_head_cache_guard_selftest(upper_head_source,upper_head_cached)
 validate_cached_periorbital_query_loop(function('src/MonsterSDF.c','MonsterSDF_EvalPeriorbitalDistanceUsingCache'))
-for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCutter','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalUpperHeadDistance']:
+for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCutter','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalEquineSculpt','MonsterSDF_EvalUpperHeadDistance']:
     heads.append(function('src/MonsterSDF.c',name))
 
 def translate(s):

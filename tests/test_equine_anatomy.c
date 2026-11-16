@@ -9,6 +9,7 @@
 #include "MonsterVisual.h"
 #include "AnatomyDeformer.h"
 #include "MonsterVisualAsync.h"
+#include "MathUtils.h"
 #include "test_utils.h"
 #include <math.h>
 #include <stdlib.h>
@@ -269,8 +270,87 @@ static void FeetAndStages(const char* path) {
     Monster_Free(juvenile);Monster_Free(adult);free(juvenile);free(adult);free(m);free(doc);
 }
 
+static float FindSurfaceHalfWidthAtYZ(SDFField field,Vector3 headCenter,float y,float z,float xMax) {
+    float prevX=0.0f;
+    float prevD=field.evaluateDistance(field.context,Vec3_Add(headCenter,Vec3_Create(0.0f,y,z)));
+    for(int step=1;step<=160;++step) {
+        float x=xMax*(step/160.0f);
+        float d=field.evaluateDistance(field.context,Vec3_Add(headCenter,Vec3_Create(x,y,z)));
+        if(prevD<=0.0f&&d>0.0f) {
+            float t=-prevD/fmaxf(d-prevD,1e-6f);
+            return prevX+(x-prevX)*t;
+        }
+        prevX=x;prevD=d;
+    }
+    return 0.0f;
+}
+
+static void EquineMaxillarySculptAndSections(void) {
+    /* Las familias no équidas conservan peso nulo del esculpido nasal/maxilar. */
+    HeadArchetype nonEquine[]={HEAD_ARCHETYPE_LIZARD,HEAD_ARCHETYPE_CANID,HEAD_ARCHETYPE_BOVID};
+    for(size_t i=0;i<sizeof(nonEquine)/sizeof(*nonEquine);++i) {
+        HeadPhenotype p=HeadPhenotype_RandomValid(nonEquine[i],1u);
+        HeadAnatomy h;
+        TEST_ASSERT(HeadAnatomy_Resolve(&p,0,Vec3_Create(.5f,.45f,.5f),&h),"Resolver arquetipo no équido");
+        TEST_ASSERT(FLOAT_NEAR(h.surface.equineSculptWeight,0.0f),"Sin intrusión de escultura équida en otras especies");
+    }
+    const char* recipes[]={"recipes/caballo.creature.json","recipes/asno.creature.json"};
+    for(size_t ri=0;ri<2;++ri) {
+        CreatureRecipeDocument* doc=calloc(1,sizeof(*doc));
+        TEST_ASSERT(doc,"Reservar receta équida para corte facial");
+        char error[256];
+        TEST_ASSERT(CreatureRecipeIO_LoadFile(doc,recipes[ri],error,sizeof(error)),"Cargar receta équida");
+        for(int stage=CREATURE_STAGE_SEED;stage<=CREATURE_STAGE_ADULT;++stage) {
+            const CreaturePhenotype* phen=CreatureRecipe_GetStage(&doc->recipe,(CreatureStage)stage);
+            Monster* m=calloc(1,sizeof(*m));
+            TEST_ASSERT(m,"Reservar monstruo por etapa");
+            *m=Monster_Create();
+            TEST_ASSERT(Creature_BuildMonster(m,&doc->recipe,phen),"Construir etapa équida");
+            TEST_ASSERT(FLOAT_NEAR(m->head.anatomy.surface.equineSculptWeight,1.0f),"Peso completo de escultura facial équida");
+            MonsterSDF sdf=MonsterSDF_Create();
+            TEST_ASSERT(MonsterSDF_Build(&sdf,m,MonsterSDF_DefaultConfig()),"Construir SDF équido");
+            const MonsterSDFMouth* mt=&sdf.mouths[0];
+            TEST_ASSERT(FLOAT_NEAR(mt->equineSculptWeight,1.0f),"Copiar peso de escultura al SDF");
+            TEST_ASSERT(mt->equineNasalRoof.x>0.10f&&mt->equineCrestStartLocal.x>0.02f,"Parámetros de bisel dorsal y cresta facial activos");
+            if(stage==CREATURE_STAGE_ADULT) {
+                MonsterSDFHeadField hfc;
+                SDFField headF=MonsterSDF_GetHeadField(&sdf,0,&hfc);
+                float zCrest=Math_Lerp(mt->faceRootLocal.z,mt->faceTipLocal.z,.30f);
+                float u=Math_Clamp01((zCrest-mt->equineNasalRootLocal.z)/fmaxf(mt->equineNasalTipLocal.z-mt->equineNasalRootLocal.z,.01f));
+                float yTop=Math_Lerp(mt->equineNasalRootLocal.y,mt->equineNasalTipLocal.y,u);
+                float yBot=Math_Lerp(mt->equineCrestStartLocal.y,mt->equineCrestEndLocal.y,u);
+                float yMid=.5f*(yTop+yBot);
+                float halfH=fmaxf(.5f*(yTop-yBot),.04f);
+                float xMax=mt->headStations[2].width*1.4f;
+                float wDorsal=FindSurfaceHalfWidthAtYZ(headF,mt->center,yMid+halfH*.68f,zCrest,xMax);
+                float wCrest=FindSurfaceHalfWidthAtYZ(headF,mt->center,yMid+halfH*.05f,zCrest,xMax);
+                float wVentral=FindSurfaceHalfWidthAtYZ(headF,mt->center,yMid-halfH*.62f,zCrest,xMax);
+                TEST_ASSERT(wDorsal>0.04f&&wCrest>wDorsal+.03f,"Puente nasal más estrecho que la cresta facial");
+                TEST_ASSERT(wVentral>0.04f&&wCrest>wVentral+.02f,"Cresta facial sobresale sobre el plano bucal subcrestal");
+                float eps=0.002f;
+                float yPlane=yMid+halfH*.48f;
+                float wPlane=FindSurfaceHalfWidthAtYZ(headF,mt->center,yPlane,zCrest,xMax);
+                Vector3 pPlane=Vec3_Add(mt->center,Vec3_Create(wPlane,yPlane,zCrest));
+                float gx=headF.evaluateDistance(headF.context,Vec3_Add(pPlane,Vec3_Create(eps,0,0)))
+                        -headF.evaluateDistance(headF.context,Vec3_Add(pPlane,Vec3_Create(-eps,0,0)));
+                float gy=headF.evaluateDistance(headF.context,Vec3_Add(pPlane,Vec3_Create(0,eps,0)))
+                        -headF.evaluateDistance(headF.context,Vec3_Add(pPlane,Vec3_Create(0,-eps,0)));
+                float gz=headF.evaluateDistance(headF.context,Vec3_Add(pPlane,Vec3_Create(0,0,eps)))
+                        -headF.evaluateDistance(headF.context,Vec3_Add(pPlane,Vec3_Create(0,0,-eps)));
+                Vector3 nrm=Vec3_Normalize(Vec3_Create(gx,gy,gz));
+                TEST_ASSERT(nrm.y>0.25f&&nrm.x>0.45f,"Plano infraorbital inclinado hacia fuera y arriba");
+            }
+            MonsterSDF_Free(&sdf);
+            Monster_Free(m);
+            free(m);
+        }
+        free(doc);
+    }
+}
+
 void run_equine_anatomy_tests(void) {
     CranialComposition();
+    EquineMaxillarySculptAndSections();
     FeetAndStages("recipes/caballo.creature.json");
     FeetAndStages("recipes/asno.creature.json");
     puts("[PASS] test_equine_anatomy: cráneo, casco único, apoyo, cuatro etapas, rig y metamorfosis");

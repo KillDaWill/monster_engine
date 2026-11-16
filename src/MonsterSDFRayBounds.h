@@ -109,9 +109,9 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     MonsterSDFMouth m=*source;
     if(!m.anatomicalHead)return m;
     float k=fmaxf(m.headUnionSmoothness,.005f);
-    // 5.04 = 1 (cráneo/rostro) + 3.13 (rasgos) + .35 (nariz) + .56 (orejas).
+    // 5.48 = 1 (cráneo/rostro) + 3.13 (rasgos) + .35 (nariz) + .56 (orejas) + .44 (cresta equina).
     float level=outerSmoothness+8.f*tolerance+
-        (5.04f*k+3.f*fmaxf(.24f*m.headUnionSmoothness,.002f)+fmaxf(m.faceRounding,0)+m.headBodySmoothness)*.25f;
+        (5.48f*k+3.f*fmaxf(.24f*m.headUnionSmoothness,.002f)+fmaxf(m.faceRounding,0)+m.headBodySmoothness)*.25f;
     AABB3D head=AABB_Empty();
 #define E(center,radii) RayBounds_Ellipsoid(&head,m.center,m.radii,level)
     E(craniumCenterLocal,craniumRadii);
@@ -133,6 +133,13 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     RayBounds_Ellipsoid(&head,right,m.cheekRadii,level);
     E(leftBrowCenterLocal,browRadii);E(rightBrowCenterLocal,browRadii);
     E(leftOrbitRimCenterLocal,orbitRimRadii);E(rightOrbitRimCenterLocal,orbitRimRadii);
+    if(m.equineSculptWeight>0.0f){
+        for(int j=0;j<6;++j){
+            Vector3 cb=Vec3_Create(m.headStations[j].width*1.26f+level,m.headStations[j].height+level,
+                fmaxf(m.headStations[j].width*1.26f,m.headStations[j].height)+level);
+            AABB_ExpandRadius(&head,m.headStations[j].center,cb);
+        }
+    }
     if(m.hasNasalPad){E(noseCenterLocal,noseRadii);}
     if(m.hasEars){
         Vector3 ear=Vec3_Add(m.earRadii,Vec3_Create(level,level,level));

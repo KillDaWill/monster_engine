@@ -233,6 +233,13 @@ typedef struct HeadSurfaceRecipe {
     bool hasCranialProfile; /**< Perfil facial regional distinto del perfil heredado. */
     Vector3 cranialCenters[6]; /**< Labios, cartílago, nasal, frente, bóveda y nuca. */
     Vector3 cranialRadii[6]; /**< Secciones independientes de la mandíbula. */
+    float equineSculptWeight; /**< Peso continuo [0,1] del modelado transversal nasal y cresta facial equina. */
+    Vector3 equineNasalRoot; /**< Inicio dorsal del puente nasal frente a órbitas. */
+    Vector3 equineNasalTip; /**< Extremo rostral de los huesos nasales antes del morro blando. */
+    Vector3 equineNasalRoof; /**< Semianchuras dorsal (raíz, extremo) y caída del bisel nasal. */
+    Vector3 equineCrestStart; /**< Origen cigomático de la cresta facial bajo la órbita. */
+    Vector3 equineCrestEnd; /**< Terminación rostral (tuberosidad facial) en el maxilar. */
+    Vector3 equineCrestRadii; /**< Semiejes (lateral, vertical) de cresta e intensidad de surco. */
 } HeadSurfaceRecipe;
 
 /** Anatomía resuelta y validada, incluyendo el subsistema oral. */

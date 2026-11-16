@@ -936,6 +936,13 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 sdf->mouths[m].faceCapDepth=recipe->faceCapDepth;
                 sdf->mouths[m].faceCapWeight=recipe->faceCapWeight;
                 sdf->mouths[m].nostrilCurve=recipe->nostrilCurve;
+                sdf->mouths[m].equineSculptWeight=recipe->equineSculptWeight;
+                sdf->mouths[m].equineNasalRootLocal=HEAD_LOCAL(recipe->equineNasalRoot);
+                sdf->mouths[m].equineNasalTipLocal=HEAD_LOCAL(recipe->equineNasalTip);
+                sdf->mouths[m].equineNasalRoof=recipe->equineNasalRoof;
+                sdf->mouths[m].equineCrestStartLocal=HEAD_LOCAL(recipe->equineCrestStart);
+                sdf->mouths[m].equineCrestEndLocal=HEAD_LOCAL(recipe->equineCrestEnd);
+                sdf->mouths[m].equineCrestRadii=recipe->equineCrestRadii;
                 sdf->hasPartitionedHead=true;
 #undef HEAD_LOCAL
             }
@@ -1076,8 +1083,9 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 const HeadSurfaceRecipe* headBoundsProfile=monster->hasHead?&monster->head.anatomy.surface:NULL;
                 Vector3 headOriginLocal=headBoundsProfile?Vec3_Sub(sdf->mouths[m].craniumCenterLocal,headBoundsProfile->craniumCenter):Vec3_Zero();
                 if(headBoundsProfile&&headBoundsProfile->hasCranialProfile) {
+                    float scaleBoundX=sdf->mouths[m].equineSculptWeight>0.0f?1.26f:1.0f;
                     for(int j=0;j<6;++j) {
-                        float rx=headBoundsProfile->cranialRadii[j].x,ry=headBoundsProfile->cranialRadii[j].y;
+                        float rx=headBoundsProfile->cranialRadii[j].x*scaleBoundX,ry=headBoundsProfile->cranialRadii[j].y;
                         float rz=(j==0||j==5)?Math_Min(rx,ry):.02f;
                         INCLUDE_ELLIPSOID(Vec3_Add(headOriginLocal,headBoundsProfile->cranialCenters[j]),Vec3_Create(rx,ry,rz));
                     }
@@ -1106,8 +1114,9 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 EXPAND_HEAD(sdf->mouths[m].faceMidLocal,sdf->mouths[m].faceMidRadii);
                 EXPAND_HEAD(sdf->mouths[m].faceTipLocal,sdf->mouths[m].faceTipRadii);
                 if(headBoundsProfile&&headBoundsProfile->hasCranialProfile) {
+                    float scaleBoundX=sdf->mouths[m].equineSculptWeight>0.0f?1.26f:1.0f;
                     for(int j=0;j<6;++j) {
-                        float rx=headBoundsProfile->cranialRadii[j].x,ry=headBoundsProfile->cranialRadii[j].y;
+                        float rx=headBoundsProfile->cranialRadii[j].x*scaleBoundX,ry=headBoundsProfile->cranialRadii[j].y;
                         float rz=(j==0||j==5)?Math_Min(rx,ry):.02f;
                         EXPAND_HEAD(Vec3_Add(headOriginLocal,headBoundsProfile->cranialCenters[j]),Vec3_Create(rx,ry,rz));
                     }
@@ -1650,6 +1659,63 @@ static float MonsterSDF_EvalNeckCollarDistance(const MonsterSDFMouth* mouth,Vect
     return SDF_SmoothUnion(seg1,seg2,blend);
 }
 
+static float MonsterSDF_EvalEquineSculpt(const MonsterSDFMouth* mouth, Vector3 localP, float baseDist) {
+    float zOrb = mouth->equineNasalRootLocal.z;
+    float zTip = mouth->equineNasalTipLocal.z;
+    float zBridgeEnd = mouth->equineNasalRoof.z;
+    float zCrestStart = mouth->equineCrestStartLocal.z;
+    float zTuberosity = mouth->equineCrestEndLocal.z;
+    float faceSpan = Math_Max(zTip - zOrb, .01f);
+    float u = Math_Clamp01((localP.z - zOrb) / faceSpan);
+    float yTop = Math_Lerp(mouth->equineNasalRootLocal.y, mouth->equineNasalTipLocal.y, u);
+    float yBot = Math_Lerp(mouth->equineCrestStartLocal.y, mouth->equineCrestEndLocal.y, u);
+    float yMid = .5f * (yTop + yBot);
+    float halfH = Math_Max(.5f * (yTop - yBot), .04f);
+    float v = Math_Clamp((localP.y - yMid) / halfH, -1.2f, 1.2f);
+
+    float inB = Math_Clamp01((localP.z - (zOrb + .06f * faceSpan)) / (.20f * faceSpan));
+    float outB = Math_Clamp01((zBridgeEnd + .04f * faceSpan - localP.z) / (.22f * faceSpan));
+    float wBridge = inB * inB * (3.0f - 2.0f * inB) * outB * outB * (3.0f - 2.0f * outB);
+
+    float inC = Math_Clamp01((localP.z - (zCrestStart + .01f * faceSpan)) / (.20f * faceSpan));
+    float outC = Math_Clamp01((zTuberosity + .14f * faceSpan - localP.z) / (.26f * faceSpan));
+    float wCrest = inC * inC * (3.0f - 2.0f * inC) * outC * outC * (3.0f - 2.0f * outC);
+
+    float inCh = Math_Clamp01((localP.z - (zOrb - .04f * faceSpan)) / (.22f * faceSpan));
+    float outCh = Math_Clamp01((zTuberosity + .16f * faceSpan - localP.z) / (.26f * faceSpan));
+    float wCheek = inCh * inCh * (3.0f - 2.0f * inCh) * outCh * outCh * (3.0f - 2.0f * outCh);
+
+    float inO = Math_Clamp01((localP.z - (zOrb - .22f * faceSpan)) / (.22f * faceSpan));
+    float outO = Math_Clamp01((zOrb + .24f * faceSpan - localP.z) / (.24f * faceSpan));
+    float wOrbitCheek = inO * inO * (3.0f - 2.0f * inO) * outO * outO * (3.0f - 2.0f * outO);
+
+    float uTop = Math_Clamp01((v + .02f) / 1.02f);
+    float bevel = mouth->equineNasalRoof.x * uTop * sqrtf(uTop) * wBridge;
+
+    float uCrestZ = Math_Clamp01((localP.z - zOrb) / Math_Max(zTuberosity - zOrb, .01f));
+    float vCrest = mouth->equineCrestRadii.x - .08f * uCrestZ;
+    float dvc = (v - vCrest) / Math_Max(mouth->equineCrestRadii.y, .05f);
+    float bc = Math_Max(1.0f - dvc * dvc, 0.0f);
+    float crest = mouth->equineCrestStartLocal.x * (bc * bc) * wCrest;
+
+    float dvh = (v - (vCrest - .56f)) / Math_Max(mouth->equineCrestRadii.z, .05f);
+    float bh = Math_Max(1.0f - dvh * dvh, 0.0f);
+    float hollow = mouth->equineCrestEndLocal.x * (bh * bh) * wCheek;
+
+    float uBot = Math_Clamp01((.02f - v) / 1.02f);
+    float orbitCheek = mouth->equineNasalRoof.y * uBot * sqrtf(uBot) * wOrbitCheek;
+
+    float s = Math_Clamp(1.0f - bevel + crest - hollow - orbitCheek, .72f, 1.09f);
+    Vector3 q = Vec3_Create(localP.x / s, localP.y, localP.z);
+    float dWarped = SDF_EllipticalSweepZ(q, mouth->headStations, 6);
+    if (mouth->faceCapWeight > 0.0f) {
+        dWarped = Math_Lerp(dWarped, Math_Max(dWarped, localP.z - mouth->faceTipLocal.z - mouth->faceCapDepth), mouth->faceCapWeight);
+    }
+    float anyActive = Math_Clamp01(wBridge + wCrest + wCheek + wOrbitCheek);
+    float dScaled = dWarped * Math_Lerp(1.0f, .68f, anyActive);
+    return Math_Lerp(baseDist, dScaled, Math_Clamp01(mouth->equineSculptWeight));
+}
+
 static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vector3 localP) {
     if (mouth->anatomicalHead) {
         float dev = mouth->cephalicDevelopment;
@@ -1668,6 +1734,7 @@ static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vect
              * por la jaula fenotípica entre keyframes. */
             if(mouth->faceCapWeight>0)skull=Math_Lerp(skull,Math_Max(skull,localP.z-mouth->faceTipLocal.z-mouth->faceCapDepth),mouth->faceCapWeight);
             d = skull;
+            if(mouth->equineSculptWeight>.0001f) d = MonsterSDF_EvalEquineSculpt(mouth, localP, d);
             float featK = k;
             {
                 d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftTemporalCenterLocal), mouth->temporalRadii), featK * .38f);
@@ -1720,6 +1787,7 @@ static float MonsterSDF_EvalUpperHeadDistanceCached(const MonsterSDFMouth* mouth
             }
             if(mouth->faceCapWeight>0)skull=Math_Lerp(skull,Math_Max(skull,localP.z-mouth->faceTipLocal.z-mouth->faceCapDepth),mouth->faceCapWeight);
             d = skull;
+            if(mouth->equineSculptWeight>.0001f) d = MonsterSDF_EvalEquineSculpt(mouth, localP, d);
             float featK = k;
             {
                 d = SDF_SmoothUnion(d, SDF_Ellipsoid(Vec3_Sub(localP, mouth->leftTemporalCenterLocal), mouth->temporalRadii), featK * .38f);
@@ -2547,6 +2615,23 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
     if(m->faceCapWeight>0) {
         double cap=center.z-m->faceTipLocal.z-m->faceCapDepth;
         d.lo+=(Range_Max(d.lo,cap-half.z)-d.lo)*m->faceCapWeight;d.hi+=(Range_Max(d.hi,cap+half.z)-d.hi)*m->faceCapWeight;
+    }
+    if(m->equineSculptWeight>.0001f) {
+        double w=MonsterSDF_ClampDouble(m->equineSculptWeight,0,1);
+        float xLo=center.x-half.x,xHi=center.x+half.x;
+        float qxLo=xLo>=0.0f?xLo/1.09f:xLo/.72f;
+        float qxHi=xHi>=0.0f?xHi/.72f:xHi/1.09f;
+        AABB3D qBox={Vec3_Create(qxLo,center.y-half.y,center.z-half.z),Vec3_Create(qxHi,center.y+half.y,center.z+half.z)};
+        MonsterSDFRange s=m->sweptSkull?MonsterSDF_StationsRange(m->headStations,6,qBox):d;
+        if(m->faceCapWeight>0) {
+            double cap=center.z-m->faceTipLocal.z-m->faceCapDepth;
+            s.lo+=(Range_Max(s.lo,cap-half.z)-s.lo)*m->faceCapWeight;
+            s.hi+=(Range_Max(s.hi,cap+half.z)-s.hi)*m->faceCapWeight;
+        }
+        double sLo=s.lo<0.0?s.lo:s.lo*.68;
+        double sHi=s.hi>=0.0?s.hi:s.hi*.68;
+        d.lo=d.lo+(sLo-d.lo)*w;
+        d.hi=d.hi+(sHi-d.hi)*w;
     }
     Vector3 centers[]={m->leftTemporalCenterLocal,m->rightTemporalCenterLocal,m->leftMaxillaryCenterLocal,m->rightMaxillaryCenterLocal,m->cheekCenterLocal,m->cheekCenterLocal};
     centers[5].x*=-1;
@@ -3415,6 +3500,7 @@ static inline float MonsterSDF_EvalUpperHeadPruned(const MonsterSDFMouth* mouth,
     if (mouth->faceCapWeight > 0.0f) {
         d = Math_Lerp(d, Math_Max(d, localP.z - mouth->faceTipLocal.z - mouth->faceCapDepth), mouth->faceCapWeight);
     }
+    if (mouth->equineSculptWeight > .0001f) d = MonsterSDF_EvalEquineSculpt(mouth, localP, d);
     float featK = k;
     float kTemp = featK * 0.38f;
     if (!MonsterSDF_PruneLocalEllipsoid(localP, mouth->leftTemporalCenterLocal, mouth->temporalRadii, d + kTemp))

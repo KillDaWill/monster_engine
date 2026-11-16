@@ -230,6 +230,13 @@ typedef struct MonsterSDFMouth {
     bool hasTympana;
     bool taperedMandible;
     float faceRounding;
+    float equineSculptWeight; /**< Peso continuo [0,1] del esculpido transversal equino. */
+    Vector3 equineNasalRootLocal; /**< Ancla dorsal nasal proximal. */
+    Vector3 equineNasalTipLocal; /**< Ancla dorsal nasal distal. */
+    Vector3 equineNasalRoof; /**< Semianchura dorsal (raíz, extremo) y caída lateral. */
+    Vector3 equineCrestStartLocal; /**< Origen caudal de la cresta facial. */
+    Vector3 equineCrestEndLocal; /**< Extremo rostral de la cresta facial. */
+    Vector3 equineCrestRadii; /**< Semiejes de cresta (lateral, vertical) e intensidad subcrestal. */
     AABB3D influenceBounds;
     AABB3D headBounds; /**< AABB mundial ajustada al campo local de cabeza. */
     AABB3D positiveHeadBounds; /**< Soporte certificado del subnivel cefálico d <= k cabeza-cuerpo. */

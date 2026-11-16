@@ -98,8 +98,11 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
             result=cutSemantic(semantic,result,cutter,M_insideColor(m),M_rimBevel(m),2u);
         }
         if(rayHeadActive&&M_anatomicalHead(m)) {
-            result=cutSemantic(semantic,result,MonsterSDF_EvalOrbitCavities(m,local),vec3(24,28,19)/255.0,M_headUnionSmoothness(m)*.06,3u);
-            result=cutSemantic(semantic,result,MonsterSDF_EvalNostrilCavities(m,local),vec3(18,20,14)/255.0,M_headUnionSmoothness(m)*.04,3u);
+            bool eqRim=!M_hasNasalPad(m)&&M_nostrilCurve(m)>.70;
+            float eqOrbitK=M_headUnionSmoothness(m)*(eqRim?.18:.06);
+            float eqNostrilK=M_headUnionSmoothness(m)*(eqRim?.12:.04);
+            result=cutSemantic(semantic,result,MonsterSDF_EvalOrbitCavities(m,local),(eqRim?vec3(74,48,34):vec3(24,28,19))/255.0,eqOrbitK,3u);
+            result=cutSemantic(semantic,result,MonsterSDF_EvalNostrilCavities(m,local),(eqRim?vec3(56,36,30):vec3(18,20,14))/255.0,eqNostrilK,3u);
             if(M_hasTympana(m))result=cutSemantic(semantic,result,MonsterSDF_EvalTympanumCavities(m,local),vec3(25,24,16)/255.0,M_headUnionSmoothness(m)*.04,3u);
         }
     }
@@ -173,8 +176,11 @@ float sceneDistance(vec3 p) {
             result=SDF_SmoothSubtract(result,cutter,M_rimBevel(m));
         }
         if(rayHeadActive&&M_anatomicalHead(m)) {
-            result=SDF_SmoothSubtract(result,MonsterSDF_EvalOrbitCavities(m,local),M_headUnionSmoothness(m)*.06);
-            result=SDF_SmoothSubtract(result,MonsterSDF_EvalNostrilCavities(m,local),M_headUnionSmoothness(m)*.04);
+            bool eqRim=!M_hasNasalPad(m)&&M_nostrilCurve(m)>.70;
+            float eqOrbitK=M_headUnionSmoothness(m)*(eqRim?.18:.06);
+            float eqNostrilK=M_headUnionSmoothness(m)*(eqRim?.12:.04);
+            result=SDF_SmoothSubtract(result,MonsterSDF_EvalOrbitCavities(m,local),eqOrbitK);
+            result=SDF_SmoothSubtract(result,MonsterSDF_EvalNostrilCavities(m,local),eqNostrilK);
             if(M_hasTympana(m))result=SDF_SmoothSubtract(result,MonsterSDF_EvalTympanumCavities(m,local),M_headUnionSmoothness(m)*.04);
         }
     }
