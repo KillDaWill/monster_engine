@@ -1,0 +1,205 @@
+=== estadio_0_seed ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/cuerpo_y_partes/estadio_0_seed 0 surface
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=0 vertices=93801 triangles=187084 components=1 largest=187084 second=0 walk=CAPTURED PASS
+
+=== estadio_1_larva ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/cuerpo_y_partes/estadio_1_larva 1 surface
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=1 vertices=100178 triangles=200206 components=1 largest=200206 second=0 walk=CAPTURED PASS
+
+=== estadio_2_juvenile ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/cuerpo_y_partes/estadio_2_juvenile 2 surface
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=2 vertices=115963 triangles=231792 components=1 largest=231792 second=0 walk=CAPTURED PASS
+
+=== estadio_3_adulto_superficie ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/cuerpo_y_partes/estadio_3_adulto_superficie 3 surface
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=3 vertices=108127 triangles=216140 components=1 largest=216140 second=0 walk=CAPTURED PASS
+
+=== estadio_3_adulto_arcilla_musculos ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos 3 muscle
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=3 vertices=108127 triangles=216140 components=1 largest=216140 second=0 walk=CAPTURED PASS
+
+=== edad_035 ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/morfologia_intermedia/edad_035 3 study 0.35
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=3 vertices=100610 triangles=201066 components=1 largest=201066 second=0 walk=CAPTURED PASS
+
+=== edad_070 ===
+$ ./build/capture_bovine_anatomy /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/morfologia_intermedia/edad_070 3 study 0.70
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+anatomy_capture stage=3 vertices=115089 triangles=230033 components=1 largest=230033 second=0 walk=CAPTURED PASS
+
+=== morro_estadio_2_juvenile ===
+$ ./build/capture_equine_muzzle /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/morro_y_superficie/estadio_2_juvenile 2
+head 131073 radii 0.540862 0.358176 0.515944 localTip 0 -0.386751 0.631304 nostril 0.26525 -0.430147 0.563956
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+pigment GPU frame 0 samples 2048 maxError 3.57627869e-07 valid 1
+pigment GPU frame 1 samples 2048 maxError 2.68220901e-07 valid 1
+pigment GPU frame 2 samples 2048 maxError 1.78813934e-07 valid 1
+pigment GPU frame 3 samples 2048 maxError 8.94069672e-08 valid 1
+pigment GPU pattern 0 samples 2048 maxError 1.78813934e-07 valid 1
+pigment GPU pattern 1 samples 2048 maxError 1.78813934e-07 valid 1
+pigment GPU pattern 2 samples 2048 maxError 2.38418579e-07 valid 1
+pigment GPU pattern 3 samples 2048 maxError 2.2649765e-06 valid 1
+pigment GPU pattern 4 samples 2048 maxError 2.98023224e-07 valid 1
+pigment GPU pattern 5 samples 2048 maxError 1.78813934e-07 valid 1
+pigment GPU pattern 6 samples 2048 maxError 6.55651093e-07 valid 1
+pigment GPU pattern 7 samples 2048 maxError 1.78813934e-07 valid 1
+part 0 closest tip 0.0276368 material 0 rest -0.00673344 4.95387 2.61457
+part 2 closest tip 0.157221 material 0 rest 0 4.91157 2.45942
+
+=== morro_estadio_3_adulto ===
+$ ./build/capture_equine_muzzle /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/morro_y_superficie/estadio_3_adulto 3
+head 131073 radii 0.64124 0.47328 0.71808 localTip 0 -0.566147 0.90162 nostril 0.314478 -0.616241 0.80494
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+pigment GPU frame 0 samples 2048 maxError 3.57627869e-07 valid 1
+pigment GPU frame 1 samples 2048 maxError 2.68220901e-07 valid 1
+pigment GPU frame 2 samples 2048 maxError 1.78813934e-07 valid 1
+pigment GPU frame 3 samples 2048 maxError 1.04308128e-07 valid 1
+pigment GPU pattern 0 samples 2048 maxError 2.08616257e-07 valid 1
+pigment GPU pattern 1 samples 2048 maxError 2.08616257e-07 valid 1
+pigment GPU pattern 2 samples 2048 maxError 2.38418579e-07 valid 1
+pigment GPU pattern 3 samples 2048 maxError 2.74181366e-06 valid 1
+pigment GPU pattern 4 samples 2048 maxError 2.98023224e-07 valid 1
+pigment GPU pattern 5 samples 2048 maxError 2.08616257e-07 valid 1
+pigment GPU pattern 6 samples 2048 maxError 5.36441803e-07 valid 1
+pigment GPU pattern 7 samples 2048 maxError 2.08616257e-07 valid 1
+part 0 closest tip 0.0370409 material 0 rest 0.00429201 4.91627 2.87946
+part 2 closest tip 0.211654 material 0 rest 5.96046e-08 4.85886 2.71377
+async vertices 80742 canonical 1
+render synchronized off_ms 12.048072 on_ms 12.425827 off_fps 83.001 on_fps 80.478 samples 60
+CPU localized material ns_per_point 86.823995 checksum 196022
+sizes PigmentLayer 88 SurfacePhenotype 3144 SurfaceRecipe 2236 CreaturePhenotype 9872 CreatureRecipe 43112 Monster 189408
+
+=== pelaje_largo_crin_cola ===
+$ ./build/capture_long_hair /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/pelaje_largo_crin_cola 3
+roots 474 visible 472 root_build_ms 85.017106 max_root_error 0.00200395 runtime_bytes 774740 gpu_bytes 606720
+follicles 11664 max_skin_offset_error 4.00280114e-05 min_parent_separation 0.000490024977 guides_falling_positive_x 404/472
+collision_rest samples 42480 penetrating 0 max_penetration 0 envelope_error 0.00860433187 max_segment_strain 0.0515730977
+curve_length max_relative_error 0.00575202703
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+draw quality 0 frame_ms 3.025634 fps 330.509 hair_gpu_ms 0.000000 gpu_samples 0
+draw quality 3 frame_ms 4.360514 fps 229.331 hair_gpu_ms 1.662054 gpu_samples 30
+collision_children samples 755200 max_sdf_penetration 0
+render guides 474 strands 21136 segments 24 ready 1
+jaw_attached_roots 0
+guide_pose_ms 5.537188 animation_ms 0.266702 mesh_generation_unchanged 1 hair_generation_unchanged 1
+pose 0 covered_roots 0
+pose 1 covered_roots 0
+pose 2 covered_roots 0
+collision_pose max_proxy_penetration 0
+collision_jaw samples 0 max_posed_jaw_penetration 0
+animation_bound 1 root_motion 0.408426791
+guide_gpu_parity 1 max_error 1.43206285e-06
+morph_cpu_ms 0.099422 morph_hair_update_ms 83.267105 steps 21
+sizes SurfacePhenotype 3144 CreaturePhenotype 9872 CreatureRecipe 43112 LongHairGroup 192 LongHairGuide 1600
+
+=== variante_crin_foliculos ===
+$ ./build/capture_long_hair /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo-crin-foliculos.creature.json /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/variante_crin_foliculos 3
+roots 288 visible 288 root_build_ms 65.575985 max_root_error 0.00186424 runtime_bytes 477140 gpu_bytes 368640
+follicles 9216 max_skin_offset_error 3.99828423e-05 min_parent_separation 0.000498297974 guides_falling_positive_x 288/288
+collision_rest samples 25920 penetrating 0 max_penetration 0 envelope_error 0.00805506483 max_segment_strain 0.0391302109
+curve_length max_relative_error 0.00366419554
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+draw quality 0 frame_ms 4.294675 fps 232.846 hair_gpu_ms 0.000000 gpu_samples 0
+draw quality 3 frame_ms 4.849017 fps 206.227 hair_gpu_ms 0.831454 gpu_samples 30
+collision_children samples 230400 max_sdf_penetration 0
+render guides 288 strands 9216 segments 24 ready 1
+jaw_attached_roots 0
+guide_pose_ms 1.986507 animation_ms 0.221877 mesh_generation_unchanged 1 hair_generation_unchanged 1
+pose 0 covered_roots 0
+pose 1 covered_roots 0
+pose 2 covered_roots 0
+collision_pose max_proxy_penetration 0
+collision_jaw samples 0 max_posed_jaw_penetration 0
+animation_bound 1 root_motion 0.404122829
+guide_gpu_parity 1 max_error 1.43051147e-06
+morph_cpu_ms 0.102098 morph_hair_update_ms 66.733048 steps 21
+sizes SurfacePhenotype 3144 CreaturePhenotype 9872 CreatureRecipe 43112 LongHairGroup 192 LongHairGuide 1600
+
+=== animaciones_cuerpo ===
+$ python3 tools/capture_animations.py --species /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json --focus body --output /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones
+=== Capturando caballo ===
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+idle             | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.27..5.61] area=[0.29..7.30] ext=265 crush=0 err=0.000 sat=0.00
+walk             | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.22..6.09] area=[0.21..8.63] ext=256 crush=2 err=0.000 sat=0.10
+run              | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.48..3.39] area=[0.23..3.82] ext=119 crush=2 err=0.000 sat=0.01
+turn_left        | cbPitch=+0.00 cbYaw=+0.12 nPitch=+0.00 nYaw=+0.13 hPitch=+0.00 hYaw=+0.05 | edge=[0.42..12.94] area=[0.30..17.30] ext=452 crush=0 err=0.000 sat=0.36
+turn_right       | cbPitch=+0.00 cbYaw=-0.12 nPitch=+0.00 nYaw=-0.13 hPitch=+0.00 hYaw=-0.05 | edge=[0.07..7.70] area=[0.06..9.89] ext=297 crush=10 err=0.000 sat=0.36
+look_up          | cbPitch=-0.13 cbYaw=-0.00 nPitch=-0.21 nYaw=-0.00 hPitch=-0.18 hYaw=-0.00 | edge=[0.34..5.15] area=[0.36..10.56] ext=216 crush=0 err=0.000 sat=1.00
+look_down        | cbPitch=+0.53 cbYaw=+0.00 nPitch=+0.34 nYaw=+0.00 hPitch=+0.14 hYaw=-0.00 | edge=[0.35..3.40] area=[0.18..4.29] ext=39 crush=3 err=0.000 sat=0.53
+look_left        | cbPitch=+0.00 cbYaw=+0.34 nPitch=+0.00 nYaw=+0.42 hPitch=+0.00 hYaw=+0.20 | edge=[0.32..4.78] area=[0.48..8.43] ext=169 crush=0 err=0.000 sat=1.00
+look_right       | cbPitch=-0.00 cbYaw=-0.34 nPitch=-0.00 nYaw=-0.42 hPitch=-0.00 hYaw=-0.20 | edge=[0.41..5.13] area=[0.14..10.05] ext=197 crush=5 err=0.000 sat=1.00
+look_down_left   | cbPitch=+0.33 cbYaw=+0.29 nPitch=+0.21 nYaw=+0.31 hPitch=+0.09 hYaw=+0.13 | edge=[0.38..3.35] area=[0.23..5.60] ext=76 crush=1 err=0.000 sat=0.97
+look_up_left     | cbPitch=-0.11 cbYaw=+0.16 nPitch=-0.18 nYaw=+0.20 hPitch=-0.14 hYaw=+0.13 | edge=[0.31..4.97] area=[0.39..10.01] ext=209 crush=0 err=0.000 sat=1.00
+eat              | cbPitch=+1.40 cbYaw=-0.04 nPitch=+0.01 nYaw=+0.01 hPitch=-0.18 hYaw=-0.00 | edge=[0.34..4.76] area=[0.15..5.17] ext=1709 crush=1 err=0.148 sat=1.00
+drink            | cbPitch=+1.59 cbYaw=-0.04 nPitch=+0.25 nYaw=+0.00 hPitch=-0.18 hYaw=+0.00 | edge=[0.36..6.57] area=[0.29..8.14] ext=2191 crush=0 err=0.325 sat=1.00
+attack           | cbPitch=+0.89 cbYaw=-0.01 nPitch=-0.21 nYaw=-0.03 hPitch=-0.18 hYaw=-0.00 | edge=[0.29..4.47] area=[0.31..6.08] ext=405 crush=0 err=0.840 sat=1.00
+reach_side_left  | cbPitch=+0.75 cbYaw=+0.30 nPitch=-0.03 nYaw=+0.42 hPitch=-0.16 hYaw=+0.09 | edge=[0.19..6.02] area=[0.08..10.35] ext=201 crush=14 err=1.106 sat=1.00
+reach_up         | cbPitch=-0.07 cbYaw=+0.04 nPitch=-0.21 nYaw=-0.01 hPitch=-0.18 hYaw=-0.00 | edge=[0.50..6.98] area=[0.63..8.98] ext=345 crush=0 err=0.729 sat=1.00
+Hoja de contacto: /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones/caballo/_sheet_caballo_side.png
+Hoja de contacto: /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones/caballo/_sheet_caballo_three-quarter.png
+Resumen guardado en /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones/summary.json
+
+=== animaciones_cabeza ===
+$ python3 tools/capture_animations.py --species /home/guillermo/Escritorio/monster_engine/caballo_info/recetas/caballo.creature.json --focus head --output /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones_cabeza
+=== Capturando caballo ===
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+idle             | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.27..5.61] area=[0.29..7.30] ext=265 crush=0 err=0.000 sat=0.00
+walk             | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.22..6.09] area=[0.21..8.63] ext=256 crush=2 err=0.000 sat=0.10
+run              | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.48..3.39] area=[0.23..3.82] ext=119 crush=2 err=0.000 sat=0.01
+turn_left        | cbPitch=+0.00 cbYaw=+0.12 nPitch=+0.00 nYaw=+0.13 hPitch=+0.00 hYaw=+0.05 | edge=[0.42..12.94] area=[0.30..17.30] ext=452 crush=0 err=0.000 sat=0.36
+turn_right       | cbPitch=+0.00 cbYaw=-0.12 nPitch=+0.00 nYaw=-0.13 hPitch=+0.00 hYaw=-0.05 | edge=[0.07..7.70] area=[0.06..9.89] ext=297 crush=10 err=0.000 sat=0.36
+look_up          | cbPitch=-0.13 cbYaw=-0.00 nPitch=-0.21 nYaw=-0.00 hPitch=-0.18 hYaw=-0.00 | edge=[0.34..5.15] area=[0.36..10.56] ext=216 crush=0 err=0.000 sat=1.00
+look_down        | cbPitch=+0.53 cbYaw=+0.00 nPitch=+0.34 nYaw=+0.00 hPitch=+0.14 hYaw=-0.00 | edge=[0.35..3.40] area=[0.18..4.29] ext=39 crush=3 err=0.000 sat=0.53
+look_left        | cbPitch=+0.00 cbYaw=+0.34 nPitch=+0.00 nYaw=+0.42 hPitch=+0.00 hYaw=+0.20 | edge=[0.32..4.78] area=[0.48..8.43] ext=169 crush=0 err=0.000 sat=1.00
+look_right       | cbPitch=-0.00 cbYaw=-0.34 nPitch=-0.00 nYaw=-0.42 hPitch=-0.00 hYaw=-0.20 | edge=[0.41..5.13] area=[0.14..10.05] ext=197 crush=5 err=0.000 sat=1.00
+look_down_left   | cbPitch=+0.33 cbYaw=+0.29 nPitch=+0.21 nYaw=+0.31 hPitch=+0.09 hYaw=+0.13 | edge=[0.38..3.35] area=[0.23..5.60] ext=76 crush=1 err=0.000 sat=0.97
+look_up_left     | cbPitch=-0.11 cbYaw=+0.16 nPitch=-0.18 nYaw=+0.20 hPitch=-0.14 hYaw=+0.13 | edge=[0.31..4.97] area=[0.39..10.01] ext=209 crush=0 err=0.000 sat=1.00
+eat              | cbPitch=+1.40 cbYaw=-0.04 nPitch=+0.01 nYaw=+0.01 hPitch=-0.18 hYaw=-0.00 | edge=[0.34..4.76] area=[0.15..5.17] ext=1709 crush=1 err=0.148 sat=1.00
+drink            | cbPitch=+1.59 cbYaw=-0.04 nPitch=+0.25 nYaw=+0.00 hPitch=-0.18 hYaw=+0.00 | edge=[0.36..6.57] area=[0.29..8.14] ext=2191 crush=0 err=0.325 sat=1.00
+attack           | cbPitch=+0.89 cbYaw=-0.01 nPitch=-0.21 nYaw=-0.03 hPitch=-0.18 hYaw=-0.00 | edge=[0.29..4.47] area=[0.31..6.08] ext=405 crush=0 err=0.840 sat=1.00
+reach_side_left  | cbPitch=+0.75 cbYaw=+0.30 nPitch=-0.03 nYaw=+0.42 hPitch=-0.16 hYaw=+0.09 | edge=[0.19..6.02] area=[0.08..10.35] ext=201 crush=14 err=1.106 sat=1.00
+reach_up         | cbPitch=-0.07 cbYaw=+0.04 nPitch=-0.21 nYaw=-0.01 hPitch=-0.18 hYaw=-0.00 | edge=[0.50..6.98] area=[0.63..8.98] ext=345 crush=0 err=0.729 sat=1.00
+Hoja de contacto: /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones_cabeza/caballo/_sheet_caballo_side.png
+Hoja de contacto: /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones_cabeza/caballo/_sheet_caballo_three-quarter.png
+Resumen guardado en /home/guillermo/Escritorio/monster_engine/caballo_info/imagenes/animaciones_cabeza/summary.json
+
+=== validate_equine_muzzle ===
+$ python3 tools/validate_equine_muzzle.py --output /tmp/caballo_keep/val_muzzle
+caballo PASS
+asno PASS
+
+=== validate_equine_anatomy ===
+$ python3 tools/validate_equine_anatomy.py --adult-only --output /tmp/caballo_keep/val_anat
+PASS: 2 casos finitos con casco y cuatro vistas; /tmp/caballo_keep/val_anat

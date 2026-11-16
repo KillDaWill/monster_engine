@@ -1,0 +1,1706 @@
+{
+  "version": "v3",
+  "commit": "4ac3f80",
+  "recipeSha256": "4e1a333adee3a9f73cc7a8a3251bff4912f075662122ee8fbe6f1bf66e0a9e74",
+  "totalFiles": 418,
+  "totalImages": 394,
+  "totalBytes": 39264912,
+  "totalMB": 39.26,
+  "totalMiB": 37.45,
+  "byCategory": {
+    "README.md": {
+      "files": 1,
+      "bytes": 4069
+    },
+    "codigo_y_specs": {
+      "files": 4,
+      "bytes": 33334
+    },
+    "imagenes": {
+      "files": 400,
+      "bytes": 38519369
+    },
+    "metadatos": {
+      "files": 2,
+      "bytes": 154894
+    },
+    "recetas": {
+      "files": 5,
+      "bytes": 264305
+    },
+    "referencias_anatomicas": {
+      "files": 5,
+      "bytes": 288941
+    }
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4069
+    },
+    {
+      "path": "codigo_y_specs/test_equine_anatomy.c",
+      "bytes": 19333
+    },
+    {
+      "path": "codigo_y_specs/validate_equine_anatomy.py",
+      "bytes": 6098
+    },
+    {
+      "path": "codigo_y_specs/validate_equine_muscles.py",
+      "bytes": 3291
+    },
+    {
+      "path": "codigo_y_specs/validate_equine_muzzle.py",
+      "bytes": 4612
+    },
+    {
+      "path": "imagenes/animaciones/caballo/_sheet_caballo_side.png",
+      "bytes": 796351
+    },
+    {
+      "path": "imagenes/animaciones/caballo/_sheet_caballo_three-quarter.png",
+      "bytes": 849388
+    },
+    {
+      "path": "imagenes/animaciones/caballo/attack_side.png",
+      "bytes": 127496
+    },
+    {
+      "path": "imagenes/animaciones/caballo/attack_three-quarter.png",
+      "bytes": 142980
+    },
+    {
+      "path": "imagenes/animaciones/caballo/drink_side.png",
+      "bytes": 157970
+    },
+    {
+      "path": "imagenes/animaciones/caballo/drink_three-quarter.png",
+      "bytes": 187904
+    },
+    {
+      "path": "imagenes/animaciones/caballo/eat_side.png",
+      "bytes": 146873
+    },
+    {
+      "path": "imagenes/animaciones/caballo/eat_three-quarter.png",
+      "bytes": 174550
+    },
+    {
+      "path": "imagenes/animaciones/caballo/idle_side.png",
+      "bytes": 120316
+    },
+    {
+      "path": "imagenes/animaciones/caballo/idle_three-quarter.png",
+      "bytes": 144700
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_down_left_side.png",
+      "bytes": 132407
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_down_left_three-quarter.png",
+      "bytes": 149429
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_down_side.png",
+      "bytes": 134455
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_down_three-quarter.png",
+      "bytes": 153117
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_left_side.png",
+      "bytes": 128180
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_left_three-quarter.png",
+      "bytes": 132788
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_right_side.png",
+      "bytes": 134434
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_right_three-quarter.png",
+      "bytes": 144941
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_up_left_side.png",
+      "bytes": 122355
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_up_left_three-quarter.png",
+      "bytes": 133105
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_up_side.png",
+      "bytes": 123042
+    },
+    {
+      "path": "imagenes/animaciones/caballo/look_up_three-quarter.png",
+      "bytes": 136402
+    },
+    {
+      "path": "imagenes/animaciones/caballo/metrics.json",
+      "bytes": 4735
+    },
+    {
+      "path": "imagenes/animaciones/caballo/reach_side_left_side.png",
+      "bytes": 124359
+    },
+    {
+      "path": "imagenes/animaciones/caballo/reach_side_left_three-quarter.png",
+      "bytes": 135088
+    },
+    {
+      "path": "imagenes/animaciones/caballo/reach_up_side.png",
+      "bytes": 127063
+    },
+    {
+      "path": "imagenes/animaciones/caballo/reach_up_three-quarter.png",
+      "bytes": 124265
+    },
+    {
+      "path": "imagenes/animaciones/caballo/run_side.png",
+      "bytes": 132365
+    },
+    {
+      "path": "imagenes/animaciones/caballo/run_three-quarter.png",
+      "bytes": 144529
+    },
+    {
+      "path": "imagenes/animaciones/caballo/turn_left_side.png",
+      "bytes": 131022
+    },
+    {
+      "path": "imagenes/animaciones/caballo/turn_left_three-quarter.png",
+      "bytes": 139663
+    },
+    {
+      "path": "imagenes/animaciones/caballo/turn_right_side.png",
+      "bytes": 127120
+    },
+    {
+      "path": "imagenes/animaciones/caballo/turn_right_three-quarter.png",
+      "bytes": 143456
+    },
+    {
+      "path": "imagenes/animaciones/caballo/walk_side.png",
+      "bytes": 133389
+    },
+    {
+      "path": "imagenes/animaciones/caballo/walk_three-quarter.png",
+      "bytes": 143787
+    },
+    {
+      "path": "imagenes/animaciones/summary.json",
+      "bytes": 6508
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/_sheet_caballo_side.png",
+      "bytes": 690628
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/_sheet_caballo_three-quarter.png",
+      "bytes": 812286
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/attack_side.png",
+      "bytes": 120469
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/attack_three-quarter.png",
+      "bytes": 140321
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/drink_side.png",
+      "bytes": 104246
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/drink_three-quarter.png",
+      "bytes": 135642
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/eat_side.png",
+      "bytes": 118806
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/eat_three-quarter.png",
+      "bytes": 121284
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/idle_side.png",
+      "bytes": 92682
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/idle_three-quarter.png",
+      "bytes": 121353
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_down_left_side.png",
+      "bytes": 129594
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_down_left_three-quarter.png",
+      "bytes": 165464
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_down_side.png",
+      "bytes": 147557
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_down_three-quarter.png",
+      "bytes": 155247
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_left_side.png",
+      "bytes": 121827
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_left_three-quarter.png",
+      "bytes": 151678
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_right_side.png",
+      "bytes": 164186
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_right_three-quarter.png",
+      "bytes": 100747
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_up_left_side.png",
+      "bytes": 109477
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_up_left_three-quarter.png",
+      "bytes": 139867
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_up_side.png",
+      "bytes": 102682
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/look_up_three-quarter.png",
+      "bytes": 128624
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/metrics.json",
+      "bytes": 4735
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/reach_side_left_side.png",
+      "bytes": 148225
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/reach_side_left_three-quarter.png",
+      "bytes": 185081
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/reach_up_side.png",
+      "bytes": 109236
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/reach_up_three-quarter.png",
+      "bytes": 122561
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/run_side.png",
+      "bytes": 92249
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/run_three-quarter.png",
+      "bytes": 122200
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/turn_left_side.png",
+      "bytes": 101039
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/turn_left_three-quarter.png",
+      "bytes": 158017
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/turn_right_side.png",
+      "bytes": 116960
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/turn_right_three-quarter.png",
+      "bytes": 95299
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/walk_side.png",
+      "bytes": 91858
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/caballo/walk_three-quarter.png",
+      "bytes": 123591
+    },
+    {
+      "path": "imagenes/animaciones_cabeza/summary.json",
+      "bytes": 6508
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/closed.png",
+      "bytes": 67774
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-0-front.png",
+      "bytes": 18424
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-0-rear.png",
+      "bytes": 20140
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-0-side.png",
+      "bytes": 28476
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-0-sole.png",
+      "bytes": 15896
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-0-three-quarter.png",
+      "bytes": 26807
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-1-front.png",
+      "bytes": 18429
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-1-rear.png",
+      "bytes": 20143
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-1-side.png",
+      "bytes": 28478
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-1-sole.png",
+      "bytes": 15896
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-1-three-quarter.png",
+      "bytes": 26814
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-2-front.png",
+      "bytes": 18383
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-2-rear.png",
+      "bytes": 20116
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-2-side.png",
+      "bytes": 26308
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-2-sole.png",
+      "bytes": 14564
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-2-three-quarter.png",
+      "bytes": 26046
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-3-front.png",
+      "bytes": 18385
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-3-rear.png",
+      "bytes": 20118
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-3-side.png",
+      "bytes": 26311
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-3-sole.png",
+      "bytes": 14564
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/foot-3-three-quarter.png",
+      "bytes": 26091
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/front.png",
+      "bytes": 59075
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/head-front.png",
+      "bytes": 166050
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/head-section.png",
+      "bytes": 33911
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/head-side.png",
+      "bytes": 157945
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/head-three-quarter.png",
+      "bytes": 150745
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/hip-hock.png",
+      "bytes": 106583
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/hip-rear.png",
+      "bytes": 129589
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/hip-side.png",
+      "bytes": 107419
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/hip-three-quarter.png",
+      "bytes": 126962
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/jaw-alone.png",
+      "bytes": 22633
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/jaw-envelope.png",
+      "bytes": 18964
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/jaw-unclipped.png",
+      "bytes": 19075
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/jaw.txt",
+      "bytes": 707
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/neck.png",
+      "bytes": 130697
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/open.png",
+      "bytes": 60500
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/partial.png",
+      "bytes": 71374
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/rear.png",
+      "bytes": 62278
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/shoulder-chest.png",
+      "bytes": 182786
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/shoulder-front.png",
+      "bytes": 140505
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/shoulder-side.png",
+      "bytes": 138225
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/shoulder-three-quarter.png",
+      "bytes": 196152
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/side.png",
+      "bytes": 94386
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/three-quarter.png",
+      "bytes": 107657
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/top.png",
+      "bytes": 46001
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/upper-head.png",
+      "bytes": 65443
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/walk-side.png",
+      "bytes": 101554
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_0_seed/walk-three-quarter.png",
+      "bytes": 107525
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/closed.png",
+      "bytes": 67597
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-0-front.png",
+      "bytes": 18915
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-0-rear.png",
+      "bytes": 21272
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-0-side.png",
+      "bytes": 28835
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-0-sole.png",
+      "bytes": 16411
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-0-three-quarter.png",
+      "bytes": 27375
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-1-front.png",
+      "bytes": 18918
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-1-rear.png",
+      "bytes": 21272
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-1-side.png",
+      "bytes": 28841
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-1-sole.png",
+      "bytes": 16411
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-1-three-quarter.png",
+      "bytes": 27402
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-2-front.png",
+      "bytes": 18979
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-2-rear.png",
+      "bytes": 20985
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-2-side.png",
+      "bytes": 27932
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-2-sole.png",
+      "bytes": 15535
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-2-three-quarter.png",
+      "bytes": 27814
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-3-front.png",
+      "bytes": 18978
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-3-rear.png",
+      "bytes": 20981
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-3-side.png",
+      "bytes": 27937
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-3-sole.png",
+      "bytes": 15535
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/foot-3-three-quarter.png",
+      "bytes": 27807
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/front.png",
+      "bytes": 60754
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/head-front.png",
+      "bytes": 185508
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/head-section.png",
+      "bytes": 35136
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/head-side.png",
+      "bytes": 172646
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/head-three-quarter.png",
+      "bytes": 164619
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/hip-hock.png",
+      "bytes": 112091
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/hip-rear.png",
+      "bytes": 131825
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/hip-side.png",
+      "bytes": 113219
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/hip-three-quarter.png",
+      "bytes": 145913
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/jaw-alone.png",
+      "bytes": 23555
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/jaw-envelope.png",
+      "bytes": 18983
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/jaw-unclipped.png",
+      "bytes": 19079
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/jaw.txt",
+      "bytes": 699
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/neck.png",
+      "bytes": 136005
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/open.png",
+      "bytes": 60586
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/partial.png",
+      "bytes": 71496
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/rear.png",
+      "bytes": 64517
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/shoulder-chest.png",
+      "bytes": 179253
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/shoulder-front.png",
+      "bytes": 187132
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/shoulder-side.png",
+      "bytes": 139771
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/shoulder-three-quarter.png",
+      "bytes": 193860
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/side.png",
+      "bytes": 100116
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/three-quarter.png",
+      "bytes": 112545
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/top.png",
+      "bytes": 47750
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/upper-head.png",
+      "bytes": 64408
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/walk-side.png",
+      "bytes": 107281
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_1_larva/walk-three-quarter.png",
+      "bytes": 112106
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/closed.png",
+      "bytes": 66917
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-0-front.png",
+      "bytes": 19631
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-0-rear.png",
+      "bytes": 21706
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-0-side.png",
+      "bytes": 29186
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-0-sole.png",
+      "bytes": 16989
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-0-three-quarter.png",
+      "bytes": 27945
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-1-front.png",
+      "bytes": 19633
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-1-rear.png",
+      "bytes": 21707
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-1-side.png",
+      "bytes": 29194
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-1-sole.png",
+      "bytes": 16998
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-1-three-quarter.png",
+      "bytes": 27956
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-2-front.png",
+      "bytes": 19837
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-2-rear.png",
+      "bytes": 21755
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-2-side.png",
+      "bytes": 29964
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-2-sole.png",
+      "bytes": 16290
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-2-three-quarter.png",
+      "bytes": 29192
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-3-front.png",
+      "bytes": 19839
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-3-rear.png",
+      "bytes": 21748
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-3-side.png",
+      "bytes": 29974
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-3-sole.png",
+      "bytes": 16283
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/foot-3-three-quarter.png",
+      "bytes": 29161
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/front.png",
+      "bytes": 62474
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/head-front.png",
+      "bytes": 197406
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/head-section.png",
+      "bytes": 34503
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/head-side.png",
+      "bytes": 180780
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/head-three-quarter.png",
+      "bytes": 172746
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/hip-hock.png",
+      "bytes": 117623
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/hip-rear.png",
+      "bytes": 133690
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/hip-side.png",
+      "bytes": 120905
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/hip-three-quarter.png",
+      "bytes": 217078
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/jaw-alone.png",
+      "bytes": 24004
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/jaw-envelope.png",
+      "bytes": 18815
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/jaw-unclipped.png",
+      "bytes": 18956
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/jaw.txt",
+      "bytes": 698
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/neck.png",
+      "bytes": 140232
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/open.png",
+      "bytes": 59957
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/partial.png",
+      "bytes": 71162
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/rear.png",
+      "bytes": 66164
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/shoulder-chest.png",
+      "bytes": 178914
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/shoulder-front.png",
+      "bytes": 246127
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/shoulder-side.png",
+      "bytes": 139797
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/shoulder-three-quarter.png",
+      "bytes": 195272
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/side.png",
+      "bytes": 105972
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/three-quarter.png",
+      "bytes": 118522
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/top.png",
+      "bytes": 49994
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/upper-head.png",
+      "bytes": 63715
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/walk-side.png",
+      "bytes": 113162
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_2_juvenile/walk-three-quarter.png",
+      "bytes": 117535
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/anatomy.txt",
+      "bytes": 10568
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/front.png",
+      "bytes": 55341
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/full-front.png",
+      "bytes": 39154
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/full-rear.png",
+      "bytes": 43238
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/full-side.png",
+      "bytes": 63411
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/full-three-quarter.png",
+      "bytes": 74527
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/hip-hock.png",
+      "bytes": 87228
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/hip-rear.png",
+      "bytes": 114688
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/hip-side.png",
+      "bytes": 85342
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/hip-three-quarter.png",
+      "bytes": 96353
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/neck.png",
+      "bytes": 116832
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/rear.png",
+      "bytes": 62414
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/shoulder-chest.png",
+      "bytes": 144021
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/shoulder-front.png",
+      "bytes": 92262
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/shoulder-side.png",
+      "bytes": 105880
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/shoulder-three-quarter.png",
+      "bytes": 150811
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/side.png",
+      "bytes": 92496
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/three-quarter.png",
+      "bytes": 108581
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/top.png",
+      "bytes": 46449
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/walk-side.png",
+      "bytes": 119312
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_arcilla_musculos/walk-three-quarter.png",
+      "bytes": 124883
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/closed.png",
+      "bytes": 74777
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-0-front.png",
+      "bytes": 20671
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-0-rear.png",
+      "bytes": 22247
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-0-side.png",
+      "bytes": 30544
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-0-sole.png",
+      "bytes": 17362
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-0-three-quarter.png",
+      "bytes": 29681
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-1-front.png",
+      "bytes": 20671
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-1-rear.png",
+      "bytes": 22251
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-1-side.png",
+      "bytes": 30541
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-1-sole.png",
+      "bytes": 17363
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-1-three-quarter.png",
+      "bytes": 29658
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-2-front.png",
+      "bytes": 20722
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-2-rear.png",
+      "bytes": 22292
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-2-side.png",
+      "bytes": 31642
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-2-sole.png",
+      "bytes": 16574
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-2-three-quarter.png",
+      "bytes": 30851
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-3-front.png",
+      "bytes": 20728
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-3-rear.png",
+      "bytes": 22299
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-3-side.png",
+      "bytes": 31639
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-3-sole.png",
+      "bytes": 16581
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/foot-3-three-quarter.png",
+      "bytes": 30892
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/front.png",
+      "bytes": 65217
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/head-front.png",
+      "bytes": 216243
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/head-section.png",
+      "bytes": 37773
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/head-side.png",
+      "bytes": 185261
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/head-three-quarter.png",
+      "bytes": 185570
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/hip-hock.png",
+      "bytes": 120693
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/hip-rear.png",
+      "bytes": 135109
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/hip-side.png",
+      "bytes": 126562
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/hip-three-quarter.png",
+      "bytes": 279203
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/jaw-alone.png",
+      "bytes": 27621
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/jaw-envelope.png",
+      "bytes": 21000
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/jaw-unclipped.png",
+      "bytes": 21203
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/jaw.txt",
+      "bytes": 690
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/neck.png",
+      "bytes": 147807
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/open.png",
+      "bytes": 67883
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/partial.png",
+      "bytes": 80082
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/rear.png",
+      "bytes": 68561
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/shoulder-chest.png",
+      "bytes": 182808
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/shoulder-front.png",
+      "bytes": 294577
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/shoulder-side.png",
+      "bytes": 147989
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/shoulder-three-quarter.png",
+      "bytes": 215257
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/side.png",
+      "bytes": 111593
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/three-quarter.png",
+      "bytes": 124451
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/top.png",
+      "bytes": 52253
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/upper-head.png",
+      "bytes": 70931
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/walk-side.png",
+      "bytes": 118615
+    },
+    {
+      "path": "imagenes/cuerpo_y_partes/estadio_3_adulto_superficie/walk-three-quarter.png",
+      "bytes": 123384
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/front.png",
+      "bytes": 40568
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/head-front.png",
+      "bytes": 57294
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/head-side.png",
+      "bytes": 63281
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/head-three-quarter.png",
+      "bytes": 87610
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/hip-hock.png",
+      "bytes": 81764
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/hip-rear.png",
+      "bytes": 113699
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/hip-side.png",
+      "bytes": 79346
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/hip-three-quarter.png",
+      "bytes": 94714
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/neck.png",
+      "bytes": 107542
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/rear.png",
+      "bytes": 44883
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/shoulder-chest.png",
+      "bytes": 146270
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/shoulder-front.png",
+      "bytes": 88218
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/shoulder-side.png",
+      "bytes": 107299
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/shoulder-three-quarter.png",
+      "bytes": 155076
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/side.png",
+      "bytes": 63122
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/three-quarter.png",
+      "bytes": 75042
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/top.png",
+      "bytes": 27711
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/walk-side.png",
+      "bytes": 107845
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_035/walk-three-quarter.png",
+      "bytes": 113362
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/front.png",
+      "bytes": 41097
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/head-front.png",
+      "bytes": 55626
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/head-side.png",
+      "bytes": 62605
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/head-three-quarter.png",
+      "bytes": 86231
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/hip-hock.png",
+      "bytes": 86365
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/hip-rear.png",
+      "bytes": 115320
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/hip-side.png",
+      "bytes": 84228
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/hip-three-quarter.png",
+      "bytes": 96762
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/neck.png",
+      "bytes": 110627
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/rear.png",
+      "bytes": 46575
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/shoulder-chest.png",
+      "bytes": 142812
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/shoulder-front.png",
+      "bytes": 89988
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/shoulder-side.png",
+      "bytes": 106862
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/shoulder-three-quarter.png",
+      "bytes": 152610
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/side.png",
+      "bytes": 66424
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/three-quarter.png",
+      "bytes": 77845
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/top.png",
+      "bytes": 28548
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/walk-side.png",
+      "bytes": 113703
+    },
+    {
+      "path": "imagenes/morfologia_intermedia/edad_070/walk-three-quarter.png",
+      "bytes": 118651
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/appearance-front.png",
+      "bytes": 291435
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/appearance-side.png",
+      "bytes": 147531
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/appearance-three-quarter.png",
+      "bytes": 197776
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/fur-front.png",
+      "bytes": 33069
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/fur-side.png",
+      "bytes": 17246
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/fur-three-quarter.png",
+      "bytes": 32094
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/mask-front.png",
+      "bytes": 19900
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/mask-side.png",
+      "bytes": 16334
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/mask-three-quarter.png",
+      "bytes": 18917
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/pigment-front.png",
+      "bytes": 197202
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/pigment-side.png",
+      "bytes": 118965
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/pigment-three-quarter.png",
+      "bytes": 159926
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/roughness-front.png",
+      "bytes": 12377
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/roughness-side.png",
+      "bytes": 10482
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_2_juvenile/roughness-three-quarter.png",
+      "bytes": 12316
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/appearance-front.png",
+      "bytes": 302060
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/appearance-side.png",
+      "bytes": 149126
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/appearance-three-quarter.png",
+      "bytes": 193192
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/async-appearance.png",
+      "bytes": 197731
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/async-fur.png",
+      "bytes": 35339
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/async-mask.png",
+      "bytes": 20897
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/async-pigment.png",
+      "bytes": 157350
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/async-roughness.png",
+      "bytes": 13462
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/fur-front.png",
+      "bytes": 36778
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/fur-side.png",
+      "bytes": 19597
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/fur-three-quarter.png",
+      "bytes": 34946
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/mask-front.png",
+      "bytes": 22015
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/mask-side.png",
+      "bytes": 17996
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/mask-three-quarter.png",
+      "bytes": 21104
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/pigment-front.png",
+      "bytes": 204866
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/pigment-side.png",
+      "bytes": 120577
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/pigment-three-quarter.png",
+      "bytes": 155291
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/roughness-front.png",
+      "bytes": 13409
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/roughness-side.png",
+      "bytes": 11017
+    },
+    {
+      "path": "imagenes/morro_y_superficie/estadio_3_adulto/roughness-three-quarter.png",
+      "bytes": 13298
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/front-q0.png",
+      "bytes": 41067
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/front-q1.png",
+      "bytes": 53663
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/front-q2.png",
+      "bytes": 55348
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/front-q3.png",
+      "bytes": 56685
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/front-q4.png",
+      "bytes": 54762
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/pose-0.png",
+      "bytes": 101227
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/pose-1.png",
+      "bytes": 101875
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/pose-2.png",
+      "bytes": 100774
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/rear-three-quarter-q0.png",
+      "bytes": 70183
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/rear-three-quarter-q1.png",
+      "bytes": 98902
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/rear-three-quarter-q2.png",
+      "bytes": 99762
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/rear-three-quarter-q3.png",
+      "bytes": 100204
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/rear-three-quarter-q4.png",
+      "bytes": 117897
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/roots.json",
+      "bytes": 92939
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/side-q0.png",
+      "bytes": 69915
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/side-q1.png",
+      "bytes": 100749
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/side-q2.png",
+      "bytes": 101857
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/side-q3.png",
+      "bytes": 102513
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/side-q4.png",
+      "bytes": 118369
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/whole-q0.png",
+      "bytes": 41840
+    },
+    {
+      "path": "imagenes/pelaje_largo_crin_cola/whole-q3.png",
+      "bytes": 52701
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/front-q0.png",
+      "bytes": 108800
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/front-q1.png",
+      "bytes": 123250
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/front-q2.png",
+      "bytes": 125445
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/front-q3.png",
+      "bytes": 127581
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/front-q4.png",
+      "bytes": 138150
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/pose-0.png",
+      "bytes": 201115
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/pose-1.png",
+      "bytes": 200057
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/pose-2.png",
+      "bytes": 190171
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/rear-three-quarter-q0.png",
+      "bytes": 112244
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/rear-three-quarter-q1.png",
+      "bytes": 190511
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/rear-three-quarter-q2.png",
+      "bytes": 194231
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/rear-three-quarter-q3.png",
+      "bytes": 193332
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/rear-three-quarter-q4.png",
+      "bytes": 241169
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/roots.json",
+      "bytes": 55889
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/side-q0.png",
+      "bytes": 117686
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/side-q1.png",
+      "bytes": 202463
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/side-q2.png",
+      "bytes": 210087
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/side-q3.png",
+      "bytes": 211901
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/side-q4.png",
+      "bytes": 249036
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/whole-q0.png",
+      "bytes": 41840
+    },
+    {
+      "path": "imagenes/variante_crin_foliculos/whole-q3.png",
+      "bytes": 45565
+    },
+    {
+      "path": "metadatos/caballo_metadatos.json",
+      "bytes": 133975
+    },
+    {
+      "path": "metadatos/capture_logs.txt",
+      "bytes": 20919
+    },
+    {
+      "path": "recetas/README.md",
+      "bytes": 1313
+    },
+    {
+      "path": "recetas/caballo-crin-foliculos.creature.json",
+      "bytes": 122981
+    },
+    {
+      "path": "recetas/caballo.creature.json",
+      "bytes": 130608
+    },
+    {
+      "path": "recetas/catalog.txt",
+      "bytes": 145
+    },
+    {
+      "path": "recetas/generate_equine_recipes.py",
+      "bytes": 9258
+    },
+    {
+      "path": "referencias_anatomicas/01_cuerpo_perfil.jpg",
+      "bytes": 29245
+    },
+    {
+      "path": "referencias_anatomicas/02_cabeza_tres_cuartos_morro.jpg",
+      "bytes": 94968
+    },
+    {
+      "path": "referencias_anatomicas/03_cara_frente_ollares.jpg",
+      "bytes": 94580
+    },
+    {
+      "path": "referencias_anatomicas/04_perfil_cuello_cabeza.jpg",
+      "bytes": 26850
+    },
+    {
+      "path": "referencias_anatomicas/05_perfil_cabeza_cuello_crin.jpg",
+      "bytes": 43298
+    }
+  ]
+}

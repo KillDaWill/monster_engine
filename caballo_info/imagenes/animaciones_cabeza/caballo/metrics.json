@@ -1,0 +1,23 @@
+{
+  "species": "Caballo",
+  "recipeId": 1005,
+  "stage": 3,
+  "animations": {
+    "idle": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.2688, "maxEdge": 5.6110, "minArea": 0.2913, "maxArea": 7.2968, "extremeTris": 265, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0000},
+    "walk": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.2249, "maxEdge": 6.0907, "minArea": 0.2056, "maxArea": 8.6325, "extremeTris": 256, "crushedTris": 2, "reachErr": 0.0000, "reachSat": 0.0995},
+    "run": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.4811, "maxEdge": 3.3905, "minArea": 0.2303, "maxArea": 3.8184, "extremeTris": 119, "crushedTris": 2, "reachErr": 0.0000, "reachSat": 0.0058},
+    "turn_left": {"cbPitch": 0.0000, "cbYaw": 0.1212, "neckPitch": 0.0000, "neckYaw": 0.1272, "headPitch": 0.0000, "headYaw": 0.0545, "minEdge": 0.4156, "maxEdge": 12.9404, "minArea": 0.2995, "maxArea": 17.3020, "extremeTris": 452, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.3563},
+    "turn_right": {"cbPitch": 0.0000, "cbYaw": -0.1212, "neckPitch": 0.0000, "neckYaw": -0.1272, "headPitch": 0.0000, "headYaw": -0.0545, "minEdge": 0.0726, "maxEdge": 7.7050, "minArea": 0.0622, "maxArea": 9.8860, "extremeTris": 297, "crushedTris": 10, "reachErr": 0.0000, "reachSat": 0.3563},
+    "look_up": {"cbPitch": -0.1286, "cbYaw": -0.0000, "neckPitch": -0.2100, "neckYaw": -0.0000, "headPitch": -0.1800, "headYaw": -0.0000, "minEdge": 0.3368, "maxEdge": 5.1503, "minArea": 0.3573, "maxArea": 10.5567, "extremeTris": 216, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 1.0000},
+    "look_down": {"cbPitch": 0.5269, "cbYaw": 0.0000, "neckPitch": 0.3445, "neckYaw": 0.0000, "headPitch": 0.1419, "headYaw": -0.0000, "minEdge": 0.3510, "maxEdge": 3.3973, "minArea": 0.1848, "maxArea": 4.2906, "extremeTris": 39, "crushedTris": 3, "reachErr": 0.0000, "reachSat": 0.5300},
+    "look_left": {"cbPitch": 0.0000, "cbYaw": 0.3400, "neckPitch": 0.0000, "neckYaw": 0.4200, "headPitch": 0.0000, "headYaw": 0.2009, "minEdge": 0.3206, "maxEdge": 4.7830, "minArea": 0.4804, "maxArea": 8.4306, "extremeTris": 169, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 1.0000},
+    "look_right": {"cbPitch": -0.0000, "cbYaw": -0.3400, "neckPitch": -0.0000, "neckYaw": -0.4200, "headPitch": -0.0000, "headYaw": -0.2009, "minEdge": 0.4121, "maxEdge": 5.1258, "minArea": 0.1414, "maxArea": 10.0500, "extremeTris": 197, "crushedTris": 5, "reachErr": 0.0000, "reachSat": 1.0000},
+    "look_down_left": {"cbPitch": 0.3266, "cbYaw": 0.2863, "neckPitch": 0.2139, "neckYaw": 0.3069, "headPitch": 0.0869, "headYaw": 0.1332, "minEdge": 0.3800, "maxEdge": 3.3475, "minArea": 0.2279, "maxArea": 5.5993, "extremeTris": 76, "crushedTris": 1, "reachErr": 0.0000, "reachSat": 0.9707},
+    "look_up_left": {"cbPitch": -0.1142, "cbYaw": 0.1563, "neckPitch": -0.1841, "neckYaw": 0.2021, "headPitch": -0.1366, "headYaw": 0.1327, "minEdge": 0.3147, "maxEdge": 4.9684, "minArea": 0.3918, "maxArea": 10.0092, "extremeTris": 209, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 1.0000},
+    "eat": {"cbPitch": 1.4017, "cbYaw": -0.0426, "neckPitch": 0.0061, "neckYaw": 0.0087, "headPitch": -0.1799, "headYaw": -0.0050, "minEdge": 0.3366, "maxEdge": 4.7618, "minArea": 0.1450, "maxArea": 5.1719, "extremeTris": 1709, "crushedTris": 1, "reachErr": 0.1477, "reachSat": 1.0000},
+    "drink": {"cbPitch": 1.5888, "cbYaw": -0.0430, "neckPitch": 0.2462, "neckYaw": 0.0037, "headPitch": -0.1799, "headYaw": 0.0046, "minEdge": 0.3556, "maxEdge": 6.5696, "minArea": 0.2948, "maxArea": 8.1366, "extremeTris": 2191, "crushedTris": 0, "reachErr": 0.3251, "reachSat": 1.0000},
+    "attack": {"cbPitch": 0.8917, "cbYaw": -0.0145, "neckPitch": -0.2094, "neckYaw": -0.0253, "headPitch": -0.1800, "headYaw": -0.0028, "minEdge": 0.2900, "maxEdge": 4.4656, "minArea": 0.3057, "maxArea": 6.0830, "extremeTris": 405, "crushedTris": 0, "reachErr": 0.8398, "reachSat": 1.0000},
+    "reach_side_left": {"cbPitch": 0.7505, "cbYaw": 0.3004, "neckPitch": -0.0276, "neckYaw": 0.4164, "headPitch": -0.1638, "headYaw": 0.0904, "minEdge": 0.1878, "maxEdge": 6.0246, "minArea": 0.0838, "maxArea": 10.3543, "extremeTris": 201, "crushedTris": 14, "reachErr": 1.1064, "reachSat": 1.0000},
+    "reach_up": {"cbPitch": -0.0662, "cbYaw": 0.0438, "neckPitch": -0.2100, "neckYaw": -0.0070, "headPitch": -0.1800, "headYaw": -0.0008, "minEdge": 0.5012, "maxEdge": 6.9762, "minArea": 0.6296, "maxArea": 8.9775, "extremeTris": 345, "crushedTris": 0, "reachErr": 0.7291, "reachSat": 1.0000}
+  }
+}
