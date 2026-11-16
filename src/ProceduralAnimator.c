@@ -70,22 +70,34 @@ static void AxialControllers(ProceduralAnimator* a,const Rig* r,SkeletonPose* p)
             float length=Vec3_Length(r->skeleton.joints[r->tails[t].joints[i]].restPosition);
             float tailYawBend=-tailArc*length*sinf(tProg*1.5707963f)/fmaxf(weightedLength,1e-6f);
             float totalTailYaw=-a->gait.tailCounterSwing*activity*sinf(wave-(float)i*.65f)+tailYawBend;
+            float tailPitch=a->gait.tailCounterSwing*.45f*activity*sinf(wave*2-(float)i*.55f);
             float tailRoll=-turnRate*a->gait.bodyBank/tailCountF*0.4f*(1.0f-tProg)*activity;
-            RotateEuler(&r->skeleton,p,r->tails[t].joints[i],totalTailYaw,0,tailRoll);
+            RotateEuler(&r->skeleton,p,r->tails[t].joints[i],totalTailYaw,tailPitch,tailRoll);
         }
     }
 
-    /* 3. Cabeza y cuello: anticipación hacia el ápice de la curva */
+    /* 3. Cabeza y cuello: guiñada y flexión vertical acopladas progresivamente */
     int head=r->headJoint;
     if(head>=0) {
         Vector3 lookDir=a->lookDirection;
-        if(fabsf(turnRate)>0.01f) {
-            lookDir.x+=turnRate*0.25f;
-            lookDir=Vec3_Normalize(lookDir);
-        }
-        Quaternion look=Quat_FromTo(Vec3_Create(0,0,1),lookDir);
-        if(r->neckJoint>=0)p->joints[r->neckJoint].localRotation=Skeleton_ConstrainRotation(&r->skeleton.joints[r->neckJoint],Quat_Slerp(Quat_Identity(),look,.45f));
-        p->joints[head].localRotation=Skeleton_ConstrainRotation(&r->skeleton.joints[head],Quat_Slerp(Quat_Identity(),look,.65f));
+        if(fabsf(turnRate)>0.01f) lookDir.x+=turnRate*0.25f;
+        if(Vec3_LengthSq(lookDir)<1e-6f) lookDir=Vec3_Create(0,0,1);
+        else lookDir=Vec3_Normalize(lookDir);
+        float yaw=atan2f(lookDir.x,lookDir.z);
+        float pitch=-asinf(fmaxf(-1.0f,fminf(1.0f,lookDir.y)));
+        bool hasBase=r->cervicalBaseJoint>=0,hasNeck=r->neckJoint>=0;
+        /* Al bajar la cabeza (pitch > 0), la base cervical lidera la inclinación para que todo el cuello acompañe. */
+        float pBase=pitch>0.0f?0.52f:0.34f;
+        float pNeck=pitch>0.0f?0.34f:0.44f;
+        float pHead=1.0f-pBase-pNeck;
+        if(!hasBase) { pNeck+=pBase*0.75f; pHead+=pBase*0.25f; pBase=0.0f; }
+        if(!hasNeck) { pHead+=pNeck; pNeck=0.0f; }
+        float yBase=hasBase?0.40f:0.0f;
+        float yNeck=hasNeck?(hasBase?0.42f:0.76f):0.0f;
+        float yHead=1.0f-yBase-yNeck;
+        if(hasBase) RotateEuler(&r->skeleton,p,r->cervicalBaseJoint,yaw*yBase,pitch*pBase,0.0f);
+        if(hasNeck) RotateEuler(&r->skeleton,p,r->neckJoint,yaw*yNeck,pitch*pNeck,0.0f);
+        RotateEuler(&r->skeleton,p,head,yaw*yHead,pitch*pHead,0.0f);
     }
     if(r->jawJoint>=0)Rotate(&r->skeleton,p,r->jawJoint,r->skeleton.joints[r->jawJoint].constraint.hingeAxis,
         fmaxf(0,fminf(1,a->mouthOpen))*r->maxJawAngle);

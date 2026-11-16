@@ -167,7 +167,8 @@ typedef struct OpenGLRendererData {
     size_t sdfCapacity,sdfCount;
     int* tileIndices;
     size_t tileCapacity;
-    GLuint sdfFramebuffer,sdfColor,sdfDepth,sdfQueries[4];
+    GLuint sdfFramebuffer,sdfColor,sdfDepth,sdfQueries[4],sdfBlitProgram;
+    struct { GLint colorTex,depthTex,uvScale,uvMin,uvMax,sdfTexSize,targetSize; } sdfBlit;
     unsigned queryFrame,querySerial[4];
     bool queryPending[4], sdfFrameActive, queryIssued;
     int sdfWidth,sdfHeight,sdfAllocatedWidth,sdfAllocatedHeight;
@@ -629,7 +630,8 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
         if(data->sdfTexture)glDeleteTextures(1,&data->sdfTexture);
         if(data->sdfFramebuffer)glDeleteFramebuffers(1,&data->sdfFramebuffer);
         if(data->sdfColor)glDeleteTextures(1,&data->sdfColor);
-        if(data->sdfDepth)glDeleteRenderbuffers(1,&data->sdfDepth);
+        if(data->sdfDepth)glDeleteTextures(1,&data->sdfDepth);
+        if(data->sdfBlitProgram)glDeleteProgram(data->sdfBlitProgram);
         if(data->sdfQueries[0])glDeleteQueries(4,data->sdfQueries);
         if(data->meshQueries[0])glDeleteQueries(4,data->meshQueries);
         free(data->geometryScratch);free(data->surfaceScratch);
@@ -930,14 +932,15 @@ static bool UploadSDFScene(OpenGLRendererData* d,const MonsterSDF* sdf,
      * restante delimita la influencia incluso para varias ramas solapadas. */
     float remainingSmoothness=0;
     for(size_t i=0;i<sdf->connectorCount;++i)
-        if(sdf->axialStationCount<=1||sdf->connectors[i].kind!=BODY_CONNECTION_AXIAL_LOFT)
+        if(!sdf->connectors[i].isHeadNeck &&
+           (sdf->axialStationCount<=1||!sdf->connectors[i].axialSweepMember))
             remainingSmoothness+=sdf->connectors[i].localSmoothness;
     for(size_t i=0;i<sdf->mouthCount;++i)
         remainingSmoothness+=sdf->mouths[i].anatomicalHead?sdf->mouths[i].headBodySmoothness:2*sdf->mouths[i].muzzleSmoothness;
     for(size_t i=0;i<sdf->connectorCount;++i) {
         if(!camera)break;
         const MonsterSDFConnector* c=&sdf->connectors[i];
-        if(sdf->axialStationCount>1&&c->kind==BODY_CONNECTION_AXIAL_LOFT)continue;
+        if(c->isHeadNeck||(sdf->axialStationCount>1&&c->axialSweepMember))continue;
         remainingSmoothness-=c->localSmoothness;
         float pad=(remainingSmoothness*.25f+c->localSmoothness+.005f)/fmaxf(c->distanceLowerBoundScale,.0001f),minX=(float)width,maxX=0,minY=(float)height,maxY=0;
         for(int corner=0;corner<8;++corner) {
@@ -2248,6 +2251,42 @@ static void UpdateSDFResolution(OpenGLRendererData* d,float gpuMs) {
     }
 }
 
+static bool InitSDFBlitProgram(OpenGLRendererData* d) {
+    if(d->sdfBlitProgram)return true;
+    const char* vs="#version 330 compatibility\nvoid main(){gl_Position=gl_Vertex;}\n";
+    const char* fs=
+        "#version 330 compatibility\n"
+        "uniform sampler2D sdfColorTex;\n"
+        "uniform sampler2D sdfDepthTex;\n"
+        "uniform vec2 uvScale,uvMin,uvMax,targetSize;\n"
+        "uniform ivec2 sdfTexSize;\n"
+        "out vec4 fragmentColor;\n"
+        "void main(){\n"
+        "    vec2 norm=gl_FragCoord.xy/targetSize;\n"
+        "    ivec2 dCoord=clamp(ivec2(norm*vec2(sdfTexSize)),ivec2(0),sdfTexSize-ivec2(1));\n"
+        "    float depth=texelFetch(sdfDepthTex,dCoord,0).r;\n"
+        "    if(depth>=1.0)discard;\n"
+        "    vec2 uv=clamp(norm*uvScale,uvMin,uvMax);\n"
+        "    fragmentColor=vec4(texture(sdfColorTex,uv).rgb,1.0);\n"
+        "    gl_FragDepth=depth;\n"
+        "}\n";
+    GLuint vsId=CompileShader(GL_VERTEX_SHADER,&vs,1),fsId=CompileShader(GL_FRAGMENT_SHADER,&fs,1);
+    if(!vsId||!fsId){if(vsId)glDeleteShader(vsId);if(fsId)glDeleteShader(fsId);return false;}
+    GLuint p=glCreateProgram();glAttachShader(p,vsId);glAttachShader(p,fsId);glLinkProgram(p);
+    glDeleteShader(vsId);glDeleteShader(fsId);
+    GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);
+    if(!ok){char log[2048];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[SDF Blit] %s\n",log);glDeleteProgram(p);return false;}
+    d->sdfBlitProgram=p;
+    d->sdfBlit.colorTex=glGetUniformLocation(p,"sdfColorTex");
+    d->sdfBlit.depthTex=glGetUniformLocation(p,"sdfDepthTex");
+    d->sdfBlit.uvScale=glGetUniformLocation(p,"uvScale");
+    d->sdfBlit.uvMin=glGetUniformLocation(p,"uvMin");
+    d->sdfBlit.uvMax=glGetUniformLocation(p,"uvMax");
+    d->sdfBlit.sdfTexSize=glGetUniformLocation(p,"sdfTexSize");
+    d->sdfBlit.targetSize=glGetUniformLocation(p,"targetSize");
+    return true;
+}
+
 bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive) {
     if(!renderer||!renderer->user_data||!camera||width<=0||height<=0)return false;
     OpenGLRendererData* d=renderer->user_data;
@@ -2278,18 +2317,23 @@ bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width
             UpdateSDFResolution(d,d->gpuMs);
     }
     int rw=(int)ceilf(width*d->resolutionScale),rh=(int)ceilf(height*d->resolutionScale);
-    if(!d->sdfFramebuffer){glGenFramebuffers(1,&d->sdfFramebuffer);glGenTextures(1,&d->sdfColor);glGenRenderbuffers(1,&d->sdfDepth);}
+    if(!d->sdfFramebuffer){glGenFramebuffers(1,&d->sdfFramebuffer);glGenTextures(1,&d->sdfColor);glGenTextures(1,&d->sdfDepth);}
     glBindFramebuffer(GL_FRAMEBUFFER,d->sdfFramebuffer);
     if(width>d->sdfAllocatedWidth||height>d->sdfAllocatedHeight) {
         int aw=width>d->sdfAllocatedWidth?width:d->sdfAllocatedWidth;
         int ah=height>d->sdfAllocatedHeight?height:d->sdfAllocatedHeight;
+        GLint activeTex=GL_TEXTURE0;glGetIntegerv(GL_ACTIVE_TEXTURE,&activeTex);glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,d->sdfColor);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,aw,ah,0,GL_RGBA,GL_UNSIGNED_BYTE,NULL);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,d->sdfColor,0);
-        glBindRenderbuffer(GL_RENDERBUFFER,d->sdfDepth);glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT24,aw,ah);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,d->sdfDepth);
-        glBindTexture(GL_TEXTURE_2D,0);glBindRenderbuffer(GL_RENDERBUFFER,0);
-        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){glBindFramebuffer(GL_FRAMEBUFFER,0);return false;}
+        glBindTexture(GL_TEXTURE_2D,d->sdfDepth);glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,aw,ah,0,GL_DEPTH_COMPONENT,GL_FLOAT,NULL);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_MODE,GL_NONE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,d->sdfDepth,0);
+        glBindTexture(GL_TEXTURE_2D,0);glActiveTexture((GLenum)activeTex);
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);return false;}
         d->sdfAllocatedWidth=aw;d->sdfAllocatedHeight=ah;
     }
     d->sdfWidth=rw;d->sdfHeight=rh;
@@ -2306,14 +2350,41 @@ void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
     OpenGLRendererData* d=renderer->user_data;if(!d->sdfFrameActive)return;
     if(d->queryIssued){glEndQuery(GL_TIME_ELAPSED);d->queryPending[d->queryFrame%4]=true;}
     ++d->queryFrame;
-    glBindFramebuffer(GL_READ_FRAMEBUFFER,d->sdfFramebuffer);glBindFramebuffer(GL_DRAW_FRAMEBUFFER,0);
-    glBlitFramebuffer(0,0,d->sdfWidth,d->sdfHeight,0,0,width,height,GL_COLOR_BUFFER_BIT,GL_LINEAR);
-    glBlitFramebuffer(0,0,d->sdfWidth,d->sdfHeight,0,0,width,height,GL_DEPTH_BUFFER_BIT,GL_NEAREST);
-    if(demoFramebuffer) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER,0);glBindFramebuffer(GL_DRAW_FRAMEBUFFER,demoFramebuffer);
-        glBlitFramebuffer(0,0,width,height,0,0,width,height,GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT,GL_NEAREST);
+    /* Componer color y profundidad por shader para evitar GL_INVALID_OPERATION al escalar hacia MSAA. */
+    glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);
+    glViewport(0,0,width,height);
+    if(InitSDFBlitProgram(d)) {
+        GLint oldProgram=0,activeTex=GL_TEXTURE0,oldTex0=0,oldTex1=0,oldDepthFunc=GL_LEQUAL;
+        GLboolean depthTest=glIsEnabled(GL_DEPTH_TEST),depthMask=GL_TRUE,blend=glIsEnabled(GL_BLEND),cull=glIsEnabled(GL_CULL_FACE),scissor=glIsEnabled(GL_SCISSOR_TEST);
+        glGetIntegerv(GL_CURRENT_PROGRAM,&oldProgram);
+        glGetIntegerv(GL_ACTIVE_TEXTURE,&activeTex);
+        glActiveTexture(GL_TEXTURE0);glGetIntegerv(GL_TEXTURE_BINDING_2D,&oldTex0);glBindTexture(GL_TEXTURE_2D,d->sdfColor);
+        glActiveTexture(GL_TEXTURE1);glGetIntegerv(GL_TEXTURE_BINDING_2D,&oldTex1);glBindTexture(GL_TEXTURE_2D,d->sdfDepth);
+        glGetIntegerv(GL_DEPTH_FUNC,&oldDepthFunc);glGetBooleanv(GL_DEPTH_WRITEMASK,&depthMask);
+        glEnable(GL_DEPTH_TEST);glDepthFunc(GL_ALWAYS);glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);glDisable(GL_CULL_FACE);glDisable(GL_SCISSOR_TEST);
+        float aw=(float)(d->sdfAllocatedWidth>0?d->sdfAllocatedWidth:1);
+        float ah=(float)(d->sdfAllocatedHeight>0?d->sdfAllocatedHeight:1);
+        glUseProgram(d->sdfBlitProgram);
+        glUniform1i(d->sdfBlit.colorTex,0);
+        glUniform1i(d->sdfBlit.depthTex,1);
+        glUniform2f(d->sdfBlit.uvScale,(float)d->sdfWidth/aw,(float)d->sdfHeight/ah);
+        glUniform2f(d->sdfBlit.uvMin,0.5f/aw,0.5f/ah);
+        glUniform2f(d->sdfBlit.uvMax,((float)d->sdfWidth-0.5f)/aw,((float)d->sdfHeight-0.5f)/ah);
+        glUniform2i(d->sdfBlit.sdfTexSize,d->sdfWidth,d->sdfHeight);
+        glUniform2f(d->sdfBlit.targetSize,(float)width,(float)height);
+        glBegin(GL_TRIANGLES);glVertex2f(-1,-1);glVertex2f(3,-1);glVertex2f(-1,3);glEnd();
+        glDepthFunc((GLenum)oldDepthFunc);glDepthMask(depthMask);
+        if(!depthTest)glDisable(GL_DEPTH_TEST);
+        if(blend)glEnable(GL_BLEND);
+        if(cull)glEnable(GL_CULL_FACE);
+        if(scissor)glEnable(GL_SCISSOR_TEST);
+        glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_2D,(GLuint)oldTex1);
+        glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,(GLuint)oldTex0);
+        glActiveTexture((GLenum)activeTex);
+        glUseProgram((GLuint)oldProgram);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);glViewport(0,0,width,height);d->sdfFrameActive=false;
+    d->sdfFrameActive=false;
 }
 float OpenGLRenderer_GetSDFGpuMs(const Renderer3D* renderer){return renderer&&renderer->user_data?((OpenGLRendererData*)renderer->user_data)->gpuMs:0;}
 float OpenGLRenderer_GetSDFResolutionScale(const Renderer3D* renderer){return renderer&&renderer->user_data?((OpenGLRendererData*)renderer->user_data)->resolutionScale:0;}

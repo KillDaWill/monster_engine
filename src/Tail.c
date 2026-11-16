@@ -74,6 +74,17 @@ static TailProfileSample EvaluateTailProfile(TailArchetype archetype, float t, f
         s.localOffset.z = 0.0f;
         break;
     }
+    case TAIL_ARCHETYPE_CUSTOM: {
+        /* Curva en J felina: caída inicial detrás del sacro y remate suave
+         * ascendente hacia la punta con ondulación lateral contenida. */
+        float taper = powf(fmaxf(0.0f, 1.0f - t), taperCurve);
+        s.widthFactor = taper;
+        s.heightFactor = taper;
+        s.localOffset.x = curvature * sinf(t * 3.14159265f * 0.85f) * t;
+        s.localOffset.y = -0.35f * sinf(t * 3.14159265f) + 1.05f * t * t;
+        s.localOffset.z = 0.0f;
+        break;
+    }
     case TAIL_ARCHETYPE_TAPERED:
     default: {
         float taper = powf(fmaxf(0.0f, 1.0f - t), taperCurve);
@@ -123,9 +134,12 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
         }
 
         Vector3 c = Vec3_Add(slot->position,
-            Vec3_Add(Vec3_Scale(slot->forward, (p->length * t + sProfile.localOffset.z) * s * development + 0.10f * fminf(slot->hostRadii.z, p->baseWidth * s)),
+            Vec3_Add(Vec3_Scale(slot->forward, (p->length * t + sProfile.localOffset.z) * s * development +
+                                ((p->archetype == TAIL_ARCHETYPE_CUSTOM) ? 0.0f : (0.10f * fminf(slot->hostRadii.z, p->baseWidth * s)))),
             Vec3_Add(Vec3_Scale(slot->up, sProfile.localOffset.y * s),
                      Vec3_Scale(slot->side, sProfile.localOffset.x * s))));
+        if (p->archetype == TAIL_ARCHETYPE_CUSTOM)
+            c.z += 0.22f * (1.0f - t) * p->baseWidth * s;
 
         if (p->archetype == TAIL_ARCHETYPE_PREHENSILE ||
             (p->archetype == TAIL_ARCHETYPE_TAPERED && fabsf(p->curvature) > 1e-6f)) {

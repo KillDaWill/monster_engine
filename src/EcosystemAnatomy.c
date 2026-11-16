@@ -42,7 +42,10 @@ bool EcosystemAnatomy_Configure(EcosystemEntity* e,const EcosystemSpecies* s) {
     next->phenotype=p;next->graph=m.anatomyGraph;
     next->pose=m.animation->pose;
     SkeletonPose_Init(&next->rest,&next->rig.skeleton);
-    ReachPreset preset=AnatomicalReach_DefaultPreset();preset.torsoJoints=0;preset.crouchFraction=.25f;
+    bool feline=recipe.gait==CREATURE_GAIT_FELINE_STALK;
+    ReachPreset preset=AnatomicalReach_DefaultPreset();
+    preset.torsoJoints=feline?1u:0u;
+    preset.crouchFraction=feline?.38f:.25f;
     bool ok=AnatomicalReach_Compile(&next->profile,&next->rig,preset);
     Monster_Free(&m);
     if(!ok){free(next);return false;}
@@ -70,16 +73,20 @@ void EcosystemAnatomy_Update(EcosystemEntity* e,float dt) {
         target.approach=Yaw(target.approach,-e->body.yaw);target.normal=Yaw(target.normal,-e->body.yaw);
         target.positionTolerance/=scale;
     }
-    float desiredCrouch=e->mind.action==ACTION_REST?a->profile.maximumCrouch*.45f:0;
+    float desiredCrouch=e->mind.action==ACTION_REST?a->profile.maximumCrouch*.60f:
+        e->mind.action==ACTION_ATTACK?a->profile.maximumCrouch*.46f:
+        (e->mind.action==ACTION_EAT||e->mind.action==ACTION_DRINK)?a->profile.maximumCrouch*.45f:0;
     if(active) {
         int base=a->profile.joints[0].index;
         Vector3 delta=Vec3_Sub(a->pose.joints[base].worldPosition,target.position);
-        float reach=a->profile.maximumReach*.85f,planar=delta.x*delta.x+delta.z*delta.z;
-        if(planar<reach*reach)
-            desiredCrouch=fmaxf(0,delta.y-sqrtf(reach*reach-planar)+.04f);
+        float reach=a->profile.maximumReach*.68f,planar=delta.x*delta.x+delta.z*delta.z;
+        if(delta.y>.75f)
+            desiredCrouch=fmaxf(desiredCrouch,a->profile.maximumCrouch*.78f);
+        if(planar<reach*reach&&delta.y>0)
+            desiredCrouch=fmaxf(desiredCrouch,delta.y-sqrtf(reach*reach-planar)+.04f);
     }
     desiredCrouch=fminf(a->profile.maximumCrouch,desiredCrouch);
-    a->crouch+=(desiredCrouch-a->crouch)*(1-expf(-5*dt));
+    a->crouch+=(desiredCrouch-a->crouch)*(1-expf(-9*dt));
     for(size_t j=0;j<a->rig.skeleton.jointCount;++j)if(a->rig.skeleton.joints[j].parentIndex<0)
         a->pose.joints[j].localPosition.y-=a->crouch;
     SkeletonPose_UpdateWorldTransforms(&a->pose,&a->rig.skeleton);

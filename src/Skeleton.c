@@ -12,10 +12,12 @@ bool Skeleton_Validate(const Skeleton* s) {
         const JointConstraint* c=&j->constraint;
         if(!isfinite(q.x)||!isfinite(q.y)||!isfinite(q.z)||!isfinite(q.w)||
            q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w<1e-12f ||
-           c->type<JOINT_FIXED || c->type>JOINT_BALL ||
+           c->type<JOINT_FIXED || c->type>JOINT_ELLIPSOID ||
            !isfinite(c->hingeAxis.x)||!isfinite(c->hingeAxis.y)||!isfinite(c->hingeAxis.z)||
            !isfinite(c->minAngle)||!isfinite(c->maxAngle)||c->minAngle>c->maxAngle||
-           !isfinite(c->maxSwingAngle)||!isfinite(c->maxTwistAngle)||c->maxSwingAngle<0||c->maxTwistAngle<0)return false;
+           !isfinite(c->maxSwingAngle)||!isfinite(c->maxTwistAngle)||c->maxSwingAngle<0||c->maxTwistAngle<0||
+           !isfinite(c->maxPitchUp)||!isfinite(c->maxPitchDown)||!isfinite(c->maxYawAngle)||
+           c->maxPitchUp<0||c->maxPitchDown<0||c->maxYawAngle<0)return false;
         for (size_t k=0;k<i;++k) if (s->joints[k].id==j->id) return false;
     }
     return true;
@@ -74,7 +76,40 @@ Quaternion Skeleton_ConstrainRotation(const SkeletonJoint* j, Quaternion rotatio
     Quaternion twist=Quat_Normalize((Quaternion){axis.x*projection,axis.y*projection,axis.z*projection,q.w});
     float angle=2*atan2f(twist.x*axis.x+twist.y*axis.y+twist.z*axis.z,twist.w);
     if (c->type==JOINT_HINGE) q=Quat_FromAxisAngle(axis,Clamp(angle,c->minAngle,c->maxAngle));
-    else {
+    else if (c->type==JOINT_ELLIPSOID) {
+        Quaternion swing=Quat_Normalize(Quat_Multiply(q,Quat_Inverse(twist)));
+        if (swing.w<0) swing=(Quaternion){-swing.x,-swing.y,-swing.z,-swing.w};
+        Vector3 upRef=fabsf(axis.y)<.99f?Vec3_Create(0,1,0):Vec3_Create(0,0,1);
+        Vector3 rightAxis=Vec3_Normalize(Vec3_Cross(upRef,axis));
+        Vector3 upAxis=Vec3_Normalize(Vec3_Cross(axis,rightAxis));
+        float theta=2*acosf(Clamp(swing.w,-1,1));
+        if (theta>1e-6f) {
+            Vector3 v={swing.x,swing.y,swing.z};
+            float sinHalf=sqrtf(fmaxf(0.0f,Vec3_LengthSq(v)));
+            float scale=sinHalf>1e-6f?(theta/sinHalf):2.0f;
+            float px=scale*Vec3_Dot(v,rightAxis);
+            float py=scale*Vec3_Dot(v,upAxis);
+            float limX=px>=0.0f?c->maxPitchDown:c->maxPitchUp;
+            float limY=c->maxYawAngle;
+            if (limX<=1e-6f) px=0.0f;
+            if (limY<=1e-6f) py=0.0f;
+            float nx=limX>1e-6f?px/limX:0.0f;
+            float ny=limY>1e-6f?py/limY:0.0f;
+            float r2=nx*nx+ny*ny;
+            if (r2>1.0f || limX<=1e-6f || limY<=1e-6f) {
+                if (r2>1.0f) {
+                    float inv=1.0f/sqrtf(r2);
+                    px*=inv;
+                    py*=inv;
+                }
+                Vector3 rotVec=Vec3_Add(Vec3_Scale(rightAxis,px),Vec3_Scale(upAxis,py));
+                float clampedTheta=Vec3_Length(rotVec);
+                swing=clampedTheta>1e-6f?Quat_FromAxisAngle(Vec3_Scale(rotVec,1.0f/clampedTheta),clampedTheta):Quat_Identity();
+            }
+        }
+        twist=Quat_FromAxisAngle(axis,Clamp(angle,-c->maxTwistAngle,c->maxTwistAngle));
+        q=Quat_Multiply(swing,twist);
+    } else {
         Quaternion swing=Quat_Normalize(Quat_Multiply(q,Quat_Inverse(twist)));
         float a=2*acosf(Clamp(swing.w,-1,1));
         if (a>c->maxSwingAngle && a>1e-6f) swing=Quat_Slerp(Quat_Identity(),swing,fmaxf(0,c->maxSwingAngle)/a);

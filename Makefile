@@ -266,6 +266,9 @@ $(BUILD_DIR)/validate_recipe_gpu: $(CORE_OBJS) $(RENDER_OBJS) tools/validate_rec
 $(BUILD_DIR)/capture_bovine_anatomy: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_bovine_anatomy.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
+$(BUILD_DIR)/capture_animations: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_animations.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
 $(BUILD_DIR)/CreatureRecipeBrumacerno.o: src/CreatureRecipeBrumacerno.generated.inc
 
 src/CreatureRecipeBrumacerno.generated.inc: recipes/brumacerno.creature.json tools/generate_builtin_brumacerno.py

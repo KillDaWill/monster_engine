@@ -193,8 +193,9 @@ static SurfaceCoordinate Map(Vector3 p,Vector3 n,SDFMaterial material,
         Vector3 local=Vec3_Sub(p,seg->a);
         float face=fmaxf(0,fminf(1,.5f+Vec3_Dot(local,forward)/fmaxf(seg->ra,.01f)));
         face=face*face*(3-2*face);
-        Vector3 groom=Vec3_Lerp(Vec3_Scale(forward,-1),forward,face);
-        groom=Vec3_Sub(groom,Vec3_Scale(up,.35f*(1-fabsf(Vec3_Dot(n,up)))));
+        /* Flujo facial continuo hacia nuca y carrillo sin cruzar por cero bajo el ojo. */
+        Vector3 groom=Vec3_Add(Vec3_Scale(forward,-.88f+.52f*face),
+            Vec3_Scale(up,-.36f*(1-fabsf(Vec3_Dot(n,up)))));
         float ear=fmaxf(0,fminf(1,(Vec3_Dot(local,up)/fmaxf(seg->ra,.01f)-.65f)*2));
         groom=Vec3_Lerp(groom,up,ear*ear*(3-2*ear));
         flow=Vec3_Lerp(flow,groom,headWeight);

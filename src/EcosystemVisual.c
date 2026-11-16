@@ -776,9 +776,15 @@ static void AnimateSlot(VisualSlot* slot,const EcosystemEntity* entity, float de
         RotateYaw(Vec3_Sub(slot->mouthTarget,slot->position),-slot->yaw),1.0f/scale));
     a->interactionTarget=(InteractionTarget){.valid=slot->oralActive,.position=a->oralReachTarget,
         .normal={0,1,0},.approach={0,0,1},.positionTolerance=.03f/scale,.orientationTolerance=1.57f};
-    float jaw=slot->action==ACTION_ATTACK?.65f*(.5f+.5f*sinf(slot->actionClock*15)):
-        slot->action==ACTION_EAT?.10f*(.5f+.5f*sinf(slot->actionClock*9)):
-        slot->action==ACTION_DRINK?.045f*(.5f+.5f*sinf(slot->actionClock*12)):0;
+    float jaw=0;
+    if(slot->action==ACTION_ATTACK) {
+        float snap=powf(fmaxf(0,sinf(slot->actionClock*11)),3);
+        jaw=.24f+.66f*snap;
+    } else if(slot->action==ACTION_EAT) {
+        jaw=.26f*(.30f+.70f*(.5f+.5f*sinf(slot->actionClock*9)));
+    } else if(slot->action==ACTION_DRINK) {
+        jaw=.14f*(.25f+.75f*(.5f+.5f*sinf(slot->actionClock*12)));
+    }
     a->mouthOpen+=(jaw-a->mouthOpen)*(1-expf(-12*deltaSeconds));
     slot->previousPose=animation->pose;
     /* Subpasos de pose y transporte mantienen el mismo origen local en cada
@@ -807,6 +813,34 @@ static void AnimateSlot(VisualSlot* slot,const EcosystemEntity* entity, float de
     float lower=entity&&entity->anatomicalBody?0:slot->restBlend*a->reachProfile.maximumCrouch*.45f;
     for(size_t j=0;j<rig->skeleton.jointCount;++j)if(rig->skeleton.joints[j].parentIndex<0)
         animation->pose.joints[j].localPosition.y+=breath-lower;
+    if(agile) {
+        if(slot->action==ACTION_ATTACK) {
+            for(size_t t=0;t<rig->tailCount;++t) {
+                for(size_t i=0;i<rig->tails[t].jointCount;++i) {
+                    int j=rig->tails[t].joints[i];
+                    float yaw=.14f*sinf(slot->actionClock*9.5f-(float)i*.55f);
+                    float pitch=-.035f-.035f*cosf(slot->actionClock*11.0f-(float)i*.45f);
+                    Quaternion q=Quat_Multiply(Quat_FromAxisAngle(Vec3_Create(0,1,0),yaw),
+                        Quat_FromAxisAngle(Vec3_Create(1,0,0),pitch));
+                    animation->pose.joints[j].localRotation=Skeleton_ConstrainRotation(
+                        &rig->skeleton.joints[j],Quat_Multiply(rig->skeleton.joints[j].restRotation,q));
+                }
+            }
+        } else if(slot->restBlend>.01f) {
+            for(size_t t=0;t<rig->tailCount;++t) {
+                for(size_t i=0;i<rig->tails[t].jointCount;++i) {
+                    int j=rig->tails[t].joints[i];
+                    float frac=(float)(i+1)/(float)(rig->tails[t].jointCount>0?rig->tails[t].jointCount:1);
+                    float yaw=.055f*frac*slot->restBlend;
+                    float pitch=-.025f*slot->restBlend;
+                    Quaternion q=Quat_Multiply(Quat_FromAxisAngle(Vec3_Create(0,1,0),yaw),
+                        Quat_FromAxisAngle(Vec3_Create(1,0,0),pitch));
+                    animation->pose.joints[j].localRotation=Skeleton_ConstrainRotation(
+                        &rig->skeleton.joints[j],Quat_Multiply(animation->pose.joints[j].localRotation,q));
+                }
+            }
+        }
+    }
     SkeletonPose_UpdateWorldTransforms(&animation->pose,&rig->skeleton);
     slot->poseAlpha=1;
 

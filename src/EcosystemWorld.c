@@ -252,7 +252,7 @@ static void mouth(EcosystemWorld *w,EcosystemEntity *e,float dt) {
         const EcosystemEntity* prey=e->mind.action==ACTION_ATTACK?EcosystemWorld_Get(w,e->mind.target):NULL;
         if(prey) {
             Vector3 center=Vec3_Add(prey->body.position,Vec3_Create(0,.55f*prey->developmentScale*prey->genome.size,0));
-            Vector3 point=Vec3_Add(center,Vec3_Scale(Vec3_Normalize(Vec3_Sub(e->body.mouth,center)),prey->body.capabilities.clearance*.7f));
+            Vector3 point=Vec3_Add(center,Vec3_Scale(Vec3_Normalize(Vec3_Sub(e->body.mouth,center)),prey->body.capabilities.clearance*.96f));
             Vector3 approach=Vec3_Normalize(Vec3_Sub(point,e->body.mouth));
             if(Vec3_LengthSq(approach)<.5f)approach=Vec3_Create(sinf(e->body.yaw),0,cosf(e->body.yaw));
             e->mind.intent.interact=true;

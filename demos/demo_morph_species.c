@@ -34,6 +34,8 @@
 
 #define MAX_CATALOG_RECIPES 16
 #define MAX_CYCLE_SAMPLES 11
+#define MORPH_ZOOM_MIN 0.55f
+#define MORPH_ZOOM_MAX 1.85f
 
 typedef enum SurfaceMode {
     SURFACE_MODE_SDF_RAYMARCH = 0,
@@ -87,6 +89,7 @@ typedef struct DemoOptions {
     unsigned referenceSteps;
     int surfaceDebugMode;
     SurfaceMode surfaceMode;
+    float initialZoom;
 } DemoOptions;
 
 typedef struct MorphRuntime {
@@ -534,8 +537,9 @@ static void ComputeMonsterFraming(const Monster* m, const MonsterSDF* sdf, Vecto
 }
 
 static void SetupViewCamera(ICamera* cam, int viewMode, float orbitYaw, float orbitPitch, float zoomScale,
-    Vector3 bodyCenter, float bodyRadius, Vector3 headCenter, Vector3 tailCenter) {
-    float dist = bodyRadius * 2.05f * Math_Clamp(zoomScale, 0.35f, 3.0f);
+    const MonsterSDF* sdf, Vector3 bodyCenter, float bodyRadius, Vector3 headCenter, Vector3 tailCenter) {
+    float clampedZoom = Math_Clamp(zoomScale, MORPH_ZOOM_MIN, MORPH_ZOOM_MAX);
+    float dist = bodyRadius * 2.05f * clampedZoom;
     Vector3 focus = bodyCenter;
     float yaw = orbitYaw, pitch = orbitPitch;
 
@@ -550,23 +554,39 @@ static void SetupViewCamera(ICamera* cam, int viewMode, float orbitYaw, float or
     } else if (viewMode == 4) {
         /* Primer plano cabeza */
         focus = headCenter;
-        dist = fmaxf(2.0f, bodyRadius * 0.65f * Math_Clamp(zoomScale, 0.35f, 3.0f));
+        dist = fmaxf(1.6f, bodyRadius * 0.65f * clampedZoom);
         yaw = 0.65f + orbitYaw * 0.35f;
         pitch = 0.18f;
     } else if (viewMode == 5) {
         /* Vista caudal */
         focus = tailCenter;
-        dist = fmaxf(2.5f, bodyRadius * 0.85f * Math_Clamp(zoomScale, 0.35f, 3.0f));
+        dist = fmaxf(2.0f, bodyRadius * 0.85f * clampedZoom);
         yaw = 2.65f + orbitYaw * 0.35f;
         pitch = 0.22f;
     }
 
     float cp = cosf(pitch);
-    cam->target = focus;
-    cam->position = Vec3_Add(focus, Vec3_Create(
+    float yLift = (viewMode == 4 || viewMode == 5) ? 0.0f : bodyRadius * 0.06f * clampedZoom;
+    Vector3 offset = Vec3_Create(
         sinf(yaw) * cp * dist,
-        sinf(pitch) * dist + bodyRadius * 0.06f,
-        cosf(yaw) * cp * dist));
+        sinf(pitch) * dist + yLift,
+        cosf(yaw) * cp * dist);
+    float len = Vec3_Length(offset);
+    Vector3 dir = len > 1e-5f ? Vec3_Scale(offset, 1.0f / len) : Vec3_Create(0.0f, 0.0f, 1.0f);
+    float camDist = len > 1e-5f ? len : dist;
+    if (sdf) {
+        /* Mantener la cámara fuera del volumen SDF con margen seguro para nearPlane y malla. */
+        const float minClearance = fmaxf(cam->nearPlane * 8.0f, 0.80f);
+        for (int iter = 0; iter < 4; ++iter) {
+            Vector3 candidate = Vec3_Add(focus, Vec3_Scale(dir, camDist));
+            float d = MonsterSDF_EvaluateDistance(sdf, candidate);
+            if (d >= minClearance) break;
+            camDist += (minClearance - d) + 0.05f;
+        }
+    }
+
+    cam->target = focus;
+    cam->position = Vec3_Add(focus, Vec3_Scale(dir, camDist));
     cam->up = Vec3_Create(0.0f, 1.0f, 0.0f);
 }
 
@@ -627,7 +647,8 @@ static DemoOptions ParseOptions(int argc, char** argv) {
         .gpuBrickCells = 16u,
         .gpuRefinement = 1u,
         .gpuVoxelStep = 0.08f,
-        .surfaceMode = SURFACE_MODE_SDF_RAYMARCH
+        .surfaceMode = SURFACE_MODE_SDF_RAYMARCH,
+        .initialZoom = 1.0f
     };
 
     for (int i = 1; i < argc; ++i) {
@@ -696,6 +717,7 @@ static DemoOptions ParseOptions(int argc, char** argv) {
         else if (strcmp(arg, "--gpu-cached-normals") == 0) opt.gpuCachedNormals = true;
         else if (strcmp(arg, "--validate-compute") == 0) opt.validateCompute = true;
         else if (strcmp(arg, "--local-patches") == 0) opt.localPatches = true;
+        else if (strncmp(arg, "--zoom=", 7) == 0) opt.initialZoom = (float)atof(arg + 7);
         else if (strcmp(arg, "--capture-normals") == 0) opt.surfaceDebugMode = 1;
         else if (strcmp(arg, "--capture-flat") == 0) opt.surfaceDebugMode = 2;
         else if (strcmp(arg, "--capture-albedo") == 0) opt.surfaceDebugMode = 3;
@@ -986,7 +1008,7 @@ int main(int argc, char** argv) {
     bool showSkeleton = false;
     bool noFur = opt.noFur;
     bool autoOrbit = (opt.capturePrefix == NULL && opt.validateCyclePrefix == NULL && !opt.hasFixedAge);
-    float orbitYaw = 0.72f, orbitPitch = 0.22f, zoomScale = 1.0f;
+    float orbitYaw = 0.72f, orbitPitch = 0.22f, zoomScale = Math_Clamp(opt.initialZoom, MORPH_ZOOM_MIN, MORPH_ZOOM_MAX);
     bool dragging = false;
 
     /* Modo captura estática (--capture-prefix) */
@@ -1000,8 +1022,8 @@ int main(int argc, char** argv) {
         Vector3 bc, hc, tc;
         float br = 3.5f;
         ComputeMonsterFraming(cur, &sdf, &bc, &br, &hc, &tc);
+        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, &sdf, bc, br, hc, tc);
         MonsterSDF_Free(&sdf);
-        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, bc, br, hc, tc);
         int warmup = opt.surfaceMode == SURFACE_MODE_LEGACY_HANDOFF ? 6 : 2;
         for (int f = 0; f < warmup; ++f) {
             RenderCurrentFrame(&rt, &renderer, &cam, width, height, &opt, age, wire, showSkeleton, noFur, NULL);
@@ -1033,8 +1055,8 @@ int main(int argc, char** argv) {
             Vector3 bc, hc, tc;
             float br = 3.5f;
             ComputeMonsterFraming(cur, &sdf, &bc, &br, &hc, &tc);
+            SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, &sdf, bc, br, hc, tc);
             MonsterSDF_Free(&sdf);
-            SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, bc, br, hc, tc);
             for (int sub = 0; sub < 3; ++sub) {
                 RenderCurrentFrame(&rt, &renderer, &cam, width, height, &opt, targetAge, wire, showSkeleton, noFur, NULL);
                 OpenGLDemoWindow_Swap(window);
@@ -1081,7 +1103,7 @@ int main(int argc, char** argv) {
                 orbitYaw -= (float)ev.motion.xrel * 0.008f;
                 orbitPitch = Math_Clamp(orbitPitch + (float)ev.motion.yrel * 0.006f, -0.35f, 1.15f);
             } else if (ev.type == SDL_MOUSEWHEEL) {
-                zoomScale = Math_Clamp(zoomScale * (ev.wheel.y > 0 ? 0.90f : 1.11f), 0.35f, 3.0f);
+                zoomScale = Math_Clamp(zoomScale * (ev.wheel.y > 0 ? 0.90f : 1.11f), MORPH_ZOOM_MIN, MORPH_ZOOM_MAX);
             } else if (ev.type == SDL_KEYDOWN && !ev.key.repeat) {
                 SDL_Keycode sym = ev.key.keysym.sym;
                 if (sym == SDLK_ESCAPE) {
@@ -1164,8 +1186,8 @@ int main(int argc, char** argv) {
             transitionPlaying = false;
             pingPong = false;
         }
-        if (keys[SDL_SCANCODE_UP]) zoomScale = Math_Clamp(zoomScale - 0.7f * dt, 0.35f, 3.0f);
-        if (keys[SDL_SCANCODE_DOWN]) zoomScale = Math_Clamp(zoomScale + 0.7f * dt, 0.35f, 3.0f);
+        if (keys[SDL_SCANCODE_UP]) zoomScale = Math_Clamp(zoomScale - 0.7f * dt, MORPH_ZOOM_MIN, MORPH_ZOOM_MAX);
+        if (keys[SDL_SCANCODE_DOWN]) zoomScale = Math_Clamp(zoomScale + 0.7f * dt, MORPH_ZOOM_MIN, MORPH_ZOOM_MAX);
 
         if (opt.ageSequenceCount > 0) {
             age = opt.ageSequence[frameCount % opt.ageSequenceCount];
@@ -1192,9 +1214,8 @@ int main(int argc, char** argv) {
         Vector3 bc, hc, tc;
         float br = 3.5f;
         ComputeMonsterFraming(cur, &frameSdf, &bc, &br, &hc, &tc);
+        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, &frameSdf, bc, br, hc, tc);
         MonsterSDF_Free(&frameSdf);
-
-        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, bc, br, hc, tc);
 
         int pct = (int)roundf(age * 100.0f);
         snprintf(titleBuf, sizeof(titleBuf),

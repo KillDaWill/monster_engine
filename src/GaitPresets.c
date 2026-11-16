@@ -50,18 +50,18 @@ GaitProfile GaitPreset_BovineWalk(const Rig* rig) {
 
 GaitProfile GaitPreset_FelineStalk(const Rig* rig) {
     GaitProfile g=GaitPreset_CanidWalk(rig);
-    g.cycleDuration*=1.8f;
-    g.strideLength*=.68f;
-    g.stepHeight*=.75f;
-    g.stanceRatio=.84f;
-    g.bodyBob*=.3f;
-    g.bodySway*=.55f;
-    g.spineWave*=.65f;
-    g.tailCounterSwing*=1.15f;
-    g.spineTurn*=.65f;
-    g.tailTurn*=1.1f;
-    g.bodyBank*=.65f;
-    g.supportCompression*=1.5f;
+    g.cycleDuration*=1.55f;
+    g.strideLength*=.92f;
+    g.stepHeight*=1.05f;
+    g.stanceRatio=.82f;
+    g.bodyBob*=.45f;
+    g.bodySway*=.75f;
+    g.spineWave=.016f;
+    g.tailCounterSwing=.085f;
+    g.spineTurn=.10f;
+    g.tailTurn=.22f;
+    g.bodyBank=.05f;
+    g.supportCompression*=1.10f;
     return g;
 }
 

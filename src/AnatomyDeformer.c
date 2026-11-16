@@ -124,8 +124,8 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph,const Mesh* baseMesh,
         Vector3 a;
         Vector3 ab;
         float invAbLenSq;
-        float radA;
-        float radB;
+        float radA, radB;
+        AnatomySide side;
         bool valid;
     } PrecomputedConn;
     PrecomputedConn conns[ANATOMY_MAX_CONNECTIONS];
@@ -144,6 +144,12 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph,const Mesh* baseMesh,
         conns[c].invAbLenSq = abLenSq > 1e-8f ? 1.0f / abLenSq : 0.0f;
         conns[c].radA = (nodeA->widthRadius + nodeA->heightRadius) * 0.5f;
         conns[c].radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
+        bool isLimbEdge = conn->kind == BODY_CONNECTION_LIMB_SEGMENT || conn->kind == BODY_CONNECTION_DIGIT_SEGMENT ||
+            conn->kind == BODY_CONNECTION_MUSCLE_UNION || conn->kind == BODY_CONNECTION_HOOF_CAPSULE ||
+            nodeB->region == ANATOMY_REGION_LIMB || nodeB->region == ANATOMY_REGION_FORELIMB ||
+            nodeB->region == ANATOMY_REGION_HINDLIMB || nodeB->region == ANATOMY_REGION_DIGIT;
+        AnatomySide side = nodeB->side != ANATOMY_SIDE_CENTER ? nodeB->side : nodeA->side;
+        conns[c].side = isLimbEdge ? side : ANATOMY_SIDE_CENTER;
     }
 
     /* El vecino de corte tiene peso cero. Cambiar el conjunto de vecinos no
@@ -153,17 +159,22 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph,const Mesh* baseMesh,
         morph->basePositions[v]=pos;morph->baseNormals[v]=baseMesh->vertices[v].normal;
         float distance[ANATOMY_MORPH_INFLUENCES+1];
         uint16_t indices[ANATOMY_MORPH_INFLUENCES+1]={0};
-        for(int k=0;k<=ANATOMY_MORPH_INFLUENCES;++k)distance[k]=INFINITY;
-        for(size_t c=0;c<refGraph->connectionCount;++c) {
-            const PrecomputedConn* pc=&conns[c];if(!pc->valid)continue;
-            float t=Math_Clamp01(Vec3_Dot(Vec3_Sub(pos,pc->a),pc->ab)*pc->invAbLenSq);
-            Vector3 proj=Vec3_Add(pc->a,Vec3_Scale(pc->ab,t));
-            float rad=fmaxf(Math_Lerp(pc->radA,pc->radB,t),1e-6f);
-            float d=Vec3_LengthSq(Vec3_Sub(pos,proj))/(rad*rad);
-            for(int k=0;k<=ANATOMY_MORPH_INFLUENCES;++k)if(d<distance[k]) {
-                for(int j=ANATOMY_MORPH_INFLUENCES;j>k;--j){distance[j]=distance[j-1];indices[j]=indices[j-1];}
-                distance[k]=d;indices[k]=(uint16_t)c;break;
+        for(int pass=0;pass<2;++pass) {
+            for(int k=0;k<=ANATOMY_MORPH_INFLUENCES;++k)distance[k]=INFINITY;
+            for(size_t c=0;c<refGraph->connectionCount;++c) {
+                const PrecomputedConn* pc=&conns[c];if(!pc->valid)continue;
+                if(pass==0 && ((pc->side==ANATOMY_SIDE_LEFT && pos.x<-0.005f) ||
+                               (pc->side==ANATOMY_SIDE_RIGHT && pos.x>0.005f)))continue;
+                float t=Math_Clamp01(Vec3_Dot(Vec3_Sub(pos,pc->a),pc->ab)*pc->invAbLenSq);
+                Vector3 proj=Vec3_Add(pc->a,Vec3_Scale(pc->ab,t));
+                float rad=fmaxf(Math_Lerp(pc->radA,pc->radB,t),1e-6f);
+                float d=Vec3_LengthSq(Vec3_Sub(pos,proj))/(rad*rad);
+                for(int k=0;k<=ANATOMY_MORPH_INFLUENCES;++k)if(d<distance[k]) {
+                    for(int j=ANATOMY_MORPH_INFLUENCES;j>k;--j){distance[j]=distance[j-1];indices[j]=indices[j-1];}
+                    distance[k]=d;indices[k]=(uint16_t)c;break;
+                }
             }
+            if(isfinite(distance[0]))break;
         }
         if(!isfinite(distance[0])){morph->isBound=false;return false;}
         AnatomyDeformerBinding* bind=&morph->bindings[v];memset(bind,0,sizeof(*bind));

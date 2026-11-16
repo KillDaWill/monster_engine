@@ -357,6 +357,10 @@ static void CarnivoreAnimations(void) {
             TEST_ASSERT(travel[leg]>.1f,"las cuatro patas caminan y corren, sin miembros congelados");
         if(actions[action]==ACTION_ATTACK||actions[action]==ACTION_EAT||actions[action]==ACTION_DRINK)
             TEST_ASSERT(jawOpening>.001f,"ataque, alimentación y bebida articulan la mandíbula");
+        if(actions[action]==ACTION_ATTACK)
+            TEST_ASSERT(jawOpening>.12f&&entity->anatomicalBody->crouch>.15f,"ataque flexiona postura y abre fauces");
+        if(actions[action]==ACTION_EAT||actions[action]==ACTION_DRINK)
+            TEST_ASSERT(jawOpening>.03f&&entity->anatomicalBody->crouch>.15f,"consumo baja el pecho y articula boca");
         float height=packet.pose->joints[packet.headJoint].worldPosition.y;
         if(action==0)standing=height;
         if(actions[action]==ACTION_REST)TEST_ASSERT(height<standing-.01f,"el descanso desciende el cuerpo con transición");
@@ -368,7 +372,7 @@ static void CarnivoreAnimations(void) {
             Vector3 b=deformed.vertices[deformed.indices[triangle+1]].position;
             Vector3 c=deformed.vertices[deformed.indices[triangle+2]].position;
             Vector3 normal=Vec3_Cross(Vec3_Sub(b,a),Vec3_Sub(c,a));
-            if(Vec3_LengthSq(normal)<1e-12f)continue;
+            if(Vec3_LengthSq(normal)<1e-9f)continue; /* Evita normales nulas tras Vec3_Normalize (umbral 1e-5). */
             normal=Quat_RotateVector(yaw,Vec3_Normalize(normal));
             Vector3 center=Vec3_Add(packet.position,Quat_RotateVector(yaw,Vec3_Scale(Vec3_Add(a,Vec3_Add(b,c)),packet.scale/3)));
             TEST_ASSERT(EcosystemVisual_PickRay(&packet,1,Vec3_Add(center,normal),Vec3_Scale(normal,-1),.001f,2)==entity->id,

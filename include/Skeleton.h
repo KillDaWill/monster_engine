@@ -6,12 +6,14 @@
 #include "Anatomy.h"
 #include "Quaternion.h"
 #define SKELETON_MAX_JOINTS (ANATOMY_MAX_NODES + 8)
-typedef enum JointType { JOINT_FIXED, JOINT_HINGE, JOINT_BALL } JointType;
+typedef enum JointType { JOINT_FIXED, JOINT_HINGE, JOINT_BALL, JOINT_ELLIPSOID } JointType;
 /** @brief Límites relativos a restRotation; eje expresado en el marco de reposo local. */
 typedef struct JointConstraint {
     JointType type;
     Vector3 hingeAxis;
     float minAngle, maxAngle, maxSwingAngle, maxTwistAngle;
+    /** Límites direccionales para `JOINT_ELLIPSOID` (radianes): arriba, abajo y lateral. */
+    float maxPitchUp, maxPitchDown, maxYawAngle;
 } JointConstraint;
 typedef struct SkeletonJoint {
     uint32_t id;

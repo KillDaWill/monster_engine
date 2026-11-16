@@ -329,4 +329,108 @@ static void cranialSkinTest(void) {
         AnatomyDeformer_Free(d);Mesh_Free(&mesh);Monster_Free(&m);
     }
 }
-void run_anatomical_reach_tests(void) { solverTests();resourceTests();rebuildTests();auxiliarySkinTest();cervicalOwnershipTest();cranialSkinTest(); }
+static void cervicalAngles(const Skeleton *s,const SkeletonPose *p,int idx,float *pitch,float *yaw,float *roll) {
+    Quaternion dq=Quat_Normalize(Quat_Multiply(Quat_Inverse(s->joints[idx].restRotation),p->joints[idx].localRotation));
+    if(dq.w<0)dq=(Quaternion){-dq.x,-dq.y,-dq.z,-dq.w};
+    Quaternion twist=Quat_Normalize((Quaternion){0,0,dq.z,dq.w});
+    *roll=2*atan2f(twist.z,twist.w);
+    Quaternion swing=Quat_Normalize(Quat_Multiply(dq,Quat_Inverse(twist)));
+    if(swing.w<0)swing=(Quaternion){-swing.x,-swing.y,-swing.z,-swing.w};
+    float theta=2*acosf(fmaxf(-1.f,fminf(1.f,swing.w)));
+    float sinHalf=sqrtf(fmaxf(0,swing.x*swing.x+swing.y*swing.y+swing.z*swing.z));
+    float scale=(theta>1e-6f&&sinHalf>1e-6f)?(theta/sinHalf):2.f;
+    *pitch=scale*swing.x;*yaw=scale*swing.y;
+}
+static void cervicalEllipsoidAndFollowThroughTests(void) {
+    Skeleton sk={.jointCount=1};
+    sk.joints[0]=(SkeletonJoint){.id=1,.parentIndex=-1,.restRotation=Quat_Identity(),
+        .constraint={.type=JOINT_ELLIPSOID,.hingeAxis={0,0,1},.maxSwingAngle=.72f,
+            .maxTwistAngle=.05f,.maxPitchUp=.16f,.maxPitchDown=.72f,.maxYawAngle=.34f}};
+    TEST_ASSERT(Skeleton_Validate(&sk),"JOINT_ELLIPSOID válido");
+    sk.joints[0].constraint.maxPitchUp=-.1f;
+    TEST_ASSERT(!Skeleton_Validate(&sk),"maxPitchUp negativo rechazado");
+    sk.joints[0].constraint.maxPitchUp=.16f;
+    Quaternion upExcess=Skeleton_ConstrainRotation(&sk.joints[0],Quat_FromAxisAngle(Vec3_Create(1,0,0),-.60f));
+    Quaternion downWithin=Skeleton_ConstrainRotation(&sk.joints[0],Quat_FromAxisAngle(Vec3_Create(1,0,0),.60f));
+    SkeletonPose tmp;SkeletonPose_Init(&tmp,&sk);
+    float p=0,y=0,r=0;
+    tmp.joints[0].localRotation=upExcess;cervicalAngles(&sk,&tmp,0,&p,&y,&r);
+    TEST_ASSERT(fabsf(p+.16f)<1e-3f,"flexión dorsal acotada asimétricamente");
+    tmp.joints[0].localRotation=downWithin;cervicalAngles(&sk,&tmp,0,&p,&y,&r);
+    TEST_ASSERT(fabsf(p-.60f)<1e-3f,"flexión ventral amplia conservada");
+    Quaternion diag=Skeleton_ConstrainRotation(&sk.joints[0],
+        Quat_Multiply(Quat_FromAxisAngle(Vec3_Create(0,1,0),.50f),
+            Quat_Multiply(Quat_FromAxisAngle(Vec3_Create(1,0,0),.80f),Quat_FromAxisAngle(Vec3_Create(0,0,1),.25f))));
+    tmp.joints[0].localRotation=diag;cervicalAngles(&sk,&tmp,0,&p,&y,&r);
+    float ellip=(p/.72f)*(p/.72f)+(y/.34f)*(y/.34f);
+    TEST_ASSERT(ellip<=1.005f&&fabsf(r)<=.051f,"domo elipsoidal y torsión acotados en diagonal");
+
+    static Monster velkar,lizard;
+    const CreatureRecipe* recipes[]={CreatureRecipes_Velkar(),CreatureRecipes_Lizard()};
+    Monster* monsters[]={&velkar,&lizard};
+    for(int si=0;si<2;++si) {
+        *monsters[si]=Monster_Create();
+        Monster* m=monsters[si];
+        TEST_ASSERT(Creature_BuildMonster(m,recipes[si],&recipes[si]->adult),"construir especie cervical");
+        if(!m->animation) {
+            Rig rig={0};
+            TEST_ASSERT(CreatureRig_Build(m,&rig)&&MonsterAnimation_Configure(m,&rig,GaitPreset_QuadrupedMotion(&rig,si==0,1,0)),
+                "configurar animación cervical");
+        }
+        const Rig* rig=&m->animation->rig;
+        TEST_ASSERT(rig->cervicalBaseJoint>=0&&rig->neckJoint>=0&&rig->headJoint>=0,"cadena cervical completa");
+        TEST_ASSERT(rig->skeleton.joints[rig->cervicalBaseJoint].constraint.type==JOINT_ELLIPSOID&&
+                    rig->skeleton.joints[rig->neckJoint].constraint.type==JOINT_ELLIPSOID&&
+                    rig->skeleton.joints[rig->headJoint].constraint.type==JOINT_ELLIPSOID,
+            "articulaciones cervicales usan domos elipsoidales");
+
+        /* Al bajar la mirada, todo el cuello acompaña desde la base hacia abajo */
+        m->animation->animator.oralReachActive=false;
+        m->animation->animator.lookDirection=Vec3_Normalize(Vec3_Create(0,-.85f,.53f));
+        for(int f=0;f<45;++f)TEST_ASSERT(MonsterAnimation_Update(m,1.f/60),"mirar abajo");
+        float cbP=0,cbY=0,cbR=0,nP=0,nY=0,nR=0,hP=0,hY=0,hR=0;
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->cervicalBaseJoint,&cbP,&cbY,&cbR);
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->neckJoint,&nP,&nY,&nR);
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->headJoint,&hP,&hY,&hR);
+        TEST_ASSERT(cbP>.10f&&nP>.05f&&hP>=0&&cbP>=nP*.8f,
+            "al bajar la cabeza la base cervical y el cuello descienden acoplados");
+
+        /* Mirar arriba queda acotado sin aplastar la nuca */
+        m->animation->animator.lookDirection=Vec3_Normalize(Vec3_Create(0,.85f,.53f));
+        for(int f=0;f<45;++f)TEST_ASSERT(MonsterAnimation_Update(m,1.f/60),"mirar arriba");
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->cervicalBaseJoint,&cbP,&cbY,&cbR);
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->neckJoint,&nP,&nY,&nR);
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->headJoint,&hP,&hY,&hR);
+        TEST_ASSERT(cbP<0&&nP<0&&-(cbP+nP+hP)<=.72f,"extensión dorsal acotada coherentemente");
+
+        /* Mirar a la izquierda distribuye guiñada en base y cuello */
+        m->animation->animator.lookDirection=Vec3_Normalize(Vec3_Create(.90f,0,.44f));
+        for(int f=0;f<45;++f)TEST_ASSERT(MonsterAnimation_Update(m,1.f/60),"mirar izquierda");
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->cervicalBaseJoint,&cbP,&cbY,&cbR);
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->neckJoint,&nP,&nY,&nR);
+        TEST_ASSERT(cbY>.15f&&nY>.15f,"guiñada repartida entre base cervical y cuello");
+
+        /* Alcance ventral/frontal sin pliegue en Z invertido ni hundimiento reptil */
+        m->animation->animator.lookDirection=Vec3_Create(0,0,1);
+        const AnatomicalReachProfile* rp=&m->animation->animator.reachProfile;
+        float R=fmaxf(.5f*m->phenotype.axial.totalScale,rp->maximumReach);
+        Vector3 basePos=rp->count>0?m->animation->pose.joints[rp->joints[0].index].worldPosition
+                                   :m->animation->pose.joints[rig->cervicalBaseJoint].worldPosition;
+        m->animation->animator.oralReachActive=true;
+        m->animation->animator.interactionTarget=(InteractionTarget){.valid=true,.objectId=901u+si,
+            .type=INTERACTION_EAT,.position=Vec3_Add(basePos,Vec3_Create(0,si==0?-.25f*R:-.55f*R,si==0?.92f*R:.5f*R)),
+            .normal={0,1,0},.approach=Vec3_Normalize(Vec3_Create(0,si==0?-.18f:-.8f,si==0?.98f:.5f)),
+            .positionTolerance=.1f*m->phenotype.axial.totalScale,.orientationTolerance=.7f};
+        m->animation->animator.oralReachTarget=m->animation->animator.interactionTarget.position;
+        for(int f=0;f<90;++f)TEST_ASSERT(MonsterAnimation_Update(m,1.f/60),"alcance sin pliegue en Z");
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->cervicalBaseJoint,&cbP,&cbY,&cbR);
+        cervicalAngles(&rig->skeleton,&m->animation->pose,rig->neckJoint,&nP,&nY,&nR);
+        if(si==0) {
+            TEST_ASSERT(cbP>.1f&&nP>=-.15f,"ataque frontal sin quiebro dorsal opuesto en Z");
+        } else {
+            TEST_ASSERT(cbP<=.31f&&nP<=.23f,"reptil acota descenso sin clavar el hocico en el suelo");
+        }
+        Monster_Free(m);
+    }
+}
+void run_anatomical_reach_tests(void) { solverTests();resourceTests();rebuildTests();auxiliarySkinTest();cervicalOwnershipTest();cranialSkinTest();cervicalEllipsoidAndFollowThroughTests(); }
