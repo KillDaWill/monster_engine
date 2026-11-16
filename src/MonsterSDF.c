@@ -891,7 +891,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                         float len = Vec3_Length(diff);
                         if (len > 1e-4f) cervicalDir = Vec3_Scale(diff, 1.0f / len);
                     }
-                    float penetration = sdf->axialStations[0].height * 0.15f;
+                    float penFrac = recipe->equineSculptWeight > .5f ? recipe->neckCollarPenetration : 0.15f;
+                    float penetration = sdf->axialStations[0].height * penFrac;
                     Vector3 worldTip = Vec3_Add(sdf->axialStations[0].center, Vec3_Scale(cervicalDir, penetration));
                     sdf->mouths[m].neckCollarTipLocal = Transform3D_ApplyRotationBasis(
                         sdf->mouths[m].inverseRotation, Vec3_Sub(worldTip, mouthWorldPos));
@@ -913,18 +914,32 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                     float collarTipY=neckNode->heightRadius*0.90f;
                     sdf->mouths[m].neckCollarTipRadii=Vec3_Create(collarTipX,collarTipY,Math_Min(collarTipX,collarTipY));
                 } else {
-                    sdf->mouths[m].neckCollarTipLocal=Vec3_Add(
-                        sdf->mouths[m].neckCollarRootLocal,
-                        Vec3_Create(0,-hostRadii.y*0.25f,-hostRadii.z*0.50f));
-                    float collarTipX=craniumR.x*0.55f,collarTipY=craniumR.y*0.60f;
-                    sdf->mouths[m].neckCollarTipRadii=Vec3_Create(collarTipX,collarTipY,Math_Min(collarTipX,collarTipY));
+                    if (recipe->equineSculptWeight > .5f) {
+                        sdf->mouths[m].neckCollarTipLocal=Vec3_Add(
+                            sdf->mouths[m].neckCollarRootLocal,
+                            Vec3_Create(0,-hostRadii.y*0.16f,-hostRadii.z*0.14f));
+                        float collarTipX=craniumR.x*0.35f,collarTipY=craniumR.y*0.44f;
+                        sdf->mouths[m].neckCollarTipRadii=Vec3_Create(collarTipX,collarTipY,Math_Min(collarTipX,collarTipY));
+                    } else {
+                        sdf->mouths[m].neckCollarTipLocal=Vec3_Add(
+                            sdf->mouths[m].neckCollarRootLocal,
+                            Vec3_Create(0,-hostRadii.y*0.25f,-hostRadii.z*0.50f));
+                        float collarTipX=craniumR.x*0.55f,collarTipY=craniumR.y*0.60f;
+                        sdf->mouths[m].neckCollarTipRadii=Vec3_Create(collarTipX,collarTipY,Math_Min(collarTipX,collarTipY));
+                    }
                 }
 
-                /* 3. Estación intermedia (cuello medio) con interpolación lineal limpia y cintura lateral */
+                /* 3. Estación intermedia (cuello medio): suave y sin cintura en équidos */
                 Vector3 collarMidLocal=Vec3_Lerp(sdf->mouths[m].neckCollarRootLocal,sdf->mouths[m].neckCollarTipLocal,0.45f);
                 sdf->mouths[m].neckCollarMidLocal=collarMidLocal;
-                float collarMidX=Math_Min(sdf->mouths[m].neckCollarRootRadii.x,sdf->mouths[m].neckCollarTipRadii.x)*0.85f;
-                float collarMidY=Math_Lerp(sdf->mouths[m].neckCollarRootRadii.y,sdf->mouths[m].neckCollarTipRadii.y,0.45f)*0.95f;
+                float collarMidX,collarMidY;
+                if (recipe->equineSculptWeight > .5f) {
+                    collarMidX=Math_Lerp(sdf->mouths[m].neckCollarRootRadii.x,sdf->mouths[m].neckCollarTipRadii.x,0.45f);
+                    collarMidY=Math_Lerp(sdf->mouths[m].neckCollarRootRadii.y,sdf->mouths[m].neckCollarTipRadii.y,0.45f)*1.03f;
+                } else {
+                    collarMidX=Math_Min(sdf->mouths[m].neckCollarRootRadii.x,sdf->mouths[m].neckCollarTipRadii.x)*0.85f;
+                    collarMidY=Math_Lerp(sdf->mouths[m].neckCollarRootRadii.y,sdf->mouths[m].neckCollarTipRadii.y,0.45f)*0.95f;
+                }
                 sdf->mouths[m].neckCollarMidRadii=Vec3_Create(collarMidX,collarMidY,Math_Min(collarMidX,collarMidY));
                 sdf->mouths[m].hasNasalPad=recipe->hasNasalPad;
                 sdf->mouths[m].hasEars=recipe->hasEars;
@@ -1702,10 +1717,11 @@ static float MonsterSDF_EvalEquineSculpt(const MonsterSDFMouth* mouth, Vector3 l
     float bh = Math_Max(1.0f - dvh * dvh, 0.0f);
     float hollow = mouth->equineCrestEndLocal.x * (bh * bh) * wCheek;
 
-    float dvSq = (v + .18f) / .78f;
+    float dvSq = (v + .25f) / .62f;
     float bSq = Math_Max(1.0f - dvSq * dvSq, 0.0f);
-    float wSquareZone = Math_Max(wCrest, wBridge * .85f);
-    float boxSquare = .105f * (bSq * bSq) * wSquareZone;
+    float sqPlateau = bSq * (1.20f - .20f * bSq);
+    float wSquareZone = Math_Max(wCrest, wBridge * .92f);
+    float boxSquare = .085f * sqPlateau * wSquareZone;
 
     float uBot = Math_Clamp01((.02f - v) / 1.02f);
     float orbitCheek = mouth->equineNasalRoof.y * uBot * sqrtf(uBot) * wOrbitCheek;

@@ -180,7 +180,7 @@
             "longitudinalOffset": 0.03,
             "verticalOffset": 0.48,
             "widthScale": 0.68,
-            "heightScale": 0.7
+            "heightScale": 0.78
           },
           {
             "longitudinalOffset": 0.0,
@@ -1416,7 +1416,7 @@
             "longitudinalOffset": 0.035,
             "verticalOffset": 0.51,
             "widthScale": 0.67,
-            "heightScale": 0.69
+            "heightScale": 0.80
           },
           {
             "longitudinalOffset": 0.0,
@@ -2652,7 +2652,7 @@
             "longitudinalOffset": 0.04,
             "verticalOffset": 0.54,
             "widthScale": 0.66,
-            "heightScale": 0.68
+            "heightScale": 0.82
           },
           {
             "longitudinalOffset": 0.0,
@@ -3888,7 +3888,7 @@
             "longitudinalOffset": 0.04,
             "verticalOffset": 0.56,
             "widthScale": 0.65,
-            "heightScale": 0.67
+            "heightScale": 0.84
           },
           {
             "longitudinalOffset": 0.0,
