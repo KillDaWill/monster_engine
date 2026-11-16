@@ -1475,6 +1475,22 @@ static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP
          * y no depende del tamaño de vóxel ni de la forma del cráneo superior. */
         float lip=mouth->entranceCenterLocal.y-mouth->entranceHalfExtents.y;
         float envelope=SDF_EllipticalSweepZ(localP,mouth->jawStations,6);
+        if(mouth->equineSculptWeight>.0001f) {
+            float zBack=mouth->hingeCenterLocal.z;
+            float zFront=mouth->faceTipLocal.z;
+            float uJ=Math_Clamp01((localP.z-zBack)/Math_Max(zFront-zBack,.02f));
+            float yRef=Math_Lerp(mouth->hingeCenterLocal.y-.32f*mouth->jawRadii.y,mouth->entranceCenterLocal.y-.16f*mouth->jawRadii.y,uJ);
+            float hRef=Math_Max(mouth->jawRadii.y*Math_Lerp(1.15f,.62f,uJ),.04f);
+            float vJ=Math_Clamp((localP.y-yRef)/hRef,-1.2f,1.2f);
+            float lowZone=Math_Clamp01((-.35f-vJ)/.42f);
+            float zBody=Math_Clamp01((uJ-.08f)/.14f)*Math_Clamp01((.72f-uJ)/.20f);
+            float wLow=lowZone*lowZone*(3.0f-2.0f*lowZone)*zBody;
+            float eqW=Math_Clamp01(mouth->equineSculptWeight);
+            float sJaw=1.00f+.14f*wLow;
+            Vector3 qJ=Vec3_Create(localP.x/sJaw,localP.y,localP.z);
+            float sqEnv=SDF_EllipticalSweepZ(qJ,mouth->jawStations,6)*.86f;
+            envelope=Math_Lerp(envelope,sqEnv,eqW);
+        }
         float cornerZ=mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z;
         float posteriorBlend=Math_Max(0.0f,cornerZ-localP.z);
         float oralPlane=localP.y-mouth->oralSlope*(localP.z-mouth->entranceCenterLocal.z)-lip-posteriorBlend*1.5f;
@@ -1717,11 +1733,10 @@ static float MonsterSDF_EvalEquineSculpt(const MonsterSDFMouth* mouth, Vector3 l
     float bh = Math_Max(1.0f - dvh * dvh, 0.0f);
     float hollow = mouth->equineCrestEndLocal.x * (bh * bh) * wCheek;
 
-    float dvSq = (v + .25f) / .62f;
+    float dvSq = (v + .20f) / .68f;
     float bSq = Math_Max(1.0f - dvSq * dvSq, 0.0f);
-    float sqPlateau = bSq * (1.20f - .20f * bSq);
-    float wSquareZone = Math_Max(wCrest, wBridge * .92f);
-    float boxSquare = .085f * sqPlateau * wSquareZone;
+    float wSquareZone = Math_Max(wCrest, wBridge * .85f);
+    float boxSquare = .070f * (bSq * bSq) * wSquareZone;
 
     float uBot = Math_Clamp01((.02f - v) / 1.02f);
     float orbitCheek = mouth->equineNasalRoof.y * uBot * sqrtf(uBot) * wOrbitCheek;

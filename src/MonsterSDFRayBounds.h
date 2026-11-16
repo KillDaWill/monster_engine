@@ -59,6 +59,16 @@ static AABB3D RayBounds_PosedJaw(const MonsterSDFMouth* m,float tolerance) {
         AABB_ExpandPoint(&jaw,Vec3_Create(fminf(a->center.x,b->center.x)-wx,lip+(y0-hy-lip)*depth,b->center.z-cap));
         AABB_ExpandPoint(&jaw,Vec3_Create(fmaxf(a->center.x,b->center.x)+wx,lip+(y1+hy-lip)*depth,a->center.z+cap));
     }
+    if(m->independentMandible) {
+        float eqJawPad=m->equineSculptWeight>0.0f?1.32f:1.0f;
+        for(int i=0;i<6;++i) {
+            const SDFSweepStation* s=&m->jawStations[i];
+            float wx=fmaxf(s->width,.0001f)*eqJawPad+sweepLevel;
+            float hy=fmaxf(s->height,.0001f)+sweepLevel;
+            float cap=fmaxf(wx,hy);
+            AABB_ExpandRadius(&jaw,s->center,Vec3_Create(wx,hy,cap));
+        }
+    }
     jaw.end.y=fminf(jaw.end.y,lip+jawLevel);
     jaw.start.z=fmaxf(jaw.start.z,m->hingeCenterLocal.z-jawLevel);
     if(m->taperedMandible) {
