@@ -1083,7 +1083,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 const HeadSurfaceRecipe* headBoundsProfile=monster->hasHead?&monster->head.anatomy.surface:NULL;
                 Vector3 headOriginLocal=headBoundsProfile?Vec3_Sub(sdf->mouths[m].craniumCenterLocal,headBoundsProfile->craniumCenter):Vec3_Zero();
                 if(headBoundsProfile&&headBoundsProfile->hasCranialProfile) {
-                    float scaleBoundX=sdf->mouths[m].equineSculptWeight>0.0f?1.26f:1.0f;
+                    float scaleBoundX=sdf->mouths[m].equineSculptWeight>0.0f?1.30f:1.0f;
                     for(int j=0;j<6;++j) {
                         float rx=headBoundsProfile->cranialRadii[j].x*scaleBoundX,ry=headBoundsProfile->cranialRadii[j].y;
                         float rz=(j==0||j==5)?Math_Min(rx,ry):.02f;
@@ -1114,7 +1114,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 EXPAND_HEAD(sdf->mouths[m].faceMidLocal,sdf->mouths[m].faceMidRadii);
                 EXPAND_HEAD(sdf->mouths[m].faceTipLocal,sdf->mouths[m].faceTipRadii);
                 if(headBoundsProfile&&headBoundsProfile->hasCranialProfile) {
-                    float scaleBoundX=sdf->mouths[m].equineSculptWeight>0.0f?1.26f:1.0f;
+                    float scaleBoundX=sdf->mouths[m].equineSculptWeight>0.0f?1.30f:1.0f;
                     for(int j=0;j<6;++j) {
                         float rx=headBoundsProfile->cranialRadii[j].x*scaleBoundX,ry=headBoundsProfile->cranialRadii[j].y;
                         float rz=(j==0||j==5)?Math_Min(rx,ry):.02f;
@@ -1702,17 +1702,22 @@ static float MonsterSDF_EvalEquineSculpt(const MonsterSDFMouth* mouth, Vector3 l
     float bh = Math_Max(1.0f - dvh * dvh, 0.0f);
     float hollow = mouth->equineCrestEndLocal.x * (bh * bh) * wCheek;
 
+    float dvSq = (v + .18f) / .78f;
+    float bSq = Math_Max(1.0f - dvSq * dvSq, 0.0f);
+    float wSquareZone = Math_Max(wCrest, wBridge * .85f);
+    float boxSquare = .105f * (bSq * bSq) * wSquareZone;
+
     float uBot = Math_Clamp01((.02f - v) / 1.02f);
     float orbitCheek = mouth->equineNasalRoof.y * uBot * sqrtf(uBot) * wOrbitCheek;
 
-    float s = Math_Clamp(1.0f - bevel + crest - hollow - orbitCheek, .72f, 1.09f);
+    float s = Math_Clamp(1.0f - bevel + boxSquare + crest - hollow - orbitCheek, .70f, 1.22f);
     Vector3 q = Vec3_Create(localP.x / s, localP.y, localP.z);
     float dWarped = SDF_EllipticalSweepZ(q, mouth->headStations, 6);
     if (mouth->faceCapWeight > 0.0f) {
         dWarped = Math_Lerp(dWarped, Math_Max(dWarped, localP.z - mouth->faceTipLocal.z - mouth->faceCapDepth), mouth->faceCapWeight);
     }
     float anyActive = Math_Clamp01(wBridge + wCrest + wCheek + wOrbitCheek);
-    float dScaled = dWarped * Math_Lerp(1.0f, .68f, anyActive);
+    float dScaled = dWarped * Math_Lerp(1.0f, .62f, anyActive);
     return Math_Lerp(baseDist, dScaled, Math_Clamp01(mouth->equineSculptWeight));
 }
 
@@ -2619,8 +2624,8 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
     if(m->equineSculptWeight>.0001f) {
         double w=MonsterSDF_ClampDouble(m->equineSculptWeight,0,1);
         float xLo=center.x-half.x,xHi=center.x+half.x;
-        float qxLo=xLo>=0.0f?xLo/1.09f:xLo/.72f;
-        float qxHi=xHi>=0.0f?xHi/.72f:xHi/1.09f;
+        float qxLo=xLo>=0.0f?xLo/1.22f:xLo/.70f;
+        float qxHi=xHi>=0.0f?xHi/.70f:xHi/1.22f;
         AABB3D qBox={Vec3_Create(qxLo,center.y-half.y,center.z-half.z),Vec3_Create(qxHi,center.y+half.y,center.z+half.z)};
         MonsterSDFRange s=m->sweptSkull?MonsterSDF_StationsRange(m->headStations,6,qBox):d;
         if(m->faceCapWeight>0) {
@@ -2628,8 +2633,8 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
             s.lo+=(Range_Max(s.lo,cap-half.z)-s.lo)*m->faceCapWeight;
             s.hi+=(Range_Max(s.hi,cap+half.z)-s.hi)*m->faceCapWeight;
         }
-        double sLo=s.lo<0.0?s.lo:s.lo*.68;
-        double sHi=s.hi>=0.0?s.hi:s.hi*.68;
+        double sLo=s.lo<0.0?s.lo:s.lo*.62;
+        double sHi=s.hi>=0.0?s.hi:s.hi*.62;
         d.lo=d.lo+(sLo-d.lo)*w;
         d.hi=d.hi+(sHi-d.hi)*w;
     }

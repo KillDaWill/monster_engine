@@ -340,6 +340,25 @@ static void EquineMaxillarySculptAndSections(void) {
                 Vector3 nrm=Vec3_Normalize(Vec3_Create(gx,gy,gz));
                 TEST_ASSERT(nrm.y>0.25f&&nrm.x>0.45f,"Plano infraorbital inclinado hacia fuera y arriba");
             }
+            /* Verifica que ambas orejas nazcan ancladas dentro del cráneo (no flotando)
+             * y tengan grosor suficiente para sobrevivir a la voxelización de morph. */
+            TEST_ASSERT(mt->earShape.z>=mt->earShape.x*0.55f,"Espesor mínimo robusto del pabellón auricular equino");
+            bool prevHasEars=sdf.mouths[0].hasEars;
+            sdf.mouths[0].hasEars=false;
+            MonsterSDFHeadField hfcNoEars;
+            SDFField headNoEars=MonsterSDF_GetHeadField(&sdf,0,&hfcNoEars);
+            const RotationBasis3D* inv=&mt->inverseRotation;
+            Vector3 earRootsLocal[2]={m->head.anatomy.landmarks.leftEarBase,m->head.anatomy.landmarks.rightEarBase};
+            for(int ei=0;ei<2;++ei) {
+                Vector3 v=earRootsLocal[ei];
+                Vector3 earWorld=Vec3_Add(mt->center,Vec3_Create(
+                    inv->row0.x*v.x+inv->row1.x*v.y+inv->row2.x*v.z,
+                    inv->row0.y*v.x+inv->row1.y*v.y+inv->row2.y*v.z,
+                    inv->row0.z*v.x+inv->row1.z*v.y+inv->row2.z*v.z));
+                float dSkull=headNoEars.evaluateDistance(headNoEars.context,earWorld);
+                TEST_ASSERT(dSkull<-0.02f,"Raíz auricular equina enterrada en el cráneo en todas las etapas");
+            }
+            sdf.mouths[0].hasEars=prevHasEars;
             MonsterSDF_Free(&sdf);
             Monster_Free(m);
             free(m);

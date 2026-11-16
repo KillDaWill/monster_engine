@@ -135,8 +135,8 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     E(leftOrbitRimCenterLocal,orbitRimRadii);E(rightOrbitRimCenterLocal,orbitRimRadii);
     if(m.equineSculptWeight>0.0f){
         for(int j=0;j<6;++j){
-            Vector3 cb=Vec3_Create(m.headStations[j].width*1.26f+level,m.headStations[j].height+level,
-                fmaxf(m.headStations[j].width*1.26f,m.headStations[j].height)+level);
+            Vector3 cb=Vec3_Create(m.headStations[j].width*1.30f+level,m.headStations[j].height+level,
+                fmaxf(m.headStations[j].width*1.30f,m.headStations[j].height)+level);
             AABB_ExpandRadius(&head,m.headStations[j].center,cb);
         }
     }
