@@ -240,19 +240,19 @@
         "jawDepth": 0.72,
         "jawStrength": 0.74,
         "noseScale": 0.76,
-        "earSize": 0.42,
-        "earBaseWidth": 0.64,
-        "earWidthRatio": 0.86,
-        "earHeightRatio": 0.96,
+        "earSize": 0.34,
+        "earBaseWidth": 0.7,
+        "earWidthRatio": 0.96,
+        "earHeightRatio": 0.74,
         "earThickness": 0.24,
         "earConcavity": 0.62,
-        "earOutward": 0.16,
-        "earForward": 0.18,
-        "earLongitudinalCurve": 0.58,
+        "earOutward": 0.22,
+        "earForward": 0.22,
+        "earLongitudinalCurve": 0.42,
         "earRootRoll": 0.52,
-        "earTipRoundness": 0.48,
+        "earTipRoundness": 0.28,
         "earFold": 0.5,
-        "earPointiness": 0.66,
+        "earPointiness": 0.76,
         "cheekMass": 0.74,
         "maxillaryWidth": 0.68,
         "mouthWidth": 0.62,
@@ -625,13 +625,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.46,
-                  "z": 1.52
+                  "y": -1.36,
+                  "z": 1.42
                 },
                 "radii": {
                   "x": 0.72,
-                  "y": 0.76,
-                  "z": 0.78
+                  "y": 0.78,
+                  "z": 0.8
                 },
                 "softness": 0.54,
                 "irregularity": 0.300000012,
@@ -662,13 +662,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.78,
-                  "z": 1.62
+                  "y": -1.66,
+                  "z": 1.52
                 },
                 "radii": {
                   "x": 0.62,
                   "y": 0.36,
-                  "z": 0.54
+                  "z": 0.56
                 },
                 "softness": 0.48,
                 "irregularity": 0.300000012,
@@ -1476,19 +1476,19 @@
         "jawDepth": 0.72,
         "jawStrength": 0.74,
         "noseScale": 0.78,
-        "earSize": 0.4,
-        "earBaseWidth": 0.64,
-        "earWidthRatio": 0.86,
-        "earHeightRatio": 0.96,
+        "earSize": 0.32,
+        "earBaseWidth": 0.7,
+        "earWidthRatio": 0.96,
+        "earHeightRatio": 0.74,
         "earThickness": 0.24,
         "earConcavity": 0.62,
-        "earOutward": 0.16,
-        "earForward": 0.18,
-        "earLongitudinalCurve": 0.58,
+        "earOutward": 0.22,
+        "earForward": 0.22,
+        "earLongitudinalCurve": 0.42,
         "earRootRoll": 0.52,
-        "earTipRoundness": 0.48,
+        "earTipRoundness": 0.28,
         "earFold": 0.5,
-        "earPointiness": 0.66,
+        "earPointiness": 0.76,
         "cheekMass": 0.74,
         "maxillaryWidth": 0.68,
         "mouthWidth": 0.62,
@@ -1861,13 +1861,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.46,
-                  "z": 1.52
+                  "y": -1.36,
+                  "z": 1.42
                 },
                 "radii": {
                   "x": 0.72,
-                  "y": 0.76,
-                  "z": 0.78
+                  "y": 0.78,
+                  "z": 0.8
                 },
                 "softness": 0.54,
                 "irregularity": 0.300000012,
@@ -1898,13 +1898,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.78,
-                  "z": 1.62
+                  "y": -1.66,
+                  "z": 1.52
                 },
                 "radii": {
                   "x": 0.62,
                   "y": 0.36,
-                  "z": 0.54
+                  "z": 0.56
                 },
                 "softness": 0.48,
                 "irregularity": 0.300000012,
@@ -2712,19 +2712,19 @@
         "jawDepth": 0.72,
         "jawStrength": 0.74,
         "noseScale": 0.79,
-        "earSize": 0.39,
-        "earBaseWidth": 0.64,
-        "earWidthRatio": 0.86,
-        "earHeightRatio": 0.96,
+        "earSize": 0.31,
+        "earBaseWidth": 0.7,
+        "earWidthRatio": 0.96,
+        "earHeightRatio": 0.74,
         "earThickness": 0.24,
         "earConcavity": 0.62,
-        "earOutward": 0.16,
-        "earForward": 0.18,
-        "earLongitudinalCurve": 0.58,
+        "earOutward": 0.22,
+        "earForward": 0.22,
+        "earLongitudinalCurve": 0.42,
         "earRootRoll": 0.52,
-        "earTipRoundness": 0.48,
+        "earTipRoundness": 0.28,
         "earFold": 0.5,
-        "earPointiness": 0.66,
+        "earPointiness": 0.76,
         "cheekMass": 0.74,
         "maxillaryWidth": 0.68,
         "mouthWidth": 0.62,
@@ -3097,13 +3097,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.46,
-                  "z": 1.52
+                  "y": -1.36,
+                  "z": 1.42
                 },
                 "radii": {
                   "x": 0.72,
-                  "y": 0.76,
-                  "z": 0.78
+                  "y": 0.78,
+                  "z": 0.8
                 },
                 "softness": 0.54,
                 "irregularity": 0.300000012,
@@ -3134,13 +3134,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.78,
-                  "z": 1.62
+                  "y": -1.66,
+                  "z": 1.52
                 },
                 "radii": {
                   "x": 0.62,
                   "y": 0.36,
-                  "z": 0.54
+                  "z": 0.56
                 },
                 "softness": 0.48,
                 "irregularity": 0.300000012,
@@ -3948,19 +3948,19 @@
         "jawDepth": 0.72,
         "jawStrength": 0.74,
         "noseScale": 0.8,
-        "earSize": 0.38,
-        "earBaseWidth": 0.64,
-        "earWidthRatio": 0.86,
-        "earHeightRatio": 0.96,
+        "earSize": 0.3,
+        "earBaseWidth": 0.7,
+        "earWidthRatio": 0.96,
+        "earHeightRatio": 0.74,
         "earThickness": 0.24,
         "earConcavity": 0.62,
-        "earOutward": 0.16,
-        "earForward": 0.18,
-        "earLongitudinalCurve": 0.58,
+        "earOutward": 0.22,
+        "earForward": 0.22,
+        "earLongitudinalCurve": 0.42,
         "earRootRoll": 0.52,
-        "earTipRoundness": 0.48,
+        "earTipRoundness": 0.28,
         "earFold": 0.5,
-        "earPointiness": 0.66,
+        "earPointiness": 0.76,
         "cheekMass": 0.74,
         "maxillaryWidth": 0.68,
         "mouthWidth": 0.62,
@@ -4333,13 +4333,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.46,
-                  "z": 1.52
+                  "y": -1.36,
+                  "z": 1.42
                 },
                 "radii": {
                   "x": 0.72,
-                  "y": 0.76,
-                  "z": 0.78
+                  "y": 0.78,
+                  "z": 0.8
                 },
                 "softness": 0.54,
                 "irregularity": 0.300000012,
@@ -4370,13 +4370,13 @@
                 "anchorNode": 131073,
                 "center": {
                   "x": 0.0,
-                  "y": -1.78,
-                  "z": 1.62
+                  "y": -1.66,
+                  "z": 1.52
                 },
                 "radii": {
                   "x": 0.62,
                   "y": 0.36,
-                  "z": 0.54
+                  "z": 0.56
                 },
                 "softness": 0.48,
                 "irregularity": 0.300000012,

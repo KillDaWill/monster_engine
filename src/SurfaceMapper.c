@@ -191,12 +191,12 @@ static SurfaceCoordinate Map(Vector3 p,Vector3 n,SDFMaterial material,
         Vector3 up=Vec3_Create(0,1,0);
         up=Vec3_Normalize(Vec3_Sub(up,Vec3_Scale(forward,Vec3_Dot(up,forward))));
         Vector3 local=Vec3_Sub(p,seg->a);
-        float face=fmaxf(0,fminf(1,.5f+Vec3_Dot(local,forward)/fmaxf(seg->ra,.01f)));
-        face=face*face*(3-2*face);
-        /* Flujo facial continuo hacia nuca y carrillo sin cruzar por cero bajo el ojo. */
-        Vector3 groom=Vec3_Add(Vec3_Scale(forward,-.88f+.52f*face),
-            Vec3_Scale(up,-.36f*(1-fabsf(Vec3_Dot(n,up)))));
-        float ear=fmaxf(0,fminf(1,(Vec3_Dot(local,up)/fmaxf(seg->ra,.01f)-.65f)*2));
+        /* Flujo facial continuo hacia nuca y carrillo: eje craneal rostral-caudal sin cruzar -n en el puente ni +n en la corona. */
+        Vector3 side=Vec3_Cross(forward,up);
+        float lat=fabsf(Vec3_Dot(n,side));
+        Vector3 groom=Vec3_Add(Vec3_Scale(forward,-.80f),
+            Vec3_Scale(up,.48f-.78f*lat*(1-fabsf(Vec3_Dot(n,up)))));
+        float ear=fmaxf(0,fminf(1,(Vec3_Dot(local,up)/fmaxf(seg->ra,.01f)-.65f)*2))*lat;
         groom=Vec3_Lerp(groom,up,ear*ear*(3-2*ear));
         flow=Vec3_Lerp(flow,groom,headWeight);
         break;
