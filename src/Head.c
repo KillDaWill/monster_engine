@@ -315,7 +315,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if (p.archetype == HEAD_ARCHETYPE_CANID) sideFactor *= .88f;
     if (feline) sideFactor *= .96f;
     if(bovid)sideFactor=.70f+.08f*p.eyeLaterality;
-    if(equine)sideFactor=.478f+.040f*p.eyeLaterality;
+    if(equine)sideFactor=.505f+.040f*p.eyeLaterality;
     float side=skullR.x*sideFactor;
     float eyeZ=skull.z+skullR.z*(p.archetype==HEAD_ARCHETYPE_LIZARD?
         (-.12f+.24f*(p.eyeForwardness + (p.eyeLayout == HEAD_EYES_FORWARD ? .28f : 0.0f))):
@@ -324,11 +324,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(equine){eyeZ=skull.z+skullR.z*(.22f+.14f*p.eyeForwardness);eyeY=skull.y+skullR.y*(.09f+.10f*p.eyeDorsality);}
     if (p.eyeLayout == HEAD_EYES_HIGH_LATERAL) eyeY += skullR.y*.16f;
     else if (p.eyeLayout == HEAD_EYES_LOW_LATERAL) eyeY -= skullR.y*.14f;
-    if (p.cranialForm == HEAD_CRANIAL_SHIELD) eyeY -= skullR.y*.06f;
+    if (!equine && p.cranialForm == HEAD_CRANIAL_SHIELD) eyeY -= skullR.y*.06f;
     float eyeForward = p.eyeForwardness + (p.eyeLayout == HEAD_EYES_FORWARD ? .28f : 0.0f);
     Vector3 ln=Vec3_Normalize(Vec3_Create(1,.08f+.08f*p.eyeDorsality,.10f+(p.archetype==HEAD_ARCHETYPE_CANID?1.35f:.22f)*eyeForward)),rn=ln;rn.x*=-1;
     if(equine){ln=Vec3_Normalize(Vec3_Create(.76f,.06f+.05f*p.eyeDorsality,.64f+.12f*eyeForward));rn=ln;rn.x*=-1;}
-    if (p.cranialForm == HEAD_CRANIAL_SHIELD) {
+    if (!equine && p.cranialForm == HEAD_CRANIAL_SHIELD) {
         ln = Vec3_Normalize(Vec3_Create(.82f, .45f, .35f)); rn = ln; rn.x *= -1;
     }
     float cornerX=rootWidth*(p.archetype==HEAD_ARCHETYPE_CANID?(.50f+.34f*p.mouthWidth):.88f);
@@ -345,8 +345,8 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     }
     float jawSkullX=shapeSkullX;
     float jawSkullZ=shapeSkullZ;
-    float hingeX=jawSkullX*(equine?(.55f+.07f*p.jawStrength):(.72f+.08f*p.jawStrength));
-    if (p.muzzleForm == HEAD_MUZZLE_WEDGE) hingeX *= .88f;
+    float hingeX=jawSkullX*(equine?(.54f+.06f*p.jawStrength):(.72f+.08f*p.jawStrength));
+    if (!equine && p.muzzleForm == HEAD_MUZZLE_WEDGE) hingeX *= .88f;
     float jawEyeZ=skull.z+jawSkullZ*(.10f+.16f*p.eyeForwardness);
     float hingeZ=jawEyeZ-jawSkullZ*(.30f+.12f*p.jawLength),hingeY=Math_Min(-skullR.y*(.30f+.18f*p.jawDepth),-faceDepth*.50f);
     if(equine)hingeY=Math_Min(-skullR.y*(.20f+.08f*p.jawDepth),-faceDepth*.29f);
@@ -383,7 +383,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     float earLateral=bovid?.90f:feline?.50f+.06f*p.earBaseWidth:p.archetype==HEAD_ARCHETYPE_CANID?.60f+.08f*p.earBaseWidth:.58f;
     float earDorsal=bovid?.15f:feline?.56f:.40f;
     float earRear=bovid?.35f:feline?.22f:p.archetype==HEAD_ARCHETYPE_CANID?.20f:.18f;
-    if(equine){earLateral=.28f;earDorsal=.27f;earRear=.18f;}
+    if(equine){earLateral=.24f;earDorsal=.23f;earRear=.18f;}
     l->leftEarBase=Vec3_Create(skullR.x*earLateral,skullR.y*earDorsal,skull.z-skullR.z*earRear);l->rightEarBase=l->leftEarBase;l->rightEarBase.x*=-1;l->upperBeakAnchor=root;l->lowerBeakAnchor=Vec3_Create(0,-faceDepth*.42f,root.z+faceLength*.12f);
     HeadSurfaceRecipe* r=&a->surface;r->oralSlope=oralSlope;r->nostrilCurve=bovid?.85f:0;r->craniumCenter=skull;r->craniumRadii=skullR;
     r->faceRoot=root;r->faceMid=mid;r->faceTip=tip;
@@ -514,11 +514,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         float eqZ3=eyeZ+skullR.z*.04f;
         float eqTop3=skull.y+Math_Max(skullR.y*.52f,faceDepth*.34f);
         float eqBot3=l->leftMouthCorner.y+oralSlope*(eqZ3-cornerZ)-faceDepth*.32f;
-        float eqW3=skullR.x*(.645f+.035f*p.zygomaticWidth);
-        Vector3 eqPos2=Vec3_Lerp(root,tip,.36f);
-        float eqW2=Math_Clamp(rootWidth*(.72f+.06f*p.maxillaryWidth),tipWidth*.96f,eqW3*.78f);
-        Vector3 eqPos1=Vec3_Lerp(root,tip,.66f);
-        float eqW1=Math_Clamp(midWidth*(1.10f+.04f*(1-p.muzzleTaper)),tipWidth*.94f,eqW2*.88f);
+        float eqW3=skullR.x*(.545f+.035f*p.zygomaticWidth);
+        Vector3 eqPos2=Vec3_Lerp(root,tip,.38f);
+        float eqW2=Math_Clamp(rootWidth*(.84f+.06f*p.maxillaryWidth),tipWidth*1.04f,eqW3*.88f);
+        Vector3 eqPos1=Vec3_Lerp(root,tip,.68f);
+        float eqW1=Math_Clamp(midWidth*(1.16f+.04f*(1-p.muzzleTaper)),tipWidth*.96f,eqW2*.90f);
         float eqEndTop=Math_Clamp(tip.y-faceDepth*.005f,eqLipTipY+faceDepth*.275f,eqLipTipY+faceDepth*.335f);
         float eqBot0=eqLipTipY-faceDepth*.045f;
         float eqTipY=Math_Max((eqEndTop-eqBot0)*.5f,faceDepth*.160f);
@@ -536,35 +536,35 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->faceCapDepth=eqTipCap*.42f;
         r->nostrilCurve=.84f;
         r->cranialPostorbitalRadii.x=eqW3;
-        r->cranialTemporalRadii.x=skullR.x*(.58f+.03f*p.cheekMass);
-        r->cranialOccipitalRadii.x=skullR.x*.43f;
+        r->cranialTemporalRadii.x=skullR.x*(.560f+.025f*p.cheekMass);
+        r->cranialOccipitalRadii.x=skullR.x*.485f;
         /* Fosa temporal contenida y masetero caudal amplio y muscular sin bolas sueltas. */
         r->leftTemporalCenter=Vec3_Create(skullR.x*.18f,skullR.y*.06f,skull.z-skullR.z*.12f);
         r->rightTemporalCenter=r->leftTemporalCenter;r->rightTemporalCenter.x*=-1;
         r->temporalRadii=Vec3_Create(skullR.x*.16f,skullR.y*.20f,skullR.z*.26f);
-        r->leftCheekCenter=Vec3_Create(skullR.x*(.22f+.04f*p.cheekMass),eyeY-skullR.y*.45f,eyeZ-skullR.z*.12f);
+        r->leftCheekCenter=Vec3_Create(skullR.x*(.28f+.03f*p.cheekMass),eyeY-skullR.y*.42f,eyeZ-skullR.z*.28f);
         r->rightCheekCenter=r->leftCheekCenter;r->rightCheekCenter.x*=-1;
-        r->cheekRadii=Vec3_Create(skullR.x*(.18f+.03f*p.cheekMass),skullR.y*(.36f+.06f*p.masseterMass),skullR.z*.38f);
+        r->cheekRadii=Vec3_Create(skullR.x*(.22f+.03f*p.cheekMass),skullR.y*(.36f+.05f*p.masseterMass),skullR.z*.46f);
         float eqLip2Y=l->leftMouthCorner.y+oralSlope*(eqPos2.z-cornerZ);
-        r->leftMaxillaryCenter=Vec3_Create(eqW2*.36f,eqLip2Y+faceDepth*.16f,eqPos2.z);
+        r->leftMaxillaryCenter=Vec3_Create(eqW2*.24f,eqLip2Y+faceDepth*.18f,eqPos2.z);
         r->rightMaxillaryCenter=r->leftMaxillaryCenter;r->rightMaxillaryCenter.x*=-1;
-        r->maxillaryRadii=Vec3_Create(eqW2*.16f,faceDepth*(.13f+.02f*p.rostrumDepth),faceLength*.20f);
-        /* Parámetros paramétricos de sección transversal equina (bisel dorsal nasal fino,
-         * cresta facial definida y plano subcrestal limpio sobre el maxilar). */
+        r->maxillaryRadii=Vec3_Create(eqW2*.12f,faceDepth*(.11f+.02f*p.rostrumDepth),faceLength*.22f);
+        /* Parámetros paramétricos de sección transversal equina (bisel dorsal nasal suave,
+         * transición cigomática-maxilar continua sin depresiones laterales ni escalón bajo el ojo). */
         float bridgeEndZ=Math_Lerp(root.z,tip.z,.82f);
-        float crestStartZ=eqZ3;
+        float crestStartZ=eqZ3-skullR.z*.45f;
         float crestTuberosityZ=Math_Lerp(root.z,tip.z,.72f);
-        float bevelAmp=.26f+.03f*(1-p.muzzleTaper);
-        float cheekTuckAmp=.012f+.010f*(1-p.cheekMass*.3f);
-        float crestAmp=.070f+.024f*p.maxillaryWidth+.016f*p.zygomaticWidth;
-        float hollowAmp=.006f+.004f*p.maxillaryWidth;
+        float bevelAmp=.108f+.012f*(1-p.muzzleTaper);
+        float cheekTuckAmp=0.0f;
+        float crestAmp=.022f+.006f*p.maxillaryWidth+.006f*p.zygomaticWidth;
+        float hollowAmp=.002f;
         r->equineSculptWeight=1.0f;
         r->equineNasalRoot=Vec3_Create(0,eqTop3,eqZ3);
         r->equineNasalTip=Vec3_Create(0,eqEndTop,eqZ0);
         r->equineNasalRoof=Vec3_Create(bevelAmp,cheekTuckAmp,bridgeEndZ);
         r->equineCrestStart=Vec3_Create(crestAmp,eqBot3,crestStartZ);
         r->equineCrestEnd=Vec3_Create(hollowAmp,eqBot0,crestTuberosityZ);
-        r->equineCrestRadii=Vec3_Create(.10f,.46f,.52f);
+        r->equineCrestRadii=Vec3_Create(.11f,.80f,.72f);
         /* Ollares en coma oblicua abiertos limpiamente sobre el ala nasal (sin techo cutáneo encima). */
         r->nostrilRadii=Vec3_Create(tipWidth*(.20f+.03f*p.noseScale),eqH1*(.24f+.03f*p.noseScale),Math_Max(tipWidth*(.20f+.03f*p.noseScale),faceLength*.055f));
         float nosFrac=Math_Clamp(.58f+.10f*(p.nostrilPosition-.5f),.38f,.74f);
@@ -627,8 +627,8 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
 
     bool canid=mammal;
     r->neckCollarPenetration=equine?.40f:(canid?.35f:.25f);
-    r->neckCollarRoot=Vec3_Add(r->craniumCenter,Vec3_Create(0,-skullR.y*(equine?.05f:(canid?.10f:.08f)),-skullR.z*(equine?.28f:(canid?.28f:.35f))));
-    float collarX=skullR.x*(equine?.42f:(canid?.72f:.70f)),collarY=skullR.y*(equine?.58f:(canid?.76f:.74f));
+    r->neckCollarRoot=Vec3_Add(r->craniumCenter,Vec3_Create(0,-skullR.y*(equine?.06f:(canid?.10f:.08f)),-skullR.z*(equine?.32f:(canid?.28f:.35f))));
+    float collarX=skullR.x*(equine?.48f:(canid?.72f:.70f)),collarY=skullR.y*(equine?.62f:(canid?.76f:.74f));
     r->neckCollarRadii=Vec3_Create(collarX,collarY,Math_Min(collarX,collarY));
     r->cranialPostorbitalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,0,skullR.z*.05f));
     r->cranialTemporalCenter=Vec3_Add(r->craniumCenter,Vec3_Create(0,0,-skullR.z*.45f));
@@ -641,11 +641,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         float eqTop3=skull.y+Math_Max(skullR.y*.52f,faceDepth*.34f);
         float eqBot3=l->leftMouthCorner.y+oralSlope*(eqZ3-cornerZ)-faceDepth*.32f;
         float eqH3=Math_Max((eqTop3-eqBot3)*.5f,faceDepth*.44f);
-        float eqW3=skullR.x*(.645f+.035f*p.zygomaticWidth);
-        Vector3 eqPos2=Vec3_Lerp(root,tip,.36f);
-        float eqW2=Math_Clamp(rootWidth*(.72f+.06f*p.maxillaryWidth),tipWidth*.96f,eqW3*.78f);
-        Vector3 eqPos1=Vec3_Lerp(root,tip,.66f);
-        float eqW1=Math_Clamp(midWidth*(1.10f+.04f*(1-p.muzzleTaper)),tipWidth*.94f,eqW2*.88f);
+        float eqW3=skullR.x*(.545f+.035f*p.zygomaticWidth);
+        Vector3 eqPos2=Vec3_Lerp(root,tip,.38f);
+        float eqW2=Math_Clamp(rootWidth*(.84f+.06f*p.maxillaryWidth),tipWidth*1.04f,eqW3*.88f);
+        Vector3 eqPos1=Vec3_Lerp(root,tip,.68f);
+        float eqW1=Math_Clamp(midWidth*(1.16f+.04f*(1-p.muzzleTaper)),tipWidth*.96f,eqW2*.90f);
         float eqEndTop=Math_Clamp(tip.y-faceDepth*.005f,eqLipTipY+faceDepth*.275f,eqLipTipY+faceDepth*.335f);
         float eqBot0=eqLipTipY-faceDepth*.045f;
         float eqTipY=Math_Max((eqEndTop-eqBot0)*.5f,faceDepth*.160f);
@@ -660,11 +660,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         float eqLip2Y=l->leftMouthCorner.y+oralSlope*(eqPos2.z-cornerZ);
         float eqH2=Math_Max((eqTop2-(eqLip2Y-faceDepth*.17f))*.5f,faceDepth*.36f);
         float eqW0=Math_Clamp(tipWidth*.88f,eqW1*.94f,eqW2*.84f);
-        float eqTop4=skull.y+Math_Max(skullR.y*.58f,faceDepth*.40f);
-        float eqBot4=skull.y-skullR.y*.40f;
+        float eqTop4=skull.y+Math_Max(skullR.y*.52f,faceDepth*.35f);
+        float eqBot4=skull.y-skullR.y*.52f;
         float eqH4=(eqTop4-eqBot4)*.5f;
         float eqTop5=skull.y+skullR.y*.42f;
-        float eqBot5=skull.y-skullR.y*.34f;
+        float eqBot5=skull.y-skullR.y*.44f;
         float eqH5=(eqTop5-eqBot5)*.5f;
         r->hasCranialProfile=true;
         r->cranialCenters[0]=Vec3_Create(0,eqEndTop-eqTipY,eqZ0);
@@ -676,9 +676,9 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->cranialCenters[3]=Vec3_Create(0,eqTop3-eqH3,eqZ3);
         r->cranialRadii[3]=Vec3_Create(eqW3,eqH3,0);
         r->cranialCenters[4]=Vec3_Create(0,eqTop4-eqH4,skull.z-skullR.z*.12f);
-        r->cranialRadii[4]=Vec3_Create(skullR.x*(.58f+.03f*p.cheekMass),eqH4,0);
+        r->cranialRadii[4]=Vec3_Create(skullR.x*(.560f+.025f*p.cheekMass),eqH4,0);
         r->cranialCenters[5]=Vec3_Create(0,eqTop5-eqH5,skull.z-skullR.z*.38f);
-        r->cranialRadii[5]=Vec3_Create(skullR.x*.43f,eqH5,0);
+        r->cranialRadii[5]=Vec3_Create(skullR.x*.485f,eqH5,0);
     }
     if(bovid) {
         /* La ganacha pertenece al contorno craneal continuo, no a una bola
@@ -737,7 +737,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->cranialCenters[5]=r->cranialOccipitalCenter;
         r->cranialRadii[5]=Vec3_Create(skullR.x*.74f,skullR.y*.74f,0);
     }
-    if(p.cranialForm==HEAD_CRANIAL_SHIELD) {
+    if(!equine && p.cranialForm==HEAD_CRANIAL_SHIELD) {
         r->cranialPostorbitalCenter.z=r->craniumCenter.z-skullR.z*.18f;
         r->cranialTemporalCenter.z=r->craniumCenter.z-skullR.z*.55f;
         r->cranialTemporalRadii.x=skullR.x*.94f;
@@ -784,7 +784,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->hasMandibularProfile=true;
         const float positions[]={1.035f,.82f,.51f,.24f,.08f,0};
         const float eqPositions[]={1.00f,.80f,.52f,.25f,.11f,0};
-        const float eqWidths[]={.72f,.50f,.54f,.64f,.56f,.42f};
+        const float eqWidths[]={.72f,.58f,.74f,.80f,.70f,.52f};
         const float eqDepths[]={.145f,.190f,.315f,.410f,.340f,.195f};
         const float eqOffsets[]={.35f,.32f,.42f,.50f,.48f,.44f};
         const float bovidWidths[]={.72f,.70f,.76f,.80f,.68f,.48f};
