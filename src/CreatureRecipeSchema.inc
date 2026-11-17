@@ -68,8 +68,15 @@ static const Field AxialPhenotype_fields[] = {
     {"contourProfile",offsetof(AxialPhenotype,contourProfile),sizeof(AxialContourProfile),1,F_ENUM,AXIAL_CONTOUR_CURSORIAL,NULL,NO_COUNT,"AXIAL_CONTOUR_LEGACY|AXIAL_CONTOUR_CURSORIAL",true},
     {0}
 };
+static const Field Color_fields[] = {
+    {"r",offsetof(Color,r),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
+    {"g",offsetof(Color,g),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
+    {"b",offsetof(Color,b),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
+    {"a",offsetof(Color,a),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
+    {0}
+};
 static const Field HeadPhenotype_fields[] = {
-    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_EQUINE,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE",false},
+    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_SUID,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID",false},
     {"skullWidth",offsetof(HeadPhenotype,skullWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullHeight",offsetof(HeadPhenotype,skullHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullLength",offsetof(HeadPhenotype,skullLength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -126,6 +133,7 @@ static const Field HeadPhenotype_fields[] = {
     {"cranialForm",offsetof(HeadPhenotype,cranialForm),sizeof(HeadCranialForm),1,F_ENUM,HEAD_CRANIAL_WEDGE,NULL,NO_COUNT,"HEAD_CRANIAL_STANDARD|HEAD_CRANIAL_SHIELD|HEAD_CRANIAL_BLOCK|HEAD_CRANIAL_NARROW|HEAD_CRANIAL_WEDGE",false},
     {"muzzleForm",offsetof(HeadPhenotype,muzzleForm),sizeof(HeadMuzzleForm),1,F_ENUM,HEAD_MUZZLE_WEDGE,NULL,NO_COUNT,"HEAD_MUZZLE_TAPERED|HEAD_MUZZLE_BLUNT|HEAD_MUZZLE_LONG|HEAD_MUZZLE_WEDGE",false},
     {"eyeLayout",offsetof(HeadPhenotype,eyeLayout),sizeof(HeadEyeLayout),1,F_ENUM,HEAD_EYES_LOW_LATERAL,NULL,NO_COUNT,"HEAD_EYES_LATERAL|HEAD_EYES_FORWARD|HEAD_EYES_HIGH_LATERAL|HEAD_EYES_LOW_LATERAL",false},
+    {"nasalColor",offsetof(HeadPhenotype,nasalColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,true},
     {0}
 };
 static const Field HeadEnvelopePhenotype_fields[] = {
@@ -133,13 +141,6 @@ static const Field HeadEnvelopePhenotype_fields[] = {
     {"widthScale",offsetof(HeadEnvelopePhenotype,widthScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"heightScale",offsetof(HeadEnvelopePhenotype,heightScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"lengthScale",offsetof(HeadEnvelopePhenotype,lengthScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
-    {0}
-};
-static const Field Color_fields[] = {
-    {"r",offsetof(Color,r),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
-    {"g",offsetof(Color,g),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
-    {"b",offsetof(Color,b),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
-    {"a",offsetof(Color,a),sizeof(uint8_t),1,F_U8,UINT8_MAX,NULL,NO_COUNT,NULL,false},
     {0}
 };
 static const Field EyePhenotype_fields[] = {
@@ -187,12 +188,12 @@ static const Field LimbPhenotype_fields[] = {
     {"hoofToeRoundness",offsetof(LimbPhenotype,hoofToeRoundness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"hoofHeelHeight",offsetof(LimbPhenotype,hoofHeelHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"dewclawSize",offsetof(LimbPhenotype,dewclawSize),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
-    {"anatomyProfile",offsetof(LimbPhenotype,anatomyProfile),sizeof(LimbAnatomyProfile),1,F_ENUM,LIMB_PROFILE_CURSORIAL,NULL,NO_COUNT,"LIMB_PROFILE_LEGACY|LIMB_PROFILE_CURSORIAL",true},
+    {"anatomyProfile",offsetof(LimbPhenotype,anatomyProfile),sizeof(LimbAnatomyProfile),1,F_ENUM,LIMB_PROFILE_COMPACT_UNGULATE,NULL,NO_COUNT,"LIMB_PROFILE_LEGACY|LIMB_PROFILE_CURSORIAL|LIMB_PROFILE_COMPACT_UNGULATE",true},
     {0}
 };
 static const Field TailPhenotype_fields[] = {
     {"droop",offsetof(TailPhenotype,droop),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
-    {"archetype",offsetof(TailPhenotype,archetype),sizeof(TailArchetype),1,F_ENUM,TAIL_ARCHETYPE_CUSTOM,NULL,NO_COUNT,"TAIL_ARCHETYPE_TAPERED|TAIL_ARCHETYPE_WHIP|TAIL_ARCHETYPE_HEAVY|TAIL_ARCHETYPE_PREHENSILE|TAIL_ARCHETYPE_FINNED|TAIL_ARCHETYPE_CUSTOM",false},
+    {"archetype",offsetof(TailPhenotype,archetype),sizeof(TailArchetype),1,F_ENUM,TAIL_ARCHETYPE_COILED,NULL,NO_COUNT,"TAIL_ARCHETYPE_TAPERED|TAIL_ARCHETYPE_WHIP|TAIL_ARCHETYPE_HEAVY|TAIL_ARCHETYPE_PREHENSILE|TAIL_ARCHETYPE_FINNED|TAIL_ARCHETYPE_CUSTOM|TAIL_ARCHETYPE_COILED",false},
     {"length",offsetof(TailPhenotype,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"baseWidth",offsetof(TailPhenotype,baseWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"baseHeight",offsetof(TailPhenotype,baseHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},

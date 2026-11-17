@@ -168,6 +168,8 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     if(hoof&&p->digitCount==1&&p->dewclawSize>0)return false;
     for (unsigned d=0;d<p->digitCount;++d) if (!p->digitPhalanges[d] || p->digitPhalanges[d]>5) return false;
     if(p->anatomyProfile==LIMB_PROFILE_CURSORIAL)return hoof&&Cursorial(p,module,slot,g);
+    bool compact=p->anatomyProfile==LIMB_PROFILE_COMPACT_UNGULATE;
+    if(compact&&!hoof)return false;
     bool hind=p->role==LIMB_HIND;
     float side=p->side==LIMB_RIGHT?-1:1;
     float length=p->length*slot->scale*fmaxf(.01f,p->development);
@@ -192,6 +194,16 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
         w[3]=r*.42f*p->distalThicknessScale;
         h[3]=r*.55f*p->footScale*p->footHeightScale;
     }
+    if(compact) {
+        /* El corvejón conserva una sección sagital firme y la caña
+         * se ahúsa hasta el menudillo sin ensancharse entre articulaciones. */
+        w[0]*=hind?1.08f:.92f;
+        h[0]*=hind?1.20f:1.03f;
+        w[1]*=hind?1.08f:.80f;
+        h[1]*=hind?1.12f:.93f;
+        w[2]*=1.15f;
+        h[2]*=1.28f;
+    }
     for (unsigned i=0;i<4;++i) {
         if (!Node(g,module,i+1,World(slot,positions[i]),w[i],h[i],p,false)) return false;
         if (i && !Module_Edge(g,module,(uint16_t)i,Anatomy_MakeId(module,i),Anatomy_MakeId(module,i+1),BODY_CONNECTION_LIMB_SEGMENT,p->development)) return false;
@@ -201,8 +213,9 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             float fullness=i==1?r*p->proximalThicknessScale*(hoof?(hind?.15f:.08f):(hind?.50f:.36f)):i==2?r*(hoof?.035f:(hind?.18f:.12f)):0;
             edge->widthBulge=fullness;
             edge->heightBulge=fullness*(hind?1.15f:.85f);
+            if(compact)edge->jointBlend=1.0f;
             /* El metapodio conserva un tallo estrecho hasta el cojín distal. */
-            if (i==3) edge->widthBulge=hoof?-r*.04f:-r*.28f*p->footScale;
+            if (i==3 && !compact) edge->widthBulge=hoof?-r*.04f:-r*.28f*p->footScale;
         }
     }
     if (!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)) return false;

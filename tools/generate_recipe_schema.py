@@ -36,6 +36,7 @@ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
 OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'anatomyProfile'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask', 'domain'}}
 OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount'}
 OPTIONAL['LongHairGroup'] = {'rootFullness', 'bend', 'wave', 'transparency', 'verticalBias'}
+OPTIONAL['HeadPhenotype'] = {'nasalColor'}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
 

@@ -98,6 +98,9 @@ typedef struct MorphRuntime {
     Monster reference;
     MonsterAger ager;
     MonsterVisualAsync* visual;
+    MonsterVisualEye* eyes;
+    size_t eyeCapacity;
+    float eyeAge;
     LongHairSet longHair;
     LongHairAsync* longHairAsync;
     float lastHairExactAge;
@@ -196,6 +199,7 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "lizard")) spec = "Lagarto";
     else if (EqualsIgnoreCase(spec, "horse")) spec = "Caballo";
     else if (EqualsIgnoreCase(spec, "donkey")) spec = "Asno";
+    else if (EqualsIgnoreCase(spec, "pig") || EqualsIgnoreCase(spec, "swine")) spec = "Cerdo";
     else if (EqualsIgnoreCase(spec, "explorer")) spec = "Explorador";
 
     char* end = NULL;
@@ -385,6 +389,7 @@ static void PruneCollapsedDormantModules(Monster* m) {
 static bool InitMorphRuntime(MorphRuntime* rt, const Monster* initialSource, const Monster* initialTarget,
     const char* srcLabel, const char* dstLabel, const DemoOptions* opt) {
     memset(rt, 0, sizeof(*rt));
+    rt->eyeAge = -1.0f;
     rt->lastHairExactAge = -1.0f;
     rt->source = Monster_Clone(initialSource);
     rt->target = Monster_Clone(initialTarget);
@@ -423,6 +428,8 @@ static void DestroyMorphRuntime(MorphRuntime* rt) {
         rt->visual = NULL;
         rt->hasVisual = false;
     }
+    for (size_t i = 0; i < rt->eyeCapacity; ++i) Mesh_Free(&rt->eyes[i].globe);
+    free(rt->eyes);
     LongHairAsync_Destroy(rt->longHairAsync);
     rt->longHairAsync = NULL;
     LongHairSet_Free(&rt->longHair);
@@ -479,6 +486,7 @@ static bool SwitchMorphTarget(MorphRuntime* rt, const Monster* newTarget, const 
     rt->lastHairGroupCount = 0;
     MonsterAger_Free(&rt->ager);
     rt->ager = MonsterAger_Create(&rt->source, &rt->target, 0.0f);
+    rt->eyeAge = -1.0f;
     MonsterAger_SetGeometrySnapshotEnabled(&rt->ager, geomSnap);
     if (geomSteps) MonsterAger_SetGeometrySteps(&rt->ager, geomSteps);
 
@@ -756,6 +764,29 @@ static bool EnsureGpuSurfaceGrid(MorphRuntime* rt, const DemoOptions* opt, float
     return true;
 }
 
+/* La superficie SDF reserva las órbitas; los globos usan la misma ruta
+ * texturizada que el visor de malla y la profundidad de la superficie. */
+static void RenderCurrentEyes(MorphRuntime* rt, Renderer3D* renderer, const Monster* current) {
+    if (!current->eyeCount) return;
+    if (current->eyeCount > rt->eyeCapacity) {
+        MonsterVisualEye* eyes = realloc(rt->eyes, current->eyeCount * sizeof(*eyes));
+        if (!eyes) return;
+        for (size_t i = rt->eyeCapacity; i < current->eyeCount; ++i) {
+            eyes[i] = (MonsterVisualEye){.globe = Mesh_Create()};
+        }
+        rt->eyes = eyes;
+        rt->eyeCapacity = current->eyeCount;
+    }
+    if (rt->eyeAge != rt->ager.perc) {
+        if (!MonsterVisual_UpdateEyes(rt->eyes, rt->eyeCapacity, current)) return;
+        rt->eyeAge = rt->ager.perc;
+    }
+    for (size_t i = 0; i < current->eyeCount; ++i) {
+        if (renderer->renderEye) renderer->renderEye(renderer, &rt->eyes[i]);
+        else renderer->renderMesh(renderer, &rt->eyes[i].globe);
+    }
+}
+
 static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* cam, int w, int h,
     const DemoOptions* opt, float currentAge, bool wire, bool showSkeleton, bool noFur,
     const char* hudText) {
@@ -768,7 +799,7 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
     OpenGLRenderer_SetMorphSurfaceDomain(renderer, current, &rt->reference);
     OpenGLRenderer_SetFurQuality(renderer, !noFur, !noFur, 0);
     OpenGLRenderer_SetLongHairQuality(renderer, noFur ? 0 : 3);
-    bool drewAsyncLongHair = false;
+    bool drewAsyncVisual = false;
 
     renderer->beginFrame(renderer);
 
@@ -813,7 +844,7 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
         } else {
             OpenGLRenderer_SetMeshSurfaceOverride(renderer, NULL);
             MonsterVisualAsync_Render(rt->visual, renderer);
-            drewAsyncLongHair = true;
+            drewAsyncVisual = true;
         }
         OpenGLRenderer_SetMeshClipRegions(renderer, NULL, 0);
         if (clipCount > 0 && hasSdf) {
@@ -823,7 +854,8 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
     }
 
     OpenGLRenderer_SetupCamera(cam, w, h);
-    if (!drewAsyncLongHair && !noFur && renderer->renderLongHair) {
+    if (!drewAsyncVisual) RenderCurrentEyes(rt, renderer, current);
+    if (!drewAsyncVisual && !noFur && renderer->renderLongHair) {
         bool useAsyncHair = !opt->capturePrefix && !opt->validateCyclePrefix && !opt->ageSequenceCount;
         if (useAsyncHair) {
             if (!rt->longHairAsync) {
@@ -1155,6 +1187,7 @@ int main(int argc, char** argv) {
                     bool snap = rt.ager.geometrySnapshotEnabled;
                     MonsterAger_Free(&rt.ager);
                     rt.ager = MonsterAger_Create(&rt.source, &rt.target, 1.0f - age);
+                    rt.eyeAge = -1.0f;
                     MonsterAger_SetGeometrySnapshotEnabled(&rt.ager, snap);
                     age = 1.0f - age;
                     rt.lastHairExactAge = -1.0f;

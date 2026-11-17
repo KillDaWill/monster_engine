@@ -162,8 +162,8 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (!Limb_Supports(p->limbs[m->phenotypeIndex].archetype)) return false;
             const LimbPhenotype* limb = &p->limbs[m->phenotypeIndex];
             if (limb->digitCount > CREATURE_MAX_DIGITS) return false;
-            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_CURSORIAL ||
-                (limb->anatomyProfile == LIMB_PROFILE_CURSORIAL && limb->archetype != LIMB_ARCHETYPE_UNGULATE)) return false;
+            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_COMPACT_UNGULATE ||
+                (limb->anatomyProfile != LIMB_PROFILE_LEGACY && limb->archetype != LIMB_ARCHETYPE_UNGULATE)) return false;
             if (limb->archetype == LIMB_ARCHETYPE_UNGULATE &&
                 ((limb->digitCount != 1 && limb->digitCount != 2) ||
                  (limb->digitCount == 1 && limb->dewclawSize > 0))) return false;
@@ -171,7 +171,7 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             break;
         case CREATURE_MODULE_TAIL:
             if (m->phenotypeIndex >= p->tailCount || tails[m->phenotypeIndex]) return false;
-            if (p->tails[m->phenotypeIndex].archetype > TAIL_ARCHETYPE_CUSTOM) return false;
+            if (p->tails[m->phenotypeIndex].archetype > TAIL_ARCHETYPE_COILED) return false;
             tails[m->phenotypeIndex] = true;
             break;
         case CREATURE_MODULE_ORNAMENT:

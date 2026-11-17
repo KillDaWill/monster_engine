@@ -216,6 +216,17 @@ static void test_morph_async_delayed_topology(void) {
                 regions[i].moduleId!=regions[j].moduleId,
                 "Dos regiones reclamaron el mismo módulo");
         if(regions[i].kind!=MORPH_FALLBACK_MODULE)continue;
+        bool headModule=false;
+        for(size_t h=0;h<exact.mouthCount;++h)
+            if(exact.mouths[h].moduleInstanceId==regions[i].moduleId)
+                headModule=true;
+        if(headModule) {
+            MonsterSDF headModuleView;
+            TEST_ASSERT(MonsterSDF_BuildHeadView(&exact,&headModuleView)&&
+                headModuleView.mouthCount>0&&headModuleView.connectorCount==0,
+                "El módulo cefálico no conserva su campo dedicado");
+            continue;
+        }
         MonsterSDF moduleView;
         TEST_ASSERT(MonsterSDF_BuildModuleView(&exact,regions[i].moduleId,
             &moduleView,filtered,exact.connectorCount),
@@ -252,6 +263,15 @@ static void test_morph_async_delayed_topology(void) {
     size_t absentModules=0;
     for(size_t i=0;i<absentCount;++i)
         if(absent[i].kind==MORPH_FALLBACK_MODULE) {
+            bool headModule=false;
+            for(size_t h=0;h<exact.mouthCount;++h)
+                if(exact.mouths[h].moduleInstanceId==absent[i].moduleId)
+                    headModule=true;
+            if(headModule) {
+                TEST_ASSERT(absent[i].representation==MORPH_REP_LOCAL_SDF,
+                    "La cabeza presente desapareció al retirar conectores");
+                continue;
+            }
             TEST_ASSERT(absent[i].representation==MORPH_REP_ABSENT,
                 "Un módulo desaparecido intentaría renderizar un SDF vacío");
             ++absentModules;

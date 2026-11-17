@@ -235,6 +235,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     p.eyes.scleraColor = Color_Lerp(a->eyes.scleraColor, b->eyes.scleraColor, t);
     p.eyes.irisColor = Color_Lerp(a->eyes.irisColor, b->eyes.irisColor, t);
     p.eyes.pupilColor = Color_Lerp(a->eyes.pupilColor, b->eyes.pupilColor, t);
+    p.head.nasalColor = Color_Lerp(a->head.nasalColor, b->head.nasalColor, t);
 
     for (size_t i = 0; i < p.limbCount; ++i) {
         LERP_BODY(limbs[i].proximalScale); LERP_BODY(limbs[i].middleScale); LERP_BODY(limbs[i].distalScale);

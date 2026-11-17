@@ -93,6 +93,7 @@ typedef struct MonsterSDFConnector {
     AABB3D groupBounds; /**< Caja conservadora de la rama completa. */
     float groupLowerBoundScale, groupSmoothness; /**< Cotas para descartar la rama sin cambiar el orden. */
     float maxRadius;           /**< Radio máximo de sección transversal */
+    float jointBlend; /**< Peso resuelto del suavizado extra de la articulación. */
     float localSmoothness;     /**< Suavizado local de unión suave precalculado */
 } MonsterSDFConnector;
 
@@ -249,6 +250,7 @@ typedef struct MonsterSDFMouth {
     Vector3 seamJawAnchorLocal;      /**< Ancla central inferior */
     float seamScale;                 /**< Escala h = max(hingeRadius, throatRadius, slitThickness) */
     AABB3D seamBounds;               /**< Bounds conservadores del tejido blando */
+    Color nasalColor; /**< Pigmento del planum compartido por campos completos y cefálicos. */
     /* Cache derivado sin punteros: copiar por valor conserva su vida útil.
      * La clave se compara bit a bit antes del uso porque MonsterSDFMouth es público
      * y puede mutarse directamente. Estos campos derivados son de sólo lectura para

@@ -23,7 +23,8 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_CANID,
     HEAD_ARCHETYPE_AVIAN,
     HEAD_ARCHETYPE_BOVID,
-    HEAD_ARCHETYPE_EQUINE /**< Cráneo alargado, diastema y hocico distal independiente. */
+    HEAD_ARCHETYPE_EQUINE, /**< Cráneo alargado, diastema y hocico distal independiente. */
+    HEAD_ARCHETYPE_SUID /**< Rostro descendente con disco nasal frontal y ganachas llenas. */
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */
@@ -110,6 +111,7 @@ typedef struct HeadPhenotype {
     HeadCranialForm cranialForm; /**< Composición del volumen craneal. */
     HeadMuzzleForm muzzleForm; /**< Composición del hocico. */
     HeadEyeLayout eyeLayout; /**< Composición de la disposición orbital. */
+    Color nasalColor; /**< Color del planum; alfa cero conserva la trufa oscura heredada. */
 } HeadPhenotype;
 
 /** Landmarks locales con identidad anatómica estable. */
@@ -184,6 +186,7 @@ typedef struct HeadSurfaceRecipe {
     Vector3 eyelidProfile; /**< Arcos superior/inferior y avance normal del margen. */
     Vector3 noseCenter; /**< Centro de almohadilla nasal. */
     Vector3 noseRadii; /**< Radios de almohadilla nasal. */
+    Color nasalColor; /**< Pigmento del planum resuelto, interpolable entre especies. */
     Vector3 leftNostrilCenter; /**< Centro del cutter nasal izquierdo. */
     Vector3 rightNostrilCenter; /**< Centro del cutter nasal derecho. */
     Vector3 nostrilRadii; /**< Radios de cutters nasales. */
@@ -292,6 +295,8 @@ HeadPhenotype HeadPhenotype_CanidPreset(void);
 HeadPhenotype HeadPhenotype_BovinePreset(void);
 /** @return Fenotipo équido con cara inclinada, labios anchos y orejas erectas. */
 HeadPhenotype HeadPhenotype_EquinePreset(void);
+/** @return Fenotipo suino con disco nasal frontal, ojos pequeños y orejas erectas. */
+HeadPhenotype HeadPhenotype_SuidPreset(void);
 /** @return Fenotipo felino sobre la base cefálica canina. */
 HeadPhenotype HeadPhenotype_FelinePreset(void);
 /** @return Fenotipo predefinido de ave. */

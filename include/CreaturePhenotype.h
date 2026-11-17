@@ -75,7 +75,8 @@ typedef enum LimbArchetype {
 /** Perfil de tejido independiente del número de dedos y de la especie. */
 typedef enum LimbAnatomyProfile {
     LIMB_PROFILE_LEGACY = 0, /**< Conserva exactamente las recetas v1 anteriores. */
-    LIMB_PROFILE_CURSORIAL /**< Musculatura integrada y estaciones distales ungulígradas. */
+    LIMB_PROFILE_CURSORIAL, /**< Musculatura integrada y estaciones distales ungulígradas. */
+    LIMB_PROFILE_COMPACT_UNGULATE /**< Miembro corto con mezcla muscular y transición al menudillo. */
 } LimbAnatomyProfile;
 
 typedef struct LimbPhenotype {
@@ -108,7 +109,8 @@ typedef enum TailArchetype {
     TAIL_ARCHETYPE_HEAVY,
     TAIL_ARCHETYPE_PREHENSILE,
     TAIL_ARCHETYPE_FINNED,
-    TAIL_ARCHETYPE_CUSTOM
+    TAIL_ARCHETYPE_CUSTOM,
+    TAIL_ARCHETYPE_COILED /**< Espiral cartilaginosa corta con paso lateral y longitud de arco estable. */
 } TailArchetype;
 
 typedef struct TailPhenotype {

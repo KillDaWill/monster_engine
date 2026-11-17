@@ -4,6 +4,7 @@
 #include "CreatureMorph.h"
 #include "AxialBodyUprightTetrapod.h"
 #include "MathUtils.h"
+#include "Tail.h"
 #include <math.h>
 #include <string.h>
 
@@ -130,6 +131,7 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->surface.eyelidCoverage=Math_Lerp(a->surface.eyelidCoverage,b->surface.eyelidCoverage,t);
     out->surface.noseCenter=Vec3_Lerp(a->surface.noseCenter,b->surface.noseCenter,t);
     out->surface.noseRadii=Vec3_Lerp(a->surface.noseRadii,b->surface.noseRadii,t);
+    out->surface.nasalColor=Color_Lerp(a->surface.nasalColor,b->surface.nasalColor,t);
     out->surface.leftNostrilCenter=Vec3_Lerp(a->surface.leftNostrilCenter,b->surface.leftNostrilCenter,t);
     out->surface.rightNostrilCenter=Vec3_Lerp(a->surface.rightNostrilCenter,b->surface.rightNostrilCenter,t);
     out->surface.nostrilRadii=Vec3_Lerp(a->surface.nostrilRadii,b->surface.nostrilRadii,t);
@@ -561,10 +563,27 @@ size_t CreatureMorph_CollectTopologyEvents(const Monster* a,const Monster* b,
         }
     }
     size_t events=0;
+    const AnatomyNode* headA=AnatomyGraph_FindFirstRegion(&a->anatomyGraph,ANATOMY_REGION_HEAD);
+    const AnatomyNode* headB=AnatomyGraph_FindFirstRegion(&remapped,ANATOMY_REGION_HEAD);
+    /* Un único nodo cefálico no describe los cambios de composición del SDF.
+     * Una pinna, un pico o un planum nuevos también requieren certificación;
+     * no se pueden predecir deformando exclusivamente la malla anterior. */
+    bool headFieldChanged=a->hasHead!=b->hasHead;
+    if(a->hasHead&&b->hasHead) {
+        const HeadSurfaceRecipe* x=&a->head.anatomy.surface;
+        const HeadSurfaceRecipe* y=&b->head.anatomy.surface;
+        headFieldChanged=a->head.anatomy.archetype!=b->head.anatomy.archetype||
+            x->hasNasalPad!=y->hasNasalPad||x->hasEars!=y->hasEars||
+            x->isBeak!=y->isBeak||x->hasTympana!=y->hasTympana||
+            x->hasCranialProfile!=y->hasCranialProfile||
+            x->hasMandibularProfile!=y->hasMandibularProfile;
+    }
     for(size_t i=0;i<count;++i) {
         CreatureMorphTopologyEvent event;
-        if(!Morph_ModuleTopologyDifferent(&a->anatomyGraph,&remapped,
-            modules[i],&event))continue;
+        bool changed=Morph_ModuleTopologyDifferent(&a->anatomyGraph,&remapped,modules[i],&event);
+        bool headModule=(headA&&headA->moduleInstanceId==modules[i])||
+            (headB&&headB->moduleInstanceId==modules[i]);
+        if(!changed&&!(headModule&&headFieldChanged))continue;
         if(out&&events<capacity)out[events]=event;
         events++;
     }
@@ -606,6 +625,7 @@ static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,Anatomy
                 v.kind=active->kind;
                 v.moduleInstanceId=active->moduleInstanceId;
             }
+            v.jointBlend=Math_Lerp(x?x->jointBlend:0,y?y->jointBlend:0,t);
             v.widthBulge=Math_Lerp(x&&!supA?x->widthBulge:0,y&&!supB?y->widthBulge:0,t);
             v.heightBulge=Math_Lerp(x&&!supA?x->heightBulge:0,y&&!supB?y->heightBulge:0,t);
             v.crownInset=Math_Lerp(x?x->crownInset:0,y?y->crownInset:0,t);
@@ -637,15 +657,33 @@ static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,Anatomy
     return AnatomyGraph_Validate(out);
 }
 
-static bool Morph_HangingTail(const Monster* m,uint32_t module) {
+static bool Morph_SeparateTail(const Monster* m,uint32_t module) {
     if(!m||!m->hasCreaturePhenotype)return false;
     for(size_t i=0;i<m->recipe.bodyPlan.moduleCount;++i) {
         const CreatureModuleInstance* inst=&m->recipe.bodyPlan.modules[i];
         if(inst->instanceId==module&&inst->kind==CREATURE_MODULE_TAIL&&
            inst->phenotypeIndex<m->phenotype.tailCount)
-            return m->phenotype.tails[inst->phenotypeIndex].droop>0.0f;
+            return Tail_UsesIndependentCurve(&m->phenotype.tails[inst->phenotypeIndex]);
     }
     return false;
+}
+
+static bool Morph_HasCoiledTail(const Monster* m) {
+    if(m->anatomyGraph.separateMorphTail)return true;
+    for(size_t i=0;i<m->phenotype.tailCount;++i)
+        if(m->phenotype.tails[i].archetype==TAIL_ARCHETYPE_COILED)return true;
+    return false;
+}
+
+/* Retira del barrido los nodos de una cola longitudinal. Conserva la grupa
+ * de los perfiles que ya separan su cola aunque termine detrás de la pelvis. */
+static int Morph_TrunkStations(const Monster* m,const SDFSweepStation* profile,int count) {
+    const AnatomyNode* tail=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_TAIL);
+    const AnatomyNode* pelvis=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_PELVIS);
+    if(!tail||!pelvis||Morph_SeparateTail(m,tail->moduleInstanceId)||
+       m->anatomyGraph.separateMorphTail)return count;
+    while(count>2 && profile[count-1].center.z<pelvis->center.z-1e-5f)--count;
+    return count;
 }
 
 /* Resolver el mismo perfil axial que consume el SDF, antes de la interpolación. */
@@ -682,8 +720,8 @@ static int Profile(const Monster* m,SDFSweepStation* stations) {
             if(e->fromId!=n->id || e->kind!=BODY_CONNECTION_AXIAL_LOFT)continue;
             const AnatomyNode* candidate=AnatomyGraph_FindNode(g,e->toId);
             if(candidate && candidate->region!=ANATOMY_REGION_HEAD) {
-                /* Una cola colgante abandona el loft axial en la pelvis, igual que MonsterSDF_Build. */
-                if(candidate->region==ANATOMY_REGION_TAIL && Morph_HangingTail(m,candidate->moduleInstanceId))continue;
+                /* Una cola independiente abandona el loft axial en la pelvis, igual que MonsterSDF_Build. */
+                if(candidate->region==ANATOMY_REGION_TAIL && Morph_SeparateTail(m,candidate->moduleInstanceId))continue;
                 if(next)return 0;
                 next=candidate;
             }
@@ -722,12 +760,25 @@ static bool MixProfile(const Monster* a,const Monster* b,float t,AnatomyGraph* g
     if(t<=0.0f) {
         memcpy(g->axialProfile,x,(size_t)nx*sizeof(g->axialProfile[0]));
         g->axialProfileCount=(size_t)nx;
+        g->separateMorphTail=a->anatomyGraph.separateMorphTail;
         return true;
     }
     if(t>=1.0f) {
         memcpy(g->axialProfile,y,(size_t)ny*sizeof(g->axialProfile[0]));
         g->axialProfileCount=(size_t)ny;
+        g->separateMorphTail=b->anatomyGraph.separateMorphTail;
         return true;
+    }
+    /* Una espiral no aporta estaciones dorsales. Durante el cruce se
+     * deforman los tramos caudales en el grafo, sin interpolar el diámetro de
+     * la pelvis a lo largo de la cola del otro extremo. */
+    if(Morph_HasCoiledTail(a)||Morph_HasCoiledTail(b)) {
+        int tx=Morph_TrunkStations(a,x,nx),ty=Morph_TrunkStations(b,y,ny);
+        if(tx!=nx&&!SDF_SweepResolveTangents(x,tx))return false;
+        if(ty!=ny&&!SDF_SweepResolveTangents(y,ty))return false;
+        g->separateMorphTail=tx!=nx||ty!=ny||
+            a->anatomyGraph.separateMorphTail||b->anatomyGraph.separateMorphTail;
+        nx=tx;ny=ty;
     }
     const AnatomyNode* pa=AnatomyGraph_FindFirstRegion(&a->anatomyGraph,ANATOMY_REGION_PELVIS);
     const AnatomyNode* pb=AnatomyGraph_FindFirstRegion(&b->anatomyGraph,ANATOMY_REGION_PELVIS);

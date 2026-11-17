@@ -1,5 +1,6 @@
 #include "MonsterSDF.h"
 #include "Limb.h"
+#include "Tail.h"
 #include "Monster.h"
 #include "Ornament.h"
 #include "AxialBodyUprightTetrapod.h"
@@ -148,10 +149,10 @@ static const TailPhenotype* MonsterSDF_TailPhenotype(const Monster* monster,uint
     }
     return NULL;
 }
-/* Una cola colgante no es una función monótona del eje Z del tronco. */
-static bool MonsterSDF_HangingTail(const Monster* monster,uint32_t module) {
+/* La curva independiente no puede parametrizarse por el eje Z del tronco. */
+static bool MonsterSDF_SeparateTail(const Monster* monster,uint32_t module) {
     const TailPhenotype* tail=MonsterSDF_TailPhenotype(monster,module);
-    return tail&&tail->droop>0;
+    return tail && (monster->anatomyGraph.separateMorphTail || Tail_UsesIndependentCurve(tail));
 }
 
 MonsterSDFConfig MonsterSDF_DefaultConfig(void) {
@@ -486,7 +487,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                             break;
                         }
                     }
-                    while (tailNext && !MonsterSDF_HangingTail(monster,tailNext->moduleInstanceId) && sdf->axialStationCount < MONSTER_SDF_MAX_AXIAL_STATIONS) {
+                    while (tailNext && !MonsterSDF_SeparateTail(monster,tailNext->moduleInstanceId) && sdf->axialStationCount < MONSTER_SDF_MAX_AXIAL_STATIONS) {
                         sdf->axialStations[sdf->axialStationCount++] = (SDFSweepStation){
                             .center = tailNext->center,
                             .width = tailNext->widthRadius,
@@ -565,6 +566,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             c->a=a->center;c->b=b->center;
             c->widthA=a->widthRadius;c->heightA=a->heightRadius;c->widthB=b->widthRadius;c->heightB=b->heightRadius;
             c->widthBulge=edge->widthBulge;c->heightBulge=edge->heightBulge;
+            c->jointBlend=edge->jointBlend;
             c->crownInset=edge->crownInset;c->toeRounding=edge->toeRounding;
             c->side=edge->transverseAxis;
             /* Una membrana comparte nodo medio entre dos geometrías distintas:
@@ -606,11 +608,11 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&
                 a->region!=ANATOMY_REGION_ORNAMENT&&b->region!=ANATOMY_REGION_ORNAMENT&&
                 a->region!=ANATOMY_REGION_HEAD&&b->region!=ANATOMY_REGION_HEAD&&
-                !MonsterSDF_HangingTail(monster,edge->moduleInstanceId);
+                !MonsterSDF_SeparateTail(monster,edge->moduleInstanceId);
             if(c->kind==BODY_CONNECTION_AXIAL_LOFT&&!c->axialSweepMember&&
                a->region!=ANATOMY_REGION_TAIL&&b->region==ANATOMY_REGION_TAIL&&
                MonsterSDF_TailPhenotype(monster,edge->moduleInstanceId)->rootMatchStrength==0) {
-                /* Una cola colgante abandona el loft axial: su pedículo usa
+                /* Una cola independiente abandona el loft axial: su pedículo usa
                  * la sección caudal, no una cápsula del diámetro de la pelvis.
                  * El origen sigue dentro del anfitrión y conserva sus IDs.
                  * rootMatchStrength>0 conserva el acoplamiento solicitado y
@@ -653,7 +655,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             sdf->connectors[i].r1 = r1; sdf->connectors[i].r2 = r2;
             sdf->connectors[i].radiusDelta = r2 - r1;
             sdf->connectors[i].region=ANATOMY_REGION_UNKNOWN;sdf->connectors[i].moduleInstanceId=0;
-            sdf->connectors[i].widthBulge=0;sdf->connectors[i].heightBulge=0;sdf->connectors[i].side=Vec3_Zero();
+            sdf->connectors[i].jointBlend=0;sdf->connectors[i].widthBulge=0;sdf->connectors[i].heightBulge=0;sdf->connectors[i].side=Vec3_Zero();
             sdf->connectors[i].widthA=r1;sdf->connectors[i].heightA=r1;
             sdf->connectors[i].widthB=r2;sdf->connectors[i].heightB=r2;
             sdf->connectors[i].fromId=0;sdf->connectors[i].toId=0;
@@ -680,7 +682,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         float maxR = Math_Max(Math_Max(c->widthA,c->widthB)+Math_Max(c->widthBulge,0),
             Math_Max(c->heightA,c->heightB)+Math_Max(c->heightBulge,0));
         float minR = Math_Min(Math_Min(c->widthA, c->heightA), Math_Min(c->widthB, c->heightB));
-        float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ? 0.0f : c->kind == BODY_CONNECTION_LIMB_SEGMENT ? 0.18f : 0.08f;
+        float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ? 0.0f : c->kind == BODY_CONNECTION_LIMB_SEGMENT ? Math_Lerp(.18f,.65f,c->jointBlend) : 0.08f;
         c->localSmoothness = Math_Min(config.connectionSmoothness, minR * factor);
         if(c->kind==BODY_CONNECTION_MUSCLE_UNION)
             c->localSmoothness=Math_Min(config.connectionSmoothness,minR*.65f);
@@ -837,6 +839,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 sdf->mouths[m].eyelidCoverage=recipe->eyelidCoverage;
                 sdf->mouths[m].noseCenterLocal=HEAD_LOCAL(recipe->noseCenter);
                 sdf->mouths[m].noseRadii=recipe->noseRadii;
+                sdf->mouths[m].nasalColor=recipe->nasalColor;
                 sdf->mouths[m].leftNostrilCenterLocal=HEAD_LOCAL(recipe->leftNostrilCenter);
                 sdf->mouths[m].rightNostrilCenterLocal=HEAD_LOCAL(recipe->rightNostrilCenter);
                 sdf->mouths[m].nostrilRadii=recipe->nostrilRadii;
@@ -1902,7 +1905,7 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
         float upperHeadDist = MonsterSDF_EvalUpperHeadDistanceCached(mouth, localP);
         bool nasal=mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(localP,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f;
         accumulated = SDFSample_SmoothUnion(accumulated, SDFSample_Create(upperHeadDist,
-            nasal?Color_FromRGB(30,27,24):mouth->skinColor,nasal?SDF_MATERIAL_NASAL_PAD:SDF_MATERIAL_SKIN), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
+            nasal?mouth->nasalColor:mouth->skinColor,nasal?SDF_MATERIAL_NASAL_PAD:SDF_MATERIAL_SKIN), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
     }
     for (size_t m = 0; m < sdf->mouthCount; ++m) {
         const MonsterSDFMouth* mouth = &sdf->mouths[m];
@@ -2121,7 +2124,7 @@ static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vec
     Vector3 local=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
     SDFSample sample=SDFSample_Create(MonsterSDF_EvalUpperHeadDistanceCached(mouth,local),mouth->skinColor,SDF_MATERIAL_SKIN);
     if (mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(local,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) {
-        sample.color=Color_FromRGB(30,27,24); sample.material=SDF_MATERIAL_NASAL_PAD;
+        sample.color=mouth->nasalColor; sample.material=SDF_MATERIAL_NASAL_PAD;
     }
     sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalMouthDistance(mouth,point,NULL),mouth->insideColor,SDF_MATERIAL_MOUTH),mouth->rimBevel);
     bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
@@ -3381,7 +3384,7 @@ size_t MonsterSDF_CollectSurfaceFeatures(const MonsterSDF* sdf,MonsterSDFSurface
         FEATURE(3,id,box,SurfaceFeatureHash(parameters,sizeof(parameters)),c->moduleInstanceId);
     }
     for(size_t i=0;i<sdf->mouthCount;++i) {
-        MonsterSDFMouth copy=sdf->mouths[i];copy.skinColor=(Color){0};copy.insideColor=(Color){0};
+        MonsterSDFMouth copy=sdf->mouths[i];copy.skinColor=(Color){0};copy.nasalColor=(Color){0};copy.insideColor=(Color){0};
         float headLevel=nextafterf((float)headBudget,INFINITY);
         uint64_t fp=SurfaceFeatureHash(&copy,sizeof(copy))^SurfaceFeatureHash(&headLevel,sizeof(headLevel));
         headBudget-=copy.anatomicalHead?fmax(copy.headBodySmoothness,0):2*fmax(copy.muzzleSmoothness,0);

@@ -10,7 +10,7 @@ typedef struct CreatureMorphTopologyEvent {
     size_t nodesAtStart,nodesAtEnd;
     size_t connectionsAtStart,connectionsAtEnd;
 } CreatureMorphTopologyEvent;
-/** @brief Enumera módulos cuya conectividad o firma nodal cambia entre extremos.
+/** @brief Enumera módulos cuya conectividad, firma nodal o composición cefálica cambia entre extremos.
  * Los IDs corresponden al grafo unión, después de resolver colisiones de receta.
  * @param a Origen. @param b Destino. @param out Eventos opcionales.
  * @param capacity Capacidad de out.

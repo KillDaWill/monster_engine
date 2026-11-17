@@ -82,6 +82,7 @@ typedef struct BodyConnection {
     BodyConnectionKind kind; /**< Receta geométrica de la unión. */
     uint32_t moduleInstanceId;
     float development;
+    float jointBlend; /**< Mezcla adicional en la unión de tramos del miembro, de 0 a 1. */
     float widthBulge, heightBulge; /**< Plenitud central de sección; cero conserva el cono lineal. */
     float crownInset, toeRounding; /**< Perfil de queratina: retracción superior y radio anterior. */
     Vector3 transverseAxis; /**< Eje transversal anatómico opcional; cero usa el marco automático. */
@@ -97,6 +98,7 @@ typedef struct BodyConnection {
  */
 typedef struct AnatomyGraph {
     AnatomySweepStation axialProfile[ANATOMY_MAX_SWEEP_STATIONS]; /**< Perfil explícito de una metamorfosis resuelta. */
+    bool separateMorphTail; /**< El perfil axial interpolado termina antes de la cola. */
     size_t axialProfileCount; /**< Cero delega el perfil al módulo axial original. */
     AnatomyNode nodes[ANATOMY_MAX_NODES]; /**< Estaciones resueltas. */
     size_t nodeCount; /**< Número de estaciones activas. */

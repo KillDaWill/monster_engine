@@ -1475,10 +1475,39 @@ bool MonsterVisualAsync_SetMorphEndpoints(MonsterVisualAsync* asyncMgr,
     MorphModuleState* modules=eventCount?
         calloc(eventCount,sizeof(*modules)):NULL;
     if(eventCount&&!modules)return false;
+    AABB3D headBounds=AABB_Empty();
+    uint32_t headIds[2]={0};bool headBoundsValid=false;
+    const Monster* endpoints[]={start,end};
+    /* Resolver una vez por pareja, no por frame. Los pesos del deformador
+     * cervical no garantizan propiedad de los vértices del cráneo antiguo. */
+    for(unsigned endpoint=0;endpoint<2;++endpoint) {
+        const AnatomyNode* head=AnatomyGraph_FindFirstRegion(
+            &endpoints[endpoint]->anatomyGraph,ANATOMY_REGION_HEAD);
+        if(!head)continue;
+        headIds[endpoint]=head->moduleInstanceId;
+        bool changed=false;
+        for(size_t i=0;i<eventCount;++i)changed|=events[i].moduleInstanceId==head->moduleInstanceId;
+        if(!changed)continue;
+        MonsterSDF field=MonsterSDF_Create();
+        if(!MonsterSDF_Build(&field,endpoints[endpoint],MonsterSDF_DefaultConfig())) {
+            MonsterSDF_Free(&field);free(modules);return false;
+        }
+        for(size_t i=0;i<field.mouthCount;++i) {
+            AABB_ExpandPoint(&headBounds,field.mouths[i].headBounds.start);
+            AABB_ExpandPoint(&headBounds,field.mouths[i].headBounds.end);
+            AABB_ExpandPoint(&headBounds,field.mouths[i].visualBounds.start);
+            AABB_ExpandPoint(&headBounds,field.mouths[i].visualBounds.end);
+            headBoundsValid=true;
+        }
+        MonsterSDF_Free(&field);
+    }
     pthread_mutex_lock(&asyncMgr->lock);
     Monster_CopyInto(&asyncMgr->morphStartSnapshot,start);
     Monster_CopyInto(&asyncMgr->morphEndSnapshot,end);
     asyncMgr->hasMorphEndpoints=true;
+    asyncMgr->morphHeadBounds=headBounds;
+    asyncMgr->hasMorphHeadBounds=headBoundsValid;
+    memcpy(asyncMgr->morphHeadModuleIds,headIds,sizeof(headIds));
     asyncMgr->morphEndpointGeneration++;
     for(size_t i=0;i<eventCount;++i)
         MorphModuleState_Init(&modules[i],events[i].moduleInstanceId,
@@ -1971,8 +2000,27 @@ size_t MonsterVisualAsync_GetFallbackRegions(const MonsterVisualAsync* asyncMgr,
             AABB_ExpandPoint(&box,connector->bounds.end);
             found=true;
         }
+        for(size_t i=0;i<currentField->mouthCount;++i) {
+            const MonsterSDFMouth* mouth=&currentField->mouths[i];
+            if(mouth->moduleInstanceId!=state->moduleId)continue;
+            AABB_ExpandPoint(&box,mouth->headBounds.start);
+            AABB_ExpandPoint(&box,mouth->headBounds.end);
+            AABB_ExpandPoint(&box,mouth->visualBounds.start);
+            AABB_ExpandPoint(&box,mouth->visualBounds.end);
+            found=true;
+        }
         bool currentFieldPresent=found;
-        if(!found&&bound)for(size_t v=0;v<binding->vertexCount;++v) {
+        if(asyncMgr->hasMorphHeadBounds&&
+           (state->moduleId==asyncMgr->morphHeadModuleIds[0]||
+            state->moduleId==asyncMgr->morphHeadModuleIds[1])) {
+            AABB_ExpandPoint(&box,asyncMgr->morphHeadBounds.start);
+            AABB_ExpandPoint(&box,asyncMgr->morphHeadBounds.end);
+            found=true;
+        }
+        /* El dominio retira la representación publicada completa, además de
+         * cubrir la nueva. Usar sólo conectores actuales deja siluetas viejas
+         * fuera de caja y excluye rasgos que no tienen nodos propios. */
+        if(bound)for(size_t v=0;v<binding->vertexCount;++v) {
             const AnatomyDeformerBinding* b=&binding->bindings[v];
             bool owned=false;
             for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {

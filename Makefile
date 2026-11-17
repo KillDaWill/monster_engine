@@ -131,6 +131,7 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_long_hair_concurrency.c \
             $(TEST_DIR)/test_long_hair_scheduler.c \
             $(TEST_DIR)/test_equine_anatomy.c \
+            $(TEST_DIR)/test_suid_anatomy.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
             $(TEST_DIR)/test_cloven_hoof.c \
@@ -264,6 +265,9 @@ $(BUILD_DIR)/validate_recipe_gpu: $(CORE_OBJS) $(RENDER_OBJS) tools/validate_rec
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(BUILD_DIR)/capture_bovine_anatomy: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_bovine_anatomy.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/capture_creature: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_creature.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(BUILD_DIR)/capture_animations: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_animations.c

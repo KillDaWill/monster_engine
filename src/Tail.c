@@ -99,6 +99,10 @@ static TailProfileSample EvaluateTailProfile(TailArchetype archetype, float t, f
     return s;
 }
 
+bool Tail_UsesIndependentCurve(const TailPhenotype* phenotype) {
+    return phenotype && (phenotype->droop > 0.0f || phenotype->archetype == TAIL_ARCHETYPE_COILED);
+}
+
 bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot* slot, AnatomyGraph* g) {
     if (!p || !slot || !g || p->segmentCount < 2 ||
         p->segmentCount > CREATURE_MAX_TAIL_STATIONS || !Anatomy_MakeId(module, 1)) {
@@ -155,6 +159,21 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
             }
             c = Vec3_Add(slot->position, Vec3_Add(Vec3_Scale(slot->forward, z*s*development),
                     Vec3_Scale(slot->side, x*s*development)));
+        }
+        if(p->archetype==TAIL_ARCHETYPE_COILED) {
+            /* Espiral en el plano sagital, con paso transversal que separa
+             * raíz y extremo. Todos los desplazamientos se desarrollan juntos. */
+            float turns=.85f+.25f*Math_Clamp01(fabsf(p->curvature));
+            float angle=6.2831853f*turns*t;
+            float radius=p->length/(6.2831853f*turns);
+            float shrink=1-.28f*t;
+            Vector3 root=Vec3_Add(slot->position,Vec3_Add(
+                Vec3_Scale(slot->up,slot->hostRadii.y*.77f),
+                Vec3_Scale(slot->forward,slot->hostRadii.x*.13f)));
+            c=Vec3_Add(root,Vec3_Add(
+                Vec3_Scale(slot->forward,radius*s*development*sinf(angle)*shrink),
+                Vec3_Add(Vec3_Scale(slot->up,radius*s*development*(1-cosf(angle)*shrink)),
+                    Vec3_Scale(slot->side,p->length*.10f*t*s*development))));
         }
 
         AnatomyId id = Anatomy_MakeId(module, (uint16_t)(i + 1));

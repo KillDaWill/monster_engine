@@ -76,7 +76,7 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(!M_anatomicalHead(m))result=joinSemantic(semantic,result,vec4(M_skinColor(m),MonsterSDF_EvalMuzzleDistance(m,local)),M_muzzleSmoothness(m),uint(M_moduleInstanceId(m)),1u,1u,1.0);
         vec3 headColor=M_skinColor(m);float headSkin=1.0;uint headMaterial=1u;
-        if(M_hasNasalPad(m) && SDF_Ellipsoid(local-M_noseCenterLocal(m),M_noseRadii(m))<M_headUnionSmoothness(m)*.5) {headColor=vec3(30,27,24)/255.0;headSkin=0.0;headMaterial=4u;}
+        if(M_hasNasalPad(m) && SDF_Ellipsoid(local-M_noseCenterLocal(m),M_noseRadii(m))<M_headUnionSmoothness(m)*.5) {headColor=M_nasalColor(m);headSkin=0.0;headMaterial=4u;}
         result=joinSemantic(semantic,result,vec4(headColor,MonsterSDF_EvalUpperHeadDistance(m,local)),M_anatomicalHead(m)?M_headBodySmoothness(m):M_muzzleSmoothness(m),uint(M_moduleInstanceId(m)),1u,headMaterial,headSkin);
     }
     for(int i=0;i<mouthCount;++i) {

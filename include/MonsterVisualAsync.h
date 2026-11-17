@@ -215,6 +215,9 @@ typedef struct MonsterVisualAsync {
     Monster pendingSnapshot;
     Monster morphStartSnapshot,morphEndSnapshot; /**< Extremos semánticos para la referencia unión. */
     bool hasMorphEndpoints;
+    AABB3D morphHeadBounds; /**< Unión de campos cefálicos de los extremos; no depende de pesos de piel cervical. */
+    uint32_t morphHeadModuleIds[2]; /**< Identidades cefálicas de ambos extremos. */
+    bool hasMorphHeadBounds;
     uint64_t morphEndpointGeneration;
     MorphModuleState* morphModules; /**< Política de certificación por identidad semántica. */
     size_t morphModuleCount;

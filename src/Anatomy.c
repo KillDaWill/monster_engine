@@ -103,7 +103,8 @@ bool AnatomyGraph_Validate(const AnatomyGraph* graph) {
     }
     for (size_t i = 0; i < graph->connectionCount; ++i) {
         const BodyConnection* edge = &graph->connections[i];
-        if (!isfinite(edge->widthBulge) || !isfinite(edge->heightBulge) ||
+        if (!isfinite(edge->jointBlend) || edge->jointBlend<0 || edge->jointBlend>1 ||
+            !isfinite(edge->widthBulge) || !isfinite(edge->heightBulge) ||
             !isfinite(edge->transverseAxis.x) || !isfinite(edge->transverseAxis.y) ||
             !isfinite(edge->transverseAxis.z)) return false;
         if (!AnatomyGraph_FindNode(graph, edge->fromId) ||
@@ -152,6 +153,7 @@ static uint64_t Anatomy_HashBytes(const void* data,size_t count,uint64_t hash) {
 uint64_t AnatomyGraph_Fingerprint(const AnatomyGraph* g) {
     if(!g||g->nodeCount>ANATOMY_MAX_NODES||g->connectionCount>ANATOMY_MAX_CONNECTIONS)return 0;
     uint64_t hash=0xcbf29ce484222325ULL;
+    hash=Anatomy_HashBytes(&g->separateMorphTail,sizeof(g->separateMorphTail),hash);
     hash=Anatomy_HashBytes(&g->axialProfileCount,sizeof(g->axialProfileCount),hash);
     for(size_t i=0;i<g->axialProfileCount && i<ANATOMY_MAX_SWEEP_STATIONS;++i) {
         const AnatomySweepStation* s=&g->axialProfile[i];
@@ -174,7 +176,7 @@ uint64_t AnatomyGraph_Fingerprint(const AnatomyGraph* g) {
         const BodyConnection* e=&g->connections[i];uint64_t h=0xcbf29ce484222325ULL;
 #define HASH_EDGE(member) h=Anatomy_HashBytes(&e->member,sizeof(e->member),h)
         HASH_EDGE(id);HASH_EDGE(fromId);HASH_EDGE(toId);HASH_EDGE(kind);HASH_EDGE(moduleInstanceId);HASH_EDGE(development);
-        HASH_EDGE(widthBulge);HASH_EDGE(heightBulge);
+        HASH_EDGE(jointBlend);HASH_EDGE(widthBulge);HASH_EDGE(heightBulge);
         HASH_EDGE(transverseAxis.x);HASH_EDGE(transverseAxis.y);HASH_EDGE(transverseAxis.z);
         h=Anatomy_HashBytes(&g->dormantConnections[i],sizeof(bool),h);
 #undef HASH_EDGE

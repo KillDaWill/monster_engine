@@ -21,3 +21,12 @@ Para cargar un archivo en una aplicación del motor, usar
 La aplicación puede cargar el manifiesto con `CreatureRecipeRegistry_LoadDirectory()`
 antes de iniciar actores o workers. No hace falta recompilar para modificar o
 cargar estos datos; reiniciar la demo carga la versión guardada.
+
+`cerdo.creature.json` (ID 1007, Cerdo) define un suino doméstico tipo Large
+White en cuatro edades posnatales. Usa `HEAD_ARCHETYPE_SUID` (5),
+`TAIL_ARCHETYPE_COILED` (6) y miembros ungulados de dos uñas. El perfil
+opcional `LIMB_PROFILE_COMPACT_UNGULATE` (2) define la sección de la pata
+corta y suaviza las articulaciones durante la metamorfosis.
+`head.nasalColor` es opcional: alfa cero o campo omitido conserva el pigmento
+nasal oscuro de las recetas anteriores. La demo universal admite `cerdo`,
+`pig`, `swine` e ID `1007`; no requiere una demo específica.

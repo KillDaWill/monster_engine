@@ -1448,7 +1448,7 @@ static uint64_t SparsePaletteFingerprint(const MonsterSDF* sdf) {
     HASH_COLOR(sdf->hasSurface);
     for(size_t i=0;i<sdf->bodyPartCount;++i)HASH_COLOR(sdf->bodyParts[i].color);
     for(size_t i=0;i<sdf->connectorCount;++i)HASH_COLOR(sdf->connectors[i].color);
-    for(size_t i=0;i<sdf->mouthCount;++i){HASH_COLOR(sdf->mouths[i].skinColor);HASH_COLOR(sdf->mouths[i].insideColor);}
+    for(size_t i=0;i<sdf->mouthCount;++i){HASH_COLOR(sdf->mouths[i].skinColor);HASH_COLOR(sdf->mouths[i].nasalColor);HASH_COLOR(sdf->mouths[i].insideColor);}
 #undef HASH_COLOR
     return h;
 }
