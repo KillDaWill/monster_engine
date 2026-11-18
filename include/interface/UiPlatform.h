@@ -2,6 +2,7 @@
 #define UI_PLATFORM_H
 
 #include "UiDesktop.h"
+#include <stddef.h>
 
 typedef struct UiPlatform UiPlatform;
 typedef struct {
@@ -14,5 +15,7 @@ typedef struct {
 } UiApp;
 
 /* Ejecuta el ciclo SDL/GL. La aplicación conserva la propiedad de su estado. */
+/* Directorio del ejecutable con separador final, independiente del cwd. */
+bool UiPlatform_ExecutableDirectory(char *, size_t);
 int UiPlatform_Run(const char *title, UiApp app);
 #endif

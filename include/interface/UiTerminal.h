@@ -4,7 +4,7 @@
 #include "UiCommands.h"
 #include "UiDesktop.h"
 
-enum { UI_HISTORY_LIMIT = 64, UI_LOG_LIMIT = 256, UI_LOG_BYTES = UI_COMMAND_BYTES + 32 };
+enum { UI_HISTORY_LIMIT = 64, UI_LOG_LIMIT = 256, UI_LOG_BYTES = UI_COMMAND_REPLY_BYTES };
 
 typedef enum { UI_LOG_SYSTEM, UI_LOG_COMMAND, UI_LOG_OUTPUT, UI_LOG_ERROR } UiLogKind;
 typedef struct {
@@ -12,8 +12,11 @@ typedef struct {
     int rows;
     UiLogKind kind;
 } UiLogEntry;
+typedef bool (*UiTerminalLocation)(const void *, char *, size_t);
 typedef struct {
     const UiCommands *commands;
+    UiTerminalLocation location;
+    const void *locationState;
     char line[UI_COMMAND_BYTES], draft[UI_COMMAND_BYTES];
     char history[UI_HISTORY_LIMIT][UI_COMMAND_BYTES];
     size_t cursor;

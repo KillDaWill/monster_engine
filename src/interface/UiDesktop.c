@@ -138,6 +138,11 @@ static UiWindowId Hit(const UiDesktop *d, int x, int y)
 
 void UiDesktop_Press(UiDesktop *d, int x, int y)
 {
+    UiDesktop_PressWithClicks(d,x,y,1);
+}
+
+void UiDesktop_PressWithClicks(UiDesktop *d, int x, int y, int clicks)
+{
     if (d->captured) return;
     UiWindowId id = Hit(d, x, y);
     UiDesktop_Activate(d, id);
@@ -156,7 +161,7 @@ void UiDesktop_Press(UiDesktop *d, int x, int y)
         d->startY = y;
         return;
     }
-    UiDesktop_Dispatch(d, &(UiEvent){.type = UI_PRESS, .x = x, .y = y});
+    UiDesktop_Dispatch(d, &(UiEvent){.type = UI_PRESS, .x = x, .y = y, .clicks = clicks});
 }
 
 void UiDesktop_Move(UiDesktop *d, int x, int y)

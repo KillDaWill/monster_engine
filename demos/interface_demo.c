@@ -1,8 +1,12 @@
 #include "interface/UiPlatform.h"
+#include "interface/UiFilesView.h"
+#include "interface/UiRecipeCatalog.h"
+#include "interface/UiShell.h"
 #include "interface/UiTerminalView.h"
 #include "interface/UiTheme.h"
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 enum { TOP = 54, BOTTOM = 56, MARGIN = 26 };
 
@@ -10,11 +14,18 @@ typedef struct {
     UiDesktop desktop;
     UiCommands commands;
     UiTerminal terminal;
+    UiVfs *fs;
+    UiShell shell;
+    UiFilesApp files;
+    UiFilesLaunch filesLaunch;
     UiWindowId terminalId;
     int height;
 } InterfaceDemo;
 
-static UiRect Dock(int height) { return (UiRect){MARGIN,height-BOTTOM+10,168,36}; }
+static UiRect Dock(int height, int index)
+{
+    return (UiRect){MARGIN+index*178,height-BOTTOM+10,index == 0 ? 168 : 128,36};
+}
 
 static void Resize(void *state, int w, int h)
 {
@@ -35,16 +46,23 @@ static void Resize(void *state, int w, int h)
 static bool DesktopPress(void *state, int x, int y)
 {
     InterfaceDemo *demo = state;
-    if (!UiRect_Contains(Dock(demo->height),x,y)) return false;
-    UiDesktop_Activate(&demo->desktop,demo->terminalId);
-    return true;
+    if (UiRect_Contains(Dock(demo->height,0),x,y)) {
+        UiDesktop_Activate(&demo->desktop,demo->terminalId);
+        return true;
+    }
+    if (UiRect_Contains(Dock(demo->height,1),x,y)) {
+        if (!UiFilesApp_Open(&demo->filesLaunch))
+            UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,"Files: Desktop window limit reached");
+        return true;
+    }
+    return false;
 }
 
 static UiRect TextRect(void *state, UiWindowId id)
 {
     InterfaceDemo *demo = state;
     const UiWindow *window = UiDesktop_Find(&demo->desktop,id);
-    return window ? UiTerminalView_InputRect(UiWindow_Content(window->rect)) : (UiRect){0};
+    return window ? UiTerminalView_TextRect(&demo->terminal,UiWindow_Content(window->rect)) : (UiRect){0};
 }
 
 static void Arc(UiRenderer *r, float x, float y, float radius, float start, float end, UiColor c)
@@ -132,6 +150,19 @@ static void TopBar(UiRenderer *r, int w)
     UiRenderer_Text(r,w-142,18,14,UI_ACCENT,"SYSTEM ONLINE");
 }
 
+static void DockButton(const InterfaceDemo *demo, UiRenderer *r, UiRect b, UiWindowId id,
+                       const char *label, UiWindowIcon icon)
+{
+    const UiWindow *window = UiDesktop_Find(&demo->desktop,id);
+    bool active = id && demo->desktop.focus == id;
+    UiRenderer_Gradient(r,b,active ? 0x1a4351ff : 0x122f3eff,0x0c2230ff);
+    UiRenderer_Outline(r,b,active ? 0x508791ff : UI_EDGE);
+    UiRenderer_Rect(r,(UiRect){b.x,b.y,2,b.h},active ? UI_ACCENT : UI_EDGE);
+    icon(r,b.x+13,b.y+13,active ? UI_ACCENT : UI_MUTED);
+    UiRenderer_Text(r,b.x+41,b.y+8,15,UI_PAPER,label);
+    UiRenderer_Rect(r,(UiRect){b.x+b.w-15,b.y+16,5,5},window && !window->hidden ? UI_ACCENT : UI_EDGE);
+}
+
 static void Draw(void *state, UiRenderer *r, int w, int h)
 {
     InterfaceDemo *demo = state;
@@ -139,30 +170,56 @@ static void Draw(void *state, UiRenderer *r, int w, int h)
     TopBar(r,w);
     UiRenderer_Gradient(r,(UiRect){0,h-BOTTOM,w,BOTTOM},0x0b1e2cff,0x091722ff);
     UiRenderer_Rect(r,(UiRect){0,h-BOTTOM,w,1},UI_EDGE);
-    UiRect b = Dock(h);
-    const UiWindow *window = UiDesktop_Find(&demo->desktop,demo->terminalId);
-    bool active = demo->desktop.focus == demo->terminalId;
-    UiRenderer_Gradient(r,b,active ? 0x1a4351ff : 0x122f3eff,0x0c2230ff);
-    UiRenderer_Outline(r,b,active ? 0x508791ff : UI_EDGE);
-    UiRenderer_Rect(r,(UiRect){b.x,b.y,2,b.h},active ? UI_ACCENT : UI_EDGE);
-    UiTheme_TerminalIcon(r,b.x+13,b.y+13,active ? UI_ACCENT : UI_MUTED);
-    UiRenderer_Text(r,b.x+41,b.y+8,15,UI_PAPER,"Terminal");
-    UiRenderer_Rect(r,(UiRect){b.x+b.w-15,b.y+16,5,5},window && !window->hidden ? UI_ACCENT : UI_EDGE);
-    UiRenderer_Text(r,w-177,b.y+11,12,UI_MUTED,"CTRL TAB  Focus");
+    DockButton(demo,r,Dock(h,0),demo->terminalId,"Terminal",UiTheme_TerminalIcon);
+    DockButton(demo,r,Dock(h,1),demo->files.window,"Files",UiFilesView_Icon);
+    UiRenderer_Text(r,w-177,h-BOTTOM+21,12,UI_MUTED,"CTRL TAB  Focus");
 }
 
 int main(void)
 {
     InterfaceDemo *demo = calloc(1,sizeof(*demo));
     if (!demo) return 1;
+    demo->fs = UiVfs_Create();
+    UiVfsId recipes = UiVfs_Add(demo->fs,UiVfs_Root(demo->fs),"recepies",
+                               UI_VFS_DIRECTORY,UI_VFS_VIRTUAL,0);
+    if (!recipes) {
+        UiVfs_Destroy(demo->fs);
+        free(demo);
+        return 1;
+    }
+    char directory[4096];
+    const char *base = UiPlatform_ExecutableDirectory(directory,sizeof(directory)) ? directory : NULL;
+    UiRecipeCatalogReport report = UiRecipeCatalog_LoadProject(demo->fs,recipes,base);
+    UiShell_Init(&demo->shell,demo->fs);
+    UiFilesApp_Init(&demo->files,demo->fs);
+    demo->filesLaunch = (UiFilesLaunch){
+        .files=&demo->files,.desktop=&demo->desktop,
+        .presentation={
+            .rect={MARGIN+25,TOP+40,480,405},.minWidth=360,.minHeight=224,
+            .title="Files",.draw=UiFilesView_Draw,.input=UiFilesView_Input,.drawIcon=UiFilesView_Icon
+        }
+    };
     UiCommands_Register(&demo->commands,"print",UiCommands_Print,NULL);
+    UiShell_Register(&demo->shell,&demo->commands);
+    UiCommands_Register(&demo->commands,"Files",UiFilesApp_Command,&demo->filesLaunch);
     UiTerminal_Init(&demo->terminal,&demo->commands);
     UiTerminal_Append(&demo->terminal,UI_LOG_SYSTEM,"Session initialized.");
-    UiTerminal_Append(&demo->terminal,UI_LOG_SYSTEM,"Terminal ready. Try print Hello world");
+    UiTerminal_Append(&demo->terminal,UI_LOG_SYSTEM,"Terminal ready. Try ls or Files");
+    demo->terminal.location = UiShell_Location;
+    demo->terminal.locationState = &demo->shell;
+    if (!report.manifestAvailable) {
+        UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,"Recipe catalog unavailable. Showing built-in recipes.");
+    } else if (report.rejected || report.duplicates) {
+        char notice[96];
+        snprintf(notice,sizeof(notice),"Recipe catalog: %u invalid or missing, %u duplicate entries skipped.",
+                 report.rejected,report.duplicates);
+        UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,notice);
+    }
     int result = UiPlatform_Run("Nexus | Command Desktop",(UiApp){
         .state=demo,.desktop=&demo->desktop,.resize=Resize,.desktopPress=DesktopPress,
         .draw=Draw,.textRect=TextRect
     });
+    UiVfs_Destroy(demo->fs);
     free(demo);
     return result;
 }

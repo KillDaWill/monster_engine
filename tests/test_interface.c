@@ -1,10 +1,16 @@
+#define _POSIX_C_SOURCE 200809L
 #include "interface/UiCommands.h"
 #include "interface/UiDesktop.h"
 #include "interface/UiTerminal.h"
 #include "interface/UiText.h"
+#include "interface/UiFilesApp.h"
+#include "interface/UiRecipeCatalog.h"
+#include "interface/UiShell.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 
 static UiCommandResult Custom(void *state, const char *args, char *out, size_t size)
@@ -202,6 +208,238 @@ static void Desktop(void)
     assert(!d.count && !d.focus && !d.captured);
 }
 
+static void FixturePath(char *path, size_t size, const char *from, const char *filename)
+{
+    int bytes = snprintf(path,size,"%s/%s",from,filename);
+    assert(bytes > 0 && (size_t)bytes < size);
+}
+
+static void Fixture(const char *directory, const char *name, const char *contents)
+{
+    char path[512];
+    FixturePath(path,sizeof(path),directory,name);
+    FILE *file = fopen(path,"wb");
+    assert(file && fputs(contents,file) >= 0 && fclose(file) == 0);
+}
+
+static UiVfsId Recipes(UiVfs *fs)
+{
+    return UiVfs_Add(fs,UiVfs_Root(fs),"recepies",UI_VFS_DIRECTORY,UI_VFS_VIRTUAL,0);
+}
+
+static void RecipeCatalog(void)
+{
+    char directory[] = "/tmp/nexus-catalog-XXXXXX";
+    assert(mkdtemp(directory));
+    Fixture(directory,"catalog.txt","# fixture\r\nrenamed.creature.json\r\n"
+        "cerdo.creature.json\nrenamed.creature.json\nsecond.creature.json\n"
+        "../external.creature.json\npath/thing.creature.json\nmissing.creature.json\n"
+        "bad.creature.json\nlinked.creature.json\n");
+    Fixture(directory,"renamed.creature.json",
+        "{\"recipe\":{\"metadata\":[null,true,false,-0.2e+4,{\"id\":9}],\"name\":\"Renamed\",\"id\":3},\"version\":1}");
+    Fixture(directory,"cerdo.creature.json","{\"version\":1,\"recipe\":{\"id\":1007,\"name\":\"Cerdo\"}}");
+    Fixture(directory,"second.creature.json","{\"version\":1,\"recipe\":{\"id\":3,\"name\":\"Duplicate\"}}");
+    Fixture(directory,"bad.creature.json","{\"version\":1,\"recipe\":{\"id\":2,\"name\":\"Malformed\",}}");
+    char link[512];
+    FixturePath(link,sizeof(link),directory,"linked.creature.json");
+    assert(symlink("renamed.creature.json",link) == 0);
+
+    UiVfs *fs = UiVfs_Create();
+    assert(fs);
+    UiVfsId folder = Recipes(fs);
+    assert(folder);
+    UiRecipeCatalogReport report = UiRecipeCatalog_Load(fs,folder,directory);
+    assert(report.manifestAvailable && report.external == 2 && report.builtin == 3);
+    assert(report.rejected == 5 && report.duplicates == 2);
+    const char *expected[] = {"renamed.creature.json","cerdo.creature.json","Lagarto.recipe",
+                              "Perro.recipe","Velkar.recipe"};
+    UiVfsId id = UiVfs_FirstChild(fs,folder);
+    for (size_t i=0; i<sizeof(expected)/sizeof(expected[0]); ++i) {
+        const UiVfsNode *node = UiVfs_Get(fs,id);
+        assert(node && node->type == UI_VFS_FILE && node->parent == folder && node->readOnly);
+        assert(!strcmp(node->name,expected[i]));
+        assert(node->source == (i<2 ? UI_VFS_EXTERNAL_RECIPE : UI_VFS_BUILTIN_RECIPE));
+        assert(i || node->recipeId == 3);
+        id = UiVfs_NextSibling(fs,id);
+    }
+    assert(!id && !UiVfs_FindChild(fs,folder,"Brumacerno.recipe"));
+    UiVfs_Destroy(fs);
+
+    fs = UiVfs_Create();
+    folder = Recipes(fs);
+    report = UiRecipeCatalog_LoadProject(fs,folder,directory);
+    assert(!report.manifestAvailable && report.builtin == 4);
+    UiVfs_Destroy(fs);
+
+    const char *cleanup[] = {"catalog.txt","renamed.creature.json","cerdo.creature.json",
+                             "second.creature.json","bad.creature.json","linked.creature.json"};
+    for (size_t i=0; i<sizeof(cleanup)/sizeof(cleanup[0]); ++i) {
+        char path[512];
+        FixturePath(path,sizeof(path),directory,cleanup[i]);
+        assert(unlink(path) == 0);
+    }
+    fs = UiVfs_Create();
+    folder = Recipes(fs);
+    report = UiRecipeCatalog_Load(fs,folder,directory);
+    assert(!report.manifestAvailable && !report.external && report.builtin == 4);
+    assert(UiVfs_FindChild(fs,folder,"Brumacerno.recipe"));
+    UiVfs_Destroy(fs);
+    assert(rmdir(directory) == 0);
+}
+
+static void Resolve(const UiVfs *fs, UiVfsId base, const char *path,
+                    UiVfsResult expected, UiVfsId target)
+{
+    UiVfsId found = 9999;
+    assert(UiVfs_Resolve(fs,base,path,&found) == expected && found == target);
+}
+
+static void SubmitLine(UiTerminal *terminal, const char *line)
+{
+    UiTerminal_Insert(terminal,line);
+    UiTerminal_Key(terminal,UI_ENTER);
+    assert(!terminal->line[0]);
+}
+
+static const UiLogEntry *Log(const UiTerminal *terminal, int i)
+{
+    return &terminal->log[(terminal->logStart+i)%UI_LOG_LIMIT];
+}
+
+static void ShellAndFiles(void)
+{
+    UiVfs *fs = UiVfs_Create();
+    assert(fs);
+    UiVfsId root = UiVfs_Root(fs), folder = Recipes(fs);
+    UiVfsId file = UiVfs_Add(fs,folder,"cerdo.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1007);
+    UiVfsId sub = UiVfs_Add(fs,folder,"folder",UI_VFS_DIRECTORY,UI_VFS_VIRTUAL,0);
+    assert(root && folder && file && sub);
+    const UiVfsNode *top = UiVfs_Get(fs,root);
+    assert(top->parent == root && top->type == UI_VFS_DIRECTORY && top->readOnly);
+    assert(!UiVfs_Add(fs,file,"child",UI_VFS_FILE,UI_VFS_VIRTUAL,0));
+    assert(!UiVfs_Add(fs,root,"recepies",UI_VFS_DIRECTORY,UI_VFS_VIRTUAL,0));
+    assert(!UiVfs_Add(fs,root,"../escape",UI_VFS_FILE,UI_VFS_VIRTUAL,0));
+    Resolve(fs,root,"/",UI_VFS_OK,root);
+    Resolve(fs,root,"recepies",UI_VFS_OK,folder);
+    Resolve(fs,root,"./recepies",UI_VFS_OK,folder);
+    Resolve(fs,folder,"/recepies",UI_VFS_OK,folder);
+    Resolve(fs,folder,".",UI_VFS_OK,folder);
+    Resolve(fs,folder,"../recepies",UI_VFS_OK,folder);
+    Resolve(fs,folder,"../../../../",UI_VFS_OK,root);
+    Resolve(fs,folder,"//recepies///folder/..",UI_VFS_OK,folder);
+    Resolve(fs,folder,"notfound",UI_VFS_MISSING,0);
+    Resolve(fs,root,"/etc/passwd",UI_VFS_MISSING,0);
+    Resolve(fs,folder,"cerdo.creature.json",UI_VFS_OK,file);
+    Resolve(fs,folder,"cerdo.creature.json/..",UI_VFS_NOT_DIRECTORY,0);
+    Resolve(fs,folder,"cerdo.creature.json/",UI_VFS_NOT_DIRECTORY,0);
+    char path[UI_VFS_PATH_BYTES];
+    assert(UiVfs_Path(fs,file,path,sizeof(path)) && !strcmp(path,"/recepies/cerdo.creature.json"));
+    assert(!UiVfs_Path(fs,file,path,3));
+
+    UiShell shell;
+    UiShell_Init(&shell,fs);
+    UiCommands commands = {0};
+    assert(UiShell_Register(&shell,&commands));
+    assert(!UiShell_Register(&shell,&commands));
+    assert(UiCommands_Register(&commands,"print",UiCommands_Print,NULL));
+    Expect(&commands,"pwd",UI_COMMAND_OK,"/");
+    Expect(&commands,"ls",UI_COMMAND_OK,"recepies/");
+    Expect(&commands,"cd recepies",UI_COMMAND_SILENT,"");
+    Expect(&commands,"pwd",UI_COMMAND_OK,"/recepies");
+    Expect(&commands,"ls .",UI_COMMAND_OK,"cerdo.creature.json\nfolder/");
+    Expect(&commands,"ls /recepies",UI_COMMAND_OK,"cerdo.creature.json\nfolder/");
+    Expect(&commands,"ls -l",UI_COMMAND_ERROR,"ls: -l: Options are not supported");
+    Expect(&commands,"ls cerdo.creature.json",UI_COMMAND_ERROR,"ls: cerdo.creature.json: Not a directory");
+    Expect(&commands,"cd nonexistent",UI_COMMAND_ERROR,"cd: nonexistent: No such directory");
+    Expect(&commands,"cd cerdo.creature.json",UI_COMMAND_ERROR,"cd: cerdo.creature.json: Not a directory");
+    assert(shell.cwd == folder);
+    Expect(&commands,"cd ..",UI_COMMAND_SILENT,"");
+    Expect(&commands,"cd ..",UI_COMMAND_SILENT,"");
+    Expect(&commands,"pwd",UI_COMMAND_OK,"/");
+    Expect(&commands,"cd /recepies",UI_COMMAND_SILENT,"");
+    Expect(&commands,"cd",UI_COMMAND_SILENT,"");
+    assert(shell.cwd == root);
+
+    UiDesktop desktop = {0};
+    UiDesktop_SetArea(&desktop,(UiRect){0,0,600,400});
+    WindowState terminalWindow = {0};
+    UiWindowId terminalId = UiDesktop_Add(&desktop,(UiWindow){
+        .rect={250,30,300,200},.acceptsText=true,.input=WindowInput,.state=&terminalWindow
+    });
+    UiFilesApp files;
+    UiFilesApp_Init(&files,fs);
+    UiFilesLaunch launch = {.files=&files,.desktop=&desktop,
+        .presentation={.rect={20,10,400,250},.minWidth=300,.minHeight=210,.title="Files"}};
+    assert(UiCommands_Register(&commands,"Files",UiFilesApp_Command,&launch));
+    Expect(&commands,"Files x",UI_COMMAND_ERROR,"Files: Expected no arguments");
+    UiTerminal terminal;
+    UiTerminal_Init(&terminal,&commands);
+    UiTerminal_Layout(&terminal,50,12);
+    SubmitLine(&terminal,"cd /recepies");
+    assert(terminal.logCount == 1 && shell.cwd == folder);
+    SubmitLine(&terminal,"ls");
+    assert(terminal.logCount == 4 && terminal.totalRows == 4);
+    assert(Log(&terminal,2)->kind == UI_LOG_OUTPUT && !strcmp(Log(&terminal,2)->text,"cerdo.creature.json"));
+    assert(!strcmp(Log(&terminal,3)->text,"folder/"));
+    SubmitLine(&terminal,"Files");
+    UiWindowId filesId = files.window;
+    assert(filesId && desktop.count == 2 && desktop.focus == filesId);
+    assert(terminal.logCount == 5 && !strcmp(terminal.history[2],"Files"));
+    assert(terminalWindow.events[UI_BLUR] == 1);
+    assert(files.directory == root && files.fs == shell.fs && shell.cwd == folder);
+    assert(UiFilesApp_Item(&files,0) == folder);
+    UiFilesApp_Select(&files,folder);
+    UiFilesApp_Activate(&files);
+    assert(files.directory == folder && UiFilesApp_Count(&files) == 2);
+    assert(UiFilesApp_Item(&files,0) == file && UiFilesApp_Item(&files,1) == sub);
+    UiFilesApp_Select(&files,file);
+    UiFilesApp_Activate(&files);
+    assert(files.previewUnavailable && files.directory == folder);
+    UiFilesApp_MoveSelection(&files,1,1);
+    assert(files.selected == sub && files.firstRow == 1 && !files.previewUnavailable);
+    assert(UiFilesApp_Up(&files) && files.directory == root);
+    assert(UiFilesApp_Back(&files) && files.directory == folder);
+    assert(!UiFilesApp_Go(&files,file) && shell.cwd == folder);
+    Expect(&commands,"Files",UI_COMMAND_SILENT,"");
+    assert(files.window == filesId && desktop.count == 2);
+    UiDesktop_Hide(&desktop,filesId);
+    assert(desktop.focus == terminalId && UiDesktop_Find(&desktop,filesId)->hidden);
+    Expect(&commands,"Files",UI_COMMAND_SILENT,"");
+    assert(files.window == filesId && desktop.focus == filesId && !UiDesktop_Find(&desktop,filesId)->hidden);
+    UiDesktop_Cycle(&desktop,false);
+    assert(desktop.focus == terminalId && files.directory == folder);
+    SubmitLine(&terminal,"print Hello world");
+    assert(terminal.logCount == 7 && !strcmp(Log(&terminal,6)->text,"Hello world"));
+    SubmitLine(&terminal,"print");
+    assert(Log(&terminal,8)->kind == UI_LOG_OUTPUT && !Log(&terminal,8)->text[0]);
+    UiDesktop_SetArea(&desktop,(UiRect){0,0,340,225});
+    const UiWindow *window = UiDesktop_Find(&desktop,filesId);
+    assert(window->rect.w == 340 && window->rect.h == 225);
+    UiRect content = UiWindow_Content(window->rect);
+    assert(content.w < window->rect.w && content.h < window->rect.h);
+
+    /* Un listado mayor que el búfer de respuesta mantiene una entrada por archivo. */
+    for (int i=0; i<100; ++i) {
+        char name[64];
+        snprintf(name,sizeof(name),"catalog-test-fixture-%03d.creature.json",i);
+        assert(UiVfs_Add(fs,folder,name,UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,2000+i));
+    }
+    int before = terminal.logCount;
+    SubmitLine(&terminal,"ls");
+    assert(terminal.logCount == before+103);
+    int viewStart = UiTerminal_FirstRow(&terminal);
+    UiTerminal_Scroll(&terminal,8);
+    assert(!terminal.following && UiTerminal_FirstRow(&terminal) == viewStart-8);
+    UiTerminal_Layout(&terminal,12,8);
+    assert(!terminal.following && terminal.totalRows > terminal.logCount);
+    assert(!strcmp(Log(&terminal,terminal.logCount-1)->text,"catalog-test-fixture-099.creature.json"));
+
+    UiDesktop_Remove(&desktop,filesId);
+    while (desktop.count < UI_MAX_WINDOWS) assert(UiDesktop_Add(&desktop,launch.presentation));
+    Expect(&commands,"Files",UI_COMMAND_ERROR,"Files: Desktop window limit reached");
+    UiVfs_Destroy(fs);
+}
+
 int main(void)
 {
     Commands();
@@ -210,6 +448,8 @@ int main(void)
     Editing(&c);
     Scrolling(&c);
     Desktop();
+    RecipeCatalog();
+    ShellAndFiles();
     puts("Interface tests passed");
     return 0;
 }

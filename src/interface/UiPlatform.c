@@ -127,7 +127,7 @@ static void Event(UiPlatform *p, SDL_Event e)
     case SDL_MOUSEBUTTONDOWN:
         if (e.button.button == SDL_BUTTON_LEFT && !d->captured &&
             (!p->app.desktopPress || !p->app.desktopPress(p->app.state,e.button.x,e.button.y))) {
-            UiDesktop_Press(d,e.button.x,e.button.y);
+            UiDesktop_PressWithClicks(d,e.button.x,e.button.y,e.button.clicks);
             if (d->captured) SDL_CaptureMouse(SDL_TRUE);
         }
         break;
@@ -226,4 +226,15 @@ int UiPlatform_Run(const char *title, UiApp app)
     if (p.window) SDL_DestroyWindow(p.window);
     SDL_Quit();
     return result;
+}
+
+bool UiPlatform_ExecutableDirectory(char *out, size_t capacity)
+{
+    char *directory = SDL_GetBasePath();
+    if (!directory) return false;
+    size_t bytes = SDL_strlen(directory);
+    bool fits = bytes < capacity;
+    if (fits) SDL_memcpy(out,directory,bytes+1);
+    SDL_free(directory);
+    return fits;
 }

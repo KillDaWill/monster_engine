@@ -24,10 +24,36 @@ static void Layout(UiTerminal *t, UiRect output)
     UiTerminal_Layout(t, (output.w-GUTTER-15)/UiRenderer_Cell(FONT), output.h/OUTPUT_ROW);
 }
 
-static void InputViewport(UiTerminal *t, UiRect input)
+typedef struct { char text[UI_COMMAND_BYTES+10]; int inset; } Prompt;
+
+static Prompt MakePrompt(const UiTerminal *t, UiRect input)
+{
+    Prompt prompt = {.text=">",.inset=GUTTER};
+    char path[UI_COMMAND_BYTES];
+    if (!t->location || !t->location(t->locationState,path,sizeof(path))) return prompt;
+    int cell = UiRenderer_Cell(FONT);
+    int pathColumns = Max(4,(input.w-25)/cell-9-11);
+    size_t bytes = strlen(path), start = 0;
+    if (UiText_Count(path,bytes) > (size_t)pathColumns) {
+        start = bytes;
+        for (int i=0; i<pathColumns-3; ++i) start = UiText_Previous(path,start);
+    }
+    snprintf(prompt.text,sizeof(prompt.text),"nexus:%s%s $",start ? "..." : "",path+start);
+    prompt.inset = 10+UiRenderer_Measure(prompt.text,strlen(prompt.text),FONT)+cell;
+    return prompt;
+}
+
+UiRect UiTerminalView_TextRect(const UiTerminal *t, UiRect content)
+{
+    UiRect input = UiTerminalView_InputRect(content);
+    int inset = MakePrompt(t,input).inset;
+    return (UiRect){input.x+inset,input.y+2,Max(1,input.w-inset-6),input.h-4};
+}
+
+static void InputViewport(UiTerminal *t, UiRect input, int inset)
 {
     int cursor = (int)UiText_Count(t->line, t->cursor) + t->compositionCursor;
-    int columns = Max(1, (input.w-GUTTER-9)/UiRenderer_Cell(FONT));
+    int columns = Max(1, (input.w-inset-9)/UiRenderer_Cell(FONT));
     if (cursor < t->inputFirstColumn) t->inputFirstColumn = cursor;
     if (cursor >= t->inputFirstColumn + columns) t->inputFirstColumn = cursor-columns+1;
     int count = (int)UiText_Count(t->line, strlen(t->line))
@@ -55,16 +81,16 @@ static void DrawRow(void *data, int row, UiLogKind kind, const char *text,
     UiRenderer_TextN(r, x+GUTTER, y+1, FONT, colors[kind], text, length);
 }
 
-static void DrawInput(UiTerminal *t, UiRenderer *r, UiRect b, bool active, bool caret)
+static void DrawInput(UiTerminal *t, UiRenderer *r, UiRect b, Prompt prompt, bool active, bool caret)
 {
     UiRenderer_Gradient(r, b, active ? 0x123240ff : 0x142632ff, 0x091a26ff);
     UiRenderer_Outline(r, b, active ? 0x4c9aa0ff : UI_EDGE);
     UiRenderer_Rect(r, (UiRect){b.x+1,b.y+1,2,b.h-2}, active ? UI_ACCENT : UI_MUTED);
-    UiRenderer_Text(r, b.x+10, b.y+7, FONT, UI_ACCENT, ">");
-    if (!UiRenderer_PushClip(r, (UiRect){b.x+GUTTER,b.y+2,b.w-GUTTER-6,b.h-4})) return;
+    UiRenderer_Text(r, b.x+10, b.y+7, FONT, UI_ACCENT, prompt.text);
+    if (!UiRenderer_PushClip(r, (UiRect){b.x+prompt.inset,b.y+2,b.w-prompt.inset-6,b.h-4})) return;
 
     int cell = UiRenderer_Cell(FONT);
-    int x = b.x+GUTTER-cell*t->inputFirstColumn, y = b.y+7;
+    int x = b.x+prompt.inset-cell*t->inputFirstColumn, y = b.y+7;
     int prefix = UiRenderer_Measure(t->line, t->cursor, FONT);
     UiRenderer_TextN(r,x,y,FONT,UI_PAPER,t->line,t->cursor);
     x += prefix;
@@ -87,7 +113,8 @@ void UiTerminalView_Draw(void *state, UiRenderer *r, UiRect c, bool active, bool
     UiTerminal *t = state;
     UiRect output = OutputRect(c), input = UiTerminalView_InputRect(c);
     Layout(t, output);
-    InputViewport(t, input);
+    Prompt prompt = MakePrompt(t,input);
+    InputViewport(t,input,prompt.inset);
     UiRenderer_Rect(r, c, UI_INK);
     UiRenderer_Outline(r, c, 0x284352ff);
 
@@ -110,7 +137,7 @@ void UiTerminalView_Draw(void *state, UiRenderer *r, UiRect c, bool active, bool
         UiRenderer_Rect(r,(UiRect){x,output.y,2,rowsH},0x203c4cff);
         UiRenderer_Rect(r,(UiRect){x,output.y+y,2,size},0x64adbaff);
     }
-    DrawInput(t, r, input, active, caret);
+    DrawInput(t, r, input, prompt, active, caret);
     UiRenderer_Text(r,c.x+PAD,c.y+c.h-22,11,UI_MUTED,"ENTER Run   /   UP DOWN History");
     char count[32];
     snprintf(count,sizeof(count),"%zu / %d B",strlen(t->line),UI_COMMAND_BYTES-1);
@@ -146,9 +173,10 @@ void UiTerminalView_Input(void *state, UiRect c, const UiEvent *e)
     switch (e->type) {
     case UI_PRESS:
         if (!UiRect_Contains(input,e->x,e->y) || t->composition[0]) break;
-        InputViewport(t,input);
+        int inset = MakePrompt(t,input).inset;
+        InputViewport(t,input,inset);
         int cell = UiRenderer_Cell(FONT);
-        int target = t->inputFirstColumn+Max(0,e->x-input.x-GUTTER+cell/2)/cell;
+        int target = t->inputFirstColumn+Max(0,e->x-input.x-inset+cell/2)/cell;
         t->cursor = 0;
         while (target-- > 0 && UiText_Next(t->line,&t->cursor)) {}
         break;

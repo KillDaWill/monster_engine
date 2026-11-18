@@ -5,5 +5,6 @@
 
 void UiTerminalView_Draw(void *, UiRenderer *, UiRect, bool active, bool caret);
 void UiTerminalView_Input(void *, UiRect, const UiEvent *);
+UiRect UiTerminalView_TextRect(const UiTerminal *, UiRect content);
 UiRect UiTerminalView_InputRect(UiRect content);
 #endif

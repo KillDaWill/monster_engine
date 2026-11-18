@@ -352,9 +352,10 @@ demos: demos/demo_ecosystem demos/demo_ecosystem_headless $(DEMO_AGER_BIN) $(DEM
 
 # Escritorio independiente. Los tests de lógica no necesitan SDL ni OpenGL.
 UI_MODEL_SRCS = src/interface/UiCommands.c src/interface/UiDesktop.c \
-                src/interface/UiTerminal.c src/interface/UiText.c
+                src/interface/UiTerminal.c src/interface/UiText.c src/interface/UiVfs.c \
+                src/interface/UiRecipeCatalog.c src/interface/UiShell.c src/interface/UiFilesApp.c
 UI_GRAPHICS_SRCS = src/interface/UiPlatform.c src/interface/UiRenderer.c \
-                   src/interface/UiTheme.c src/interface/UiTerminalView.c
+                   src/interface/UiTheme.c src/interface/UiTerminalView.c src/interface/UiFilesView.c
 UI_HEADERS = $(wildcard include/interface/*.h)
 UI_BIN = demos/interface_demo
 UI_TEST_BIN = $(BUILD_DIR)/interface_test

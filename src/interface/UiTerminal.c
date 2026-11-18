@@ -77,6 +77,11 @@ static void Recall(UiTerminal *t, int direction)
     t->cursor = strlen(t->line);
 }
 
+static void CommandLine(void *state, UiCommandResult kind, const char *text)
+{
+    UiTerminal_Append(state,kind == UI_COMMAND_ERROR ? UI_LOG_ERROR : UI_LOG_OUTPUT,text);
+}
+
 static void Submit(UiTerminal *t)
 {
     if (!t->line[strspn(t->line, " \t")]) return;
@@ -88,10 +93,7 @@ static void Submit(UiTerminal *t)
     t->historyIndex = t->historyCount;
     t->draft[0] = '\0';
     UiTerminal_Append(t, UI_LOG_COMMAND, t->line);
-    char output[UI_LOG_BYTES];
-    UiCommandResult result = UiCommands_Execute(t->commands, t->line, output, sizeof(output));
-    if (result != UI_COMMAND_EMPTY)
-        UiTerminal_Append(t, result == UI_COMMAND_ERROR ? UI_LOG_ERROR : UI_LOG_OUTPUT, output);
+    UiCommands_ExecuteLines(t->commands,t->line,(UiCommandOutput){CommandLine,t});
     t->line[0] = '\0';
     t->cursor = 0;
 }

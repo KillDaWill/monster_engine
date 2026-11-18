@@ -19,7 +19,7 @@ typedef enum {
 } UiKey;
 typedef struct {
     UiEventType type;
-    int x, y, wheel;
+    int x, y, wheel, clicks;
     UiKey key;
     const char *text;
     int compositionCursor, compositionLength;
@@ -64,6 +64,7 @@ void UiDesktop_Activate(UiDesktop *desktop, UiWindowId id);
 void UiDesktop_Hide(UiDesktop *desktop, UiWindowId id);
 void UiDesktop_Cycle(UiDesktop *desktop, bool reverse);
 void UiDesktop_Press(UiDesktop *desktop, int x, int y);
+void UiDesktop_PressWithClicks(UiDesktop *desktop, int x, int y, int clicks);
 void UiDesktop_Move(UiDesktop *desktop, int x, int y);
 void UiDesktop_Release(UiDesktop *desktop);
 void UiDesktop_Dispatch(UiDesktop *desktop, const UiEvent *event);
