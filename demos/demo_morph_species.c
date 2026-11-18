@@ -199,6 +199,7 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "lizard")) spec = "Lagarto";
     else if (EqualsIgnoreCase(spec, "horse")) spec = "Caballo";
     else if (EqualsIgnoreCase(spec, "donkey")) spec = "Asno";
+    else if (EqualsIgnoreCase(spec, "elephant") || EqualsIgnoreCase(spec, "african-elephant")) spec = "Elefante";
     else if (EqualsIgnoreCase(spec, "pig") || EqualsIgnoreCase(spec, "swine")) spec = "Cerdo";
     else if (EqualsIgnoreCase(spec, "explorer")) spec = "Explorador";
 
@@ -824,33 +825,46 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
     } else if (opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && rt->hasVisual) {
         const Monster* geomMonster = MonsterAger_GetGeometryResultConst(&rt->ager);
         MonsterVisualAsync_UpdateWithAppearance(rt->visual, geomMonster, current, 0.016f);
-        MorphFallbackRegion regions[64];
+        MorphFallbackRegion regions[MORPH_HANDOFF_MAX_INTERFACES];
         size_t regionCount = MonsterVisualAsync_GetFallbackRegions(rt->visual, hasSdf ? &sdf : NULL,
-            &current->anatomyGraph, currentAge, 0.08f, regions, 64);
+            &current->anatomyGraph, currentAge, 0.08f, regions, MORPH_HANDOFF_MAX_INTERFACES);
         size_t masked = 0;
         const Mesh* ownedMesh = MonsterVisualAsync_GetOwnedMesh(rt->visual, regions, regionCount, &masked);
         OpenGLRenderer_SetupCamera(cam, w, h);
-        AABB3D clipBoxes[32];
-        size_t clipCount = regionCount < 32 ? regionCount : 32;
-        for (size_t i = 0; i < clipCount; ++i) clipBoxes[i] = regions[i].bounds;
-        OpenGLRenderer_SetMeshClipRegions(renderer, clipBoxes, clipCount);
-        if (ownedMesh) {
+        AABB3D clipBoxes[MORPH_HANDOFF_MAX_INTERFACES];
+        MorphHandoffSet handoffs={0};
+        for (size_t i = 0; i < regionCount; ++i) {
+            handoffs.interfaces[i]=regions[i].handoff;
+            clipBoxes[i]=regions[i].bounds;
+        }
+        handoffs.count=regionCount;
+        size_t clipCount=regionCount;
+        bool meshReady=ownedMesh&&ownedMesh->hasSurface&&ownedMesh->indexCount>0;
+        bool useMesh=meshReady&&OpenGLRenderer_SetMorphHandoffs(renderer,&handoffs,-2);
+        if(!useMesh) {
+            clipCount=0;
+            OpenGLRenderer_SetMorphHandoffs(renderer,NULL,-1);
+        }
+        if (useMesh) {
             SurfacePhenotype resolvedSurface = current->surface;
             SurfacePhenotype_CopyAnchoredDomains(&resolvedSurface, &current->phenotype.surface);
             SurfaceMapper_ResolvePigmentDomains(&resolvedSurface, &rt->reference.anatomyGraph, &rt->reference.surfaceMapping);
             SurfaceRecipe compiledSurface = SurfaceRecipe_CompileScaled(&resolvedSurface, current->surfaceMapping.unitScale);
             OpenGLRenderer_SetMeshSurfaceOverride(renderer, &compiledSurface);
             renderer->renderMesh(renderer, ownedMesh);
+        } else if (hasSdf) {
+            OpenGLRenderer_SetMeshSurfaceOverride(renderer,NULL);
+            OpenGLRenderer_RenderSDF(renderer,&sdf,cam,w,h);
         } else {
-            OpenGLRenderer_SetMeshSurfaceOverride(renderer, NULL);
-            MonsterVisualAsync_Render(rt->visual, renderer);
-            drewAsyncVisual = true;
+            OpenGLRenderer_SetMeshSurfaceOverride(renderer,NULL);
+            MonsterVisualAsync_Render(rt->visual,renderer);
+            drewAsyncVisual=true;
         }
-        OpenGLRenderer_SetMeshClipRegions(renderer, NULL, 0);
         if (clipCount > 0 && hasSdf) {
             OpenGLRenderer_RenderSDFRegions(renderer, &sdf, cam, w, h, clipBoxes, clipCount);
         }
-        MonsterVisualAsync_RecordFallbackFrame(rt->visual, regions, regionCount, clipCount, ownedMesh != NULL, masked);
+        OpenGLRenderer_SetMorphHandoffs(renderer,NULL,-1);
+        MonsterVisualAsync_RecordFallbackFrame(rt->visual, regions, regionCount, clipCount, useMesh, masked);
     }
 
     OpenGLRenderer_SetupCamera(cam, w, h);

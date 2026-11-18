@@ -575,6 +575,9 @@ bool AnatomyDeformer_BindCranium(AnatomyDeformer* d,const Skeleton* s,
     for(size_t v=0;v<d->vertexCount;++v) {
         float w=AnatomyDeformer_CranialWeight(d->basePositions[v],attachment,axis,collar);
         if(w<=0)continue;
+        const BodyConnection* owner=&d->refGraph.connections[d->bindings[v].connIndex[0]];
+        if(owner->kind==BODY_CONNECTION_FLEXIBLE_SEGMENT||owner->kind==BODY_CONNECTION_PAIRED_OPENINGS)
+            continue;
         /* La conexión más cercana cambia de identidad dentro de la papada.
          * Usarla como interruptor cortaba el collar en dos al flexionar. La
          * suma de influencias conserva continuidad incluso si empatan vecinos. */

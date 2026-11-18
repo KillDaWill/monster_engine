@@ -32,7 +32,7 @@ typedef enum AnatomyRegion {
     ANATOMY_REGION_UNKNOWN, ANATOMY_REGION_HEAD, ANATOMY_REGION_NECK,
     ANATOMY_REGION_TRUNK, ANATOMY_REGION_PELVIS, ANATOMY_REGION_FORELIMB,
     ANATOMY_REGION_HINDLIMB, ANATOMY_REGION_LIMB, ANATOMY_REGION_WING,
-    ANATOMY_REGION_TAIL, ANATOMY_REGION_DIGIT, ANATOMY_REGION_ORNAMENT
+    ANATOMY_REGION_TAIL, ANATOMY_REGION_DIGIT, ANATOMY_REGION_ORNAMENT, ANATOMY_REGION_FLEXIBLE
 } AnatomyRegion;
 typedef enum AnatomySide { ANATOMY_SIDE_CENTER, ANATOMY_SIDE_LEFT, ANATOMY_SIDE_RIGHT } AnatomySide;
 
@@ -40,7 +40,8 @@ typedef enum AnatomySide { ANATOMY_SIDE_CENTER, ANATOMY_SIDE_LEFT, ANATOMY_SIDE_
 typedef enum AnatomyNodeRole {
     ANATOMY_ROLE_AXIAL,
     ANATOMY_ROLE_JOINT,
-    ANATOMY_ROLE_DIGIT
+    ANATOMY_ROLE_DIGIT,
+    ANATOMY_ROLE_FLEXIBLE
 } AnatomyNodeRole;
 
 /** Tipo de superficie que compila una conexión explícita. */
@@ -51,7 +52,13 @@ typedef enum BodyConnectionKind {
     BODY_CONNECTION_SUPPORT, /**< Unión estructural sin volumen adicional (láminas). */
     BODY_CONNECTION_ORNAMENT_SEGMENT, /**< Tramo de cuerno o espina, separado del detalle locomotor. */
     BODY_CONNECTION_MUSCLE_UNION, /**< Barrido muscular localizado; nunca propaga el radio del anfitrión. */
-    BODY_CONNECTION_HOOF_CAPSULE /**< Cápsula oval de apoyo, distinta de la uña hendida. */
+    BODY_CONNECTION_HOOF_CAPSULE, /**< Cápsula oval de apoyo, distinta de la uña hendida. */
+    BODY_CONNECTION_PAD,
+    BODY_CONNECTION_NAIL,
+    BODY_CONNECTION_TUSK,
+    BODY_CONNECTION_TUSK_ROOT,
+    BODY_CONNECTION_PAIRED_OPENINGS,
+    BODY_CONNECTION_FLEXIBLE_SEGMENT
 } BodyConnectionKind;
 
 /** @struct AnatomyNode

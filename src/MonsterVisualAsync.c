@@ -2010,9 +2010,10 @@ size_t MonsterVisualAsync_GetFallbackRegions(const MonsterVisualAsync* asyncMgr,
             found=true;
         }
         bool currentFieldPresent=found;
-        if(asyncMgr->hasMorphHeadBounds&&
-           (state->moduleId==asyncMgr->morphHeadModuleIds[0]||
-            state->moduleId==asyncMgr->morphHeadModuleIds[1])) {
+        bool changingHead=asyncMgr->hasMorphHeadBounds&&
+            (state->moduleId==asyncMgr->morphHeadModuleIds[0]||
+             state->moduleId==asyncMgr->morphHeadModuleIds[1]);
+        if(changingHead) {
             AABB_ExpandPoint(&box,asyncMgr->morphHeadBounds.start);
             AABB_ExpandPoint(&box,asyncMgr->morphHeadBounds.end);
             found=true;
@@ -2048,8 +2049,21 @@ size_t MonsterVisualAsync_GetFallbackRegions(const MonsterVisualAsync* asyncMgr,
         if(bound&&(!state->handoffInitialized||h.retireOnly)&&!MorphHandoff_AddReference(&h,&binding->refGraph,currentGraph)) {
             fprintf(stderr,"[Cesión] Soporte de referencia excedido: módulo %u.\n",state->moduleId);continue;
         }
-        AABB3D support=MorphHandoff_WorkBounds(&h);
-        AABB_ExpandPoint(&box,support.start);AABB_ExpandPoint(&box,support.end);
+        if(changingHead) {
+            /* Los pabellones y el maxilar no tienen tramos en el grafo.
+             * Cubrir ambos campos y la geometría publicada en el mismo
+             * dominio, también detrás del plano de la inserción cervical. */
+            Vector3 center=Vec3_Scale(Vec3_Add(box.start,box.end),.5f);
+            float radius=.5f*Vec3_Length(AABB_Size(box))+2*h.blendWidth;
+            h.segments[0]=(MorphHandoffSegment){center,center,radius};
+            h.segmentCount=1;
+            h.hardClipOffset=Vec3_Dot(Vec3_Sub(center,h.origin),h.normal)-radius;
+        }
+        if(h.segmentCount) {
+            AABB3D support=MorphHandoff_WorkBounds(&h);
+            AABB_ExpandPoint(&box,support.start);
+            AABB_ExpandPoint(&box,support.end);
+        }
         float collar=currentField->config.connectionSmoothness+
             currentField->config.bodySmoothness+4*.001f;
         AABB_Pad(&box,collar);

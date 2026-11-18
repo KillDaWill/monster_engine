@@ -5,6 +5,7 @@
 #include "MonsterVisual.h"
 #include "OpenGLRenderer.h"
 #include "AnimatedVisual.h"
+#include "FlexibleAppendage.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -26,6 +27,32 @@ static bool Capture(Renderer3D* r,ICamera* camera,MonsterVisual* v,Vector3 targe
     char path[1024];snprintf(path,sizeof(path),"%s/%s.ppm",directory,name);
     bool ok=OpenGLRenderer_SavePPM(path,1200,900);r->endFrame(r);return ok;
 }
+static bool CaptureFlexible(Renderer3D* renderer, ICamera* camera, MonsterVisual* visual,
+    Monster* monster, const AnimatedVisual* binding, uint32_t module, Vector3 center,
+    float height, const char* directory) {
+    const char* names[]={"relaxed","curled","reaching","feeding"};
+    MonsterAnimation* animation=monster->animation;
+    const Skeleton* skeleton=&animation->rig.skeleton;
+    int tip=Skeleton_FindJoint(skeleton,Anatomy_MakeId(module,FLEXIBLE_APPENDAGE_STATIONS));
+    int previous=Skeleton_FindJoint(skeleton,Anatomy_MakeId(module,FLEXIBLE_APPENDAGE_STATIONS-1));
+    if(tip<0||previous<0)return false;
+    bool ok=true;
+    for(unsigned pose=0;pose<FLEXIBLE_POSE_COUNT;++pose) {
+        if(!FlexibleAppendage_ApplyPose(module,pose,1,skeleton,&animation->pose) ||
+           !AnimatedVisual_Deform(binding,visual,monster))return false;
+        char name[80];
+        snprintf(name,sizeof(name),"appendage-%s",names[pose]);
+        ok=Capture(renderer,camera,visual,center,Vec3_Create(.94f,.12f,.40f),height,directory,name)&&ok;
+        Vector3 end=animation->pose.joints[tip].worldPosition;
+        Vector3 tangent=Vec3_Normalize(Vec3_Sub(end,animation->pose.joints[previous].worldPosition));
+        Vector3 direction=Vec3_Normalize(Vec3_Add(tangent,Vec3_Create(.23f,0,0)));
+        snprintf(name,sizeof(name),"tip-%s",names[pose]);
+        ok=Capture(renderer,camera,visual,end,direction,monster->phenotype.axial.totalScale*.78f,
+            directory,name)&&ok;
+    }
+    return FlexibleAppendage_ApplyPose(module,FLEXIBLE_POSE_RELAXED,1,skeleton,&animation->pose)&&ok;
+}
+
 int main(int argc,char** argv) {
     if(argc<4||argc>6) {
         fprintf(stderr,"Uso: %s receta directorio edad [neutral|surface] [apertura]\n",argv[0]);return 2;
@@ -93,6 +120,11 @@ int main(int argc,char** argv) {
         AnimatedVisual binding={0};
         if(!AnimatedVisual_Bind(&binding,v,m))ok=false;
         else {
+            for(size_t i=0;i<doc->recipe.bodyPlan.moduleCount;++i) {
+                const CreatureModuleInstance* module=&doc->recipe.bodyPlan.modules[i];
+                if(module->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE)
+                    ok=CaptureFlexible(&renderer,&camera,v,m,&binding,module->instanceId,center,height,argv[2])&&ok;
+            }
             m->animation->animator.desiredVelocity=Vec3_Create(0,0,.8f*s);
             m->animation->animator.mouthOpen=opening;
             for(int frame=0;frame<30;++frame)ok=MonsterAnimation_Update(m,1.f/60)&&ok;

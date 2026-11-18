@@ -62,6 +62,24 @@ static void Morph_HeadJawStations(const HeadAnatomy* h,Vector3 centers[6],Vector
     }
 }
 
+/* Interpolar un marco ortonormal. Dos ejes opuestos no se pueden mezclar
+ * componente a componente: la sección se vuelve casi invariante al desplazar
+ * el punto en el eje que se anula, extendiendo la lámina fuera de sus cotas. */
+static void Morph_Pinna(HeadSurfaceRecipe* out, const HeadSurfaceRecipe* a, const HeadSurfaceRecipe* b,
+    bool right, Vector3 root, float t) {
+    Vector3 upA=right?a->rightEarDirection:a->earDirection;
+    Vector3 upB=right?b->rightEarDirection:b->earDirection;
+    Vector3 normalA=right?a->rightEarNormal:a->leftEarNormal;
+    Vector3 normalB=right?b->rightEarNormal:b->leftEarNormal;
+    Quaternion align=Quat_FromTo(normalA,normalB);
+    Quaternion transported=Quat_Slerp(Quat_Identity(),align,t);
+    Vector3 normal=Quat_RotateVector(transported,normalA);
+    Vector3 finalUp=Quat_RotateVector(align,upA);
+    float roll=atan2f(Vec3_Dot(Vec3_Cross(finalUp,upB),normalB),Vec3_Dot(finalUp,upB));
+    Vector3 up=Quat_RotateVector(Quat_FromAxisAngle(normal,roll*t),Quat_RotateVector(transported,upA));
+    HeadSurfaceRecipe_SetEarPose(out,right,root,up,normal);
+}
+
 static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatomy* out) {
     if(t<=0.0f){*out=*a;return;}
     if(t>=1.0f){*out=*b;return;}
@@ -139,16 +157,7 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->surface.rightTympanumCenter=Vec3_Lerp(a->surface.rightTympanumCenter,b->surface.rightTympanumCenter,t);
     out->surface.tympanumRadii=Vec3_Lerp(a->surface.tympanumRadii,b->surface.tympanumRadii,t);
     out->surface.tympanumDepth=Math_Lerp(a->surface.tympanumDepth,b->surface.tympanumDepth,t);
-    out->surface.leftEarCenter=Vec3_Lerp(a->surface.leftEarCenter,b->surface.leftEarCenter,t);
-    out->surface.rightEarCenter=Vec3_Lerp(a->surface.rightEarCenter,b->surface.rightEarCenter,t);
-    out->surface.earRadii=Vec3_Lerp(a->surface.earRadii,b->surface.earRadii,t);
     out->surface.earShape=Vec3_Lerp(a->surface.earShape,b->surface.earShape,t);
-    out->surface.earDirection=Vec3_Lerp(a->surface.earDirection,b->surface.earDirection,t);
-    out->surface.rightEarDirection=Vec3_Lerp(a->surface.rightEarDirection,b->surface.rightEarDirection,t);
-    out->surface.leftEarSide=Vec3_Lerp(a->surface.leftEarSide,b->surface.leftEarSide,t);
-    out->surface.rightEarSide=Vec3_Lerp(a->surface.rightEarSide,b->surface.rightEarSide,t);
-    out->surface.leftEarNormal=Vec3_Lerp(a->surface.leftEarNormal,b->surface.leftEarNormal,t);
-    out->surface.rightEarNormal=Vec3_Lerp(a->surface.rightEarNormal,b->surface.rightEarNormal,t);
     out->surface.earConcavity=Math_Lerp(a->surface.earConcavity,b->surface.earConcavity,t);
     out->surface.earTipFraction=Math_Lerp(a->surface.earTipFraction,b->surface.earTipFraction,t);
     out->surface.earLongitudinalCurve=Math_Lerp(a->surface.earLongitudinalCurve,b->surface.earLongitudinalCurve,t);
@@ -239,6 +248,34 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->oralSystem.cheeks=Vec3_Lerp(a->oralSystem.cheeks,b->oralSystem.cheeks,t);
     out->oralSystem.brows=Vec3_Lerp(a->oralSystem.brows,b->oralSystem.brows,t);
     out->eyeScale=Vec3_Lerp(a->eyeScale,b->eyeScale,t);
+    if(a->surface.hasEars && b->surface.hasEars) {
+        /* La concavidad es una cavidad de concha. Al invertir una pinna y
+         * convertirla en lámina, el cuenco desaparece antes de afinarla. */
+        if(Vec3_Dot(a->surface.earDirection,b->surface.earDirection)<0) {
+            bool sheetA=a->surface.earShape.x>9*a->surface.earShape.z;
+            bool sheetB=b->surface.earShape.x>9*b->surface.earShape.z;
+            if(sheetA||sheetB) {
+                float roll=sinf(t*3.14159265f);
+                float tuck=roll*roll;
+                /* Durante el giro se pliega hacia la inserción. La lámina
+                 * se despliega al recuperar una orientación de reposo. */
+                out->surface.earShape.x*=1-.48f*tuck;
+                out->surface.earShape.y*=1-.24f*tuck;
+                out->surface.earShape.z*=1+.20f*tuck;
+                out->surface.earFold*=1-.72f*tuck;
+                out->surface.earLongitudinalCurve*=1-.55f*tuck;
+                float inset=out->surface.craniumRadii.x*.15f*tuck;
+                out->landmarks.leftEarBase.x-=inset;
+                out->landmarks.rightEarBase.x+=inset;
+                if(sheetA!=sheetB) {
+                    float sheet=Math_Clamp01((sheetA?1-t:t)*4.f);
+                    out->surface.earConcavity*=1-sheet*sheet*(3-2*sheet);
+                }
+            }
+        }
+        Morph_Pinna(&out->surface,&a->surface,&b->surface,false,out->landmarks.leftEarBase,t);
+        Morph_Pinna(&out->surface,&a->surface,&b->surface,true,out->landmarks.rightEarBase,t);
+    }
     /* La pinna ausente conserva el marco de su homóloga y se contrae en su inserción. */
     const HeadSurfaceRecipe* ear=a->surface.hasEars?&a->surface:&b->surface;
     if (a->surface.hasEars != b->surface.hasEars) {
@@ -252,6 +289,13 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
         out->surface.rightEarCenter=Vec3_Add(out->surface.craniumCenter,Vec3_Create(right.x*scale.x,right.y*scale.y,right.z*scale.z));
         out->surface.earLongitudinalCurve=ear->earLongitudinalCurve*weight;
         out->surface.earFold=ear->earFold*weight;
+        out->surface.earConcavity=ear->earConcavity;
+        out->surface.earTipFraction=ear->earTipFraction;
+        out->surface.earRootRoll=ear->earRootRoll;
+        out->surface.earTipRoundness=ear->earTipRoundness;
+        out->surface.earRootFlare=ear->earRootFlare;
+        out->surface.earMarginBow=ear->earMarginBow;
+        out->surface.earMarginAsymmetry=ear->earMarginAsymmetry;
         out->landmarks.leftEarBase=out->surface.leftEarCenter;
         out->landmarks.rightEarBase=out->surface.rightEarCenter;
         out->surface.leftEarCenter=Vec3_Add(out->surface.leftEarCenter,Vec3_Scale(ear->earDirection,ear->earShape.y*weight*.5f));
@@ -310,7 +354,7 @@ static AnatomyNode Counterpart(const AnatomyGraph* own,const AnatomyGraph* other
         match=AnatomyGraph_FindNode(other,id);
         if(match){
             collapsed.center=match->center;
-            if(n->region==ANATOMY_REGION_ORNAMENT) {
+            if(n->region==ANATOMY_REGION_ORNAMENT||n->region==ANATOMY_REGION_FLEXIBLE) {
                 const AnatomyNode* host=AnatomyGraph_FindNode(own,id);
                 if(host) {
                     /* El brote nace en su ranura superficial, no en el centro
@@ -326,7 +370,7 @@ static AnatomyNode Counterpart(const AnatomyGraph* own,const AnatomyGraph* other
             break;
         }
         const AnatomyNode* ancestor=AnatomyGraph_FindNode(own,id);
-        if(ancestor&&ancestor->region==ANATOMY_REGION_ORNAMENT)root=ancestor;
+        if(ancestor&&ancestor->region==n->region&&ancestor->moduleInstanceId==n->moduleInstanceId)root=ancestor;
     }
     collapsed.widthRadius=collapsed.heightRadius=1e-6f;
     collapsed.envelopeRadii=Vec3_Zero();
@@ -849,6 +893,11 @@ static void Morph_AppendModule(CreatureRecipe* recipe,CreaturePhenotype* phen,
         if(srcMod->phenotypeIndex>=srcPhen->ornamentCount||phen->ornamentCount>=CREATURE_MAX_ORNAMENTS)return;
         dstMod.phenotypeIndex=(unsigned)phen->ornamentCount;
         phen->ornaments[phen->ornamentCount++]=srcPhen->ornaments[srcMod->phenotypeIndex];
+    } else if(srcMod->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE) {
+        if(srcMod->phenotypeIndex>=srcPhen->flexibleAppendageCount||
+           phen->flexibleAppendageCount>=CREATURE_MAX_FLEXIBLE_APPENDAGES)return;
+        dstMod.phenotypeIndex=(unsigned)phen->flexibleAppendageCount;
+        phen->flexibleAppendages[phen->flexibleAppendageCount++]=srcPhen->flexibleAppendages[srcMod->phenotypeIndex];
     }
     recipe->bodyPlan.modules[recipe->bodyPlan.moduleCount++]=dstMod;
 }
@@ -859,6 +908,7 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
     out->phenotype.limbCount=0;
     out->phenotype.tailCount=0;
     out->phenotype.ornamentCount=0;
+    out->phenotype.flexibleAppendageCount=0;
     for(size_t i=0;i<a->recipe.bodyPlan.moduleCount;++i) {
         const CreatureModuleInstance* ma=&a->recipe.bodyPlan.modules[i];
         if(ma->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,ma->instanceId))continue;

@@ -30,7 +30,8 @@ static unsigned ResolutionPriority(CreatureModuleKind kind) {
     case CREATURE_MODULE_TAIL: return 2;
     case CREATURE_MODULE_LIMB: return 3;
     case CREATURE_MODULE_ORNAMENT: return 4;
-    default: return 5;
+    case CREATURE_MODULE_FLEXIBLE_APPENDAGE: return 5;
+    default: return 6;
     }
 }
 
@@ -132,6 +133,8 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
     bool limbs[CREATURE_MAX_LIMBS] = {0};
     bool tails[CREATURE_MAX_TAILS] = {0};
     bool ornaments[CREATURE_MAX_ORNAMENTS] = {0};
+    bool flexible[CREATURE_MAX_FLEXIBLE_APPENDAGES] = {0};
+    if (p->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES) return false;
 
     for (size_t i = 0; i < r->bodyPlan.moduleCount; ++i) {
         const CreatureModuleInstance* m = &r->bodyPlan.modules[i];
@@ -162,7 +165,11 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (!Limb_Supports(p->limbs[m->phenotypeIndex].archetype)) return false;
             const LimbPhenotype* limb = &p->limbs[m->phenotypeIndex];
             if (limb->digitCount > CREATURE_MAX_DIGITS) return false;
-            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_COMPACT_UNGULATE ||
+            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_COLUMNAR ||
+                limb->nailCount > CREATURE_MAX_DIGITS) return false;
+            if (limb->anatomyProfile == LIMB_PROFILE_COLUMNAR) {
+                if (limb->archetype != LIMB_ARCHETYPE_MAMMAL) return false;
+            } else if (limb->nailCount ||
                 (limb->anatomyProfile != LIMB_PROFILE_LEGACY && limb->archetype != LIMB_ARCHETYPE_UNGULATE)) return false;
             if (limb->archetype == LIMB_ARCHETYPE_UNGULATE &&
                 ((limb->digitCount != 1 && limb->digitCount != 2) ||
@@ -176,8 +183,14 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             break;
         case CREATURE_MODULE_ORNAMENT:
             if (m->phenotypeIndex >= p->ornamentCount || ornaments[m->phenotypeIndex]) return false;
-            if (p->ornaments[m->phenotypeIndex].archetype > ORNAMENT_ARCHETYPE_CUSTOM) return false;
+            if (p->ornaments[m->phenotypeIndex].archetype > ORNAMENT_ARCHETYPE_TUSK) return false;
             ornaments[m->phenotypeIndex] = true;
+            break;
+        case CREATURE_MODULE_FLEXIBLE_APPENDAGE:
+            if (m->phenotypeIndex >= p->flexibleAppendageCount || flexible[m->phenotypeIndex]) return false;
+            if (p->flexibleAppendages[m->phenotypeIndex].terminal > FLEXIBLE_TERMINAL_PAIRED_OPENINGS ||
+                p->flexibleAppendages[m->phenotypeIndex].terminal < FLEXIBLE_TERMINAL_ROUND) return false;
+            flexible[m->phenotypeIndex] = true;
             break;
         default:
             return false;

@@ -93,6 +93,7 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/Limb.c \
             $(SRC_DIR)/LimbReptile.c \
             $(SRC_DIR)/LimbMammal.c \
+            $(SRC_DIR)/FlexibleAppendage.c \
             $(SRC_DIR)/AxialBodyUprightTetrapod.c \
             $(SRC_DIR)/Tail.c \
             $(SRC_DIR)/Ornament.c \
@@ -132,6 +133,7 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_long_hair_scheduler.c \
             $(TEST_DIR)/test_equine_anatomy.c \
             $(TEST_DIR)/test_suid_anatomy.c \
+            $(TEST_DIR)/test_flexible_appendage.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
             $(TEST_DIR)/test_cloven_hoof.c \

@@ -17,6 +17,8 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     if (!p) return;
     if (p->limbCount > CREATURE_MAX_LIMBS) p->limbCount = CREATURE_MAX_LIMBS;
     if (p->tailCount > CREATURE_MAX_TAILS) p->tailCount = CREATURE_MAX_TAILS;
+    if (p->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES)
+        p->flexibleAppendageCount = CREATURE_MAX_FLEXIBLE_APPENDAGES;
     if (p->ornamentCount > CREATURE_MAX_ORNAMENTS) p->ornamentCount = CREATURE_MAX_ORNAMENTS;
 
 #define POS(name, value) p->axial.name = Positive(p->axial.name, value)
@@ -126,6 +128,17 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         o->lateralSweep=Math_Clamp(o->lateralSweep,-1,1);
     }
 
+    for (size_t i = 0; i < p->flexibleAppendageCount; ++i) {
+        FlexibleAppendagePhenotype* f = &p->flexibleAppendages[i];
+        f->length = Positive(f->length, 1);
+        f->baseRadius = Positive(f->baseRadius, .2f);
+        f->tipRadius = Math_Min(f->baseRadius, Positive(f->tipRadius, .08f));
+        f->aspect = Math_Clamp(Positive(f->aspect, 1), .6f, 1.4f);
+        f->taper = Math_Clamp(Positive(f->taper, 1), .5f, 4);
+        f->initialPitch = isfinite(f->initialPitch) ? Math_Clamp(f->initialPitch, -1.57f, 1.57f) : 0;
+        f->restBend = isfinite(f->restBend) ? Math_Clamp(f->restBend, -1.57f, 1.57f) : 0;
+    }
+
     p->eyes.size = isfinite(p->eyes.size) ? Math_Clamp(p->eyes.size, 0.0f, 4.0f) : 1.0f;
     p->eyes.protrusion = isfinite(p->eyes.protrusion) ? Math_Clamp(p->eyes.protrusion, 0.0f, 2.0f) : 1.0f;
     p->eyes.irisScale = Unit(p->eyes.irisScale, 0.72f);
@@ -145,10 +158,14 @@ bool CreaturePhenotype_TopologyCompatible(const CreaturePhenotype* a, const Crea
         a->tailCount > CREATURE_MAX_TAILS || a->ornamentCount > CREATURE_MAX_ORNAMENTS) {
         return false;
     }
+    if (a->flexibleAppendageCount != b->flexibleAppendageCount ||
+        a->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES) return false;
+    for (size_t i = 0; i < a->flexibleAppendageCount; ++i)
+        if (a->flexibleAppendages[i].terminal != b->flexibleAppendages[i].terminal) return false;
     for (size_t i = 0; i < a->limbCount; ++i) {
         const LimbPhenotype *x = &a->limbs[i], *y = &b->limbs[i];
         if (x->role != y->role || x->side != y->side || x->digitCount != y->digitCount ||
-            x->anatomyProfile != y->anatomyProfile ||
+            x->anatomyProfile != y->anatomyProfile || x->nailCount != y->nailCount ||
             x->digitCount > CREATURE_MAX_DIGITS) {
             return false;
         }
@@ -260,6 +277,12 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(tails[i].tipWidth); LERP_BODY(tails[i].tipHeight); LERP_BODY(tails[i].taperCurve); LERP_BODY(tails[i].droop);
         LERP_BODY(tails[i].curvature); LERP_BODY(tails[i].development);
         LERP_BODY(tails[i].rootMatchStrength);
+    }
+    for (size_t i = 0; i < p.flexibleAppendageCount; ++i) {
+        LERP_BODY(flexibleAppendages[i].length); LERP_BODY(flexibleAppendages[i].baseRadius);
+        LERP_BODY(flexibleAppendages[i].tipRadius); LERP_BODY(flexibleAppendages[i].aspect);
+        LERP_BODY(flexibleAppendages[i].taper); LERP_BODY(flexibleAppendages[i].initialPitch);
+        LERP_BODY(flexibleAppendages[i].restBend);
     }
     for (size_t i = 0; i < p.ornamentCount; ++i) {
         LERP_BODY(ornaments[i].length); LERP_BODY(ornaments[i].baseRadius); LERP_BODY(ornaments[i].tipRadius);

@@ -9,7 +9,7 @@ uniform int shellCount;
 in vec3 restCoord,restNormal,viewPosition,viewNormal;
 in vec4 vertexColor,profileA,profileB;
 in vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
-in float ventral,skinMask;
+in float ventral,skinMask,wrinkleCoverageOut;
 flat in int tissueMaterial;
 in vec3 posedFlowOut,restFlowOut;
 in float shellDelta;
@@ -32,6 +32,7 @@ out vec4 fragColor;
 #include "surface/evaluate.glsl"
 
 void main() {
+    wrinkleCoverage=wrinkleCoverageOut;
     pigmentCoverage[0]=clamp(pigmentMaskLegacy,0.0,1.0);
     pigmentCoverage[1]=clamp(pigmentMaskFrom,0.0,1.0);pigmentCoverage[2]=clamp(pigmentMaskTo,0.0,1.0);
     vec3 mappedCoord=restCoord,mappedNormal=restNormal;
@@ -73,9 +74,9 @@ void main() {
         if(surfaceDebug==6){fragColor=vec4(pigment,1);return;}
         fragColor=vec4(SurfaceLighting(nasal,viewPosition),vertexColor.a);return;
     }
-    if(tissueMaterial==8||tissueMaterial==9){
+    if(tissueMaterial==8||tissueMaterial==9||tissueMaterial==10){
         if(furPass==1)discard;
-        SurfaceResponse keratin=SurfaceResponse(vertexColor.rgb,n,tissueMaterial==8?.38:.55,.30);
+        SurfaceResponse keratin=SurfaceResponse(vertexColor.rgb,n,tissueMaterial==8?.38:tissueMaterial==9?.55:.43,tissueMaterial==10?.23:.30);
         fragColor=vec4(SurfaceLighting(keratin,viewPosition),vertexColor.a);return;
     }
 
@@ -142,12 +143,14 @@ void main() {
             float grain = PigmentNoise(mappedCoord * 8.0, furSeed ^ 0x4d4943u);
             grain = mix(grain, 0.5, smoothstep(0.18, 0.70, grainFootprint));
             albedo *= 0.94 + 0.12 * grain;
+            vec3 wrinkled=SurfaceWrinkles(n,viewPosition,mappedCoord,skinMask,albedo);
             float furRoughness = clamp(surfaceRecipe[10].z, 0.2, 1.0);
             float sheen = surfaceRecipe[10].w;
             vec3 furTangent = normalize(mix(n, mappedFlow, 0.72));
-            vec3 color = FurLighting(albedo, furTangent, n, viewPosition, furRoughness, sheen * 0.30, 0.0);
+            vec3 color = FurLighting(albedo, furTangent, wrinkled, viewPosition, furRoughness, sheen * 0.30, 0.0);
             vec3 skinColor=tissueMaterial==2?EvaluateLocalizedPigment(mappedCoord,vertexColor.rgb):pigment;
-            vec3 skin=SurfaceLighting(SurfaceResponse(skinColor,n,localMaterial.y,.28),viewPosition);
+            skinColor*=mix(vec3(1),albedo/max(pigment,vec3(.01)),clamp(surfaceRecipe[102].y,0.0,1.0));
+            vec3 skin=SurfaceLighting(SurfaceResponse(skinColor,wrinkled,localMaterial.y,.28),viewPosition);
             color=mix(color,skin,localMaterial.z*max(skinMask,float(tissueMaterial==2)));
 
             if (surfaceDebug == 1) color = vec3(mappedA.x * 0.4, mappedA.y * 0.35, mappedVentral);

@@ -8,6 +8,7 @@
 #include "CreatureRig.h"
 #include "Monster.h"
 #include "Limb.h"
+#include "FlexibleAppendage.h"
 #include "Transform3D.h"
 #include <math.h>
 #include <string.h>
@@ -207,6 +208,18 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
         }
 
         Limb_ConfigureRig(&desc, g, r);
+    }
+
+    /* Cada bisagra flexible conserva el eje transversal publicado al resolver
+     * el módulo. El anfitrión no necesita estar orientado en el eje global X. */
+    for (size_t i=0; i<g->connectionCount; ++i) {
+        const BodyConnection* edge=&g->connections[i];
+        if (edge->kind!=BODY_CONNECTION_FLEXIBLE_SEGMENT && edge->kind!=BODY_CONNECTION_PAIRED_OPENINGS)
+            continue;
+        int joint=Skeleton_FindJoint(s,edge->toId);
+        if(joint<0)continue;
+        s->joints[joint].constraint=(JointConstraint){.type=JOINT_HINGE,
+            .hingeAxis=edge->transverseAxis,.minAngle=-.85f,.maxAngle=.85f};
     }
 
     /* Articulación mandibular opcional si existe cabeza y cavidad oral */

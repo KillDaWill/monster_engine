@@ -83,6 +83,8 @@ typedef struct FurTuftPhenotype {
 typedef struct SurfacePhenotype {
     PigmentPhenotype pigment;
     IntegumentPhenotype integument;
+    uint32_t wrinkleRegionMask; /**< Bits de SurfaceRegion; cero cubre toda la piel. */
+    float wrinkleStrength, wrinkleScale, wrinkleDirectionality; /**< Relieve en reposo y predominio transversal. */
     SurfaceRegionProfile regions[SURFACE_REGION_COUNT];
     FurRegionProfile furRegions[SURFACE_REGION_COUNT];
     FurTuftPhenotype tufts[SURFACE_MAX_FUR_TUFTS];

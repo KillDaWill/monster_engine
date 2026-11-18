@@ -21,6 +21,7 @@ extern "C" {
 
 #define CREATURE_MAX_LIMBS 16
 #define CREATURE_MAX_TAILS 4
+#define CREATURE_MAX_FLEXIBLE_APPENDAGES 4
 #define CREATURE_MAX_DIGITS 8
 #define CREATURE_MAX_TAIL_STATIONS 16
 #define CREATURE_MAX_ORNAMENTS 64
@@ -76,7 +77,8 @@ typedef enum LimbArchetype {
 typedef enum LimbAnatomyProfile {
     LIMB_PROFILE_LEGACY = 0, /**< Conserva exactamente las recetas v1 anteriores. */
     LIMB_PROFILE_CURSORIAL, /**< Musculatura integrada y estaciones distales ungulígradas. */
-    LIMB_PROFILE_COMPACT_UNGULATE /**< Miembro corto con mezcla muscular y transición al menudillo. */
+    LIMB_PROFILE_COMPACT_UNGULATE, /**< Miembro corto con mezcla muscular y transición al menudillo. */
+    LIMB_PROFILE_COLUMNAR /**< Extremidad columnar con apoyo acolchado. */
 } LimbAnatomyProfile;
 
 typedef struct LimbPhenotype {
@@ -100,6 +102,7 @@ typedef struct LimbPhenotype {
     float hoofToeRoundness; /**< Radio anterior relativo a la semianchura de cada uña (0.3..1). */
     float hoofHeelHeight; /**< Altura del talón relativa a la pared anterior (0.4..1). */
     float dewclawSize; /**< Tamaño de espolones no sustentantes relativo al casco; cero los omite. */
+    unsigned nailCount; /**< Placas del borde anterior independientes de los dedos. */
     LimbAnatomyProfile anatomyProfile; /**< Opcional en JSON v1; ausencia equivale a LEGACY. */
 } LimbPhenotype;
 
@@ -128,7 +131,8 @@ typedef enum OrnamentArchetype {
     ORNAMENT_ARCHETYPE_MEMBRANE,
     ORNAMENT_ARCHETYPE_PLATE,
     ORNAMENT_ARCHETYPE_CREST,
-    ORNAMENT_ARCHETYPE_CUSTOM
+    ORNAMENT_ARCHETYPE_CUSTOM,
+    ORNAMENT_ARCHETYPE_TUSK
 } OrnamentArchetype;
 
 typedef struct OrnamentPhenotype {
@@ -141,6 +145,18 @@ typedef struct OrnamentPhenotype {
     Vector3 growthDirection; /**< Dirección opcional en el marco side/up/forward del anclaje. */
     float lateralSweep; /**< Arco lateral relativo a la longitud. */
 } OrnamentPhenotype;
+
+typedef enum FlexibleTerminal {
+    FLEXIBLE_TERMINAL_ROUND = 0,
+    FLEXIBLE_TERMINAL_PAIRED_OPENINGS
+} FlexibleTerminal;
+
+/** Radios y longitud en unidades del anfitrión, curvatura en radianes. */
+typedef struct FlexibleAppendagePhenotype {
+    float length, baseRadius, tipRadius, aspect, taper;
+    float initialPitch, restBend;
+    FlexibleTerminal terminal;
+} FlexibleAppendagePhenotype;
 
 typedef struct EyePhenotype {
     float size, protrusion, irisScale, pupilScale, pupilAspect;
@@ -168,6 +184,8 @@ typedef struct CreaturePhenotype {
     size_t tailCount;
     OrnamentPhenotype ornaments[CREATURE_MAX_ORNAMENTS];
     size_t ornamentCount;
+    FlexibleAppendagePhenotype flexibleAppendages[CREATURE_MAX_FLEXIBLE_APPENDAGES];
+    size_t flexibleAppendageCount;
     SurfacePhenotype surface;
     CreatureDevelopment development;
     Color dorsalColor, ventralColor, unpigmentedVentralColor;

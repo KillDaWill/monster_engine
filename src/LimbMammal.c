@@ -161,8 +161,72 @@ static bool Cursorial(const LimbPhenotype* p,uint32_t module,const AttachmentSlo
     return UngulateFoot(p,module,slot,g,v[3],r,sole);
 }
 
+/* Apoyo de suela plana, con placas ungueales radiales sobre el borde libre. */
+static bool Columnar(const LimbPhenotype* p, uint32_t module, const AttachmentSlot* slot, AnatomyGraph* g) {
+    bool hind=p->role==LIMB_HIND;
+    float side=p->side==LIMB_RIGHT?-1:1;
+    float scale=slot->scale*fmaxf(.01f,p->development);
+    float length=p->length*scale;
+    float r=p->thickness*scale;
+    float x=-side*r*p->attachmentInset;
+    float padWidth=r*p->footScale*p->footWidthScale;
+    float sole=r*.48f*p->footScale*p->footHeightScale;
+    const Vector3 joints[]={
+        {x,0,0},
+        {x,-length*.37f,length*((hind?.11f:-.035f)+p->proximalSweep)},
+        {x,-length*.75f,length*((hind?-.07f:.008f)+p->distalSweep)},
+        {x,-length,0}
+    };
+    const float w[]={r*p->rootThicknessScale,r*.83f*p->middleThicknessScale,
+        r*.83f*p->distalThicknessScale,padWidth*.87f};
+    const float h[]={w[0]*1.14f,w[1]*1.14f,w[2]*1.06f,sole};
+    AnatomyId previous=slot->hostNode;
+    for(unsigned i=0;i<4;++i) {
+        AnatomyId id=Anatomy_MakeId(module,i+1);
+        if(!Node(g,module,i+1,World(slot,joints[i]),w[i],h[i],p,false) ||
+           !Module_Edge(g,module,i?i:4,previous,id,i?BODY_CONNECTION_LIMB_SEGMENT:BODY_CONNECTION_SUPPORT,p->development)) return false;
+        BodyConnection* e=&g->connections[g->connectionCount-1];
+        e->transverseAxis=slot->side;
+        e->jointBlend=i==3?.05f:.82f;
+        if(i==1)e->heightBulge=r*.18f*p->proximalThicknessScale;
+        previous=id;
+    }
+    float halfSpan=padWidth*(hind?.57f:.46f);
+    Vector3 rear=Vec3_Add(joints[3],Vec3_Create(0,0,-halfSpan));
+    Vector3 front=Vec3_Add(joints[3],Vec3_Create(0,0,halfSpan));
+    AnatomyId rearId=Anatomy_MakeId(module,210), frontId=Anatomy_MakeId(module,211);
+    if(!Node(g,module,210,World(slot,rear),padWidth,sole,p,false) ||
+       !Node(g,module,211,World(slot,front),padWidth,sole,p,false) ||
+       !Module_Edge(g,module,210,previous,rearId,BODY_CONNECTION_SUPPORT,p->development) ||
+       !Module_Edge(g,module,211,rearId,frontId,BODY_CONNECTION_PAD,p->development)) return false;
+    BodyConnection* pad=&g->connections[g->connectionCount-1];
+    pad->transverseAxis=slot->side; pad->crownInset=.035f; pad->toeRounding=.97f;
+
+    float nailWidth=padWidth*.70f/fmaxf((float)p->nailCount,3);
+    float nailHeight=sole*.43f;
+    float padDepth=halfSpan+padWidth*.41f;
+    for(unsigned i=0;i<p->nailCount;++i) {
+        float angle=p->nailCount>1?Math_Lerp(-1.04f,1.04f,(float)i/(p->nailCount-1)):0;
+        Vector3 radial=Vec3_Create(sinf(angle),0,cosf(angle));
+        Vector3 a=Vec3_Add(joints[3],Vec3_Create(radial.x*padWidth*.90f,-sole+nailHeight,radial.z*padDepth*.87f));
+        Vector3 b=Vec3_Add(a,Vec3_Scale(radial,padWidth*.098f));
+        unsigned base=240+2*i;
+        AnatomyId nail=Anatomy_MakeId(module,base);
+        if(!Node(g,module,base,World(slot,a),nailWidth,nailHeight,p,true) ||
+           !Node(g,module,base+1,World(slot,b),nailWidth*.91f,nailHeight*.90f,p,true) ||
+           !Module_Edge(g,module,base,previous,nail,BODY_CONNECTION_SUPPORT,p->development) ||
+           !Module_Edge(g,module,base+1,nail,Anatomy_MakeId(module,base+1),BODY_CONNECTION_NAIL,p->development)) return false;
+        BodyConnection* e=&g->connections[g->connectionCount-1];
+        e->transverseAxis=Vec3_Sub(Vec3_Scale(slot->side,radial.z),Vec3_Scale(slot->forward,radial.x));
+        e->crownInset=.30f; e->toeRounding=.90f;
+    }
+    return true;
+}
+
 bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,AnatomyGraph* g) {
     if (!p || !slot || !g || (p->archetype!=LIMB_ARCHETYPE_MAMMAL&&p->archetype!=LIMB_ARCHETYPE_UNGULATE) || p->digitCount>CREATURE_MAX_DIGITS) return false;
+    if(p->anatomyProfile==LIMB_PROFILE_COLUMNAR)
+        return p->archetype==LIMB_ARCHETYPE_MAMMAL && Columnar(p,module,slot,g);
     bool hoof=p->archetype==LIMB_ARCHETYPE_UNGULATE;
     if(hoof&&(p->digitCount!=1&&p->digitCount!=2))return false;
     if(hoof&&p->digitCount==1&&p->dewclawSize>0)return false;

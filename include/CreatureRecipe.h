@@ -25,7 +25,8 @@ typedef enum CreatureModuleKind {
     CREATURE_MODULE_HEAD,
     CREATURE_MODULE_LIMB,
     CREATURE_MODULE_TAIL,
-    CREATURE_MODULE_ORNAMENT
+    CREATURE_MODULE_ORNAMENT,
+    CREATURE_MODULE_FLEXIBLE_APPENDAGE
 } CreatureModuleKind;
 
 /** Referencia estable a una estación anatómica local de un módulo. */
@@ -64,7 +65,8 @@ typedef enum CreatureGait {
     CREATURE_GAIT_SPRAWLING_QUADRUPED,
     CREATURE_GAIT_UPRIGHT_QUADRUPED, /**< Paso cuadrúpedo digitígrado genérico. */
     CREATURE_GAIT_FELINE_STALK,     /**< Merodeo felino: ciclo largo, zancada corta y cuerpo agachado. */
-    CREATURE_GAIT_BOVINE_WALK       /**< Transferencia lenta de peso para ungulados robustos. */
+    CREATURE_GAIT_BOVINE_WALK,      /**< Transferencia lenta de peso para ungulados robustos. */
+    CREATURE_GAIT_COLUMNAR_WALK    /**< Paso lento con elevación y oscilación reducidas. */
 } CreatureGait;
 
 /**

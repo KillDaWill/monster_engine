@@ -86,6 +86,10 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     if(p->integument.type<INTEGUMENT_SMOOTH_SKIN || p->integument.type>INTEGUMENT_PLATES)p->integument.type=INTEGUMENT_SMOOTH_SKIN;
 #define CLAMP(path,lo,hi,def) p->path=Limit(p->path,lo,hi,def)
     CLAMP(integument.coverage,0,1,1);
+    p->wrinkleRegionMask&=(UINT32_C(1)<<SURFACE_REGION_COUNT)-1;
+    CLAMP(wrinkleStrength,0,1,0);
+    CLAMP(wrinkleScale,0,4,0);
+    CLAMP(wrinkleDirectionality,0,1,0);
     CLAMP(pigment.dorsalDarkening,0,.8f,0); CLAMP(pigment.ventralLightening,0,1,.5f);
     CLAMP(pigment.patternStrength,0,1,0); CLAMP(pigment.patternScale,.05f,20,1); CLAMP(pigment.bands,0,1,0);
     CLAMP(integument.scales.size,.012f,1,.12f); CLAMP(integument.scales.aspectRatio,.3f,3,1);
@@ -153,6 +157,17 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
     p.pigment.secondaryColor=Color_Lerp(p.pigment.secondaryColor,q.pigment.secondaryColor,t);
     p.pigment.ventralColor=Color_Lerp(p.pigment.ventralColor,q.pigment.ventralColor,t);
     MIX(pigment.dorsalDarkening); MIX(pigment.ventralLightening); MIX(pigment.patternStrength);
+    if(p.wrinkleStrength<=0&&q.wrinkleStrength>0) {
+        p.wrinkleScale=q.wrinkleScale;
+        p.wrinkleDirectionality=q.wrinkleDirectionality;
+        p.wrinkleRegionMask=q.wrinkleRegionMask;
+    } else if(q.wrinkleStrength<=0&&p.wrinkleStrength>0) {
+        q.wrinkleScale=p.wrinkleScale;
+        q.wrinkleDirectionality=p.wrinkleDirectionality;
+    } else if(t>=.5f) {
+        p.wrinkleRegionMask=q.wrinkleRegionMask;
+    }
+    MIX(wrinkleStrength); MIX(wrinkleScale); MIX(wrinkleDirectionality);
     MIX(pigment.patternScale); MIX(pigment.bands); MIX(integument.coverage);
     MIX(integument.scales.size); MIX(integument.scales.aspectRatio); MIX(integument.scales.roundness);
     MIX(integument.scales.irregularity); MIX(integument.scales.relief); MIX(integument.scales.edgeDepth);
@@ -354,7 +369,11 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         memcpy(r.data[row],data,sizeof(data));PackColor(r.data[row+4],f->color);
         r.data[row+4][3]=(float)f->region;
     }
-    r.data[SURFACE_RECIPE_DOMAIN_BASE-1][0]=(float)p.tuftCount;
+    r.data[SURFACE_RECIPE_METADATA_ROW][0]=(float)p.tuftCount;
+    r.data[SURFACE_RECIPE_METADATA_ROW][1]=p.wrinkleStrength;
+    r.data[SURFACE_RECIPE_METADATA_ROW][2]=p.wrinkleScale;
+    /* La dirección ocupa [0,1]; la máscara regional empieza en los pares. */
+    r.data[SURFACE_RECIPE_METADATA_ROW][3]=2.f*p.wrinkleRegionMask+p.wrinkleDirectionality;
     PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE,&p.pigment);
     if(p.transition.active) {
         PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE+SURFACE_RECIPE_DOMAIN_ROWS,&p.transition.from);

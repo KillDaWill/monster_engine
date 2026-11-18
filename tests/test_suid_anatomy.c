@@ -167,6 +167,12 @@ static void PigPipeline(void) {
                 AABB3D box=regions[i].bounds,old=async->morphHeadBounds;
                 oldCovered=box.start.y<=old.start.y&&box.end.y>=old.end.y&&
                     box.start.z<=old.start.z&&box.end.z>=old.end.z;
+                for(unsigned corner=0;corner<8;++corner) {
+                    Vector3 point=Vec3_Create(corner&1?old.end.x:old.start.x,
+                        corner&2?old.end.y:old.start.y,corner&4?old.end.z:old.start.z);
+                    TEST_ASSERT(MorphHandoff_EvaluateDomainDistance(&regions[i].handoff,point)>0,
+                        "La máscara de cesión cubre los rasgos cefálicos publicados");
+                }
             }
             TEST_ASSERT(oldCovered,"Dominio retira también el cráneo anterior aunque esté por encima del actual");
             MonsterSDF_Free(&sdf);MonsterVisualAsync_Free(async);

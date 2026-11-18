@@ -184,7 +184,7 @@ upper_head_source=function('src/MonsterSDF.c','MonsterSDF_EvalUpperHeadDistance'
 upper_head_cached=function('src/MonsterSDF.c','MonsterSDF_EvalUpperHeadDistanceCached')
 validate_upper_head_cache_guard_selftest(upper_head_source,upper_head_cached)
 validate_cached_periorbital_query_loop(function('src/MonsterSDF.c','MonsterSDF_EvalPeriorbitalDistanceUsingCache'))
-for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EquineCheekSmoothness','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCutter','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalEquineSculpt','MonsterSDF_EvalUpperHeadDistance']:
+for name in ['MonsterSDF_GetBasinParams','MonsterSDF_EvalJawBase','MonsterSDF_EvalTongueDistance','MonsterSDF_EvalSeamDistance','MonsterSDF_EvalJawCarvedDistance','MonsterSDF_EquineCheekSmoothness','MonsterSDF_EvalPosedMouthDistance','MonsterSDF_PairedConnectorCavity','MonsterSDF_EvalConnectorDistance','MonsterSDF_EvalMuzzleDistance','MonsterSDF_EvalShallowCutter','MonsterSDF_EvalOrbitCavities','MonsterSDF_EvalNostrilCutter','MonsterSDF_EvalNostrilCavities','MonsterSDF_EvalTympanumCavities','MonsterSDF_EvalRostrumDistance','MonsterSDF_EvalPeriorbitalDistance','MonsterSDF_EvalNeckCollarDistance','MonsterSDF_EvalEquineSculpt','MonsterSDF_EvalUpperHeadDistance']:
     heads.append(function('src/MonsterSDF.c',name))
 
 def translate(s):

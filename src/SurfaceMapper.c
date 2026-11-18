@@ -317,6 +317,7 @@ SurfaceMapping SurfaceMapping_FromAnatomy(const AnatomyGraph* g,float scale) {
     for(size_t i=0;i<g->nodeCount;++i) {
         SurfaceRegion region=SURFACE_REGION_DORSAL_TRUNK;
         switch(g->nodes[i].region) {
+        case ANATOMY_REGION_FLEXIBLE:
         case ANATOMY_REGION_HEAD:region=SURFACE_REGION_HEAD;break;
         case ANATOMY_REGION_NECK:region=SURFACE_REGION_NECK;break;
         case ANATOMY_REGION_FORELIMB:case ANATOMY_REGION_LIMB:case ANATOMY_REGION_WING:region=SURFACE_REGION_FORELIMB;break;

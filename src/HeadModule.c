@@ -200,6 +200,23 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
             .scale = s
         };
         if (slots->count < ATTACHMENT_MAX_SLOTS) slots->slots[slots->count++] = hornTR;
+        if (phenotype->archetype == HEAD_ARCHETYPE_PROBOSCIDEAN) {
+            if (slots->count+3 > ATTACHMENT_MAX_SLOTS) return false;
+            AttachmentSlot facial=cranial;
+            facial.id=HEAD_SLOT_PROBOSCIS;
+            facial.position=Vec3_Add(c,Vec3_Add(anatomy.surface.faceTip,
+                Vec3_Create(0,h*.19f,-depth*.22f)));
+            slots->slots[slots->count++]=facial;
+            facial.id=HEAD_SLOT_MAXILLARY_LEFT;
+            facial.position=Vec3_Add(c,Vec3_Add(anatomy.surface.leftMaxillaryCenter,
+                Vec3_Create(w*.04f,-h*.06f,depth*.23f)));
+            slots->slots[slots->count++]=facial;
+            facial.id=HEAD_SLOT_MAXILLARY_RIGHT;
+            facial.position=Vec3_Add(c,Vec3_Add(anatomy.surface.rightMaxillaryCenter,
+                Vec3_Create(-w*.04f,-h*.06f,depth*.23f)));
+            facial.side=Vec3_Scale(facial.side,-1);
+            slots->slots[slots->count++]=facial;
+        }
         /* Los apéndices del ápice comparten la misma pinna resuelta al SDF. */
         for(unsigned side=0;side<2;++side) {
             const HeadSurfaceRecipe* r=&anatomy.surface;

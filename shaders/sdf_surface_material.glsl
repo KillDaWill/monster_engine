@@ -23,9 +23,9 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
         if(sdfSurfaceDebug==27)return pigment;
         return SurfaceLighting(SurfaceResponse(pigment,viewN,local.y,.28),viewP);
     }
-    if(tissue==5u||tissue==6u){
+    if(tissue==5u||tissue==6u||tissue==7u){
         if(sdfSurfaceDebug==27)return sampleValue.xyz;
-        SurfaceResponse keratin=SurfaceResponse(sampleValue.xyz,viewN,tissue==5u?.38:.55,.30);
+        SurfaceResponse keratin=SurfaceResponse(sampleValue.xyz,viewN,tissue==5u?.38:tissue==6u?.55:.43,tissue==7u?.23:.30);
         return SurfaceLighting(keratin,viewP);
     }
     if(sdfHasSurface!=0) {
@@ -46,9 +46,10 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
             vec3 viewFlow=normalize(vec3(dot(flow,cameraRight),
                 dot(flow,cameraUp),-dot(flow,cameraForward)));
             vec3 tangent=normalize(mix(viewN,viewFlow,.72));
-            color=FurLighting(albedo,tangent,viewN,viewP,
+            vec3 wrinkled=SurfaceWrinkles(viewN,viewP,materialCoord,skinMask,albedo);
+            color=FurLighting(albedo,tangent,wrinkled,viewP,
                 clamp(surfaceRecipe[10].z,.2,1.0),surfaceRecipe[10].w*.3,0.0);
-            color=mix(color,SurfaceLighting(SurfaceResponse(pigment,viewN,localMaterial.y,.28),viewP),localMaterial.z*skinMask);
+            color=mix(color,SurfaceLighting(SurfaceResponse(mix(pigment,albedo,surfaceRecipe[102].y),wrinkled,localMaterial.y,.28),viewP),localMaterial.z*skinMask);
             float coverage=surfaceRecipe[11].w*skinMask*localMaterial.x;
             if(sdfFurEnabled!=0&&coverage>.001) {
                 vec3 fiberColor=vec3(0);float fiberWeight=0;

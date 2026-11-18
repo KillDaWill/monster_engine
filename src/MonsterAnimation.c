@@ -1,5 +1,6 @@
 #include "MonsterAnimation.h"
 #include "Monster.h"
+#include "FlexibleAppendage.h"
 #include <stdlib.h>
 #include <math.h>
 bool MonsterAnimation_Configure(Monster* m,const Rig* rig,GaitProfile gait) {
@@ -93,6 +94,18 @@ bool MonsterAnimation_Configure(Monster* m,const Rig* rig,GaitProfile gait) {
 }
 bool MonsterAnimation_Update(Monster* m,float dt) {
     if(!m || !m->animation || m->animation->restFingerprint!=AnatomyGraph_Fingerprint(&m->anatomyGraph))return false;
-    return ProceduralAnimator_Update(&m->animation->animator,&m->animation->rig,&m->animation->pose,m->world,dt);
+    MonsterAnimation* a=m->animation;
+    if(!ProceduralAnimator_Update(&a->animator,&a->rig,&a->pose,m->world,dt))return false;
+    if(!m->phenotype.flexibleAppendageCount)return true;
+    float activity=fminf(1,Vec3_Length(a->animator.locomotion.velocity)/
+        fmaxf(m->phenotype.axial.totalScale,.01f));
+    float sway=.14f*activity*(.5f+.5f*sinf(a->animator.locomotion.phase*6.2831853f));
+    for(size_t i=0;i<m->recipe.bodyPlan.moduleCount;++i) {
+        const CreatureModuleInstance* module=&m->recipe.bodyPlan.modules[i];
+        if(module->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE &&
+           !FlexibleAppendage_ApplyPose(module->instanceId,FLEXIBLE_POSE_REACHING,sway,&a->rig.skeleton,&a->pose))
+            return false;
+    }
+    return true;
 }
 void MonsterAnimation_Free(MonsterAnimation* a) { free(a); }

@@ -20,7 +20,7 @@ uniform vec2 shellSamples[32];
 out vec3 restCoord, restNormal, viewPosition, viewNormal;
 out vec4 vertexColor, profileA, profileB;
 out vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
-out float ventral, skinMask;
+out float ventral, skinMask, wrinkleCoverageOut;
 flat out int tissueMaterial;
 out vec3 posedFlowOut,restFlowOut;
 out float shellDelta;
@@ -38,6 +38,7 @@ vec3 RotateFromTo(vec3 fromDir, vec3 toDir, vec3 v) {
 
 void main() {
     PigmentSetRegions(surfaceRegion);
+    wrinkleCoverageOut=wrinkleCoverage;
     pigmentMaskLegacy=pigmentCoverage[0];pigmentMaskFrom=pigmentCoverage[1];pigmentMaskTo=pigmentCoverage[2];
     ownershipRoot=gl_Vertex.xyz;ownershipNormal=normalize(gl_Normal);
     restCoord = materialCoord;

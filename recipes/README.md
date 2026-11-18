@@ -30,3 +30,16 @@ corta y suaviza las articulaciones durante la metamorfosis.
 `head.nasalColor` es opcional: alfa cero o campo omitido conserva el pigmento
 nasal oscuro de las recetas anteriores. La demo universal admite `cerdo`,
 `pig`, `swine` e ID `1007`; no requiere una demo específica.
+
+`elefante.creature.json` (ID 1008, Elefante) representa un macho de elefante
+africano de sabana en cuatro edades posnatales. Usa cabeza proboscídea,
+miembros columnares y dos incisivos de dentina. La trompa es un módulo
+`CREATURE_MODULE_FLEXIBLE_APPENDAGE` (5), anclado a la ranura nasal del
+módulo cefálico. `flexibleAppendages` admite longitud, radios, proporción
+elíptica, curvatura y tipo de extremo. `limbs[].nailCount` cuenta las placas
+visibles sin generar dedos externos. Los controles opcionales
+`surface.wrinkleStrength`, `surface.wrinkleScale`,
+`surface.wrinkleDirectionality` y `surface.wrinkleRegionMask` definen el
+relieve de piel en reposo. Los campos nuevos pueden omitirse en documentos
+v1 anteriores. En la demo, Elefante admite los alias `elephant` y
+`african-elephant`. [Validación anatómica y visual](../docs/validation/elephant/README.md).

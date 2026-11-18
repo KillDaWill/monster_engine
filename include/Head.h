@@ -24,7 +24,8 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_AVIAN,
     HEAD_ARCHETYPE_BOVID,
     HEAD_ARCHETYPE_EQUINE, /**< Cráneo alargado, diastema y hocico distal independiente. */
-    HEAD_ARCHETYPE_SUID /**< Rostro descendente con disco nasal frontal y ganachas llenas. */
+    HEAD_ARCHETYPE_SUID, /**< Rostro descendente con disco nasal frontal y ganachas llenas. */
+    HEAD_ARCHETYPE_PROBOSCIDEAN /**< Bóveda alta y maxilar que soporta una probóscide. */
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */

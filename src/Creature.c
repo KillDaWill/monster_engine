@@ -8,6 +8,7 @@
 #include "Creature.h"
 #include "AxialBody.h"
 #include "HeadModule.h"
+#include "FlexibleAppendage.h"
 #include "Limb.h"
 #include "Tail.h"
 #include "Ornament.h"
@@ -65,6 +66,9 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
             if (m->membranePrevious && !Module_Edge(graph, m->instanceId, 4,
                 Anatomy_MakeId(m->membranePrevious, ORNAMENT_NODE_MID),
                 Anatomy_MakeId(m->instanceId, ORNAMENT_NODE_MID), BODY_CONNECTION_SUPPORT, 1)) return false;
+            break;
+        case CREATURE_MODULE_FLEXIBLE_APPENDAGE:
+            if (!FlexibleAppendage_Resolve(&p.flexibleAppendages[m->phenotypeIndex], m->instanceId, slot, graph)) return false;
             break;
         default:
             return false;
@@ -189,6 +193,15 @@ bool Creature_BuildMonster(struct Monster* monster, const CreatureRecipe* recipe
         break;
     case CREATURE_GAIT_BOVINE_WALK:
         gait=GaitPreset_BovineWalk(&rig);
+        break;
+    case CREATURE_GAIT_COLUMNAR_WALK:
+        gait=GaitPreset_BovineWalk(&rig);
+        gait.cycleDuration*=1.28f;
+        gait.strideLength*=.80f;
+        gait.stepHeight*=.45f;
+        gait.bodyBob*=.42f;
+        gait.bodyBank*=.55f;
+        gait.spineWave*=.55f;
         break;
     case CREATURE_GAIT_FELINE_STALK:
         gait=GaitPreset_FelineStalk(&rig);

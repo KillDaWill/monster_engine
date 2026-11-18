@@ -69,6 +69,20 @@ int main(int argc,char** argv){
                 Vec3_Add(Vec3_Scale(claw->up,local.y),Vec3_Scale(claw->forward,local.z))));
         }
     }
+    /* Barrido muscular, corte distal y apoyo plantar tienen marcos locales. */
+    for(size_t c=0;c<sdf.connectorCount;++c) {
+        const MonsterSDFConnector* segment=&sdf.connectors[c];
+        if(segment->kind!=BODY_CONNECTION_FLEXIBLE_SEGMENT &&
+           segment->kind!=BODY_CONNECTION_PAIRED_OPENINGS &&
+           segment->kind!=BODY_CONNECTION_PAD)continue;
+        for(unsigned j=0;j<75&&count<8192;++j) {
+            float x=((j%5)*.50f-1)*segment->widthB;
+            float y=(((j/5)%5)*.50f-1)*segment->heightB;
+            float z=((j/25)*.60f-.30f)*segment->r2;
+            points[count++]=Vec3_Add(segment->b,Vec3_Add(Vec3_Scale(segment->side,x),
+                Vec3_Add(Vec3_Scale(segment->up,y),Vec3_Scale(segment->forward,z))));
+        }
+    }
     float compute=0,fragment=0;
     ok=OpenGLRenderer_ValidateComputeSDF(&renderer,&sdf,points,count,&compute);
     for(size_t base=0;base<count;base+=2048) {
