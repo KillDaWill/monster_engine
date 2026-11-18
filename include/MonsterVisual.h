@@ -31,6 +31,8 @@ typedef struct MonsterVisualEye {
     Vector3 center, forward, right, up, scale;
     Eye appearance; /**< Pigmentación y forma pupilar para el shader dedicado. */
     uint64_t appearanceFingerprint;
+    Vector3 axisZ;
+    bool localGlobe;
 } MonsterVisualEye;
 
 /**
@@ -71,6 +73,8 @@ bool MonsterVisual_UpdateEyes(
     size_t eyeCount,
     const Monster* monster
 );
+/** Actualiza ojos para renderizadores capaces de transformar la esfera unitaria. */
+bool MonsterVisual_UpdateEyeInstances(MonsterVisualEye* eyes, size_t eyeCount, const Monster* monster);
 
 /**
  * @brief Construye la mandíbula y la bisagra sin generar geometría de labios.

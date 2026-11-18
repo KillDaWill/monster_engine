@@ -145,6 +145,8 @@ void test_bug_eye_pupil_buried_behind_sclera_during_growth(void) {
     MonsterAger ager = MonsterAger_Create(&young, &adult, 0.0f);
     const float ages[] = {0.00f, 0.10f, 0.25f, 0.50f, 0.75f, 0.90f, 1.00f};
     const size_t ageCount = sizeof(ages)/sizeof(ages[0]);
+    MonsterVisualEye instances[2] = {{.globe = Mesh_Create()}, {.globe = Mesh_Create()}};
+    uint64_t globeGeneration = 0;
     printf("[TRACE] eye globe and appearance sweep: age -> globe vertices / material fingerprint\n");
     for (size_t ai = 0; ai < ageCount; ++ai) {
         float age = ages[ai];
@@ -160,6 +162,11 @@ void test_bug_eye_pupil_buried_behind_sclera_during_growth(void) {
         TEST_ASSERT(MonsterVisual_RebuildNow(&visual, cur, MonsterSDF_DefaultConfig()), "Rebuild visual falló durante barrido pupilar");
         TEST_ASSERT(MonsterVisual_GetEyeCount(&visual) == cur->eyeCount, "Conteo de ojos visual debe coincidir con monstruo");
 
+        TEST_ASSERT(cur->eyeCount == 2 && MonsterVisual_UpdateEyeInstances(instances, 2, cur),
+            "Se pudieron actualizar ambas instancias oculares");
+        if (ai == 0) globeGeneration = instances[0].globe.geometryGeneration;
+        TEST_ASSERT(instances[0].globe.geometryGeneration == globeGeneration,
+            "Cambiar edad conserva la topología ocular unitaria");
         for (size_t ei = 0; ei < cur->eyeCount; ++ei) {
             const Eye* eye = &cur->eyes[ei];
             Vector3 partPos = Vec3_Zero();
@@ -167,12 +174,25 @@ void test_bug_eye_pupil_buried_behind_sclera_during_growth(void) {
             (void)partPos;
             const Mesh* globe = MonsterVisual_GetEyeSclera(&visual, ei);
             TEST_ASSERT(globe && globe->vertexCount>0&&Mesh_Validate(globe).valid,"Globo tridimensional válido durante el crecimiento");
+            const MonsterVisualEye* instance = &instances[ei];
+            TEST_ASSERT(instance->localGlobe && instance->globe.indexCount == globe->indexCount,
+                "La esfera unitaria conserva la resolución ocular");
+            for (size_t v = 0; v < globe->vertexCount; ++v) {
+                Vector3 q = instance->globe.vertices[v].position;
+                Vector3 position = Vec3_Add(instance->center,
+                    Vec3_Add(Vec3_Scale(instance->right, q.x * instance->scale.x),
+                    Vec3_Add(Vec3_Scale(instance->up, q.y * instance->scale.y),
+                             Vec3_Scale(instance->axisZ, q.z * instance->scale.z))));
+                TEST_ASSERT(Vec3_Distance(position, globe->vertices[v].position) < 1e-5f,
+                    "La instancia ocular conserva la posición y profundidad");
+            }
             TEST_ASSERT(MonsterVisual_GetEyeIris(&visual,ei)==NULL&&MonsterVisual_GetEyePupil(&visual,ei)==NULL,"Iris y pupila siguen siendo material, no mallas");
             TEST_ASSERT(EyeTexture_Fingerprint(eye)!=0,"Apariencia ocular con huella válida");
             printf("[TRACE] age=%.2f eye=%zu globeVertices=%zu material=%llu\n",age,ei,globe->vertexCount,(unsigned long long)EyeTexture_Fingerprint(eye));
         }
         MonsterVisual_Free(&visual);
     }
+    for (size_t i = 0; i < 2; ++i) Mesh_Free(&instances[i].globe);
     MonsterAger_Free(&ager);
     Monster_Free(&young);
     Monster_Free(&adult);

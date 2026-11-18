@@ -47,8 +47,17 @@ bool OpenGLRenderer_ValidateLongHair(Renderer3D* renderer,const LongHairSet* hai
 bool OpenGLRenderer_ValidateLongHairCollision(Renderer3D* renderer,const LongHairSet* hair,
     LongHairDistance distance,const void* context,float* maxPenetration,size_t* samples);
 
+typedef struct OpenGLEyeStats {
+    uint64_t textureMisses;
+    double generationMs, uploadMs;
+} OpenGLEyeStats;
+/** @brief Costes acumulados en el hilo OpenGL desde la creación del renderizador. */
+OpenGLEyeStats OpenGLRenderer_GetEyeStats(const Renderer3D* renderer);
+
 /** @brief Comprueba OpenGL 4.3 y límites de cómputo de la GPU actual. */
 bool OpenGLRenderer_SupportsComputeSurface(Renderer3D*);
+/** Invalida la extracción GPU antes de reemplazar la rejilla o caché CPU. */
+void OpenGLRenderer_InvalidateGpuSurface(Renderer3D* renderer);
 /** @brief Publica skinning GPU de una malla vinculada con dominio de superficie; NULL desactiva la selección.
  * @param renderer Backend. @param mesh Malla propietaria. @param binding Bases e influencias.
  * @param skeleton Esqueleto. @param pose Pose actual. @param generation Generación de vinculación.
@@ -230,6 +239,9 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,
 bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive);
 /** @brief Presenta el fotograma SDF y recoge tiempos GPU sin bloquear. */
 void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height);
+/** Compone el último color y profundidad SDF a resolución nativa.
+ * El llamador debe verificar que escena, cámara y material siguen vigentes. */
+bool OpenGLRenderer_CompositeCachedSDFFrame(Renderer3D* renderer,int width,int height);
 /** @brief Última duración GPU completada, en milisegundos. */
 float OpenGLRenderer_GetSDFGpuMs(const Renderer3D* renderer);
 /** @brief Escala espacial actual del framebuffer SDF respecto a la ventana. */

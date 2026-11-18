@@ -86,7 +86,7 @@ typedef struct OpenGLRendererData {
         GLuint sampleProgram,classifyProgram,emitProgram,finalizeProgram,resetProgram,prepareProgram,validateProgram,intervalProgram,renderProgram;
         GLuint samples,cases,tables,command,vertices,validation,intervalValidation,vao;
         GLuint* timestamps[4];unsigned queryCapacity[4],timingSlabs[4];
-        uint64_t timingGeneration[4];bool pending[4];unsigned frame;GLsync frameFences[2];
+        uint64_t timingGeneration[4];bool pending[4],sparseTiming[4];unsigned frame;GLsync frameFences[2];
         size_t sampleCapacity,cellCapacity,vertexCapacity;
         float (*cachedScene)[4];size_t cachedSceneCapacity,cachedSceneCount;
         GpuSDFSurfaceGrid cachedGrid;
@@ -100,7 +100,7 @@ typedef struct OpenGLRendererData {
         GLuint bank1,scratch,bricks,jobs,draws,allocator,links,indices,edges,rootQueue,metrics[4],completion[2];
         uint64_t submittedGeneration[2];bool failed;
         size_t bank1Capacity,scratchCapacity,brickCapacity,jobCapacity,drawCapacity,allocatorCapacity,linkCapacity,indexCapacity,edgeBytes,rootQueueBytes;
-        unsigned brickCells,pageCapacity,sampleSlots,bankSize,batchSize,edgeCapacity;bool initialized;
+        unsigned brickCells,pageCapacity,sampleSlots,bankSize,batchSize,edgeCapacity;bool initialized,needsReset;
         GLuint cachedSampleProgram,cachedRootProgram,sampleClaimProgram,materialClaimProgram,materialProgram,cachedMaterialProgram;
         uint64_t paletteFingerprint;bool hasPalette;
         GpuSDFBrickJob* uploadJobs;size_t uploadJobCapacity;
@@ -132,7 +132,8 @@ typedef struct OpenGLRendererData {
         bool failed;
     } skin;
     GLuint eyeProgram;
-    struct { GLint texture,center,forward,right,up,scale,gloss; } eye;
+    struct { GLint texture,center,forward,right,up,scale,gloss,axisZ,localGlobe; } eye;
+    OpenGLEyeStats eyeStats;
     EyeTextureCache eyeTextures[EYE_TEXTURE_CACHE_CAPACITY];
     uint64_t eyeTextureClock;
     GLint shellSamplesLocation,guardVisibilityLocation,shellResolutionLocation,regionalLODLocation;
@@ -799,10 +800,13 @@ static GLuint CompileShader(GLenum type,const char* const* source,size_t count) 
 static bool InitEyeProgram(OpenGLRendererData* d) {
     if(d->eyeProgram)return true;
     const char* vs="#version 120\n"
-        "uniform vec3 eyeCenter,eyeForward,eyeRight,eyeUp,eyeScale;\n"
+        "uniform vec3 eyeCenter,eyeForward,eyeRight,eyeUp,eyeScale,eyeAxisZ;uniform bool eyeLocalGlobe;\n"
         "varying vec3 vLocal,vNormal,vEyePos;\n"
-        "void main(){vec3 q=gl_Vertex.xyz-eyeCenter;vLocal=vec3(dot(q,eyeRight)/eyeScale.x,dot(q,eyeUp)/eyeScale.y,dot(q,eyeForward)/eyeScale.z);"
-        "vec4 p=gl_ModelViewMatrix*gl_Vertex;vEyePos=p.xyz;vNormal=normalize(gl_NormalMatrix*gl_Normal);gl_Position=gl_ProjectionMatrix*p;}\n";
+        "void main(){vec3 world=gl_Vertex.xyz,n=gl_Normal;"
+        "if(eyeLocalGlobe){mat3 basis=mat3(eyeRight,eyeUp,eyeAxisZ);"
+        "world=eyeCenter+basis*(world*eyeScale);n=basis*(n/eyeScale);}"
+        "vec3 q=world-eyeCenter;vLocal=vec3(dot(q,eyeRight)/eyeScale.x,dot(q,eyeUp)/eyeScale.y,dot(q,eyeForward)/eyeScale.z);"
+        "vec4 p=gl_ModelViewMatrix*vec4(world,1.0);vEyePos=p.xyz;vNormal=normalize(gl_NormalMatrix*n);gl_Position=gl_ProjectionMatrix*p;}\n";
     const char* fs="#version 120\n"
         "uniform sampler2D eyeTexture;uniform float eyeGloss;varying vec3 vLocal,vNormal,vEyePos;\n"
         "void main(){const float pi=3.14159265359;vec3 q=normalize(vLocal);vec2 uv=vec2(atan(q.x,q.z)/(2.0*pi)+0.5,asin(clamp(q.y,-1.0,1.0))/pi+0.5);"
@@ -816,17 +820,39 @@ static bool InitEyeProgram(OpenGLRendererData* d) {
     GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);if(!ok){char log[2048];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[Eye GLSL] %s\n",log);glDeleteProgram(p);return false;}
     d->eyeProgram=p;d->eye.texture=glGetUniformLocation(p,"eyeTexture");d->eye.center=glGetUniformLocation(p,"eyeCenter");
     d->eye.forward=glGetUniformLocation(p,"eyeForward");d->eye.right=glGetUniformLocation(p,"eyeRight");d->eye.up=glGetUniformLocation(p,"eyeUp");
-    d->eye.scale=glGetUniformLocation(p,"eyeScale");d->eye.gloss=glGetUniformLocation(p,"eyeGloss");return true;
+    d->eye.scale=glGetUniformLocation(p,"eyeScale");d->eye.gloss=glGetUniformLocation(p,"eyeGloss");
+    d->eye.axisZ=glGetUniformLocation(p,"eyeAxisZ");
+    d->eye.localGlobe=glGetUniformLocation(p,"eyeLocalGlobe");return true;
 }
 static GLuint EyeTextureFor(OpenGLRendererData* d,const MonsterVisualEye* eye) {
     uint64_t fp=eye->appearanceFingerprint?eye->appearanceFingerprint:EyeTexture_Fingerprint(&eye->appearance);
     for(unsigned i=0;i<EYE_TEXTURE_CACHE_CAPACITY;++i)if(d->eyeTextures[i].texture&&d->eyeTextures[i].fingerprint==fp){d->eyeTextures[i].lastUse=++d->eyeTextureClock;return d->eyeTextures[i].texture;}
     unsigned slot=0;for(unsigned i=1;i<EYE_TEXTURE_CACHE_CAPACITY;++i)if(!d->eyeTextures[i].texture||d->eyeTextures[i].lastUse<d->eyeTextures[slot].lastUse)slot=i;
-    EyeTextureCache* c=&d->eyeTextures[slot];if(!c->texture)glGenTextures(1,&c->texture);
-    unsigned char pixels[128u*128u*4u];if(!EyeTexture_Generate(&eye->appearance,128,pixels,sizeof(pixels)))return 0;
-    glBindTexture(GL_TEXTURE_2D,c->texture);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,pixels);c->fingerprint=fp;c->lastUse=++d->eyeTextureClock;return c->texture;
+    EyeTextureCache* c=&d->eyeTextures[slot];
+    double start=RendererNowMs();
+    unsigned char pixels[128u*128u*4u];
+    if(!EyeTexture_Generate(&eye->appearance,128,pixels,sizeof(pixels)))return 0;
+    double upload=RendererNowMs();
+    d->eyeStats.generationMs+=upload-start;
+    ++d->eyeStats.textureMisses;
+    if(!c->texture) {
+        glGenTextures(1,&c->texture);
+        glBindTexture(GL_TEXTURE_2D,c->texture);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    } else glBindTexture(GL_TEXTURE_2D,c->texture);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    d->eyeStats.uploadMs+=RendererNowMs()-upload;
+    c->fingerprint=fp;
+    c->lastUse=++d->eyeTextureClock;
+    return c->texture;
+}
+
+OpenGLEyeStats OpenGLRenderer_GetEyeStats(const Renderer3D* renderer) {
+    const OpenGLRendererData* d=renderer ? renderer->user_data : NULL;
+    return d ? d->eyeStats : (OpenGLEyeStats){0};
 }
 static void OpenGL_RenderEyeCallback(Renderer3D* self,const struct MonsterVisualEye* visualEye) {
     OpenGLRendererData* d=self?self->user_data:NULL;const MonsterVisualEye* e=(const MonsterVisualEye*)visualEye;
@@ -835,6 +861,8 @@ static void OpenGL_RenderEyeCallback(Renderer3D* self,const struct MonsterVisual
     glUseProgram(d->eyeProgram);glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,texture);glUniform1i(d->eye.texture,0);
     glUniform3f(d->eye.center,e->center.x,e->center.y,e->center.z);glUniform3f(d->eye.forward,e->forward.x,e->forward.y,e->forward.z);
     glUniform3f(d->eye.right,e->right.x,e->right.y,e->right.z);glUniform3f(d->eye.up,e->up.x,e->up.y,e->up.z);
+    glUniform1i(d->eye.localGlobe,e->localGlobe);
+    glUniform3f(d->eye.axisZ,e->axisZ.x,e->axisZ.y,e->axisZ.z);
     glUniform3f(d->eye.scale,e->scale.x,e->scale.y,e->scale.z);glUniform1f(d->eye.gloss,Math_Clamp01(e->appearance.cornealGloss));
     const unsigned char* b=(const unsigned char*)e->globe.vertices;glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);
     glVertexPointer(3,GL_FLOAT,sizeof(MeshVertex),b+offsetof(MeshVertex,position));glNormalPointer(GL_FLOAT,sizeof(MeshVertex),b+offsetof(MeshVertex,normal));
@@ -1021,11 +1049,10 @@ static GLuint LinkComputeSource(const char* const* source,size_t count) {
 }
 static bool InitComputeSurface(OpenGLRendererData* d) {
     if(d->compute.renderProgram)return true;
-#define LINK(member,source) do {d->compute.member=LinkComputeSource(source,sizeof(source)/sizeof(*source));if(!d->compute.member)return false;} while(0)
-    LINK(sampleProgram,sdfSampleSource);LINK(classifyProgram,sdfClassifySource);
-    LINK(emitProgram,sdfEmitSource);LINK(finalizeProgram,sdfFinalizeSource);
-    LINK(resetProgram,sdfResetSource);LINK(prepareProgram,sdfPrepareSource);LINK(validateProgram,sdfValidateSource);
-#undef LINK
+    if (!d->compute.finalizeProgram)
+        d->compute.finalizeProgram = LinkComputeSource(sdfFinalizeSource,
+            sizeof(sdfFinalizeSource)/sizeof(*sdfFinalizeSource));
+    if (!d->compute.finalizeProgram) return false;
     GLuint vs=CompileShader(GL_VERTEX_SHADER,sdfMeshVertexSource,sizeof(sdfMeshVertexSource)/sizeof(*sdfMeshVertexSource));
     GLuint fs=CompileShader(GL_FRAGMENT_SHADER,sdfMeshFragmentSource,sizeof(sdfMeshFragmentSource)/sizeof(*sdfMeshFragmentSource));
     if(!vs||!fs) {if(vs)glDeleteShader(vs);if(fs)glDeleteShader(fs);return false;}
@@ -1049,6 +1076,21 @@ static bool InitComputeSurface(OpenGLRendererData* d) {
     fprintf(stdout,"[SDF compute] %s | %s; extracción experimental sin readback\n",glGetString(GL_RENDERER),glGetString(GL_VERSION));
     return true;
 }
+static bool InitDenseSurface(OpenGLRendererData* d) {
+    if (!InitComputeSurface(d)) return false;
+#define LINK(member,source) do { \
+    if (!d->compute.member) d->compute.member = LinkComputeSource(source,sizeof(source)/sizeof(*source)); \
+    if (!d->compute.member) return false; \
+} while (0)
+    LINK(sampleProgram,sdfSampleSource);
+    LINK(classifyProgram,sdfClassifySource);
+    LINK(emitProgram,sdfEmitSource);
+    LINK(resetProgram,sdfResetSource);
+    LINK(prepareProgram,sdfPrepareSource);
+#undef LINK
+    return true;
+}
+
 static void BindSceneProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sdf) {
     glUseProgram(p);glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_BUFFER,d->sdfTexture);
 #define INT(name,value) glUniform1i(glGetUniformLocation(p,#name),(GLint)(value))
@@ -1123,7 +1165,7 @@ static void CollectComputeTimers(OpenGLRendererData* d) {
             GLuint64 renderBegin;
             glGetQueryObjectui64v(q[last-1],GL_QUERY_RESULT,&renderBegin);
             glGetQueryObjectui64v(q[last],GL_QUERY_RESULT,&end);
-            if(d->sparse.initialized) {
+            if(d->compute.sparseTiming[slot]) {
                 GLuint counters[10];glBindBuffer(GL_COPY_READ_BUFFER,d->sparse.metrics[slot]);
                 glGetBufferSubData(GL_COPY_READ_BUFFER,0,sizeof(counters),counters);
                 d->compute.stats.activeBricks=counters[2];d->compute.stats.residentSampleBricks=counters[3];
@@ -1152,7 +1194,7 @@ bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
        (grid->cells[1]+4)/4>(GLuint)maxGroups[1]) {
         fprintf(stderr,"[GPU SUPERFICIE] Despacho de muestras excede límites de la GPU\n");return false;
     }
-    if(!InitComputeSurface(d))return false;
+    if(!InitDenseSurface(d))return false;
     unsigned fenceSlot=d->compute.frame%2;
     if(d->compute.frameFences[fenceSlot]) {
         // Acotar frames pendientes sin descargar geometría ni falsear los FPS.
@@ -1242,7 +1284,7 @@ bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
     glBindVertexArray(0);glBindBuffer(GL_DRAW_INDIRECT_BUFFER,0);glUseProgram(0);
     if(timing) {d->compute.pending[slot]=true;
         d->compute.timingGeneration[slot]=d->compute.stats.generation+1;
-        d->compute.timingSlabs[slot]=timingSlabs;}
+        d->compute.timingSlabs[slot]=timingSlabs;d->compute.sparseTiming[slot]=false;}
     d->compute.frameFences[fenceSlot]=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);
     if(!d->compute.frameFences[fenceSlot])return false;
     ++d->compute.frame;++d->compute.stats.generation;
@@ -1265,15 +1307,22 @@ bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
     }
     return true;
 }
+void OpenGLRenderer_InvalidateGpuSurface(Renderer3D* renderer) {
+    if (!renderer || !renderer->user_data) return;
+    OpenGLRendererData* d = renderer->user_data;
+    d->compute.denseValid = false;
+    d->sparse.needsReset = true;
+}
+
 static bool InitSparseSurface(OpenGLRendererData* d,const GpuSDFSurfaceCache* cache) {
-    if(d->sparse.initialized)return d->sparse.brickCells==cache->brickCells;
+    if(d->sparse.initialized&&!d->sparse.needsReset)return d->sparse.brickCells==cache->brickCells;
     if(!InitComputeSurface(d))return false;
-#define LINK(member,source) do {d->sparse.member=LinkComputeSource(source,sizeof(source)/sizeof(*source));if(!d->sparse.member)return false;} while(0)
-    LINK(releaseProgram,sdfSparseReleaseSource);LINK(sampleProgram,sdfSparseSampleSource);
+#define LINK(member,source) do {if(!d->sparse.member)d->sparse.member=LinkComputeSource(source,sizeof(source)/sizeof(*source));if(!d->sparse.member)return false;} while(0)
+    LINK(releaseProgram,sdfSparseReleaseSource);
     LINK(sampleClaimProgram,sdfSparseSampleClaimSource);
-    LINK(materialClaimProgram,sdfSparseMaterialClaimSource);LINK(materialProgram,sdfSparseMaterialSource);
+    LINK(materialClaimProgram,sdfSparseMaterialClaimSource);
     LINK(classifyProgram,sdfSparseClassifySource);LINK(allocateProgram,sdfSparseAllocateSource);
-    LINK(persistProgram,sdfSparsePersistSource);LINK(emitProgram,sdfSparseEmitSource);LINK(prepareProgram,sdfSparsePrepareSource);LINK(rootProgram,sdfSparseRootSource);LINK(statisticsProgram,sdfSparseStatisticsSource);
+    LINK(persistProgram,sdfSparsePersistSource);LINK(emitProgram,sdfSparseEmitSource);LINK(prepareProgram,sdfSparsePrepareSource);LINK(statisticsProgram,sdfSparseStatisticsSource);
 #undef LINK
     d->sparse.brickCells=cache->brickCells;d->sparse.batchSize=512;
     d->sparse.edgeCapacity=2097152;d->sparse.pageCapacity=5461;d->sparse.sampleSlots=cache->brickCells==16?8192:32768;
@@ -1312,12 +1361,17 @@ static bool InitSparseSurface(OpenGLRendererData* d,const GpuSDFSurfaceCache* ca
     for(unsigned i=0;i<d->sparse.sampleSlots;++i)initial[4+d->sparse.pageCapacity+i]=i;
     glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->sparse.allocator);glBufferSubData(GL_SHADER_STORAGE_BUFFER,0,count*sizeof(GLuint),initial);free(initial);
     GLuint command[11]={0,1,0,0,0,0,0,0,0,0,0};glBindBuffer(GL_SHADER_STORAGE_BUFFER,d->compute.command);glBufferData(GL_SHADER_STORAGE_BUFFER,sizeof(command),command,GL_DYNAMIC_DRAW);
-    glGenBuffers(4,d->sparse.metrics);
+    if(!d->sparse.metrics[0])glGenBuffers(4,d->sparse.metrics);
     for(unsigned i=0;i<4;++i){glBindBuffer(GL_COPY_WRITE_BUFFER,d->sparse.metrics[i]);glBufferData(GL_COPY_WRITE_BUFFER,10*sizeof(GLuint),NULL,GL_STREAM_READ);}
-    glGenBuffers(2,d->sparse.completion);
+    if(!d->sparse.completion[0])glGenBuffers(2,d->sparse.completion);
     for(unsigned i=0;i<2;++i){glBindBuffer(GL_COPY_WRITE_BUFFER,d->sparse.completion[i]);glBufferData(GL_COPY_WRITE_BUFFER,sizeof(GLuint),NULL,GL_STREAM_READ);}
+    if(!OpenGLRenderer_CheckErrors())return false;
     d->sparse.initialized=true;
-    return OpenGLRenderer_CheckErrors();
+    d->sparse.needsReset=false;
+    d->sparse.hasPalette=false;
+    d->sparse.failed=false;
+    memset(d->sparse.submittedGeneration,0,sizeof(d->sparse.submittedGeneration));
+    return true;
 }
 static void BindSparseProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sdf,
     const GpuSDFSurfaceCache* cache,unsigned base,unsigned count) {
@@ -1481,18 +1535,20 @@ bool OpenGLRenderer_RenderGpuSparseSDFSurface(Renderer3D* r,const MonsterSDF* sd
         GL_ELEMENT_ARRAY_BARRIER_BIT|GL_BUFFER_UPDATE_BARRIER_BIT);
     uint64_t palette=SparsePaletteFingerprint(sdf);
     bool materialChanged=!d->sparse.hasPalette||palette!=d->sparse.paletteFingerprint;
-    GLuint sampleProgram=d->sparse.sampleProgram,rootProgram=d->sparse.rootProgram,materialProgram=d->sparse.materialProgram;
-    if(sdf->mouthCount==1&&M_STRIDE<=1024&&getenv("MONSTER_SDF_NO_HEAD_CACHE")==NULL) {
-        if(!d->sparse.cachedSampleProgram)
-            d->sparse.cachedSampleProgram=LinkComputeSource(sdfSparseCachedSampleSource,sizeof(sdfSparseCachedSampleSource)/sizeof(*sdfSparseCachedSampleSource));
-        if(!d->sparse.cachedRootProgram)
-            d->sparse.cachedRootProgram=LinkComputeSource(sdfSparseCachedRootSource,sizeof(sdfSparseCachedRootSource)/sizeof(*sdfSparseCachedRootSource));
-        if(!d->sparse.cachedSampleProgram||!d->sparse.cachedRootProgram)return false;
-        if(!d->sparse.cachedMaterialProgram)
-            d->sparse.cachedMaterialProgram=LinkComputeSource(sdfSparseCachedMaterialSource,sizeof(sdfSparseCachedMaterialSource)/sizeof(*sdfSparseCachedMaterialSource));
-        if(!d->sparse.cachedMaterialProgram)return false;
-        sampleProgram=d->sparse.cachedSampleProgram;rootProgram=d->sparse.cachedRootProgram;materialProgram=d->sparse.cachedMaterialProgram;
+    bool cacheHead=sdf->mouthCount==1&&M_STRIDE<=1024&&getenv("MONSTER_SDF_NO_HEAD_CACHE")==NULL;
+#define SELECT_PROGRAM(name,cached,regular) \
+    GLuint* name##Slot=cacheHead?&d->sparse.cached:&d->sparse.regular; \
+    if(!*name##Slot) { \
+        *name##Slot=cacheHead?LinkComputeSource(sdfSparseCached##name##Source, \
+            sizeof(sdfSparseCached##name##Source)/sizeof(*sdfSparseCached##name##Source)): \
+            LinkComputeSource(sdfSparse##name##Source,sizeof(sdfSparse##name##Source)/sizeof(*sdfSparse##name##Source)); \
+        if(!*name##Slot)return false; \
     }
+    SELECT_PROGRAM(Sample,cachedSampleProgram,sampleProgram);
+    SELECT_PROGRAM(Root,cachedRootProgram,rootProgram);
+    SELECT_PROGRAM(Material,cachedMaterialProgram,materialProgram);
+#undef SELECT_PROGRAM
+    GLuint sampleProgram=*SampleSlot,rootProgram=*RootSlot,materialProgram=*MaterialSlot;
     bool diagnostic=getenv("MONSTER_SPARSE_GPU_DIAGNOSTIC")!=NULL;
 #define DIAG(stage) do{if(diagnostic){fprintf(stderr,"[GPU DIAG] gen=%llu stage=%s\n",(unsigned long long)cache->generation,stage);fflush(stderr);glFinish();}}while(0)
     double begin=RendererNowMs();
@@ -1631,7 +1687,7 @@ bool OpenGLRenderer_RenderGpuSparseSDFSurface(Renderer3D* r,const MonsterSDF* sd
         glCopyBufferSubData(GL_COPY_READ_BUFFER,GL_COPY_WRITE_BUFFER,5*sizeof(GLuint),4*sizeof(GLuint),6*sizeof(GLuint));}
     STAMP(6*batches+1);
     glBindVertexArray(0);glBindBuffer(GL_DRAW_INDIRECT_BUFFER,0);glUseProgram(0);
-    if(timing){d->compute.pending[slot]=true;d->compute.timingGeneration[slot]=d->compute.stats.generation+1;d->compute.timingSlabs[slot]=batches;}
+    if(timing){d->compute.pending[slot]=true;d->compute.timingGeneration[slot]=d->compute.stats.generation+1;d->compute.timingSlabs[slot]=batches;d->compute.sparseTiming[slot]=true;}
     d->compute.frameFences[fenceSlot]=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);if(!d->compute.frameFences[fenceSlot])return false;
     ++d->compute.frame;++d->compute.stats.generation;
     d->compute.stats.sampleRequests=(cache->dirtyCount-certifiedJobs)*n;d->compute.stats.cells=cache->dirtyCount*cells;d->compute.stats.slabs=batches;
@@ -1964,7 +2020,9 @@ bool OpenGLRenderer_ValidateComputeSDF(Renderer3D* r,const MonsterSDF* sdf,
     const Vector3* points,size_t count,float* error) {
     if(!OpenGLRenderer_SupportsComputeSurface(r)||!sdf||!points||!count||count>65536||!error)return false;
     OpenGLRendererData* d=r->user_data;
-    if(!InitComputeSurface(d)||!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    if (!d->compute.validateProgram)
+        d->compute.validateProgram = LinkComputeSource(sdfValidateSource, sizeof(sdfValidateSource)/sizeof(*sdfValidateSource));
+    if(!d->compute.validateProgram||!UploadSDFScene(d,sdf,NULL,0,0))return false;
     float (*values)[4]=malloc(count*sizeof(*values));if(!values)return false;
     for(size_t i=0;i<count;++i) {values[i][0]=points[i].x;values[i][1]=points[i].y;values[i][2]=points[i].z;values[i][3]=NAN;}
     if(!d->compute.validation)glGenBuffers(1,&d->compute.validation);
@@ -1988,7 +2046,7 @@ bool OpenGLRenderer_ValidatePinnaIntervals(Renderer3D* r,const MonsterSDF* sdf,f
     *error=0;
     if(!sdf->mouthCount)return true;
     const MonsterSDFMouth* m=&sdf->mouths[0];OpenGLRendererData* d=r->user_data;
-    if(!InitComputeSurface(d)||!UploadSDFScene(d,sdf,NULL,0,0))return false;
+    if(!UploadSDFScene(d,sdf,NULL,0,0))return false;
     if(!d->compute.intervalProgram)d->compute.intervalProgram=LinkComputeSource(sdfIntervalValidateSource,
         sizeof(sdfIntervalValidateSource)/sizeof(*sdfIntervalValidateSource));
     if(!d->compute.intervalProgram)return false;
@@ -2094,7 +2152,6 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     OpenGLRendererData* d=renderer->user_data;
     float displayAspect=(float)width/height;
     if(d->sdfFrameActive){width=d->sdfWidth;height=d->sdfHeight;}
-    if(!d->sdfProgram&&!InitSDFProgram(d))return false;
     Vector3 forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
     Vector3 right=Vec3_Normalize(Vec3_Cross(forward,camera->up)),up=Vec3_Cross(right,forward);
     float tangent=tanf(camera->fov*.00872664626f),aspect=displayAspect;
@@ -2103,7 +2160,7 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     int mouthBase=d->scene.mouthBase,axialBase=d->scene.axialBase;
     int tileDataBase=d->scene.tileDataBase,columns=d->scene.columns;
     bool cached=sdf->mouthCount==1&&M_STRIDE<=1024&&!d->reference.enabled&&getenv("MONSTER_SDF_NO_HEAD_CACHE")==NULL;
-    if(cached&&!InitSDFCachedProgram(d))return false;
+    if(cached ? !InitSDFCachedProgram(d) : (!d->sdfProgram&&!InitSDFProgram(d)))return false;
     SDFUniformLocations original=d->uniforms;
     if(cached)d->uniforms=d->cachedUniforms;
     GLuint p=cached?d->sdfCachedProgram:d->sdfProgram;glUseProgram(p);
@@ -2113,7 +2170,9 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     glUniform1i(glGetUniformLocation(p,"referenceSteps"),(GLint)d->reference.steps);
     glUniform1f(glGetUniformLocation(p,"referenceMaxStep"),d->reference.maxStep);
     float traceMin[16][3],traceMax[16][3];
-    size_t traceCount=d->traceRegionCount?d->traceRegionCount:1;
+    /* El AABB principal ya delimita el trazado sin cesiones. */
+    size_t traceCount=d->traceRegionCount;
+    if(!traceCount&&d->handoffs.count)traceCount=1;
     for(size_t i=0;i<traceCount;++i) {
         AABB3D box=d->traceRegionCount?d->traceRegions[i]:regionBounds;
         traceMin[i][0]=box.start.x;traceMin[i][1]=box.start.y;traceMin[i][2]=box.start.z;
@@ -2295,8 +2354,6 @@ bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width
         glEndQuery(GL_TIME_ELAPSED);d->meshQueryPending[d->meshQueryFrame%4]=true;
         d->meshQueryIssued=false;
     }
-    /* Compilar antes de iniciar la consulta: el arranque no es coste de reproducción. */
-    if(!d->sdfProgram&&!InitSDFProgram(d))return false;
     if(!d->sdfQueries[0])glGenQueries(4,d->sdfQueries);
     if(d->resolutionScale<=0)d->resolutionScale=SDF_MAX_SCALE;
     if(!adaptive){d->resolutionScale=SDF_MAX_SCALE;d->filteredGpuMs=0;d->overBudget=0;d->underBudget=0;}
@@ -2345,11 +2402,7 @@ bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width
     glViewport(0,0,rw,rh);
     return true;
 }
-void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
-    if(!renderer||!renderer->user_data)return;
-    OpenGLRendererData* d=renderer->user_data;if(!d->sdfFrameActive)return;
-    if(d->queryIssued){glEndQuery(GL_TIME_ELAPSED);d->queryPending[d->queryFrame%4]=true;}
-    ++d->queryFrame;
+static void CompositeSDFFrame(OpenGLRendererData* d,int width,int height) {
     /* Componer color y profundidad por shader para evitar GL_INVALID_OPERATION al escalar hacia MSAA. */
     glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);
     glViewport(0,0,width,height);
@@ -2384,7 +2437,24 @@ void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
         glActiveTexture((GLenum)activeTex);
         glUseProgram((GLuint)oldProgram);
     }
+}
+
+void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
+    if(!renderer||!renderer->user_data)return;
+    OpenGLRendererData* d=renderer->user_data;
+    if(!d->sdfFrameActive)return;
+    if(d->queryIssued){glEndQuery(GL_TIME_ELAPSED);d->queryPending[d->queryFrame%4]=true;}
+    ++d->queryFrame;
+    CompositeSDFFrame(d,width,height);
     d->sdfFrameActive=false;
+}
+
+bool OpenGLRenderer_CompositeCachedSDFFrame(Renderer3D* renderer,int width,int height) {
+    if(!renderer||!renderer->user_data)return false;
+    OpenGLRendererData* d=renderer->user_data;
+    if(d->sdfFrameActive||!d->sdfBlitProgram||d->sdfWidth!=width||d->sdfHeight!=height)return false;
+    CompositeSDFFrame(d,width,height);
+    return true;
 }
 float OpenGLRenderer_GetSDFGpuMs(const Renderer3D* renderer){return renderer&&renderer->user_data?((OpenGLRendererData*)renderer->user_data)->gpuMs:0;}
 float OpenGLRenderer_GetSDFResolutionScale(const Renderer3D* renderer){return renderer&&renderer->user_data?((OpenGLRendererData*)renderer->user_data)->resolutionScale:0;}

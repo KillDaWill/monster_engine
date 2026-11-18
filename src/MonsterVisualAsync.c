@@ -553,6 +553,7 @@ static bool WorkerShouldCancel(void* context) {
      * cancela ante una nueva solicitud pendiente para atenderla de inmediato. */
     pthread_mutex_lock(&asyncMgr->lock);
     bool cancel = asyncMgr->shouldQuit ||
+        asyncMgr->workingEndpointGeneration != asyncMgr->morphEndpointGeneration ||
         (asyncMgr->displayGeneration != 0 && !asyncMgr->continuousMotion &&
          asyncMgr->hasPendingRequest);
     pthread_mutex_unlock(&asyncMgr->lock);
@@ -572,6 +573,7 @@ static bool WorkerAdoptLatestMorphRequest(MonsterVisualAsync* asyncMgr,
        asyncMgr->pendingSnapshot.hasGrowthAge) {
         Monster_CopyInto(workMonster,&asyncMgr->pendingSnapshot);
         *fingerprint=asyncMgr->pendingFingerprint;
+        asyncMgr->workingRequestAtMs=asyncMgr->pendingRequestAtMs;
         asyncMgr->hasPendingRequest=false;
         asyncMgr->stats.workingFingerprint=*fingerprint;
         asyncMgr->stats.workingGeometryAge=workMonster->growthAge;
@@ -658,6 +660,7 @@ static void* WorkerThreadRoutine(void* arg) {
         Monster_CopyInto(&workMonster, &asyncMgr->pendingSnapshot);
         bool hasMorphEndpoints=asyncMgr->hasMorphEndpoints;
         uint64_t endpointGeneration=asyncMgr->morphEndpointGeneration;
+        asyncMgr->workingEndpointGeneration=endpointGeneration;
         if(hasMorphEndpoints && endpointGeneration!=anchorGeneration) {
             Monster_CopyInto(&morphStart,&asyncMgr->morphStartSnapshot);
             Monster_CopyInto(&morphEnd,&asyncMgr->morphEndSnapshot);
@@ -670,6 +673,7 @@ static void* WorkerThreadRoutine(void* arg) {
         }
 
         uint64_t workFingerprint = asyncMgr->pendingFingerprint;
+        asyncMgr->workingRequestAtMs=asyncMgr->pendingRequestAtMs;
         MonsterVisualQualityTier workTier = asyncMgr->pendingTier;
         unsigned workerDelayMs=asyncMgr->config.workerDelayMs;
         asyncMgr->hasPendingRequest = false;
@@ -1233,7 +1237,9 @@ static void* WorkerThreadRoutine(void* arg) {
             asyncMgr->config.maxGeometryAgeLag>0 &&
             fabsf(asyncMgr->stats.targetAge-asyncMgr->stats.workingGeometryAge)>asyncMgr->config.maxGeometryAgeLag;
         if (buildOk && meshOk && headOk && eyeOk && mouthOk && !stale && !obsoleteTopology && !asyncMgr->shouldQuit &&
-            !(asyncMgr->displayFingerprint==asyncMgr->stats.requestedFingerprint && workFingerprint!=asyncMgr->stats.requestedFingerprint)) {
+            !(asyncMgr->displayEndpointGeneration==endpointGeneration &&
+              asyncMgr->displayFingerprint==asyncMgr->stats.requestedFingerprint &&
+              workFingerprint!=asyncMgr->stats.requestedFingerprint)) {
             /* Liberar readyEyes anterior */
             FreeEyeArray(asyncMgr->readyEyes, asyncMgr->readyEyeCount);
 
@@ -1260,6 +1266,7 @@ static void* WorkerThreadRoutine(void* arg) {
             asyncMgr->readyGeneration++;
             asyncMgr->readyEndpointGeneration=hasMorphEndpoints?endpointGeneration:0;
             asyncMgr->readyFingerprint = workFingerprint;
+            asyncMgr->readyRequestAtMs=asyncMgr->workingRequestAtMs;
             asyncMgr->readyScale=workScale;
             asyncMgr->readyAppendageDevelopment=workMonster.hasCreaturePhenotype?
                 workMonster.phenotype.development.appendages:1;
@@ -1509,6 +1516,10 @@ bool MonsterVisualAsync_SetMorphEndpoints(MonsterVisualAsync* asyncMgr,
     asyncMgr->hasMorphHeadBounds=headBoundsValid;
     memcpy(asyncMgr->morphHeadModuleIds,headIds,sizeof(headIds));
     asyncMgr->morphEndpointGeneration++;
+    if (asyncMgr->hasPendingRequest) {
+        asyncMgr->hasPendingRequest = false;
+        asyncMgr->stats.coalescedCount++;
+    }
     for(size_t i=0;i<eventCount;++i)
         MorphModuleState_Init(&modules[i],events[i].moduleInstanceId,
             asyncMgr->morphEndpointGeneration,true);
@@ -1646,13 +1657,16 @@ bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
         asyncMgr->displayAppendageDevelopment=asyncMgr->readyAppendageDevelopment;
         asyncMgr->displayStats=asyncMgr->readyStats;
         asyncMgr->hasReadyMesh = false;
-        asyncMgr->stats.displayPublicationMs=(float)(GetTimeMs()-publicationStart);
+        double publishedAt=GetTimeMs();
+        asyncMgr->stats.displayPublicationMs=(float)(publishedAt-publicationStart);
+        asyncMgr->stats.requestToDisplayMs=publishedAt-asyncMgr->readyRequestAtMs;
         updatedDisplay = true;
     }
 
     /* 3. Comprobar si se requiere solicitar una nueva reconstrucción */
     bool isPendingMatch = asyncMgr->hasPendingRequest && (asyncMgr->pendingFingerprint == targetFingerprint);
-    bool isDisplayMatch = (asyncMgr->displayFingerprint == targetFingerprint);
+    bool isDisplayMatch = asyncMgr->displayFingerprint == targetFingerprint &&
+        (!asyncMgr->hasMorphEndpoints || asyncMgr->displayEndpointGeneration == asyncMgr->morphEndpointGeneration);
     if(asyncMgr->displayGeneration>0) {
         SurfaceRecipe recipe=SurfaceRecipe_CompileScaled(&appearance->surface,appearance->surfaceMapping.unitScale);
         bool canonical=asyncMgr->displayMesh.surfaceRecipe.data[SURFACE_RECIPE_METADATA_ROW][1]>.5f;
@@ -1665,7 +1679,9 @@ bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
         }
     }
 
-    bool isWorkingMatch=asyncMgr->stats.isWorkerBusy && asyncMgr->stats.workingFingerprint==targetFingerprint;
+    bool isWorkingMatch=asyncMgr->stats.isWorkerBusy &&
+        asyncMgr->workingEndpointGeneration==asyncMgr->morphEndpointGeneration &&
+        asyncMgr->stats.workingFingerprint==targetFingerprint;
     asyncMgr->stats.requestedFingerprint=targetFingerprint;
     if((isWorkingMatch || isDisplayMatch) && asyncMgr->hasPendingRequest && !isPendingMatch) {
         asyncMgr->hasPendingRequest=false;
@@ -1679,6 +1695,7 @@ bool MonsterVisualAsync_UpdateWithAppearance(MonsterVisualAsync* asyncMgr,
         asyncMgr->stats.pendingGeometryAge=monster->hasGrowthAge?monster->growthAge:NAN;
         Monster_CopyInto(&asyncMgr->pendingSnapshot, monster);
         asyncMgr->pendingFingerprint = targetFingerprint;
+        asyncMgr->pendingRequestAtMs=GetTimeMs();
         asyncMgr->pendingTier = targetTier;
         asyncMgr->hasPendingRequest = true;
         asyncMgr->stats.requestCount++;
@@ -1987,6 +2004,35 @@ size_t MonsterVisualAsync_GetFallbackRegions(const MonsterVisualAsync* asyncMgr,
     bool bound=binding&&AnatomyDeformer_IsBound(binding)&&
         binding->vertexCount==asyncMgr->displayMesh.vertexCount&&
         asyncMgr->displayMesh.vertices;
+    /* Acumular sobre las posiciones publicadas actuales en una sola pasada.
+     * Los índices de conexión pertenecen exclusivamente a esta vinculación. */
+    AABB3D published[ANATOMY_MAX_CONNECTIONS];
+    bool active[ANATOMY_MAX_CONNECTIONS] = {false};
+    bool anyActive = false;
+    if (bound) {
+        for (size_t c = 0; c < binding->refGraph.connectionCount; ++c) {
+            uint32_t id = binding->refGraph.connections[c].moduleInstanceId;
+            for (size_t m = 0; m < asyncMgr->morphModuleCount; ++m) {
+                const MorphModuleState* state = &asyncMgr->morphModules[m];
+                if (state->moduleId != id) continue;
+                active[c] = state->handoffTransition > 0 ||
+                    MorphModuleState_NeedsExactFallback(state, visualAge, maximumFrozenAgeLag);
+                break;
+            }
+            anyActive |= active[c];
+            published[c] = AABB_Empty();
+        }
+    }
+    if (anyActive) {
+        for (size_t v = 0; v < binding->vertexCount; ++v) {
+            const AnatomyDeformerBinding* b = &binding->bindings[v];
+            for (int k = 0; k < ANATOMY_MORPH_INFLUENCES; ++k) {
+                size_t c = b->connIndex[k];
+                if (b->weight[k] < .15f || c >= binding->refGraph.connectionCount || !active[c]) continue;
+                AABB_ExpandPoint(&published[c], asyncMgr->displayMesh.vertices[v].position);
+            }
+        }
+    }
     for(size_t m=0;m<asyncMgr->morphModuleCount&&count<capacity;++m) {
         const MorphModuleState* state=&asyncMgr->morphModules[m];
         if(state->handoffTransition<=0&&
@@ -2021,19 +2067,12 @@ size_t MonsterVisualAsync_GetFallbackRegions(const MonsterVisualAsync* asyncMgr,
         /* El dominio retira la representación publicada completa, además de
          * cubrir la nueva. Usar sólo conectores actuales deja siluetas viejas
          * fuera de caja y excluye rasgos que no tienen nodos propios. */
-        if(bound)for(size_t v=0;v<binding->vertexCount;++v) {
-            const AnatomyDeformerBinding* b=&binding->bindings[v];
-            bool owned=false;
-            for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
-                if(b->weight[k]<.15f||b->connIndex[k]>=binding->refGraph.connectionCount)continue;
-                if(binding->refGraph.connections[b->connIndex[k]].moduleInstanceId==state->moduleId) {
-                    owned=true;break;
-                }
-            }
-            if(owned) {
-                AABB_ExpandPoint(&box,asyncMgr->displayMesh.vertices[v].position);
-                found=true;
-            }
+        if (anyActive) for (size_t c = 0; c < binding->refGraph.connectionCount; ++c) {
+            if (!active[c] || binding->refGraph.connections[c].moduleInstanceId != state->moduleId ||
+                published[c].start.x > published[c].end.x) continue;
+            AABB_ExpandPoint(&box, published[c].start);
+            AABB_ExpandPoint(&box, published[c].end);
+            found = true;
         }
         if(!found)continue;
         MorphHandoffSet interfaces;
@@ -2309,7 +2348,9 @@ void MonsterVisualAsync_Flush(MonsterVisualAsync* asyncMgr) {
         asyncMgr->displayAppendageDevelopment=asyncMgr->readyAppendageDevelopment;
         asyncMgr->displayStats=asyncMgr->readyStats;
         asyncMgr->hasReadyMesh = false;
-        asyncMgr->stats.displayPublicationMs=(float)(GetTimeMs()-publicationStart);
+        double publishedAt=GetTimeMs();
+        asyncMgr->stats.displayPublicationMs=(float)(publishedAt-publicationStart);
+        asyncMgr->stats.requestToDisplayMs=publishedAt-asyncMgr->readyRequestAtMs;
     }
     pthread_mutex_unlock(&asyncMgr->lock);
 }

@@ -23,26 +23,36 @@ bool EyeTexture_Generate(const Eye* e,unsigned n,unsigned char* out,size_t cap){
     float ring=Math_Clamp01(e->limbalRingStrength),noise=Math_Clamp01(e->irisRadialNoise),variation=Math_Clamp01(e->irisColorVariation);
     float dilation=Math_Clamp01(e->pupilDilation),pupil=Math_Clamp(e->pupilScale,.05f,.9f)*(.72f+.56f*dilation);
     float aspect=Math_Clamp(e->pupilAspect,.12f,1.0f);PupilShape shape=e->pupilShape;
+    float pupilR=iris*Math_Clamp(pupil,.12f,.86f);
+    float pigmentation=Math_Clamp01(e->scleraPigmentation);
+    float base[3]={e->scleraColor.r/255.f,e->scleraColor.g/255.f,e->scleraColor.b/255.f};
+    float ir[3]={e->irisColor.r/255.f,e->irisColor.g/255.f,e->irisColor.b/255.f};
+    float pu[3]={e->pupilColor.r/255.f,e->pupilColor.g/255.f,e->pupilColor.b/255.f};
+    float maxIrisEdge=iris*(1.0f+.025f*noise)+.012f;
     for(unsigned y=0;y<n;++y)for(unsigned x=0;x<n;++x){
         float u=((float)x+.5f)/(float)n,v=((float)y+.5f)/(float)n;
         float px=(u-.5f)*2.0f,py=(v-.5f)*2.0f;
         float eyeR=sqrtf(px*px+py*py);
-        float fiber=Noise(e->textureSeed,x,y)*noise;
-        float irisEdge=iris*(1.0f+.025f*fiber);
-        float irisMask=1.0f-Smooth(irisEdge-.012f,irisEdge+.012f,eyeR);
-        float pupilR=iris*Math_Clamp(pupil,.12f,.86f);
+        float fiber=0,irisMask=0,ringMask=0,rays=0;
+        /* Fuera de la máxima órbita del iris su máscara es exactamente cero.
+         * La pupila se evalúa aparte (el diamante puede superar este radio). */
+        if(eyeR<maxIrisEdge) {
+            fiber=Noise(e->textureSeed,x,y)*noise;
+            float irisEdge=iris*(1.0f+.025f*fiber);
+            irisMask=1.0f-Smooth(irisEdge-.012f,irisEdge+.012f,eyeR);
+            if(irisMask>0) {
+                ringMask=Smooth(iris*.86f,iris*.94f,eyeR)*(1.0f-Smooth(iris*.985f,iris*1.015f,eyeR));
+                float angle=atan2f(py,px);
+                rays=.5f+.5f*sinf(angle*47.0f+fiber*2.7f+Noise(e->textureSeed,x/3,(int)(angle*11))*noise*2.0f);
+            }
+        }
         float pupilMetric;
         if(shape==PUPIL_VERTICAL)pupilMetric=sqrtf((px/aspect)*(px/aspect)+py*py);
         else if(shape==PUPIL_HORIZONTAL)pupilMetric=sqrtf(px*px+(py/aspect)*(py/aspect));
         else if(shape==PUPIL_DIAMOND)pupilMetric=DistDiamond(px,py,aspect);
         else pupilMetric=eyeR;
         float pupilMask=1.0f-Smooth(pupilR-.012f,pupilR+.012f,pupilMetric);
-        float ringMask=Smooth(iris*.86f,iris*.94f,eyeR)*(1.0f-Smooth(iris*.985f,iris*1.015f,eyeR));
-        float angle=atan2f(py,px);float rays=.5f+.5f*sinf(angle*47.0f+fiber*2.7f+Noise(e->textureSeed,x/3,(int)(angle*11))*noise*2.0f);
-        float base[3]={e->scleraColor.r/255.f,e->scleraColor.g/255.f,e->scleraColor.b/255.f};
-        float ir[3]={e->irisColor.r/255.f,e->irisColor.g/255.f,e->irisColor.b/255.f};
-        float pu[3]={e->pupilColor.r/255.f,e->pupilColor.g/255.f,e->pupilColor.b/255.f};
-        float pigment=Math_Clamp01(e->scleraPigmentation)*(0.15f+0.12f*fabsf(Noise(e->textureSeed,x/5,y/5)));
+        float pigment=pigmentation*(0.15f+0.12f*fabsf(Noise(e->textureSeed,x/5,y/5)));
         size_t i=((size_t)y*n+x)*4;
         for(int c=0;c<3;++c){
             float scl=base[c]*(1.0f-pigment)+(c==0?.94f:.90f)*pigment;

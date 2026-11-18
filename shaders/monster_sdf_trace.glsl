@@ -115,20 +115,21 @@ void main() {
     vec3 rd=normalize(cameraForward+cameraRight*(uv.x*aspectRatio*tanHalfFov)+cameraUp*(uv.y*tanHalfFov));
     float t=0.0,end=1e30;
     if(!rayBox(cameraPosition,rd,boundsMin,boundsMax,t,end))discard;
-    float entries[16],exits[16];float firstEntry=1e30,lastExit=-1.0;
-    int intervalCount=max(traceRegionCount,1);
-    for(int i=0;i<intervalCount;++i) {
-        entries[i]=t;exits[i]=end;
-        if(traceRegionCount==0) {firstEntry=t;lastExit=end;break;}
-        if((i<handoffCount&&handoffRetire[i]!=0)||
-           !rayBox(cameraPosition,rd,traceRegionMin[i],traceRegionMax[i],entries[i],exits[i])||
-           (i<handoffCount&&!handoffRayInterval(i,cameraPosition,rd,entries[i],exits[i]))) {
-            entries[i]=1e30;exits[i]=-1.0;
+    float entries[16],exits[16];
+    if(traceRegionCount>0) {
+        float firstEntry=1e30,lastExit=-1.0;
+        for(int i=0;i<traceRegionCount;++i) {
+            entries[i]=t;exits[i]=end;
+            if((i<handoffCount&&handoffRetire[i]!=0)||
+               !rayBox(cameraPosition,rd,traceRegionMin[i],traceRegionMax[i],entries[i],exits[i])||
+               (i<handoffCount&&!handoffRayInterval(i,cameraPosition,rd,entries[i],exits[i]))) {
+                entries[i]=1e30;exits[i]=-1.0;
+            }
+            firstEntry=min(firstEntry,entries[i]);lastExit=max(lastExit,exits[i]);
         }
-        firstEntry=min(firstEntry,entries[i]);lastExit=max(lastExit,exits[i]);
+        if(lastExit<firstEntry)discard;
+        t=max(t,firstEntry);end=min(end,lastExit);
     }
-    if(lastExit<firstEntry)discard;
-    t=max(t,firstEntry);end=min(end,lastExit);
     if(referenceTrace)MonsterSDFUseCompleteScene();
     else {
         classifyRay(rd,t,end);
@@ -140,12 +141,14 @@ void main() {
     float traceTolerance=referenceTrace?hitTolerance*.01:hitTolerance;
     float previousT=t,previousDistance=0;bool previousValid=false,rejectedRoot=false;
     for(int step=0;step<(referenceTrace?referenceSteps:256);++step) {
-        bool inside=false;float next=1e30;
-        for(int i=0;i<intervalCount;++i) {
-            inside=inside||(t>=entries[i]&&t<=exits[i]);
-            if(entries[i]>t)next=min(next,entries[i]);
+        if(traceRegionCount>0) {
+            bool inside=false;float next=1e30;
+            for(int i=0;i<traceRegionCount;++i) {
+                inside=inside||(t>=entries[i]&&t<=exits[i]);
+                if(entries[i]>t)next=min(next,entries[i]);
+            }
+            if(!inside) {t=next;previousValid=false;rejectedRoot=false;if(t>end)break;}
         }
-        if(!inside) {t=next;previousValid=false;rejectedRoot=false;if(t>end)break;}
         p=cameraPosition+rd*t;sampleValue.w=sceneDistance(p);
         bool rootFound=false;
         if(previousValid&&(previousDistance>0)!=(sampleValue.w>0)) {

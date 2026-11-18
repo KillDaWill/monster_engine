@@ -305,7 +305,7 @@ static void TransformJaw(MonsterVisualMouth* vm, const Mouth* mouth, const Monst
     Mesh_MarkGeometryChanged(&vm->hinge);
 }
 
-bool MonsterVisual_UpdateEyes(MonsterVisualEye* eyes, size_t eyeCount, const Monster* monster) {
+static bool UpdateEyes(MonsterVisualEye* eyes, size_t eyeCount, const Monster* monster, bool localGlobe) {
     if (!monster) return false;
     if (monster->eyeCount == 0) return true;
     if (!eyes || eyeCount < monster->eyeCount) return false;
@@ -315,13 +315,28 @@ bool MonsterVisual_UpdateEyes(MonsterVisualEye* eyes, size_t eyeCount, const Mon
         Vector3 base = e->bodyPartIndex < monster->bodyPartCount ? monster->bodyParts[e->bodyPartIndex].positionRender : Vec3_Zero();
         Vector3 p = Vec3_Add(base, e->offset), r = e->scale, f = Vec3_Normalize(e->forward);
         if (Vec3_LengthSq(f) < 1e-6f) f = Transform3D_RotateVector(e->rotation, Vec3_Create(0, 0, 1));
-        Transform3D st = Transform3D_Create(p, e->rotation, r);
-        if (!PrimitiveMesh_GenerateEllipsoid(&eyes[i].globe, st, 32, 24, e->scleraColor)) return false;
-        eyes[i].center=p;eyes[i].forward=f;eyes[i].right=Transform3D_RotateVector(e->rotation,Vec3_Create(1,0,0));
-        eyes[i].up=Transform3D_RotateVector(e->rotation,Vec3_Create(0,1,0));eyes[i].scale=r;
+        if (!localGlobe || !eyes[i].localGlobe || !eyes[i].globe.indexCount) {
+            Transform3D st = localGlobe ? Transform3D_Identity() : Transform3D_Create(p, e->rotation, r);
+            if (!PrimitiveMesh_GenerateEllipsoid(&eyes[i].globe, st, 32, 24, e->scleraColor)) return false;
+        }
+        eyes[i].center = p;
+        eyes[i].forward = f;
+        eyes[i].right = Transform3D_RotateVector(e->rotation, Vec3_Create(1,0,0));
+        eyes[i].up = Transform3D_RotateVector(e->rotation, Vec3_Create(0,1,0));
+        eyes[i].axisZ = Transform3D_RotateVector(e->rotation, Vec3_Create(0,0,1));
+        eyes[i].scale = r;
+        eyes[i].localGlobe = localGlobe;
         eyes[i].appearance=*e;eyes[i].appearanceFingerprint=EyeTexture_Fingerprint(e);
     }
     return true;
+}
+
+bool MonsterVisual_UpdateEyes(MonsterVisualEye* eyes, size_t eyeCount, const Monster* monster) {
+    return UpdateEyes(eyes, eyeCount, monster, false);
+}
+
+bool MonsterVisual_UpdateEyeInstances(MonsterVisualEye* eyes, size_t eyeCount, const Monster* monster) {
+    return UpdateEyes(eyes, eyeCount, monster, true);
 }
 
 static bool GenerateEyes(const Monster* monster, MonsterVisualEye** output) {

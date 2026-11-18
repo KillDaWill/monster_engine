@@ -123,6 +123,7 @@ typedef struct MonsterVisualAsyncStats {
     float surfaceMappingMs,eyeBuildMs,mouthBuildMs;
     float morphBindingMs,morphDeformMs,headBindingMs;
     float readyPublicationMs,displayPublicationMs;
+    double requestToDisplayMs; /**< Latencia de la última solicitud efectivamente publicada. */
     MorphSurfaceTrackerStats dynamicSurface; /**< Corrección SDF del último snapshot dinámico. */
     float presentationMs; /**< Tiempo de actualización de la malla visible. */
     size_t dynamicFullFallbackCount; /**< Reconstrucciones completas tras fallo del rastreador. */
@@ -218,10 +219,11 @@ typedef struct MonsterVisualAsync {
     AABB3D morphHeadBounds; /**< Unión de campos cefálicos de los extremos; no depende de pesos de piel cervical. */
     uint32_t morphHeadModuleIds[2]; /**< Identidades cefálicas de ambos extremos. */
     bool hasMorphHeadBounds;
-    uint64_t morphEndpointGeneration;
+    uint64_t morphEndpointGeneration, workingEndpointGeneration;
     MorphModuleState* morphModules; /**< Política de certificación por identidad semántica. */
     size_t morphModuleCount;
     uint64_t pendingFingerprint;
+    double pendingRequestAtMs, workingRequestAtMs, readyRequestAtMs;
     MonsterVisualQualityTier pendingTier;
 
     /* Ready Buffer / Mallas listas generadas por el worker */

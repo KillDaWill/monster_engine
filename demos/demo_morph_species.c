@@ -22,7 +22,9 @@
 #include "OpenGLRenderer.h"
 #include "SurfaceMapper.h"
 #include <SDL2/SDL.h>
+#define GL_GLEXT_PROTOTYPES
 #include <SDL2/SDL_opengl.h>
+#include <sys/resource.h>
 #include <ctype.h>
 #include <math.h>
 #include <stdbool.h>
@@ -64,6 +66,12 @@ typedef struct DemoOptions {
     const char* capturePrefix;
     const char* validateCyclePrefix;
     int maxFrames;
+    int profileWarmup;
+    bool profile;
+    bool profileSwitch;
+    bool profileBackends;
+    bool profileUnpaced;
+    bool nativeResolution;
     int viewMode;
     bool noMsaa;
     bool noFur;
@@ -106,10 +114,18 @@ typedef struct MorphRuntime {
     float lastHairExactAge;
     size_t lastHairGroupCount;
     bool interactiveScrub;
+    double sdfMs, fallbackMs, meshMs, eyeMs;
     GpuSDFSurfaceGrid gpuGrid;
     GpuSDFSurfaceCache* gpuCache;
     bool gpuGridValid;
-    bool hasVisual;
+    MonsterSDF frameSdf;
+    float fieldAge;
+    bool fieldValid;
+    bool materialValid;
+    bool rayFrameValid;
+    ICamera rayCamera;
+    int raySurfaceDebug;
+    bool rayNoFur, rayWire;
     char sourceLabel[48];
     char targetLabel[48];
 } MorphRuntime;
@@ -402,21 +418,52 @@ static bool InitMorphRuntime(MorphRuntime* rt, const Monster* initialSource, con
     snprintf(rt->targetLabel, sizeof(rt->targetLabel), "%s", dstLabel ? dstLabel : "DESTINO");
 
     rt->ager = MonsterAger_Create(&rt->source, &rt->target, opt->hasFixedAge ? opt->fixedAge : 0.0f);
-    MonsterAger_SetGeometrySnapshotEnabled(&rt->ager, !opt->legacyLag);
+    MonsterAger_SetGeometrySnapshotEnabled(&rt->ager,
+        opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && !opt->legacyLag);
 
-    if (opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF) {
-        MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
-        cfg.enableLocalMorphPatches = true;
-        cfg.enableChunkedRemeshing = true;
-        if (opt->chunkSize > 0u) cfg.chunkSize = (float)opt->chunkSize * 0.03f;
-        rt->visual = MonsterVisualAsync_Create(cfg);
-        if (!rt->visual) return false;
-        rt->hasVisual = true;
-        MonsterVisualAsync_SetMorphMode(rt->visual, true);
-        MonsterVisualAsync_SetMorphEndpoints(rt->visual, &rt->source, &rt->target);
-        if (opt->workerDelayMs > 0) MonsterVisualAsync_SetWorkerDelay(rt->visual, opt->workerDelayMs);
-    }
+    rt->frameSdf = MonsterSDF_Create();
     return true;
+}
+
+static bool EnsureHandoff(MorphRuntime* rt, const DemoOptions* opt) {
+    if (rt->visual) return true;
+    MonsterVisualAsyncConfig cfg = MonsterVisualAsync_DefaultConfig();
+    cfg.enableLocalMorphPatches = true;
+    cfg.enableChunkedRemeshing = true;
+    if (opt->chunkSize > 0u) cfg.chunkSize = (float)opt->chunkSize * 0.03f;
+    rt->visual = MonsterVisualAsync_Create(cfg);
+    if (!rt->visual) return false;
+    MonsterVisualAsync_SetMorphMode(rt->visual, true);
+    if (!rt->visual->threadRunning ||
+        !MonsterVisualAsync_SetMorphEndpoints(rt->visual, &rt->source, &rt->target)) {
+        MonsterVisualAsync_Free(rt->visual);
+        rt->visual = NULL;
+        return false;
+    }
+    MonsterVisualAsync_SetWorkerDelay(rt->visual, opt->workerDelayMs);
+    return true;
+}
+
+static void InvalidateMorphPair(MorphRuntime* rt) {
+    rt->fieldValid = rt->materialValid = rt->rayFrameValid = false;
+    rt->eyeAge = -1.0f;
+    rt->gpuGridValid = false;
+    if (rt->visual && !MonsterVisualAsync_SetMorphEndpoints(rt->visual, &rt->source, &rt->target)) {
+        MonsterVisualAsync_Free(rt->visual);
+        rt->visual = NULL;
+    }
+}
+
+static const MonsterSDF* PrepareFrameField(MorphRuntime* rt, const DemoOptions* opt) {
+    if (!rt->fieldValid || rt->fieldAge != rt->ager.perc) {
+        double start = opt->profile ? OpenGLDemoWindow_Time() : 0;
+        rt->fieldValid = MonsterSDF_Build(&rt->frameSdf, MonsterAger_GetResultConst(&rt->ager),
+            MonsterSDF_DefaultConfig());
+        rt->fieldAge = rt->ager.perc;
+        rt->materialValid = rt->rayFrameValid = false;
+        if (opt->profile) rt->sdfMs += (OpenGLDemoWindow_Time() - start) * 1000;
+    }
+    return rt->fieldValid ? &rt->frameSdf : NULL;
 }
 
 static void DestroyMorphRuntime(MorphRuntime* rt) {
@@ -424,11 +471,11 @@ static void DestroyMorphRuntime(MorphRuntime* rt) {
         GpuSDFSurfaceCache_Destroy(rt->gpuCache);
         rt->gpuCache = NULL;
     }
-    if (rt->hasVisual && rt->visual) {
+    if (rt->visual) {
         MonsterVisualAsync_Free(rt->visual);
         rt->visual = NULL;
-        rt->hasVisual = false;
     }
+    MonsterSDF_Free(&rt->frameSdf);
     for (size_t i = 0; i < rt->eyeCapacity; ++i) Mesh_Free(&rt->eyes[i].globe);
     free(rt->eyes);
     LongHairAsync_Destroy(rt->longHairAsync);
@@ -491,14 +538,7 @@ static bool SwitchMorphTarget(MorphRuntime* rt, const Monster* newTarget, const 
     MonsterAger_SetGeometrySnapshotEnabled(&rt->ager, geomSnap);
     if (geomSteps) MonsterAger_SetGeometrySteps(&rt->ager, geomSteps);
 
-    if (rt->hasVisual && rt->visual) {
-        MonsterVisualAsync_SetMorphEndpoints(rt->visual, &rt->source, &rt->target);
-    }
-    if (rt->gpuCache) {
-        GpuSDFSurfaceCache_Destroy(rt->gpuCache);
-        rt->gpuCache = NULL;
-    }
-    rt->gpuGridValid = false;
+    InvalidateMorphPair(rt);
     return true;
 }
 
@@ -686,6 +726,17 @@ static DemoOptions ParseOptions(int argc, char** argv) {
             opt.capturePrefix = arg + 17;
         } else if (strncmp(arg, "--validate-cycle=", 17) == 0) {
             opt.validateCyclePrefix = arg + 17;
+        } else if (strcmp(arg, "--profile-switch") == 0) {
+            opt.profileSwitch = true;
+        } else if (strcmp(arg, "--profile-unpaced") == 0) {
+            opt.profileUnpaced = true;
+        } else if (strcmp(arg, "--native-resolution") == 0) {
+            opt.nativeResolution = true;
+        } else if (strcmp(arg, "--profile-backends") == 0) {
+            opt.profileBackends = true;
+        } else if (strncmp(arg, "--profile=", 10) == 0) {
+            opt.profile = true;
+            opt.profileWarmup = atoi(arg + 10);
         } else if (strncmp(arg, "--frames=", 9) == 0) {
             opt.maxFrames = atoi(arg + 9);
         } else if (strncmp(arg, "--view=", 7) == 0) {
@@ -735,19 +786,20 @@ static DemoOptions ParseOptions(int argc, char** argv) {
     return opt;
 }
 
-static bool EnsureGpuSurfaceGrid(MorphRuntime* rt, const DemoOptions* opt, float restoreAge) {
+static bool EnsureGpuSurfaceGrid(MorphRuntime* rt, Renderer3D* renderer, const DemoOptions* opt) {
     if (rt->gpuGridValid) return true;
     AABB3D bounds = AABB_Empty();
     MonsterSDF sdf = MonsterSDF_Create();
+    Monster sample = Monster_Create();
     const float ages[3] = {0.0f, 0.5f, 1.0f};
     for (int i = 0; i < 3; ++i) {
-        MonsterAger_SetPerc(&rt->ager, ages[i]);
-        if (MonsterSDF_Build(&sdf, MonsterAger_GetResultConst(&rt->ager), MonsterSDF_DefaultConfig())) {
+        MonsterAger_Interpolate(&rt->ager.monster1, &rt->ager.monster2, ages[i], &sample);
+        if (MonsterSDF_Build(&sdf, &sample, MonsterSDF_DefaultConfig())) {
             AABB_ExpandPoint(&bounds, sdf.bounds.start);
             AABB_ExpandPoint(&bounds, sdf.bounds.end);
         }
     }
-    MonsterAger_SetPerc(&rt->ager, restoreAge);
+    Monster_Free(&sample);
     MonsterSDF_Free(&sdf);
     bounds.start = Vec3_Sub(bounds.start, Vec3_Create(0.6f, 0.6f, 0.6f));
     bounds.end = Vec3_Add(bounds.end, Vec3_Create(0.6f, 0.6f, 0.6f));
@@ -755,13 +807,14 @@ static bool EnsureGpuSurfaceGrid(MorphRuntime* rt, const DemoOptions* opt, float
     if (!GpuSDFSurfaceGrid_Configure(&rt->gpuGrid, bounds, opt->gpuVoxelStep, opt->gpuRefinement)) {
         return false;
     }
-    rt->gpuGridValid = true;
+    OpenGLRenderer_InvalidateGpuSurface(renderer);
     if (opt->surfaceMode == SURFACE_MODE_GPU_SDF_SPARSE) {
         if (rt->gpuCache) GpuSDFSurfaceCache_Destroy(rt->gpuCache);
         rt->gpuCache = GpuSDFSurfaceCache_Create(&rt->gpuGrid, opt->gpuBrickCells);
         if (!rt->gpuCache) return false;
         rt->gpuCache->cachedNormals = opt->gpuCachedNormals;
     }
+    rt->gpuGridValid = true;
     return true;
 }
 
@@ -779,7 +832,10 @@ static void RenderCurrentEyes(MorphRuntime* rt, Renderer3D* renderer, const Mons
         rt->eyeCapacity = current->eyeCount;
     }
     if (rt->eyeAge != rt->ager.perc) {
-        if (!MonsterVisual_UpdateEyes(rt->eyes, rt->eyeCapacity, current)) return;
+        bool ok = renderer->renderEye ?
+            MonsterVisual_UpdateEyeInstances(rt->eyes, rt->eyeCapacity, current) :
+            MonsterVisual_UpdateEyes(rt->eyes, rt->eyeCapacity, current);
+        if (!ok) return;
         rt->eyeAge = rt->ager.perc;
     }
     for (size_t i = 0; i < current->eyeCount; ++i) {
@@ -788,16 +844,27 @@ static void RenderCurrentEyes(MorphRuntime* rt, Renderer3D* renderer, const Mons
     }
 }
 
+static bool SameCamera(const ICamera* a, const ICamera* b) {
+    return Vec3_LengthSq(Vec3_Sub(a->position, b->position)) == 0 &&
+           Vec3_LengthSq(Vec3_Sub(a->target, b->target)) == 0 &&
+           Vec3_LengthSq(Vec3_Sub(a->up, b->up)) == 0 &&
+           a->fov == b->fov && a->aspectRatio == b->aspectRatio &&
+           a->nearPlane == b->nearPlane && a->farPlane == b->farPlane;
+}
+
 static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* cam, int w, int h,
     const DemoOptions* opt, float currentAge, bool wire, bool showSkeleton, bool noFur,
     const char* hudText) {
     const Monster* current = MonsterAger_GetResultConst(&rt->ager);
-    MonsterSDF sdf = MonsterSDF_Create();
-    MonsterSDFConfig cfg = MonsterSDF_DefaultConfig();
-    bool hasSdf = MonsterSDF_Build(&sdf, current, cfg);
+    const MonsterSDF* sdf = PrepareFrameField(rt, opt);
+    double phase = 0;
 
     OpenGLRenderer_SetWireframe(renderer, wire);
-    OpenGLRenderer_SetMorphSurfaceDomain(renderer, current, &rt->reference);
+    if (!rt->materialValid) {
+        rt->materialValid = OpenGLRenderer_SetMorphSurfaceDomain(renderer, current, &rt->reference);
+    }
+    OpenGLRenderer_SetSDFReference(renderer, opt->surfaceMode == SURFACE_MODE_EXACT_SDF,
+        opt->referenceMaxStep, opt->referenceSteps);
     OpenGLRenderer_SetFurQuality(renderer, !noFur, !noFur, 0);
     OpenGLRenderer_SetLongHairQuality(renderer, noFur ? 0 : 3);
     bool drewAsyncVisual = false;
@@ -805,29 +872,44 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
     renderer->beginFrame(renderer);
 
     if (opt->surfaceMode == SURFACE_MODE_SDF_RAYMARCH || opt->surfaceMode == SURFACE_MODE_EXACT_SDF) {
-        OpenGLRenderer_SetSDFReference(renderer, opt->surfaceMode == SURFACE_MODE_EXACT_SDF,
-            opt->referenceMaxStep, opt->referenceSteps);
-        if (hasSdf && OpenGLRenderer_BeginSDFFrame(renderer, cam, w, h,
-                opt->surfaceMode == SURFACE_MODE_SDF_RAYMARCH && !opt->capturePrefix && !opt->validateCyclePrefix)) {
-            OpenGLRenderer_RenderSDF(renderer, &sdf, cam, w, h);
-            OpenGLRenderer_EndSDFFrame(renderer, w, h);
+        bool rayMode = opt->surfaceMode == SURFACE_MODE_SDF_RAYMARCH;
+        bool adaptive = rayMode && !opt->nativeResolution && !opt->capturePrefix && !opt->validateCyclePrefix;
+        bool sameView = rayMode && sdf && rt->rayFrameValid && SameCamera(&rt->rayCamera, cam) &&
+            rt->rayNoFur == noFur && rt->rayWire == wire && rt->raySurfaceDebug == opt->surfaceDebugMode;
+        bool reused = sameView && OpenGLRenderer_CompositeCachedSDFFrame(renderer, w, h);
+        if (!reused) {
+            rt->rayFrameValid = false;
+            // Una vista detenida se conserva a resolución nativa, incluso tras un paneo costoso.
+            if (sdf && OpenGLRenderer_BeginSDFFrame(renderer, cam, w, h, adaptive && !sameView)) {
+                bool rendered = OpenGLRenderer_RenderSDF(renderer, sdf, cam, w, h);
+                rt->rayFrameValid = rayMode && rendered && rt->materialValid;
+                OpenGLRenderer_EndSDFFrame(renderer, w, h);
+                rt->rayCamera = *cam;
+                rt->rayNoFur = noFur;
+                rt->rayWire = wire;
+                rt->raySurfaceDebug = opt->surfaceDebugMode;
+            }
         }
-    } else if (opt->surfaceMode == SURFACE_MODE_GPU_SDF_DENSE && hasSdf) {
-        if (EnsureGpuSurfaceGrid(rt, opt, currentAge)) {
+    } else if (opt->surfaceMode == SURFACE_MODE_GPU_SDF_DENSE && sdf) {
+        if (EnsureGpuSurfaceGrid(rt, renderer, opt)) {
             OpenGLRenderer_SetupCamera(cam, w, h);
-            OpenGLRenderer_RenderGpuSDFSurface(renderer, &sdf, &rt->gpuGrid, cam);
+            OpenGLRenderer_RenderGpuSDFSurface(renderer, sdf, &rt->gpuGrid, cam);
         }
-    } else if (opt->surfaceMode == SURFACE_MODE_GPU_SDF_SPARSE && hasSdf) {
-        if (EnsureGpuSurfaceGrid(rt, opt, currentAge) && rt->gpuCache) {
+    } else if (opt->surfaceMode == SURFACE_MODE_GPU_SDF_SPARSE && sdf) {
+        if (EnsureGpuSurfaceGrid(rt, renderer, opt) && rt->gpuCache) {
             OpenGLRenderer_SetupCamera(cam, w, h);
-            OpenGLRenderer_RenderGpuSparseSDFSurface(renderer, &sdf, rt->gpuCache, cam);
+            OpenGLRenderer_RenderGpuSparseSDFSurface(renderer, sdf, rt->gpuCache, cam);
         }
-    } else if (opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && rt->hasVisual) {
+    } else if (opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && rt->visual) {
         const Monster* geomMonster = MonsterAger_GetGeometryResultConst(&rt->ager);
+        if (opt->profile) phase = OpenGLDemoWindow_Time();
         MonsterVisualAsync_UpdateWithAppearance(rt->visual, geomMonster, current, 0.016f);
+        if (opt->profile) rt->meshMs = (OpenGLDemoWindow_Time() - phase) * 1000;
         MorphFallbackRegion regions[MORPH_HANDOFF_MAX_INTERFACES];
-        size_t regionCount = MonsterVisualAsync_GetFallbackRegions(rt->visual, hasSdf ? &sdf : NULL,
+        if (opt->profile) phase = OpenGLDemoWindow_Time();
+        size_t regionCount = MonsterVisualAsync_GetFallbackRegions(rt->visual, sdf,
             &current->anatomyGraph, currentAge, 0.08f, regions, MORPH_HANDOFF_MAX_INTERFACES);
+        if (opt->profile) rt->fallbackMs = (OpenGLDemoWindow_Time() - phase) * 1000;
         size_t masked = 0;
         const Mesh* ownedMesh = MonsterVisualAsync_GetOwnedMesh(rt->visual, regions, regionCount, &masked);
         OpenGLRenderer_SetupCamera(cam, w, h);
@@ -852,25 +934,30 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
             SurfaceRecipe compiledSurface = SurfaceRecipe_CompileScaled(&resolvedSurface, current->surfaceMapping.unitScale);
             OpenGLRenderer_SetMeshSurfaceOverride(renderer, &compiledSurface);
             renderer->renderMesh(renderer, ownedMesh);
-        } else if (hasSdf) {
+        } else if (sdf) {
             OpenGLRenderer_SetMeshSurfaceOverride(renderer,NULL);
-            OpenGLRenderer_RenderSDF(renderer,&sdf,cam,w,h);
+            OpenGLRenderer_RenderSDF(renderer,sdf,cam,w,h);
         } else {
             OpenGLRenderer_SetMeshSurfaceOverride(renderer,NULL);
             MonsterVisualAsync_Render(rt->visual,renderer);
             drewAsyncVisual=true;
         }
-        if (clipCount > 0 && hasSdf) {
-            OpenGLRenderer_RenderSDFRegions(renderer, &sdf, cam, w, h, clipBoxes, clipCount);
+        if (clipCount > 0 && sdf) {
+            OpenGLRenderer_RenderSDFRegions(renderer, sdf, cam, w, h, clipBoxes, clipCount);
         }
         OpenGLRenderer_SetMorphHandoffs(renderer,NULL,-1);
         MonsterVisualAsync_RecordFallbackFrame(rt->visual, regions, regionCount, clipCount, useMesh, masked);
+    } else if (opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && sdf) {
+        OpenGLRenderer_SetupCamera(cam, w, h);
+        OpenGLRenderer_RenderSDF(renderer, sdf, cam, w, h);
     }
 
     OpenGLRenderer_SetupCamera(cam, w, h);
+    if (opt->profile) phase = OpenGLDemoWindow_Time();
     if (!drewAsyncVisual) RenderCurrentEyes(rt, renderer, current);
+    if (opt->profile) rt->eyeMs = (OpenGLDemoWindow_Time() - phase) * 1000;
     if (!drewAsyncVisual && !noFur && renderer->renderLongHair) {
-        bool useAsyncHair = !opt->capturePrefix && !opt->validateCyclePrefix && !opt->ageSequenceCount;
+        bool useAsyncHair = !opt->capturePrefix && !opt->validateCyclePrefix && (!opt->ageSequenceCount || opt->profile);
         if (useAsyncHair) {
             if (!rt->longHairAsync) {
                 rt->longHairAsync = LongHairAsync_Create();
@@ -915,7 +1002,7 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
         OpenGLRenderer_DrawTextPanel(w, h, 14, 14, hudText);
     }
 
-    if (opt->validateCompute && hasSdf) {
+    if (opt->validateCompute && sdf) {
         Vector3 pts[64];
         for (int i = 0; i < 64; ++i) {
             float fx = ((i & 3) - 1.5f) * 0.8f;
@@ -924,16 +1011,24 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
             pts[i] = Vec3_Create(fx, fy, fz);
         }
         float maxErr = 0.0f;
-        OpenGLRenderer_ValidateComputeSDF(renderer, &sdf, pts, 64, &maxErr);
+        OpenGLRenderer_ValidateComputeSDF(renderer, sdf, pts, 64, &maxErr);
         printf("[COMPUTE] edad=%.2f maxErr=%.5f\n", currentAge, maxErr);
     }
 
-    MonsterSDF_Free(&sdf);
     renderer->endFrame(renderer);
 }
 
 int main(int argc, char** argv) {
     DemoOptions opt = ParseOptions(argc, argv);
+    if (opt.profile) {
+        setvbuf(stdout, NULL, _IOLBF, 0);
+        if (opt.maxFrames <= opt.profileWarmup || opt.profileWarmup < 0 || opt.capturePrefix ||
+            opt.validateCyclePrefix || opt.surfaceMode == SURFACE_MODE_EXACT_SDF) {
+            fprintf(stderr, "El perfil requiere --frames > calentamiento y un modo interactivo.\n");
+            return 1;
+        }
+    }
+    double startup = opt.profile ? OpenGLDemoWindow_Time() : 0;
 
     SpeciesCatalogEntry catalog[MAX_CATALOG_RECIPES];
     size_t catalogCount = LoadSpeciesCatalog(catalog, MAX_CATALOG_RECIPES);
@@ -1015,6 +1110,12 @@ int main(int argc, char** argv) {
     Monster_Free(&initSource);
     Monster_Free(&initTarget);
 
+    if (opt.surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && !EnsureHandoff(&rt, &opt)) {
+        fprintf(stderr, "No se pudo iniciar el worker de malla.\n");
+        DestroyMorphRuntime(&rt);
+        return 1;
+    }
+
     printf("\n=== DEMO METAMORFOSIS UNIVERSAL X -> Y (seed=%u) ===\n", seed);
     printf("  Inicio: %s  (Objetivo inicial: %s)\n", rt.sourceLabel, rt.targetLabel);
     printf("  Controles numéricos para mutar la criatura actual hacia:\n");
@@ -1023,7 +1124,7 @@ int main(int argc, char** argv) {
         printf("    [%zu] %s (ID %u)\n", i + 1, catalog[i].recipe->name, (unsigned)catalog[i].id);
     }
     printf("  Otros controles: ESPACIO=auto ida/vuelta | IZQ/DER=edad manual | W=invertir\n");
-    printf("    F1..F5=cámara | R=rotación orbital | A=esqueleto | E=modo render | G=wire | ESC=salir\n\n");
+    printf("    F1..F5=cámara | R=rotación orbital | A=esqueleto | E=modo render | G=wire | ESC=salir\n    E: raymarch/malla asíncrona | Mayús+E: incluye extracción GPU experimental\n    Referencia diagnóstica en CLI: --surface-mode=exact-sdf\n\n");
 
     const int width = 1280, height = 720;
     OpenGLDemoWindow* window = OpenGLDemoWindow_CreateMSAA(
@@ -1061,15 +1162,13 @@ int main(int argc, char** argv) {
     if (opt.capturePrefix) {
         char path[512];
         snprintf(path, sizeof(path), "%s.ppm", opt.capturePrefix);
-        MonsterAger_SetPerc(&rt.ager, age);
+        if (rt.ager.perc != age) MonsterAger_SetPerc(&rt.ager, age);
         const Monster* cur = MonsterAger_GetResultConst(&rt.ager);
-        MonsterSDF sdf = MonsterSDF_Create();
-        MonsterSDF_Build(&sdf, cur, MonsterSDF_DefaultConfig());
+        const MonsterSDF* sdf = PrepareFrameField(&rt, &opt);
         Vector3 bc, hc, tc;
         float br = 3.5f;
-        ComputeMonsterFraming(cur, &sdf, &bc, &br, &hc, &tc);
-        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, &sdf, bc, br, hc, tc);
-        MonsterSDF_Free(&sdf);
+        ComputeMonsterFraming(cur, sdf, &bc, &br, &hc, &tc);
+        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, sdf, bc, br, hc, tc);
         int warmup = opt.surfaceMode == SURFACE_MODE_LEGACY_HANDOFF ? 6 : 2;
         for (int f = 0; f < warmup; ++f) {
             RenderCurrentFrame(&rt, &renderer, &cam, width, height, &opt, age, wire, showSkeleton, noFur, NULL);
@@ -1096,14 +1195,12 @@ int main(int argc, char** argv) {
             float targetAge = sampleAges[idx];
             MonsterAger_SetPerc(&rt.ager, targetAge);
             const Monster* cur = MonsterAger_GetResultConst(&rt.ager);
-            MonsterSDF sdf = MonsterSDF_Create();
-            MonsterSDF_Build(&sdf, cur, MonsterSDF_DefaultConfig());
+            const MonsterSDF* sdf = PrepareFrameField(&rt, &opt);
             Vector3 bc, hc, tc;
             float br = 3.5f;
-            ComputeMonsterFraming(cur, &sdf, &bc, &br, &hc, &tc);
-            SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, &sdf, bc, br, hc, tc);
-            MonsterSDF_Free(&sdf);
-            for (int sub = 0; sub < 3; ++sub) {
+            ComputeMonsterFraming(cur, sdf, &bc, &br, &hc, &tc);
+            SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, sdf, bc, br, hc, tc);
+                for (int sub = 0; sub < 3; ++sub) {
                 RenderCurrentFrame(&rt, &renderer, &cam, width, height, &opt, targetAge, wire, showSkeleton, noFur, NULL);
                 OpenGLDemoWindow_Swap(window);
                 if (opt.workerDelayMs == 0 && opt.surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && rt.visual) {
@@ -1129,13 +1226,48 @@ int main(int argc, char** argv) {
     bool running = true;
     int frameCount = 0;
     double lastTime = OpenGLDemoWindow_Time();
+    double loopStart = lastTime;
     char titleBuf[160], hudBuf[512];
 
+    enum { TIMER_COUNT = 16 };
+    GLuint timers[TIMER_COUNT * 2];
+    int timerFrames[TIMER_COUNT];
+    OpenGLEyeStats previousEye = {0};
+    uint64_t computeTimingGeneration = 0;
+    bool backendCheckOk = true;
+    GLsync pendingRasterFrame = NULL;
+    if (opt.profile) {
+        glGenQueries(TIMER_COUNT * 2, timers);
+        for (int i = 0; i < TIMER_COUNT; ++i) timerFrames[i] = -1;
+        printf("PROFILE_STARTUP,%.6f\n", (OpenGLDemoWindow_Time() - startup) * 1000);
+        printf("PROFILE_GL,%s,%s,%d,%d\n", glGetString(GL_RENDERER), glGetString(GL_VERSION), width, height);
+        puts("PROFILE_COLUMNS,frame,age,wall_ms,thread_cpu_ms,submit_ms,sdf_ms,morph_ms,mesh_ms,fallback_ms,eye_ms,peak_rss_kib,ray_scale,worker_build_ms,publish_cpu_ms,geometry_lag,coalesced,cancelled,obsolete,eye_misses,eye_gen_ms,eye_upload_ms,compute_gpu_bytes,worker_request_to_display_ms,worker_pending,worker_busy");
+    }
     while (running) {
+        struct timespec cpuStart, cpuEnd;
+        if (opt.profile) clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpuStart);
         double now = OpenGLDemoWindow_Time();
+        if (pendingRasterFrame) {
+            /* El swap sin vsync puede entregar varios frames de golpe y
+             * bloquear el siguiente durante todo el lote. Acotar la cola
+             * raster mantiene fresca la entrada en escenas GPU costosas. */
+            while (glClientWaitSync(pendingRasterFrame, 0, 0) == GL_TIMEOUT_EXPIRED)
+                SDL_Delay(1);
+            glDeleteSync(pendingRasterFrame);
+            pendingRasterFrame = NULL;
+        }
         float dt = opt.fixedTimestep > 0.0f ? opt.fixedTimestep : (float)fmin(0.05, now - lastTime);
         lastTime = now;
 
+        if (opt.profile && ((opt.profileSwitch && frameCount % 8 == 0) ||
+                            (opt.profileBackends && frameCount > 0 && frameCount % 12 == 0))) {
+            SDL_Event automated = {.type = SDL_KEYDOWN};
+            size_t count = catalogCount < 9 ? catalogCount : 9;
+            if (opt.profileBackends && frameCount > 12 && frameCount < 60) automated.key.keysym.mod = KMOD_SHIFT;
+            automated.key.keysym.sym = opt.profileBackends ? SDLK_e :
+                SDLK_1 + (SDL_Keycode)((size_t)frameCount / 8 % count);
+            SDL_PushEvent(&automated);
+        }
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) {
@@ -1201,7 +1333,7 @@ int main(int argc, char** argv) {
                     bool snap = rt.ager.geometrySnapshotEnabled;
                     MonsterAger_Free(&rt.ager);
                     rt.ager = MonsterAger_Create(&rt.source, &rt.target, 1.0f - age);
-                    rt.eyeAge = -1.0f;
+                    InvalidateMorphPair(&rt);
                     MonsterAger_SetGeometrySnapshotEnabled(&rt.ager, snap);
                     age = 1.0f - age;
                     rt.lastHairExactAge = -1.0f;
@@ -1213,7 +1345,33 @@ int main(int argc, char** argv) {
                     opt.surfaceDebugMode = (opt.surfaceDebugMode + 1) % 5;
                     OpenGLRenderer_SetSurfaceDebug(&renderer, opt.surfaceDebugMode);
                 } else if (sym == SDLK_e) {
-                    opt.surfaceMode = (SurfaceMode)(((int)opt.surfaceMode + 1) % 4);
+                    bool experimental = (ev.key.keysym.mod & KMOD_SHIFT) != 0;
+                    SurfaceMode next = SURFACE_MODE_LEGACY_HANDOFF;
+                    switch (opt.surfaceMode) {
+                        case SURFACE_MODE_LEGACY_HANDOFF:
+                            next = experimental ? SURFACE_MODE_GPU_SDF_DENSE : SURFACE_MODE_SDF_RAYMARCH;
+                            break;
+                        case SURFACE_MODE_GPU_SDF_DENSE:
+                            if (experimental) next = SURFACE_MODE_GPU_SDF_SPARSE;
+                            break;
+                        case SURFACE_MODE_GPU_SDF_SPARSE:
+                            if (experimental) next = SURFACE_MODE_SDF_RAYMARCH;
+                            break;
+                        default:
+                            break;
+                    }
+                    if ((next == SURFACE_MODE_GPU_SDF_DENSE || next == SURFACE_MODE_GPU_SDF_SPARSE) &&
+                        !OpenGLRenderer_SupportsComputeSurface(&renderer)) next = SURFACE_MODE_SDF_RAYMARCH;
+                    if (next != SURFACE_MODE_LEGACY_HANDOFF || EnsureHandoff(&rt, &opt)) {
+                        opt.surfaceMode = next;
+                        if (opt.profile) printf("PROFILE_BACKEND,%d,%s\n", frameCount, SurfaceModeName(next));
+                        rt.gpuGridValid = false;
+                        rt.rayFrameValid = false;
+                        MonsterAger_SetGeometrySnapshotEnabled(&rt.ager,
+                            next == SURFACE_MODE_LEGACY_HANDOFF && !opt.legacyLag);
+                    } else {
+                        fprintf(stderr, "No se pudo iniciar el worker de malla.\n");
+                    }
                 } else if (sym == SDLK_F1) opt.viewMode = 1;
                 else if (sym == SDLK_F2) opt.viewMode = 2;
                 else if (sym == SDLK_F3) opt.viewMode = 3;
@@ -1254,15 +1412,16 @@ int main(int argc, char** argv) {
             orbitYaw += (opt.stressMotion ? 1.2f : 0.30f) * dt;
         }
 
-        MonsterAger_SetPerc(&rt.ager, age);
+        double phase = opt.profile ? OpenGLDemoWindow_Time() : 0;
+        if (rt.ager.perc != age) MonsterAger_SetPerc(&rt.ager, age);
+        double morphMs = opt.profile ? (OpenGLDemoWindow_Time() - phase) * 1000 : 0;
         const Monster* cur = MonsterAger_GetResultConst(&rt.ager);
-        MonsterSDF frameSdf = MonsterSDF_Create();
-        MonsterSDF_Build(&frameSdf, cur, MonsterSDF_DefaultConfig());
+        rt.sdfMs = rt.meshMs = rt.fallbackMs = rt.eyeMs = 0;
+        const MonsterSDF* frameSdf = PrepareFrameField(&rt, &opt);
         Vector3 bc, hc, tc;
         float br = 3.5f;
-        ComputeMonsterFraming(cur, &frameSdf, &bc, &br, &hc, &tc);
-        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, &frameSdf, bc, br, hc, tc);
-        MonsterSDF_Free(&frameSdf);
+        ComputeMonsterFraming(cur, frameSdf, &bc, &br, &hc, &tc);
+        SetupViewCamera(&cam, opt.viewMode, orbitYaw, orbitPitch, zoomScale, frameSdf, bc, br, hc, tc);
 
         int pct = (int)roundf(age * 100.0f);
         snprintf(titleBuf, sizeof(titleBuf),
@@ -1283,18 +1442,92 @@ int main(int argc, char** argv) {
             "ESPACIO:OSCILAR  IZQ/DER:EDAD  R:ORBITA  A:ESQUELETO",
             SurfaceModeName(opt.surfaceMode), rt.sourceLabel, rt.targetLabel, pct, keysLine);
 
-        rt.interactiveScrub = !opt.capturePrefix && !opt.validateCyclePrefix && opt.ageSequenceCount == 0 &&
-            (transitionPlaying || pingPong || keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_RIGHT]);
+        rt.interactiveScrub = !opt.capturePrefix && !opt.validateCyclePrefix &&
+            ((opt.profile && opt.ageSequenceCount > 0) ||
+             (opt.ageSequenceCount == 0 &&
+              (transitionPlaying || pingPong || keys[SDL_SCANCODE_LEFT] || keys[SDL_SCANCODE_RIGHT])));
+        int timer = -1;
+        if (opt.profile) {
+            for (int i = 0; i < TIMER_COUNT; ++i) {
+                if (timerFrames[i] >= 0) {
+                    GLint ready;
+                    glGetQueryObjectiv(timers[2 * i + 1], GL_QUERY_RESULT_AVAILABLE, &ready);
+                    if (ready) {
+                        GLuint64 startNs, endNs;
+                        glGetQueryObjectui64v(timers[2 * i], GL_QUERY_RESULT, &startNs);
+                        glGetQueryObjectui64v(timers[2 * i + 1], GL_QUERY_RESULT, &endNs);
+                        printf("PROFILE_GPU,%d,%.6f\n", timerFrames[i], (endNs - startNs) / 1e6);
+                        timerFrames[i] = -1;
+                    }
+                }
+                if (timer < 0 && timerFrames[i] < 0) timer = i;
+            }
+            if (frameCount < opt.profileWarmup) timer = -1;
+            if (timer >= 0) glQueryCounter(timers[2 * timer], GL_TIMESTAMP);
+        }
         RenderCurrentFrame(&rt, &renderer, &cam, width, height, &opt, age, wire, showSkeleton, noFur, hudBuf);
+        if (timer >= 0) {
+            glQueryCounter(timers[2 * timer + 1], GL_TIMESTAMP);
+            timerFrames[timer] = frameCount;
+        }
+        if (!(opt.profile && opt.profileUnpaced) &&
+            opt.surfaceMode == SURFACE_MODE_SDF_RAYMARCH)
+            pendingRasterFrame = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        double submitted = opt.profile ? OpenGLDemoWindow_Time() : 0;
         OpenGLDemoWindow_Swap(window);
-        OpenGLDemoWindow_LimitFPS(now, 60.0);
+        if (opt.profile) {
+            double finished = OpenGLDemoWindow_Time();
+            if (frameCount == opt.profileWarmup - 1)
+                printf("PROFILE_WARMUP,%.6f\n", (finished - loopStart) * 1000);
+            if (opt.profileBackends && !OpenGLRenderer_CheckErrors()) backendCheckOk = running = false;
+            OpenGLEyeStats eye = OpenGLRenderer_GetEyeStats(&renderer);
+            if (frameCount < opt.profileWarmup) {
+                previousEye = eye;
+                ++frameCount;
+                continue;
+            }
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cpuEnd);
+            double cpuMs = (cpuEnd.tv_sec - cpuStart.tv_sec) * 1000.0 +
+                           (cpuEnd.tv_nsec - cpuStart.tv_nsec) / 1e6;
+            struct rusage usage = {0};
+            getrusage(RUSAGE_SELF, &usage);
+            MonsterVisualAsyncStats stats = {0};
+            if (rt.visual && opt.surfaceMode == SURFACE_MODE_LEGACY_HANDOFF) {
+                stats = MonsterVisualAsync_GetStats(rt.visual);
+            }
+            GpuSDFSurfaceStats compute = {0};
+            if (opt.surfaceMode == SURFACE_MODE_GPU_SDF_DENSE || opt.surfaceMode == SURFACE_MODE_GPU_SDF_SPARSE)
+                compute = OpenGLRenderer_GetGpuSDFSurfaceStats(&renderer);
+            if (compute.timingGeneration > computeTimingGeneration) {
+                computeTimingGeneration = compute.timingGeneration;
+                printf("PROFILE_COMPUTE,%llu,%.6f,%.6f,%.6f,%.6f\n",
+                    (unsigned long long)computeTimingGeneration, compute.samplingGPUms,
+                    compute.classificationGPUms, compute.emissionGPUms, compute.renderGPUms);
+            }
+            printf("PROFILE_FRAME,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%ld,"
+                   "%.6f,%.6f,%.6f,%.6f,%llu,%llu,%llu,%llu,%.6f,%.6f,%zu,%.6f,%d,%d\n",
+                frameCount, age, (finished - now) * 1000, cpuMs, (submitted - now) * 1000,
+                rt.sdfMs, morphMs, rt.meshMs, rt.fallbackMs, rt.eyeMs, usage.ru_maxrss,
+                OpenGLRenderer_GetSDFResolutionScale(&renderer), stats.workerCPUms, stats.displayPublicationMs,
+                isfinite(stats.geometryLag) ? stats.geometryLag : 0,
+                (unsigned long long)stats.coalescedCount, (unsigned long long)stats.cancelledBuildCount,
+                (unsigned long long)stats.obsoleteTopologyResultCount,
+                (unsigned long long)(eye.textureMisses - previousEye.textureMisses),
+                eye.generationMs - previousEye.generationMs, eye.uploadMs - previousEye.uploadMs, compute.gpuBytes,
+                stats.requestToDisplayMs, rt.visual && opt.surfaceMode == SURFACE_MODE_LEGACY_HANDOFF &&
+                    isfinite(stats.pendingGeometryAge), stats.isWorkerBusy);
+            previousEye = eye;
+        }
+        if (!opt.profile) OpenGLDemoWindow_LimitFPS(now, 60.0);
 
         ++frameCount;
         if (opt.maxFrames > 0 && frameCount >= opt.maxFrames) running = false;
     }
 
+    if (pendingRasterFrame) glDeleteSync(pendingRasterFrame);
+    if (opt.profile) glDeleteQueries(TIMER_COUNT * 2, timers);
     OpenGLRenderer_Destroy(&renderer);
     OpenGLDemoWindow_Free(window);
     DestroyMorphRuntime(&rt);
-    return 0;
+    return backendCheckOk ? 0 : 1;
 }

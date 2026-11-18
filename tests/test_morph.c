@@ -216,6 +216,20 @@ static void test_morph_async_delayed_topology(void) {
                 regions[i].moduleId!=regions[j].moduleId,
                 "Dos regiones reclamaron el mismo módulo");
         if(regions[i].kind!=MORPH_FALLBACK_MODULE)continue;
+        const AnatomyDeformer* binding = visual->displayMorph;
+        for (size_t v = 0; v < binding->vertexCount; ++v) {
+            const AnatomyDeformerBinding* influence = &binding->bindings[v];
+            for (int k = 0; k < ANATOMY_MORPH_INFLUENCES; ++k) {
+                size_t c = influence->connIndex[k];
+                if (influence->weight[k] < .15f || c >= binding->refGraph.connectionCount ||
+                    binding->refGraph.connections[c].moduleInstanceId != regions[i].moduleId) continue;
+                Vector3 p = visual->displayMesh.vertices[v].position;
+                AABB3D box = regions[i].bounds;
+                TEST_ASSERT(p.x >= box.start.x && p.y >= box.start.y && p.z >= box.start.z &&
+                            p.x <= box.end.x && p.y <= box.end.y && p.z <= box.end.z,
+                            "La región cubre los vértices publicados tras deformar");
+            }
+        }
         bool headModule=false;
         for(size_t h=0;h<exact.mouthCount;++h)
             if(exact.mouths[h].moduleInstanceId==regions[i].moduleId)
