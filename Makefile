@@ -350,6 +350,31 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 # Demos
 demos: demos/demo_ecosystem demos/demo_ecosystem_headless $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN)
 
+# Escritorio independiente. Los tests de lógica no necesitan SDL ni OpenGL.
+UI_MODEL_SRCS = src/interface/UiCommands.c src/interface/UiDesktop.c \
+                src/interface/UiTerminal.c src/interface/UiText.c
+UI_GRAPHICS_SRCS = src/interface/UiPlatform.c src/interface/UiRenderer.c \
+                   src/interface/UiTheme.c src/interface/UiTerminalView.c
+UI_HEADERS = $(wildcard include/interface/*.h)
+UI_BIN = demos/interface_demo
+UI_TEST_BIN = $(BUILD_DIR)/interface_test
+
+.PHONY: interface-test run-interface
+demos: $(UI_BIN)
+
+$(UI_BIN): demos/interface_demo.c $(UI_MODEL_SRCS) $(UI_GRAPHICS_SRCS) $(UI_HEADERS) assets/interface/fonts/InterfaceAtlas.inc
+	$(CC) $(CFLAGS) $(filter %.c,$^) -lSDL2 -lGL -lm -o $@
+
+$(UI_TEST_BIN): tests/test_interface.c $(UI_MODEL_SRCS) $(UI_HEADERS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(filter %.c,$^) -o $@
+
+interface-test: $(UI_TEST_BIN)
+	./$(UI_TEST_BIN)
+
+run-interface: $(UI_BIN)
+	./$(UI_BIN)
+
 $(DEMO_GAME_SCENE_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(DEMO_DIR)/demo_game_scene.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
@@ -393,7 +418,7 @@ codegraph:
 
 # Limpieza de binarios y archivos temporales de compilación
 clean:
-	rm -f benchmarks/benchmark_anatomy
+	rm -f benchmarks/benchmark_anatomy $(UI_BIN)
 	rm -rf demos/demo_ecosystem demos/demo_ecosystem_headless benchmarks/benchmark_ecosystem $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.

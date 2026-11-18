@@ -73,3 +73,5 @@ scratch/
 /demos/demo_ecosystem
 /demos/demo_ecosystem_headless
 /benchmarks/benchmark_ecosystem
+
+/demos/interface_demo

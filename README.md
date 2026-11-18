@@ -10,6 +10,12 @@
 
 Motor de simulación procedural de monstruos desacoplado, modular y **agnóstico de cualquier librería de renderizado**, desarrollado en C idiomático con aceleración por Compute Shaders en GPU, metamorfosis ontogénica, inteligencia artificial animal continua y simulación de ecosistemas con genética heredable.
 
+## Demo de escritorio de comandos
+
+Construye con `make demos/interface_demo` y ejecuta `./demos/interface_demo` o `make run-interface`.
+El terminal admite `print Hello world` y argumentos entre comillas. Ejecuta `make interface-test`
+para probar el modelo en C. Ver [controles y arquitectura](docs/INTERFACE_SYSTEM.md).
+
 ## Editor de criaturas
 
 Ejecutar `make creature-editor` (abre un navegador aislado en http://127.0.0.1:8765) para crear y modificar
