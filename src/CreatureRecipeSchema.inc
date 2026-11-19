@@ -66,6 +66,7 @@ static const Field AxialPhenotype_fields[] = {
     {"withersElevation",offsetof(AxialPhenotype,withersElevation),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"profile",offsetof(AxialPhenotype,profile),sizeof(AxialStationMorph),AXIAL_PROFILE_STATIONS,F_OBJECT,0,AxialStationMorph_fields,NO_COUNT,NULL,false},
     {"contourProfile",offsetof(AxialPhenotype,contourProfile),sizeof(AxialContourProfile),1,F_ENUM,AXIAL_CONTOUR_CURSORIAL,NULL,NO_COUNT,"AXIAL_CONTOUR_LEGACY|AXIAL_CONTOUR_CURSORIAL",true},
+    {"withersRoundness",offsetof(AxialPhenotype,withersRoundness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field Color_fields[] = {
@@ -76,7 +77,7 @@ static const Field Color_fields[] = {
     {0}
 };
 static const Field HeadPhenotype_fields[] = {
-    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_PROBOSCIDEAN,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID|HEAD_ARCHETYPE_PROBOSCIDEAN",false},
+    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_RODENT,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID|HEAD_ARCHETYPE_PROBOSCIDEAN|HEAD_ARCHETYPE_RHINOCEROTID|HEAD_ARCHETYPE_RODENT",false},
     {"skullWidth",offsetof(HeadPhenotype,skullWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullHeight",offsetof(HeadPhenotype,skullHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullLength",offsetof(HeadPhenotype,skullLength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -189,7 +190,8 @@ static const Field LimbPhenotype_fields[] = {
     {"hoofHeelHeight",offsetof(LimbPhenotype,hoofHeelHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"dewclawSize",offsetof(LimbPhenotype,dewclawSize),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"nailCount",offsetof(LimbPhenotype,nailCount),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
-    {"anatomyProfile",offsetof(LimbPhenotype,anatomyProfile),sizeof(LimbAnatomyProfile),1,F_ENUM,LIMB_PROFILE_COLUMNAR,NULL,NO_COUNT,"LIMB_PROFILE_LEGACY|LIMB_PROFILE_CURSORIAL|LIMB_PROFILE_COMPACT_UNGULATE|LIMB_PROFILE_COLUMNAR",true},
+    {"anatomyProfile",offsetof(LimbPhenotype,anatomyProfile),sizeof(LimbAnatomyProfile),1,F_ENUM,LIMB_PROFILE_PLANTIGRADE,NULL,NO_COUNT,"LIMB_PROFILE_LEGACY|LIMB_PROFILE_CURSORIAL|LIMB_PROFILE_COMPACT_UNGULATE|LIMB_PROFILE_COLUMNAR|LIMB_PROFILE_PLANTIGRADE",true},
+    {"clawScale",offsetof(LimbPhenotype,clawScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field TailPhenotype_fields[] = {
@@ -205,6 +207,7 @@ static const Field TailPhenotype_fields[] = {
     {"development",offsetof(TailPhenotype,development),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"rootMatchStrength",offsetof(TailPhenotype,rootMatchStrength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"segmentCount",offsetof(TailPhenotype,segmentCount),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,false},
+    {"tipLift",offsetof(TailPhenotype,tipLift),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field OrnamentPhenotype_fields[] = {

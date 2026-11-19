@@ -33,7 +33,7 @@ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'bool': ('F_BOOL', '1'), 'CreatureRecipeId': ('F_U32', 'UINT32_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
-OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'anatomyProfile', 'nailCount'}, 'TailPhenotype': {'droop'}, 'PigmentLayer': {'regionMask', 'domain'}}
+OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 'withersRoundness'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount'}, 'TailPhenotype': {'droop', 'tipLift'}, 'PigmentLayer': {'regionMask', 'domain'}}
 OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality'}
 OPTIONAL['LongHairGroup'] = {'rootFullness', 'bend', 'wave', 'transparency', 'verticalBias'}
 OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount'}

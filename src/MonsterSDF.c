@@ -376,6 +376,15 @@ static void MonsterSDF_GetBasinParams(const MonsterSDFMouth* mouth, Vector3* out
     if (outK) *outK = k;
 }
 
+/* La tapa del barrido mantiene la sección constante fuera de la última
+ * estación. Igualar su derivada evita un anillo de normales al unir cuello y cráneo. */
+static void MatchSweepCapTangent(SDFSweepStation* station,float continuity) {
+    float weight=1.0f-Math_Clamp01(continuity);
+    station->widthSlope*=weight;
+    station->heightSlope*=weight;
+    station->centerSlope*=weight;
+}
+
 bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig config) {
     if (!sdf) return false;
     sdf->hasSubtractionBounds=false;
@@ -531,6 +540,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 sdf->axialStationCount = 0;
             }
         }
+        if(sdf->axialStationCount>1 && monster->hasHead)
+            MatchSweepCapTangent(&sdf->axialStations[0],monster->head.anatomy.surface.neckCollarContinuity);
         for (int s = 0; s < sdf->axialStationCount; ++s) {
             AABB_ExpandRadius(&sdf->bounds, sdf->axialStations[s].center,
                               Vec3_Create(sdf->axialStations[s].width, sdf->axialStations[s].height, sdf->axialStations[s].width));
@@ -896,6 +907,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                     if(!pectoralNode) pectoralNode=AnatomyGraph_FindFirstRegion(&monster->anatomyGraph,ANATOMY_REGION_TRUNK);
                 }
 
+                float continuity=Math_Clamp01(recipe->neckCollarContinuity);
                 if (sdf->axialStationCount > 0) {
                     Vector3 cervicalDir = Vec3_Create(0.0f, -0.6f, -0.8f);
                     if (sdf->axialStationCount > 1) {
@@ -906,10 +918,29 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                     float penFrac = recipe->equineSculptWeight > .5f ? recipe->neckCollarPenetration : 0.15f;
                     float penetration = sdf->axialStations[0].height * penFrac;
                     Vector3 worldTip = Vec3_Add(sdf->axialStations[0].center, Vec3_Scale(cervicalDir, penetration));
-                    sdf->mouths[m].neckCollarTipLocal = Transform3D_ApplyRotationBasis(
-                        sdf->mouths[m].inverseRotation, Vec3_Sub(worldTip, mouthWorldPos));
                     float collarTipX = sdf->axialStations[0].width;
                     float collarTipY = sdf->axialStations[0].height;
+                    if(continuity>0 && sdf->axialStationCount>1) {
+                        const SDFSweepStation* stations=sdf->axialStations;
+                        int segment=0;
+                        float overlap=.65f;
+                        if(pectoralNode && pectoralNode->region==ANATOMY_REGION_TRUNK &&
+                            pectoralNode->center.z<stations[0].center.z) {
+                            float z=Math_Lerp(stations[0].center.z,pectoralNode->center.z,.24f);
+                            while(segment+2<sdf->axialStationCount && stations[segment+1].center.z>z)
+                                ++segment;
+                            float span=stations[segment].center.z-stations[segment+1].center.z;
+                            if(span>1e-5f)overlap=Math_Clamp01((stations[segment].center.z-z)/span);
+                        }
+                        const SDFSweepStation* anterior=&stations[segment];
+                        const SDFSweepStation* posterior=&stations[segment+1];
+                        Vector3 inside=Vec3_Lerp(anterior->center,posterior->center,overlap);
+                        worldTip=Vec3_Lerp(worldTip,inside,continuity);
+                        collarTipX=Math_Lerp(collarTipX,.83f*Math_Lerp(anterior->width,posterior->width,overlap),continuity);
+                        collarTipY=Math_Lerp(collarTipY,.83f*Math_Lerp(anterior->height,posterior->height,overlap),continuity);
+                    }
+                    sdf->mouths[m].neckCollarTipLocal = Transform3D_ApplyRotationBasis(
+                        sdf->mouths[m].inverseRotation, Vec3_Sub(worldTip, mouthWorldPos));
                     sdf->mouths[m].neckCollarTipRadii = Vec3_Create(collarTipX, collarTipY, Math_Min(collarTipX, collarTipY));
                 } else if(neckNode) {
                     Vector3 cervicalDir=Vec3_Create(0,-0.8f,-0.6f);
@@ -952,6 +983,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                     collarMidX=Math_Min(sdf->mouths[m].neckCollarRootRadii.x,sdf->mouths[m].neckCollarTipRadii.x)*0.85f;
                     collarMidY=Math_Lerp(sdf->mouths[m].neckCollarRootRadii.y,sdf->mouths[m].neckCollarTipRadii.y,0.45f)*0.95f;
                 }
+                collarMidX=Math_Lerp(collarMidX,Math_Lerp(sdf->mouths[m].neckCollarRootRadii.x,sdf->mouths[m].neckCollarTipRadii.x,.45f),continuity);
+                collarMidY=Math_Lerp(collarMidY,Math_Lerp(sdf->mouths[m].neckCollarRootRadii.y,sdf->mouths[m].neckCollarTipRadii.y,.45f),continuity);
                 sdf->mouths[m].neckCollarMidRadii=Vec3_Create(collarMidX,collarMidY,Math_Min(collarMidX,collarMidY));
                 sdf->mouths[m].hasNasalPad=recipe->hasNasalPad;
                 sdf->mouths[m].hasEars=recipe->hasEars;
@@ -1207,6 +1240,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             .center=Vec3_Add(origin,profile->cranialCenters[j]),
             .width=profile->cranialRadii[j].x,.height=profile->cranialRadii[j].y};
         if(!SDF_SweepResolveTangents(m->headStations,6)){MonsterSDF_Free(sdf);return false;}
+        MatchSweepCapTangent(&m->headStations[5],profile->neckCollarContinuity);
         /* El maxilar aporta anchura y longitud; la profundidad procede de la
          * mandíbula resuelta. Recortar y escalar el cráneo dejaba un suelo casi
          * nulo al cruzar su curva con el plano oral en hocicos aplanados. */

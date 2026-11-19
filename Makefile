@@ -356,7 +356,7 @@ UI_MODEL_SRCS = src/interface/UiCommands.c src/interface/UiDesktop.c \
                 src/interface/UiRecipeCatalog.c src/interface/UiRecipeRoutes.c src/interface/UiShell.c src/interface/UiFilesApp.c
 UI_GRAPHICS_SRCS = src/interface/UiPlatform.c src/interface/UiRenderer.c \
                    src/interface/UiTheme.c src/interface/UiTerminalView.c src/interface/UiFilesView.c \
-                   src/interface/UiCreatureVisualizer.c src/interface/UiCreatureEngine.c src/interface/UiCreatureScene.c
+                   src/interface/UiCreatureVisualizer.c src/interface/UiCreatureEngine.c src/interface/UiCreatureScene.c src/interface/UiCreatureOrbit.c
 UI_HEADERS = $(wildcard include/interface/*.h)
 UI_BIN = demos/interface_demo
 UI_TEST_BIN = $(BUILD_DIR)/interface_test
@@ -378,8 +378,8 @@ interface-test: $(UI_TEST_BIN)
 
 .PHONY: interface-engine-test
 $(BUILD_DIR)/interface_creature_test: $(CORE_OBJS) tests/test_interface_creature.c \
-        src/interface/UiCreatureScene.c src/interface/UiVfs.c src/interface/UiRecipeCatalog.c \
-        $(UI_HEADERS) src/interface/UiCreatureScene.h
+        src/interface/UiCreatureScene.c src/interface/UiCreatureOrbit.c src/interface/UiVfs.c src/interface/UiRecipeCatalog.c \
+        $(UI_HEADERS) src/interface/UiCreatureScene.h src/interface/UiCreatureOrbit.h
 	$(CC) $(CFLAGS) $(filter %.c %.o,$^) $(LIBS) -o $@
 
 interface-engine-test: $(BUILD_DIR)/interface_creature_test

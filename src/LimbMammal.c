@@ -22,24 +22,33 @@ static Vector3 World(const AttachmentSlot* slot,Vector3 p) {
 static bool UngulateFoot(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,
     AnatomyGraph* g,Vector3 foot,float r,float sole) {
     bool single=p->digitCount==1;
+    bool three=p->digitCount==3;
     bool capsule=single&&p->anatomyProfile==LIMB_PROFILE_CURSORIAL;
-    float width=r*(capsule?.68f:single?.95f:.50f)*p->footScale*p->footWidthScale*p->digitThicknessScale;
+    float width=r*(capsule?.68f:single?.95f:three?.43f:.50f)*p->footScale*p->footWidthScale*p->digitThicknessScale;
     float height=r*.90f*p->footScale*p->footHeightScale;
     for(unsigned d=0;d<p->digitCount;++d) {
         float sign=d?1:-1;
         float yaw=(p->side==LIMB_RIGHT?-1:1)*p->footYaw+p->digitAngles[d];
         float offset=single?0:sign*(width+r*p->footScale*p->digitSpread*.5f);
         float length=r*(capsule?1.0f:single?1.65f:1.15f)*p->footScale*p->digitLengths[d];
+        float toeWidth=width;
+        if(three) {
+            float lateral=(float)d-1;
+            offset=lateral*(width*1.78f+r*p->footScale*p->digitSpread*.4f);
+            length*=d==1?1.27f:.95f;
+            toeWidth*=d==1?1.13f:.88f;
+        }
         unsigned count=p->digitPhalanges[d]+2;
         AnatomyId previous=Anatomy_MakeId(module,4);
         for(unsigned j=0;j<count;++j) {
             Vector3 c=foot;
             float z=j==0?-.10f*r:j==1?-.17f*r:length-.17f*r;
-            float x=offset*(j==0?.65f:1);
+            if(three && d!=1)z-=r*.14f;
+            float x=offset*(j==0?(three?.55f:.65f):1);
             c.x+=cosf(yaw)*x+sinf(yaw)*z;
             c.z+=-sinf(yaw)*x+cosf(yaw)*z;
             c.y+=j==0?height*.30f:-sole+height*.5f;
-            float w=j==0?width*.65f:width*(j==1?1:.88f);
+            float w=j==0?toeWidth*(three?.94f:.65f):toeWidth*(j==1?1:.88f);
             float h=j==0?height*.45f:height*.5f*(j==1?p->hoofHeelHeight:1);
             /* Ambos centros conservan el mismo plano de suela; el SDF eleva
              * la corona anterior sin inclinar el apoyo del talón. */
@@ -47,7 +56,7 @@ static bool UngulateFoot(const LimbPhenotype* p,uint32_t module,const Attachment
             unsigned local=Limb_DigitLocalId(d,j);
             BodyConnectionKind kind=j==2?BODY_CONNECTION_DIGIT_SEGMENT:
                 j!=0?BODY_CONNECTION_SUPPORT:BODY_CONNECTION_LIMB_SEGMENT;
-            if(j==2&&capsule)kind=BODY_CONNECTION_HOOF_CAPSULE;
+            if(j==2&&(capsule||three))kind=BODY_CONNECTION_HOOF_CAPSULE;
             if(!Node(g,module,local,World(slot,c),w,h,p,true)||
                !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),kind,p->development))return false;
             BodyConnection* e=&g->connections[g->connectionCount-1];
@@ -223,12 +232,40 @@ static bool Columnar(const LimbPhenotype* p, uint32_t module, const AttachmentSl
     return true;
 }
 
+static Vector3 PawPoint(const AttachmentSlot* slot,Vector3 foot,float yaw,
+    float x,float y,float z) {
+    return World(slot,Vec3_Add(foot,Vec3_Create(
+        cosf(yaw)*x+sinf(yaw)*z,y,cosf(yaw)*z-sinf(yaw)*x)));
+}
+
+/* El tejido plantar termina bajo las primeras falanges. Sus tramos de
+ * soporte son articulaciones del grafo y no vuelven a dibujar la palma. */
+static bool Palm(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,
+    AnatomyGraph* g,Vector3 foot,float radius,float sole,float yaw) {
+    bool hind=p->role==LIMB_HIND;
+    float heelHeight=sole*.79f,ballHeight=sole*.92f;
+    Vector3 heel=PawPoint(slot,foot,yaw,0,heelHeight-sole,-radius*(hind?.30f:.18f));
+    Vector3 ball=PawPoint(slot,foot,yaw,0,ballHeight-sole,radius*(hind?.67f:.52f));
+    unsigned a=LIMB_NODE_PALM_HEEL,b=LIMB_NODE_PALM_BALL;
+    if(!Node(g,module,a,heel,radius*(hind?.44f:.53f),heelHeight,p,true) ||
+       !Node(g,module,b,ball,radius*(hind?.93f:.83f),ballHeight,p,true) ||
+       !Module_Edge(g,module,(uint16_t)a,Anatomy_MakeId(module,LIMB_NODE_AUTOPOD),
+                    Anatomy_MakeId(module,a),BODY_CONNECTION_LIMB_SEGMENT,p->development) ||
+       !Module_Edge(g,module,(uint16_t)b,Anatomy_MakeId(module,a),
+                    Anatomy_MakeId(module,b),BODY_CONNECTION_MUSCLE_UNION,p->development))return false;
+    BodyConnection* pad=&g->connections[g->connectionCount-1];
+    pad->transverseAxis=Vec3_Sub(Vec3_Scale(slot->side,cosf(yaw)),Vec3_Scale(slot->forward,sinf(yaw)));
+    return true;
+}
+
 bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,AnatomyGraph* g) {
     if (!p || !slot || !g || (p->archetype!=LIMB_ARCHETYPE_MAMMAL&&p->archetype!=LIMB_ARCHETYPE_UNGULATE) || p->digitCount>CREATURE_MAX_DIGITS) return false;
     if(p->anatomyProfile==LIMB_PROFILE_COLUMNAR)
         return p->archetype==LIMB_ARCHETYPE_MAMMAL && Columnar(p,module,slot,g);
     bool hoof=p->archetype==LIMB_ARCHETYPE_UNGULATE;
-    if(hoof&&(p->digitCount!=1&&p->digitCount!=2))return false;
+    bool plantigrade=p->anatomyProfile==LIMB_PROFILE_PLANTIGRADE;
+    if(plantigrade&&(hoof||!p->digitCount))return false;
+    if(hoof&&(p->digitCount<1||p->digitCount>3))return false;
     if(hoof&&p->digitCount==1&&p->dewclawSize>0)return false;
     for (unsigned d=0;d<p->digitCount;++d) if (!p->digitPhalanges[d] || p->digitPhalanges[d]>5) return false;
     if(p->anatomyProfile==LIMB_PROFILE_CURSORIAL)return hoof&&Cursorial(p,module,slot,g);
@@ -256,8 +293,11 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
         /* El metapodio termina en un menudillo estrecho; no existe el cojín
          * común de la pata carnívora que rellenaría la hendidura del casco. */
         w[3]=r*.42f*p->distalThicknessScale;
+        if(p->digitCount==3)w[3]=r*.65f*p->distalThicknessScale;
         h[3]=r*.55f*p->footScale*p->footHeightScale;
     }
+    float pawRadius=w[3];
+    if(plantigrade)w[3]*=.56f;
     if(compact) {
         /* El corvejón conserva una sección sagital firme y la caña
          * se ahúsa hasta el menudillo sin ensancharse entre articulaciones. */
@@ -284,27 +324,47 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     }
     if (!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)) return false;
     if(hoof)return UngulateFoot(p,module,slot,g,positions[3],r,h[3]);
+    float footYaw=side*p->footYaw;
+    if(plantigrade && !Palm(p,module,slot,g,positions[3],pawRadius,h[3],footYaw))return false;
+    float rootSpacing=.44f;
+    if(plantigrade) {
+        /* Más dedos comparten la anchura de la palma en lugar de nacer fuera. */
+        float halfSpan=fmaxf(1,((float)p->digitCount-1)*.5f);
+        rootSpacing=fminf(rootSpacing,(hind?.84f:.73f)/halfSpan);
+    }
     for (unsigned d=0;d<p->digitCount;++d) {
-        AnatomyId previous=Anatomy_MakeId(module,4);
+        AnatomyId previous=Anatomy_MakeId(module,plantigrade?LIMB_NODE_PALM_BALL:LIMB_NODE_AUTOPOD);
         float offset=((float)d-((float)p->digitCount-1)*.5f);
-        float toeR=(hoof?r*.48f*p->footScale*p->footWidthScale:w[3]*.28f)*p->digitThicknessScale;
+        float toeR=pawRadius*.28f*p->digitThicknessScale;
         unsigned count=p->digitPhalanges[d]+2;
         for (unsigned j=0;j<count;++j) {
             float t=(float)j/(count-1);
             float radius=toeR*(1-.25f*t);
-            Vector3 c=positions[3];
-            c.x+=offset*w[3]*.44f + sinf(p->digitAngles[d])*p->digitSpread*t*w[3]*.5f;
-            c.z+=w[3]*(.28f+t*1.35f*p->digitLengths[d]);
+            float x=(offset*rootSpacing+sinf(p->digitAngles[d])*p->digitSpread*t*.5f)*pawRadius;
+            float base=plantigrade?(hind?.62f:.48f):.28f;
+            float z=Math_Lerp(base,.28f+1.35f*p->digitLengths[d],t)*pawRadius;
             /* Cada falange apoya en la misma suela; el carpo/tarso permanece elevado. */
-            c.y+=-h[3]+radius;
-            float yaw=side*p->footYaw,dx=c.x-positions[3].x,dz=c.z-positions[3].z;
-            c.x=positions[3].x+cosf(yaw)*dx+sinf(yaw)*dz;
-            c.z=positions[3].z-sinf(yaw)*dx+cosf(yaw)*dz;
+            Vector3 c=PawPoint(slot,positions[3],footYaw,x,radius-h[3],z);
             unsigned local=Limb_DigitLocalId(d,j);
-            if (!Node(g,module,local,World(slot,c),radius,hoof?radius*.60f:radius,p,true) ||
+            if (!Node(g,module,local,c,radius,radius,p,true) ||
                 !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),
-                    hoof&&j==0?BODY_CONNECTION_LIMB_SEGMENT:BODY_CONNECTION_DIGIT_SEGMENT,p->development)) return false;
+                    plantigrade&&j==0?BODY_CONNECTION_SUPPORT:BODY_CONNECTION_DIGIT_SEGMENT,p->development)) return false;
             previous=Anatomy_MakeId(module,local);
+        }
+        if(p->clawScale>0) {
+            const AnatomyNode* toe=AnatomyGraph_FindNode(g,previous);
+            float radius=toeR*.75f;
+            float length=radius*p->clawScale;
+            float yaw=side*p->footYaw+p->digitAngles[d]*.35f;
+            Vector3 tip=Vec3_Add(toe->center,Vec3_Add(Vec3_Scale(slot->up,-radius*.30f),
+                Vec3_Add(Vec3_Scale(slot->forward,cosf(yaw)*length),Vec3_Scale(slot->side,sinf(yaw)*length))));
+            unsigned local=Limb_DigitLocalId(d,count);
+            if(!Node(g,module,local,tip,radius*.17f,radius*.22f,p,true) ||
+               !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),
+                   BODY_CONNECTION_NAIL,p->development))return false;
+            BodyConnection* edge=&g->connections[g->connectionCount-1];
+            edge->crownInset=.40f;
+            edge->toeRounding=.91f;
         }
     }
     return true;

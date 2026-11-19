@@ -68,7 +68,9 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     SDFSweepStation* outStations, int maxStations, int* outCount) {
     if (!p || !g || !outStations || !outCount || maxStations < 9 || p->archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD) return false;
     bool cursorial=p->contourProfile==AXIAL_CONTOUR_CURSORIAL;
-    if(cursorial&&maxStations<13)return false;
+    float roundness=isfinite(p->withersRoundness)?Math_Clamp01(p->withersRoundness):0.0f;
+    unsigned cervicalCount=cursorial||roundness>0?6:4;
+    if(maxStations<(int)cervicalCount+(cursorial?7:5))return false;
     float s = p->totalScale;
 
     const AnatomyNode* neckNode = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_NECK);
@@ -96,7 +98,6 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     float ventralW = pectoralNode->center.y - pectoralNode->heightRadius-p->brisketDepth*p->thoraxHeight*s;
     if (z0 <= zW) return false;
     int count = 0;
-    unsigned cervicalCount=cursorial?6:4;
     for (unsigned i=0;i<cervicalCount;++i) {
         float t=(float)i/(cervicalCount-1);
         /* La masa dorsal redistribuye la transición sin crear un máximo
@@ -113,6 +114,8 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
             ventralT=powf(t,1.05f+.15f*Math_Clamp01(curvature));
             widthT=powf(t,.85f/Math_Clamp(midNarrow,.55f,1.0f));
         }
+        /* El perfil redondeado reduce la pendiente al coronar la cruz. */
+        dorsal=Math_Lerp(dorsal,Math_Lerp(dorsal0,dorsalW,t*(2-t)),roundness);
         float ventral=Math_Lerp(ventral0,ventralW,ventralT);
         outStations[count++]=(SDFSweepStation){
             .center={Math_Lerp(neckNode->center.x,pectoralNode->center.x,t),
@@ -122,12 +125,17 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     }
 
     /* 5. Post-Withers: Transición suave hacia el dorso nivelado del tórax */
-    float zPW = Math_Lerp(zW,thoraxANode->center.z,.10f/.23f);
-    if (zPW <= thoraxANode->center.z + 0.05f * s) zPW = (zW + thoraxANode->center.z) * 0.5f;
+    float postT = .10f/.23f;
+    float zPW = Math_Lerp(zW,thoraxANode->center.z,postT);
+    if (zPW <= thoraxANode->center.z + 0.05f * s) {
+        postT=.5f;
+        zPW=(zW+thoraxANode->center.z)*.5f;
+    }
     float wPW = (pectoralNode->widthRadius + thoraxANode->widthRadius) * .5f;
     /* Interpolar ambos contornos semánticos respeta perfiles escapulares
      * desplazados, en lugar de imponer otra sección cilíndrica al tórax. */
-    float dorsalPW=Math_Lerp(dorsalW,thoraxANode->center.y+thoraxANode->heightRadius,cursorial?.42f:.5f);
+    float dorsalPW=Math_Lerp(dorsalW,thoraxANode->center.y+thoraxANode->heightRadius,
+        Math_Lerp(cursorial?.42f:.5f,postT*postT,roundness));
     float ventralPW=Math_Lerp(ventralW,thoraxANode->center.y-thoraxANode->heightRadius,.5f);
     float hPW = (dorsalPW-ventralPW)*.5f;
     float yPW = (dorsalPW+ventralPW)*.5f;

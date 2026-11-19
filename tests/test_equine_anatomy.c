@@ -244,8 +244,8 @@ static void FeetAndStages(const char* path) {
         MonsterSDF_Free(&sdf);Monster_Free(m);
     }
     CreaturePhenotype invalid=r->adult;
-    invalid.limbs[0].digitCount=3;
-    TEST_ASSERT(!CreatureRecipe_Validate(r,&invalid),"Rechazar tres cascos en un contrato ungulado mono/bidáctilo");
+    invalid.limbs[0].digitCount=4;
+    TEST_ASSERT(!CreatureRecipe_Validate(r,&invalid),"Rechazar cuatro dedos en el contrato ungulado");
     invalid=r->adult;invalid.limbs[0].digitCount=0;
     TEST_ASSERT(!CreatureRecipe_Validate(r,&invalid),"Rechazar ungulado sin casco");
     invalid=r->adult;invalid.limbs[0].dewclawSize=.2f;

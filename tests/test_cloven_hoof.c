@@ -5,6 +5,7 @@
 #include "Monster.h"
 #include "MonsterSDF.h"
 #include "Limb.h"
+#include "LimbMammal.h"
 #include "SDFInterval.h"
 #include "test_utils.h"
 #include <stdlib.h>
@@ -103,4 +104,35 @@ static void MorphologyControls(void) {
     Monster_Free(a);Monster_Free(b);free(a);free(b);
 }
 
-void run_cloven_hoof_tests(void) {ClawField();AnatomicalFeet();MorphologyControls();}
+static void UngulateDigitCounts(void) {
+    LimbPhenotype limb=CreatureRecipes_Brumacerno()->adult.limbs[0];
+    AttachmentSlot slot={.hostNode=Anatomy_MakeId(1,2),.scale=1,
+        .position={0,2,0},.side={1,0,0},.up={0,1,0},.forward={0,0,1}};
+    AnatomyGraph* graph=malloc(sizeof(*graph));
+    TEST_ASSERT(graph,"Reservar grafo de pies ungulados");
+    limb.dewclawSize=0;
+    for(unsigned toes=1;toes<=4;++toes) {
+        *graph=(AnatomyGraph){0};
+        TEST_ASSERT(AnatomyGraph_AddNode(graph,(AnatomyNode){
+            .id=slot.hostNode,.moduleInstanceId=1,.localNodeId=2,.development=1,
+            .center=slot.position,.widthRadius=.6f,.heightRadius=.6f
+        }),"Anclaje axial del miembro");
+        limb.digitCount=toes;
+        for(unsigned i=0;i<toes;++i) {
+            limb.digitPhalanges[i]=2;
+            limb.digitLengths[i]=1;
+            limb.digitAngles[i]=0;
+        }
+        TEST_ASSERT(LimbMammal_Resolve(&limb,10,&slot,graph)==(toes<=3),"Aceptar de uno a tres dedos");
+        if(toes>3)continue;
+        unsigned supports=0;
+        for(size_t i=0;i<graph->connectionCount;++i) {
+            BodyConnectionKind kind=graph->connections[i].kind;
+            if(kind==BODY_CONNECTION_DIGIT_SEGMENT||kind==BODY_CONNECTION_HOOF_CAPSULE)++supports;
+        }
+        TEST_ASSERT(supports==toes,"Conservar exactamente el número de apoyos solicitado");
+    }
+    free(graph);
+}
+
+void run_cloven_hoof_tests(void) {UngulateDigitCounts();ClawField();AnatomicalFeet();MorphologyControls();}

@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "../src/interface/UiCreatureScene.h"
+#include "../src/interface/UiCreatureOrbit.h"
 #include "interface/UiRecipeCatalog.h"
 #include <assert.h>
 #include <math.h>
@@ -62,6 +63,120 @@ static void InvalidFullRecipe(void)
     UiVfs_Destroy(fs);
 }
 
+static void Orbit(void)
+{
+    UiCreatureOrbit orbit = UiCreatureOrbit_Default();
+    assert(!orbit.dirty && !orbit.dragging);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_PRESS,.x=100,.y=100,.clicks=1});
+    assert(orbit.dragging && !orbit.dirty);
+    for (int i=1; i<=100; ++i) {
+        UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_POINTER_MOVE,.x=100+i*9,.y=800});
+        assert(fabsf(orbit.yaw) <= 3.141593f);
+    }
+    assert(fabsf(orbit.yaw - remainderf(UI_ORBIT_DEFAULT_YAW - 10.8f,6.28318531f)) < .00002f);
+    assert(orbit.dirty && orbit.pitch == 1.42f);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_POINTER_MOVE,.x=100,.y=-200});
+    assert(orbit.pitch == -1.42f && fabsf(orbit.yaw-UI_ORBIT_DEFAULT_YAW) < .00002f);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_POINTER_RELEASE});
+    orbit.dirty = false;
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_POINTER_MOVE,.x=500,.y=50});
+    assert(!orbit.dragging && !orbit.dirty);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_WHEEL,.preciseWheel=.5f});
+    assert(orbit.zoom < UI_ORBIT_DEFAULT_ZOOM && orbit.zoom > .55f && orbit.dirty);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_WHEEL,.wheel=100});
+    assert(orbit.zoom == .55f);
+    orbit.dirty = false;
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_WHEEL,.wheel=1});
+    assert(!orbit.dirty);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_WHEEL,.wheel=-100});
+    assert(orbit.zoom == 1.85f);
+    UiCreatureOrbit_Input(&orbit,&(UiEvent){.type=UI_PRESS,.clicks=2});
+    assert(orbit.yaw == UI_ORBIT_DEFAULT_YAW && orbit.pitch == UI_ORBIT_DEFAULT_PITCH &&
+           orbit.zoom == UI_ORBIT_DEFAULT_ZOOM && orbit.dirty && !orbit.dragging);
+}
+
+static void OrbitFraming(void)
+{
+    const AABB3D bounds = {.start={-2,1,-5},.end={1,4,7}};
+    const float aspects[] = {.45f,1.0f,1.7f};
+    const float zooms[] = {UI_ORBIT_MIN_ZOOM,UI_ORBIT_DEFAULT_ZOOM,UI_ORBIT_MAX_ZOOM};
+    UiCreatureOrbit orbit = UiCreatureOrbit_Default();
+    for (size_t a=0; a<sizeof(aspects)/sizeof(aspects[0]); ++a) {
+        float previousHeight = 0;
+        for (size_t z=0; z<sizeof(zooms)/sizeof(zooms[0]); ++z) {
+            orbit.zoom = zooms[z];
+            ICamera reference = UiCreatureOrbit_Camera(&orbit,bounds,aspects[a]);
+            assert(-reference.fov > previousHeight);
+            previousHeight = -reference.fov;
+            float distance = Vec3_Length(Vec3_Sub(reference.target,reference.position));
+            for (int pitch=-1; pitch<=1; ++pitch) {
+                orbit.pitch = pitch*1.42f;
+                for (int angle=0; angle<32; ++angle) {
+                    orbit.yaw = angle*(6.28318531f/32);
+                    ICamera camera = UiCreatureOrbit_Camera(&orbit,bounds,aspects[a]);
+                    assert(camera.fov == reference.fov && camera.aspectRatio == aspects[a]);
+                    assert(camera.target.x == -.5f && camera.target.y == 2.5f && camera.target.z == 1);
+                    Vector3 offset = Vec3_Sub(camera.target,camera.position);
+                    assert(fabsf(Vec3_Length(offset)-distance) < .0001f);
+                    Vector3 forward = Vec3_Normalize(offset);
+                    Vector3 right = Vec3_Normalize(Vec3_Cross(forward,camera.up));
+                    Vector3 up = Vec3_Cross(right,forward);
+                    float halfHeight = -.5f*camera.fov;
+                    for (int i=0; i<8; ++i) {
+                        Vector3 corner = {(i&1)?bounds.end.x:bounds.start.x,
+                                          (i&2)?bounds.end.y:bounds.start.y,
+                                          (i&4)?bounds.end.z:bounds.start.z};
+                        Vector3 delta = Vec3_Sub(corner,camera.position);
+                        assert(fabsf(Vec3_Dot(delta,right)) < halfHeight*aspects[a]);
+                        assert(fabsf(Vec3_Dot(delta,up)) < halfHeight);
+                        float depth = Vec3_Dot(delta,forward);
+                        assert(depth > camera.nearPlane && depth < camera.farPlane);
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void SpeciesPairs(const UiVfs *fs, UiVfsId folder)
+{
+    const UiVfsNode *rhino=Find(fs,folder,"rinoceronte.creature.json");
+    const UiVfsNode *rat=Find(fs,folder,"rata.creature.json");
+    const UiVfsNode *pairs[][2] = {
+        {rhino,Find(fs,folder,"elefante.creature.json")},
+        {rhino,Find(fs,folder,"brumacerno.creature.json")},
+        {rat,Find(fs,folder,"Perro.recipe")},
+        {rat,rhino}
+    };
+    char error[256];
+    for (size_t i=0;i<sizeof(pairs)/sizeof(pairs[0]);++i) {
+        for (int direction=0;direction<2;++direction) {
+            UiCreatureScene *scene=UiCreatureScene_Create("demos",pairs[i][direction],
+                pairs[i][1-direction],error,sizeof(error));
+            if(!scene) fprintf(stderr,"%s\n",error);
+            assert(scene);
+            const float ages[]={0,.2f,.5f,.8f,1,.8f,.5f,.2f,0};
+            for (size_t k=0;k<sizeof(ages)/sizeof(ages[0]);++k) {
+                assert(UiCreatureScene_SetAge(scene,ages[k]));
+                CheckField(scene);
+                if (pairs[i][0]==rat && pairs[i][1]==rhino && ages[k]>0 && ages[k]<1) {
+                    const AnatomyGraph *graph=&UiCreatureScene_Monster(scene)->anatomyGraph;
+                    assert(graph->separateMorphTail);
+                    const AnatomyNode *pelvis=AnatomyGraph_FindFirstRegion(graph,ANATOMY_REGION_PELVIS);
+                    const AnatomyNode *tail=AnatomyGraph_FindFirstRegion(graph,ANATOMY_REGION_TAIL);
+                    assert(pelvis && tail);
+                    const SDFSweepStation *last=&scene->sdf.axialStations[scene->sdf.axialStationCount-1];
+                    assert(last->center.z>pelvis->center.z-pelvis->widthRadius);
+                    assert(MonsterSDF_EvaluateDistance(&scene->sdf,tail->center)<0);
+                }
+                unsigned builds=scene->fieldBuilds;
+                assert(UiCreatureScene_SetAge(scene,ages[k]) && scene->fieldBuilds==builds);
+            }
+            UiCreatureScene_Destroy(scene);
+        }
+    }
+}
+
 int main(void)
 {
     UiVfs *fs = UiVfs_Create();
@@ -107,7 +222,10 @@ int main(void)
     next->hair = LongHairAsync_Create();
     assert(next->hair && LongHairAsync_Update(next->hair,UiCreatureScene_Monster(next),false));
     UiCreatureScene_Destroy(next);
+    SpeciesPairs(fs,folder);
     UiVfs_Destroy(fs);
+    Orbit();
+    OrbitFraming();
     InvalidFullRecipe();
     puts("Interface creature engine tests passed");
 }

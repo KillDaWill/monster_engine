@@ -25,7 +25,9 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_BOVID,
     HEAD_ARCHETYPE_EQUINE, /**< Cráneo alargado, diastema y hocico distal independiente. */
     HEAD_ARCHETYPE_SUID, /**< Rostro descendente con disco nasal frontal y ganachas llenas. */
-    HEAD_ARCHETYPE_PROBOSCIDEAN /**< Bóveda alta y maxilar que soporta una probóscide. */
+    HEAD_ARCHETYPE_PROBOSCIDEAN, /**< Bóveda alta y maxilar que soporta una probóscide. */
+    HEAD_ARCHETYPE_RHINOCEROTID, /**< Perfil nasal descendente y labios de pastoreo anchos. */
+    HEAD_ARCHETYPE_RODENT /**< Caja posterior ancha, hocico en cuña y mandíbula corta. */
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */
@@ -151,6 +153,7 @@ typedef struct HeadSurfaceRecipe {
     Vector3 craniumCenter; /**< Centro del volumen craneal. */
     Vector3 craniumRadii; /**< Radios del volumen craneal. */
     Vector3 neckCollarRoot; /**< Inserción occipital resuelta, independiente del arquetipo durante la metamorfosis. */
+    float neckCollarContinuity; /**< Continuidad con el barrido y relleno de las secciones intermedias. */
     float neckCollarPenetration; /**< Fracción resuelta de inserción cervical. */
     Vector3 neckCollarRadii; /**< Sección resuelta de la unión cefalocervical. */
     Vector3 cranialPostorbitalCenter; /**< Estación anterior del perfil craneal. */

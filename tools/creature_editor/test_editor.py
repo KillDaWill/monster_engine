@@ -128,7 +128,7 @@ class EditorTests(unittest.TestCase):
             with self.assertRaises(HTTPError) as error:
                 self.request('/api/agent/action', {'action': 'patch',
                     'expected_revision': state['revision'],
-                    'edits': [{'path': '/recipe/adult/limbs/0/digitCount', 'value': 3}]})
+                    'edits': [{'path': '/recipe/adult/limbs/0/digitCount', 'value': 4}]})
             self.assertEqual(error.exception.code, 422)
             self.assertEqual(self.request('/api/agent/state'), prior)
             edited = self.request('/api/agent/action', {'action': 'patch',
@@ -144,6 +144,24 @@ class EditorTests(unittest.TestCase):
         schema = self.request('/api/agent/schema')
         head = schema['properties']['recipe']['properties']['adult']['properties']['head']['properties']['archetype']
         self.assertEqual(head['enumNames'][4], 'HEAD_ARCHETYPE_EQUINE')
+
+    def test_wildlife_recipes_editor_roundtrip(self):
+        for name, species_id, head, digits in (
+            ('rinoceronte', 1009, 7, [3, 3, 3, 3]),
+            ('rata', 1010, 8, [4, 4, 5, 5]),
+        ):
+            filename = f'{name}.creature.json'
+            document = json.loads((server.ROOT / 'recipes' / filename).read_text())
+            normalized = self.request('/api/validate', {'document': document})
+            recipe = normalized['recipe']
+            self.assertEqual(recipe['id'], species_id)
+            for stage in ('seed', 'larva', 'juvenile', 'adult'):
+                self.assertEqual(recipe[stage]['head']['archetype'], head)
+                self.assertEqual([limb['digitCount'] for limb in recipe[stage]['limbs']], digits)
+                self.assertGreater(recipe[stage]['surface']['longHairCount'], 0)
+            self.request('/api/save', {'document': normalized, 'filename': filename})
+            self.assertEqual(self.request(f'/api/recipe/{filename}'), normalized)
+            server.recipe_path(filename).unlink()
 
     def test_agent_transactions_schema_and_concurrency(self):
         state=self.request('/api/agent/state')

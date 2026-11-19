@@ -61,6 +61,7 @@ typedef struct AxialPhenotype {
     float withersElevation;     /**< Elevación sutil de la cruz sobre la línea dorsal (0..0.3). */
     AxialStationMorph profile[AXIAL_PROFILE_STATIONS];
     AxialContourProfile contourProfile; /**< Opcional v1: cresta, flanco y grupa continuos. */
+    float withersRoundness; /**< Redondeo de la cresta escapular a altura constante (0..1). */
 } AxialPhenotype;
 
 typedef enum LimbArchetype {
@@ -70,7 +71,7 @@ typedef enum LimbArchetype {
     LIMB_ARCHETYPE_WING,
     LIMB_ARCHETYPE_FLIPPER,
     LIMB_ARCHETYPE_CUSTOM,
-    LIMB_ARCHETYPE_UNGULATE /**< Ungulígrado: un casco central o dos uñas según digitCount. */
+    LIMB_ARCHETYPE_UNGULATE /**< Ungulígrado: uno a tres dedos de apoyo según digitCount. */
 } LimbArchetype;
 
 /** Perfil de tejido independiente del número de dedos y de la especie. */
@@ -78,7 +79,8 @@ typedef enum LimbAnatomyProfile {
     LIMB_PROFILE_LEGACY = 0, /**< Conserva exactamente las recetas v1 anteriores. */
     LIMB_PROFILE_CURSORIAL, /**< Musculatura integrada y estaciones distales ungulígradas. */
     LIMB_PROFILE_COMPACT_UNGULATE, /**< Miembro corto con mezcla muscular y transición al menudillo. */
-    LIMB_PROFILE_COLUMNAR /**< Extremidad columnar con apoyo acolchado. */
+    LIMB_PROFILE_COLUMNAR, /**< Extremidad columnar con apoyo acolchado. */
+    LIMB_PROFILE_PLANTIGRADE /**< Palma y planta continuas con dedos independientes. */
 } LimbAnatomyProfile;
 
 typedef struct LimbPhenotype {
@@ -86,7 +88,7 @@ typedef struct LimbPhenotype {
     LimbRole role;
     LimbSide side;
     float length, thickness, sprawl, development;
-    unsigned digitCount; /**< Ungulados: 1 casco entero, 2 pezuña hendida; otros conteos se rechazan. */
+    unsigned digitCount; /**< Ungulados: 1 casco entero, 2 pezuña hendida o 3 dedos portantes. */
     float digitLengths[CREATURE_MAX_DIGITS];
     unsigned digitPhalanges[CREATURE_MAX_DIGITS];
     float digitAngles[CREATURE_MAX_DIGITS];
@@ -104,6 +106,7 @@ typedef struct LimbPhenotype {
     float dewclawSize; /**< Tamaño de espolones no sustentantes relativo al casco; cero los omite. */
     unsigned nailCount; /**< Placas del borde anterior independientes de los dedos. */
     LimbAnatomyProfile anatomyProfile; /**< Opcional en JSON v1; ausencia equivale a LEGACY. */
+    float clawScale; /**< Longitud del ungual mamífero en radios digitales. Cero lo omite. */
 } LimbPhenotype;
 
 typedef enum TailArchetype {
@@ -123,6 +126,7 @@ typedef struct TailPhenotype {
     float taperCurve, curvature, development;
     float rootMatchStrength;
     unsigned segmentCount;
+    float tipLift; /**< Curvatura vertical distal en reposo, en unidades del cuerpo. */
 } TailPhenotype;
 
 typedef enum OrnamentArchetype {

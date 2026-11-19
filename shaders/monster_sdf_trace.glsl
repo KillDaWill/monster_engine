@@ -6,7 +6,7 @@ uniform float referenceMaxStep;
 uniform int traceRegionCount;
 uniform vec3 traceRegionMin[16],traceRegionMax[16];
 uniform vec2 viewportSize;
-uniform float tanHalfFov, aspectRatio, hitTolerance;
+uniform float tanHalfFov, orthoHalfHeight, aspectRatio, hitTolerance;
 uniform mat4 viewProjection;
 out vec4 fragmentColor;
 
@@ -84,17 +84,17 @@ bool validateRayBoxes() {
 }
 // Agregados sin límite de bocas: una intersección activa toda la fase.
 // Las normales reutilizan estos indicadores, nunca clasifican puntos vecinos.
-void classifyRay(vec3 rd,float start,float end) {
+void classifyRay(vec3 ro,vec3 rd,float start,float end) {
     rayHeadActive=false;rayMouthActive=false;rayJawActive=false;
     for(int i=0;i<mouthCount;++i) {
         int m=mouthBase+i*M_STRIDE;
         // La ruta heredada carece de una caja cefálica certificada.
         if(!M_anatomicalHead(m)||M_cephalicDevelopment(m)<0.0||M_cephalicDevelopment(m)>1.0){rayHeadActive=true;rayMouthActive=true;rayJawActive=true;continue;}
         vec3 lo=M_headBounds_start(m),hi=M_headBounds_end(m);
-        rayHeadActive=rayHeadActive||rayIntersectsAABB(cameraPosition,rd,lo,hi,start,end);
-        rayMouthActive=rayMouthActive||rayIntersectsAABB(cameraPosition,rd,
+        rayHeadActive=rayHeadActive||rayIntersectsAABB(ro,rd,lo,hi,start,end);
+        rayMouthActive=rayMouthActive||rayIntersectsAABB(ro,rd,
             M_influenceBounds_start(m),M_influenceBounds_end(m),start,end);
-        rayJawActive=rayJawActive||rayIntersectsAABB(cameraPosition,rd,
+        rayJawActive=rayJawActive||rayIntersectsAABB(ro,rd,
             M_visualBounds_start(m),M_visualBounds_end(m),start,end);
     }
 }
@@ -107,22 +107,26 @@ void main() {
         vec3 delta=point-cameraPosition;
         if(dot(delta,delta)>1e-20) {
             vec3 direction=normalize(delta);float start=0.0,end=1e30;
-            if(rayBox(cameraPosition,direction,boundsMin,boundsMax,start,end))classifyRay(direction,start,end);
+            if(rayBox(cameraPosition,direction,boundsMin,boundsMax,start,end))classifyRay(cameraPosition,direction,start,end);
         }
         fragmentColor=vec4(full,sceneDistance(point),0,1);gl_FragDepth=0;return;
     }
     vec2 uv=(gl_FragCoord.xy/viewportSize)*2.0-1.0;
-    vec3 rd=normalize(cameraForward+cameraRight*(uv.x*aspectRatio*tanHalfFov)+cameraUp*(uv.y*tanHalfFov));
+    vec3 offset=cameraRight*(uv.x*aspectRatio)+cameraUp*uv.y;
+    vec3 ro=cameraPosition;
+    vec3 rd=cameraForward;
+    if(orthoHalfHeight>0.0)ro+=offset*orthoHalfHeight;
+    else rd=normalize(cameraForward+offset*tanHalfFov);
     float t=0.0,end=1e30;
-    if(!rayBox(cameraPosition,rd,boundsMin,boundsMax,t,end))discard;
+    if(!rayBox(ro,rd,boundsMin,boundsMax,t,end))discard;
     float entries[16],exits[16];
     if(traceRegionCount>0) {
         float firstEntry=1e30,lastExit=-1.0;
         for(int i=0;i<traceRegionCount;++i) {
             entries[i]=t;exits[i]=end;
             if((i<handoffCount&&handoffRetire[i]!=0)||
-               !rayBox(cameraPosition,rd,traceRegionMin[i],traceRegionMax[i],entries[i],exits[i])||
-               (i<handoffCount&&!handoffRayInterval(i,cameraPosition,rd,entries[i],exits[i]))) {
+               !rayBox(ro,rd,traceRegionMin[i],traceRegionMax[i],entries[i],exits[i])||
+               (i<handoffCount&&!handoffRayInterval(i,ro,rd,entries[i],exits[i]))) {
                 entries[i]=1e30;exits[i]=-1.0;
             }
             firstEntry=min(firstEntry,entries[i]);lastExit=max(lastExit,exits[i]);
@@ -132,7 +136,7 @@ void main() {
     }
     if(referenceTrace)MonsterSDFUseCompleteScene();
     else {
-        classifyRay(rd,t,end);
+        classifyRay(ro,rd,t,end);
         int tile=int(gl_FragCoord.y)/16*tileColumns+int(gl_FragCoord.x)/16;
         vec4 list=dataAt(tileDataBase+tile);tileOffset=int(list.x);tileCount=int(list.y);
     }
@@ -149,7 +153,7 @@ void main() {
             }
             if(!inside) {t=next;previousValid=false;rejectedRoot=false;if(t>end)break;}
         }
-        p=cameraPosition+rd*t;sampleValue.w=sceneDistance(p);
+        p=ro+rd*t;sampleValue.w=sceneDistance(p);
         bool rootFound=false;
         if(previousValid&&(previousDistance>0)!=(sampleValue.w>0)) {
             // Un campo implícito puede sobrepasar la primera raíz aunque el
@@ -157,9 +161,9 @@ void main() {
             float lo=previousT,hi=t;bool outside=previousDistance>0;
             for(int root=0;root<24&&hi-lo>traceTolerance*.125;++root) {
                 float mid=(lo+hi)*.5;if(mid==lo||mid==hi)break;
-                if((sceneDistance(cameraPosition+rd*mid)>0)==outside)lo=mid;else hi=mid;
+                if((sceneDistance(ro+rd*mid)>0)==outside)lo=mid;else hi=mid;
             }
-            t=(lo+hi)*.5;p=cameraPosition+rd*t;rootFound=true;
+            t=(lo+hi)*.5;p=ro+rd*t;rootFound=true;
         }
         if(!rejectedRoot&&abs(sampleValue.w)<traceTolerance)rootFound=true;
         if(rootFound) {

@@ -176,6 +176,9 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
                     Vec3_Scale(slot->side,p->length*.10f*t*s*development))));
         }
 
+        if(p->tipLift!=0)
+            c=Vec3_Add(c,Vec3_Scale(slot->up,p->tipLift*t*t*s*development));
+
         AnatomyId id = Anatomy_MakeId(module, (uint16_t)(i + 1));
         if (!Module_Node(g, module, (uint16_t)(i + 1), c, wr, hr, i < 2 ? 2 : 1,
                          ANATOMY_ROLE_AXIAL, ANATOMY_REGION_TAIL, ANATOMY_SIDE_CENTER, p->development) ||

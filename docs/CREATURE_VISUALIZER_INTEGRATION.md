@@ -19,6 +19,8 @@ Nexus intenta crear un contexto OpenGL 3.3 de compatibilidad. Si el contexto no 
 ```text
 CV.view."/recepies/Perro.recipe"
 CreatureVisualizer.view."/recepies/elefante.creature.json"
+CV.view."/recepies/rinoceronte.creature.json"
+CV.view."/recepies/rata.creature.json"
 CV.view.interpolation."/recepies/cerdo.creature.json"."/recepies/elefante.creature.json"
 CreatureVisualizer.view.interpolation."/recepies/cerdo.creature.json"."/recepies/elefante.creature.json"
 ```
@@ -37,13 +39,13 @@ Una orden resuelve uno o dos nodos del VFS y construye un candidato. Los documen
 
 El pase de criaturas se ejecuta antes de dibujar la interfaz. Cada instancia del renderizador puede seleccionar su framebuffer de destino con `OpenGLRenderer_SetFrameTarget`. La demo morph conserva su destino anterior. Nexus mantiene dos destinos reutilizables con color opaco RGB8 y profundidad de 24 bits. El frontal conserva el fotograma publicado y el otro recibe el pase de trabajo. Los bordes lógicos se convierten a píxeles de framebuffer con la misma función que el recorte de la interfaz. Antes de enviar sus propios lotes, Nexus restablece framebuffer, programa, estados de vértices, texturas, mezcla, profundidad y matrices. El callback del marco dibuja la textura invertida en Y bajo el recorte habitual del contenido. El pelo se mezcla una sola vez sobre el fondo 3D.
 
-La vista reutiliza la cámara de la demo morph, ajusta su encuadre al área integrada y mantiene la escena sin animación de cámara. Los adultos y los estados intermedios usan el mismo trazado SDF con pigmentos, escamas y pelaje implícito. Los ojos usan instancias y texturas del motor. El pelo largo usa el trabajador acotado del motor con transporte al estado anatómico actual durante el morph. La geometría de pelo largo se publica de forma asíncrona y el cierre drena ese trabajador antes de liberar documentos.
+La cámara ortográfica orbita alrededor del centro de los límites anatómicos. A un mismo nivel de zoom, la escala se mantiene al girar en cualquier dirección. El encuadre se adapta al tamaño del área integrada. Arrastra con el botón izquierdo en la vista 3D para orbitar, usa la rueda para ajustar el zoom y haz doble clic para restablecer el encuadre. El arrastre continúa fuera del área y termina al soltar, perder el foco, minimizar o cerrar. Al cambiar de receta, la ventana conserva la órbita y vuelve a encuadrar la criatura. Los adultos y los estados intermedios usan el mismo trazado SDF con pigmentos, escamas y pelaje implícito. Los ojos usan instancias y texturas del motor. El pelo largo usa el trabajador acotado del motor con transporte al estado anatómico actual durante el morph. La geometría de pelo largo se publica de forma asíncrona y el cierre drena ese trabajador antes de liberar documentos.
 
-`MonsterAger` mantiene los extremos y la edad continua. El adaptador compila un campo por nueva edad y reutiliza el resultado para cámara y dibujo. Desactiva el snapshot geométrico adicional porque este modo no solicita mallas CPU. La presentación conserva la resolución física del contenido. Un fence consultado sin espera evita enviar una cola de pases 3D. El reloj está acotado a 100 ms por paso y conserva ambos extremos al cambiar de sentido. Minimizar pausa la animación. Un adulto estático reutiliza su textura hasta un cambio de dimensiones o una publicación de pelo.
+`MonsterAger` mantiene los extremos y la edad continua. El adaptador compila un campo por nueva edad y reutiliza el resultado para cámara y dibujo. Desactiva el snapshot geométrico adicional porque este modo no solicita mallas CPU. La presentación conserva la resolución física del contenido. Un fence consultado sin espera evita enviar una cola de pases 3D. El reloj está acotado a 100 ms por paso y conserva ambos extremos al cambiar de sentido. Minimizar pausa la animación. Un adulto estático reutiliza su textura hasta un cambio de cámara, de dimensiones o una publicación de pelo. Girar o acercar una criatura estática reutiliza su campo SDF, ojos y pelo preparados.
 
 ## Diagnóstico
 
-`NEXUS_VISUALIZER_PROFILE=1 make run-interface` registra cada pase con dimensiones, edad, dirección, tiempo CPU y la última consulta GPU SDF disponible. La consulta GPU mide el trazado interno, y el tiempo CPU mide la preparación y el envío del pase.
+`NEXUS_VISUALIZER_PROFILE=1 make run-interface` registra cada pase con dimensiones, edad, dirección, tiempo CPU y la última consulta GPU SDF disponible. También indica la cuenta de builds del campo de la escena y los tres valores de órbita. La consulta GPU mide el trazado interno, y el tiempo CPU mide la preparación y el envío del pase.
 
 El controlador puede compilar shaders al primer uso. Con KHR/ARB parallel shader compile, el adaptador consulta la finalización del enlace mientras sigue procesando la interfaz. El primer dibujo aún puede requerir especialización síncrona del controlador. La vista integrada usa el modo SDF de producción con composición a su framebuffer. Su encuadre, resolución y publicación de pelo pueden diferir de una captura fija de la demo morph. Las rutas de extracción GPU y de malla experimental pertenecen a la demo standalone.
 

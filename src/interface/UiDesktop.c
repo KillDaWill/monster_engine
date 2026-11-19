@@ -130,6 +130,7 @@ UiWindowId UiDesktop_Add(UiDesktop *d, UiWindow w)
 static void Focus(UiDesktop *d, UiWindowId id)
 {
     if (d->focus != id) {
+        if (d->contentDrag) UiDesktop_Release(d);
         const UiWindow *old = UiDesktop_Find(d, d->focus);
         if (old && old->input)
             old->input(old->state, UiWindow_Content(old->rect), &(UiEvent){.type = UI_BLUR});
@@ -318,6 +319,10 @@ void UiDesktop_PressWithClicks(UiDesktop *d, int x, int y, int clicks)
         d->startY = y;
         return;
     }
+    if (w->capturesContentPointer && w->input && UiRect_Contains(UiWindow_Content(w->rect),x,y)) {
+        d->captured = id;
+        d->contentDrag = true;
+    }
     UiDesktop_Dispatch(d, &(UiEvent){.type = UI_PRESS, .x = x, .y = y, .clicks = clicks});
 }
 
@@ -326,6 +331,11 @@ void UiDesktop_Move(UiDesktop *d, int x, int y)
     int i = Index(d, d->captured);
     if (i < 0) return;
     UiWindow *w = &d->windows[i];
+    if (d->contentDrag) {
+        w->input(w->state, UiWindow_Content(w->rect),
+                 &(UiEvent){.type=UI_POINTER_MOVE,.x=x,.y=y});
+        return;
+    }
     UiRect r = d->origin;
     int dx = x - d->startX, dy = y - d->startY;
     if (d->resizing) {
@@ -341,7 +351,14 @@ void UiDesktop_Move(UiDesktop *d, int x, int y)
     ClampWindow(w, d->area);
 }
 
-void UiDesktop_Release(UiDesktop *d) { d->captured = 0; }
+void UiDesktop_Release(UiDesktop *d)
+{
+    const UiWindow *w = d->contentDrag ? UiDesktop_Find(d,d->captured) : NULL;
+    d->captured = 0;
+    d->contentDrag = false;
+    if (w && w->input)
+        w->input(w->state, UiWindow_Content(w->rect), &(UiEvent){.type=UI_POINTER_RELEASE});
+}
 
 void UiDesktop_Dispatch(UiDesktop *d, const UiEvent *event)
 {

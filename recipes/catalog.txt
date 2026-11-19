@@ -5,3 +5,5 @@ caballo.creature.json
 asno.creature.json
 cerdo.creature.json
 elefante.creature.json
+rinoceronte.creature.json
+rata.creature.json

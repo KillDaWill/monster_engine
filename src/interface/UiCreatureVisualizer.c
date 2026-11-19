@@ -13,6 +13,13 @@ static void Close(void *state)
     app->engine = NULL;
 }
 
+static void Input(void *state, UiRect content, const UiEvent *event)
+{
+    UiCreatureVisualizer *app = state;
+    (void)content;
+    UiCreatureEngine_OrbitInput(app->engine,event);
+}
+
 static void Draw(void *state, UiRenderer *renderer, UiRect content, bool active, bool caret)
 {
     UiCreatureVisualizer *app = state;
@@ -57,7 +64,7 @@ bool UiCreatureVisualizer_Open(UiCreatureVisualizer *app)
     app->window = UiDesktop_Add(app->desktop,(UiWindow){
         .rect={area.x+25,area.y+26,490,405},.minWidth=300,.minHeight=200,
         .title="CreatureVisualizer",.draw=Draw,.drawIcon=UiCreatureVisualizer_Icon,
-        .onClose=Close,.state=app
+        .input=Input,.capturesContentPointer=true,.onClose=Close,.state=app
     });
     return app->window != 0;
 }

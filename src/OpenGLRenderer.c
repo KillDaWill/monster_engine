@@ -77,7 +77,7 @@ typedef struct SDFUniformLocations {
         GLint validationMode,validationPointBase,sceneData;
         GLint partBase,partCount,connectorBase,connectorCount,mouthBase,mouthCount,axialBase,axialCount;
         GLint bodySmoothness,tileDataBase,tileColumns,cameraPosition,cameraForward,cameraRight,cameraUp;
-        GLint boundsMin,boundsMax,viewportSize,tanHalfFov,aspectRatio,hitTolerance,viewProjection;
+        GLint boundsMin,boundsMax,viewportSize,tanHalfFov,orthoHalfHeight,aspectRatio,hitTolerance,viewProjection;
         GLint surfaceRecipe,pigmentSeed,scaleSeed,furSeed,sdfHasSurface,sdfFurEnabled;
 } SDFUniformLocations;
 
@@ -919,6 +919,7 @@ static SDFUniformLocations SDFLocations(GLuint p) {
     u.boundsMax=glGetUniformLocation(p,"boundsMax");
     u.viewportSize=glGetUniformLocation(p,"viewportSize");
     u.tanHalfFov=glGetUniformLocation(p,"tanHalfFov");
+    u.orthoHalfHeight=glGetUniformLocation(p,"orthoHalfHeight");
     u.aspectRatio=glGetUniformLocation(p,"aspectRatio");
     u.hitTolerance=glGetUniformLocation(p,"hitTolerance");
     u.viewProjection=glGetUniformLocation(p,"viewProjection");
@@ -1021,8 +1022,23 @@ OpenGLSDFProgramStatus OpenGLRenderer_PrepareSDFProgram(Renderer3D* renderer,con
 }
 static void UniformVector(GLint location,Vector3 v){glUniform3f(location,v.x,v.y,v.z);}
 
+typedef struct {
+    Vector3 position, forward, right, up;
+    float nearPlane, tangent, orthoHalfHeight, aspect;
+} SDFCamera;
+
+static bool ProjectSDFPoint(const SDFCamera* camera,Vector3 point,float* x,float* y) {
+    Vector3 delta=Vec3_Sub(point,camera->position);
+    float z=Vec3_Dot(delta,camera->forward);
+    if(z<camera->nearPlane)return false;
+    float halfHeight=camera->orthoHalfHeight>0?camera->orthoHalfHeight:z*camera->tangent;
+    *x=Vec3_Dot(delta,camera->right)/(halfHeight*camera->aspect);
+    *y=Vec3_Dot(delta,camera->up)/halfHeight;
+    return true;
+}
+
 static bool UploadSDFScene(OpenGLRendererData* d,const MonsterSDF* sdf,
-    const ICamera* camera,int width,int height) {
+    const SDFCamera* camera,int width,int height) {
     if(!d->sdfBuffer)glGenBuffers(1,&d->sdfBuffer);
     if(!d->sdfTexture)glGenTextures(1,&d->sdfTexture);
     d->sweepSorted=true;
@@ -1030,13 +1046,6 @@ static bool UploadSDFScene(OpenGLRendererData* d,const MonsterSDF* sdf,
         if(sdf->axialStations[i].center.z>sdf->axialStations[i-1].center.z)d->sweepSorted=false;
     for(size_t m=0;m<sdf->mouthCount;++m)if(sdf->mouths[m].sweptSkull)
         for(int i=1;i<6;++i)if(sdf->mouths[m].headStations[i].center.z>sdf->mouths[m].headStations[i-1].center.z)d->sweepSorted=false;
-    Vector3 forward=Vec3_Zero(),right=Vec3_Zero(),up=Vec3_Zero();
-    float tangent=1,aspect=1;
-    if(camera) {
-        forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
-        right=Vec3_Normalize(Vec3_Cross(forward,camera->up));up=Vec3_Cross(right,forward);
-        tangent=tanf(camera->fov*.00872664626f);aspect=(float)width/height;
-    }
     int columns=camera?(width+15)/16:0,rows=camera?(height+15)/16:0;
     size_t tiles=(size_t)columns*rows,stride=sdf->connectorCount+1;
     if(tiles*stride>d->tileCapacity){int* indices=realloc(d->tileIndices,tiles*stride*sizeof(int));if(!indices)return false;d->tileIndices=indices;d->tileCapacity=tiles*stride;}
@@ -1060,10 +1069,10 @@ static bool UploadSDFScene(OpenGLRendererData* d,const MonsterSDF* sdf,
             Vector3 pos=Vec3_Create((corner&1)?c->bounds.end.x+pad:c->bounds.start.x-pad,
                 (corner&2)?c->bounds.end.y+pad:c->bounds.start.y-pad,
                 (corner&4)?c->bounds.end.z+pad:c->bounds.start.z-pad);
-            Vector3 delta=Vec3_Sub(pos,camera->position);float z=Vec3_Dot(delta,forward);
-            if(z<camera->nearPlane){minX=0;maxX=(float)width;minY=0;maxY=(float)height;break;}
-            float x=(Vec3_Dot(delta,right)/(z*tangent*aspect)+1)*.5f*width;
-            float y=(Vec3_Dot(delta,up)/(z*tangent)+1)*.5f*height;
+            float x,y;
+            if(!ProjectSDFPoint(camera,pos,&x,&y)){minX=0;maxX=(float)width;minY=0;maxY=(float)height;break;}
+            x=(x+1)*.5f*width;
+            y=(y+1)*.5f*height;
             minX=fminf(minX,x);maxX=fmaxf(maxX,x);minY=fminf(minY,y);maxY=fmaxf(maxY,y);
         }
         if(maxX<0||maxY<0||minX>=width||minY>=height)continue;
@@ -2239,8 +2248,11 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     if(d->sdfFrameActive){width=d->sdfWidth;height=d->sdfHeight;}
     Vector3 forward=Vec3_Normalize(Vec3_Sub(camera->target,camera->position));
     Vector3 right=Vec3_Normalize(Vec3_Cross(forward,camera->up)),up=Vec3_Cross(right,forward);
-    float tangent=tanf(camera->fov*.00872664626f),aspect=displayAspect;
-    if(!UploadSDFScene(d,sdf,d->reference.enabled?NULL:camera,width,height))return false;
+    SDFCamera projectionCamera={.position=camera->position,.forward=forward,.right=right,.up=up,
+        .nearPlane=camera->nearPlane,.aspect=displayAspect};
+    if(camera->fov>0)projectionCamera.tangent=tanf(camera->fov*.00872664626f);
+    else projectionCamera.orthoHalfHeight=camera->fov<0?-.5f*camera->fov:8.0f;
+    if(!UploadSDFScene(d,sdf,d->reference.enabled?NULL:&projectionCamera,width,height))return false;
     int partBase=d->scene.partBase,connectorBase=d->scene.connectorBase;
     int mouthBase=d->scene.mouthBase,axialBase=d->scene.axialBase;
     int tileDataBase=d->scene.tileDataBase,columns=d->scene.columns;
@@ -2290,7 +2302,7 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     Vector3 bStart=regionBounds.start,bEnd=regionBounds.end;
     UniformVector(d->uniforms.boundsMin,bStart);UniformVector(d->uniforms.boundsMax,bEnd);
     glUniform2f(d->uniforms.viewportSize,(float)width,(float)height);
-    UF(tanHalfFov,tanf(camera->fov*.00872664626f));UF(aspectRatio,displayAspect);
+    UF(tanHalfFov,projectionCamera.tangent);UF(orthoHalfHeight,projectionCamera.orthoHalfHeight);UF(aspectRatio,displayAspect);
     UF(hitTolerance,.001f);
     GLfloat mv[16],projection[16],vp[16];glGetFloatv(GL_MODELVIEW_MATRIX,mv);glGetFloatv(GL_PROJECTION_MATRIX,projection);
     for(int c=0;c<4;++c)for(int r=0;r<4;++r){float sum=0;for(int k=0;k<4;++k)sum+=projection[k*4+r]*mv[c*4+k];vp[c*4+r]=sum;}
@@ -2299,10 +2311,10 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     bool cameraInsideOrNear=false;
     for(int corner=0;corner<8;++corner) {
         Vector3 pos=Vec3_Create((corner&1)?bEnd.x:bStart.x,(corner&2)?bEnd.y:bStart.y,(corner&4)?bEnd.z:bStart.z);
-        Vector3 delta=Vec3_Sub(pos,camera->position);float z=Vec3_Dot(delta,forward);
-        if(z<camera->nearPlane){cameraInsideOrNear=true;break;}
-        float x=(Vec3_Dot(delta,right)/(z*tangent*aspect)+1.0f)*0.5f*(float)width;
-        float y=(Vec3_Dot(delta,up)/(z*tangent)+1.0f)*0.5f*(float)height;
+        float x,y;
+        if(!ProjectSDFPoint(&projectionCamera,pos,&x,&y)){cameraInsideOrNear=true;break;}
+        x=(x+1)*.5f*width;
+        y=(y+1)*.5f*height;
         sMinX=fminf(sMinX,x);sMaxX=fmaxf(sMaxX,x);
         sMinY=fminf(sMinY,y);sMaxY=fmaxf(sMaxY,y);
     }

@@ -217,6 +217,24 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
             facial.side=Vec3_Scale(facial.side,-1);
             slots->slots[slots->count++]=facial;
         }
+        if (slots->count+2 > ATTACHMENT_MAX_SLOTS) return false;
+        const HeadSurfaceRecipe* surface=&anatomy.surface;
+        Vector3 tip=surface->faceTip, mid=surface->faceMid;
+        tip.y+=surface->faceTipRadii.y;
+        mid.y+=surface->faceMidRadii.y;
+        if (surface->hasCranialProfile) {
+            tip=surface->cranialCenters[0];
+            mid=surface->cranialCenters[1];
+            tip.y+=surface->cranialRadii[0].y;
+            mid.y+=surface->cranialRadii[1].y;
+        }
+        for (unsigned i=0;i<2;++i) {
+            AttachmentSlot nasal=cranial;
+            nasal.id=i==0?HEAD_SLOT_NASAL_ANTERIOR:HEAD_SLOT_NASAL_POSTERIOR;
+            Vector3 landmark=i==0?Vec3_Lerp(tip,mid,.17f):mid;
+            nasal.position=Vec3_Add(c,landmark);
+            slots->slots[slots->count++]=nasal;
+        }
         /* Los apéndices del ápice comparten la misma pinna resuelta al SDF. */
         for(unsigned side=0;side<2;++side) {
             const HeadSurfaceRecipe* r=&anatomy.surface;

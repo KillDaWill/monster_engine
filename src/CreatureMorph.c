@@ -112,6 +112,7 @@ static void MixHead(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAnatom
     out->landmarks.rightMouthCorner=Vec3_Lerp(a->landmarks.rightMouthCorner,b->landmarks.rightMouthCorner,t);
     out->surface.craniumCenter=Vec3_Lerp(a->surface.craniumCenter,b->surface.craniumCenter,t);
     out->surface.craniumRadii=Vec3_Lerp(a->surface.craniumRadii,b->surface.craniumRadii,t);
+    out->surface.neckCollarContinuity=Math_Lerp(a->surface.neckCollarContinuity,b->surface.neckCollarContinuity,t);
     out->surface.neckCollarPenetration=Math_Lerp(a->surface.neckCollarPenetration,b->surface.neckCollarPenetration,t);
     out->surface.neckCollarRoot=Vec3_Lerp(a->surface.neckCollarRoot,b->surface.neckCollarRoot,t);
     out->surface.neckCollarRadii=Vec3_Lerp(a->surface.neckCollarRadii,b->surface.neckCollarRadii,t);
@@ -712,10 +713,10 @@ static bool Morph_SeparateTail(const Monster* m,uint32_t module) {
     return false;
 }
 
-static bool Morph_HasCoiledTail(const Monster* m) {
+static bool Morph_HasIndependentTail(const Monster* m) {
     if(m->anatomyGraph.separateMorphTail)return true;
     for(size_t i=0;i<m->phenotype.tailCount;++i)
-        if(m->phenotype.tails[i].archetype==TAIL_ARCHETYPE_COILED)return true;
+        if(Tail_UsesIndependentCurve(&m->phenotype.tails[i]))return true;
     return false;
 }
 
@@ -726,6 +727,8 @@ static int Morph_TrunkStations(const Monster* m,const SDFSweepStation* profile,i
     const AnatomyNode* pelvis=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_PELVIS);
     if(!tail||!pelvis||Morph_SeparateTail(m,tail->moduleInstanceId)||
        m->anatomyGraph.separateMorphTail)return count;
+    for(int i=2;i<count;++i)
+        if(Vec3_Distance(profile[i].center,tail->center)<1e-5f)return i;
     while(count>2 && profile[count-1].center.z<pelvis->center.z-1e-5f)--count;
     return count;
 }
@@ -813,15 +816,14 @@ static bool MixProfile(const Monster* a,const Monster* b,float t,AnatomyGraph* g
         g->separateMorphTail=b->anatomyGraph.separateMorphTail;
         return true;
     }
-    /* Una espiral no aporta estaciones dorsales. Durante el cruce se
-     * deforman los tramos caudales en el grafo, sin interpolar el diámetro de
-     * la pelvis a lo largo de la cola del otro extremo. */
-    if(Morph_HasCoiledTail(a)||Morph_HasCoiledTail(b)) {
+    /* Si una cola usa una curva propia, ambos extremos interpolan la cola
+     * por sus tramos del grafo. El diámetro de la pelvis no se propaga por
+     * los cortes caudales del extremo que sí forma parte del barrido axial. */
+    if(Morph_HasIndependentTail(a)||Morph_HasIndependentTail(b)) {
         int tx=Morph_TrunkStations(a,x,nx),ty=Morph_TrunkStations(b,y,ny);
         if(tx!=nx&&!SDF_SweepResolveTangents(x,tx))return false;
         if(ty!=ny&&!SDF_SweepResolveTangents(y,ty))return false;
-        g->separateMorphTail=tx!=nx||ty!=ny||
-            a->anatomyGraph.separateMorphTail||b->anatomyGraph.separateMorphTail;
+        g->separateMorphTail=true;
         nx=tx;ny=ty;
     }
     const AnatomyNode* pa=AnatomyGraph_FindFirstRegion(&a->anatomyGraph,ANATOMY_REGION_PELVIS);

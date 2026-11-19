@@ -152,7 +152,7 @@ static void Scrolling(const UiCommands *commands)
     assert(t.logCount == UI_LOG_LIMIT && !t.following && UiTerminal_FirstRow(&t) == 0);
 }
 
-typedef struct { int events[UI_BLUR+1], closes; } WindowState;
+typedef struct { int events[UI_POINTER_RELEASE+1], closes; } WindowState;
 
 static void WindowClose(void *state)
 {
@@ -722,7 +722,9 @@ static void VisualizerAndFiles(void)
     UiVfsId note = UiVfs_Add(fs,folder,"notes.txt",UI_VFS_FILE,UI_VFS_VIRTUAL,0);
     assert(pig && elephant && broken && note);
     UiVfsId dog = UiVfs_Add(fs,folder,"Perro.recipe",UI_VFS_FILE,UI_VFS_BUILTIN_RECIPE,2);
-    assert(dog);
+    UiVfsId rhino = UiVfs_Add(fs,folder,"rinoceronte.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1009);
+    UiVfsId rat = UiVfs_Add(fs,folder,"rata.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1010);
+    assert(dog && rhino && rat);
     UiShell shell;
     UiShell_Init(&shell,fs);
     UiDesktop desktop = {0};
@@ -822,6 +824,16 @@ static void VisualizerAndFiles(void)
     UiDesktop_PressWithClicks(&desktop,x,firstRow+75,2);
     assert(activation.calls == 3 && files.selected == note && files.activationError[0]);
 
+    const UiVfsId wildlife[]={rhino,rat};
+    for(int i=0;i<2;++i) {
+        UiDesktop_Activate(&desktop,filesId);
+        UiDesktop_PressWithClicks(&desktop,x,firstRow+125+i*25,1);
+        UiDesktop_PressWithClicks(&desktop,x,firstRow+125+i*25,2);
+        assert(activation.recipe==wildlife[i] && activation.calls==4+i);
+        assert(desktop.focus==cv.window && cv.engine==engine);
+        InterfaceTest_CheckRecipe(engine,wildlife[i],0);
+    }
+
     Expect(&commands,"CreatureVisualizer.close",UI_COMMAND_SILENT,"");
     UiDesktop_Update(&desktop,0.1);
     UiCreatureVisualizer_Prepass(&cv,1280,720,2560,1440,0.016);
@@ -881,6 +893,42 @@ static void Clear(void)
     UiVfs_Destroy(fs);
 }
 
+static void ContentDrag(void)
+{
+    UiDesktop desktop = {0};
+    WindowState back = {0}, front = {0};
+    UiDesktop_SetArea(&desktop,(UiRect){0,0,800,600});
+    UiWindowId other = UiDesktop_Add(&desktop,(UiWindow){
+        .rect={400,30,250,190},.input=WindowInput,.state=&back
+    });
+    UiWindowId viewer = UiDesktop_Add(&desktop,(UiWindow){
+        .rect={30,30,300,240},.input=WindowInput,.state=&front,
+        .onClose=WindowClose,.capturesContentPointer=true
+    });
+    UiDesktop_Update(&desktop,.4);
+    UiDesktop_Press(&desktop,130,120);
+    assert(desktop.captured == viewer && desktop.contentDrag && front.events[UI_PRESS] == 1);
+    UiDesktop_Move(&desktop,-100,610);
+    assert(front.events[UI_POINTER_MOVE] == 1 && UiDesktop_Find(&desktop,viewer)->rect.x == 30);
+    UiDesktop_Dispatch(&desktop,&(UiEvent){.type=UI_WHEEL,.x=450,.y=130,.wheel=1});
+    assert(back.events[UI_WHEEL] == 1 && front.events[UI_WHEEL] == 0);
+    UiDesktop_Release(&desktop);
+    UiDesktop_Move(&desktop,180,155);
+    assert(front.events[UI_POINTER_RELEASE] == 1 && front.events[UI_POINTER_MOVE] == 1);
+    UiDesktop_Press(&desktop,130,120);
+    UiDesktop_Activate(&desktop,other);
+    assert(!desktop.captured && front.events[UI_POINTER_RELEASE] == 2);
+    UiDesktop_Press(&desktop,130,120);
+    UiDesktop_Hide(&desktop,viewer);
+    assert(!desktop.captured && front.events[UI_POINTER_RELEASE] == 3);
+    UiDesktop_Activate(&desktop,viewer);
+    UiDesktop_Press(&desktop,130,120);
+    assert(UiDesktop_Close(&desktop,viewer));
+    assert(!desktop.captured && front.events[UI_POINTER_RELEASE] == 4);
+    UiDesktop_Update(&desktop,.4);
+    assert(front.closes == 1 && !UiDesktop_Find(&desktop,viewer));
+}
+
 static void Workspace(void)
 {
     static const int sizes[][2] = {{1280,720},{1024,768},{800,600},{560,400}};
@@ -910,6 +958,7 @@ int main(void)
     Editing(&c);
     Scrolling(&c);
     Desktop();
+    ContentDrag();
     WindowAnimations();
     InterruptedAnimations();
     RecipeCatalog();

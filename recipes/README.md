@@ -43,3 +43,17 @@ visibles sin generar dedos externos. Los controles opcionales
 relieve de piel en reposo. Los campos nuevos pueden omitirse en documentos
 v1 anteriores. En la demo, Elefante admite los alias `elephant` y
 `african-elephant`. [Validación anatómica y visual](../docs/validation/elephant/README.md).
+
+`rinoceronte.creature.json` (1009) y `rata.creature.json` (1010) definen
+rinoceronte blanco sureño y rata parda en cuatro etapas posnatales.
+La demo universal también admite `rhino`, `white-rhino`, `rat` y
+`norway-rat`. Nexus Files descubre ambas recetas en `/recepies/`.
+Consulta las [capturas de validación](../docs/validation/rhino-rat/README.md).
+
+Los pies ungulados admiten entre uno y tres dedos portantes.
+En miembros mamíferos con dedos, `limbs[].clawScale` añade una uña
+terminal. `tails[].tipLift` añade curvatura vertical en el extremo de
+la cola en reposo. Ambos campos se pueden omitir en documentos v1. Los
+arquetipos cefálicos 7 y 8 resuelven los perfiles rinocerótido y roedor.
+Las ranuras 15 y 16 del módulo cefálico corresponden al puente nasal
+anterior y posterior.

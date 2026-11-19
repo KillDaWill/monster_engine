@@ -17,6 +17,30 @@ static void Begin(Renderer3D* r,ICamera* camera) {
     r->beginFrame(r);OpenGLRenderer_SetupCamera(camera,64,64);
 }
 
+static bool OrthographicTrace(Renderer3D* r, const ICamera* original) {
+    MonsterSDFBodyPart part={.center={0,0,.8f},.radii={.4f,.4f,.4f}};
+    MonsterSDF sdf={.bodyParts=&part,.bodyPartCount=1,.bounds={{-1,-1,-1},{1,1,2}}};
+    ICamera camera=*original;
+    camera.fov=-3;
+    float depths[2][64*64];
+    for (int view=0;view<2;++view) {
+        camera.position.z=view?-4:4;
+        Begin(r,&camera);
+        CHECK(OpenGLRenderer_RenderSDFRegion(r,&sdf,&camera,64,64,sdf.bounds),"Trazar rayos ortográficos");
+        glReadPixels(0,0,64,64,GL_DEPTH_COMPONENT,GL_FLOAT,depths[view]);
+        r->endFrame(r);
+    }
+    unsigned pixels=0;
+    for (int i=0;i<64*64;++i) {
+        CHECK((depths[0][i]<1)==(depths[1][i]<1),"Escala ortográfica independiente de la profundidad");
+        if (depths[0][i]<1) ++pixels;
+    }
+    CHECK(pixels>200 && pixels<250,"Cobertura de la esfera a la escala ortográfica esperada");
+    float depthChange=depths[1][32*64+32]-depths[0][32*64+32];
+    CHECK(fabsf(depthChange-1.6f/(camera.farPlane-camera.nearPlane))<.0002f,"Profundidad ortográfica del SDF");
+    return true;
+}
+
 static bool RootOwnership(Renderer3D* r,ICamera* camera) {
     MonsterSDFBodyPart parts[2]={0};
     for(unsigned i=0;i<2;++i){parts[i].center=Vec3_Create(0,0,i?-1:1);
@@ -155,7 +179,7 @@ int main(void) {
     glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LESS);glClearDepth(1);glDisable(GL_CULL_FACE);
     ICamera camera={.position={0,0,4},.target={0,0,0},.up={0,1,0},.fov=60,.aspectRatio=1,.nearPlane=.1f,.farPlane=20};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
-    bool ok=RootOwnership(&renderer,&camera)&&DenseReuse(&renderer,&camera)&&SparseMaterialRefresh(&renderer,&camera)&&FieldParity(&renderer)&&OpenGLRenderer_CheckErrors();
+    bool ok=OrthographicTrace(&renderer,&camera)&&RootOwnership(&renderer,&camera)&&DenseReuse(&renderer,&camera)&&SparseMaterialRefresh(&renderer,&camera)&&FieldParity(&renderer)&&OpenGLRenderer_CheckErrors();
     OpenGLRenderer_Destroy(&renderer);SDL_GL_DeleteContext(context);SDL_DestroyWindow(window);SDL_Quit();
     if(ok)puts("[PASS] Raíz propietaria posterior y caché densa GPU");
     return ok?0:1;

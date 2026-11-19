@@ -216,6 +216,8 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "lizard")) spec = "Lagarto";
     else if (EqualsIgnoreCase(spec, "horse")) spec = "Caballo";
     else if (EqualsIgnoreCase(spec, "donkey")) spec = "Asno";
+    else if (EqualsIgnoreCase(spec, "rhino") || EqualsIgnoreCase(spec, "white-rhino")) spec = "Rinoceronte";
+    else if (EqualsIgnoreCase(spec, "rat") || EqualsIgnoreCase(spec, "norway-rat")) spec = "Rata";
     else if (EqualsIgnoreCase(spec, "elephant") || EqualsIgnoreCase(spec, "african-elephant")) spec = "Elefante";
     else if (EqualsIgnoreCase(spec, "pig") || EqualsIgnoreCase(spec, "swine")) spec = "Cerdo";
     else if (EqualsIgnoreCase(spec, "explorer")) spec = "Explorador";
@@ -1024,8 +1026,9 @@ int main(int argc, char** argv) {
     printf("  Inicio: %s  (Objetivo inicial: %s)\n", rt.sourceLabel, rt.targetLabel);
     printf("  Controles numéricos para mutar la criatura actual hacia:\n");
     printf("    [0] Nueva criatura ALEATORIA\n");
-    for (size_t i = 0; i < catalogCount && i < 9; ++i) {
-        printf("    [%zu] %s (ID %u)\n", i + 1, catalog[i].recipe->name, (unsigned)catalog[i].id);
+    for (size_t i = 0; i < catalogCount && i < 18; ++i) {
+        printf("    [%s%zu] %s (ID %u)\n", i < 9 ? "" : "Mayús+", i % 9 + 1,
+            catalog[i].recipe->name, (unsigned)catalog[i].id);
     }
     printf("  Otros controles: ESPACIO=auto ida/vuelta | IZQ/DER=edad manual | W=invertir\n");
     printf("    F1..F5=cámara | R=rotación orbital | A=esqueleto | E=modo render | G=wire | ESC=salir\n    E: raymarch/malla asíncrona | Mayús+E: incluye extracción GPU experimental\n    Referencia diagnóstica en CLI: --surface-mode=exact-sdf\n\n");
@@ -1192,6 +1195,7 @@ int main(int argc, char** argv) {
                     running = false;
                 } else if (sym >= SDLK_1 && sym <= SDLK_9) {
                     size_t idx = (size_t)(sym - SDLK_1);
+                    if (ev.key.keysym.mod & KMOD_SHIFT) idx += 9;
                     if (idx < catalogCount) {
                         Monster nextTarget = Monster_Create();
                         CreaturePhenotype p = catalog[idx].recipe->adult;
@@ -1342,9 +1346,10 @@ int main(int argc, char** argv) {
         snprintf(hudBuf, sizeof(hudBuf),
             "METAMORFOSIS UNIVERSAL X -> Y  [%s]\n"
             "ACTIVO: %s -> %s   EDAD: %3d%%\n"
-            "%s\n"
+            "%s%s\n"
             "ESPACIO:OSCILAR  IZQ/DER:EDAD  R:ORBITA  A:ESQUELETO",
-            SurfaceModeName(opt.surfaceMode), rt.sourceLabel, rt.targetLabel, pct, keysLine);
+            SurfaceModeName(opt.surfaceMode), rt.sourceLabel, rt.targetLabel, pct, keysLine,
+            catalogCount > 9 ? "  MAYUS+1..9:MAS" : "");
 
         rt.interactiveScrub = !opt.capturePrefix && !opt.validateCyclePrefix &&
             ((opt.profile && opt.ageSequenceCount > 0) ||

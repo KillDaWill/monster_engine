@@ -14,7 +14,7 @@ bool Limb_Supports(LimbArchetype a) {
 }
 
 uint16_t Limb_DigitLocalId(unsigned digit, unsigned station) {
-    return digit < CREATURE_MAX_DIGITS && station < 7 ? (uint16_t)(32 + digit * 8 + station) : 0;
+    return digit < CREATURE_MAX_DIGITS && station < 8 ? (uint16_t)(32 + digit * 8 + station) : 0;
 }
 
 bool Limb_Resolve(const LimbPhenotype* phenotype, uint32_t moduleInstanceId, const AttachmentSlot* slot, AnatomyGraph* graph) {

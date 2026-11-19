@@ -92,6 +92,7 @@ static void WindowEvent(UiPlatform *p, SDL_WindowEvent e)
         Release(p);
         break;
     case SDL_WINDOWEVENT_FOCUS_GAINED: p->nativeFocus = true; break;
+    case SDL_WINDOWEVENT_MINIMIZED: Release(p); break;
     case SDL_WINDOWEVENT_SIZE_CHANGED:
         Release(p);
         p->width = e.data1;
@@ -150,8 +151,12 @@ static void Event(UiPlatform *p, SDL_Event e)
         int dy = e.wheel.y;
         if (dy > 100) dy = 100;
         if (dy < -100) dy = -100;
-        if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) dy = -dy;
-        Dispatch(p,(UiEvent){.type=UI_WHEEL,.x=x,.y=y,.wheel=dy});
+        float precise = (float)dy;
+#if SDL_VERSION_ATLEAST(2,0,18)
+        precise = SDL_clamp(e.wheel.preciseY,-100.0f,100.0f);
+#endif
+        if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) { dy = -dy; precise = -precise; }
+        Dispatch(p,(UiEvent){.type=UI_WHEEL,.x=x,.y=y,.wheel=dy,.preciseWheel=precise});
         break;
     }
     default: break;

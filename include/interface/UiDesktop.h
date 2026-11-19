@@ -11,7 +11,7 @@ typedef struct UiRenderer UiRenderer;
 enum { UI_MAX_WINDOWS = 16, UI_TITLE_HEIGHT = 36, UI_FRAME = 7 };
 
 typedef enum {
-    UI_PRESS, UI_WHEEL, UI_KEY, UI_TEXT, UI_COMPOSE, UI_PASTE, UI_BLUR
+    UI_PRESS, UI_WHEEL, UI_KEY, UI_TEXT, UI_COMPOSE, UI_PASTE, UI_BLUR, UI_POINTER_MOVE, UI_POINTER_RELEASE
 } UiEventType;
 typedef enum {
     UI_LEFT, UI_RIGHT, UI_UP, UI_DOWN, UI_HOME, UI_END, UI_DELETE,
@@ -23,6 +23,7 @@ typedef struct {
     UiKey key;
     const char *text;
     int compositionCursor, compositionLength;
+    float preciseWheel;
 } UiEvent;
 
 typedef void (*UiWindowClose)(void *);
@@ -46,6 +47,7 @@ typedef struct {
     /* Propiedad del escritorio. rect conserva las dimensiones de destino. */
     UiWindowMotion motion;
     double progress;
+    bool capturesContentPointer; /**< Captura opcional tras UI_PRESS dentro del contenido. */
 } UiWindow;
 
 typedef struct {
@@ -61,7 +63,7 @@ typedef struct {
     UiWindowId nextId, focus, pendingFocus, captured;
     UiRect area, origin;
     int startX, startY;
-    bool resizing;
+    bool resizing, contentDrag;
 } UiDesktop;
 
 bool UiRect_Contains(UiRect r, int x, int y);

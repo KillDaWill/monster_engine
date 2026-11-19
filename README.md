@@ -191,6 +191,7 @@ make clean
    El arranque normal y `--sdf` usan `sdf-raymarch`: trazado GPU por píxel del campo actual, sin extracción de una rejilla volumétrica. `--surface-mode=exact-sdf` activa el trazado de referencia para diagnóstico. `gpu-sdf-dense`, `gpu-sdf-sparse` y `legacy-handoff` requieren selección explícita con `--surface-mode=...`.
    - Inicia mostrando una criatura aleatoria; pulsar cualquier tecla numérica muta suavemente la criatura mostrada hacia esa receta destino (`0% -> 100%`).
    - **1..9**: Mutar desde la criatura actual hacia la especie correspondiente del catálogo (`Caballo`, `Brumacerno`, `Lagarto`, `Perro`, `Velkar`, `Explorador`, `Asno`, ...).
+   - **Mayús+1..9**: Elegir los destinos 10 a 18 del catálogo. El catálogo incluido usa **Mayús+1** para Rinoceronte y **Mayús+2** para Rata.
    - **0**: Generar una nueva criatura aleatoria y mutar suavemente hacia ella.
    - **ESPACIO**: Alternar oscilación continua de ida y vuelta entre origen y destino actuales.
    - **Flechas DERECHA / IZQUIERDA**: Control manual fino del porcentaje de metamorfosis (0% a 100%).

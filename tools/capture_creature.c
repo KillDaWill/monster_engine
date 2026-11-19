@@ -6,6 +6,7 @@
 #include "OpenGLRenderer.h"
 #include "AnimatedVisual.h"
 #include "FlexibleAppendage.h"
+#include "Limb.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -15,6 +16,17 @@ static void Neutral(Mesh* mesh) {
     for(size_t i=0;i<mesh->vertexCount;++i)mesh->vertices[i].color=Color_FromRGB(155,155,155);
     Mesh_MarkGeometryChanged(mesh);
 }
+static float ViewHeight(AABB3D bounds, Vector3 direction) {
+    Vector3 forward=Vec3_Normalize(direction);
+    Vector3 up=fabsf(forward.y)>.9f?Vec3_Create(0,0,1):Vec3_Create(0,1,0);
+    Vector3 right=Vec3_Normalize(Vec3_Cross(up,forward));
+    up=Vec3_Cross(forward,right);
+    Vector3 size=AABB_Size(bounds);
+    float x=fabsf(right.x)*size.x+fabsf(right.y)*size.y+fabsf(right.z)*size.z;
+    float y=fabsf(up.x)*size.x+fabsf(up.y)*size.y+fabsf(up.z)*size.z;
+    return fmaxf(x*.75f,y)*1.08f;
+}
+
 static bool Capture(Renderer3D* r,ICamera* camera,MonsterVisual* v,Vector3 target,
     Vector3 direction,float height,const char* directory,const char* name) {
     camera->target=target;camera->position=Vec3_Add(target,Vec3_Scale(direction,20));
@@ -91,6 +103,7 @@ int main(int argc,char** argv) {
             mouth->jawStations[i].center.y,mouth->jawStations[i].center.z,mouth->jawStations[i].width,mouth->jawStations[i].height);
     }
     if(neutral) {
+        LongHairSet_Free(&v->longHair);
         Neutral(&v->mesh);Neutral(&v->headMesh);
         for(size_t i=0;i<v->mouthCount;++i) {
             Neutral(&v->mouths[i].jawBase);Neutral(&v->mouths[i].hingeBase);
@@ -101,19 +114,49 @@ int main(int argc,char** argv) {
     if(!window)return 1;
     ICamera camera={.fov=40,.aspectRatio=4.f/3,.nearPlane=.01f,.farPlane=100};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
-    Vector3 center=Vec3_Scale(Vec3_Add(v->sdf.bounds.start,v->sdf.bounds.end),.5f);
-    Vector3 extent=Vec3_Sub(v->sdf.bounds.end,v->sdf.bounds.start);
-    float height=fmaxf(extent.y,extent.z*.75f)*1.08f;
-    Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f},{0,1,0}};
-    const char* names[]={"side","front","rear","three-quarter","top"};
+    AABB3D framing=v->sdf.bounds;
+    AABB_Pad(&framing,-v->sdf.config.boundsPadding);
+    Vector3 center=Vec3_Scale(Vec3_Add(framing.start,framing.end),.5f);
+    float height=ViewHeight(framing,Vec3_Create(1,0,0));
+    Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f},{0,1,0},{-1,0,0}};
+    const char* names[]={"side","front","rear","three-quarter","top","opposite-side"};
     bool ok=true;
-    for(int i=0;i<5;++i)ok=Capture(&renderer,&camera,v,center,directions[i],height,argv[2],names[i])&&ok;
-    if(m->hasHead) {
+    for(int i=0;i<6;++i)ok=Capture(&renderer,&camera,v,center,directions[i],ViewHeight(framing,directions[i]),argv[2],names[i])&&ok;
+    if(v->sdf.mouthCount && m->hasHead) {
+        AABB3D headBox=v->sdf.mouths[0].headBounds;
         const AnatomyNode* head=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_HEAD);
-        Vector3 hc=Vec3_Add(head->center,Vec3_Lerp(m->head.anatomy.surface.craniumCenter,m->head.anatomy.surface.faceTip,.45f));
+        for (size_t i=0;i<v->sdf.connectorCount;++i) {
+            const MonsterSDFConnector* c=&v->sdf.connectors[i];
+            if (c->region!=ANATOMY_REGION_ORNAMENT || c->kind!=BODY_CONNECTION_ORNAMENT_SEGMENT) continue;
+            for (size_t j=0;j<doc->recipe.bodyPlan.moduleCount;++j) {
+                const CreatureModuleInstance* mod=&doc->recipe.bodyPlan.modules[j];
+                if(mod->instanceId!=c->moduleInstanceId ||
+                    (!head || mod->attachment.hostModuleInstanceId!=head->moduleInstanceId)) continue;
+                AABB_ExpandPoint(&headBox,c->bounds.start);
+                AABB_ExpandPoint(&headBox,c->bounds.end);
+            }
+        }
+        Vector3 hc=Vec3_Scale(Vec3_Add(headBox.start,headBox.end),.5f);
         for(int i=0;i<4;++i) {
             char name[80];snprintf(name,sizeof(name),"head-%s",names[i]);
-            ok=Capture(&renderer,&camera,v,hc,directions[i],4.1f*s,argv[2],name)&&ok;
+            ok=Capture(&renderer,&camera,v,hc,directions[i],ViewHeight(headBox,directions[i]),argv[2],name)&&ok;
+        }
+    }
+    for (int role=LIMB_FORE;role<=LIMB_HIND;++role) {
+        for (size_t i=0;i<doc->recipe.bodyPlan.moduleCount;++i) {
+            const CreatureModuleInstance* module=&doc->recipe.bodyPlan.modules[i];
+            if (module->kind!=CREATURE_MODULE_LIMB) continue;
+            const LimbPhenotype* limb=&p.limbs[module->phenotypeIndex];
+            if ((int)limb->role!=role || limb->side!=LIMB_LEFT) continue;
+            const AnatomyNode* foot=AnatomyGraph_FindModuleNode(&m->anatomyGraph,module->instanceId,LIMB_NODE_AUTOPOD);
+            if (!foot) continue;
+            Vector3 target=Vec3_Add(foot->center,Vec3_Create(0,-foot->heightRadius*.3f,
+                foot->widthRadius*.94f));
+            ok=Capture(&renderer,&camera,v,target,Vec3_Create(.43f,.24f,1),
+                       limb->thickness*s*3.7f,argv[2],role==LIMB_FORE?"forefoot":"hindfoot")&&ok;
+            Vector3 soleTarget=Vec3_Add(target,Vec3_Create(0,0,limb->thickness*s*.40f));
+            ok=Capture(&renderer,&camera,v,soleTarget,Vec3_Create(0,-1,0),
+                       limb->thickness*s*4.2f,argv[2],role==LIMB_FORE?"forefoot-sole":"hindfoot-sole")&&ok;
         }
     }
     if(m->animation) {

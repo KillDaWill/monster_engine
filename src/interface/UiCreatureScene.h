@@ -14,6 +14,7 @@ typedef struct {
     MonsterAger *ager;
     MonsterSDF sdf;
     bool fieldValid;
+    unsigned fieldBuilds;
     int direction;
     MonsterVisualEye *eyes;
     size_t eyeCapacity;

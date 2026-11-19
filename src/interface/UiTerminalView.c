@@ -194,5 +194,7 @@ void UiTerminalView_Input(void *state, UiRect c, const UiEvent *e)
         break;
     case UI_COMPOSE: SetComposition(t,e); break;
     case UI_BLUR: ClearComposition(t); break;
+    case UI_POINTER_MOVE:
+    case UI_POINTER_RELEASE: break;
     }
 }

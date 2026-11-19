@@ -45,6 +45,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     p->axial.cervicalDorsalMass = Math_Clamp(Positive(p->axial.cervicalDorsalMass, 1.0f), 0.2f, 2.5f);
     p->axial.cervicalMidNarrowing = Math_Clamp(Positive(p->axial.cervicalMidNarrowing, 0.82f), 0.5f, 1.0f);
     p->axial.withersElevation = Math_Clamp(isfinite(p->axial.withersElevation) && p->axial.withersElevation >= 0.0f ? p->axial.withersElevation : 0.08f, 0.0f, 0.35f);
+    p->axial.withersRoundness=Unit(p->axial.withersRoundness,0);
     p->axial.dewlapDepth=Unit(p->axial.dewlapDepth,0);
     p->axial.brisketDepth=Unit(p->axial.brisketDepth,0);
     p->development.appendages = Unit(p->development.appendages, 1.0f);
@@ -65,6 +66,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         l->hoofWallSlope=Math_Clamp(Positive(l->hoofWallSlope,.22f),.02f,.45f);
         l->hoofToeRoundness=Math_Clamp(Positive(l->hoofToeRoundness,.8f),.3f,1);
         l->hoofHeelHeight=Math_Clamp(Positive(l->hoofHeelHeight,.75f),.4f,1);
+        l->clawScale=Math_Clamp(isfinite(l->clawScale)?l->clawScale:0,0,3);
         l->dewclawSize=Unit(l->dewclawSize,0);
         l->proximalScale = Positive(l->proximalScale, 1);
         l->middleScale = Positive(l->middleScale, 1);
@@ -99,6 +101,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     for (size_t i = 0; i < p->tailCount; ++i) {
         TailPhenotype* t = &p->tails[i];
         t->droop=Unit(t->droop,0);
+        t->tipLift=Math_Clamp(isfinite(t->tipLift)?t->tipLift:0,-1,1);
         t->length = Positive(t->length, 1.0f);
         t->baseWidth = Positive(t->baseWidth, 0.6f);
         t->baseHeight = Positive(t->baseHeight, 0.45f);
@@ -244,6 +247,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     LERP_BODY(axial.limbAttachmentLateral);
     LERP_BODY(axial.cervicalCurvature); LERP_BODY(axial.cervicalDorsalMass);
     LERP_BODY(axial.cervicalMidNarrowing); LERP_BODY(axial.withersElevation);
+    LERP_BODY(axial.withersRoundness);
     LERP_BODY(axial.dewlapDepth); LERP_BODY(axial.brisketDepth);
     LERP_BODY(development.colorMaturity); LERP_BODY(development.pigmentation);
     LERP_BODY(development.appendages); LERP_BODY(development.cephalic); LERP_BODY(development.integument);
@@ -268,6 +272,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(limbs[i].length); LERP_BODY(limbs[i].sprawl); LERP_BODY(limbs[i].development);
         p.limbs[i].thickness = Math_Lerp(a->limbs[i].thickness, b->limbs[i].thickness, mature);
         LERP_BODY(limbs[i].digitSpread); LERP_BODY(limbs[i].footScale);
+        LERP_BODY(limbs[i].clawScale);
         for (unsigned j = 0; j < p.limbs[i].digitCount; ++j) {
             LERP_BODY(limbs[i].digitLengths[j]); LERP_BODY(limbs[i].digitAngles[j]);
         }
@@ -275,7 +280,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     for (size_t i = 0; i < p.tailCount; ++i) {
         LERP_BODY(tails[i].length); LERP_BODY(tails[i].baseWidth); LERP_BODY(tails[i].baseHeight);
         LERP_BODY(tails[i].tipWidth); LERP_BODY(tails[i].tipHeight); LERP_BODY(tails[i].taperCurve); LERP_BODY(tails[i].droop);
-        LERP_BODY(tails[i].curvature); LERP_BODY(tails[i].development);
+        LERP_BODY(tails[i].curvature); LERP_BODY(tails[i].development); LERP_BODY(tails[i].tipLift);
         LERP_BODY(tails[i].rootMatchStrength);
     }
     for (size_t i = 0; i < p.flexibleAppendageCount; ++i) {

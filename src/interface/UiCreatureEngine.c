@@ -1,11 +1,10 @@
 #define GL_GLEXT_PROTOTYPES
 #include "UiCreatureEngine.h"
 #include "UiCreatureScene.h"
-#include "MorphViewCamera.h"
+#include "UiCreatureOrbit.h"
 #include "OpenGLRenderer.h"
 #include <GL/gl.h>
 #include <SDL2/SDL_timer.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -20,6 +19,7 @@ struct UiCreatureEngine {
     GLsync fence;
     double elapsed;
     int failedWidth, failedHeight;
+    UiCreatureOrbit orbit;
     bool stopped, profile, hairDirty, waitingShader;
 };
 
@@ -44,7 +44,10 @@ bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory, c
     }
     UiCreatureScene *pending = UiCreatureScene_Create(directory,first,second,error,capacity);
     if (!pending) return false;
-    if (!*owner) *owner = calloc(1,sizeof(**owner));
+    if (!*owner) {
+        *owner = calloc(1,sizeof(**owner));
+        if (*owner) (*owner)->orbit = UiCreatureOrbit_Default();
+    }
     if (!*owner) {
         UiCreatureScene_Destroy(pending);
         snprintf(error,capacity,"ERROR: Cannot allocate the visualizer renderer");
@@ -83,12 +86,17 @@ UiCreatureFrame UiCreatureEngine_Front(const UiCreatureEngine *engine)
     return (UiCreatureFrame){engine->front.color,engine->front.width,engine->front.height};
 }
 
+void UiCreatureEngine_OrbitInput(UiCreatureEngine *engine, const UiEvent *event)
+{
+    if (engine) UiCreatureOrbit_Input(&engine->orbit,event);
+}
+
 bool UiCreatureEngine_NeedsFrame(const UiCreatureEngine *engine)
 {
     if (!engine) return false;
     if (engine->pending || engine->fence) return true;
     return engine->scene && !engine->stopped &&
-           (engine->scene->ager || engine->hairDirty || LongHairAsync_IsBusy(engine->scene->hair));
+           (engine->scene->ager || engine->orbit.dirty || engine->hairDirty || LongHairAsync_IsBusy(engine->scene->hair));
 }
 
 static bool Resize(Target *target, int width, int height)
@@ -123,38 +131,6 @@ static bool Resize(Target *target, int width, int height)
         target->width = target->height = 0;
     }
     return ok;
-}
-
-static ICamera Camera(const Monster *monster, const MonsterSDF *sdf, int width, int height)
-{
-    ICamera camera = {.fov=45.0f,.nearPlane=0.1f,.farPlane=120.0f,.aspectRatio=(float)width/height};
-    Vector3 center, head, tail;
-    float radius;
-    MorphViewCamera_Framing(monster,sdf,&center,&radius,&head,&tail);
-    MorphViewCamera_Setup(&camera,3,0.72f,0.22f,0.78f,sdf,center,radius,head,tail);
-
-    /* La misma vista se aleja si el encuadre lateral queda estrecho. */
-    Vector3 offset = Vec3_Sub(camera.position,camera.target);
-    float distance = Vec3_Length(offset), fit = distance;
-    Vector3 forward = Vec3_Scale(offset,-1.0f/distance);
-    Vector3 right = Vec3_Normalize(Vec3_Cross(forward,camera.up));
-    Vector3 up = Vec3_Cross(right,forward);
-    float tangent = tanf(camera.fov*0.00872664626f)*0.92f;
-    AABB3D framing = sdf->bounds;
-    /* El margen configurable del raymarch no forma parte de la criatura. */
-    AABB_Pad(&framing,-sdf->config.boundsPadding);
-    for (int i=0; i<8; ++i) {
-        Vector3 point = Vec3_Create(i&1 ? framing.end.x : framing.start.x,
-                                    i&2 ? framing.end.y : framing.start.y,
-                                    i&4 ? framing.end.z : framing.start.z);
-        Vector3 delta = Vec3_Sub(point,camera.target);
-        float x = fabsf(Vec3_Dot(delta,right))/(tangent*camera.aspectRatio);
-        float y = fabsf(Vec3_Dot(delta,up))/tangent;
-        fit = fmaxf(fit,fmaxf(x,y)-Vec3_Dot(delta,forward));
-    }
-    camera.position = Vec3_Sub(camera.target,Vec3_Scale(forward,fit));
-    camera.farPlane = fmaxf(camera.farPlane,fit+2.0f*radius);
-    return camera;
 }
 
 static bool Eyes(UiCreatureScene *scene, Renderer3D *renderer, const Monster *monster, float age)
@@ -217,9 +193,12 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     }
     Renderer3D *r = &engine->renderer;
     const Monster *monster = UiCreatureScene_Monster(scene);
-    ICamera camera = Camera(monster,&scene->sdf,width,height);
+    AABB3D framing = scene->sdf.bounds;
+    AABB_Pad(&framing,-scene->sdf.config.boundsPadding);
+    ICamera camera = UiCreatureOrbit_Camera(&engine->orbit,framing,(float)width/height);
     float age = scene->ager ? scene->ager->perc : 0.0f;
-    if (engine->materialScene != scene || engine->materialAge != age) {
+    bool geometryChanged = engine->materialScene != scene || engine->materialAge != age;
+    if (geometryChanged) {
         const Monster *reference = scene->ager ? &scene->reference : &scene->adult;
         if (!OpenGLRenderer_SetMorphSurfaceDomain(r,monster,reference))
             return "ERROR: Cannot prepare the creature surface";
@@ -237,7 +216,7 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     if (ok) {
         OpenGLRenderer_SetupCamera(&camera,width,height);
         if (!Eyes(scene,r,monster,age)) error = "ERROR: Cannot prepare creature eyes";
-        if (!Hair(scene,monster)) error = "ERROR: Cannot prepare creature hair";
+        if (geometryChanged && !Hair(scene,monster)) error = "ERROR: Cannot prepare creature hair";
         const LongHairSet *hair = LongHairAsync_GetDisplay(scene->hair);
         if (hair && hair->count) r->renderLongHair(r,hair);
     } else {
@@ -285,7 +264,7 @@ const char *UiCreatureEngine_Render(UiCreatureEngine *engine, int width, int hei
             engine->hairDirty = count != next->count || generation != next->generation ||
                                 fingerprint != next->fingerprint;
         }
-        if (!engine->hairDirty) { engine->elapsed = 0; return NULL; }
+        if (!engine->hairDirty && !engine->orbit.dirty) { engine->elapsed = 0; return NULL; }
     }
 
     Uint64 start = engine->profile ? SDL_GetPerformanceCounter() : 0;
@@ -314,6 +293,7 @@ const char *UiCreatureEngine_Render(UiCreatureEngine *engine, int width, int hei
     if (!error) error = Draw(engine,scene,width,height);
     engine->elapsed = 0;
     engine->hairDirty = false;
+    engine->orbit.dirty = false;
     glBindFramebuffer(GL_FRAMEBUFFER,0);
     if (error) {
         engine->materialScene = NULL;
@@ -340,9 +320,10 @@ const char *UiCreatureEngine_Render(UiCreatureEngine *engine, int width, int hei
     engine->stopped = false;
     if (engine->profile) {
         double ms = (double)(SDL_GetPerformanceCounter()-start)*1000.0/SDL_GetPerformanceFrequency();
-        fprintf(stderr,"[nexus-creature] %u %u age=%.5f dir=%d %dx%d cpu_ms=%.3f sdf_gpu_ms=%.3f tick_ms=%llu\n",
+        fprintf(stderr,"[nexus-creature] %u %u age=%.5f dir=%d %dx%d cpu_ms=%.3f sdf_gpu_ms=%.3f tick_ms=%llu field_builds=%u orbit=%.3f,%.3f,%.3f\n",
             scene->from,scene->to,scene->ager ? scene->ager->perc : 0.0f,scene->direction,
-            width,height,ms,OpenGLRenderer_GetSDFGpuMs(&engine->renderer),(unsigned long long)SDL_GetTicks64());
+            width,height,ms,OpenGLRenderer_GetSDFGpuMs(&engine->renderer),(unsigned long long)SDL_GetTicks64(),
+            scene->fieldBuilds,engine->orbit.yaw,engine->orbit.pitch,engine->orbit.zoom);
     }
     return NULL;
 }

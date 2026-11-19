@@ -26,7 +26,9 @@ enum {
     LIMB_NODE_LOWER_MUSCLE,
     LIMB_NODE_CANNON,
     LIMB_NODE_FETLOCK,
-    LIMB_NODE_PASTERN
+    LIMB_NODE_PASTERN,
+    LIMB_NODE_PALM_HEEL,
+    LIMB_NODE_PALM_BALL
 };
 
 /** @brief Indica si el módulo implementa anatomía y rig del arquetipo. */

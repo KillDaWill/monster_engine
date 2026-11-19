@@ -38,6 +38,12 @@ bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory,
     return true;
 }
 
+void UiCreatureEngine_OrbitInput(UiCreatureEngine *engine, const UiEvent *event)
+{
+    (void)engine;
+    (void)event;
+}
+
 void UiCreatureEngine_Destroy(UiCreatureEngine *engine) { free(engine); }
 bool UiCreatureEngine_NeedsFrame(const UiCreatureEngine *engine) { return engine != NULL; }
 UiCreatureFrame UiCreatureEngine_Front(const UiCreatureEngine *engine)

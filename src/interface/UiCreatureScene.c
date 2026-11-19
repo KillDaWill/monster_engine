@@ -46,9 +46,11 @@ bool UiCreatureScene_SetAge(UiCreatureScene *scene, float age)
         MonsterAger_SetPerc(scene->ager,age);
         scene->fieldValid = false;
     }
-    if (!scene->fieldValid)
+    if (!scene->fieldValid) {
+        ++scene->fieldBuilds;
         scene->fieldValid = MonsterSDF_Build(&scene->sdf,UiCreatureScene_Monster(scene),
                                              MonsterSDF_DefaultConfig());
+    }
     return scene->fieldValid;
 }
 
