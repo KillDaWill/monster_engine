@@ -18,13 +18,23 @@ static void Draw(void *state, UiRenderer *renderer, UiRect content, bool active,
     UiCreatureVisualizer *app = state;
     (void)active;
     (void)caret;
-    unsigned texture = UiCreatureEngine_Texture(app->engine);
-    if (!texture) {
+    UiCreatureFrame frame = UiCreatureEngine_Front(app->engine);
+    if (!frame.texture) {
         UiRenderer_Rect(renderer,content,0x000000ff);
         return;
     }
-    int x = content.x, y = content.y, right = x+content.w, bottom = y+content.h;
-    UiRenderer_Quad(renderer,texture,(UiPoint[]){{x,y,0,1},{right,y,1,1},
+    /* Si el escritorio se redimensiona durante el cierre, la textura congelada conserva su aspecto. */
+    int x = content.x, y = content.y, width = content.w, height = content.h;
+    if ((int64_t)width*frame.height > (int64_t)height*frame.width) {
+        width = (int)(((int64_t)height*frame.width+frame.height/2)/frame.height);
+        x += (content.w-width)/2;
+    } else {
+        height = (int)(((int64_t)width*frame.height+frame.width/2)/frame.width);
+        y += (content.h-height)/2;
+    }
+    if (width < content.w || height < content.h) UiRenderer_Rect(renderer,content,0x000000ff);
+    int right = x+width, bottom = y+height;
+    UiRenderer_Quad(renderer,frame.texture,(UiPoint[]){{x,y,0,1},{right,y,1,1},
         {right,bottom,1,0},{x,bottom,0,0}},0xffffffffu);
 }
 
@@ -77,24 +87,26 @@ void UiCreatureVisualizer_Close(UiCreatureVisualizer *app)
     UiDesktop_Close(app->desktop,app->window);
 }
 
-static const UiWindow *Visible(const UiCreatureVisualizer *app)
+static const UiWindow *Ready(const UiCreatureVisualizer *app)
 {
     const UiWindow *window = UiDesktop_Find(app->desktop,app->window);
-    return window && !window->hidden ? window : NULL;
+    return UiWindow_IsInteractive(window) ? window : NULL;
 }
 
 bool UiCreatureVisualizer_NeedsFrame(const UiCreatureVisualizer *app)
 {
-    return Visible(app) && UiCreatureEngine_NeedsFrame(app->engine);
+    return Ready(app) && UiCreatureEngine_NeedsFrame(app->engine);
 }
 
 const char *UiCreatureVisualizer_Prepass(UiCreatureVisualizer *app, int w, int h,
                                          int dw, int dh, double dt)
 {
-    const UiWindow *window = Visible(app);
+    const UiWindow *window = Ready(app);
     bool resumed = !app->visibleLastFrame;
     app->visibleLastFrame = window != NULL;
     if (!window || !app->engine) return NULL;
+    /* Presenta el marco completo antes del primer pase, que puede compilar shaders. */
+    if (resumed && !UiCreatureEngine_Front(app->engine).texture) return NULL;
     UiRect area = UiWindow_Content(window->rect);
     UiRect pixels = UiRect_Drawable(area,w,h,dw,dh);
     return UiCreatureEngine_Render(app->engine,pixels.w,pixels.h,resumed ? 0.0 : dt);

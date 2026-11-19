@@ -8,5 +8,6 @@ bool UiCreatureEngine_Request(UiCreatureEngine **, const char *directory, const 
 void UiCreatureEngine_Destroy(UiCreatureEngine *);
 bool UiCreatureEngine_NeedsFrame(const UiCreatureEngine *);
 const char *UiCreatureEngine_Render(UiCreatureEngine *, int width, int height, double dt);
-unsigned UiCreatureEngine_Texture(const UiCreatureEngine *);
+typedef struct { unsigned texture; int width, height; } UiCreatureFrame;
+UiCreatureFrame UiCreatureEngine_Front(const UiCreatureEngine *);
 #endif

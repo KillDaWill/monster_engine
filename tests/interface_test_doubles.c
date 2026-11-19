@@ -6,12 +6,20 @@
 
 struct UiCreatureEngine {
     const UiVfsNode *first, *second;
+    UiCreatureFrame front;
+    int renders;
 };
 
 void InterfaceTest_CheckRecipe(const UiCreatureEngine *engine, UiVfsId first, UiVfsId second)
 {
     assert(engine && engine->first->id == first);
     assert((engine->second ? engine->second->id : 0) == second);
+}
+
+void InterfaceTest_CheckViewport(const UiCreatureEngine *engine, int renders, int width, int height)
+{
+    assert(engine && engine->renders == renders);
+    assert(engine->front.width == width && engine->front.height == height);
 }
 
 bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory,
@@ -23,18 +31,25 @@ bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory,
         snprintf(error,capacity,"ERROR: Test recipe failed to load");
         return false;
     }
-    if (!*owner) *owner = malloc(sizeof(**owner));
+    if (!*owner) *owner = calloc(1,sizeof(**owner));
     if (!*owner) abort();
-    **owner = (UiCreatureEngine){first,second};
+    (*owner)->first = first;
+    (*owner)->second = second;
     return true;
 }
 
 void UiCreatureEngine_Destroy(UiCreatureEngine *engine) { free(engine); }
 bool UiCreatureEngine_NeedsFrame(const UiCreatureEngine *engine) { return engine != NULL; }
-unsigned UiCreatureEngine_Texture(const UiCreatureEngine *engine) { return engine != NULL; }
+UiCreatureFrame UiCreatureEngine_Front(const UiCreatureEngine *engine)
+{
+    return engine ? engine->front : (UiCreatureFrame){0};
+}
+
 const char *UiCreatureEngine_Render(UiCreatureEngine *engine, int w, int h, double dt)
 {
-    (void)engine; (void)w; (void)h; (void)dt;
+    (void)dt;
+    ++engine->renders;
+    engine->front = (UiCreatureFrame){1,w,h};
     return NULL;
 }
 

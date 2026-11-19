@@ -17,6 +17,7 @@
 #include <string.h>
 
 void InterfaceTest_CheckRecipe(const UiCreatureEngine *, UiVfsId first, UiVfsId second);
+void InterfaceTest_CheckViewport(const UiCreatureEngine *, int renders, int width, int height);
 
 static UiCommandResult Custom(void *state, const char *args, char *out, size_t size)
 {
@@ -151,7 +152,12 @@ static void Scrolling(const UiCommands *commands)
     assert(t.logCount == UI_LOG_LIMIT && !t.following && UiTerminal_FirstRow(&t) == 0);
 }
 
-typedef struct { int events[UI_BLUR+1]; } WindowState;
+typedef struct { int events[UI_BLUR+1], closes; } WindowState;
+
+static void WindowClose(void *state)
+{
+    ++((WindowState *)state)->closes;
+}
 static void WindowInput(void *state, UiRect c, const UiEvent *event)
 {
     assert(c.w > 0 && c.h > 0);
@@ -173,8 +179,9 @@ static void Desktop(void)
     w.rect.x = 200;
     w.state = &two;
     UiWindowId second = UiDesktop_Add(&d,w);
-    assert(first && second != first && d.focus == second);
-    assert(d.windows[1].id == second && one.events[UI_BLUR] == 1);
+    assert(first && second != first && !d.focus && d.pendingFocus == second);
+    UiDesktop_Update(&d,0.4);
+    assert(d.focus == second && d.windows[1].id == second && !one.events[UI_BLUR]);
     UiDesktop_Press(&d,250,140);
     assert(two.events[UI_PRESS] == 1);
     UiDesktop_Press(&d,50,140);
@@ -215,6 +222,155 @@ static void Desktop(void)
     UiDesktop_Remove(&d,first);
     UiDesktop_Remove(&d,second);
     assert(!d.count && !d.focus && !d.captured);
+}
+
+static UiWindowPresentation Presentation(const UiDesktop *d, UiWindowId id)
+{
+    const UiWindow *w = UiDesktop_Find(d,id);
+    assert(w);
+    UiWindowPresentation p = UiWindow_Presentation(w);
+    assert(p.frame.w > 0 && p.frame.h > 0 && p.frame.x >= w->rect.x && p.frame.y == w->rect.y);
+    assert(p.frame.x+p.frame.w <= w->rect.x+w->rect.w && p.frame.h <= w->rect.h);
+    assert(p.contentClip.w >= 0 && p.contentClip.h >= 0);
+    if (p.contentClip.h && p.contentClip.w) {
+        UiRect content = UiWindow_Content(w->rect);
+        assert(p.contentClip.x == content.x && p.contentClip.y == content.y);
+        assert(p.contentClip.w == content.w && p.contentClip.h <= content.h);
+        assert(p.contentClip.y+p.contentClip.h < p.frame.y+p.frame.h);
+    }
+    return p;
+}
+
+static void WindowAnimations(void)
+{
+    UiDesktop d = {0};
+    WindowState back = {0}, front = {0};
+    UiRect target = {40,30,300,220};
+    UiWindow w = {.rect=target,.input=WindowInput,.acceptsText=true,.onClose=WindowClose,.state=&back};
+    UiDesktop_SetArea(&d,(UiRect){0,0,600,400});
+    UiWindowId first = UiDesktop_Add(&d,w);
+    UiDesktop_Update(&d,0.05);
+    w.state = &front;
+    UiWindowId second = UiDesktop_Add(&d,w);
+    assert(!d.focus && d.pendingFocus == second && UiDesktop_HasActiveAnimations(&d));
+    assert(UiDesktop_Find(&d,second)->motion == UI_WINDOW_OPENING);
+    UiWindowPresentation p = Presentation(&d,second);
+    assert(p.linesOnly && p.frame.w <= 8 && p.frame.h == UI_TITLE_HEIGHT);
+    assert(!p.contentClip.h);
+    UiDesktop_Dispatch(&d,&(UiEvent){.type=UI_TEXT,.text="invisible"});
+    UiDesktop_Press(&d,target.x+target.w/2,target.y);
+    assert(!d.captured && !front.events[UI_TEXT] && !front.events[UI_PRESS]);
+
+    for (int i=0; i<13; ++i) {
+        UiDesktop_Update(&d,0.01);
+        UiWindowPresentation next = Presentation(&d,second);
+        assert(next.linesOnly && next.frame.w >= p.frame.w && next.frame.h == UI_TITLE_HEIGHT);
+        assert(!next.contentClip.h);
+        p = next;
+    }
+    UiDesktop_Update(&d,0.011);
+    p = Presentation(&d,second);
+    assert(!p.linesOnly && p.frame.w == target.w && !p.contentClip.h);
+    for (int i=0; i<22; ++i) {
+        UiDesktop_Update(&d,0.01);
+        UiWindowPresentation next = Presentation(&d,second);
+        assert(next.frame.w == target.w && next.frame.h >= p.frame.h);
+        assert(next.contentClip.h >= p.contentClip.h);
+        const UiRect placed = UiDesktop_Find(&d,second)->rect;
+        assert(placed.x == target.x && placed.y == target.y && placed.w == target.w && placed.h == target.h);
+        p = next;
+    }
+    assert(p.frame.h == target.h && p.contentClip.h == UiWindow_Content(target).h);
+    assert(!UiDesktop_HasActiveAnimations(&d) && d.focus == second);
+    UiDesktop_Press(&d,target.x+10,target.y+10);
+    assert(d.captured == second);
+    assert(UiDesktop_Close(&d,second) && UiDesktop_Close(&d,second));
+    assert(d.focus == first && !d.captured && front.events[UI_BLUR] == 1 && !front.closes);
+    assert(d.windows[d.count-1].id == second);
+    UiDesktop_Cycle(&d,false);
+    assert(d.focus == first);
+    UiDesktop_Activate(&d,0);
+    UiDesktop_Press(&d,target.x+50,target.y+80);
+    assert(!d.focus && !back.events[UI_PRESS] && !front.events[UI_PRESS]);
+    UiDesktop_Activate(&d,first);
+    UiDesktop_Dispatch(&d,&(UiEvent){.type=UI_PASTE,.text="still editing"});
+    assert(back.events[UI_PASTE] == 1 && !front.events[UI_PASTE]);
+
+    for (int i=0; i<17; ++i) {
+        UiDesktop_Update(&d,0.01);
+        UiWindowPresentation next = Presentation(&d,second);
+        assert(!next.linesOnly && next.frame.w == target.w && next.frame.h <= p.frame.h);
+        assert(next.contentClip.h <= p.contentClip.h && !front.closes);
+        p = next;
+    }
+    UiDesktop_Update(&d,0.02);
+    p = Presentation(&d,second);
+    assert(p.linesOnly && p.frame.w < target.w && !p.contentClip.h);
+    UiDesktop_Update(&d,0.10);
+    assert(Presentation(&d,second).frame.w < p.frame.w && !front.closes);
+    UiDesktop_Update(&d,0.02);
+    assert(!UiDesktop_Find(&d,second) && front.closes == 1 && d.focus == first);
+    assert(!UiDesktop_Close(&d,second) && !UiDesktop_HasActiveAnimations(&d));
+    UiDesktop_CloseAll(&d);
+    assert(!d.count && !d.focus && back.closes == 1 && front.closes == 1);
+}
+
+static void InterruptedAnimations(void)
+{
+    UiDesktop d = {0};
+    WindowState state = {0};
+    UiWindow w = {.rect={38,25,180,140},.onClose=WindowClose,.state=&state};
+    UiDesktop_SetArea(&d,(UiRect){0,0,600,400});
+    for (int i=0; i<6; ++i) {
+        UiWindowId id = UiDesktop_Add(&d,w);
+        UiDesktop_Update(&d,i%2 ? 0.22 : 0.07);
+        UiWindowPresentation before = Presentation(&d,id);
+        assert(UiDesktop_Close(&d,id) && !d.pendingFocus);
+        UiWindowPresentation after = Presentation(&d,id);
+        assert(before.frame.w == after.frame.w && before.frame.h == after.frame.h);
+        UiDesktop_Update(&d,0.025);
+        before = Presentation(&d,id);
+        UiDesktop_Activate(&d,id);
+        after = Presentation(&d,id);
+        assert(before.frame.w == after.frame.w && before.frame.h == after.frame.h);
+        assert(d.count == 1 && state.closes == i);
+        UiDesktop_Update(&d,0.4);
+        assert(d.focus == id && UiWindow_IsInteractive(UiDesktop_Find(&d,id)));
+        assert(UiDesktop_Close(&d,id));
+        UiDesktop_Update(&d,0.4);
+        assert(!d.count && state.closes == i+1);
+    }
+
+    UiWindowId tiny = UiDesktop_Add(&d,w);
+    UiDesktop_Update(&d,0.08);
+    UiDesktop_SetArea(&d,(UiRect){1,2,5,3});
+    assert(Presentation(&d,tiny).frame.h == 3);
+    UiDesktop_Update(&d,0.15);
+    UiWindowPresentation p = Presentation(&d,tiny);
+    assert(p.frame.w == 5 && p.frame.h == 3 && !p.contentClip.h && !p.contentClip.w);
+    UiDesktop_Hide(&d,tiny);
+    assert(!UiDesktop_HasActiveAnimations(&d) && !d.pendingFocus);
+    UiDesktop_Activate(&d,tiny);
+    assert(UiWindow_IsInteractive(UiDesktop_Find(&d,tiny)) && d.focus == tiny);
+    UiDesktop_Hide(&d,tiny);
+    assert(UiDesktop_Close(&d,tiny) && !d.count && state.closes == 7);
+
+    UiWindowId closing = UiDesktop_Add(&d,w);
+    UiDesktop_Update(&d,0.1);
+    assert(UiDesktop_Close(&d,closing));
+    assert(UiDesktop_Add(&d,w) && UiDesktop_HasActiveAnimations(&d));
+    UiDesktop_CloseAll(&d);
+    assert(!d.count && !d.focus && !d.pendingFocus && !UiDesktop_HasActiveAnimations(&d));
+    assert(state.closes == 9);
+
+    UiWindowId remaining = UiDesktop_Add(&d,w);
+    UiWindowId interrupted = UiDesktop_Add(&d,w);
+    assert(d.pendingFocus == interrupted && UiDesktop_Close(&d,interrupted));
+    assert(d.pendingFocus == remaining);
+    UiDesktop_Update(&d,0.4);
+    assert(d.focus == remaining && state.closes == 10);
+    UiDesktop_CloseAll(&d);
+    assert(state.closes == 11);
 }
 
 static void FixturePath(char *path, size_t size, const char *from, const char *filename)
@@ -375,6 +531,7 @@ static void ShellAndFiles(void)
     UiWindowId terminalId = UiDesktop_Add(&desktop,(UiWindow){
         .rect={250,30,300,200},.acceptsText=true,.input=WindowInput,.state=&terminalWindow
     });
+    UiDesktop_Update(&desktop,0.4);
     UiFilesApp files;
     UiFilesApp_Init(&files,fs);
     UiFilesLaunch launch = {.files=&files,.desktop=&desktop,
@@ -392,7 +549,9 @@ static void ShellAndFiles(void)
     assert(!strcmp(Log(&terminal,3)->text,"folder/"));
     SubmitLine(&terminal,"Files");
     UiWindowId filesId = files.window;
-    assert(filesId && desktop.count == 2 && desktop.focus == filesId);
+    assert(filesId && desktop.count == 2 && desktop.focus == terminalId);
+    UiDesktop_Update(&desktop,0.4);
+    assert(desktop.focus == filesId);
     assert(terminal.logCount == 5 && !strcmp(terminal.history[2],"Files"));
     assert(terminalWindow.events[UI_BLUR] == 1);
     assert(files.directory == root && files.fs == shell.fs && shell.cwd == folder);
@@ -450,17 +609,23 @@ static void ShellAndFiles(void)
     Expect(&commands,"Files.close",UI_COMMAND_OK,"Files is already closed.");
     Expect(&commands,"Files",UI_COMMAND_SILENT,"");
     assert(files.window && files.window != filesId && files.directory == root);
+    UiDesktop_Update(&desktop,0.4);
     UiRect close = UiWindow_CloseButton(UiDesktop_Find(&desktop,files.window)->rect);
     UiDesktop_Press(&desktop,close.x+1,close.y+1);
+    assert(files.window && UiDesktop_Find(&desktop,files.window)->motion == UI_WINDOW_CLOSING);
+    UiDesktop_Update(&desktop,0.4);
     assert(!files.window && !desktop.captured && desktop.focus == terminalId);
     assert(!UiDesktop_Close(&desktop,terminalId));
     Expect(&commands,"Files",UI_COMMAND_SILENT,"");
     UiWindowId reopened = files.window;
+    UiDesktop_Update(&desktop,0.4);
     const UiWindow *pressed = UiDesktop_Find(&desktop,reopened);
     UiDesktop_Press(&desktop,pressed->rect.x+8,pressed->rect.y+8);
     assert(desktop.captured == reopened);
     assert(UiDesktop_Close(&desktop,reopened));
-    assert(!desktop.captured && !files.window && desktop.focus == terminalId);
+    assert(!desktop.captured && files.window == reopened && desktop.focus == terminalId);
+    UiDesktop_Update(&desktop,0.4);
+    assert(!files.window);
     while (desktop.count < UI_MAX_WINDOWS) assert(UiDesktop_Add(&desktop,launch.presentation));
     Expect(&commands,"Files",UI_COMMAND_ERROR,"Files: Desktop window limit reached");
     UiVfs_Destroy(fs);
@@ -570,7 +735,7 @@ static void VisualizerAndFiles(void)
 
     Expect(&commands,"CV",UI_COMMAND_SILENT,"");
     UiWindowId id = cv.window;
-    assert(id && desktop.focus == id && desktop.count == 1 && !cv.engine);
+    assert(id && !desktop.focus && desktop.pendingFocus == id && desktop.count == 1 && !cv.engine);
     UiDesktop_Hide(&desktop,id);
     Expect(&commands,"CreatureVisualizer",UI_COMMAND_SILENT,"");
     assert(cv.window == id && !UiDesktop_Find(&desktop,id)->hidden && desktop.focus == id);
@@ -594,6 +759,14 @@ static void VisualizerAndFiles(void)
     Expect(&commands,"CreatureVisualizer.view.interpolation.cerdo.creature.json.Perro.recipe",UI_COMMAND_ERROR,
         "ERROR: Expected a double-quoted recipe path");
     Expect(&commands,"CV.close",UI_COMMAND_SILENT,"");
+    assert(cv.window == id && cv.engine == engine && !UiCreatureVisualizer_NeedsFrame(&cv));
+    Expect(&commands,"CV.close",UI_COMMAND_SILENT,"");
+    UiDesktop_Update(&desktop,0.10);
+    Expect(&commands,"CV",UI_COMMAND_SILENT,"");
+    assert(cv.window == id && cv.engine == engine);
+    UiDesktop_Update(&desktop,0.4);
+    Expect(&commands,"CV.close",UI_COMMAND_SILENT,"");
+    UiDesktop_Update(&desktop,0.4);
     assert(!cv.window && !cv.engine && !desktop.count);
 
     UiFilesApp files;
@@ -605,6 +778,7 @@ static void VisualizerAndFiles(void)
         .presentation={.rect={600,100,480,405},.input=UiFilesView_Input}};
     assert(UiFilesApp_Open(&launch));
     UiWindowId filesId = files.window;
+    UiDesktop_Update(&desktop,0.4);
     UiRect content = UiWindow_Content(UiDesktop_Find(&desktop,filesId)->rect);
     int x = content.x+150, firstRow = content.y+80;
     UiDesktop_PressWithClicks(&desktop,x,firstRow,1);
@@ -616,7 +790,16 @@ static void VisualizerAndFiles(void)
     UiDesktop_PressWithClicks(&desktop,x,firstRow+25,2);
     assert(files.selected == elephant && !activation.calls && !cv.window);
     UiDesktop_PressWithClicks(&desktop,x,firstRow+25,2);
-    assert(activation.recipe == elephant && activation.calls == 1 && desktop.focus == cv.window);
+    assert(activation.recipe == elephant && activation.calls == 1 && desktop.focus == filesId);
+    assert(!UiCreatureVisualizer_NeedsFrame(&cv));
+    UiCreatureVisualizer_Prepass(&cv,1280,720,2560,1440,0.016);
+    InterfaceTest_CheckViewport(cv.engine,0,0,0);
+    UiDesktop_Update(&desktop,0.4);
+    assert(desktop.focus == cv.window && UiCreatureVisualizer_NeedsFrame(&cv));
+    UiCreatureVisualizer_Prepass(&cv,1280,720,2560,1440,0.016);
+    InterfaceTest_CheckViewport(cv.engine,0,0,0);
+    UiCreatureVisualizer_Prepass(&cv,1280,720,2560,1440,0.016);
+    InterfaceTest_CheckViewport(cv.engine,1,952,724);
     assert(files.window == filesId && !UiDesktop_Find(&desktop,filesId)->hidden && desktop.count == 2);
 
     id = cv.window;
@@ -640,8 +823,14 @@ static void VisualizerAndFiles(void)
     assert(activation.calls == 3 && files.selected == note && files.activationError[0]);
 
     Expect(&commands,"CreatureVisualizer.close",UI_COMMAND_SILENT,"");
+    UiDesktop_Update(&desktop,0.1);
+    UiCreatureVisualizer_Prepass(&cv,1280,720,2560,1440,0.016);
+    InterfaceTest_CheckViewport(cv.engine,1,952,724);
+    UiDesktop_Update(&desktop,0.4);
     assert(!cv.window && !cv.engine && desktop.count == 1 && desktop.focus == filesId);
-    assert(UiDesktop_Close(&desktop,filesId) && UiFilesApp_Open(&launch));
+    assert(UiDesktop_Close(&desktop,filesId));
+    UiDesktop_Update(&desktop,0.4);
+    assert(UiFilesApp_Open(&launch));
     assert(files.directory == UiVfs_Root(fs) && files.openRecipe == OpenRecipe && files.recipeContext == &activation);
     UiVfs_Destroy(fs);
 }
@@ -721,6 +910,8 @@ int main(void)
     Editing(&c);
     Scrolling(&c);
     Desktop();
+    WindowAnimations();
+    InterruptedAnimations();
     RecipeCatalog();
     ShellAndFiles();
     RecipeRoutes();

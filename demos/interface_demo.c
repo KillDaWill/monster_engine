@@ -201,13 +201,6 @@ static void Prepass(void *state, int w, int h, int dw, int dh, double dt)
     if (error) UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,error);
 }
 
-static void Cleanup(void *state)
-{
-    InterfaceDemo *demo = state;
-    UiCreatureVisualizer_Close(&demo->visualizer);
-    UiDesktop_Close(&demo->desktop,demo->files.window);
-}
-
 static bool OpenRecipe(void *state, UiVfsId recipe, char *error, size_t capacity)
 {
     InterfaceDemo *demo = state;
@@ -269,7 +262,7 @@ int main(void)
     }
     int result = UiPlatform_Run("Nexus | Command Desktop",(UiApp){
         .state=demo,.desktop=&demo->desktop,.resize=Resize,.desktopPress=DesktopPress,
-        .draw=Draw,.textRect=TextRect,.needsFrame=NeedsFrame,.prepass=Prepass,.cleanup=Cleanup
+        .draw=Draw,.textRect=TextRect,.needsFrame=NeedsFrame,.prepass=Prepass
     });
     UiVfs_Destroy(demo->fs);
     free(demo);

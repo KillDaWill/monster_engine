@@ -18,7 +18,7 @@ La demo abre una ventana de 1280 × 720 con el terminal enfocado. El ejecutable 
 | Botón «−» y entradas del dock | Minimizar y recuperar una ventana conservando su estado. El dock también inicia las aplicaciones |
 | Botón «×» de Files y CreatureVisualizer | Cerrar la aplicación y liberar su sesión. El terminal queda disponible |
 | Clic en una ventana, clic en el escritorio | Activar una ventana o retirar el foco |
-| Ctrl+Tab, Ctrl+Mayús+Tab | Recorrer las ventanas visibles |
+| Ctrl+Tab, Ctrl+Mayús+Tab | Recorrer las ventanas visibles que ya terminaron de abrirse |
 | Intro, ↑ y ↓ | Ejecutar y recuperar comandos. Volver abajo restaura el borrador |
 | Clic en el prompt, ←, →, Inicio y Fin | Posicionar el cursor |
 | Retroceso, Supr y Ctrl+V | Editar y pegar texto |
@@ -27,6 +27,18 @@ La demo abre una ventana de 1280 × 720 con el terminal enfocado. El ejecutable 
 | Files, doble clic o Intro sobre una receta | Mostrar la receta en CreatureVisualizer |
 | Files, Back o Retroceso, Up | Volver en el historial de Files o subir al directorio padre |
 | Files, barra lateral, flechas y rueda | Elegir una ubicación, cambiar selección o desplazar la lista |
+
+## Transiciones de ventana
+
+Una ventana nueva empieza con dos trazos centrados a la altura de su cabecera. Los trazos se expanden en 140 ms con una curva de salida cuadrática. Durante los siguientes 220 ms el borde inferior desciende con una curva cúbica `smoothstep`. Los laterales siguen al borde inferior y revelan el contenido mediante un recorte. El texto, las filas y la textura 3D conservan su tamaño final durante toda la transición.
+
+El botón «×» y los comandos de cierre usan `UiDesktop_Close`. El borde inferior sube durante 180 ms y los dos trazos se contraen durante otros 120 ms. El marco permanece en su capa visual mientras el foco pasa a una ventana lista. El cierre detiene la captura, bloquea la entrada y conserva el estado y la última textura hasta que el escritorio retira el ID e invoca `onClose` una sola vez.
+
+Durante la apertura la ventana queda en primer plano. La ventana previamente enfocada conserva la entrada hasta que la nueva esté lista, salvo que el usuario elija otra ventana. Abrir de nuevo una ventana que se está cerrando invierte el recorrido desde su posición actual y conserva la sesión. Pedir el cierre durante la apertura invierte el mismo recorrido. Minimizar y restaurar son operaciones inmediatas. Si se minimiza una ventana durante la apertura, se restaura totalmente abierta. Cerrar una ventana minimizada ejecuta su limpieza inmediatamente.
+
+`UiDesktop_Add` aplica la apertura a cualquier aplicación que registre una ventana visible. El escritorio posee el progreso de cada transición. `UiWindow_Presentation` entrega a `UiTheme` el marco y el recorte animados. El callback de dibujo recibe siempre las dimensiones finales de `UiWindow_Content`. `UiPlatform` combina las transiciones y los pases del motor en su planificación de fotogramas con un reloj monotónico. Al minimizar la ventana de SDL se suspenden esos fotogramas. En reposo se vuelve a esperar eventos o el siguiente cambio del cursor.
+
+CreatureVisualizer puede preparar una receta durante la apertura. Los pases 3D se envían al terminar la transición y usan el área final de la ventana. Durante el cierre se suspenden los pases 3D y el morph. La última textura publicada se recorta con el marco y conserva su proporción si se redimensiona el escritorio. Al salir de Nexus, `UiDesktop_CloseAll` libera las ventanas, incluidas las que tienen una transición pendiente, con el contexto OpenGL todavía activo.
 
 ## Comandos y sistema de archivos virtual
 

@@ -25,7 +25,7 @@ static void Release(UiPlatform *p)
 static void SyncTextInput(UiPlatform *p)
 {
     const UiWindow *w = UiDesktop_Find(p->app.desktop,p->app.desktop->focus);
-    UiWindowId owner = p->nativeFocus && w && w->acceptsText ? w->id : 0;
+    UiWindowId owner = p->nativeFocus && UiWindow_IsInteractive(w) && w->acceptsText ? w->id : 0;
     if (owner != p->textOwner) {
         if (p->textOwner) SDL_StopTextInput();
         if (owner) SDL_StartTextInput();
@@ -168,16 +168,31 @@ static void Run(UiPlatform *p)
     SyncTextInput(p);
     p->blinkStart = SDL_GetTicks64();
     bool lastCaret = false, wasNativeVisible = false;
-    Uint64 nextFrame = 0, lastFrame = SDL_GetTicks64();
+    Uint64 nextFrame = 0, lastFrame = SDL_GetTicks64(), lastTick = lastFrame;
+    SDL_Event e;
+    bool pending = false;
     while (p->running) {
-        SDL_Event e;
+        Uint64 now = SDL_GetTicks64();
+        bool nativeVisible = !(SDL_GetWindowFlags(p->window) & SDL_WINDOW_MINIMIZED);
+        /* La espera devuelve un evento pendiente. Avanzamos primero las ventanas
+           existentes para que las nuevas empiecen desde cero, incluso tras un reposo largo. */
+        if (nativeVisible && wasNativeVisible && UiDesktop_HasActiveAnimations(p->app.desktop)) {
+            UiWindowId focus = p->app.desktop->focus;
+            Uint64 elapsed = now-lastTick;
+            UiDesktop_Update(p->app.desktop,(elapsed > 100 ? 100 : elapsed)*0.001);
+            p->redraw = true;
+            if (focus != p->app.desktop->focus) SyncTextInput(p);
+        }
+        lastTick = now;
+        if (pending) Event(p,e);
         /* Limita el drenaje de eventos para presentar también durante entrada continua. */
         for (int i = 0; i < 96 && SDL_PollEvent(&e); ++i) Event(p,e);
         if (!p->running) break;
-        Uint64 now = SDL_GetTicks64();
-        bool nativeVisible = !(SDL_GetWindowFlags(p->window) & SDL_WINDOW_MINIMIZED);
+        now = SDL_GetTicks64();
+        nativeVisible = !(SDL_GetWindowFlags(p->window) & SDL_WINDOW_MINIMIZED);
         if (!nativeVisible) lastFrame = now;
-        bool animated = nativeVisible && p->app.needsFrame && p->app.needsFrame(p->app.state);
+        bool animated = nativeVisible && (UiDesktop_HasActiveAnimations(p->app.desktop) ||
+            (p->app.needsFrame && p->app.needsFrame(p->app.state)));
         if (!animated) nextFrame = 0;
         Uint64 elapsed = now-p->blinkStart;
         bool caret = p->textOwner && elapsed/530%2 == 0;
@@ -200,13 +215,14 @@ static void Run(UiPlatform *p)
             lastCaret = caret;
         }
         wasNativeVisible = nativeVisible;
-        int timeout = p->textOwner ? 530-(int)((SDL_GetTicks64()-p->blinkStart)%530) : -1;
+        int timeout = nativeVisible && p->textOwner ?
+            530-(int)((SDL_GetTicks64()-p->blinkStart)%530) : -1;
         if (animated) {
             now = SDL_GetTicks64();
             int wake = nextFrame > now ? (int)(nextFrame-now) : 1;
             if (timeout < 0 || wake < timeout) timeout = wake;
         }
-        if (SDL_WaitEventTimeout(&e,timeout)) Event(p,e);
+        pending = SDL_WaitEventTimeout(&e,timeout) == 1;
     }
     Release(p);
     SDL_StopTextInput();
@@ -252,6 +268,7 @@ int UiPlatform_Run(const char *title, UiApp app)
         SDL_GetWindowSize(p.window,&p.width,&p.height);
         app.resize(app.state,p.width,p.height);
         Run(&p);
+        UiDesktop_CloseAll(app.desktop);
         if (app.cleanup) app.cleanup(app.state);
         UiRenderer_Destroy(p.renderer);
     }

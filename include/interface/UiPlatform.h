@@ -14,7 +14,7 @@ typedef struct {
     UiRect (*textRect)(void *, UiWindowId);
     bool (*needsFrame)(void *);
     void (*prepass)(void *, int width, int height, int drawableW, int drawableH, double dt);
-    void (*cleanup)(void *); /* Con el contexto activo. */
+    void (*cleanup)(void *); /* Con el contexto activo, después de cerrar todas las ventanas. */
 } UiApp;
 
 /* Ejecuta el ciclo SDL/GL. La aplicación conserva la propiedad de su estado. */

@@ -77,9 +77,10 @@ void UiCreatureEngine_Destroy(UiCreatureEngine *engine)
     free(engine);
 }
 
-unsigned UiCreatureEngine_Texture(const UiCreatureEngine *engine)
+UiCreatureFrame UiCreatureEngine_Front(const UiCreatureEngine *engine)
 {
-    return engine ? engine->front.color : 0;
+    if (!engine) return (UiCreatureFrame){0};
+    return (UiCreatureFrame){engine->front.color,engine->front.width,engine->front.height};
 }
 
 bool UiCreatureEngine_NeedsFrame(const UiCreatureEngine *engine)
