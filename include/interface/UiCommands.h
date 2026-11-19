@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-enum { UI_COMMAND_BYTES = 1024, UI_COMMAND_LIMIT = 24, UI_COMMAND_NAME_BYTES = 32,
+enum { UI_COMMAND_BYTES = 1024, UI_COMMAND_LIMIT = 24, UI_COMMAND_NAME_BYTES = 64,
        UI_COMMAND_REPLY_BYTES = UI_COMMAND_BYTES + 32 };
 typedef enum { UI_COMMAND_OK, UI_COMMAND_ERROR, UI_COMMAND_EMPTY, UI_COMMAND_SILENT } UiCommandResult;
 /* El argumento pertenece al llamador. El handler puede escribir una respuesta terminada en NUL. */
@@ -18,10 +18,13 @@ typedef struct {
     UiCommandHandler handler;
     UiCommandLineHandler lines;
     void *state;
+    bool prefix;
 } UiCommand;
 typedef struct { UiCommand entries[UI_COMMAND_LIMIT]; size_t count; } UiCommands;
 
 bool UiCommands_Register(UiCommands *, const char *, UiCommandHandler, void *);
+/* El prefijo registrado más largo recibe el sufijo íntegro. */
+bool UiCommands_RegisterPrefix(UiCommands *, const char *, UiCommandHandler, void *);
 bool UiCommands_RegisterLines(UiCommands *, const char *, UiCommandLineHandler, void *);
 const UiCommand *UiCommands_Find(const UiCommands *, const char *);
 UiCommandResult UiCommands_Execute(const UiCommands *, const char *, char *, size_t);

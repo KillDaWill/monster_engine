@@ -108,6 +108,9 @@ typedef struct OpenGLRendererData {
     } sparse;
     struct {int partBase,connectorBase,mouthBase,axialBase,tileDataBase,columns;} scene;
     bool wireframe;
+    bool frameTargetExplicit;
+    GLuint sdfPreparing[2];
+    GLuint frameTarget;
     struct {bool enabled;float maxStep;unsigned steps;} reference;
     GLuint sdfProgram,sdfCachedProgram,sdfMouthCache,sdfBuffer,sdfTexture;
     bool sweepSorted;
@@ -116,7 +119,7 @@ typedef struct OpenGLRendererData {
         GLuint program,buffer,texture,vao,queries[2];
         GLint uGuideData,uChildren,uSegments,uGuideDebug,uChildFraction,uViewportHeight,uCoveragePass;
         float (*rows)[4];size_t capacity;
-        const LongHairSet* packedHair;uint64_t packedGeneration,packedPoseGeneration;size_t packedCount;
+        const LongHairSet* packedHair;uint64_t packedGeneration,packedPoseGeneration,packedFingerprint;size_t packedCount;
         bool pending;int quality;
         LongHairRenderStats stats;
     } longHair;
@@ -447,9 +450,20 @@ bool OpenGLRenderer_SavePPM(const char* path, int width, int height) {
  * FRAME LIFECYCLE
  * ============================================================ */
 
+static GLuint FrameTarget(const OpenGLRendererData* d) {
+    return d&&d->frameTargetExplicit ? d->frameTarget : demoFramebuffer;
+}
+
+void OpenGLRenderer_SetFrameTarget(Renderer3D* renderer,unsigned framebuffer) {
+    if(!renderer||!renderer->user_data)return;
+    OpenGLRendererData* d=renderer->user_data;
+    d->frameTargetExplicit=true;
+    d->frameTarget=framebuffer;
+}
+
 static void OpenGL_BeginFrame(Renderer3D* self) {
-    if(demoFramebuffer)glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);
     OpenGLRendererData* d=self?self->user_data:NULL;
+    if(demoFramebuffer||(d&&d->frameTargetExplicit))glBindFramebuffer(GL_FRAMEBUFFER,FrameTarget(d));
     if(d) {
         if(!d->meshQueries[0])glGenQueries(4,d->meshQueries);
         for(unsigned pending=0;pending<4;++pending) {
@@ -624,6 +638,7 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
             if(m->skinBase)glDeleteBuffers(1,&m->skinBase);
             if(m->skinWeights)glDeleteBuffers(1,&m->skinWeights);
         }
+        for(unsigned i=0;i<2;++i)if(data->sdfPreparing[i])glDeleteProgram(data->sdfPreparing[i]);
         if(data->sdfProgram)glDeleteProgram(data->sdfProgram);
         if(data->sdfCachedProgram)glDeleteProgram(data->sdfCachedProgram);
         glDeleteBuffers(1,&data->sdfMouthCache);
@@ -869,9 +884,9 @@ static void OpenGL_RenderEyeCallback(Renderer3D* self,const struct MonsterVisual
     size_t max=(size_t)INT32_MAX-((size_t)INT32_MAX%3);for(size_t i=0;i<e->globe.indexCount;){size_t n=e->globe.indexCount-i;if(n>max)n=max;glDrawElements(GL_TRIANGLES,(GLsizei)n,GL_UNSIGNED_INT,&e->globe.indices[i]);i+=n;}
     glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_VERTEX_ARRAY);glBindTexture(GL_TEXTURE_2D,0);glUseProgram((GLuint)oldProgram);
 }
+static const char* sdfVertexSource="#version 330 compatibility\nvoid main(){gl_Position=gl_Vertex;}\n";
 static GLuint LinkSDFProgram(const char* const* source,size_t sourceCount) {
-    const char* vertex="#version 330 compatibility\nvoid main(){gl_Position=gl_Vertex;}\n";
-    GLuint vs=CompileShader(GL_VERTEX_SHADER,&vertex,1);
+    GLuint vs=CompileShader(GL_VERTEX_SHADER,&sdfVertexSource,1);
     GLuint fs=CompileShader(GL_FRAGMENT_SHADER,source,sourceCount);
     if(!vs||!fs){if(vs)glDeleteShader(vs);if(fs)glDeleteShader(fs);return 0;}
     GLuint p=glCreateProgram();glAttachShader(p,vs);glAttachShader(p,fs);glLinkProgram(p);
@@ -933,6 +948,76 @@ static bool InitSDFCachedProgram(OpenGLRendererData* d) {
     GLuint block=glGetUniformBlockIndex(d->sdfCachedProgram,"SDFMouthCache");
     if(block!=GL_INVALID_INDEX)glUniformBlockBinding(d->sdfCachedProgram,block,0);
     return true;
+}
+static bool UseCachedHead(const OpenGLRendererData* d,const MonsterSDF* sdf) {
+    return sdf->mouthCount==1&&M_STRIDE<=1024&&!d->reference.enabled&&getenv("MONSTER_SDF_NO_HEAD_CACHE")==NULL;
+}
+
+OpenGLSDFProgramStatus OpenGLRenderer_PrepareSDFProgram(Renderer3D* renderer,const MonsterSDF* sdf) {
+    if(!renderer||!renderer->user_data||!sdf)return OPENGL_SDF_FAILED;
+    OpenGLRendererData* d=renderer->user_data;
+    bool cached=UseCachedHead(d,sdf);
+    GLuint* target=cached?&d->sdfCachedProgram:&d->sdfProgram;
+    if(*target)return OPENGL_SDF_READY;
+    GLuint* pending=&d->sdfPreparing[cached];
+    if(!*pending) {
+        typedef void (APIENTRYP MaxCompilerThreads)(GLuint);
+        union { void* address; MaxCompilerThreads call; } threads={.address=NULL};
+        if(SDL_GL_ExtensionSupported("GL_KHR_parallel_shader_compile"))
+            threads.address=SDL_GL_GetProcAddress("glMaxShaderCompilerThreadsKHR");
+        if(!threads.address&&SDL_GL_ExtensionSupported("GL_ARB_parallel_shader_compile"))
+            threads.address=SDL_GL_GetProcAddress("glMaxShaderCompilerThreadsARB");
+        if(!threads.address)
+            return (cached?InitSDFCachedProgram(d):InitSDFProgram(d))?OPENGL_SDF_READY:OPENGL_SDF_FAILED;
+
+        threads.call(0xffffffffu);
+        const char* const* source=cached?sdfCachedFragmentSource:sdfFragmentSource;
+        size_t count=cached?sizeof(sdfCachedFragmentSource)/sizeof(*sdfCachedFragmentSource):
+                            sizeof(sdfFragmentSource)/sizeof(*sdfFragmentSource);
+        GLuint vertex=glCreateShader(GL_VERTEX_SHADER), fragment=glCreateShader(GL_FRAGMENT_SHADER);
+        GLuint program=glCreateProgram();
+        if(!vertex||!fragment||!program) {
+            if(vertex)glDeleteShader(vertex);
+            if(fragment)glDeleteShader(fragment);
+            if(program)glDeleteProgram(program);
+            return OPENGL_SDF_FAILED;
+        }
+        glShaderSource(vertex,1,&sdfVertexSource,NULL);
+        glShaderSource(fragment,(GLsizei)count,source,NULL);
+        glCompileShader(vertex);
+        glCompileShader(fragment);
+        glAttachShader(program,vertex);
+        glAttachShader(program,fragment);
+        glLinkProgram(program);
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+        *pending=program;
+    }
+
+    GLint ready=GL_FALSE;
+    /* GL_COMPLETION_STATUS_KHR/ARB no espera al compilador. */
+    glGetProgramiv(*pending,GL_COMPLETION_STATUS_KHR,&ready);
+    if(!ready)return OPENGL_SDF_COMPILING;
+    GLint linked=0;
+    glGetProgramiv(*pending,GL_LINK_STATUS,&linked);
+    if(!linked) {
+        char log[4096];
+        glGetProgramInfoLog(*pending,sizeof(log),NULL,log);
+        fprintf(stderr,"[SDF GPU] %s\n",log);
+        glDeleteProgram(*pending);
+        *pending=0;
+        return OPENGL_SDF_FAILED;
+    }
+    *target=*pending;
+    *pending=0;
+    if(cached) {
+        d->cachedUniforms=SDFLocations(*target);
+        GLuint block=glGetUniformBlockIndex(*target,"SDFMouthCache");
+        if(block!=GL_INVALID_INDEX)glUniformBlockBinding(*target,block,0);
+    } else {
+        d->uniforms=SDFLocations(*target);
+    }
+    return OPENGL_SDF_READY;
 }
 static void UniformVector(GLint location,Vector3 v){glUniform3f(location,v.x,v.y,v.z);}
 
@@ -2159,7 +2244,7 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     int partBase=d->scene.partBase,connectorBase=d->scene.connectorBase;
     int mouthBase=d->scene.mouthBase,axialBase=d->scene.axialBase;
     int tileDataBase=d->scene.tileDataBase,columns=d->scene.columns;
-    bool cached=sdf->mouthCount==1&&M_STRIDE<=1024&&!d->reference.enabled&&getenv("MONSTER_SDF_NO_HEAD_CACHE")==NULL;
+    bool cached=UseCachedHead(d,sdf);
     if(cached ? !InitSDFCachedProgram(d) : (!d->sdfProgram&&!InitSDFProgram(d)))return false;
     SDFUniformLocations original=d->uniforms;
     if(cached)d->uniforms=d->cachedUniforms;
@@ -2390,7 +2475,7 @@ bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_MODE,GL_NONE);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,d->sdfDepth,0);
         glBindTexture(GL_TEXTURE_2D,0);glActiveTexture((GLenum)activeTex);
-        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);return false;}
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){glBindFramebuffer(GL_FRAMEBUFFER,FrameTarget(d));return false;}
         d->sdfAllocatedWidth=aw;d->sdfAllocatedHeight=ah;
     }
     d->sdfWidth=rw;d->sdfHeight=rh;
@@ -2402,9 +2487,9 @@ bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width
     glViewport(0,0,rw,rh);
     return true;
 }
-static void CompositeSDFFrame(OpenGLRendererData* d,int width,int height) {
+static bool CompositeSDFFrame(OpenGLRendererData* d,int width,int height) {
     /* Componer color y profundidad por shader para evitar GL_INVALID_OPERATION al escalar hacia MSAA. */
-    glBindFramebuffer(GL_FRAMEBUFFER,demoFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER,FrameTarget(d));
     glViewport(0,0,width,height);
     if(InitSDFBlitProgram(d)) {
         GLint oldProgram=0,activeTex=GL_TEXTURE0,oldTex0=0,oldTex1=0,oldDepthFunc=GL_LEQUAL;
@@ -2436,25 +2521,27 @@ static void CompositeSDFFrame(OpenGLRendererData* d,int width,int height) {
         glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,(GLuint)oldTex0);
         glActiveTexture((GLenum)activeTex);
         glUseProgram((GLuint)oldProgram);
+        return true;
     }
+    return false;
 }
 
-void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
-    if(!renderer||!renderer->user_data)return;
+bool OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height) {
+    if(!renderer||!renderer->user_data)return false;
     OpenGLRendererData* d=renderer->user_data;
-    if(!d->sdfFrameActive)return;
+    if(!d->sdfFrameActive)return false;
     if(d->queryIssued){glEndQuery(GL_TIME_ELAPSED);d->queryPending[d->queryFrame%4]=true;}
     ++d->queryFrame;
-    CompositeSDFFrame(d,width,height);
+    bool composited=CompositeSDFFrame(d,width,height);
     d->sdfFrameActive=false;
+    return composited;
 }
 
 bool OpenGLRenderer_CompositeCachedSDFFrame(Renderer3D* renderer,int width,int height) {
     if(!renderer||!renderer->user_data)return false;
     OpenGLRendererData* d=renderer->user_data;
     if(d->sdfFrameActive||!d->sdfBlitProgram||d->sdfWidth!=width||d->sdfHeight!=height)return false;
-    CompositeSDFFrame(d,width,height);
-    return true;
+    return CompositeSDFFrame(d,width,height);
 }
 float OpenGLRenderer_GetSDFGpuMs(const Renderer3D* renderer){return renderer&&renderer->user_data?((OpenGLRendererData*)renderer->user_data)->gpuMs:0;}
 float OpenGLRenderer_GetSDFResolutionScale(const Renderer3D* renderer){return renderer&&renderer->user_data?((OpenGLRendererData*)renderer->user_data)->resolutionScale:0;}
@@ -3138,7 +3225,7 @@ static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair){
             d->longHair.stats.gpuMs=(float)((double)(b-a)*1e-6);d->longHair.stats.timingValid=true;d->longHair.pending=false;}}
     size_t rows=hair->count*LONG_HAIR_GPU_ROWS;
     bool needsUpload=(d->longHair.packedHair!=hair||d->longHair.packedGeneration!=hair->generation||
-        d->longHair.packedPoseGeneration!=hair->poseGeneration||d->longHair.packedCount!=hair->count||rows>d->longHair.capacity);
+        d->longHair.packedPoseGeneration!=hair->poseGeneration||d->longHair.packedFingerprint!=hair->fingerprint||d->longHair.packedCount!=hair->count||rows>d->longHair.capacity);
     if(needsUpload){
         if(rows>d->longHair.capacity){void* memory=realloc(d->longHair.rows,rows*sizeof(*d->longHair.rows));if(!memory)return;d->longHair.rows=memory;d->longHair.capacity=rows;}
         if(!LongHairSet_Pack(hair,d->longHair.rows,d->longHair.capacity))return;
@@ -3155,7 +3242,7 @@ static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair){
     if(needsUpload){
         glBindBuffer(GL_TEXTURE_BUFFER,d->longHair.buffer);glBufferData(GL_TEXTURE_BUFFER,rows*sizeof(*d->longHair.rows),d->longHair.rows,GL_STREAM_DRAW);
         glBindTexture(GL_TEXTURE_BUFFER,d->longHair.texture);glTexBuffer(GL_TEXTURE_BUFFER,GL_RGBA32F,d->longHair.buffer);
-        d->longHair.packedHair=hair;d->longHair.packedGeneration=hair->generation;
+        d->longHair.packedHair=hair;d->longHair.packedGeneration=hair->generation;d->longHair.packedFingerprint=hair->fingerprint;
         d->longHair.packedPoseGeneration=hair->poseGeneration;d->longHair.packedCount=hair->count;
     } else {
         glBindTexture(GL_TEXTURE_BUFFER,d->longHair.texture);

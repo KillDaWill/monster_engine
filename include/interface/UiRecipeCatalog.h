@@ -13,4 +13,7 @@ typedef struct {
 UiRecipeCatalogReport UiRecipeCatalog_Load(UiVfs *, UiVfsId, const char *directory);
 /* Busca el proyecto junto a demos/interface_demo, con la fuente del demo morph como marcador. */
 UiRecipeCatalogReport UiRecipeCatalog_LoadProject(UiVfs *, UiVfsId, const char *executableDirectory);
+/* Lee sólo la entrada externa que la aplicación resolvió en el árbol del catálogo.
+ * El llamador libera el JSON y comprueba su ID al validarlo con el motor. */
+char *UiRecipeCatalog_ReadProjectRecipe(const char *executableDirectory, const UiVfsNode *);
 #endif

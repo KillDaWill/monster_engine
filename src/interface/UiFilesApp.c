@@ -7,6 +7,12 @@ void UiFilesApp_Init(UiFilesApp *app, const UiVfs *fs)
     *app = (UiFilesApp){.fs=fs,.directory=UiVfs_Root(fs)};
 }
 
+static void Reset(void *state)
+{
+    UiFilesApp *app = state;
+    UiFilesApp_Init(app,app->fs);
+}
+
 bool UiFilesApp_Open(UiFilesLaunch *launch)
 {
     UiFilesApp *app = launch->files;
@@ -16,6 +22,7 @@ bool UiFilesApp_Open(UiFilesLaunch *launch)
     }
     UiWindow presentation = launch->presentation;
     presentation.state = app;
+    presentation.onClose = Reset;
     app->window = UiDesktop_Add(launch->desktop,presentation);
     return app->window != 0;
 }
@@ -26,6 +33,18 @@ UiCommandResult UiFilesApp_Command(void *state, const char *args, char *out, siz
     else if (UiFilesApp_Open(state)) return UI_COMMAND_SILENT;
     else snprintf(out,capacity,"Files: Desktop window limit reached");
     return UI_COMMAND_ERROR;
+}
+
+UiCommandResult UiFilesApp_CloseCommand(void *state, const char *args, char *out, size_t capacity)
+{
+    UiFilesLaunch *launch = state;
+    if (*args) {
+        snprintf(out,capacity,"Files.close: Expected no arguments");
+        return UI_COMMAND_ERROR;
+    }
+    if (UiDesktop_Close(launch->desktop,launch->files->window)) return UI_COMMAND_SILENT;
+    snprintf(out,capacity,"Files is already closed.");
+    return UI_COMMAND_OK;
 }
 
 static void Location(UiFilesApp *app, UiVfsId id)

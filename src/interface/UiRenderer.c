@@ -1,3 +1,4 @@
+#define GL_GLEXT_PROTOTYPES
 #include "interface/UiRenderer.h"
 #include "interface/UiText.h"
 #include <GL/gl.h>
@@ -10,7 +11,8 @@ typedef struct { UiPoint point; GLubyte rgba[4]; } UiVertex;
 
 struct UiRenderer {
     GLuint atlas, texture;
-    int count, width, height, drawableW, drawableH, depth;
+    int count, width, height, drawableW, drawableH, depth, textureUnits;
+    bool modern;
     UiRect clips[CLIP_LIMIT];
     UiVertex vertices[BATCH_VERTICES];
 };
@@ -46,6 +48,9 @@ UiRenderer *UiRenderer_Create(void)
                      GL_ALPHA, GL_UNSIGNED_BYTE, pixels);
     }
     free(pixels);
+    const char *version = (const char *)glGetString(GL_VERSION);
+    r->modern = version && atoi(version) >= 3;
+    glGetIntegerv(GL_MAX_TEXTURE_UNITS,&r->textureUnits);
     if (!r->atlas || glGetError() != GL_NO_ERROR) {
         UiRenderer_Destroy(r);
         return NULL;
@@ -76,6 +81,31 @@ void UiRenderer_Begin(UiRenderer *r, int w, int h, int dw, int dh)
     r->drawableH = dh;
     r->depth = 0;
     r->count = 0;
+    if (r->modern) {
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+        glBindVertexArray(0);
+    }
+    glDrawBuffer(GL_BACK);
+    glReadBuffer(GL_BACK);
+    glUseProgram(0);
+    glBindBuffer(GL_ARRAY_BUFFER,0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+    for (int i=1; i<r->textureUnits; ++i) {
+        glActiveTexture(GL_TEXTURE0+i);
+        glDisable(GL_TEXTURE_2D);
+    }
+    glActiveTexture(GL_TEXTURE0);
+    glClientActiveTexture(GL_TEXTURE0);
+    glDisableClientState(GL_NORMAL_ARRAY);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_ALPHA_TEST);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_FOG);
+    glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    glShadeModel(GL_SMOOTH);
+    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    glDepthMask(GL_TRUE);
+    glBlendEquation(GL_FUNC_ADD);
     glViewport(0, 0, dw, dh);
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_DEPTH_TEST);
@@ -174,12 +204,9 @@ static void ApplyClip(UiRenderer *r)
         glDisable(GL_SCISSOR_TEST);
         return;
     }
-    UiRect b = r->clips[r->depth - 1];
-    float sx = (float)r->drawableW / r->width, sy = (float)r->drawableH / r->height;
-    int x = lroundf(b.x * sx), right = lroundf((b.x + b.w) * sx);
-    int y = lroundf((r->height - b.y - b.h) * sy), top = lroundf((r->height - b.y) * sy);
+    UiRect b = UiRect_Drawable(r->clips[r->depth-1],r->width,r->height,r->drawableW,r->drawableH);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x, y, right - x, top - y);
+    glScissor(b.x,r->drawableH-b.y-b.h,b.w,b.h);
 }
 
 bool UiRenderer_PushClip(UiRenderer *r, UiRect b)

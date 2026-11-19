@@ -121,7 +121,7 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/LizardVariations.c
 
 # Módulo de Renderizador OpenGL
-RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c
+RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c $(SRC_DIR)/MorphViewCamera.c
 
 CORE_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(CORE_SRCS))
 RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
@@ -353,9 +353,10 @@ demos: demos/demo_ecosystem demos/demo_ecosystem_headless $(DEMO_AGER_BIN) $(DEM
 # Escritorio independiente. Los tests de lógica no necesitan SDL ni OpenGL.
 UI_MODEL_SRCS = src/interface/UiCommands.c src/interface/UiDesktop.c \
                 src/interface/UiTerminal.c src/interface/UiText.c src/interface/UiVfs.c \
-                src/interface/UiRecipeCatalog.c src/interface/UiShell.c src/interface/UiFilesApp.c
+                src/interface/UiRecipeCatalog.c src/interface/UiRecipeRoutes.c src/interface/UiShell.c src/interface/UiFilesApp.c
 UI_GRAPHICS_SRCS = src/interface/UiPlatform.c src/interface/UiRenderer.c \
-                   src/interface/UiTheme.c src/interface/UiTerminalView.c src/interface/UiFilesView.c
+                   src/interface/UiTheme.c src/interface/UiTerminalView.c src/interface/UiFilesView.c \
+                   src/interface/UiCreatureVisualizer.c src/interface/UiCreatureEngine.c src/interface/UiCreatureScene.c
 UI_HEADERS = $(wildcard include/interface/*.h)
 UI_BIN = demos/interface_demo
 UI_TEST_BIN = $(BUILD_DIR)/interface_test
@@ -363,8 +364,8 @@ UI_TEST_BIN = $(BUILD_DIR)/interface_test
 .PHONY: interface-test run-interface
 demos: $(UI_BIN)
 
-$(UI_BIN): demos/interface_demo.c $(UI_MODEL_SRCS) $(UI_GRAPHICS_SRCS) $(UI_HEADERS) assets/interface/fonts/InterfaceAtlas.inc
-	$(CC) $(CFLAGS) $(filter %.c,$^) -lSDL2 -lGL -lm -o $@
+$(UI_BIN): $(CORE_OBJS) $(RENDER_OBJS) demos/interface_demo.c $(UI_MODEL_SRCS) $(UI_GRAPHICS_SRCS) $(UI_HEADERS) $(wildcard src/interface/*.h) assets/interface/fonts/InterfaceAtlas.inc
+	$(CC) $(CFLAGS) $(filter %.c %.o,$^) $(GL_LIBS) -o $@
 
 $(UI_TEST_BIN): tests/test_interface.c $(UI_MODEL_SRCS) $(UI_HEADERS)
 	@mkdir -p $(@D)
@@ -372,6 +373,15 @@ $(UI_TEST_BIN): tests/test_interface.c $(UI_MODEL_SRCS) $(UI_HEADERS)
 
 interface-test: $(UI_TEST_BIN)
 	./$(UI_TEST_BIN)
+
+.PHONY: interface-engine-test
+$(BUILD_DIR)/interface_creature_test: $(CORE_OBJS) tests/test_interface_creature.c \
+        src/interface/UiCreatureScene.c src/interface/UiVfs.c src/interface/UiRecipeCatalog.c \
+        $(UI_HEADERS) src/interface/UiCreatureScene.h
+	$(CC) $(CFLAGS) $(filter %.c %.o,$^) $(LIBS) -o $@
+
+interface-engine-test: $(BUILD_DIR)/interface_creature_test
+	./$(BUILD_DIR)/interface_creature_test
 
 run-interface: $(UI_BIN)
 	./$(UI_BIN)

@@ -25,6 +25,7 @@ typedef struct {
 void UiFilesApp_Init(UiFilesApp *, const UiVfs *);
 bool UiFilesApp_Open(UiFilesLaunch *);
 UiCommandResult UiFilesApp_Command(void *, const char *, char *, size_t);
+UiCommandResult UiFilesApp_CloseCommand(void *, const char *, char *, size_t);
 bool UiFilesApp_Go(UiFilesApp *, UiVfsId);
 bool UiFilesApp_Back(UiFilesApp *);
 bool UiFilesApp_Up(UiFilesApp *);

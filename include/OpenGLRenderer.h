@@ -126,6 +126,9 @@ bool OpenGLRenderer_ValidateComputeSDF(Renderer3D*,const MonsterSDF*,const Vecto
  * @return Estructura Renderer3D con sus callbacks apuntando a las funciones de OpenGL.
  */
 Renderer3D OpenGLRenderer_Create(ICamera* camera);
+/** @brief Selecciona el framebuffer final de esta instancia para beginFrame y la composición SDF.
+ * El llamador conserva el framebuffer y sus attachments. 0 selecciona el framebuffer de ventana. */
+void OpenGLRenderer_SetFrameTarget(Renderer3D* renderer, unsigned framebuffer);
 
 /**
  * @brief Configura la matriz de perspectiva e iluminación en OpenGL.
@@ -213,6 +216,10 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer);
 bool OpenGLRenderer_RenderSDF(Renderer3D* renderer,const MonsterSDF* sdf,
     const ICamera* camera,int width,int height);
 
+typedef enum { OPENGL_SDF_FAILED, OPENGL_SDF_COMPILING, OPENGL_SDF_READY } OpenGLSDFProgramStatus;
+/** @brief Prepara la variante del campo; con KHR/ARB hace sondeo no bloqueante del enlace. */
+OpenGLSDFProgramStatus OpenGLRenderer_PrepareSDFProgram(Renderer3D*,const MonsterSDF*);
+
 /** @brief Dibuja el campo SDF acotado a una región AABB espacial mediante scissoring GPU y filtrado de tiles.
  * @param renderer Backend OpenGL.
  * @param sdf Campo compilado.
@@ -237,8 +244,9 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,
  * @return true si se preparó el framebuffer.
  */
 bool OpenGLRenderer_BeginSDFFrame(Renderer3D* renderer,ICamera* camera,int width,int height,bool adaptive);
-/** @brief Presenta el fotograma SDF y recoge tiempos GPU sin bloquear. */
-void OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height);
+/** @brief Presenta el fotograma SDF y recoge tiempos GPU sin bloquear.
+ * @return true si se completó la composición en el destino. */
+bool OpenGLRenderer_EndSDFFrame(Renderer3D* renderer,int width,int height);
 /** Compone el último color y profundidad SDF a resolución nativa.
  * El llamador debe verificar que escena, cámara y material siguen vigentes. */
 bool OpenGLRenderer_CompositeCachedSDFFrame(Renderer3D* renderer,int width,int height);

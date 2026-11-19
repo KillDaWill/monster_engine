@@ -9,6 +9,19 @@ bool UiRect_Contains(UiRect r, int x, int y)
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
 
+static int PixelEdge(int coordinate, int logical, int drawable)
+{
+    int64_t scaled = (int64_t)coordinate*drawable;
+    return (int)((scaled+(scaled < 0 ? -logical/2 : logical/2))/logical);
+}
+
+UiRect UiRect_Drawable(UiRect r, int w, int h, int dw, int dh)
+{
+    if (w <= 0 || h <= 0 || dw <= 0 || dh <= 0) return (UiRect){0};
+    int x = PixelEdge(r.x,w,dw), y = PixelEdge(r.y,h,dh);
+    return (UiRect){x,y,PixelEdge(r.x+r.w,w,dw)-x,PixelEdge(r.y+r.h,h,dh)-y};
+}
+
 UiRect UiWindow_Content(UiRect r)
 {
     return (UiRect){r.x + UI_FRAME, r.y + UI_TITLE_HEIGHT,
@@ -18,6 +31,11 @@ UiRect UiWindow_Content(UiRect r)
 UiRect UiWindow_MinimizeButton(UiRect r)
 {
     return (UiRect){r.x + r.w - 36, r.y + 6, 28, 24};
+}
+
+UiRect UiWindow_CloseButton(UiRect r)
+{
+    return (UiRect){r.x + r.w - 70, r.y + 6, 28, 24};
 }
 
 UiRect UiWindow_ResizeGrip(UiRect r)
@@ -114,6 +132,17 @@ void UiDesktop_Remove(UiDesktop *d, UiWindowId id)
     memmove(&d->windows[i], &d->windows[i + 1], (d->count - i) * sizeof(UiWindow));
 }
 
+bool UiDesktop_Close(UiDesktop *d, UiWindowId id)
+{
+    const UiWindow *w = UiDesktop_Find(d,id);
+    if (!w || !w->onClose) return false;
+    UiWindowClose cleanup = w->onClose;
+    void *state = w->state;
+    UiDesktop_Remove(d,id);
+    cleanup(state);
+    return true;
+}
+
 void UiDesktop_Cycle(UiDesktop *d, bool reverse)
 {
     /* Los IDs conservan el orden de creación aunque cambie el orden visual. */
@@ -150,6 +179,10 @@ void UiDesktop_PressWithClicks(UiDesktop *d, int x, int y, int clicks)
     if (!w) return;
     if (UiRect_Contains(UiWindow_MinimizeButton(w->rect), x, y)) {
         UiDesktop_Hide(d, id);
+        return;
+    }
+    if (w->onClose && UiRect_Contains(UiWindow_CloseButton(w->rect), x, y)) {
+        UiDesktop_Close(d,id);
         return;
     }
     bool resize = UiRect_Contains(UiWindow_ResizeGrip(w->rect), x, y);

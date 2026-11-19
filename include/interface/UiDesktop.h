@@ -25,6 +25,7 @@ typedef struct {
     int compositionCursor, compositionLength;
 } UiEvent;
 
+typedef void (*UiWindowClose)(void *);
 typedef void (*UiWindowDraw)(void *, UiRenderer *, UiRect, bool, bool);
 typedef void (*UiWindowIcon)(UiRenderer *, int x, int y, uint32_t color);
 typedef void (*UiWindowInput)(void *, UiRect, const UiEvent *);
@@ -38,6 +39,7 @@ typedef struct {
     UiWindowDraw draw;
     UiWindowIcon drawIcon;
     UiWindowInput input;
+    UiWindowClose onClose;
     void *state;
 } UiWindow;
 
@@ -52,12 +54,17 @@ typedef struct {
 } UiDesktop;
 
 bool UiRect_Contains(UiRect r, int x, int y);
+/* Convierte ambos bordes al framebuffer para mantener las uniones fraccionarias. */
+UiRect UiRect_Drawable(UiRect, int width, int height, int drawableW, int drawableH);
 UiRect UiWindow_Content(UiRect frame);
 UiRect UiWindow_MinimizeButton(UiRect frame);
+UiRect UiWindow_CloseButton(UiRect frame);
 UiRect UiWindow_ResizeGrip(UiRect frame);
 void UiDesktop_SetArea(UiDesktop *desktop, UiRect area);
 /* Copia la descripción. La aplicación conserva la propiedad de title y state. */
 UiWindowId UiDesktop_Add(UiDesktop *desktop, UiWindow window);
+/* Quita el marco, restaura el foco y luego invoca la limpieza de su propietario. */
+bool UiDesktop_Close(UiDesktop *desktop, UiWindowId id);
 void UiDesktop_Remove(UiDesktop *desktop, UiWindowId id);
 const UiWindow *UiDesktop_Find(const UiDesktop *desktop, UiWindowId id);
 void UiDesktop_Activate(UiDesktop *desktop, UiWindowId id);

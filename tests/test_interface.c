@@ -5,6 +5,7 @@
 #include "interface/UiText.h"
 #include "interface/UiFilesApp.h"
 #include "interface/UiRecipeCatalog.h"
+#include "interface/UiRecipeRoutes.h"
 #include "interface/UiShell.h"
 #include <assert.h>
 #include <limits.h>
@@ -155,6 +156,10 @@ static void WindowInput(void *state, UiRect c, const UiEvent *event)
 
 static void Desktop(void)
 {
+    UiRect left = UiRect_Drawable((UiRect){1,3,9,8},100,40,150,80);
+    UiRect right = UiRect_Drawable((UiRect){10,3,3,8},100,40,150,80);
+    assert(left.x == 2 && left.y == 6 && left.h == 16);
+    assert(left.x+left.w == right.x && right.x+right.w == 20);
     UiDesktop d = {0};
     WindowState one = {0}, two = {0};
     UiDesktop_SetArea(&d,(UiRect){10,20,600,400});
@@ -434,10 +439,65 @@ static void ShellAndFiles(void)
     assert(!terminal.following && terminal.totalRows > terminal.logCount);
     assert(!strcmp(Log(&terminal,terminal.logCount-1)->text,"catalog-test-fixture-099.creature.json"));
 
-    UiDesktop_Remove(&desktop,filesId);
+    assert(UiCommands_Register(&commands,"Files.close",UiFilesApp_CloseCommand,&launch));
+    UiDesktop_Hide(&desktop,filesId);
+    Expect(&commands,"Files.close",UI_COMMAND_SILENT,"");
+    assert(!files.window && files.directory == root && desktop.focus == terminalId && desktop.count == 1);
+    Expect(&commands,"Files.close",UI_COMMAND_OK,"Files is already closed.");
+    Expect(&commands,"Files",UI_COMMAND_SILENT,"");
+    assert(files.window && files.window != filesId && files.directory == root);
+    UiRect close = UiWindow_CloseButton(UiDesktop_Find(&desktop,files.window)->rect);
+    UiDesktop_Press(&desktop,close.x+1,close.y+1);
+    assert(!files.window && !desktop.captured && desktop.focus == terminalId);
+    assert(!UiDesktop_Close(&desktop,terminalId));
+    Expect(&commands,"Files",UI_COMMAND_SILENT,"");
+    UiWindowId reopened = files.window;
+    const UiWindow *pressed = UiDesktop_Find(&desktop,reopened);
+    UiDesktop_Press(&desktop,pressed->rect.x+8,pressed->rect.y+8);
+    assert(desktop.captured == reopened);
+    assert(UiDesktop_Close(&desktop,reopened));
+    assert(!desktop.captured && !files.window && desktop.focus == terminalId);
     while (desktop.count < UI_MAX_WINDOWS) assert(UiDesktop_Add(&desktop,launch.presentation));
     Expect(&commands,"Files",UI_COMMAND_ERROR,"Files: Desktop window limit reached");
     UiVfs_Destroy(fs);
+}
+
+static void RecipeRoutes(void)
+{
+    UiVfs *fs = UiVfs_Create();
+    assert(fs);
+    UiVfsId root = UiVfs_Root(fs), folder = Recipes(fs);
+    UiVfsId dog = UiVfs_Add(fs,folder,"Perro.recipe",UI_VFS_FILE,UI_VFS_BUILTIN_RECIPE,2);
+    UiVfsId elephant = UiVfs_Add(fs,folder,"elefante.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1008);
+    UiVfsId pig = UiVfs_Add(fs,folder,"cerdo.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1007);
+    const UiVfsNode *a, *b;
+    assert(!UiRecipeRoutes_Resolve(fs,root,"/recepies/Perro.recipe",false,&a,&b) && a->id == dog && !b);
+    assert(!UiRecipeRoutes_Resolve(fs,folder,"./elefante.creature.json",false,&a,&b) && a->id == elephant);
+    assert(!UiRecipeRoutes_Resolve(fs,root,"/recepies/cerdo.creature.json./recepies/elefante.creature.json",true,&a,&b));
+    assert(a->id == pig && b->id == elephant);
+    assert(!UiRecipeRoutes_Resolve(fs,folder,"cerdo.creature.json.Perro.recipe",true,&a,&b));
+    assert(a->id == pig && b->id == dog);
+    assert(!strcmp(UiRecipeRoutes_Resolve(fs,folder,"Perro.recipe.missing.recipe",true,&a,&b),"Second recipe not found"));
+    assert(!strcmp(UiRecipeRoutes_Resolve(fs,root,"/recepies",false,&a,&b),"Expected a recipe file"));
+    assert(!strcmp(UiRecipeRoutes_Resolve(fs,root,"/etc/passwd",false,&a,&b),"Recipe not found"));
+    assert(UiRecipeRoutes_Resolve(fs,folder,"",true,&a,&b));
+    for (const char **name=(const char *[]){"a","b.c","a.b","c",NULL}; *name; ++name)
+        assert(UiVfs_Add(fs,folder,*name,UI_VFS_FILE,UI_VFS_BUILTIN_RECIPE,1));
+    assert(!strcmp(UiRecipeRoutes_Resolve(fs,folder,"a.b.c",true,&a,&b),"Ambiguous recipe routes"));
+    UiVfs_Destroy(fs);
+
+    UiCommands commands = {0};
+    int calls = 0;
+    assert(UiCommands_RegisterPrefix(&commands,"CreatureVisualizer.view.",Custom,&calls));
+    assert(UiCommands_RegisterPrefix(&commands,"CreatureVisualizer.view.interpolation.",Custom,&calls));
+    assert(UiCommands_Register(&commands,"CreatureVisualizer.close",Custom,&calls));
+    assert(UiCommands_Register(&commands,"print",UiCommands_Print,NULL));
+    Expect(&commands,"CreatureVisualizer.view./recepies/Perro.recipe",UI_COMMAND_OK,"[/recepies/Perro.recipe]");
+    Expect(&commands,"CreatureVisualizer.view.interpolation.abc.def",UI_COMMAND_OK,"[abc.def]");
+    Expect(&commands,"CreatureVisualizer.view.",UI_COMMAND_OK,"[]");
+    Expect(&commands,"CreatureVisualizer.close",UI_COMMAND_OK,"[]");
+    Expect(&commands,"print CreatureVisualizer.view.xyz",UI_COMMAND_OK,"CreatureVisualizer.view.xyz");
+    assert(calls == 4);
 }
 
 int main(void)
@@ -450,6 +510,7 @@ int main(void)
     Desktop();
     RecipeCatalog();
     ShellAndFiles();
+    RecipeRoutes();
     puts("Interface tests passed");
     return 0;
 }

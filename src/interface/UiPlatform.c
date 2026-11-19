@@ -11,13 +11,14 @@ struct UiPlatform {
     UiApp app;
     UiWindowId textOwner;
     int width, height;
-    bool running, nativeFocus, redraw;
+    bool running, nativeFocus, redraw, mouseCaptured;
     Uint64 blinkStart;
 };
 
 static void Release(UiPlatform *p)
 {
-    if (p->app.desktop->captured) SDL_CaptureMouse(SDL_FALSE);
+    if (p->mouseCaptured) SDL_CaptureMouse(SDL_FALSE);
+    p->mouseCaptured = false;
     UiDesktop_Release(p->app.desktop);
 }
 
@@ -128,7 +129,7 @@ static void Event(UiPlatform *p, SDL_Event e)
         if (e.button.button == SDL_BUTTON_LEFT && !d->captured &&
             (!p->app.desktopPress || !p->app.desktopPress(p->app.state,e.button.x,e.button.y))) {
             UiDesktop_PressWithClicks(d,e.button.x,e.button.y,e.button.clicks);
-            if (d->captured) SDL_CaptureMouse(SDL_TRUE);
+            if (d->captured) p->mouseCaptured = SDL_CaptureMouse(SDL_TRUE) == 0;
         }
         break;
     case SDL_MOUSEBUTTONUP:
@@ -155,6 +156,7 @@ static void Event(UiPlatform *p, SDL_Event e)
     }
     default: break;
     }
+    if (p->mouseCaptured && !d->captured) Release(p);
     SyncTextInput(p);
 }
 
@@ -165,19 +167,29 @@ static void Run(UiPlatform *p)
     SDL_StopTextInput();
     SyncTextInput(p);
     p->blinkStart = SDL_GetTicks64();
-    bool lastCaret = false;
+    bool lastCaret = false, wasNativeVisible = false;
+    Uint64 nextFrame = 0, lastFrame = SDL_GetTicks64();
     while (p->running) {
         SDL_Event e;
         /* Limita el drenaje de eventos para presentar también durante entrada continua. */
         for (int i = 0; i < 96 && SDL_PollEvent(&e); ++i) Event(p,e);
         if (!p->running) break;
-        Uint64 elapsed = SDL_GetTicks64()-p->blinkStart;
+        Uint64 now = SDL_GetTicks64();
+        bool nativeVisible = !(SDL_GetWindowFlags(p->window) & SDL_WINDOW_MINIMIZED);
+        if (!nativeVisible) lastFrame = now;
+        bool animated = nativeVisible && p->app.needsFrame && p->app.needsFrame(p->app.state);
+        if (!animated) nextFrame = 0;
+        Uint64 elapsed = now-p->blinkStart;
         bool caret = p->textOwner && elapsed/530%2 == 0;
-        if (p->redraw || caret != lastCaret) {
+        if (p->redraw || caret != lastCaret || (animated && now >= nextFrame)) {
             int dw, dh;
             SDL_GL_GetDrawableSize(p->window,&dw,&dh);
             if (dw > 0 && dh > 0 && p->width > 0 && p->height > 0 &&
-                !(SDL_GetWindowFlags(p->window) & SDL_WINDOW_MINIMIZED)) {
+                nativeVisible) {
+                double dt = !wasNativeVisible ? 0.0 : now-lastFrame > 100 ? 0.1 : (now-lastFrame)*0.001;
+                lastFrame = now;
+                if (animated) nextFrame = now+16;
+                if (p->app.prepass) p->app.prepass(p->app.state,p->width,p->height,dw,dh,dt);
                 UiRenderer_Begin(p->renderer,p->width,p->height,dw,dh);
                 p->app.draw(p->app.state,p->renderer,p->width,p->height);
                 UiTheme_DrawWindows(p->app.desktop,p->renderer,p->nativeFocus,caret);
@@ -187,10 +199,23 @@ static void Run(UiPlatform *p)
             p->redraw = false;
             lastCaret = caret;
         }
-        if (SDL_WaitEventTimeout(&e,p->textOwner ? 530-(int)(elapsed%530) : -1)) Event(p,e);
+        wasNativeVisible = nativeVisible;
+        int timeout = p->textOwner ? 530-(int)((SDL_GetTicks64()-p->blinkStart)%530) : -1;
+        if (animated) {
+            now = SDL_GetTicks64();
+            int wake = nextFrame > now ? (int)(nextFrame-now) : 1;
+            if (timeout < 0 || wake < timeout) timeout = wake;
+        }
+        if (SDL_WaitEventTimeout(&e,timeout)) Event(p,e);
     }
     Release(p);
     SDL_StopTextInput();
+}
+
+static SDL_Window *CreateWindow(const char *title, int width, int height)
+{
+    return SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,width,height,
+                            SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
 }
 
 int UiPlatform_Run(const char *title, UiApp app)
@@ -203,13 +228,20 @@ int UiPlatform_Run(const char *title, UiApp app)
         return 1;
     }
     UiPlatform p = {.app=app,.width=1280,.height=720};
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,0);
-    p.window = SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
-        p.width,p.height,SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
+    p.window = CreateWindow(title,p.width,p.height);
     if (p.window) p.gl = SDL_GL_CreateContext(p.window);
+    if (!p.gl) {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,0);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,2);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,1);
+        if (!p.window) p.window = CreateWindow(title,p.width,p.height);
+        if (p.window) p.gl = SDL_GL_CreateContext(p.window);
+    }
     if (p.gl) p.renderer = UiRenderer_Create();
     int result = p.renderer ? 0 : 1;
     if (!p.gl) fprintf(stderr,"SDL/OpenGL: %s\n",SDL_GetError());
@@ -220,6 +252,7 @@ int UiPlatform_Run(const char *title, UiApp app)
         SDL_GetWindowSize(p.window,&p.width,&p.height);
         app.resize(app.state,p.width,p.height);
         Run(&p);
+        if (app.cleanup) app.cleanup(app.state);
         UiRenderer_Destroy(p.renderer);
     }
     if (p.gl) SDL_GL_DeleteContext(p.gl);

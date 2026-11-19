@@ -154,25 +154,34 @@ static FILE *OpenRegular(int directory, const char *name, size_t limit, size_t *
     return file;
 }
 
-static uint32_t RecipeId(int directory, const char *name)
+static char *ReadRecipe(int directory, const char *name)
 {
     size_t bytes;
     FILE *file = OpenRegular(directory,name,RECIPE_BYTES,&bytes);
-    if (!file) return 0;
+    if (!file) return NULL;
     char *data = malloc(bytes+1);
-    uint32_t id = 0;
-    if (data && fread(data,1,bytes,file) == bytes && fgetc(file) == EOF &&
-        !ferror(file) && !memchr(data,0,bytes)) {
+    if (!data || fread(data,1,bytes,file) != bytes || fgetc(file) != EOF ||
+        ferror(file) || memchr(data,0,bytes)) {
+        free(data);
+        data = NULL;
+    } else {
         data[bytes] = '\0';
-        Json json = {.at=data};
-        bool valid = Object(&json,0,ENVELOPE);
-        if (valid) {
-            Space(&json);
-            if (!*json.at && json.version == 1 && json.hasRecipe && json.hasName) id = json.id;
-        }
+    }
+    fclose(file);
+    return data;
+}
+
+static uint32_t RecipeId(int directory, const char *name)
+{
+    char *data = ReadRecipe(directory,name);
+    if (!data) return 0;
+    uint32_t id = 0;
+    Json json = {.at=data};
+    if (Object(&json,0,ENVELOPE)) {
+        Space(&json);
+        if (!*json.at && json.version == 1 && json.hasRecipe && json.hasName) id = json.id;
     }
     free(data);
-    fclose(file);
     return id;
 }
 
@@ -251,8 +260,7 @@ UiRecipeCatalogReport UiRecipeCatalog_Load(UiVfs *fs, UiVfsId folder, const char
     return Load(fs,folder,fd);
 }
 
-UiRecipeCatalogReport UiRecipeCatalog_LoadProject(UiVfs *fs, UiVfsId folder,
-                                                 const char *executableDirectory)
+static int ProjectRecipes(const char *executableDirectory)
 {
     int directory = executableDirectory ? open(executableDirectory,O_RDONLY|O_DIRECTORY|O_CLOEXEC) : -1;
     int recipes = -1;
@@ -264,5 +272,22 @@ UiRecipeCatalogReport UiRecipeCatalog_LoadProject(UiVfs *fs, UiVfsId folder,
         }
         close(directory);
     }
-    return Load(fs,folder,recipes);
+    return recipes;
+}
+
+UiRecipeCatalogReport UiRecipeCatalog_LoadProject(UiVfs *fs, UiVfsId folder,
+                                                 const char *executableDirectory)
+{
+    return Load(fs,folder,ProjectRecipes(executableDirectory));
+}
+
+char *UiRecipeCatalog_ReadProjectRecipe(const char *executableDirectory, const UiVfsNode *node)
+{
+    if (!node || node->type != UI_VFS_FILE || node->source != UI_VFS_EXTERNAL_RECIPE ||
+        !Filename(node->name,strlen(node->name))) return NULL;
+    int recipes = ProjectRecipes(executableDirectory);
+    if (recipes < 0) return NULL;
+    char *json = ReadRecipe(recipes,node->name);
+    close(recipes);
+    return json;
 }

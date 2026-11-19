@@ -12,6 +12,9 @@ typedef struct {
     bool (*desktopPress)(void *, int x, int y);
     void (*draw)(void *, UiRenderer *, int width, int height);
     UiRect (*textRect)(void *, UiWindowId);
+    bool (*needsFrame)(void *);
+    void (*prepass)(void *, int width, int height, int drawableW, int drawableH, double dt);
+    void (*cleanup)(void *); /* Con el contexto activo. */
 } UiApp;
 
 /* Ejecuta el ciclo SDL/GL. La aplicación conserva la propiedad de su estado. */

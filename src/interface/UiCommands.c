@@ -31,6 +31,15 @@ bool UiCommands_Register(UiCommands *registry, const char *name,
     return true;
 }
 
+bool UiCommands_RegisterPrefix(UiCommands *registry, const char *name,
+                               UiCommandHandler handler, void *state)
+{
+    if (!name || !*name || name[strlen(name)-1] != '.' ||
+        !UiCommands_Register(registry,name,handler,state)) return false;
+    registry->entries[registry->count-1].prefix = true;
+    return true;
+}
+
 bool UiCommands_RegisterLines(UiCommands *registry, const char *name,
                               UiCommandLineHandler handler, void *state)
 {
@@ -54,6 +63,20 @@ static UiCommandResult Execute(const UiCommands *registry, const char *line,
         memcpy(name, line, length);
         name[length] = '\0';
         entry = UiCommands_Find(registry, name);
+        if (entry && entry->prefix) entry = NULL;
+    }
+    if (!entry) {
+        size_t best = 0;
+        for (size_t i=0; i<registry->count; ++i) {
+            const UiCommand *candidate = &registry->entries[i];
+            if (!candidate->prefix) continue;
+            size_t bytes = strlen(candidate->name);
+            if (bytes > best && !strncmp(line,candidate->name,bytes)) {
+                best = bytes;
+                entry = candidate;
+            }
+        }
+        if (entry) length = best;
     }
     if (!entry) {
         snprintf(out, capacity, "ERROR: Unknown command '%.*s'", (int)length, line);
@@ -61,7 +84,7 @@ static UiCommandResult Execute(const UiCommands *registry, const char *line,
         return UI_COMMAND_ERROR;
     }
     line += length;
-    while (Separator(*line)) ++line;
+    if (!entry->prefix) while (Separator(*line)) ++line;
     if (entry->lines) return entry->lines(entry->state,line,lines);
     UiCommandResult result = entry->handler(entry->state, line, out, capacity);
     out[capacity - 1] = '\0';

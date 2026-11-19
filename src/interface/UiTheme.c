@@ -28,7 +28,8 @@ void UiTheme_DrawWindows(const UiDesktop *d, UiRenderer *r, bool nativeFocus, bo
         else UiRenderer_Outline(r, (UiRect){b.x+17,b.y+14,8,8}, accent);
 
         UiRect minimize = UiWindow_MinimizeButton(b);
-        UiRect title = {b.x+41,b.y+3,minimize.x-b.x-48,UI_TITLE_HEIGHT-6};
+        UiRect close = UiWindow_CloseButton(b);
+        UiRect title = {b.x+41,b.y+3,(w->onClose ? close.x : minimize.x)-b.x-48,UI_TITLE_HEIGHT-6};
         if (UiRenderer_PushClip(r, title)) {
             UiRenderer_Text(r, title.x, b.y+8, 16, UI_PAPER, w->title ? w->title : "");
             UiRenderer_PopClip(r);
@@ -37,13 +38,21 @@ void UiTheme_DrawWindows(const UiDesktop *d, UiRenderer *r, bool nativeFocus, bo
         UiRenderer_Outline(r, minimize, UI_EDGE);
         UiRenderer_Rect(r, (UiRect){minimize.x+9,minimize.y+13,10,1}, accent);
 
+        if (w->onClose) {
+            UiColor cross = active ? UI_ERROR : UI_MUTED;
+            UiRenderer_Rect(r, close, active ? 0x352831ff : 0x102330ff);
+            UiRenderer_Outline(r, close, active ? 0x784d55ff : UI_EDGE);
+            UiRenderer_Line(r,close.x+10,close.y+8,close.x+18,close.y+16,1.25f,cross);
+            UiRenderer_Line(r,close.x+18,close.y+8,close.x+10,close.y+16,1.25f,cross);
+        }
+
         UiRect content = UiWindow_Content(b);
         if (w->draw && UiRenderer_PushClip(r, content)) {
             w->draw(w->state, r, content, active, active && caret);
             UiRenderer_PopClip(r);
         }
         UiRect grip = UiWindow_ResizeGrip(b);
-        for (int j = 4; j <= 10; j += 3)
+        for (int j = 3; j <= 7; j += 2)
             UiRenderer_Line(r, grip.x+13-j, grip.y+13, grip.x+13, grip.y+13-j, 1, accent);
     }
 }
