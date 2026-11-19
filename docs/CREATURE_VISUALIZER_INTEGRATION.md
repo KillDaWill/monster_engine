@@ -12,6 +12,23 @@ El ejecutable gráfico enlaza el motor. El gestor de ventanas, las rutas, el VFS
 
 Nexus intenta crear un contexto OpenGL 3.3 de compatibilidad. Si el contexto no se puede crear, intenta OpenGL 2.1 para el escritorio. En este último, una orden de visualización indica que necesita OpenGL 3.3 de compatibilidad. El adaptador utiliza los shaders GLSL del trazador SDF y comprueba el perfil y los buffers de textura.
 
+## Abrir recetas
+
+`CV` y `CreatureVisualizer` abren, restauran o enfocan la misma ventana. `CV.close` y `CreatureVisualizer.close` la cierran. Ambas formas aceptan `.view.` para un adulto y `.view.interpolation.` para interpolar entre dos adultos.
+
+```text
+CV.view."/recepies/Perro.recipe"
+CreatureVisualizer.view."/recepies/elefante.creature.json"
+CV.view.interpolation."/recepies/cerdo.creature.json"."/recepies/elefante.creature.json"
+CreatureVisualizer.view.interpolation."/recepies/cerdo.creature.json"."/recepies/elefante.creature.json"
+```
+
+Las comillas dobles son obligatorias para cada ruta. El punto que separa las dos rutas de una interpolación va fuera de las comillas. Las rutas se resuelven en el VFS, de forma absoluta o relativa al directorio actual del terminal.
+
+En Files, el doble clic o Intro sobre una receta llama al callback de la demo con el ID del archivo virtual. `UiCreatureVisualizer_ViewRecipe` usa la misma solicitud de escena que el terminal. La solicitud aceptada enfoca la ventana existente o la abre si está cerrada. Files sigue disponible con su selección. Los fallos de carga se muestran en Files y el terminal. Los fallos del primer pase gráfico se notifican en el terminal.
+
+`clear` borra el registro del terminal y restablece el desplazamiento al final. Conserva el historial, el directorio actual y la sesión de CreatureVisualizer. El escritorio toma el marco y la retícula de la misma área usada para mover las ventanas, incluso tras redimensionar.
+
 ## Propiedad y renderizado
 
 El ID de la ventana pertenece al estado de la aplicación. `UiDesktop_Close` retira el marco, actualiza foco y captura y después llama a la limpieza del propietario. El botón y el comando siguen ese mismo camino. La plataforma destruye las aplicaciones con el contexto activo antes de liberar el contexto SDL.

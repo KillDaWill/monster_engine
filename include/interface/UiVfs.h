@@ -26,6 +26,8 @@ UiVfsId UiVfs_Root(const UiVfs *);
 /* La aplicación construye el árbol. Los IDs y los nodos viven hasta destruirlo. */
 UiVfsId UiVfs_Add(UiVfs *, UiVfsId parent, const char *name, UiVfsType, UiVfsSource, uint32_t recipeId);
 const UiVfsNode *UiVfs_Get(const UiVfs *, UiVfsId);
+/* Comprueba los metadatos del nodo. La carga valida el contenido de la receta. */
+bool UiVfs_IsRecipe(const UiVfsNode *);
 UiVfsId UiVfs_FirstChild(const UiVfs *, UiVfsId);
 UiVfsId UiVfs_NextSibling(const UiVfs *, UiVfsId);
 UiVfsId UiVfs_FindChild(const UiVfs *, UiVfsId, const char *name);

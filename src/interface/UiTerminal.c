@@ -1,5 +1,6 @@
 #include "interface/UiTerminal.h"
 #include "interface/UiText.h"
+#include <stdio.h>
 #include <string.h>
 
 static int Max(int a, int b) { return a > b ? a : b; }
@@ -7,6 +8,26 @@ static int Max(int a, int b) { return a > b ? a : b; }
 void UiTerminal_Init(UiTerminal *t, const UiCommands *commands)
 {
     *t = (UiTerminal){.commands = commands, .following = true, .columns = 80, .visibleRows = 1};
+}
+
+void UiTerminal_ClearLog(UiTerminal *t)
+{
+    t->logStart = 0;
+    t->logCount = 0;
+    t->totalRows = 0;
+    t->anchorEntry = 0;
+    t->anchorByte = 0;
+    t->following = true;
+}
+
+UiCommandResult UiTerminal_ClearCommand(void *state, const char *args, char *out, size_t capacity)
+{
+    if (*args) {
+        snprintf(out,capacity,"clear: Expected no arguments");
+        return UI_COMMAND_ERROR;
+    }
+    UiTerminal_ClearLog(state);
+    return UI_COMMAND_SILENT;
 }
 
 static int Rows(const char *text, int columns)

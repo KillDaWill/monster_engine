@@ -1,14 +1,31 @@
 #include "interface/UiRecipeRoutes.h"
 #include <string.h>
 
-static const char *Recipe(const UiVfs *fs, UiVfsId cwd, const char *path, const UiVfsNode **recipe)
+static const char *ReadPath(const char **route, char path[UI_VFS_PATH_BYTES])
+{
+    const char *start = *route;
+    if (*start != '"') return "Expected a double-quoted recipe path";
+    ++start;
+    const char *end = strchr(start,'"');
+    if (!end) return "Missing closing double quote in recipe path";
+    size_t bytes = end-start;
+    if (!bytes) return "Recipe path must not be empty";
+    if (bytes >= UI_VFS_PATH_BYTES) return "Recipe path too long";
+    memcpy(path,start,bytes);
+    path[bytes] = '\0';
+    *route = end+1;
+    return NULL;
+}
+
+static const char *Recipe(const UiVfs *fs, UiVfsId cwd, const char *path,
+                          const UiVfsNode **recipe, bool second)
 {
     UiVfsId id;
-    if (UiVfs_Resolve(fs,cwd,path,&id) != UI_VFS_OK) return "Recipe not found";
+    if (UiVfs_Resolve(fs,cwd,path,&id) != UI_VFS_OK)
+        return second ? "Second recipe not found" : "Recipe not found";
     const UiVfsNode *node = UiVfs_Get(fs,id);
-    if (node->type != UI_VFS_FILE || !node->recipeId ||
-        (node->source != UI_VFS_EXTERNAL_RECIPE && node->source != UI_VFS_BUILTIN_RECIPE))
-        return "Expected a recipe file";
+    if (!UiVfs_IsRecipe(node))
+        return second ? "Expected a recipe file for the second path" : "Expected a recipe file";
     *recipe = node;
     return NULL;
 }
@@ -17,37 +34,23 @@ const char *UiRecipeRoutes_Resolve(const UiVfs *fs, UiVfsId cwd, const char *rou
                                   const UiVfsNode **first, const UiVfsNode **second)
 {
     *first = *second = NULL;
-    size_t size = strlen(route);
-    if (!size) return pair ? "Expected two recipe routes" : "Expected a recipe route";
-    if (size >= UI_VFS_PATH_BYTES) return "Recipe route too long";
-    if (!pair) return Recipe(fs,cwd,route,first);
-
-    char left[UI_VFS_PATH_BYTES];
-    const UiVfsNode *a = NULL, *b = NULL;
-    bool firstFound = false, secondInvalidType = false;
-    for (const char *dot = strchr(route,'.'); dot; dot = strchr(dot+1,'.')) {
-        if (dot == route) continue;
-        size_t bytes = dot-route;
-        memcpy(left,route,bytes);
-        left[bytes] = '\0';
-        const UiVfsNode *candidateA, *candidateB;
-        if (Recipe(fs,cwd,left,&candidateA)) continue;
-        firstFound = true;
-        if (!dot[1]) continue;
-        const char *issue = Recipe(fs,cwd,dot+1,&candidateB);
-        if (issue) {
-            UiVfsId id;
-            if (UiVfs_Resolve(fs,cwd,dot+1,&id) == UI_VFS_OK) secondInvalidType = true;
-            continue;
-        }
-        if (a) return "Ambiguous recipe routes";
-        a = candidateA;
-        b = candidateB;
+    char left[UI_VFS_PATH_BYTES], right[UI_VFS_PATH_BYTES];
+    const char *error = ReadPath(&route,left);
+    if (error) return error;
+    if (pair) {
+        if (*route != '.') return "Expected a period between two double-quoted recipe paths";
+        ++route;
+        error = ReadPath(&route,right);
+        if (error) return error;
     }
-    if (!a) {
-        if (secondInvalidType) return "Expected a recipe file for the second route";
-        if (firstFound) return "Second recipe not found";
-        return "Expected two valid recipe routes";
+    if (*route) return "Unexpected text after recipe path";
+
+    const UiVfsNode *a, *b = NULL;
+    error = Recipe(fs,cwd,left,&a,false);
+    if (error) return error;
+    if (pair) {
+        error = Recipe(fs,cwd,right,&b,true);
+        if (error) return error;
     }
     *first = a;
     *second = b;

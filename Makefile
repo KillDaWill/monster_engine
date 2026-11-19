@@ -364,10 +364,12 @@ UI_TEST_BIN = $(BUILD_DIR)/interface_test
 .PHONY: interface-test run-interface
 demos: $(UI_BIN)
 
-$(UI_BIN): $(CORE_OBJS) $(RENDER_OBJS) demos/interface_demo.c $(UI_MODEL_SRCS) $(UI_GRAPHICS_SRCS) $(UI_HEADERS) $(wildcard src/interface/*.h) assets/interface/fonts/InterfaceAtlas.inc
+$(UI_BIN): $(CORE_OBJS) $(RENDER_OBJS) demos/interface_demo.c demos/interface_layout.h $(UI_MODEL_SRCS) $(UI_GRAPHICS_SRCS) $(UI_HEADERS) $(wildcard src/interface/*.h) assets/interface/fonts/InterfaceAtlas.inc
 	$(CC) $(CFLAGS) $(filter %.c %.o,$^) $(GL_LIBS) -o $@
 
-$(UI_TEST_BIN): tests/test_interface.c $(UI_MODEL_SRCS) $(UI_HEADERS)
+$(UI_TEST_BIN): tests/test_interface.c tests/interface_test_doubles.c demos/interface_layout.h \
+                $(UI_MODEL_SRCS) src/interface/UiCreatureVisualizer.c src/interface/UiFilesView.c \
+                src/interface/UiCreatureEngine.h $(UI_HEADERS)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(filter %.c,$^) -o $@
 

@@ -10,7 +10,11 @@ void UiFilesApp_Init(UiFilesApp *app, const UiVfs *fs)
 static void Reset(void *state)
 {
     UiFilesApp *app = state;
+    UiFilesOpenRecipe openRecipe = app->openRecipe;
+    void *recipeContext = app->recipeContext;
     UiFilesApp_Init(app,app->fs);
+    app->openRecipe = openRecipe;
+    app->recipeContext = recipeContext;
 }
 
 bool UiFilesApp_Open(UiFilesLaunch *launch)
@@ -52,7 +56,7 @@ static void Location(UiFilesApp *app, UiVfsId id)
     app->directory = id;
     app->selected = 0;
     app->firstRow = 0;
-    app->previewUnavailable = false;
+    app->activationError[0] = '\0';
 }
 
 bool UiFilesApp_Go(UiFilesApp *app, UiVfsId id)
@@ -85,15 +89,25 @@ void UiFilesApp_Select(UiFilesApp *app, UiVfsId id)
 {
     const UiVfsNode *node = UiVfs_Get(app->fs,id);
     app->selected = node && node->parent == app->directory && id != app->directory ? id : 0;
-    app->previewUnavailable = false;
+    app->activationError[0] = '\0';
 }
 
 void UiFilesApp_Activate(UiFilesApp *app)
 {
     const UiVfsNode *node = UiVfs_Get(app->fs,app->selected);
-    if (!node) return;
-    if (node->type == UI_VFS_DIRECTORY) UiFilesApp_Go(app,node->id);
-    else app->previewUnavailable = true;
+    if (!node || node->parent != app->directory) return;
+    if (node->type == UI_VFS_DIRECTORY) {
+        UiFilesApp_Go(app,node->id);
+        return;
+    }
+    app->activationError[0] = '\0';
+    if (UiVfs_IsRecipe(node) && app->openRecipe &&
+        app->openRecipe(app->recipeContext,node->id,app->activationError,sizeof(app->activationError))) {
+        app->activationError[0] = '\0';
+        return;
+    }
+    if (!app->activationError[0])
+        snprintf(app->activationError,sizeof(app->activationError),"Recipe preview unavailable");
 }
 
 int UiFilesApp_Count(const UiFilesApp *app)

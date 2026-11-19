@@ -36,6 +36,9 @@ typedef void (*UiTerminalRow)(void *, int row, UiLogKind, const char *, size_t, 
 
 /* El registro vive al menos tanto como el terminal. El estado no posee memoria dinámica. */
 void UiTerminal_Init(UiTerminal *, const UiCommands *);
+/* Borra la salida y su ancla sin cambiar la edición ni el historial. */
+void UiTerminal_ClearLog(UiTerminal *);
+UiCommandResult UiTerminal_ClearCommand(void *, const char *, char *, size_t);
 void UiTerminal_Append(UiTerminal *, UiLogKind, const char *);
 void UiTerminal_Insert(UiTerminal *, const char *);
 void UiTerminal_Key(UiTerminal *, UiKey);

@@ -1,9 +1,11 @@
 #define _POSIX_C_SOURCE 200809L
 #include "interface/UiCommands.h"
+#include "interface/UiCreatureVisualizer.h"
 #include "interface/UiDesktop.h"
 #include "interface/UiTerminal.h"
 #include "interface/UiText.h"
-#include "interface/UiFilesApp.h"
+#include "interface/UiFilesView.h"
+#include "../demos/interface_layout.h"
 #include "interface/UiRecipeCatalog.h"
 #include "interface/UiRecipeRoutes.h"
 #include "interface/UiShell.h"
@@ -13,6 +15,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+
+void InterfaceTest_CheckRecipe(const UiCreatureEngine *, UiVfsId first, UiVfsId second);
 
 static UiCommandResult Custom(void *state, const char *args, char *out, size_t size)
 {
@@ -399,9 +403,9 @@ static void ShellAndFiles(void)
     assert(UiFilesApp_Item(&files,0) == file && UiFilesApp_Item(&files,1) == sub);
     UiFilesApp_Select(&files,file);
     UiFilesApp_Activate(&files);
-    assert(files.previewUnavailable && files.directory == folder);
+    assert(files.activationError[0] && files.directory == folder);
     UiFilesApp_MoveSelection(&files,1,1);
-    assert(files.selected == sub && files.firstRow == 1 && !files.previewUnavailable);
+    assert(files.selected == sub && files.firstRow == 1 && !files.activationError[0]);
     assert(UiFilesApp_Up(&files) && files.directory == root);
     assert(UiFilesApp_Back(&files) && files.directory == folder);
     assert(!UiFilesApp_Go(&files,file) && shell.cwd == folder);
@@ -471,19 +475,47 @@ static void RecipeRoutes(void)
     UiVfsId elephant = UiVfs_Add(fs,folder,"elefante.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1008);
     UiVfsId pig = UiVfs_Add(fs,folder,"cerdo.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1007);
     const UiVfsNode *a, *b;
-    assert(!UiRecipeRoutes_Resolve(fs,root,"/recepies/Perro.recipe",false,&a,&b) && a->id == dog && !b);
-    assert(!UiRecipeRoutes_Resolve(fs,folder,"./elefante.creature.json",false,&a,&b) && a->id == elephant);
-    assert(!UiRecipeRoutes_Resolve(fs,root,"/recepies/cerdo.creature.json./recepies/elefante.creature.json",true,&a,&b));
+    assert(!UiRecipeRoutes_Resolve(fs,root,"\"/recepies/Perro.recipe\"",false,&a,&b));
+    assert(a->id == dog && !b);
+    assert(!UiRecipeRoutes_Resolve(fs,folder,"\"./elefante.creature.json\"",false,&a,&b));
+    assert(a->id == elephant);
+    assert(!UiRecipeRoutes_Resolve(fs,root,
+        "\"/recepies/cerdo.creature.json\".\"/recepies/elefante.creature.json\"",true,&a,&b));
     assert(a->id == pig && b->id == elephant);
-    assert(!UiRecipeRoutes_Resolve(fs,folder,"cerdo.creature.json.Perro.recipe",true,&a,&b));
+    assert(!UiRecipeRoutes_Resolve(fs,folder,"\"cerdo.creature.json\".\"Perro.recipe\"",true,&a,&b));
     assert(a->id == pig && b->id == dog);
-    assert(!strcmp(UiRecipeRoutes_Resolve(fs,folder,"Perro.recipe.missing.recipe",true,&a,&b),"Second recipe not found"));
-    assert(!strcmp(UiRecipeRoutes_Resolve(fs,root,"/recepies",false,&a,&b),"Expected a recipe file"));
-    assert(!strcmp(UiRecipeRoutes_Resolve(fs,root,"/etc/passwd",false,&a,&b),"Recipe not found"));
-    assert(UiRecipeRoutes_Resolve(fs,folder,"",true,&a,&b));
+    static const struct { const char *route, *error; bool pair; } invalid[] = {
+        {"", "Expected a double-quoted recipe path", false},
+        {"/recepies/Perro.recipe", "Expected a double-quoted recipe path", false},
+        {"cerdo.creature.json.Perro.recipe", "Expected a double-quoted recipe path", true},
+        {"\"/recepies/Perro.recipe", "Missing closing double quote in recipe path", false},
+        {"\"\"", "Recipe path must not be empty", false},
+        {"\"Perro.recipe\"junk", "Unexpected text after recipe path", false},
+        {"\"Perro.recipe\"", "Expected a period between two double-quoted recipe paths", true},
+        {"\"Perro.recipe\"\"cerdo.creature.json\"", "Expected a period between two double-quoted recipe paths", true},
+        {"\"Perro.recipe\".", "Expected a double-quoted recipe path", true},
+        {"\"Perro.recipe\".\"cerdo.creature.json", "Missing closing double quote in recipe path", true},
+        {"\"Perro.recipe\".\"\"", "Recipe path must not be empty", true},
+        {"\"Perro.recipe\".\"cerdo.creature.json\"junk", "Unexpected text after recipe path", true},
+        {"\"Perro.recipe\".\"missing.recipe\"", "Second recipe not found", true},
+        {"\"/recepies\"", "Expected a recipe file", false},
+        {"\"/etc/passwd\"", "Recipe not found", false},
+        {"\"../../etc/passwd\"", "Recipe not found", false}
+    };
+    for (size_t i=0; i<sizeof(invalid)/sizeof(*invalid); ++i) {
+        const char *error = UiRecipeRoutes_Resolve(fs,folder,invalid[i].route,invalid[i].pair,&a,&b);
+        assert(error && !strcmp(error,invalid[i].error) && !a && !b);
+    }
+
+    char oversized[UI_VFS_PATH_BYTES+3];
+    memset(oversized,'a',sizeof(oversized));
+    oversized[0] = oversized[sizeof(oversized)-2] = '"';
+    oversized[sizeof(oversized)-1] = '\0';
+    assert(!strcmp(UiRecipeRoutes_Resolve(fs,folder,oversized,false,&a,&b),"Recipe path too long"));
     for (const char **name=(const char *[]){"a","b.c","a.b","c",NULL}; *name; ++name)
         assert(UiVfs_Add(fs,folder,*name,UI_VFS_FILE,UI_VFS_BUILTIN_RECIPE,1));
-    assert(!strcmp(UiRecipeRoutes_Resolve(fs,folder,"a.b.c",true,&a,&b),"Ambiguous recipe routes"));
+    assert(!UiRecipeRoutes_Resolve(fs,folder,"\"a\".\"b.c\"",true,&a,&b) && !strcmp(b->name,"b.c"));
+    assert(!UiRecipeRoutes_Resolve(fs,folder,"\"a.b\".\"c\"",true,&a,&b) && !strcmp(a->name,"a.b"));
     UiVfs_Destroy(fs);
 
     UiCommands commands = {0};
@@ -500,6 +532,187 @@ static void RecipeRoutes(void)
     assert(calls == 4);
 }
 
+typedef struct {
+    UiCreatureVisualizer *visualizer;
+    UiVfsId recipe;
+    int calls;
+} RecipeActivation;
+
+static bool OpenRecipe(void *state, UiVfsId id, char *error, size_t capacity)
+{
+    RecipeActivation *activation = state;
+    activation->recipe = id;
+    ++activation->calls;
+    return UiCreatureVisualizer_ViewRecipe(activation->visualizer,id,error,capacity);
+}
+
+static void VisualizerAndFiles(void)
+{
+    UiVfs *fs = UiVfs_Create();
+    assert(fs);
+    UiVfsId folder = Recipes(fs);
+    UiVfsId pig = UiVfs_Add(fs,folder,"cerdo.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1007);
+    UiVfsId elephant = UiVfs_Add(fs,folder,"elefante.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,1008);
+    UiVfsId broken = UiVfs_Add(fs,folder,"broken.creature.json",UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,9999);
+    UiVfsId note = UiVfs_Add(fs,folder,"notes.txt",UI_VFS_FILE,UI_VFS_VIRTUAL,0);
+    assert(pig && elephant && broken && note);
+    UiVfsId dog = UiVfs_Add(fs,folder,"Perro.recipe",UI_VFS_FILE,UI_VFS_BUILTIN_RECIPE,2);
+    assert(dog);
+    UiShell shell;
+    UiShell_Init(&shell,fs);
+    UiDesktop desktop = {0};
+    UiDesktop_SetArea(&desktop,WorkspaceRect(1280,720));
+    UiCreatureVisualizer cv = {.desktop=&desktop,.shell=&shell};
+    UiCommands commands = {0};
+    assert(UiCreatureVisualizer_Register(&cv,&commands));
+    assert(!UiCreatureVisualizer_Register(&cv,&commands));
+    assert(UiShell_Register(&shell,&commands));
+
+    Expect(&commands,"CV",UI_COMMAND_SILENT,"");
+    UiWindowId id = cv.window;
+    assert(id && desktop.focus == id && desktop.count == 1 && !cv.engine);
+    UiDesktop_Hide(&desktop,id);
+    Expect(&commands,"CreatureVisualizer",UI_COMMAND_SILENT,"");
+    assert(cv.window == id && !UiDesktop_Find(&desktop,id)->hidden && desktop.focus == id);
+    Expect(&commands,"CV.view.\"/recepies/Perro.recipe\"",UI_COMMAND_SILENT,"");
+    UiCreatureEngine *engine = cv.engine;
+    assert(engine && cv.window == id && desktop.count == 1);
+    InterfaceTest_CheckRecipe(engine,dog,0);
+    Expect(&commands,"cd recepies",UI_COMMAND_SILENT,"");
+    Expect(&commands,"CreatureVisualizer.view.\"cerdo.creature.json\"",UI_COMMAND_SILENT,"");
+    assert(cv.engine == engine);
+    InterfaceTest_CheckRecipe(engine,pig,0);
+    Expect(&commands,"CV.view.interpolation.\"/recepies/cerdo.creature.json\".\"/recepies/elefante.creature.json\"",
+        UI_COMMAND_SILENT,"");
+    InterfaceTest_CheckRecipe(engine,pig,elephant);
+    Expect(&commands,"CreatureVisualizer.view.interpolation.\"elefante.creature.json\".\"Perro.recipe\"",
+        UI_COMMAND_SILENT,"");
+    InterfaceTest_CheckRecipe(engine,elephant,dog);
+    assert(cv.window == id && cv.engine == engine && desktop.count == 1);
+    Expect(&commands,"CV.view./recepies/Perro.recipe",UI_COMMAND_ERROR,
+        "ERROR: Expected a double-quoted recipe path");
+    Expect(&commands,"CreatureVisualizer.view.interpolation.cerdo.creature.json.Perro.recipe",UI_COMMAND_ERROR,
+        "ERROR: Expected a double-quoted recipe path");
+    Expect(&commands,"CV.close",UI_COMMAND_SILENT,"");
+    assert(!cv.window && !cv.engine && !desktop.count);
+
+    UiFilesApp files;
+    UiFilesApp_Init(&files,fs);
+    RecipeActivation activation = {.visualizer=&cv};
+    files.openRecipe = OpenRecipe;
+    files.recipeContext = &activation;
+    UiFilesLaunch launch = {.files=&files,.desktop=&desktop,
+        .presentation={.rect={600,100,480,405},.input=UiFilesView_Input}};
+    assert(UiFilesApp_Open(&launch));
+    UiWindowId filesId = files.window;
+    UiRect content = UiWindow_Content(UiDesktop_Find(&desktop,filesId)->rect);
+    int x = content.x+150, firstRow = content.y+80;
+    UiDesktop_PressWithClicks(&desktop,x,firstRow,1);
+    assert(files.selected == folder && files.directory == UiVfs_Root(fs) && !activation.calls);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow,2);
+    assert(files.directory == folder && !activation.calls);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow,1);
+    assert(files.selected == pig && !activation.calls && !cv.window);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow+25,2);
+    assert(files.selected == elephant && !activation.calls && !cv.window);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow+25,2);
+    assert(activation.recipe == elephant && activation.calls == 1 && desktop.focus == cv.window);
+    assert(files.window == filesId && !UiDesktop_Find(&desktop,filesId)->hidden && desktop.count == 2);
+
+    id = cv.window;
+    engine = cv.engine;
+    UiDesktop_Hide(&desktop,id);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow,1);
+    UiDesktop_Dispatch(&desktop,&(UiEvent){.type=UI_KEY,.key=UI_ENTER});
+    assert(activation.recipe == pig && activation.calls == 2 && !files.activationError[0]);
+    assert(cv.window == id && cv.engine == engine && desktop.focus == id && desktop.count == 2);
+    assert(!UiDesktop_Find(&desktop,id)->hidden);
+    InterfaceTest_CheckRecipe(engine,pig,0);
+
+    UiDesktop_PressWithClicks(&desktop,x,firstRow+50,1);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow+50,2);
+    assert(activation.recipe == broken && activation.calls == 3 && files.selected == broken);
+    assert(!strcmp(files.activationError,"ERROR: Test recipe failed to load"));
+    assert(desktop.focus == filesId && cv.engine == engine);
+    InterfaceTest_CheckRecipe(engine,pig,0);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow+75,1);
+    UiDesktop_PressWithClicks(&desktop,x,firstRow+75,2);
+    assert(activation.calls == 3 && files.selected == note && files.activationError[0]);
+
+    Expect(&commands,"CreatureVisualizer.close",UI_COMMAND_SILENT,"");
+    assert(!cv.window && !cv.engine && desktop.count == 1 && desktop.focus == filesId);
+    assert(UiDesktop_Close(&desktop,filesId) && UiFilesApp_Open(&launch));
+    assert(files.directory == UiVfs_Root(fs) && files.openRecipe == OpenRecipe && files.recipeContext == &activation);
+    UiVfs_Destroy(fs);
+}
+
+static void Clear(void)
+{
+    UiVfs *fs = UiVfs_Create();
+    assert(fs && Recipes(fs));
+    UiShell shell;
+    UiShell_Init(&shell,fs);
+    UiCommands commands = {0};
+    UiTerminal terminal;
+    UiTerminal_Init(&terminal,&commands);
+    terminal.location = UiShell_Location;
+    terminal.locationState = &shell;
+    assert(UiShell_Register(&shell,&commands));
+    assert(UiCommands_Register(&commands,"clear",UiTerminal_ClearCommand,&terminal));
+    UiTerminal_Layout(&terminal,12,5);
+    SubmitLine(&terminal,"cd recepies");
+    for (int i=0; i<UI_LOG_LIMIT+5; ++i)
+        UiTerminal_Append(&terminal,UI_LOG_OUTPUT,"Enough text to wrap an entry");
+    UiTerminal_Scroll(&terminal,11);
+    assert(!terminal.following && terminal.logStart && terminal.anchorEntry && terminal.anchorByte);
+    SubmitLine(&terminal,"clear unexpected");
+    assert(terminal.logCount == UI_LOG_LIMIT);
+    assert(Log(&terminal,terminal.logCount-1)->kind == UI_LOG_ERROR);
+    assert(!strcmp(Log(&terminal,terminal.logCount-1)->text,"clear: Expected no arguments"));
+
+    SubmitLine(&terminal,"clear");
+    assert(!terminal.logStart && !terminal.logCount && !terminal.totalRows &&
+        !terminal.anchorEntry && !terminal.anchorByte && terminal.following && !terminal.cursor);
+    assert(!UiTerminal_FirstRow(&terminal));
+    RowCapture rows = {0};
+    UiTerminal_VisitRows(&terminal,CaptureRow,&rows);
+    assert(!rows.count);
+    char location[UI_VFS_PATH_BYTES];
+    assert(terminal.location(terminal.locationState,location,sizeof(location)));
+    assert(!strcmp(location,"/recepies"));
+    UiTerminal_Key(&terminal,UI_UP);
+    assert(!strcmp(terminal.line,"clear"));
+    UiTerminal_Key(&terminal,UI_UP);
+    assert(!strcmp(terminal.line,"clear unexpected"));
+    UiTerminal_Key(&terminal,UI_DOWN);
+    UiTerminal_Key(&terminal,UI_DOWN);
+    assert(!terminal.line[0]);
+    SubmitLine(&terminal,"pwd");
+    assert(terminal.logCount == 2 && !strcmp(Log(&terminal,1)->text,"/recepies"));
+    UiVfs_Destroy(fs);
+}
+
+static void Workspace(void)
+{
+    static const int sizes[][2] = {{1280,720},{1024,768},{800,600},{560,400}};
+    static const int extents[][2] = {{1228,582},{972,630},{748,462},{508,262}};
+    UiDesktop desktop = {0};
+    for (size_t i=0; i<sizeof(sizes)/sizeof(*sizes); ++i) {
+        int w = sizes[i][0], h = sizes[i][1];
+        UiDesktop_SetArea(&desktop,WorkspaceRect(w,h));
+        UiRect area = desktop.area, grid = WorkspaceInterior(area);
+        assert(area.x == 26 && area.y == 68);
+        assert(area.w == extents[i][0] && area.h == extents[i][1]);
+        assert(grid.x == area.x+1 && grid.y == area.y+1);
+        assert(grid.x+grid.w == area.x+area.w-1 && grid.y+grid.h == area.y+area.h-1);
+        UiRect windowPx = UiRect_Drawable(area,w,h,w*3/2,h*3/2);
+        UiRect gridPx = UiRect_Drawable(grid,w,h,w*3/2,h*3/2);
+        assert(gridPx.x > windowPx.x && gridPx.y > windowPx.y);
+        assert(gridPx.x+gridPx.w < windowPx.x+windowPx.w);
+        assert(gridPx.y+gridPx.h < windowPx.y+windowPx.h);
+    }
+}
+
 int main(void)
 {
     Commands();
@@ -511,6 +724,9 @@ int main(void)
     RecipeCatalog();
     ShellAndFiles();
     RecipeRoutes();
+    VisualizerAndFiles();
+    Clear();
+    Workspace();
     puts("Interface tests passed");
     return 0;
 }

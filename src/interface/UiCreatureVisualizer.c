@@ -100,6 +100,33 @@ const char *UiCreatureVisualizer_Prepass(UiCreatureVisualizer *app, int w, int h
     return UiCreatureEngine_Render(app->engine,pixels.w,pixels.h,resumed ? 0.0 : dt);
 }
 
+static bool RequestView(UiCreatureVisualizer *app, const UiVfsNode *first,
+                        const UiVfsNode *second, char *out, size_t capacity)
+{
+    if (!UiDesktop_Find(app->desktop,app->window) && app->desktop->count == UI_MAX_WINDOWS) {
+        snprintf(out,capacity,"ERROR: Desktop window limit reached");
+        return false;
+    }
+    if (!UiCreatureEngine_Request(&app->engine,app->executableDirectory,first,second,out,capacity))
+        return false;
+    if (UiCreatureVisualizer_Open(app)) return true;
+    UiCreatureEngine_Destroy(app->engine);
+    app->engine = NULL;
+    snprintf(out,capacity,"ERROR: Cannot open CreatureVisualizer");
+    return false;
+}
+
+bool UiCreatureVisualizer_ViewRecipe(UiCreatureVisualizer *app, UiVfsId recipe,
+                                     char *error, size_t capacity)
+{
+    const UiVfsNode *node = UiVfs_Get(app->shell->fs,recipe);
+    if (!UiVfs_IsRecipe(node)) {
+        snprintf(error,capacity,"ERROR: Expected a recipe file");
+        return false;
+    }
+    return RequestView(app,node,NULL,error,capacity);
+}
+
 static UiCommandResult View(UiCreatureVisualizer *app, const char *route, bool pair,
                             char *out, size_t capacity)
 {
@@ -109,17 +136,7 @@ static UiCommandResult View(UiCreatureVisualizer *app, const char *route, bool p
         snprintf(out,capacity,"ERROR: %s",error);
         return UI_COMMAND_ERROR;
     }
-    if (!UiDesktop_Find(app->desktop,app->window) && app->desktop->count == UI_MAX_WINDOWS) {
-        snprintf(out,capacity,"ERROR: Desktop window limit reached");
-        return UI_COMMAND_ERROR;
-    }
-    if (!UiCreatureEngine_Request(&app->engine,app->executableDirectory,first,second,out,capacity))
-        return UI_COMMAND_ERROR;
-    if (UiCreatureVisualizer_Open(app)) return UI_COMMAND_SILENT;
-    UiCreatureEngine_Destroy(app->engine);
-    app->engine = NULL;
-    snprintf(out,capacity,"ERROR: Cannot open CreatureVisualizer");
-    return UI_COMMAND_ERROR;
+    return RequestView(app,first,second,out,capacity) ? UI_COMMAND_SILENT : UI_COMMAND_ERROR;
 }
 
 static UiCommandResult Single(void *state, const char *route, char *out, size_t capacity)
@@ -137,5 +154,9 @@ bool UiCreatureVisualizer_Register(UiCreatureVisualizer *app, UiCommands *comman
     return UiCommands_Register(commands,"CreatureVisualizer",UiCreatureVisualizer_Command,app) &&
         UiCommands_Register(commands,"CreatureVisualizer.close",UiCreatureVisualizer_CloseCommand,app) &&
         UiCommands_RegisterPrefix(commands,"CreatureVisualizer.view.",Single,app) &&
-        UiCommands_RegisterPrefix(commands,"CreatureVisualizer.view.interpolation.",Interpolation,app);
+        UiCommands_RegisterPrefix(commands,"CreatureVisualizer.view.interpolation.",Interpolation,app) &&
+        UiCommands_Register(commands,"CV",UiCreatureVisualizer_Command,app) &&
+        UiCommands_Register(commands,"CV.close",UiCreatureVisualizer_CloseCommand,app) &&
+        UiCommands_RegisterPrefix(commands,"CV.view.",Single,app) &&
+        UiCommands_RegisterPrefix(commands,"CV.view.interpolation.",Interpolation,app);
 }

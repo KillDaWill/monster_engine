@@ -120,3 +120,8 @@ bool UiVfs_Path(const UiVfs *fs, UiVfsId id, char *out, size_t capacity)
     out[0] = '/';
     return true;
 }
+bool UiVfs_IsRecipe(const UiVfsNode *node)
+{
+    return node && node->type == UI_VFS_FILE && node->recipeId &&
+        (node->source == UI_VFS_EXTERNAL_RECIPE || node->source == UI_VFS_BUILTIN_RECIPE);
+}

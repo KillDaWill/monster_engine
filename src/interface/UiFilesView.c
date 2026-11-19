@@ -156,11 +156,15 @@ void UiFilesView_Draw(void *state, UiRenderer *r, UiRect c, bool active, bool ca
     UiRenderer_Rect(r,(UiRect){l.footer.x,l.footer.y,l.footer.w,1},UI_EDGE);
     char status[48];
     const UiVfsNode *selected = UiVfs_Get(app->fs,app->selected);
-    if (app->previewUnavailable) snprintf(status,sizeof(status),"Recipe preview unavailable");
-    else if (selected && selected->type == UI_VFS_FILE)
+    if (selected && selected->type == UI_VFS_FILE)
         snprintf(status,sizeof(status),"%d %s  /  %s",count,count==1 ? "item" : "items",Source(selected));
     else snprintf(status,sizeof(status),"%d %s",count,count==1 ? "item" : "items");
-    UiRenderer_Text(r,c.x+PAD,l.footer.y+7,12,UI_MUTED,status);
+    if (!app->activationError[0]) {
+        UiRenderer_Text(r,c.x+PAD,l.footer.y+7,12,UI_MUTED,status);
+    } else if (UiRenderer_PushClip(r,(UiRect){c.x+PAD,l.footer.y,c.w-PAD-96,l.footer.h})) {
+        UiRenderer_Text(r,c.x+PAD,l.footer.y+7,12,UI_MUTED,app->activationError);
+        UiRenderer_PopClip(r);
+    }
     UiRenderer_Rect(r,(UiRect){c.x+c.w-90,l.footer.y+14,4,4},UI_ACCENT);
     UiRenderer_Text(r,c.x+c.w-80,l.footer.y+7,11,UI_ACCENT,"READ ONLY");
 }

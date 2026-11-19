@@ -15,6 +15,8 @@ typedef struct {
 } UiCreatureVisualizer;
 
 bool UiCreatureVisualizer_Open(UiCreatureVisualizer *);
+/* Solicita una escena por ID del VFS y activa la ventana si se acepta. */
+bool UiCreatureVisualizer_ViewRecipe(UiCreatureVisualizer *, UiVfsId, char *error, size_t capacity);
 void UiCreatureVisualizer_Close(UiCreatureVisualizer *);
 bool UiCreatureVisualizer_NeedsFrame(const UiCreatureVisualizer *);
 const char *UiCreatureVisualizer_Prepass(UiCreatureVisualizer *, int width, int height,

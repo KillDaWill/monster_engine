@@ -6,12 +6,16 @@
 #include "UiVfs.h"
 
 enum { UI_FILES_HISTORY = 64 };
+/* El callback informa de fallos en el búfer proporcionado por Files. */
+typedef bool (*UiFilesOpenRecipe)(void *, UiVfsId, char *error, size_t capacity);
 typedef struct {
     const UiVfs *fs;
     UiVfsId directory, selected;
     UiVfsId back[UI_FILES_HISTORY];
     int backCount, firstRow;
-    bool previewUnavailable;
+    UiFilesOpenRecipe openRecipe;
+    void *recipeContext;
+    char activationError[UI_COMMAND_REPLY_BYTES];
     UiWindowId window;
 } UiFilesApp;
 

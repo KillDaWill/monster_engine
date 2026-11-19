@@ -5,12 +5,11 @@
 #include "interface/UiShell.h"
 #include "interface/UiTerminalView.h"
 #include "interface/UiTheme.h"
+#include "interface_layout.h"
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-enum { TOP = 54, BOTTOM = 56, MARGIN = 26 };
 
 typedef struct {
     UiDesktop desktop;
@@ -35,10 +34,11 @@ static void Resize(void *state, int w, int h)
 {
     InterfaceDemo *demo = state;
     demo->height = h;
-    UiDesktop_SetArea(&demo->desktop,(UiRect){MARGIN,TOP+14,w-2*MARGIN,h-TOP-BOTTOM-28});
+    UiRect area = WorkspaceRect(w,h);
+    UiDesktop_SetArea(&demo->desktop,area);
     if (!demo->terminalId) {
-        int windowW = w >= 960 ? 676 : w-2*MARGIN;
-        int windowH = h >= 620 ? 442 : h-TOP-BOTTOM-28;
+        int windowW = w >= 960 ? 676 : area.w;
+        int windowH = h >= 620 ? 442 : area.h;
         demo->terminalId = UiDesktop_Add(&demo->desktop,(UiWindow){
             .rect={w-60-windowW,(h-windowH)/2,windowW,windowH},
             .minWidth=340,.minHeight=235,.title="Command Terminal",.acceptsText=true,
@@ -86,11 +86,11 @@ static void Arc(UiRenderer *r, float x, float y, float radius, float start, floa
     }
 }
 
-static void DesktopMark(UiRenderer *r, int w, int h)
+static void DesktopMark(UiRenderer *r, int w, int h, UiRect interior)
 {
     int x = (w-736+MARGIN)/2, y = h/2-26;
     if (x > 285) x = 285;
-    if (!UiRenderer_PushClip(r,(UiRect){MARGIN,TOP+1,2*x-2*MARGIN,h-TOP-BOTTOM-1})) return;
+    if (!UiRenderer_PushClip(r,interior)) return;
     UiRenderer_Line(r,x-145,y,x+145,y,1,0x416f8166);
     UiRenderer_Line(r,x,y-134,x,y+143,1,0x416f8166);
     Arc(r,x,y,99,0,6.2831853f,0x487d9088);
@@ -109,7 +109,6 @@ static void DesktopMark(UiRenderer *r, int w, int h)
     UiRenderer_Line(r,x-17,y-10,x,y+20,1,0x74d0d6cc);
     UiRenderer_Line(r,x+17,y-10,x,y+20,1,0x74d0d6cc);
     UiRenderer_Rect(r,(UiRect){x-2,y-2,4,4},UI_ACCENT);
-    UiRenderer_PopClip(r);
 
     if (h >= 600) {
         const char label[] = "Command Desktop";
@@ -118,30 +117,33 @@ static void DesktopMark(UiRenderer *r, int w, int h)
         UiRenderer_Rect(r,(UiRect){x-width/2,y+179,width,1},0x457387a4);
         UiRenderer_Rect(r,(UiRect){x-16,y+179,32,1},UI_ACCENT);
     }
+    UiRenderer_PopClip(r);
 }
 
-static void Background(UiRenderer *r, int w, int h)
+static void Background(UiRenderer *r, int w, int h, UiRect area)
 {
     UiRenderer_Gradient(r,(UiRect){0,0,w,h},0x10374aff,0x07131fff);
-    for (int x=MARGIN; x<w-MARGIN; x+=24) {
-        UiColor color = (x-MARGIN)%120 ? 0x6797ac17 : 0x6797ac36;
-        UiRenderer_Rect(r,(UiRect){x,TOP,1,h-TOP-BOTTOM},color);
+    UiRect interior = WorkspaceInterior(area);
+    int right = area.x+area.w-1, bottom = area.y+area.h-1;
+    for (int x=area.x+24; x<right; x+=24) {
+        UiColor color = (x-area.x)%120 ? 0x6797ac17 : 0x6797ac36;
+        UiRenderer_Rect(r,(UiRect){x,interior.y,1,interior.h},color);
     }
-    for (int y=TOP; y<h-BOTTOM; y+=24) {
-        UiColor color = (y-TOP)%120 ? 0x6797ac17 : 0x6797ac36;
-        UiRenderer_Rect(r,(UiRect){MARGIN,y,w-2*MARGIN,1},color);
+    for (int y=area.y+24; y<bottom; y+=24) {
+        UiColor color = (y-area.y)%120 ? 0x6797ac17 : 0x6797ac36;
+        UiRenderer_Rect(r,(UiRect){interior.x,y,interior.w,1},color);
     }
-    UiRenderer_Outline(r,(UiRect){MARGIN,TOP+14,w-2*MARGIN,h-TOP-BOTTOM-28},0x507f9354);
-    for (int x=MARGIN+120; x<w-MARGIN; x+=120) {
-        UiRenderer_Rect(r,(UiRect){x,TOP+14,1,5},0x6299ac70);
-        UiRenderer_Rect(r,(UiRect){x,h-BOTTOM-19,1,5},0x6299ac70);
+    if (w >= 1080 && h >= 500) DesktopMark(r,w,h,interior);
+    UiRenderer_Outline(r,area,0x507f9354);
+    for (int x=area.x+120; x<right; x+=120) {
+        UiRenderer_Rect(r,(UiRect){x,area.y,1,5},0x6299ac70);
+        UiRenderer_Rect(r,(UiRect){x,bottom-4,1,5},0x6299ac70);
     }
     for (int side=0; side<2; ++side) {
-        int x = side ? w-MARGIN-19 : MARGIN, y = side ? h-BOTTOM-16 : TOP+14;
+        int x = side ? right-18 : area.x, y = side ? bottom-1 : area.y;
         UiRenderer_Rect(r,(UiRect){x,y,19,2},0x6badbb99);
         UiRenderer_Rect(r,(UiRect){side ? x+17 : x,side ? y-13 : y,2,15},0x6badbb99);
     }
-    if (w >= 1080 && h >= 500) DesktopMark(r,w,h);
 }
 
 static void TopBar(UiRenderer *r, int w)
@@ -177,7 +179,7 @@ static void DockButton(const InterfaceDemo *demo, UiRenderer *r, UiRect b, UiWin
 static void Draw(void *state, UiRenderer *r, int w, int h)
 {
     InterfaceDemo *demo = state;
-    Background(r,w,h);
+    Background(r,w,h,demo->desktop.area);
     TopBar(r,w);
     UiRenderer_Gradient(r,(UiRect){0,h-BOTTOM,w,BOTTOM},0x0b1e2cff,0x091722ff);
     UiRenderer_Rect(r,(UiRect){0,h-BOTTOM,w,1},UI_EDGE);
@@ -206,6 +208,14 @@ static void Cleanup(void *state)
     UiDesktop_Close(&demo->desktop,demo->files.window);
 }
 
+static bool OpenRecipe(void *state, UiVfsId recipe, char *error, size_t capacity)
+{
+    InterfaceDemo *demo = state;
+    if (UiCreatureVisualizer_ViewRecipe(&demo->visualizer,recipe,error,capacity)) return true;
+    UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,error);
+    return false;
+}
+
 int main(void)
 {
     InterfaceDemo *demo = calloc(1,sizeof(*demo));
@@ -223,6 +233,8 @@ int main(void)
     UiRecipeCatalogReport report = UiRecipeCatalog_LoadProject(demo->fs,recipes,base);
     UiShell_Init(&demo->shell,demo->fs);
     UiFilesApp_Init(&demo->files,demo->fs);
+    demo->files.openRecipe = OpenRecipe;
+    demo->files.recipeContext = demo;
     demo->filesLaunch = (UiFilesLaunch){
         .files=&demo->files,.desktop=&demo->desktop,
         .presentation={
@@ -230,13 +242,19 @@ int main(void)
             .title="Files",.draw=UiFilesView_Draw,.input=UiFilesView_Input,.drawIcon=UiFilesView_Icon
         }
     };
-    UiCommands_Register(&demo->commands,"print",UiCommands_Print,NULL);
-    UiShell_Register(&demo->shell,&demo->commands);
-    UiCommands_Register(&demo->commands,"Files",UiFilesApp_Command,&demo->filesLaunch);
-    UiCommands_Register(&demo->commands,"Files.close",UiFilesApp_CloseCommand,&demo->filesLaunch);
     demo->visualizer = (UiCreatureVisualizer){.desktop=&demo->desktop,.shell=&demo->shell,.executableDirectory=base};
-    UiCreatureVisualizer_Register(&demo->visualizer,&demo->commands);
     UiTerminal_Init(&demo->terminal,&demo->commands);
+    if (!UiCommands_Register(&demo->commands,"print",UiCommands_Print,NULL) ||
+        !UiShell_Register(&demo->shell,&demo->commands) ||
+        !UiCommands_Register(&demo->commands,"Files",UiFilesApp_Command,&demo->filesLaunch) ||
+        !UiCommands_Register(&demo->commands,"Files.close",UiFilesApp_CloseCommand,&demo->filesLaunch) ||
+        !UiCreatureVisualizer_Register(&demo->visualizer,&demo->commands) ||
+        !UiCommands_Register(&demo->commands,"clear",UiTerminal_ClearCommand,&demo->terminal)) {
+        fputs("Nexus: Cannot register desktop commands\n",stderr);
+        UiVfs_Destroy(demo->fs);
+        free(demo);
+        return 1;
+    }
     UiTerminal_Append(&demo->terminal,UI_LOG_SYSTEM,"Session initialized.");
     UiTerminal_Append(&demo->terminal,UI_LOG_SYSTEM,"Terminal ready. Try ls or Files");
     demo->terminal.location = UiShell_Location;
