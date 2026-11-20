@@ -81,6 +81,8 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/Anatomy.c \
             $(SRC_DIR)/CreaturePhenotype.c \
             $(SRC_DIR)/CreatureRecipe.c \
+            $(SRC_DIR)/CreatureOffspring.c \
+            $(SRC_DIR)/OffspringRepair.c \
             $(SRC_DIR)/CreatureRecipeIO.c \
             $(SRC_DIR)/CreatureRecipeRegistry.c \
             $(SRC_DIR)/CreatureRecipes.c \
@@ -136,6 +138,7 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_flexible_appendage.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
+            $(TEST_DIR)/test_creature_offspring.c \
             $(TEST_DIR)/test_cloven_hoof.c \
             $(TEST_DIR)/test_bovine_editor.c \
             $(TEST_DIR)/test_anatomical_reach.c \
@@ -356,7 +359,8 @@ UI_MODEL_SRCS = src/interface/UiCommands.c src/interface/UiDesktop.c \
                 src/interface/UiRecipeCatalog.c src/interface/UiRecipeRoutes.c src/interface/UiShell.c src/interface/UiFilesApp.c
 UI_GRAPHICS_SRCS = src/interface/UiPlatform.c src/interface/UiRenderer.c \
                    src/interface/UiTheme.c src/interface/UiTerminalView.c src/interface/UiFilesView.c \
-                   src/interface/UiCreatureVisualizer.c src/interface/UiCreatureEngine.c src/interface/UiCreatureScene.c src/interface/UiCreatureOrbit.c
+                   src/interface/UiCreatureVisualizer.c src/interface/UiCreatureEngine.c src/interface/UiCreatureScene.c src/interface/UiCreatureOrbit.c \
+                   src/interface/UiOffspringApp.c
 UI_HEADERS = $(wildcard include/interface/*.h)
 UI_BIN = demos/interface_demo
 UI_TEST_BIN = $(BUILD_DIR)/interface_test
@@ -382,8 +386,14 @@ $(BUILD_DIR)/interface_creature_test: $(CORE_OBJS) tests/test_interface_creature
         $(UI_HEADERS) src/interface/UiCreatureScene.h src/interface/UiCreatureOrbit.h
 	$(CC) $(CFLAGS) $(filter %.c %.o,$^) $(LIBS) -o $@
 
-interface-engine-test: $(BUILD_DIR)/interface_creature_test
+$(BUILD_DIR)/interface_offspring_test: $(CORE_OBJS) tests/test_interface_offspring.c tests/interface_test_doubles.c \
+        $(UI_MODEL_SRCS) src/interface/UiCreatureScene.c src/interface/UiCreatureVisualizer.c src/interface/UiOffspringApp.c \
+        $(UI_HEADERS) $(wildcard src/interface/*.h)
+	$(CC) $(CFLAGS) $(filter %.c %.o,$^) $(LIBS) -o $@
+
+interface-engine-test: $(BUILD_DIR)/interface_creature_test $(BUILD_DIR)/interface_offspring_test
 	./$(BUILD_DIR)/interface_creature_test
+	./$(BUILD_DIR)/interface_offspring_test
 
 run-interface: $(UI_BIN)
 	./$(UI_BIN)

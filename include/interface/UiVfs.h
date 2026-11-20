@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-enum { UI_VFS_LIMIT = 192, UI_VFS_NAME_BYTES = 256, UI_VFS_PATH_BYTES = 1024 };
+enum { UI_VFS_LIMIT = 4096, UI_VFS_NAME_BYTES = 256, UI_VFS_PATH_BYTES = 1024 };
 typedef uint32_t UiVfsId;
 typedef struct UiVfs UiVfs;
 typedef enum { UI_VFS_DIRECTORY, UI_VFS_FILE } UiVfsType;
@@ -24,6 +24,7 @@ UiVfs *UiVfs_Create(void);
 void UiVfs_Destroy(UiVfs *);
 UiVfsId UiVfs_Root(const UiVfs *);
 /* La aplicación construye el árbol. Los IDs y los nodos viven hasta destruirlo. */
+bool UiVfs_CanAdd(const UiVfs *, UiVfsId parent, const char *name);
 UiVfsId UiVfs_Add(UiVfs *, UiVfsId parent, const char *name, UiVfsType, UiVfsSource, uint32_t recipeId);
 const UiVfsNode *UiVfs_Get(const UiVfs *, UiVfsId);
 /* Comprueba los metadatos del nodo. La carga valida el contenido de la receta. */

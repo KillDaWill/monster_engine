@@ -60,17 +60,24 @@ UiVfsId UiVfs_FindChild(const UiVfs *fs, UiVfsId parent, const char *name)
     return name ? Find(fs,parent,name,strlen(name)) : 0;
 }
 
-UiVfsId UiVfs_Add(UiVfs *fs, UiVfsId parent, const char *name, UiVfsType type,
-                 UiVfsSource source, uint32_t recipeId)
+bool UiVfs_CanAdd(const UiVfs *fs, UiVfsId parent, const char *name)
 {
     const Entry *p = Get(fs,parent);
     if (!p || p->node.type != UI_VFS_DIRECTORY || fs->count == UI_VFS_LIMIT ||
         !name || !*name || !strcmp(name,".") || !strcmp(name,"..") ||
-        strpbrk(name,"/\r\n\t") || UiVfs_FindChild(fs,parent,name)) return 0;
+        strpbrk(name,"/\r\n\t") || UiVfs_FindChild(fs,parent,name)) return false;
+    size_t bytes = strlen(name);
+    return bytes < UI_VFS_NAME_BYTES &&
+        p->pathBytes + (parent != UiVfs_Root(fs)) + bytes < UI_VFS_PATH_BYTES;
+}
+
+UiVfsId UiVfs_Add(UiVfs *fs, UiVfsId parent, const char *name, UiVfsType type,
+                 UiVfsSource source, uint32_t recipeId)
+{
+    if (!UiVfs_CanAdd(fs,parent,name)) return 0;
+    const Entry *p = Get(fs,parent);
     size_t bytes = strlen(name);
     size_t pathBytes = p->pathBytes + (parent != UiVfs_Root(fs)) + bytes;
-    if (bytes >= UI_VFS_NAME_BYTES || pathBytes >= UI_VFS_PATH_BYTES) return 0;
-
     UiVfsId id = ++fs->count;
     Entry *entry = &fs->entries[id-1], *directory = &fs->entries[parent-1];
     *entry = (Entry){.node={.id=id,.parent=parent,.type=type,.source=source,

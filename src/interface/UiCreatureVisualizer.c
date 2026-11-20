@@ -146,6 +146,22 @@ bool UiCreatureVisualizer_ViewRecipe(UiCreatureVisualizer *app, UiVfsId recipe,
     return RequestView(app,node,NULL,error,capacity);
 }
 
+bool UiCreatureVisualizer_ViewTemporary(UiCreatureVisualizer *app, const CreatureRecipe *recipe,
+    unsigned candidate, char *error, size_t capacity)
+{
+    if (!UiDesktop_Find(app->desktop,app->window) && app->desktop->count == UI_MAX_WINDOWS) {
+        snprintf(error,capacity,"ERROR: Desktop window limit reached");
+        return false;
+    }
+    return UiCreatureEngine_RequestTemporary(&app->engine,recipe,candidate,error,capacity) &&
+        UiCreatureVisualizer_Open(app);
+}
+
+void UiCreatureVisualizer_InvalidateTemporary(UiCreatureVisualizer *app, unsigned candidate)
+{
+    UiCreatureEngine_InvalidateTemporary(app->engine,candidate);
+}
+
 static UiCommandResult View(UiCreatureVisualizer *app, const char *route, bool pair,
                             char *out, size_t capacity)
 {

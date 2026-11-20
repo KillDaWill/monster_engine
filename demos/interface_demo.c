@@ -2,6 +2,7 @@
 #include "interface/UiFilesView.h"
 #include "interface/UiCreatureVisualizer.h"
 #include "interface/UiRecipeCatalog.h"
+#include "interface/UiOffspringApp.h"
 #include "interface/UiShell.h"
 #include "interface/UiTerminalView.h"
 #include "interface/UiTheme.h"
@@ -20,19 +21,25 @@ typedef struct {
     UiFilesApp files;
     UiFilesLaunch filesLaunch;
     UiCreatureVisualizer visualizer;
+    UiOffspringApp offspring;
     UiWindowId terminalId;
-    int height;
+    int width, height;
 } InterfaceDemo;
 
-static UiRect Dock(int height, int index)
+static UiRect Dock(int width, int height, int index)
 {
-    static const int x[] = {0,178,316}, widths[] = {168,128,182};
+    static const int x[] = {0,178,316,508}, widths[] = {168,128,182,172};
+    if (width < 740) {
+        int buttonWidth = (width-2*MARGIN-3*8)/4;
+        return (UiRect){MARGIN+index*(buttonWidth+8),height-BOTTOM+10,buttonWidth,36};
+    }
     return (UiRect){MARGIN+x[index],height-BOTTOM+10,widths[index],36};
 }
 
 static void Resize(void *state, int w, int h)
 {
     InterfaceDemo *demo = state;
+    demo->width = w;
     demo->height = h;
     UiRect area = WorkspaceRect(w,h);
     UiDesktop_SetArea(&demo->desktop,area);
@@ -50,18 +57,23 @@ static void Resize(void *state, int w, int h)
 static bool DesktopPress(void *state, int x, int y)
 {
     InterfaceDemo *demo = state;
-    if (UiRect_Contains(Dock(demo->height,0),x,y)) {
+    if (UiRect_Contains(Dock(demo->width,demo->height,0),x,y)) {
         UiDesktop_Activate(&demo->desktop,demo->terminalId);
         return true;
     }
-    if (UiRect_Contains(Dock(demo->height,1),x,y)) {
+    if (UiRect_Contains(Dock(demo->width,demo->height,1),x,y)) {
         if (!UiFilesApp_Open(&demo->filesLaunch))
             UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,"Files: Desktop window limit reached");
         return true;
     }
-    if (UiRect_Contains(Dock(demo->height,2),x,y)) {
+    if (UiRect_Contains(Dock(demo->width,demo->height,2),x,y)) {
         if (!UiCreatureVisualizer_Open(&demo->visualizer))
             UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,"CreatureVisualizer: Desktop window limit reached");
+        return true;
+    }
+    if (UiRect_Contains(Dock(demo->width,demo->height,3),x,y)) {
+        if (!UiOffspringApp_Open(&demo->offspring))
+            UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,"CreatureOffspring window limit reached");
         return true;
     }
     return false;
@@ -183,20 +195,23 @@ static void Draw(void *state, UiRenderer *r, int w, int h)
     TopBar(r,w);
     UiRenderer_Gradient(r,(UiRect){0,h-BOTTOM,w,BOTTOM},0x0b1e2cff,0x091722ff);
     UiRenderer_Rect(r,(UiRect){0,h-BOTTOM,w,1},UI_EDGE);
-    DockButton(demo,r,Dock(h,0),demo->terminalId,"Terminal",UiTheme_TerminalIcon);
-    DockButton(demo,r,Dock(h,1),demo->files.window,"Files",UiFilesView_Icon);
-    DockButton(demo,r,Dock(h,2),demo->visualizer.window,"CreatureVisualizer",UiCreatureVisualizer_Icon);
-    if (w >= 720) UiRenderer_Text(r,w-177,h-BOTTOM+21,12,UI_MUTED,"CTRL TAB  Focus");
+    DockButton(demo,r,Dock(w,h,0),demo->terminalId,"Terminal",UiTheme_TerminalIcon);
+    DockButton(demo,r,Dock(w,h,1),demo->files.window,"Files",UiFilesView_Icon);
+    DockButton(demo,r,Dock(w,h,2),demo->visualizer.window,w<740 ? "CV" : "CreatureVisualizer",UiCreatureVisualizer_Icon);
+    DockButton(demo,r,Dock(w,h,3),demo->offspring.window,w<740 ? "CO" : "CreatureOffspring",UiOffspringApp_Icon);
+    if (w >= 910) UiRenderer_Text(r,w-177,h-BOTTOM+21,12,UI_MUTED,"CTRL TAB  Focus");
 }
 
 static bool NeedsFrame(void *state)
 {
-    return UiCreatureVisualizer_NeedsFrame(&((InterfaceDemo *)state)->visualizer);
+    InterfaceDemo *demo = state;
+    return UiOffspringApp_NeedsFrame(&demo->offspring) || UiCreatureVisualizer_NeedsFrame(&demo->visualizer);
 }
 
 static void Prepass(void *state, int w, int h, int dw, int dh, double dt)
 {
     InterfaceDemo *demo = state;
+    UiOffspringApp_Update(&demo->offspring);
     const char *error = UiCreatureVisualizer_Prepass(&demo->visualizer,w,h,dw,dh,dt);
     if (error) UiTerminal_Append(&demo->terminal,UI_LOG_ERROR,error);
 }
@@ -236,12 +251,15 @@ int main(void)
         }
     };
     demo->visualizer = (UiCreatureVisualizer){.desktop=&demo->desktop,.shell=&demo->shell,.executableDirectory=base};
+    demo->offspring = (UiOffspringApp){.desktop=&demo->desktop,.fs=demo->fs,.folder=recipes,
+        .terminal=&demo->terminal,.visualizer=&demo->visualizer};
     UiTerminal_Init(&demo->terminal,&demo->commands);
     if (!UiCommands_Register(&demo->commands,"print",UiCommands_Print,NULL) ||
         !UiShell_Register(&demo->shell,&demo->commands) ||
         !UiCommands_Register(&demo->commands,"Files",UiFilesApp_Command,&demo->filesLaunch) ||
         !UiCommands_Register(&demo->commands,"Files.close",UiFilesApp_CloseCommand,&demo->filesLaunch) ||
         !UiCreatureVisualizer_Register(&demo->visualizer,&demo->commands) ||
+        !UiOffspringApp_Register(&demo->offspring,&demo->commands) ||
         !UiCommands_Register(&demo->commands,"clear",UiTerminal_ClearCommand,&demo->terminal)) {
         fputs("Nexus: Cannot register desktop commands\n",stderr);
         UiVfs_Destroy(demo->fs);

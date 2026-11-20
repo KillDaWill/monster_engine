@@ -21,4 +21,7 @@ UiCreatureOrbit UiCreatureOrbit_Default(void);
 void UiCreatureOrbit_Input(UiCreatureOrbit *, const UiEvent *);
 ICamera UiCreatureOrbit_Camera(const UiCreatureOrbit *, AABB3D bounds, float aspect);
 
+/* Ajusta la proyección al volumen visible de la vista previa de CO. */
+ICamera UiCreatureOrbit_PreviewCamera(const UiCreatureOrbit *, AABB3D bounds, float aspect);
+
 #endif

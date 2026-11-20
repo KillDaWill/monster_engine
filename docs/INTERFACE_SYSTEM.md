@@ -80,6 +80,13 @@ El registro entrega el sufijo al prefijo inscrito más largo. Cada ruta requiere
 
 La ventana nueva tiene el contenido negro. Abrirla desde el dock o el comando mientras está minimizada conserva su escena y edad. Cerrar con el botón «×» o el comando libera la escena y deja la próxima apertura vacía. El terminal conserva su historial y contenido. Ver [renderizado integrado y validación](CREATURE_VISUALIZER_INTEGRATION.md).
 
+### CreatureOffspring
+
+`CO` abre la galería de descendientes. `CO.create.5."ruta1"."ruta2"` genera cinco recetas
+temporales. `CV.view.CO.4` previsualiza un candidato y `CO.save.4` lo publica en
+`/recepies/`. La sintaxis, la reparación anatómica y el ciclo de vida están descritos en
+[CreatureOffspring](CREATURE_OFFSPRING.md).
+
 ### Catálogo de recetas
 
 `UiRecipeCatalog` localiza `../recipes/catalog.txt` respecto al ejecutable en `demos/`. Comprueba que `demo_morph_species.c` acompaña al ejecutable para identificar el árbol del proyecto. Se puede arrancar desde otro directorio de trabajo. Si falta el árbol o el manifiesto, el terminal avisa y Files conserva las recetas incorporadas.
@@ -95,7 +102,7 @@ El prompt admite hasta 1023 bytes UTF-8. El historial conserva 64 comandos y el 
 - `UiRenderer` posee el atlas OpenGL y un lote reutilizable de vértices. `UiTheme` dibuja cada marco y recorta el callback de contenido. El dibujo conserva el orden cuando cambia la textura o el clip. Los recursos del renderizador se liberan antes de destruir el contexto.
 - `UiTerminal` posee la edición, el historial y el registro acotado. Cuando el usuario lee hacia atrás, conserva un ancla por entrada y posición UTF-8 hasta que la entrada sale del historial. `UiTerminalView` transforma ese estado en dibujo e interacción.
 - `UiCommands` copia nombres registrados y llama al handler con su contexto. Un handler puede entregar una respuesta en el búfer, escribir varias líneas con `UiCommandOutput` o devolver `UI_COMMAND_SILENT`. El receptor del terminal consume cada línea al momento y la incorpora al registro. Un `print` vacío sigue produciendo una línea, mientras `cd` y `Files` exitosos solo dejan su orden en el historial de salida.
-- `UiVfs` posee hasta 192 nodos con IDs estables, orden de inserción y metadatos de solo lectura. El anfitrión puede agregar carpetas y archivos con `UiVfs_Add` durante la construcción, antes de compartir el árbol con las aplicaciones. Una ruta puede ocupar hasta 1023 bytes UTF-8. `UiShell` toma prestado el árbol y posee el directorio actual del terminal.
+- `UiVfs` posee hasta 4096 nodos con IDs y direcciones estables, orden de inserción y metadatos de solo lectura. El anfitrión agrega nodos con `UiVfs_Add` al iniciar el escritorio y tras publicar recetas desde CO. Una ruta puede ocupar hasta 1023 bytes UTF-8. `UiShell` toma prestado el árbol y posee el directorio actual del terminal.
 - `UiFilesApp` conserva la navegación, la selección y el ID de su ventana. `UiFilesView` dibuja el explorador y traduce las interacciones en acciones de ese modelo. La demo pasa una descripción de ventana mediante `UiFilesLaunch` y conecta un callback que recibe el ID de la receta del VFS. El callback llama a `UiCreatureVisualizer_ViewRecipe`, que comparte la solicitud de escena con los comandos del terminal.
 
 El atlas integrado se generó con Fira Code Regular 6.2, distribuida bajo SIL OFL 1.1. La licencia está en [assets/interface/fonts/OFL.txt](../assets/interface/fonts/OFL.txt). Para regenerar el atlas se necesita Pillow y una copia de Fira Code. La compilación y la ejecución usan el atlas incluido.

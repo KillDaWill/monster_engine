@@ -12,6 +12,9 @@ typedef struct CreatureRecipeDocument {
     char name[192];
 } CreatureRecipeDocument;
 
+/** @brief Copia una receta y vincula el nombre al documento destino. */
+void CreatureRecipeDocument_Copy(CreatureRecipeDocument* out, const CreatureRecipe* recipe);
+
 /** @brief Lee JSON completo de versión 1 de forma transaccional.
  * @param out Documento destino; permanece intacto ante errores.
  * @param json Texto UTF-8 terminado en cero.
@@ -20,6 +23,8 @@ typedef struct CreatureRecipeDocument {
  */
 bool CreatureRecipeIO_ReadJSON(CreatureRecipeDocument* out, const char* json,
                                char* error, size_t errorSize);
+/** @brief Comprueba los límites, números finitos y enumerados del formato v1. */
+bool CreatureRecipeIO_ValidateFields(const CreatureRecipe* recipe);
 /** @brief Escribe todos los datos semánticos sin punteros ni padding.
  * @param file Flujo destino. @param recipe Receta. @return Éxito de escritura.
  */

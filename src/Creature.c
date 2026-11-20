@@ -280,6 +280,9 @@ unsigned Creature_ValidateGeometry(const Monster* m) {
         Vector3 origin=m->bodyParts[m->head.anatomy.attachmentBodyPartIndex].positionRender;
         if(Vec3_Distance(Vec3_Add(origin,m->head.anatomy.landmarks.neckAttachment),neck->center)>neck->widthRadius*.1f)errors|=2;
         for(size_t i=0;i<m->eyeCount && i<2;++i) {
+            /* Las etapas anteriores a la emergencia aún publican órbitas,
+             * pero carecen de globo visible cuyo asiento pueda comprobarse. */
+            if (m->eyes[i].scale.z == 0.0f) continue;
             Vector3 orbit=i?m->head.anatomy.landmarks.rightOrbit:m->head.anatomy.landmarks.leftOrbit;
             float displacement=Vec3_Distance(m->eyes[i].offset,orbit);
             if(displacement>m->eyes[i].scale.z*.90f+1e-5f)errors|=4;

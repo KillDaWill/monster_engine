@@ -2,6 +2,7 @@
 #define UI_RECIPE_CATALOG_H
 
 #include "UiVfs.h"
+#include <stdio.h>
 
 typedef struct {
     bool manifestAvailable;
@@ -16,4 +17,8 @@ UiRecipeCatalogReport UiRecipeCatalog_LoadProject(UiVfs *, UiVfsId, const char *
 /* Lee sólo la entrada externa que la aplicación resolvió en el árbol del catálogo.
  * El llamador libera el JSON y comprueba su ID al validarlo con el motor. */
 char *UiRecipeCatalog_ReadProjectRecipe(const char *executableDirectory, const UiVfsNode *);
+/* Publica un archivo nuevo y el catálogo antes de registrar la entrada virtual. */
+typedef bool (*UiRecipeWriter)(FILE *, uint32_t id, void *);
+UiVfsId UiRecipeCatalog_SaveProject(UiVfs *, UiVfsId folder, const char *executableDirectory,
+    const char *filename, uint32_t preferredId, UiRecipeWriter, void *, char *error, size_t);
 #endif

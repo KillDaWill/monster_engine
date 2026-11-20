@@ -5,6 +5,9 @@
 
 bool UiCreatureEngine_Request(UiCreatureEngine **, const char *directory, const UiVfsNode *first,
                               const UiVfsNode *second, char *error, size_t);
+bool UiCreatureEngine_RequestTemporary(UiCreatureEngine **, const CreatureRecipe *,
+    unsigned candidate, char *error, size_t capacity);
+void UiCreatureEngine_InvalidateTemporary(UiCreatureEngine *, unsigned candidate);
 void UiCreatureEngine_Destroy(UiCreatureEngine *);
 void UiCreatureEngine_OrbitInput(UiCreatureEngine *, const UiEvent *);
 bool UiCreatureEngine_NeedsFrame(const UiCreatureEngine *);

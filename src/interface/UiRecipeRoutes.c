@@ -1,7 +1,7 @@
 #include "interface/UiRecipeRoutes.h"
 #include <string.h>
 
-static const char *ReadPath(const char **route, char path[UI_VFS_PATH_BYTES])
+const char *UiRecipeRoutes_ReadQuoted(const char **route, char path[UI_VFS_PATH_BYTES])
 {
     const char *start = *route;
     if (*start != '"') return "Expected a double-quoted recipe path";
@@ -30,20 +30,21 @@ static const char *Recipe(const UiVfs *fs, UiVfsId cwd, const char *path,
     return NULL;
 }
 
-const char *UiRecipeRoutes_Resolve(const UiVfs *fs, UiVfsId cwd, const char *route, bool pair,
-                                  const UiVfsNode **first, const UiVfsNode **second)
+const char *UiRecipeRoutes_ResolveWithSuffix(const UiVfs *fs, UiVfsId cwd, const char *route, bool pair,
+                                  const UiVfsNode **first, const UiVfsNode **second, const char **suffix)
 {
     *first = *second = NULL;
     char left[UI_VFS_PATH_BYTES], right[UI_VFS_PATH_BYTES];
-    const char *error = ReadPath(&route,left);
+    const char *error = UiRecipeRoutes_ReadQuoted(&route,left);
     if (error) return error;
     if (pair) {
         if (*route != '.') return "Expected a period between two double-quoted recipe paths";
         ++route;
-        error = ReadPath(&route,right);
+        error = UiRecipeRoutes_ReadQuoted(&route,right);
         if (error) return error;
     }
-    if (*route) return "Unexpected text after recipe path";
+    if (suffix) *suffix = route;
+    else if (*route) return "Unexpected text after recipe path";
 
     const UiVfsNode *a, *b = NULL;
     error = Recipe(fs,cwd,left,&a,false);
@@ -55,4 +56,10 @@ const char *UiRecipeRoutes_Resolve(const UiVfs *fs, UiVfsId cwd, const char *rou
     *first = a;
     *second = b;
     return NULL;
+}
+
+const char *UiRecipeRoutes_Resolve(const UiVfs *fs, UiVfsId cwd, const char *route, bool pair,
+                                  const UiVfsNode **first, const UiVfsNode **second)
+{
+    return UiRecipeRoutes_ResolveWithSuffix(fs,cwd,route,pair,first,second,NULL);
 }

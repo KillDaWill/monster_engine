@@ -145,32 +145,71 @@ static void WriteString(FILE* f,const char* s){
     }fputc('"',f);
 }
 static bool WriteObject(FILE*,const void*,const Field*);
+
 static bool WriteValue(FILE* file,const void* ptr,const Field* f){
     switch(f->kind){
-    case F_OBJECT:return WriteObject(file,ptr,f->children);
-    case F_STRING:if(!*(const char*const*)ptr||!**(const char*const*)ptr||strlen(*(const char*const*)ptr)>191)return false;WriteString(file,*(const char*const*)ptr);break;
-    case F_FLOAT:if(!isfinite(*(const float*)ptr)||fabsf(*(const float*)ptr)>1000000)return false;fprintf(file,"%.9g",*(const float*)ptr);break;
-    case F_ENUM:if(*(const int*)ptr<0||*(const int*)ptr>f->maximum)return false;fprintf(file,"%d",*(const int*)ptr);break;
-    case F_UNSIGNED:fprintf(file,"%u",*(const unsigned*)ptr);break;
-    case F_SIZE:fprintf(file,"%zu",*(const size_t*)ptr);break;
-    case F_U32:fprintf(file,"%u",*(const uint32_t*)ptr);break;
-    case F_U16:fprintf(file,"%u",(unsigned)*(const uint16_t*)ptr);break;
-    case F_U8:fprintf(file,"%u",(unsigned)*(const uint8_t*)ptr);break;
-    case F_BOOL:fputs(*(const bool*)ptr?"true":"false",file);break;
-    }return !ferror(file);
+    case F_OBJECT:
+        return WriteObject(file,ptr,f->children);
+    case F_STRING: {
+        const char* name=*(const char*const*)ptr;
+        if(!name||!*name||strlen(name)>191)return false;
+        if(file)WriteString(file,name);
+        break;
+    }
+    case F_FLOAT: {
+        float value=*(const float*)ptr;
+        if(!isfinite(value)||fabsf(value)>1000000)return false;
+        if(file)fprintf(file,"%.9g",value);
+        break;
+    }
+    case F_ENUM: {
+        int value=*(const int*)ptr;
+        if(value<0||value>f->maximum)return false;
+        if(file)fprintf(file,"%d",value);
+        break;
+    }
+    case F_UNSIGNED:if(file)fprintf(file,"%u",*(const unsigned*)ptr);break;
+    case F_SIZE:if(file)fprintf(file,"%zu",*(const size_t*)ptr);break;
+    case F_U32:if(file)fprintf(file,"%u",*(const uint32_t*)ptr);break;
+    case F_U16:if(file)fprintf(file,"%u",(unsigned)*(const uint16_t*)ptr);break;
+    case F_U8:if(file)fprintf(file,"%u",(unsigned)*(const uint8_t*)ptr);break;
+    case F_BOOL:if(file)fputs(*(const bool*)ptr?"true":"false",file);break;
+    }
+    return !file||!ferror(file);
 }
+
 static bool WriteObject(FILE* file,const void* ptr,const Field* fields){
-    fputc('{',file);
-    for(size_t i=0;fields[i].name;++i){const Field* f=&fields[i];
-        if(i)fputc(',',file);
-        WriteString(file,f->name);fputc(':',file);
+    if(file)fputc('{',file);
+    for(size_t i=0;fields[i].name;++i){
+        const Field* f=&fields[i];
+        if(file){
+            if(i)fputc(',',file);
+            WriteString(file,f->name);
+            fputc(':',file);
+        }
         const char* src=(const char*)ptr+f->offset;
-        if(f->capacity>1){size_t n=f->countOffset==NO_COUNT?f->capacity:*(const size_t*)((const char*)ptr+f->countOffset);
+        if(f->capacity>1){
+            size_t n=f->countOffset==NO_COUNT ? f->capacity :
+                *(const size_t*)((const char*)ptr+f->countOffset);
             if(n>f->capacity)return false;
-            fputc('[',file);for(size_t k=0;k<n;++k){if(k)fputc(',',file);if(!WriteValue(file,src+k*f->stride,f))return false;}fputc(']',file);
+            if(file)fputc('[',file);
+            for(size_t k=0;k<n;++k){
+                if(k&&file)fputc(',',file);
+                if(!WriteValue(file,src+k*f->stride,f))return false;
+            }
+            if(file)fputc(']',file);
         }else if(!WriteValue(file,src,f))return false;
-    }fputc('}',file);return !ferror(file);
+    }
+    if(file)fputc('}',file);
+    return !file||!ferror(file);
 }
+
+bool CreatureRecipeIO_ValidateFields(const CreatureRecipe* recipe){
+    if(!recipe)return false;
+    Envelope e={.version=1,.recipe=*recipe};
+    return WriteObject(NULL,&e,envelopeFields);
+}
+
 bool CreatureRecipeIO_WriteJSON(FILE* file,const CreatureRecipe* recipe){
     if(!file||!recipe)return false;
     Envelope e={.version=1,.recipe=*recipe};
@@ -225,4 +264,12 @@ bool CreatureRecipeIO_LoadFile(CreatureRecipeDocument* out,const char* path,char
     if(ok){data[n]=0;ok=CreatureRecipeIO_ReadJSON(out,data,error,errorSize);}
     else if(error&&errorSize)snprintf(error,errorSize,"Archivo demasiado grande o con bytes nulos.");
     free(data);return ok;
+}
+
+void CreatureRecipeDocument_Copy(CreatureRecipeDocument* out, const CreatureRecipe* recipe) {
+    char name[sizeof(out->name)];
+    snprintf(name,sizeof(name),"%s",recipe->name ? recipe->name : "");
+    out->recipe = *recipe;
+    strcpy(out->name,name);
+    out->recipe.name = out->name;
 }

@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include "CreatureOffspring.h"
 #include "../src/interface/UiCreatureScene.h"
 #include "../src/interface/UiCreatureOrbit.h"
 #include "interface/UiRecipeCatalog.h"
@@ -127,7 +128,11 @@ static void OrbitFraming(void)
                                           (i&2)?bounds.end.y:bounds.start.y,
                                           (i&4)?bounds.end.z:bounds.start.z};
                         Vector3 delta = Vec3_Sub(corner,camera.position);
-                        assert(fabsf(Vec3_Dot(delta,right)) < halfHeight*aspects[a]);
+                        ICamera preview = UiCreatureOrbit_PreviewCamera(&orbit,bounds,aspects[a]);
+                    float previewHalf = -.5f*preview.fov;
+                    assert(fabsf(Vec3_Dot(delta,right)) < previewHalf*aspects[a]);
+                    assert(fabsf(Vec3_Dot(delta,up)) < previewHalf);
+                    assert(fabsf(Vec3_Dot(delta,right)) < halfHeight*aspects[a]);
                         assert(fabsf(Vec3_Dot(delta,up)) < halfHeight);
                         float depth = Vec3_Dot(delta,forward);
                         assert(depth > camera.nearPlane && depth < camera.farPlane);
@@ -222,6 +227,17 @@ int main(void)
     next->hair = LongHairAsync_Create();
     assert(next->hair && LongHairAsync_Update(next->hair,UiCreatureScene_Monster(next),false));
     UiCreatureScene_Destroy(next);
+    const CreatureRecipe *source = CreatureRecipes_Dog();
+    CreatureOffspringBatch *batch = CreatureOffspring_Generate(source,CreatureRecipes_Lizard(),
+        CreatureOffspring_Default(1,48216),NULL,NULL,error,sizeof(error));
+    assert(batch);
+    const CreatureRecipe *child = CreatureOffspring_Get(batch,0,NULL);
+    scene = UiCreatureScene_CreateTemporary(child,1,error,sizeof(error));
+    assert(scene && scene->temporaryCandidate==1 && scene->docs[0]->recipe.name!=child->name);
+    CreatureOffspring_Destroy(batch);
+    assert(scene->adult.recipe.name==scene->docs[0]->name);
+    CheckField(scene);
+    UiCreatureScene_Destroy(scene);
     SpeciesPairs(fs,folder);
     UiVfs_Destroy(fs);
     Orbit();

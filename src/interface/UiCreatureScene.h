@@ -10,6 +10,7 @@
 typedef struct {
     CreatureRecipeDocument *docs[2];
     CreatureRecipeId from, to;
+    unsigned temporaryCandidate;
     Monster adult, reference;
     MonsterAger *ager;
     MonsterSDF sdf;
@@ -22,6 +23,10 @@ typedef struct {
     LongHairAsync *hair;
 } UiCreatureScene;
 
+bool UiCreatureScene_LoadRecipe(const char *, const UiVfsNode *, CreatureRecipeDocument *,
+    char *error, size_t capacity);
+UiCreatureScene *UiCreatureScene_CreateTemporary(const CreatureRecipe *, unsigned candidate,
+    char *error, size_t capacity);
 UiCreatureScene *UiCreatureScene_Create(const char *, const UiVfsNode *, const UiVfsNode *,
                                        char *error, size_t capacity);
 void UiCreatureScene_Destroy(UiCreatureScene *);

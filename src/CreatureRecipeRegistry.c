@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-static CreatureRecipeDocument* documents[64];
+static CreatureRecipeDocument** documents;
+static size_t documentCapacity;
 static size_t documentCount;
 static bool registeredCleanup;
 const CreatureRecipe* CreatureRecipeRegistry_Find(CreatureRecipeId id){
@@ -17,15 +18,23 @@ const CreatureRecipe* CreatureRecipeRegistry_Find(CreatureRecipeId id){
 }
 void CreatureRecipeRegistry_Clear(void){
     for(size_t i=0;i<documentCount;++i)free(documents[i]);
-    documentCount=0;
+    free(documents);
+    documents=NULL;
+    documentCount=documentCapacity=0;
 }
 bool CreatureRecipeRegistry_LoadFile(const char* path,char* error,size_t capacity){
-    if(documentCount==64){if(error&&capacity)snprintf(error,capacity,"Catálogo externo lleno.");return false;}
     CreatureRecipeDocument* document=malloc(sizeof(*document));if(!document)return false;
     if(!CreatureRecipeIO_LoadFile(document,path,error,capacity)){free(document);return false;}
     if(CreatureRecipeRegistry_Find(document->recipe.id)){
         if(error&&capacity)snprintf(error,capacity,"ID externo duplicado: %u.",document->recipe.id);
         free(document);return false;
+    }
+    if(documentCount==documentCapacity){
+        size_t next=documentCapacity ? documentCapacity*2 : 64;
+        CreatureRecipeDocument** entries=realloc(documents,next*sizeof(*entries));
+        if(!entries){free(document);return false;}
+        documents=entries;
+        documentCapacity=next;
     }
     if(!registeredCleanup){atexit(CreatureRecipeRegistry_Clear);registeredCleanup=true;}
     documents[documentCount++]=document;return true;

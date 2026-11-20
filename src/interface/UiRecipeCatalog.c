@@ -1,6 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include "interface/UiRecipeCatalog.h"
 #include <fcntl.h>
+#include <fts.h>
+#include <errno.h>
+#include <sys/file.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -159,9 +162,12 @@ static char *ReadRecipe(int directory, const char *name)
     size_t bytes;
     FILE *file = OpenRegular(directory,name,RECIPE_BYTES,&bytes);
     if (!file) return NULL;
+    struct stat before, after;
     char *data = malloc(bytes+1);
-    if (!data || fread(data,1,bytes,file) != bytes || fgetc(file) != EOF ||
-        ferror(file) || memchr(data,0,bytes)) {
+    if (fstat(fileno(file),&before) != 0 || !data || fread(data,1,bytes,file) != bytes || fgetc(file) != EOF ||
+        ferror(file) || memchr(data,0,bytes) || fstat(fileno(file),&after) != 0 ||
+        before.st_size != after.st_size || before.st_mtim.tv_sec != after.st_mtim.tv_sec ||
+        before.st_mtim.tv_nsec != after.st_mtim.tv_nsec) {
         free(data);
         data = NULL;
     } else {
@@ -290,4 +296,169 @@ char *UiRecipeCatalog_ReadProjectRecipe(const char *executableDirectory, const U
     char *json = ReadRecipe(recipes,node->name);
     close(recipes);
     return json;
+}
+
+static int CompareId(const void *a, const void *b)
+{
+    uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
+    return (x>y)-(x<y);
+}
+
+static uint32_t FreeId(int directory, const UiVfs *fs, UiVfsId folder, uint32_t preferred,
+    const char *executableDirectory)
+{
+    struct stat pinned;
+    if (fstat(directory,&pinned) != 0) return 0;
+    const char suffix[] = "/../recipes";
+    size_t length = strlen(executableDirectory);
+    char *root = malloc(length+sizeof(suffix));
+    if (!root) return 0;
+    memcpy(root,executableDirectory,length);
+    memcpy(root+length,suffix,sizeof(suffix));
+    char *paths[] = {root,NULL};
+    FTS *tree = fts_open(paths,FTS_PHYSICAL|FTS_NOCHDIR,NULL);
+    if (!tree) { free(root); return 0; }
+    size_t count = 0, capacity = 64;
+    uint32_t *ids = malloc(capacity*sizeof(*ids));
+    bool verifiedRoot = false, ok = ids != NULL;
+    while (ok) {
+        errno = 0;
+        FTSENT *entry = fts_read(tree);
+        if (!entry) { ok = errno == 0 && verifiedRoot; break; }
+        if (entry->fts_level == 0 && !verifiedRoot) {
+            verifiedRoot = entry->fts_info == FTS_D &&
+                entry->fts_statp->st_dev == pinned.st_dev && entry->fts_statp->st_ino == pinned.st_ino;
+            ok = verifiedRoot;
+            continue;
+        }
+        if (entry->fts_info == FTS_D && entry->fts_level > 0) {
+            ok = fts_set(tree,entry,FTS_SKIP) == 0;
+            continue;
+        }
+        if (entry->fts_level == 0 && (entry->fts_info == FTS_ERR ||
+            entry->fts_info == FTS_DNR || entry->fts_info == FTS_NS)) { ok = false; break; }
+        if (entry->fts_info != FTS_F || !Filename(entry->fts_name,entry->fts_namelen)) continue;
+        uint32_t id = RecipeId(directory,entry->fts_name);
+        if (!id) continue;
+        if (count == capacity) {
+            if (capacity > SIZE_MAX/2/sizeof(*ids)) { ok = false; break; }
+            capacity *= 2;
+            uint32_t *next = realloc(ids,capacity*sizeof(*ids));
+            if (!next) { ok = false; break; }
+            ids = next;
+        }
+        ids[count++] = id;
+    }
+    fts_close(tree);
+    free(root);
+    if (!ok) { free(ids); return 0; }
+    qsort(ids,count,sizeof(*ids),CompareId);
+    uint32_t result = preferred >= 1000 ? preferred : 1000;
+    while (ContainsId(fs,folder,result) || bsearch(&result,ids,count,sizeof(*ids),CompareId))
+        result = result == UINT32_MAX ? 1000 : result+1;
+    free(ids);
+    return result;
+}
+
+static FILE *Temporary(int directory, char name[80])
+{
+    for (unsigned i=0; i<128; ++i) {
+        snprintf(name,80,".nexus-recipe-%ld-%u.tmp",(long)getpid(),i);
+        int fd = openat(directory,name,O_RDWR|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,0666);
+        if (fd < 0 && errno == EEXIST) continue;
+        if (fd < 0) break;
+        FILE *file = fdopen(fd,"w+b");
+        if (file) return file;
+        close(fd);
+        unlinkat(directory,name,0);
+        break;
+    }
+    *name = 0;
+    return NULL;
+}
+
+static bool Finish(FILE *file)
+{
+    bool ok = !ferror(file) && fflush(file) == 0 && fsync(fileno(file)) == 0;
+    return fclose(file) == 0 && ok;
+}
+
+static bool CopyManifest(FILE *source, FILE *target, const char *filename)
+{
+    char buffer[8192];
+    size_t n;
+    while ((n = fread(buffer,1,sizeof(buffer),source)))
+        if (fwrite(buffer,1,n,target) != n) return false;
+    return !ferror(source) && fprintf(target,"\n%s\n",filename) > 0;
+}
+
+UiVfsId UiRecipeCatalog_SaveProject(UiVfs *fs, UiVfsId folder, const char *directory,
+    const char *filename, uint32_t preferred, UiRecipeWriter writer, void *context,
+    char *error, size_t capacity)
+{
+    if (!filename || !Filename(filename,strlen(filename)) || !writer ||
+        !UiVfs_CanAdd(fs,folder,filename)) {
+        snprintf(error,capacity,"Invalid filename, existing recipe, or full Files directory");
+        return 0;
+    }
+    int fd = ProjectRecipes(directory);
+    if (fd < 0 || flock(fd,LOCK_EX) != 0) {
+        if (fd >= 0) close(fd);
+        snprintf(error,capacity,"Cannot lock the project recipes directory");
+        return 0;
+    }
+    const char *failure = "Cannot read the project recipe catalog";
+    FILE *manifest = OpenRegular(fd,"catalog.txt",RECIPE_BYTES,NULL);
+    char recipeTmp[80] = "", manifestTmp[80] = "";
+    UiVfsId result = 0;
+    if (!manifest) goto done;
+    struct stat original, current;
+    if (fstat(fileno(manifest),&original) != 0) goto done;
+    if ((uintmax_t)original.st_size+strlen(filename)+2 > RECIPE_BYTES) {
+        failure = "Recipe catalog is full";
+        goto done;
+    }
+    if (fstatat(fd,filename,&current,AT_SYMLINK_NOFOLLOW) == 0 || errno != ENOENT) {
+        failure = "Recipe filename already exists or cannot be checked";
+        goto done;
+    }
+    uint32_t id = FreeId(fd,fs,folder,preferred,directory);
+    if (!id) { failure = "Cannot allocate a unique recipe ID"; goto done; }
+    FILE *recipe = Temporary(fd,recipeTmp);
+    failure = "Cannot write and validate the recipe JSON";
+    if (!recipe) goto done;
+    bool written = writer(recipe,id,context);
+    if (!Finish(recipe) || !written) goto done;
+
+    failure = "Cannot write the updated recipe catalog";
+    FILE *updated = Temporary(fd,manifestTmp);
+    if (!updated) goto done;
+    written = fchmod(fileno(updated),original.st_mode & 0777) == 0 &&
+        CopyManifest(manifest,updated,filename);
+    if (!Finish(updated) || !written) goto done;
+
+    failure = "Recipe catalog changed during save";
+    if (fstatat(fd,"catalog.txt",&current,AT_SYMLINK_NOFOLLOW) != 0 ||
+        original.st_ino != current.st_ino || original.st_dev != current.st_dev ||
+        original.st_size != current.st_size || original.st_mtim.tv_sec != current.st_mtim.tv_sec ||
+        original.st_mtim.tv_nsec != current.st_mtim.tv_nsec) goto done;
+    failure = "Cannot publish a new recipe file";
+    if (linkat(fd,recipeTmp,fd,filename,0) != 0) goto done;
+    if (fsync(fd) != 0 || renameat(fd,manifestTmp,fd,"catalog.txt") != 0) {
+        failure = "Cannot publish the updated recipe catalog";
+        unlinkat(fd,filename,0);
+        goto done;
+    }
+    *manifestTmp = 0;
+    result = UiVfs_Add(fs,folder,filename,UI_VFS_FILE,UI_VFS_EXTERNAL_RECIPE,id);
+    failure = "Recipe saved, but Files registration failed";
+    if (fsync(fd) != 0 && result)
+        snprintf(error,capacity,"Recipe saved, but catalog durability could not be confirmed");
+done:
+    if (manifest) fclose(manifest);
+    if (*recipeTmp) unlinkat(fd,recipeTmp,0);
+    if (*manifestTmp) unlinkat(fd,manifestTmp,0);
+    close(fd);
+    if (!result) snprintf(error,capacity,"%s",failure);
+    return result;
 }

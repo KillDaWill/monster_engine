@@ -8,6 +8,7 @@ struct UiCreatureEngine {
     const UiVfsNode *first, *second;
     UiCreatureFrame front;
     int renders;
+    unsigned temporary;
 };
 
 void InterfaceTest_CheckRecipe(const UiCreatureEngine *engine, UiVfsId first, UiVfsId second)
@@ -33,6 +34,7 @@ bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory,
     }
     if (!*owner) *owner = calloc(1,sizeof(**owner));
     if (!*owner) abort();
+    (*owner)->temporary = 0;
     (*owner)->first = first;
     (*owner)->second = second;
     return true;
@@ -102,4 +104,27 @@ void UiRenderer_Text(UiRenderer *r, int x, int y, int size, UiColor color, const
 {
     (void)r; (void)x; (void)y; (void)size; (void)color; (void)text;
     abort();
+}
+
+bool UiCreatureEngine_RequestTemporary(UiCreatureEngine **owner, const CreatureRecipe *recipe,
+    unsigned candidate, char *error, size_t capacity)
+{
+    (void)recipe; (void)error; (void)capacity;
+    if (!*owner) *owner = calloc(1,sizeof(**owner));
+    if (!*owner) return false;
+    (*owner)->temporary = candidate;
+    return true;
+}
+
+void UiCreatureEngine_InvalidateTemporary(UiCreatureEngine *engine, unsigned candidate)
+{
+    if (engine && engine->temporary && (!candidate || candidate == engine->temporary)) {
+        engine->temporary = 0;
+        engine->front = (UiCreatureFrame){0};
+    }
+}
+
+void InterfaceTest_CheckTemporary(const UiCreatureEngine *engine, unsigned candidate)
+{
+    assert(engine && engine->temporary == candidate);
 }

@@ -18,6 +18,7 @@ struct UiCreatureEngine {
     Target front, work;
     GLsync fence;
     double elapsed;
+    Uint64 requestStart;
     int failedWidth, failedHeight;
     UiCreatureOrbit orbit;
     bool stopped, profile, hairDirty, waitingShader;
@@ -35,14 +36,8 @@ static bool Supported(void)
     return (profile & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT) && bufferSize > 0;
 }
 
-bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory, const UiVfsNode *first,
-                              const UiVfsNode *second, char *error, size_t capacity)
+static bool AcceptScene(UiCreatureEngine **owner, UiCreatureScene *pending, char *error, size_t capacity)
 {
-    if (!Supported()) {
-        snprintf(error,capacity,"ERROR: Creature rendering requires OpenGL 3.3 compatibility");
-        return false;
-    }
-    UiCreatureScene *pending = UiCreatureScene_Create(directory,first,second,error,capacity);
     if (!pending) return false;
     if (!*owner) {
         *owner = calloc(1,sizeof(**owner));
@@ -60,12 +55,66 @@ bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory, c
     return true;
 }
 
+static bool CheckSupport(char *error, size_t capacity)
+{
+    if (Supported()) return true;
+    snprintf(error,capacity,"ERROR: Creature rendering requires OpenGL 3.3 compatibility");
+    return false;
+}
+
+bool UiCreatureEngine_Request(UiCreatureEngine **owner, const char *directory,
+    const UiVfsNode *first, const UiVfsNode *second, char *error, size_t capacity)
+{
+    return CheckSupport(error,capacity) && AcceptScene(owner,
+        UiCreatureScene_Create(directory,first,second,error,capacity),error,capacity);
+}
+
+bool UiCreatureEngine_RequestTemporary(UiCreatureEngine **owner, const CreatureRecipe *recipe,
+    unsigned candidate, char *error, size_t capacity)
+{
+    Uint64 start = SDL_GetPerformanceCounter();
+    if (!CheckSupport(error,capacity) || !AcceptScene(owner,
+        UiCreatureScene_CreateTemporary(recipe,candidate,error,capacity),error,capacity)) return false;
+    if ((*owner)->profile) {
+        (*owner)->requestStart = start;
+        double ms = (double)(SDL_GetPerformanceCounter()-start)*1000.0/SDL_GetPerformanceFrequency();
+        fprintf(stderr,"[nexus-offspring-preview] candidate=%u scene_ms=%.3f\n",candidate,ms);
+    }
+    return true;
+}
+
 static void FreeTarget(Target *target)
 {
     if (target->framebuffer) glDeleteFramebuffers(1,&target->framebuffer);
     if (target->color) glDeleteTextures(1,&target->color);
     if (target->depth) glDeleteRenderbuffers(1,&target->depth);
     *target = (Target){0};
+}
+
+static bool IsTemporary(const UiCreatureScene *scene, unsigned candidate)
+{
+    return scene && scene->temporaryCandidate && (!candidate || scene->temporaryCandidate == candidate);
+}
+
+void UiCreatureEngine_InvalidateTemporary(UiCreatureEngine *engine, unsigned candidate)
+{
+    if (!engine) return;
+    if (IsTemporary(engine->pending,candidate)) {
+        if (engine->materialScene == engine->pending) engine->materialScene = NULL;
+        UiCreatureScene_Destroy(engine->pending);
+        engine->pending = NULL;
+        engine->requestStart = 0;
+        engine->waitingShader = false;
+    }
+    if (IsTemporary(engine->scene,candidate)) {
+        if (engine->fence) glDeleteSync(engine->fence);
+        engine->fence = NULL;
+        FreeTarget(&engine->front);
+        if (engine->materialScene == engine->scene) engine->materialScene = NULL;
+        UiCreatureScene_Destroy(engine->scene);
+        engine->scene = NULL;
+        engine->hairDirty = false;
+    }
 }
 
 void UiCreatureEngine_Destroy(UiCreatureEngine *engine)
@@ -195,7 +244,10 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     const Monster *monster = UiCreatureScene_Monster(scene);
     AABB3D framing = scene->sdf.bounds;
     AABB_Pad(&framing,-scene->sdf.config.boundsPadding);
-    ICamera camera = UiCreatureOrbit_Camera(&engine->orbit,framing,(float)width/height);
+    float aspect = (float)width/height;
+    ICamera camera = scene->temporaryCandidate ?
+        UiCreatureOrbit_PreviewCamera(&engine->orbit,framing,aspect) :
+        UiCreatureOrbit_Camera(&engine->orbit,framing,aspect);
     float age = scene->ager ? scene->ager->perc : 0.0f;
     bool geometryChanged = engine->materialScene != scene || engine->materialAge != age;
     if (geometryChanged) {
@@ -319,6 +371,13 @@ const char *UiCreatureEngine_Render(UiCreatureEngine *engine, int width, int hei
     }
     engine->stopped = false;
     if (engine->profile) {
+        if (replacing && scene->temporaryCandidate && engine->requestStart) {
+            double firstMs = (double)(SDL_GetPerformanceCounter()-engine->requestStart)*1000.0/
+                SDL_GetPerformanceFrequency();
+            fprintf(stderr,"[nexus-offspring-preview] candidate=%u first_frame_ms=%.3f\n",
+                scene->temporaryCandidate,firstMs);
+            engine->requestStart = 0;
+        }
         double ms = (double)(SDL_GetPerformanceCounter()-start)*1000.0/SDL_GetPerformanceFrequency();
         fprintf(stderr,"[nexus-creature] %u %u age=%.5f dir=%d %dx%d cpu_ms=%.3f sdf_gpu_ms=%.3f tick_ms=%llu field_builds=%u orbit=%.3f,%.3f,%.3f\n",
             scene->from,scene->to,scene->ager ? scene->ager->perc : 0.0f,scene->direction,

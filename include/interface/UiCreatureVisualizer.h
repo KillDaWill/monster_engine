@@ -4,6 +4,7 @@
 #include "UiShell.h"
 #include "UiDesktop.h"
 
+typedef struct CreatureRecipe CreatureRecipe;
 typedef struct UiCreatureEngine UiCreatureEngine;
 typedef struct {
     UiDesktop *desktop;
@@ -17,6 +18,10 @@ typedef struct {
 bool UiCreatureVisualizer_Open(UiCreatureVisualizer *);
 /* Solicita una escena por ID del VFS y activa la ventana si se acepta. */
 bool UiCreatureVisualizer_ViewRecipe(UiCreatureVisualizer *, UiVfsId, char *error, size_t capacity);
+bool UiCreatureVisualizer_ViewTemporary(UiCreatureVisualizer *, const CreatureRecipe *,
+    unsigned candidate, char *error, size_t capacity);
+/* candidate=0 descarta todas las vistas temporales, incluida una solicitud pendiente. */
+void UiCreatureVisualizer_InvalidateTemporary(UiCreatureVisualizer *, unsigned candidate);
 void UiCreatureVisualizer_Close(UiCreatureVisualizer *);
 bool UiCreatureVisualizer_NeedsFrame(const UiCreatureVisualizer *);
 const char *UiCreatureVisualizer_Prepass(UiCreatureVisualizer *, int width, int height,
