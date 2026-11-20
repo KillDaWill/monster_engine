@@ -186,7 +186,13 @@ bool CreaturePhenotype_MorphCompatible(const CreaturePhenotype* a, const Creatur
     if (!CreaturePhenotype_TopologyCompatible(a, b)) return false;
     if (a->axial.archetype != b->axial.archetype) return false;
     if (a->axial.contourProfile != b->axial.contourProfile) return false;
-    if (a->head.archetype != b->head.archetype) return false;
+    if (a->head.archetype != b->head.archetype || a->headHybrid.active != b->headHybrid.active ||
+        (a->headHybrid.active &&
+            (a->headHybrid.secondary.archetype != b->headHybrid.secondary.archetype ||
+             a->headHybrid.secondary.cranialForm != b->headHybrid.secondary.cranialForm ||
+             a->headHybrid.secondary.muzzleForm != b->headHybrid.secondary.muzzleForm ||
+             a->headHybrid.secondary.eyeLayout != b->headHybrid.secondary.eyeLayout)))
+        return false;
     /* Resolver de nuevo una categoría a mitad de Ager cambia el volumen de
      * golpe. Estas transiciones necesitan mezclar anatomías ya resueltas. */
     if (a->head.cranialForm != b->head.cranialForm ||
@@ -231,7 +237,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     p.dorsalColor = Color_Lerp(a->dorsalColor, b->dorsalColor, t);
     p.ventralColor = Color_Lerp(a->ventralColor, b->ventralColor, t);
     p.unpigmentedVentralColor = Color_Lerp(a->unpigmentedVentralColor, b->unpigmentedVentralColor, t);
-    p.surface = SurfacePhenotype_Interpolate(&a->surface, &b->surface, t);
+    p.surface = SurfacePhenotype_Develop(&a->surface, &b->surface, t);
 
 #define LERP_BODY(name) p.name = Math_Lerp(a->name, b->name, t)
     for (size_t i = 0; i < AXIAL_PROFILE_STATIONS; ++i) {
@@ -317,6 +323,14 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     LERP_HEAD(beakTaper); LERP_HEAD(beakCurvature); LERP_HEAD(nostrilPosition);
     LERP_HEAD(orbitDepth); LERP_HEAD(tympanumSize);
 #undef LERP_HEAD
+
+    if (a->headHybrid.active && b->headHybrid.active) {
+        p.head = HeadPhenotype_Interpolate(&a->head,&b->head,t);
+        p.headHybrid.secondary = HeadPhenotype_Interpolate(&a->headHybrid.secondary,&b->headHybrid.secondary,t);
+        p.headHybrid.primaryRadii = Vec3_Lerp(a->headHybrid.primaryRadii,b->headHybrid.primaryRadii,t);
+        p.headHybrid.secondaryRadii = Vec3_Lerp(a->headHybrid.secondaryRadii,b->headHybrid.secondaryRadii,t);
+        p.headHybrid.blend = Math_Lerp(a->headHybrid.blend,b->headHybrid.blend,t);
+    }
 
     CreaturePhenotype_Normalize(&p);
     return p;

@@ -8,7 +8,7 @@ Construye y abre Nexus con `make run-interface`. CreatureOffspring y CO comparte
 | `CO.create.5."/recepies/rinoceronte.creature.json"."/recepies/rata.creature.json"` | Solicita cinco candidatos. La ventana y el terminal muestran la semilla elegida. |
 | `CO.create.5."rinoceronte.creature.json"."rata.creature.json".seed.48216` | Reproduce un lote desde `/recepies/` con la semilla indicada. |
 | `CO.list` | Enumera los candidatos validados y su estado de guardado. |
-| `CO.info.4` | Muestra pesos, origen de los sistemas, injertos, omisiones, intentos y reparaciones. |
+| `CO.info.4` | Muestra los pesos, errores respecto al morph, sistemas estructurales, injertos y reparaciones. |
 | `CV.view.CO.4` | Abre el candidato en CreatureVisualizer. También acepta `CreatureVisualizer.view.CO.4`. |
 | `CO.save.4` | Publica una receta JSON con nombre generado. Repetir el comando devuelve la ruta guardada. |
 | `CO.save.4."MiCruce"` | Guarda con nombre personalizado. Admite letras ASCII, números, guiones y guiones bajos. |
@@ -19,7 +19,9 @@ Construye y abre Nexus con `make run-interface`. CreatureOffspring y CO comparte
 
 En los comandos de CO también se puede escribir `CreatureOffspring` como prefijo. En la galería se puede seleccionar una fila, hacer doble clic para verla o usar **Preview** y **Save**. La rueda desplaza la galería. En CV, arrastrar orbita la cámara y la rueda ajusta el encuadre. Las recetas guardadas se pueden abrir en Files o mediante `CV.view."/recepies/MiCruce.creature.json"`.
 
-## Generación anatómica
+La [síntesis actual de CreatureOffspring V2](CREATURE_OFFSPRING_V2.md) describe el ajuste con CreatureMorph, el perfil cefálico y la comparación visual con V1. Los comandos de esta página se aplican a ambas versiones.
+
+## Generación anatómica de V1
 
 `CreatureOffspring_Generate` recibe dos recetas y una configuración. Toma instantáneas de los padres, valida los campos del formato JSON v1 y resuelve sus grafos en las cuatro etapas. El emparejamiento usa la familia de módulo, la familia anfitriona, el landmark resuelto y la ranura semántica. Para las extremidades también compara rol y lado. Las correspondencias ambiguas conservan el módulo del plan base.
 

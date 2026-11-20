@@ -78,11 +78,13 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/EyeTexture.c \
             $(SRC_DIR)/Mouth.c \
             $(SRC_DIR)/Head.c \
+            $(SRC_DIR)/HeadBlend.c \
             $(SRC_DIR)/Anatomy.c \
             $(SRC_DIR)/CreaturePhenotype.c \
             $(SRC_DIR)/CreatureRecipe.c \
             $(SRC_DIR)/CreatureOffspring.c \
             $(SRC_DIR)/OffspringRepair.c \
+            $(SRC_DIR)/OffspringMorphFitter.c \
             $(SRC_DIR)/CreatureRecipeIO.c \
             $(SRC_DIR)/CreatureRecipeRegistry.c \
             $(SRC_DIR)/CreatureRecipes.c \
@@ -273,6 +275,9 @@ $(BUILD_DIR)/capture_bovine_anatomy: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_b
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(BUILD_DIR)/capture_creature: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_creature.c
+	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/capture_offspring_comparison: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_offspring_comparison.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 $(BUILD_DIR)/capture_animations: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_animations.c

@@ -231,13 +231,19 @@ bool Monster_ResolveHead(Monster* monster) {
     if (attachment >= monster->bodyPartCount) return false;
     const BodyPart* host = &monster->bodyParts[attachment];
     Vector3 radii = Vec3_Create(Math_Max(host->widthRender*.5f,.08f),Math_Max(host->heightRender*.5f,.08f),Math_Max(host->lengthRender*.5f,.08f));
+    if (monster->head.hybrid.active) {
+        if (!HeadHybridProfile_Validate(&monster->head.hybrid)) return false;
+        Vector3 ratio = HeadHybridProfile_EnvelopeRatio(&monster->head.hybrid);
+        radii = Vec3_Create(host->widthRender*.5f/ratio.x,host->heightRender*.5f/ratio.y,
+            host->lengthRender*.5f/ratio.z);
+    }
     float openFactor = monster->mouthCount > 0 ? monster->mouths[0].openFactor : monster->head.anatomy.oralSystem.openFactor;
     Color insideColor = monster->mouthCount > 0 ? monster->mouths[0].insideColor : monster->head.anatomy.oralSystem.insideColor;
     Color lipColor = monster->mouthCount > 0 ? monster->mouths[0].lipColor : monster->head.anatomy.oralSystem.lipColor;
     Eye eyeAppearance[2]; size_t appearanceCount=monster->eyeCount<2?monster->eyeCount:2;
     for(size_t i=0;i<appearanceCount;++i) eyeAppearance[i]=monster->eyes[i];
     HeadAnatomy resolved;
-    if (!HeadAnatomy_Resolve(&monster->head.phenotype,attachment,radii,&resolved)) return false;
+    if (!HeadAnatomy_ResolveHybrid(&monster->head.phenotype,&monster->head.hybrid,attachment,radii,&resolved)) return false;
     Mouth_SetOpenFactor(&resolved.oralSystem,openFactor);
     resolved.oralSystem.insideColor=insideColor; resolved.oralSystem.lipColor=lipColor;
     const AnatomyNode* headNode=AnatomyGraph_FindFirstRegion(&monster->anatomyGraph,ANATOMY_REGION_HEAD);

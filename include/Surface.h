@@ -99,6 +99,7 @@ typedef struct SurfacePhenotype {
         uint32_t targetScaleSeed;
         bool active;
     } transition;
+    bool inheritedBlend; /**< Los dos bancos se conservan al evaluar el desarrollo. */
 } SurfacePhenotype;
 /** @brief Coordenadas de reposo; nunca se recalculan al aplicar una pose. */
 typedef struct SurfaceCoordinate {
@@ -143,6 +144,8 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* surface);
  * @param b Destino; NULL selecciona valores por defecto.
  * @param t Madurez normalizada.
  * @return Fenotipo válido interpolado. */
+/** Interpolación de edad que conserva los dos bancos hereditarios cuando existen. */
+SurfacePhenotype SurfacePhenotype_Develop(const SurfacePhenotype*,const SurfacePhenotype*,float);
 SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const SurfacePhenotype* b,float t);
 /** @brief Copia descriptores anclados homólogos, conservando el color y la mezcla
  * actuales; permite resolver el mismo dominio en otro marco canónico. */

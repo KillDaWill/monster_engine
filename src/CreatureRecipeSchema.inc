@@ -144,6 +144,14 @@ static const Field HeadEnvelopePhenotype_fields[] = {
     {"lengthScale",offsetof(HeadEnvelopePhenotype,lengthScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {0}
 };
+static const Field HeadHybridProfile_fields[] = {
+    {"active",offsetof(HeadHybridProfile,active),sizeof(bool),1,F_BOOL,1,NULL,NO_COUNT,NULL,false},
+    {"blend",offsetof(HeadHybridProfile,blend),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"primaryRadii",offsetof(HeadHybridProfile,primaryRadii),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"secondaryRadii",offsetof(HeadHybridProfile,secondaryRadii),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"secondary",offsetof(HeadHybridProfile,secondary),sizeof(HeadPhenotype),1,F_OBJECT,0,HeadPhenotype_fields,NO_COUNT,NULL,false},
+    {0}
+};
 static const Field EyePhenotype_fields[] = {
     {"size",offsetof(EyePhenotype,size),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"protrusion",offsetof(EyePhenotype,protrusion),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -417,6 +425,7 @@ static const Field SurfacePhenotype_fields[] = {
     {"longHair",offsetof(SurfacePhenotype,longHair),sizeof(LongHairGroup),LONG_HAIR_MAX_GROUPS,F_OBJECT,0,LongHairGroup_fields,offsetof(SurfacePhenotype,longHairCount),NULL,true},
     {"longHairCount",offsetof(SurfacePhenotype,longHairCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
     {"transition",offsetof(SurfacePhenotype,transition),sizeof(((SurfacePhenotype*)0)->transition),1,F_OBJECT,0,SurfacePhenotype_transition_fields,NO_COUNT,NULL,false},
+    {"inheritedBlend",offsetof(SurfacePhenotype,inheritedBlend),sizeof(bool),1,F_BOOL,1,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field CreatureDevelopment_fields[] = {
@@ -431,6 +440,7 @@ static const Field CreaturePhenotype_fields[] = {
     {"axial",offsetof(CreaturePhenotype,axial),sizeof(AxialPhenotype),1,F_OBJECT,0,AxialPhenotype_fields,NO_COUNT,NULL,false},
     {"head",offsetof(CreaturePhenotype,head),sizeof(HeadPhenotype),1,F_OBJECT,0,HeadPhenotype_fields,NO_COUNT,NULL,false},
     {"headEnvelope",offsetof(CreaturePhenotype,headEnvelope),sizeof(HeadEnvelopePhenotype),1,F_OBJECT,0,HeadEnvelopePhenotype_fields,NO_COUNT,NULL,false},
+    {"headHybrid",offsetof(CreaturePhenotype,headHybrid),sizeof(HeadHybridProfile),1,F_OBJECT,0,HeadHybridProfile_fields,NO_COUNT,NULL,true},
     {"eyes",offsetof(CreaturePhenotype,eyes),sizeof(EyePhenotype),1,F_OBJECT,0,EyePhenotype_fields,NO_COUNT,NULL,false},
     {"limbs",offsetof(CreaturePhenotype,limbs),sizeof(LimbPhenotype),CREATURE_MAX_LIMBS,F_OBJECT,0,LimbPhenotype_fields,offsetof(CreaturePhenotype,limbCount),NULL,false},
     {"limbCount",offsetof(CreaturePhenotype,limbCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,false},

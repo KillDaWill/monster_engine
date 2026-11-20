@@ -51,6 +51,13 @@ enum {
  */
 bool HeadModule_Resolve(const HeadPhenotype* phenotype,
                         const HeadEnvelopePhenotype* envelope,
+                        float development, uint32_t moduleInstanceId, const AttachmentSlot* slot,
+                        AnatomyGraph* graph, AttachmentSlotSet* slots);
+
+/** Resuelve una cabeza con perfil editable y publica sus landmarks de anclaje. */
+bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
+                        const HeadEnvelopePhenotype* envelope,
+                        const HeadHybridProfile* hybrid,
                         float development,
                         uint32_t moduleInstanceId,
                         const AttachmentSlot* cervicalSlot,

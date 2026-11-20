@@ -1,6 +1,10 @@
 #define _POSIX_C_SOURCE 200809L
 #include "CreatureOffspring.h"
 #include "Monster.h"
+#include "CreatureMorph.h"
+#include "MonsterAnimation.h"
+#include "MonsterSDF.h"
+#include "../src/OffspringMorphFitter.h"
 #include "test_utils.h"
 #include <string.h>
 
@@ -81,7 +85,7 @@ static void Matrix(void)
     const CreatureRecipe *dog = CreatureRecipes_Dog(), *lizard = CreatureRecipes_Lizard();
     const CreatureRecipe *pairs[][2] = {
         {horse,donkey}, {rhino,rat}, {pig,elephant}, {dog,lizard}, {rat,rat},
-        {horse,elephant}, {lizard,rat}, {rat,rhino}, {CreatureRecipes_Brumacerno(),CreatureRecipes_Velkar()}
+        {horse,elephant}, {lizard,rat}, {rat,rhino}, {rat,elephant}, {CreatureRecipes_Brumacerno(),CreatureRecipes_Velkar()}
     };
     for (size_t i=0; i<sizeof(pairs)/sizeof(*pairs); ++i) {
         CreatureOffspringBatch *batch = Batch(pairs[i][0],pairs[i][1],5,48216);
@@ -104,6 +108,77 @@ static void Matrix(void)
         CreatureOffspring_Destroy(batch);
     }
     free(docs);
+}
+
+static void HybridMorphology(void)
+{
+    CreatureRecipeDocument *documents=calloc(3,sizeof(*documents));
+    Monster *monsters=calloc(5,sizeof(*monsters));
+    TEST_ASSERT(documents && monsters,"memoria");
+    const CreatureRecipe *a=Load(&documents[0],"rata"), *b=Load(&documents[1],"elefante");
+    CreatureOffspringBatch *batch=Batch(a,b,5,48216);
+    float chestA=a->adult.axial.thoraxHeight/a->adult.axial.withersHeight;
+    float chestB=b->adult.axial.thoraxHeight/b->adult.axial.withersHeight;
+    for (size_t i=0; i<CreatureOffspring_Count(batch); ++i) {
+        const AxialPhenotype *axial=&CreatureOffspring_Get(batch,i,NULL)->adult.axial;
+        float chest=axial->thoraxHeight/axial->withersHeight;
+        TEST_ASSERT(chest>=fminf(chestA,chestB)-.001f && chest<=fmaxf(chestA,chestB)+.001f,
+            "el cambio de plan mantiene la altura torácica relativa entre ambos padres");
+    }
+    const OffspringReport *report;
+    const CreatureRecipe *child=CreatureOffspring_Get(batch,2,&report);
+    TEST_ASSERT(report->hasMorphTarget && report->fitEvaluations && report->headError<.025f &&
+        report->bodyError<.12f,"ajuste medible al morph de referencia");
+    for (unsigned i=0; i<5; ++i) monsters[i]=Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(&monsters[0],a,&a->adult) &&
+        Creature_BuildMonster(&monsters[1],b,&b->adult) &&
+        CreatureMorph_Interpolate(&monsters[0],&monsters[1],report->global,&monsters[2]),
+        "referencia independiente");
+    TEST_ASSERT(Creature_BuildMonster(&monsters[3],child,&child->adult),"cabeza híbrida construida");
+    float visualScale=monsters[3].phenotype.axial.totalScale;
+    float morphScale=monsters[2].phenotype.axial.totalScale;
+    float ordinaryA=OffspringMorph_HeadError(&monsters[0].head.anatomy,monsters[0].phenotype.axial.totalScale,&monsters[2].head.anatomy,morphScale);
+    float ordinaryB=OffspringMorph_HeadError(&monsters[1].head.anatomy,monsters[1].phenotype.axial.totalScale,&monsters[2].head.anatomy,morphScale);
+    float hybrid=OffspringMorph_HeadError(&monsters[3].head.anatomy,visualScale,&monsters[2].head.anatomy,morphScale);
+    TEST_ASSERT(hybrid<ordinaryA*.15f && hybrid<ordinaryB*.15f,"forma más cercana al morph que ambas bases");
+    const HeadHybridProfile *profile=&child->adult.headHybrid;
+    TEST_ASSERT(profile->active && child->adult.head.archetype!=profile->secondary.archetype,
+        "dos familias serializadas");
+    CreaturePhenotype age=CreatureRecipe_EvaluateDevelopment(child,.52f);
+    TEST_ASSERT(age.headHybrid.active && age.surface.inheritedBlend && age.surface.transition.active &&
+        FLOAT_NEAR(age.surface.transition.weight,child->adult.surface.transition.weight),
+        "perfil y dos bancos persistentes a edad intermedia");
+    char *json=JSON(child);
+    TEST_ASSERT(CreatureRecipeIO_ReadJSON(&documents[2],json,NULL,0),"carga de perfil editable");
+    free(json);
+    const CreatureRecipe *saved=&documents[2].recipe;
+    TEST_ASSERT(Creature_BuildMonster(&monsters[4],saved,&saved->adult),"reconstrucción desde archivo");
+    TEST_ASSERT(OffspringMorph_HeadError(&monsters[4].head.anatomy,visualScale,
+        &monsters[3].head.anatomy,visualScale)<1e-6f,"fidelidad cefálica");
+    MonsterSDF original=MonsterSDF_Create(), reloaded=MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(&original,&monsters[3],MonsterSDF_DefaultConfig()) &&
+        MonsterSDF_Build(&reloaded,&monsters[4],MonsterSDF_DefaultConfig()),"SDF original y recargado");
+    Vector3 extent=AABB_Size(original.bounds);
+    for (unsigned i=0; i<256; ++i) {
+        Vector3 point=Vec3_Add(original.bounds.start,Vec3_Create(
+            extent.x*(i*37%251)/250,extent.y*(i*51%251)/250,extent.z*(i*67%251)/250));
+        float x=MonsterSDF_EvaluateDistance(&original,point);
+        float y=MonsterSDF_EvaluateDistance(&reloaded,point);
+        TEST_ASSERT(isfinite(x) && fabsf(x-y)<1e-6f,"fidelidad SDF al volver a cargar");
+    }
+    SurfaceRecipe pa=SurfaceRecipe_Compile(&monsters[3].surface), pb=SurfaceRecipe_Compile(&monsters[4].surface);
+    TEST_ASSERT(!memcmp(&pa,&pb,sizeof(pa)),"pigmento y materiales reconstruidos");
+    Monster_SetHeadOpenFactor(&monsters[4],.55f);
+    TEST_ASSERT(MonsterSDF_Build(&reloaded,&monsters[4],MonsterSDF_DefaultConfig()) &&
+        fabsf(reloaded.mouths[0].visualJawAngle)>.02f,"articulación mandibular");
+    for (unsigned i=0; i<24; ++i)
+        TEST_ASSERT(MonsterAnimation_Update(&monsters[4],1/60.f),"animación normal");
+    MonsterSDF_Free(&original);
+    MonsterSDF_Free(&reloaded);
+    for (unsigned i=0; i<5; ++i) Monster_Free(&monsters[i]);
+    CreatureOffspring_Destroy(batch);
+    free(monsters);
+    free(documents);
 }
 
 static void ReorderedParent(void)
@@ -227,6 +302,7 @@ static void Determinism(void)
 void run_creature_offspring_tests(void)
 {
     Matrix();
+    HybridMorphology();
     Determinism();
     DivergentPlan();
     ReorderedParent();

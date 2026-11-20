@@ -7,7 +7,7 @@
 #include "Creature.h"
 #include "CreatureRecipeIO.h"
 
-enum { CREATURE_OFFSPRING_MAX = 16, CREATURE_OFFSPRING_VERSION = 1 };
+enum { CREATURE_OFFSPRING_MAX = 16, CREATURE_OFFSPRING_VERSION = 2 };
 
 typedef struct {
     size_t count;
@@ -22,6 +22,9 @@ typedef struct {
     unsigned scaffoldParent, headParent, limbParent, tailParent, surfaceParent;
     unsigned grafts, omitted, repairs, attempts;
     unsigned unsupportedGrafts, constrainedGrafts, unselectedGrafts, removedAnchors;
+    float targetWeight, resolvedHeadWeight, headError, bodyError, limbError;
+    unsigned fitEvaluations;
+    bool hasMorphTarget, simplifiedHeadBasis;
     MorphologicalSignature signature;
 } OffspringReport;
 

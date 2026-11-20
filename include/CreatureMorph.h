@@ -22,5 +22,7 @@ size_t CreatureMorph_CollectTopologyEvents(const Monster* a,const Monster* b,
  * @param a Origen. @param b Destino. @param age Progreso normalizado.
  * @param out Resultado independiente. @return false si los blueprints tienen identidades incompatibles o exceden capacidad.
  */
+/** Peso geométrico (smoothstep) para una posición en la metamorfosis. */
+float CreatureMorph_GeometricWeight(float age);
 bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monster* out);
 #endif

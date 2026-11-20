@@ -50,6 +50,7 @@ static uint64_t ComputeLongHairFingerprint(const Monster* m){
     bool animated=m->animation!=NULL;h=HashBytes(&animated,sizeof(animated),h);
     if(animated)h=HashBytes(&m->animation->rigGeneration,sizeof(m->animation->rigGeneration),h);
     if(m->hasHead)h=HashBytes(&m->head.phenotype,sizeof(m->head.phenotype),h);
+    if(m->hasHead&&m->head.hybrid.active)h=HashBytes(&m->head.hybrid,sizeof(m->head.hybrid),h);
     if(m->mouthCount){const Mouth* mouth=&m->mouths[0];
         h=HashBytes(&mouth->offset,sizeof(mouth->offset),h);h=HashBytes(&mouth->rotation,sizeof(mouth->rotation),h);
         h=HashBytes(&mouth->jawPivot,sizeof(mouth->jawPivot),h);h=HashBytes(&mouth->jawLength,sizeof(float),h);
@@ -129,6 +130,7 @@ static uint64_t HashMouth(const Monster* monster) {
     if (!monster) return h;
     h = HashBytes(&monster->hasHead,sizeof(monster->hasHead),h);
     if(monster->hasHead) h=HashBytes(&monster->head.phenotype,sizeof(monster->head.phenotype),h);
+    if(monster->hasHead&&monster->head.hybrid.active) h=HashBytes(&monster->head.hybrid,sizeof(monster->head.hybrid),h);
     h=HashBytes(&monster->hasAnatomyGraph,sizeof(monster->hasAnatomyGraph),h);
     if(monster->hasAnatomyGraph) {uint64_t anatomy=AnatomyGraph_Fingerprint(&monster->anatomyGraph);h=HashBytes(&anatomy,sizeof(anatomy),h);}
     h = HashBytes(&monster->mouthCount, sizeof(size_t), h);
@@ -169,6 +171,7 @@ static uint64_t HashBody(const MonsterVisual* visual, const Monster* monster, Mo
     if(monster->hasAnatomyGraph) {uint64_t anatomy=AnatomyGraph_Fingerprint(&monster->anatomyGraph);h=HashBytes(&anatomy,sizeof(anatomy),h);}
     h=HashBytes(&monster->hasHead,sizeof(monster->hasHead),h);
     if(monster->hasHead) h=HashBytes(&monster->head.phenotype,sizeof(monster->head.phenotype),h);
+    if(monster->hasHead&&monster->head.hybrid.active) h=HashBytes(&monster->head.hybrid,sizeof(monster->head.hybrid),h);
     h = HashBytes(&monster->bodyPartCount, sizeof(size_t), h);
     for (size_t i = 0; i < monster->bodyPartCount; ++i) {
         const BodyPart* p=&monster->bodyParts[i]; h=HashBytes(&p->positionRender,sizeof(Vector3),h);

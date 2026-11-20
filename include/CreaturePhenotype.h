@@ -181,6 +181,7 @@ typedef struct CreaturePhenotype {
     AxialPhenotype axial;
     HeadPhenotype head;
     HeadEnvelopePhenotype headEnvelope;
+    HeadHybridProfile headHybrid;
     EyePhenotype eyes;
     LimbPhenotype limbs[CREATURE_MAX_LIMBS];
     size_t limbCount;

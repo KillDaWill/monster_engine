@@ -139,7 +139,33 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     }
 #undef CLAMP
 }
-SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const SurfacePhenotype* b,float t) {
+static PigmentPhenotype DevelopPigmentBank(const PigmentPhenotype *a,const PigmentPhenotype *b,float t)
+{
+    PigmentPhenotype out = t < .5f ? *a : *b;
+#define MIX(field) out.field = a->field + (b->field-a->field)*t
+    MIX(dorsalDarkening); MIX(ventralLightening); MIX(patternStrength); MIX(patternScale); MIX(bands);
+#undef MIX
+    out.baseColor = Color_Lerp(a->baseColor,b->baseColor,t);
+    out.secondaryColor = Color_Lerp(a->secondaryColor,b->secondaryColor,t);
+    out.ventralColor = Color_Lerp(a->ventralColor,b->ventralColor,t);
+    if (a->layerCount != b->layerCount) return out;
+    for (size_t i=0; i<out.layerCount; ++i) {
+        const PigmentLayer *x=&a->layers[i], *y=&b->layers[i];
+        PigmentLayer *layer=&out.layers[i];
+        if (x->pattern != y->pattern || x->regionMask != y->regionMask ||
+            x->domain.anchorNode != y->domain.anchorNode) continue;
+        layer->color = Color_Lerp(x->color,y->color,t);
+        layer->strength = x->strength + (y->strength-x->strength)*t;
+        layer->scale = x->scale + (y->scale-x->scale)*t;
+        layer->sharpness = x->sharpness + (y->sharpness-x->sharpness)*t;
+        layer->direction = Vec3_Lerp(x->direction,y->direction,t);
+        layer->domain.center = Vec3_Lerp(x->domain.center,y->domain.center,t);
+        layer->domain.radii = Vec3_Lerp(x->domain.radii,y->domain.radii,t);
+    }
+    return out;
+}
+
+static SurfacePhenotype Interpolate(const SurfacePhenotype* a,const SurfacePhenotype* b,float t,bool development) {
     SurfacePhenotype p=a?*a:SurfacePhenotype_Default(),q=b?*b:SurfacePhenotype_Default();
     SurfacePhenotype_Normalize(&p); SurfacePhenotype_Normalize(&q); t=Limit(t,0,1,0);
     if(t<=0)return p;
@@ -266,9 +292,30 @@ SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype* a,const Su
         float cb=q.integument.type!=INTEGUMENT_SMOOTH_SKIN?q.integument.coverage:0;
         p.integument.coverage=ca+(cb-ca)*t;
     }
+    if (development && a && b && a->inheritedBlend && b->inheritedBlend) {
+        p.transition.from = DevelopPigmentBank(&a->transition.from,&b->transition.from,t);
+        p.transition.to = DevelopPigmentBank(&a->transition.to,&b->transition.to,t);
+        p.transition.weight = a->transition.weight+(b->transition.weight-a->transition.weight)*t;
+        p.transition.plateWeight = a->transition.plateWeight+(b->transition.plateWeight-a->transition.plateWeight)*t;
+        p.transition.scaleCoverage = a->transition.scaleCoverage+
+            (b->transition.scaleCoverage-a->transition.scaleCoverage)*t;
+        p.transition.targetScaleSeed = t < .5f ? a->transition.targetScaleSeed : b->transition.targetScaleSeed;
+        p.inheritedBlend = true;
+    } else {
+        p.inheritedBlend = false;
+    }
     if(t>=1) { p.integument.type=q.integument.type; p.pigment.seed=q.pigment.seed; p.integument.scales.seed=q.integument.scales.seed; p.integument.fur.seed=q.integument.fur.seed; }
     return p;
 }
+SurfacePhenotype SurfacePhenotype_Interpolate(const SurfacePhenotype *a,const SurfacePhenotype *b,float t)
+{
+    return Interpolate(a,b,t,false);
+}
+SurfacePhenotype SurfacePhenotype_Develop(const SurfacePhenotype *a,const SurfacePhenotype *b,float t)
+{
+    return Interpolate(a,b,t,true);
+}
+
 static void PackColor(float* out,Color c) { out[0]=c.r/255.f; out[1]=c.g/255.f; out[2]=c.b/255.f; out[3]=c.a/255.f; }
 void SurfacePhenotype_CopyAnchoredDomains(SurfacePhenotype* out,const SurfacePhenotype* source) {
     if(!out||!source)return;
@@ -320,6 +367,7 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         r.data[row][0]=1;r.data[row][1]=p.transition.weight;
         r.data[row+1][0]=(float)(p.transition.targetScaleSeed&0xffffu);
         r.data[row+1][1]=(float)(p.transition.targetScaleSeed>>16);
+        r.data[row+1][2]=p.inheritedBlend?1.0f:0.0f;
         PackPigmentBank(r.data+row+2,&p.transition.from);
         PackPigmentBank(r.data+row+2+SURFACE_RECIPE_PIGMENT_BANK_ROWS,&p.transition.to);
     }

@@ -55,15 +55,20 @@ static unsigned SurfaceAnchors(CreaturePhenotype *p, const AnatomyGraph *graph, 
         removed += !valid;
     }
     if (repair) s->longHairCount = count;
-    count = 0;
-    for (size_t i=0; i<s->pigment.layerCount; ++i) {
-        AnatomyId anchor = s->pigment.layers[i].domain.anchorNode;
-        bool valid = !anchor || AnatomyGraph_FindNode(graph,anchor);
-        if (valid && repair) s->pigment.layers[count] = s->pigment.layers[i];
-        count += valid;
-        removed += !valid;
+    PigmentPhenotype *banks[] = {&s->pigment,&s->transition.from,&s->transition.to};
+    unsigned bankCount = s->transition.active ? 3 : 1;
+    for (unsigned bank=0; bank<bankCount; ++bank) {
+        PigmentPhenotype *pigment = banks[bank];
+        count = 0;
+        for (size_t i=0; i<pigment->layerCount; ++i) {
+            AnatomyId anchor = pigment->layers[i].domain.anchorNode;
+            bool valid = !anchor || AnatomyGraph_FindNode(graph,anchor);
+            if (valid && repair) pigment->layers[count] = pigment->layers[i];
+            count += valid;
+            removed += !valid;
+        }
+        if (repair) pigment->layerCount = count;
     }
-    if (repair) s->pigment.layerCount = count;
     return removed;
 }
 
@@ -114,7 +119,7 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
     bool weightBearing = false;
     for (size_t i=0; i<p->limbCount; ++i)
         weightBearing |= p->limbs[i].development*p->development.appendages >= .65f;
-    if (p->head.archetype == ref->head.archetype) {
+    if (!p->headHybrid.active && p->head.archetype == ref->head.archetype) {
         float neckRatio = p->axial.neckWidth/ref->axial.neckWidth;
         float headScale = ref->headEnvelope.scale/sqrtf(neckRatio);
         issues += Clamp(&p->headEnvelope.scale,headScale*.70f,headScale*1.42f,repair);
@@ -192,9 +197,12 @@ static bool RepairGeometry(CreaturePhenotype *p, const CreatureRecipe *recipe,
     const AnatomyGraph *g, unsigned errors)
 {
     bool changed = false;
-    if ((errors & 4) && p->head.eyeExposure > .005f) {
-        p->head.eyeExposure *= .42f;
-        changed = true;
+    if (errors & 4) {
+        if (p->head.eyeExposure > .005f) { p->head.eyeExposure *= .42f; changed = true; }
+        if (p->headHybrid.active && p->headHybrid.secondary.eyeExposure > .005f) {
+            p->headHybrid.secondary.eyeExposure *= .42f;
+            changed = true;
+        }
     }
     if (errors & 8) {
         for (size_t i=0; i<p->tailCount; ++i)

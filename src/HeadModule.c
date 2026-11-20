@@ -9,8 +9,9 @@
 #include "CreatureModuleInternal.h"
 #include "MathUtils.h"
 
-bool HeadModule_Resolve(const HeadPhenotype* phenotype,
+bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
                         const HeadEnvelopePhenotype* envelope,
+                        const HeadHybridProfile* hybrid,
                         float development,
                         uint32_t module,
                         const AttachmentSlot* slot,
@@ -27,13 +28,14 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
         Math_Lerp(slot->hostRadii.x * 1.5f, 1.025f * s, t),
         Math_Lerp(slot->hostRadii.y * 1.847825f, .60f * s, t),
         Math_Lerp(slot->hostRadii.x * 1.10f, 1.10f * s, t));
+    if (hybrid && hybrid->active) radii = Vec3_Create(s,s,s);
     if (envelope) {
         radii.x *= envelope->scale * envelope->widthScale;
         radii.y *= envelope->scale * envelope->heightScale;
         radii.z *= envelope->scale * envelope->lengthScale;
     }
     HeadAnatomy anatomy;
-    if (!HeadAnatomy_Resolve(phenotype, 0, radii, &anatomy)) return false;
+    if (!HeadAnatomy_ResolveHybrid(phenotype,hybrid,0,radii,&anatomy)) return false;
     Vector3 c = Vec3_Sub(slot->position, anatomy.landmarks.neckAttachment);
     Vector3 skull = Vec3_Add(c, anatomy.surface.craniumCenter);
     float w = anatomy.surface.craniumRadii.x;
@@ -47,6 +49,10 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
         return false;
     }
 
+    if (hybrid && hybrid->active) {
+        Vector3 ratio = HeadHybridProfile_EnvelopeRatio(hybrid);
+        radii = Vec3_Create(radii.x*ratio.x,radii.y*ratio.y,radii.z*ratio.z);
+    }
     graph->nodes[graph->nodeCount - 1].envelopeRadii = radii;
 
     if (slots) {
@@ -253,4 +259,10 @@ bool HeadModule_Resolve(const HeadPhenotype* phenotype,
     }
 
     return true;
+}
+
+bool HeadModule_Resolve(const HeadPhenotype *phenotype,const HeadEnvelopePhenotype *envelope,
+    float development,uint32_t module,const AttachmentSlot *slot,AnatomyGraph *graph,AttachmentSlotSet *slots)
+{
+    return HeadModule_ResolveProfile(phenotype,envelope,NULL,development,module,slot,graph,slots);
 }

@@ -249,6 +249,12 @@ bool CreatureRecipeIO_ReadJSON(CreatureRecipeDocument* out,const char* json,char
         if(ok)ok=AnatomyGraph_FindNode(graph,Anatomy_MakeId(e->recipe.bodyPlan.root.moduleInstanceId,
             e->recipe.bodyPlan.root.localNodeId))!=NULL;
     }
+    if (ok && (e->recipe.seed.headHybrid.active || e->recipe.larva.headHybrid.active ||
+                e->recipe.juvenile.headHybrid.active || e->recipe.adult.headHybrid.active)) {
+        for (int i=1; i<4 && ok; ++i)
+            ok=CreaturePhenotype_MorphCompatible(&e->recipe.seed,
+                CreatureRecipe_GetStage(&e->recipe,(CreatureStage)i));
+    }
     free(graph);
     if(ok){out->recipe=e->recipe;memcpy(out->name,r.name,sizeof(out->name));out->recipe.name=out->name;}
     else if(error&&errorSize)snprintf(error,errorSize,"Receta inválida (byte %zu): JSON completo v1, conteos, identificadores o anclajes incompatibles.",(size_t)(r.p-r.start));

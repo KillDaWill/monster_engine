@@ -117,6 +117,14 @@ typedef struct HeadPhenotype {
     Color nasalColor; /**< Color del planum; alfa cero conserva la trufa oscura heredada. */
 } HeadPhenotype;
 
+/** Perfil cefálico editable. Los radios de ambas bases están en unidades axiales. */
+typedef struct HeadHybridProfile {
+    bool active;
+    float blend;
+    Vector3 primaryRadii, secondaryRadii;
+    HeadPhenotype secondary;
+} HeadHybridProfile;
+
 /** Landmarks locales con identidad anatómica estable. */
 typedef struct HeadLandmarks {
     AnatomyId headId; /**< Identidad estable de la cabeza. */
@@ -275,6 +283,7 @@ typedef struct Head {
     float development; /**< Desarrollo resuelto independiente de especie. */
     HeadPhenotype phenotype; /**< Autoridad semántica editable. */
     HeadAnatomy anatomy; /**< Anatomía de reposo resuelta. */
+    HeadHybridProfile hybrid; /**< Perfil opcional para resolver y animar el mismo cráneo. */
 } Head;
 
 /** Máscara de errores producida por HeadAnatomy_Validate. */
@@ -312,6 +321,18 @@ HeadPhenotype HeadPhenotype_RandomValid(HeadArchetype archetype, uint32_t seed);
 /** Resuelve landmarks y receta SDF a partir del fenotipo y del volumen anfitrión. */
 bool HeadAnatomy_Resolve(const HeadPhenotype* phenotype, size_t attachmentBodyPartIndex,
                          Vector3 hostRadii, HeadAnatomy* anatomy);
+/** Mezcla anatomías cefálicas resueltas con un peso lineal geométrico. */
+void HeadAnatomy_Blend(const HeadAnatomy*, const HeadAnatomy*, float weight, HeadAnatomy*);
+/** Resuelve dos bases procedurales en el marco local de la envolvente. */
+bool HeadAnatomy_ResolveHybrid(const HeadPhenotype*, const HeadHybridProfile*,
+    size_t attachmentBodyPartIndex, Vector3 envelope, HeadAnatomy*);
+/** Comprueba que las dos bases se puedan resolver con radios finitos y positivos. */
+bool HeadHybridProfile_Validate(const HeadHybridProfile*);
+/** Escala media de las bases para publicar el volumen anfitrión de piel y pelo. */
+Vector3 HeadHybridProfile_EnvelopeRatio(const HeadHybridProfile*);
+/** Interpola los controles de una familia conservando sus categorías de desarrollo. */
+HeadPhenotype HeadPhenotype_Interpolate(const HeadPhenotype*, const HeadPhenotype*, float weight);
+
 /** @brief Mide las proporciones resueltas sin interpretar cephalicIndex como índice físico. */
 HeadResolvedMeasurements HeadAnatomy_Measure(const HeadAnatomy* anatomy);
 /** @brief Construye un marco ortonormal auricular para una dirección y abertura 3D. */

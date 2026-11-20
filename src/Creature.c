@@ -48,7 +48,7 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
 
         switch (m->kind) {
         case CREATURE_MODULE_HEAD:
-            if (!HeadModule_Resolve(&p.head, &p.headEnvelope, p.development.cephalic, m->instanceId, slot, graph, &slots)) {
+            if (!HeadModule_ResolveProfile(&p.head, &p.headEnvelope, &p.headHybrid, p.development.cephalic, m->instanceId, slot, graph, &slots)) {
                 return false;
             }
             break;
@@ -118,6 +118,7 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
         Head head = Head_Create(p.head.archetype, 0,
             Vec3_Create(host->widthRender * 0.5f, host->heightRender * 0.5f, host->lengthRender * 0.5f));
         head.phenotype = p.head;
+        head.hybrid = p.headHybrid;
         head.development = p.development.cephalic;
         if (!Monster_SetHead(monster, head)) return false;
         if(monster->head.anatomy.surface.hasEars) {
@@ -147,7 +148,9 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
             Eye* eye = &monster->eyes[i];
             const HeadAnatomy* anatomy = &monster->head.anatomy;
             Vector3 center = i == 0 ? anatomy->landmarks.leftEyeCenter : anatomy->landmarks.rightEyeCenter;
-            float eyeFactor = p.head.eyeSize > 1e-4f ? p.eyes.size / p.head.eyeSize : 1.0f;
+            float nominalEye = p.headHybrid.active ?
+                Math_Lerp(p.head.eyeSize,p.headHybrid.secondary.eyeSize,p.headHybrid.blend) : p.head.eyeSize;
+            float eyeFactor = nominalEye > 1e-4f ? p.eyes.size / nominalEye : 1.0f;
             /* El globo debe caber entre techo/base del cráneo y región temporal.
              * El tamaño solicitado está limitado por ese espacio orbital físico. */
             float orbitalLimit = Math_Min(anatomy->surface.craniumRadii.y * .55f,

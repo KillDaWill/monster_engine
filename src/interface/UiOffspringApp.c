@@ -286,8 +286,7 @@ static void Draw(void *state, UiRenderer *r, UiRect box, bool active, bool caret
     if (count) {
         const OffspringReport *report;
         CreatureOffspring_Get(app->batch,app->selected,&report);
-        snprintf(line,sizeof(line),"Head %.24s  ·  Tail %.24s",
-            CreatureOffspring_Parent(app->batch,report->headParent)->name,
+        snprintf(line,sizeof(line),"Head blend %.0f%% Y  ·  Tail %.24s",100*report->resolvedHeadWeight,
             CreatureOffspring_Parent(app->batch,report->tailParent)->name);
         UiRenderer_Text(r,box.x+12,box.y+box.h-70,12,UI_ACCENT,line);
         snprintf(line,sizeof(line),"Validated  ·  %u grafts  ·  %u repair passes",
@@ -449,16 +448,25 @@ static void Info(UiOffspringApp *app, size_t index, char *out, size_t capacity)
     char path[UI_VFS_PATH_BYTES] = "Unsaved";
     if (app->saved[index]) UiVfs_Path(app->fs,app->saved[index],path,sizeof(path));
     const CreaturePhenotype *p = &recipe->adult;
+    char fit[192];
+    if (r->hasMorphTarget) {
+        snprintf(fit,sizeof(fit),"Morph reference %.1f%% · geometric weight %.1f%% · head basis Y %.1f%%\n"
+            "Normalized error  head %.3f  body %.3f  limbs %.3f · %u fit evaluations%s",
+            100*r->global,100*r->targetWeight,100*r->resolvedHeadWeight,
+            r->headError,r->bodyError,r->limbError,r->fitEvaluations,
+            r->simplifiedHeadBasis ? " · simplified inherited head" : "");
+    } else strcpy(fit,"Resolved morph reference unavailable");
     snprintf(out,capacity,
         "%s\nBatch seed %" PRIu32 " · candidate seed %" PRIu32 "\n"
         "Parent Y weights  global %.0f%%  body %.0f%%  head %.0f%%  limbs %.0f%%  tail %.0f%%  surface %.0f%%\n"
-        "Systems from parent X/Y  scaffold %c  head %c  limbs %c  tail %c  integument %c\n"
+        "%s\n"
+        "Structural systems X/Y  scaffold %c  head slots %c  foot topology %c  tail %c  material seed %c\n"
         "Adult  %zu limbs  %zu tails  %zu ornaments  %zu flexible appendages  ·  %u grafts  ·  %u omitted modules or anchors\n"
         "Omissions  %u unsupported  %u capacity or occupied slot  %u unselected  %u surface anchors\n"
         "Validated 4 stages and 3 intermediate ages  ·  %u attempts  ·  %u repair passes\n%s",
         recipe->name,CreatureOffspring_Seed(app->batch),r->seed,
         100*r->global,100*r->body,100*r->head,100*r->limbs,100*r->tail,100*r->surface,
-        'X'+r->scaffoldParent,'X'+r->headParent,'X'+r->limbParent,'X'+r->tailParent,'X'+r->surfaceParent,
+        fit,'X'+r->scaffoldParent,'X'+r->headParent,'X'+r->limbParent,'X'+r->tailParent,'X'+r->surfaceParent,
         p->limbCount,p->tailCount,p->ornamentCount,p->flexibleAppendageCount,r->grafts,r->omitted,
         r->unsupportedGrafts,r->constrainedGrafts,r->unselectedGrafts,r->removedAnchors,r->attempts,r->repairs,path);
 }

@@ -51,6 +51,17 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
                 clamp(surfaceRecipe[10].z,.2,1.0),surfaceRecipe[10].w*.3,0.0);
             color=mix(color,SurfaceLighting(SurfaceResponse(mix(pigment,albedo,surfaceRecipe[102].y),wrinkled,localMaterial.y,.28),viewP),localMaterial.z*skinMask);
             float coverage=surfaceRecipe[11].w*skinMask*localMaterial.x;
+            if(surfaceRecipe[47].z>.5 && surfaceRecipe[6].z>.001 && skinMask>.001) {
+                SurfaceInput base=SurfaceInput(materialCoord,materialNormal,p,n,vec4(sampleValue.xyz,1),
+                    profileA,profileB,ventral,skinMask);
+                ScaleSample detail;
+                vec3 substratePigment;
+                SurfaceResponse substrate=Surface_Evaluate(base,false,detail,substratePigment);
+                vec3 normal=normalize(substrate.normal+displayNormal-n);
+                substrate.normal=normalize(vec3(dot(normal,cameraRight),dot(normal,cameraUp),
+                    dot(normal,cameraForward)));
+                color=mix(SurfaceLighting(substrate,viewP),color,clamp(coverage,0.0,1.0));
+            }
             if(sdfFurEnabled!=0&&coverage>.001) {
                 vec3 fiberColor=vec3(0);float fiberWeight=0;
                 for(int layer=0;layer<3;++layer) {

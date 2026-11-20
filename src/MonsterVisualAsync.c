@@ -401,7 +401,7 @@ static uint64_t ComputeMonsterFingerprint(const Monster* monster, MonsterSDFConf
     if (!monster) return hash;
     hash=HashSizeT(monster->recipeId,hash);
     hash=HashBool(monster->hasResolvedMorph,hash);
-    if(monster->hasResolvedMorph && monster->hasHead)hash=HashHeadSurface(&monster->head.anatomy.surface,hash);
+    if((monster->hasResolvedMorph || monster->head.hybrid.active) && monster->hasHead)hash=HashHeadSurface(&monster->head.anatomy.surface,hash);
     hash = HashBool(monster->hasHead,hash);
     if(monster->hasHead) hash=Fnv1a64Bytes(&monster->head.phenotype,sizeof(monster->head.phenotype),hash);
     hash=HashBool(monster->hasAnatomyGraph,hash);

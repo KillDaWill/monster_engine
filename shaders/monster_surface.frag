@@ -153,6 +153,16 @@ void main() {
             vec3 skin=SurfaceLighting(SurfaceResponse(skinColor,wrinkled,localMaterial.y,.28),viewPosition);
             color=mix(color,skin,localMaterial.z*max(skinMask,float(tissueMaterial==2)));
 
+            if(surfaceRecipe[47].z>.5 && surfaceRecipe[6].z>.001 && skinMask>.001) {
+                SurfaceInput base=SurfaceInput(mappedCoord,mappedNormal,viewPosition,n,
+                    vertexColor,mappedA,mappedB,mappedVentral,skinMask);
+                ScaleSample detail;
+                vec3 substratePigment;
+                SurfaceResponse substrate=Surface_Evaluate(base,false,detail,substratePigment);
+                float coverage=surfaceRecipe[11].w*localFurMask*skinMask;
+                color=mix(SurfaceLighting(substrate,viewPosition),color,clamp(coverage,0.0,1.0));
+            }
+
             if (surfaceDebug == 1) color = vec3(mappedA.x * 0.4, mappedA.y * 0.35, mappedVentral);
             if (surfaceDebug == 2) color = fract(mappedCoord);
             if (surfaceDebug == 6) color = pigment;

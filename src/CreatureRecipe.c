@@ -113,6 +113,14 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
 
     size_t order[CREATURE_MAX_MODULES];
     if (!CreatureRecipe_ResolutionOrder(r, order)) return false;
+    const SurfacePhenotype *surface = &p->surface;
+    if (surface->inheritedBlend &&
+        (!surface->transition.active || !isfinite(surface->transition.weight) ||
+         surface->transition.weight<0 || surface->transition.weight>1 ||
+         !isfinite(surface->transition.scaleCoverage) || surface->transition.scaleCoverage<0 ||
+         surface->transition.scaleCoverage>1 || !isfinite(surface->transition.plateWeight) ||
+         surface->transition.plateWeight<0 || surface->transition.plateWeight>1))
+        return false;
     if(p->surface.longHairCount>LONG_HAIR_MAX_GROUPS)return false;
     for(size_t i=0;i<p->surface.longHairCount;++i){const LongHairGroup* g=&p->surface.longHair[i];const LongHairDomain* d=&g->domain;
         if(!g->id||!d->hostModuleId||d->hostModuleId>65534||d->kind<LONG_HAIR_CURVE||d->kind>LONG_HAIR_REGION||
@@ -157,7 +165,7 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             ++axial;
             break;
         case CREATURE_MODULE_HEAD:
-            if (!Head_Supports(p->head.archetype)) return false;
+            if (!Head_Supports(p->head.archetype) || !HeadHybridProfile_Validate(&p->headHybrid)) return false;
             ++head;
             break;
         case CREATURE_MODULE_LIMB:

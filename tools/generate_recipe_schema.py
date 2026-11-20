@@ -34,9 +34,9 @@ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
 OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 'withersRoundness'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount'}, 'TailPhenotype': {'droop', 'tipLift'}, 'PigmentLayer': {'regionMask', 'domain'}}
-OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality'}
+OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality', 'inheritedBlend'}
 OPTIONAL['LongHairGroup'] = {'rootFullness', 'bend', 'wave', 'transparency', 'verticalBias'}
-OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount'}
+OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount', 'headHybrid'}
 OPTIONAL['HeadPhenotype'] = {'nasalColor'}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
