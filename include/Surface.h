@@ -85,6 +85,7 @@ typedef struct SurfacePhenotype {
     IntegumentPhenotype integument;
     uint32_t wrinkleRegionMask; /**< Bits de SurfaceRegion; cero cubre toda la piel. */
     float wrinkleStrength, wrinkleScale, wrinkleDirectionality; /**< Relieve en reposo y predominio transversal. */
+    Color regionalAlbedo[SURFACE_REGION_COUNT]; /**< RGB lineal y peso alfa por región. */
     SurfaceRegionProfile regions[SURFACE_REGION_COUNT];
     FurRegionProfile furRegions[SURFACE_REGION_COUNT];
     FurTuftPhenotype tufts[SURFACE_MAX_FUR_TUFTS];
@@ -116,6 +117,10 @@ typedef struct SurfaceLocalMaterial { float furCoverage, roughness, skinWeight; 
 SurfaceLocalMaterial Surface_EvaluateLocalMaterial(const SurfacePhenotype* surface,const SurfaceCoordinate* coordinate,float roughness);
 /** @brief Máscara de diagnóstico de los dominios activos, antes del patrón/color. */
 float Surface_EvaluatePigmentDomainMask(const SurfacePhenotype* surface,const SurfaceCoordinate* coordinate);
+/** @brief Combina el albedo regional con el color sin patrón de un banco. */
+Vector3 Surface_ResolveBaseAlbedo(const SurfacePhenotype*,const SurfaceCoordinate*,Color fallback);
+/** @brief Pigmento lineal de reposo sin filtrado por huella ni relieve. */
+Vector3 Surface_EvaluatePigmentAlbedo(const SurfacePhenotype*,const SurfaceCoordinate*);
 /** @brief Transporte explícito vec4: colores, pigmento, escamas, pelaje, perfiles y capas. */
 #define SURFACE_RECIPE_GLOBAL_ROWS  8
 #define SURFACE_RECIPE_FUR_ROWS     4
@@ -128,7 +133,9 @@ float Surface_EvaluatePigmentDomainMask(const SurfacePhenotype* surface,const Su
 /** Fila de metadatos: x=tufts, y=dominio adulto canónico del productor de malla. */
 #define SURFACE_RECIPE_METADATA_ROW (SURFACE_RECIPE_DOMAIN_BASE - 1)
 #define SURFACE_RECIPE_DOMAIN_ROWS (3 * SURFACE_MAX_PIGMENT_LAYERS)
-#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_DOMAIN_BASE + 3 * SURFACE_RECIPE_DOMAIN_ROWS)
+#define SURFACE_RECIPE_ALBEDO_BASE (SURFACE_RECIPE_DOMAIN_BASE + 3 * SURFACE_RECIPE_DOMAIN_ROWS)
+#define SURFACE_RECIPE_ROTATION_BASE (SURFACE_RECIPE_ALBEDO_BASE + SURFACE_REGION_COUNT)
+#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_ROTATION_BASE + 3)
 typedef struct SurfaceRecipe {
     float data[SURFACE_RECIPE_ROWS][4];
     uint32_t pigmentSeed, scaleSeed, furSeed;

@@ -3035,14 +3035,14 @@ void OpenGLRenderer_DrawHUD(int width, int height, float fps, float frameTimeMs)
 }
 
 #include "MonsterSurfaceShader.generated.h"
-_Static_assert(SURFACE_RECIPE_ROWS==139,"Actualizar contrato GLSL de superficie al cambiar regiones o bancos de pigmento");
+_Static_assert(SURFACE_RECIPE_ROWS==153 && SURFACE_RECIPE_ALBEDO_BASE==139 && SURFACE_RECIPE_ROTATION_BASE==150,"Actualizar contrato GLSL de superficie al cambiar regiones o bancos de pigmento");
 _Static_assert(sizeof(GeometryGpuVertex)==32&&sizeof(AnatomySkinBinding)==64&&sizeof(int)==4,
     "Conservar el contrato std430 del skinning y las texturas de pelaje");
 bool OpenGLRenderer_ValidatePigmentDomains(const SurfacePhenotype* surface,const SurfaceCoordinate* points,size_t count,float* maxError) {
     if(!surface||!points||!count||count>4096||!maxError)return false;
     GLuint program=LinkComputeSource(pigmentDomainComputeSource,sizeof(pigmentDomainComputeSource)/sizeof(*pigmentDomainComputeSource));
     if(!program)return false;
-    float* input=calloc(count*8,sizeof(float));float* output=calloc(count*4,sizeof(float));
+    float* input=calloc(count*8,sizeof(float));float* output=calloc(count*8,sizeof(float));
     if(!input||!output){free(input);free(output);glDeleteProgram(program);return false;}
     for(size_t i=0;i<count;++i) {
         input[8*i]=points[i].position.x;input[8*i+1]=points[i].position.y;input[8*i+2]=points[i].position.z;
@@ -3051,18 +3051,21 @@ bool OpenGLRenderer_ValidatePigmentDomains(const SurfacePhenotype* surface,const
     GLuint buffers[2];glGenBuffers(2,buffers);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER,buffers[0]);glBufferData(GL_SHADER_STORAGE_BUFFER,count*8*sizeof(float),input,GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,buffers[0]);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER,buffers[1]);glBufferData(GL_SHADER_STORAGE_BUFFER,count*4*sizeof(float),NULL,GL_STREAM_READ);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER,buffers[1]);glBufferData(GL_SHADER_STORAGE_BUFFER,count*8*sizeof(float),NULL,GL_STREAM_READ);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1,buffers[1]);
     glUseProgram(program);SurfaceRecipe recipe=SurfaceRecipe_Compile(surface);
     glUniform4fv(glGetUniformLocation(program,"surfaceRecipe"),SURFACE_RECIPE_ROWS,&recipe.data[0][0]);
     glUniform1ui(glGetUniformLocation(program,"pigmentSeed"),recipe.pigmentSeed);
     glUniform1i(glGetUniformLocation(program,"pointCount"),(GLint)count);
     glDispatchCompute((GLuint)((count+63)/64),1,1);glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
-    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,count*4*sizeof(float),output);*maxError=0;
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER,0,count*8*sizeof(float),output);*maxError=0;
     for(size_t i=0;i<count;++i) {
         SurfaceLocalMaterial cpu=Surface_EvaluateLocalMaterial(surface,&points[i],.65f);
         float expected[4]={Surface_EvaluatePigmentDomainMask(surface,&points[i]),cpu.furCoverage,cpu.roughness,cpu.skinWeight};
-        for(unsigned k=0;k<4;++k)*maxError=fmaxf(*maxError,fabsf(output[4*i+k]-expected[k]));
+        Vector3 pigment=Surface_EvaluatePigmentAlbedo(surface,&points[i]);
+        float expectedRGB[]={pigment.x,pigment.y,pigment.z};
+        for(unsigned k=0;k<3;++k)*maxError=fmaxf(*maxError,fabsf(output[8*i+4+k]-expectedRGB[k]));
+        for(unsigned k=0;k<4;++k)*maxError=fmaxf(*maxError,fabsf(output[8*i+k]-expected[k]));
     }
     glUseProgram(0);glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,0);glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1,0);
     glDeleteBuffers(2,buffers);glDeleteProgram(program);free(input);free(output);
@@ -3560,7 +3563,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
         float resolution=Fur_ShellResolution(pixels,samples?grazing/samples:0,1);
         if(d->forcedShells>0)resolution=(float)d->forcedShells;
         float visibility=d->disableGuards?0:fmaxf(0,fminf(1,(pixels-3)/18));
-        if(!d->disableGuards)for(unsigned i=0;i<(unsigned)recipe->data[SURFACE_RECIPE_ROWS-1][0];++i) {
+        if(!d->disableGuards)for(unsigned i=0;i<(unsigned)recipe->data[SURFACE_RECIPE_METADATA_ROW][0];++i) {
             float longPixels=pixels*recipe->data[SURFACE_RECIPE_TUFT_BASE+5*i][3]/fmaxf(recipe->data[8][0],.001f);
             visibility=fmaxf(visibility,fmaxf(0,fminf(1,(longPixels-3)/18)));
         }

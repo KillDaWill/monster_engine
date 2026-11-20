@@ -180,10 +180,16 @@ static bool WriteValue(FILE* file,const void* ptr,const Field* f){
 
 static bool WriteObject(FILE* file,const void* ptr,const Field* fields){
     if(file)fputc('{',file);
+    bool first=true;
     for(size_t i=0;fields[i].name;++i){
         const Field* f=&fields[i];
+        if(fields==HeadHybridProfile_fields && !((const HeadHybridProfile*)ptr)->hasRegionalProfile &&
+            (!strcmp(f->name,"regional")||!strcmp(f->name,"hasRegionalProfile")||!strcmp(f->name,"referenceControls")))continue;
+        if(fields==CreatureRecipe_fields && !((const CreatureRecipe*)ptr)->offspringVersion &&
+            (!strcmp(f->name,"offspringSeed")||!strcmp(f->name,"offspringVersion")))continue;
         if(file){
-            if(i)fputc(',',file);
+            if(!first)fputc(',',file);
+            first=false;
             WriteString(file,f->name);
             fputc(':',file);
         }

@@ -4,19 +4,36 @@
 #include "OffspringMorphFitter.h"
 #include "HeadModule.h"
 #include "MathUtils.h"
+#include "MonsterSDF.h"
 #include "OffspringRepair.h"
 #include <math.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
+enum { HEAD_SAMPLES=5*5*8, SHAPE_FEATURES=17, APPEARANCE_FEATURES=4*6+8,
+    MAX_PROPOSALS_PER_SLOT=12 };
+
+typedef struct OffspringDescriptor {
+    float headField[HEAD_SAMPLES];
+    float shape[SHAPE_FEATURES];
+    float appearance[APPEARANCE_FEATURES];
+    bool hasHead;
+} OffspringDescriptor;
+
 typedef struct OffspringCandidate {
     CreatureRecipeDocument document;
     OffspringReport report;
+    OffspringDescriptor descriptor;
     unsigned revision;
     size_t index;
     const CreatureOffspringBatch *owner;
 } Candidate;
+
+typedef struct ProposalPool {
+    Candidate *items[MAX_PROPOSALS_PER_SLOT];
+    unsigned count;
+} ProposalPool;
 
 struct CreatureOffspringBatch {
     CreatureOffspringConfig config;
@@ -24,12 +41,15 @@ struct CreatureOffspringBatch {
     int matches[2][CREATURE_MAX_MODULES];
     AnatomyGraph anatomy[2][4];
     Monster adults[2];
+    HeadAnatomy heads[2][4];
+    AABB3D headFrame;
     Candidate *candidates[CREATURE_OFFSPRING_MAX];
 };
 
 typedef struct {
     OffspringReport report;
-    float build, face, stance, caudal;
+    float build, stance, caudal, tailCurve, limbMassGain, footGain;
+    float light, chroma, frequency, contrast, sharpness, orientation, coverage;
     bool graft;
 } OffspringGenome;
 
@@ -50,14 +70,20 @@ static uint32_t Mix(uint32_t x)
 
 CreatureOffspringConfig CreatureOffspring_Default(size_t count, uint32_t seed)
 {
-    return (CreatureOffspringConfig){count,seed,32,6,.35f,.65f};
+    return (CreatureOffspringConfig){
+        .count=count,.seed=seed,.attempts=32,.repairs=6,
+        .minimumContribution=.35f,.maximumContribution=.65f,
+        .proposalsPerOffspring=6,.regionalVariance=1,.mutationIntensity=1
+    };
 }
 
 static bool ValidConfig(CreatureOffspringConfig c)
 {
     return c.count && c.count <= CREATURE_OFFSPRING_MAX && c.attempts && c.attempts <= 32 &&
         c.repairs <= 16 && c.minimumContribution >= 0 && c.maximumContribution <= 1 &&
-        c.minimumContribution <= c.maximumContribution;
+        c.minimumContribution <= c.maximumContribution && c.proposalsPerOffspring <= MAX_PROPOSALS_PER_SLOT &&
+        c.regionalVariance >= 0 && c.regionalVariance <= 2 &&
+        c.mutationIntensity >= 0 && c.mutationIntensity <= 2;
 }
 
 static const CreatureModuleInstance *FindModule(const BodyPlan *plan, uint32_t id)
@@ -135,34 +161,99 @@ static float Variation(uint32_t *random)
     return 2 * CreatureGenome_Random(random) - 1;
 }
 
+/* Dos muestras dan una distribución triangular acotada. Los hijos de un
+ * sistema comparten su desplazamiento; las amplitudes locales son máximos. */
+static float SampleTrait(float center, float amplitude, uint32_t *random)
+{
+    float first = Variation(random);
+    return Math_Clamp01(center+amplitude*.5f*(first+Variation(random)));
+}
+
 static OffspringGenome Genome(const CreatureOffspringBatch *batch, size_t index,
     unsigned revision, unsigned attempt)
 {
     CreatureOffspringConfig c = batch->config;
     uint32_t seed = Mix(c.seed ^ Mix((uint32_t)index+1) ^ Mix(revision+101) ^
         Mix(attempt+1009) ^ CREATURE_OFFSPRING_VERSION);
-    uint32_t random = seed;
-    float band = (index + .5f + .35f * Variation(&random)) / c.count;
+    uint32_t globalStream=Mix(seed^1), head=Mix(seed^2), body=Mix(seed^3), limb=Mix(seed^4);
+    uint32_t surface=Mix(seed^5), structural=Mix(seed^6), mutation=Mix(seed^7);
+    float band = (index + .5f + .35f * Variation(&globalStream)) / c.count;
     float global = Math_Lerp(c.minimumContribution,c.maximumContribution,band);
-    OffspringGenome g = {.report={.seed=seed,.global=global,.attempts=attempt+1}};
+    OffspringGenome g = {.report={.seed=seed,.mutationSeed=mutation,.global=global,
+        .attempts=attempt+1,.generatorVersion=CREATURE_OFFSPRING_VERSION}};
     OffspringReport *r = &g.report;
     r->targetWeight = CreatureMorph_GeometricWeight(global);
-    r->body = Math_Clamp01(r->targetWeight+.105f*Variation(&random));
-    r->head = Math_Clamp01(r->targetWeight+.055f*Variation(&random));
-    r->limbs = Math_Clamp01(r->targetWeight+.10f*Variation(&random));
-    r->tail = Math_Clamp01(global+.36f*Variation(&random));
-    r->surface = Math_Clamp01(r->targetWeight+.15f*Variation(&random));
-    r->size = 1+.14f*Variation(&random);
-    r->scaffoldParent = (index + revision + attempt) % 2;
-    r->headParent = (index / 2 + revision + attempt / 2 + attempt + 1) % 2;
-    r->limbParent = (index / 2 + revision + attempt / 4 + attempt) % 2;
-    r->tailParent = (index / 2 + index + revision + attempt) % 2;
+    float variance = c.regionalVariance, intensity = c.mutationIntensity;
+#define SAMPLE(center, span, stream) SampleTrait(center,(span)*variance,&stream)
+#define MUTATE(span) (1+(span)*intensity*Variation(&mutation))
+    r->body = SAMPLE(r->targetWeight,.15f,body);
+    r->head = SAMPLE(r->targetWeight,.17f,head);
+    r->limbs = SAMPLE(r->targetWeight,.18f,limb);
+    r->tail = SAMPLE(global,.34f,body);
+    r->surface = SAMPLE(r->targetWeight,.32f,surface);
+    r->size = MUTATE(.12f);
+    r->scaffoldParent = (index+revision+attempt)%2;
+    unsigned choices = (unsigned)(CreatureGenome_Random(&structural)*256);
+    r->headParent = choices & 1;
+    r->limbParent = (choices >> 1) & 1;
+    r->tailParent = (choices >> 2) & 1;
     r->surfaceParent = r->surface >= .5f;
-    g.build = 1+.15f*Variation(&random);
-    g.face = 1+.11f*Variation(&random);
-    g.stance = 1+.10f*Variation(&random);
-    g.caudal = 1+.23f*Variation(&random);
-    g.graft = attempt % 4 < 2;
+    HeadRegionalInheritance *h = &r->headGenes;
+    h->cranium = SAMPLE(r->head,.42f,head);
+    h->rostrum = SAMPLE(r->head,.52f,head);
+    h->jaw = SAMPLE(Math_Lerp(r->head,h->rostrum,.42f),.41f,head);
+    h->cheek = SAMPLE(Math_Lerp(h->cranium,h->jaw,.4f),.32f,head);
+    h->orbit = SAMPLE(h->cranium,.33f,head);
+    h->ear = SAMPLE(r->head,.68f,head);
+    h->neck = SAMPLE(Math_Lerp(r->body,h->cranium,.4f),.24f,head);
+    h->nose = SAMPLE(h->rostrum,.36f,head);
+    h->earHeight = SAMPLE(h->ear,.38f,head);
+    h->earWidth = SAMPLE(h->ear,.43f,head);
+    h->earCurve = SAMPLE(h->ear,.38f,head);
+    h->inheritEars = CreatureGenome_Random(&structural) >= h->ear;
+    h->skullWidthGain = MUTATE(.12f);
+    h->muzzleLengthGain = MUTATE(.17f);
+    h->jawDepthGain = MUTATE(.16f);
+    h->eyeSizeGain = MUTATE(.12f);
+    h->earHeightGain = MUTATE(.19f);
+    h->earWidthGain = MUTATE(.20f);
+    h->earThicknessGain = MUTATE(.12f);
+    h->earCurveGain = MUTATE(.20f);
+    h->earAngle = .14f*intensity*Variation(&mutation);
+    r->neck = SAMPLE(r->body,.26f,body);
+    r->shoulder = SAMPLE(r->body,.28f,body);
+    r->thorax = SAMPLE(r->shoulder,.24f,body);
+    r->abdomen = SAMPLE(Math_Lerp(r->thorax,r->body,.55f),.30f,body);
+    r->pelvis = SAMPLE(r->body,.30f,body);
+    r->upperLimb = SAMPLE(r->limbs,.30f,limb);
+    r->lowerLimb = SAMPLE(Math_Lerp(r->upperLimb,r->limbs,.6f),.30f,limb);
+    r->foot = SAMPLE(r->lowerLimb,.24f,limb);
+    r->limbMass = SAMPLE(r->limbs,.32f,limb);
+    r->dorsal = SAMPLE(r->surface,.39f,surface);
+    r->ventral = SAMPLE(r->surface,.46f,surface);
+    r->facial = SAMPLE(r->dorsal,.40f,surface);
+    r->extremities = SAMPLE(r->dorsal,.42f,surface);
+    r->tailColor = SAMPLE(r->dorsal,.42f,surface);
+    r->eyeColor = SAMPLE(r->facial,.52f,surface);
+    r->pattern = Math_Clamp(SAMPLE(r->surface,.60f,surface),.04f,.96f);
+    r->fur = SAMPLE(r->surface,.39f,surface);
+    r->relief = SAMPLE(r->surface,.34f,surface);
+    g.build = MUTATE(.13f);
+    g.stance = MUTATE(.10f);
+    g.caudal = MUTATE(.19f);
+    g.tailCurve = MUTATE(.15f);
+    g.limbMassGain = MUTATE(.12f);
+    g.footGain = MUTATE(.09f);
+    g.light = MUTATE(.10f);
+    g.chroma = MUTATE(.10f);
+    g.frequency = MUTATE(.25f);
+    g.contrast = MUTATE(.22f);
+    g.sharpness = .10f*intensity*Variation(&mutation);
+    g.orientation = .16f*intensity*Variation(&mutation);
+    g.coverage = MUTATE(.15f);
+    g.graft = attempt%4 < 2;
+#undef MUTATE
+#undef SAMPLE
     return g;
 }
 
@@ -209,14 +300,131 @@ static void MapPigment(PigmentPhenotype *pigment, const CreatureOffspringBatch *
     pigment->layerCount = count;
 }
 
+/* El contrato del material interpreta RGB/255 como albedo lineal. La
+ * mutación cambia luminancia y saturación en ese mismo espacio. */
+static Color Palette(Color a, Color b, float weight, const OffspringGenome *g)
+{
+    Color c = Color_Lerp(a,b,weight);
+    float gray = (.2126f*c.r+.7152f*c.g+.0722f*c.b)/255;
+    return Color_FromNormalized(g->light*Math_Lerp(gray,c.r/255.f,g->chroma),
+        g->light*Math_Lerp(gray,c.g/255.f,g->chroma),
+        g->light*Math_Lerp(gray,c.b/255.f,g->chroma),c.a/255.f);
+}
+
+static void MutatePattern(PigmentPhenotype *pattern, const OffspringGenome *g)
+{
+    pattern->patternStrength = Math_Clamp01(pattern->patternStrength*g->contrast);
+    pattern->patternScale *= g->frequency;
+    for (size_t i=0; i<pattern->layerCount; ++i) {
+        PigmentLayer *layer = &pattern->layers[i];
+        layer->strength = Math_Clamp01(layer->strength*g->contrast);
+        layer->scale *= g->frequency;
+        layer->sharpness = Math_Clamp01(layer->sharpness+g->sharpness);
+        layer->patternRotation = Math_Clamp(layer->patternRotation+g->orientation,-.6f,.6f);
+        layer->domain.radii = Vec3_Scale(layer->domain.radii,g->coverage);
+        layer->domain.irregularity = Math_Clamp01(layer->domain.irregularity*g->coverage);
+    }
+}
+
+/* Un banco por progenitor. Se retienen el orden y la semilla del campo
+ * dominante. Las capas no duplicadas del otro banco compiten por las plazas
+ * sobrantes por opacidad efectiva, sin reordenar las capas dominantes. */
+static PigmentPhenotype InheritBank(const SurfacePhenotype *source, OffspringReport *report)
+{
+    if (!source->inheritedBlend || !source->transition.active) return source->pigment;
+    float weight = source->transition.weight;
+    const PigmentPhenotype *major = weight < .5f ? &source->transition.from : &source->transition.to;
+    const PigmentPhenotype *minor = weight < .5f ? &source->transition.to : &source->transition.from;
+    PigmentPhenotype out = *major;
+    out.baseColor = source->pigment.baseColor;
+    out.ventralColor = source->pigment.ventralColor;
+    out.secondaryColor = source->pigment.secondaryColor;
+    float minorWeight = fminf(weight,1-weight);
+    bool used[SURFACE_MAX_PIGMENT_LAYERS] = {0};
+    for (size_t i=0; i<minor->layerCount; ++i) {
+        const PigmentLayer *layer = &minor->layers[i];
+        for (size_t j=0; j<out.layerCount; ++j) {
+            const PigmentLayer *peer = &out.layers[j];
+            used[i] |= layer->pattern==peer->pattern && layer->seed==peer->seed &&
+                layer->regionMask==peer->regionMask && layer->domain.anchorNode==peer->domain.anchorNode;
+        }
+    }
+    while (out.layerCount<SURFACE_MAX_PIGMENT_LAYERS) {
+        size_t best = minor->layerCount;
+        for (size_t i=0; i<minor->layerCount; ++i)
+            if (!used[i] && (best==minor->layerCount ||
+                minor->layers[i].strength>minor->layers[best].strength)) best=i;
+        if (best==minor->layerCount) break;
+        used[best]=true;
+        PigmentLayer layer=minor->layers[best];
+        layer.strength*=minorWeight;
+        out.layers[out.layerCount++]=layer;
+    }
+    for (size_t i=0; i<minor->layerCount; ++i) report->omitted+=!used[i];
+    return out;
+}
+
+static void InheritHair(SurfacePhenotype *surface, const SurfacePhenotype input[2], const OffspringGenome *g)
+{
+    surface->longHairCount=0;
+    unsigned first=g->report.fur>=.5f;
+    for (unsigned bank=0; bank<2; ++bank) {
+        unsigned p=first^bank;
+        float contribution=p ? g->report.fur : 1-g->report.fur;
+        for (size_t i=0; i<input[p].longHairCount; ++i) {
+            LongHairGroup group=input[p].longHair[i];
+            size_t j=0;
+            for (; j<surface->longHairCount; ++j)
+                if (surface->longHair[j].id==group.id) break;
+            if (j<surface->longHairCount) {
+                LongHairGroup *old=&surface->longHair[j];
+                if (old->domain.hostModuleId==group.domain.hostModuleId &&
+                    old->domain.kind==group.domain.kind && old->domain.region==group.domain.region) {
+                    old->density=Math_Clamp01(old->density+group.density*contribution);
+                    old->length=Math_Lerp(old->length,group.length*g->coverage,contribution);
+                    old->clumping=Math_Lerp(old->clumping,group.clumping,contribution);
+                    old->rootColor=Color_Lerp(old->rootColor,group.rootColor,contribution);
+                    old->tipColor=Color_Lerp(old->tipColor,group.tipColor,contribution);
+                    continue;
+                }
+                uint32_t id=group.id;
+                bool available;
+                do {
+                    id=id==UINT32_MAX ? 1 : id+1;
+                    available=true;
+                    for (size_t k=0; k<surface->longHairCount; ++k)
+                        available &= surface->longHair[k].id!=id;
+                } while (!available);
+                group.id=id;
+            }
+            if (surface->longHairCount==LONG_HAIR_MAX_GROUPS) break;
+            group.density*=contribution;
+            group.length*=g->coverage;
+            group.clumping=Math_Clamp01(group.clumping*g->contrast);
+            surface->longHair[surface->longHairCount++]=group;
+        }
+    }
+}
+
+static Color RegionColor(const SurfacePhenotype *surface, unsigned region)
+{
+    Color fallback = region==SURFACE_REGION_VENTRAL_TRUNK ? surface->pigment.ventralColor :
+        surface->pigment.baseColor;
+    Color color=surface->regionalAlbedo[region];
+    return Color_Lerp(fallback,color,color.a/255.f);
+}
+
 static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const CreaturePhenotype *b,
     const CreatureOffspringBatch *batch, const BodyPlan *plan, const ModuleSource sources[],
-    OffspringReport *r)
+    OffspringGenome *g)
 {
+    OffspringReport *r=&g->report;
     SurfacePhenotype input[] = {a->surface,b->surface};
     for (unsigned parent=0; parent<2; ++parent) {
         SurfacePhenotype *source = &input[parent];
+        source->pigment=InheritBank(source,r);
         MapPigment(&source->pigment,batch,plan,sources,parent,r);
+        MutatePattern(&source->pigment,g);
         size_t count = 0;
         for (size_t i=0; i<source->longHairCount; ++i) {
             LongHairGroup hair = source->longHair[i];
@@ -232,17 +440,21 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
         }
         source->longHairCount = count;
     }
-    p->surface = SurfacePhenotype_Interpolate(&input[0],&input[1],r->surface);
+    p->surface = SurfacePhenotype_Interpolate(&input[0],&input[1],r->pattern);
     SurfacePhenotype *surface = &p->surface;
     surface->inheritedBlend = surface->transition.active;
-    /* Los dos bancos conservan sus patrones y semillas. La capa auxiliar
-     * exportada para consumidores simples usa el banco dominante remapeado. */
-    Color body = surface->pigment.baseColor, secondary = surface->pigment.secondaryColor;
-    Color ventral = surface->pigment.ventralColor;
     surface->pigment = input[r->surfaceParent].pigment;
-    surface->pigment.baseColor = body;
-    surface->pigment.secondaryColor = secondary;
-    surface->pigment.ventralColor = ventral;
+    surface->pigment.baseColor = Palette(input[0].pigment.baseColor,input[1].pigment.baseColor,r->dorsal,g);
+    surface->pigment.ventralColor = Palette(input[0].pigment.ventralColor,input[1].pigment.ventralColor,r->ventral,g);
+    surface->pigment.secondaryColor = Palette(input[0].pigment.secondaryColor,input[1].pigment.secondaryColor,r->surface,g);
+    const float weights[] = {r->dorsal,r->facial,(r->dorsal+r->facial)*.5f,r->dorsal,r->ventral,
+        r->extremities,r->extremities,r->tailColor,r->extremities,r->facial,r->extremities};
+    for (unsigned i=0; i<SURFACE_REGION_COUNT; ++i) {
+        Color color=Palette(RegionColor(&input[0],i),RegionColor(&input[1],i),weights[i],g);
+        color.a=255;
+        surface->regionalAlbedo[i]=color;
+    }
+    surface->transition.from.ventralColor=surface->transition.to.ventralColor=surface->pigment.ventralColor;
     const IntegumentPhenotype *ia = &input[0].integument, *ib = &input[1].integument;
     float furA = ia->type == INTEGUMENT_FUR ? ia->coverage : 0;
     float furB = ib->type == INTEGUMENT_FUR ? ib->coverage : 0;
@@ -254,18 +466,40 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
         surface->integument.plates = substrate->plates;
         surface->transition.targetScaleSeed = substrate->scales.seed;
     }
-    float furCoverage = Math_Lerp(furA,furB,r->surface);
+    surface->transition.scaleCoverage=Math_Lerp(scaleA ? ia->coverage : input[0].transition.scaleCoverage,
+        scaleB ? ib->coverage : input[1].transition.scaleCoverage,r->relief);
+    surface->integument.scales.size*=g->frequency;
+    surface->integument.scales.relief*=g->coverage;
+    float furCoverage = Math_Lerp(furA,furB,r->fur);
     if (furCoverage > 0) {
         surface->integument.type = INTEGUMENT_FUR;
-        surface->integument.coverage = furCoverage;
+        surface->integument.coverage = Math_Clamp01(furCoverage*g->coverage);
         if (!furA) surface->integument.fur = ib->fur;
         if (!furB) surface->integument.fur = ia->fur;
+        if (furA && furB) {
+            surface->integument.fur.length=Math_Lerp(ia->fur.length,ib->fur.length,r->fur);
+            surface->integument.fur.density=Math_Lerp(ia->fur.density,ib->fur.density,r->fur);
+            surface->integument.fur.thickness=Math_Lerp(ia->fur.thickness,ib->fur.thickness,r->fur);
+        }
+        surface->integument.fur.length*=g->coverage;
+        surface->integument.fur.density*=g->contrast;
+        surface->integument.fur.thickness*=g->frequency;
     } else {
         surface->integument.type = input[r->surfaceParent].integument.type;
     }
-    p->dorsalColor = Color_Lerp(a->dorsalColor,b->dorsalColor,r->surface);
-    p->ventralColor = Color_Lerp(a->ventralColor,b->ventralColor,r->surface);
-    p->unpigmentedVentralColor = Color_Lerp(a->unpigmentedVentralColor,b->unpigmentedVentralColor,r->surface);
+    for (unsigned i=0; i<SURFACE_REGION_COUNT; ++i) {
+        float w=weights[i];
+        float adjustment=1+.45f*(w-r->fur);
+        float coverage = Math_Lerp(furA,furB,w);
+        surface->furRegions[i].densityMultiplier *= furCoverage>0 ? coverage/furCoverage : 1;
+        surface->furRegions[i].lengthMultiplier *= adjustment;
+        surface->regions[i].roughness *= 1+.38f*(w-r->relief);
+        surface->regions[i].relief *= 1+.45f*(w-r->relief);
+    }
+    InheritHair(surface,input,g);
+    p->dorsalColor = Palette(a->dorsalColor,b->dorsalColor,r->dorsal,g);
+    p->ventralColor = Palette(a->ventralColor,b->ventralColor,r->ventral,g);
+    p->unpigmentedVentralColor = Palette(a->unpigmentedVentralColor,b->unpigmentedVentralColor,r->ventral,g);
 }
 
 static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const CreaturePhenotype *b,
@@ -282,9 +516,12 @@ static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const Creatu
     p->axial.totalScale = expf(Math_Lerp(logf(a->axial.totalScale),logf(b->axial.totalScale),r->global))*r->size;
     float length = Math_Lerp(base->trunkLength,other->trunkLength,proportion);
     p->axial.trunkLength = length;
-#define PROPORTION(field) p->axial.field = Math_Lerp(base->field,other->field*ratio,proportion)*length/base->trunkLength
-    PROPORTION(neckLength); PROPORTION(neckWidth); PROPORTION(shoulderWidth);
-    PROPORTION(thoraxWidth); PROPORTION(abdomenWidth); PROPORTION(pelvicWidth);
+#define LOCAL(weight) ((r->scaffoldParent ? 1-(weight) : (weight))*(compatible ? 1 : .76f))
+#define PROPORTION(field, weight) p->axial.field = Math_Lerp(base->field,other->field*ratio, \
+    LOCAL(weight))*length/base->trunkLength
+    PROPORTION(neckLength,r->neck); PROPORTION(neckWidth,r->neck);
+    PROPORTION(shoulderWidth,r->shoulder); PROPORTION(thoraxWidth,r->thorax);
+    PROPORTION(abdomenWidth,r->abdomen); PROPORTION(pelvicWidth,r->pelvis);
 #undef PROPORTION
     p->axial.thoraxWidth *= g->build;
     p->axial.abdomenWidth *= g->build;
@@ -297,9 +534,21 @@ static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const Creatu
     float newHeightRatio = p->axial.withersHeight/base->withersHeight;
     /* Las alturas de sección se expresan respecto a la cruz del descendiente.
      * Usar la del plan base puede enterrar las patas en un torso más bajo. */
-#define HEIGHT(field) p->axial.field = Math_Lerp(base->field,other->field*heightRatio,proportion)*newHeightRatio
-    HEIGHT(thoraxHeight); HEIGHT(abdomenHeight); HEIGHT(pelvicHeight);
+#define HEIGHT(field,weight) p->axial.field = Math_Lerp(base->field,other->field*heightRatio, \
+    LOCAL(weight))*newHeightRatio
+    HEIGHT(thoraxHeight,r->thorax); HEIGHT(abdomenHeight,r->abdomen); HEIGHT(pelvicHeight,r->pelvis);
 #undef HEIGHT
+    const float stationWeights[] = {r->neck,r->shoulder,r->thorax,r->abdomen,r->abdomen,r->pelvis};
+    for (size_t i=0; i<6; ++i) {
+        float local = LOCAL(stationWeights[i]);
+        AxialStationMorph *station = &p->axial.profile[i];
+        const AxialStationMorph *peer = &other->profile[i];
+        station->widthScale = Math_Lerp(station->widthScale,peer->widthScale,local);
+        station->heightScale = Math_Lerp(station->heightScale,peer->heightScale,local);
+        station->verticalOffset = Math_Lerp(station->verticalOffset,peer->verticalOffset*ratio,local);
+        station->longitudinalOffset = Math_Lerp(station->longitudinalOffset,peer->longitudinalOffset*ratio,local);
+    }
+#undef LOCAL
     p->development.pigmentation = Math_Lerp(a->development.pigmentation,b->development.pigmentation,r->surface);
     p->development.colorMaturity = Math_Lerp(a->development.colorMaturity,b->development.colorMaturity,r->surface);
     p->development.integument = Math_Lerp(a->development.integument,b->development.integument,r->surface);
@@ -322,35 +571,40 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
     p->development.cephalic = primary->development.cephalic;
     if (!head[0] || !head[1]) return;
     float targetScale = Math_Lerp(a->axial.totalScale,b->axial.totalScale,r->targetWeight);
-    r->resolvedHeadWeight = r->head;
-    r->simplifiedHeadBasis = a->headHybrid.active || b->headHybrid.active;
-    /* Las bases son controles fenotípicos editables. Su marco se mide
-     * respecto a la escala de la metamorfosis y se expresa en la del hijo. */
-    Vector3 radiiA = head[r->headParent]->envelopeRadii;
-    Vector3 radiiB = head[1-r->headParent]->envelopeRadii;
-    if (primary->headHybrid.active) {
-        Vector3 r = primary->headHybrid.primaryRadii;
-        Vector3 mean = HeadHybridProfile_EnvelopeRatio(&primary->headHybrid);
-        radiiA = Vec3_Create(radiiA.x*r.x/mean.x,radiiA.y*r.y/mean.y,radiiA.z*r.z/mean.z);
-    }
-    if (secondary->headHybrid.active) {
-        Vector3 r = secondary->headHybrid.primaryRadii;
-        Vector3 mean = HeadHybridProfile_EnvelopeRatio(&secondary->headHybrid);
-        radiiB = Vec3_Create(radiiB.x*r.x/mean.x,radiiB.y*r.y/mean.y,radiiB.z*r.z/mean.z);
-    }
-    p->headEnvelope = (HeadEnvelopePhenotype){1,sqrtf(g->face),1,g->face};
+    float inverse = 1/targetScale;
+    HeadAnatomy first = batch->heads[0][stage], second = batch->heads[1][stage];
+    HeadAnatomy_ScaleProfile(&first,Vec3_Create(inverse,inverse,inverse));
+    HeadAnatomy_ScaleProfile(&second,Vec3_Create(inverse,inverse,inverse));
+    HeadRegionalInheritance genes = r->headGenes;
+    const HeadAnatomy *adultA = &batch->heads[0][CREATURE_STAGE_ADULT];
+    const HeadAnatomy *adultB = &batch->heads[1][CREATURE_STAGE_ADULT];
+    if (adultA->surface.hasEars && adultB->surface.hasEars) genes.inheritEars = true;
+    else if (!adultA->surface.hasEars && adultB->surface.hasEars) genes.inheritEars = !genes.inheritEars;
+    p->headEnvelope = (HeadEnvelopePhenotype){1,1,1,1};
     p->headHybrid = (HeadHybridProfile){
-        .active=true,.blend=r->headParent ? 1-r->head : r->head,
-        .primaryRadii=Vec3_Scale(radiiA,1/targetScale),
-        .secondaryRadii=Vec3_Scale(radiiB,1/targetScale),.secondary=secondary->head
+        .active=true,.blend=r->headParent ? 1-genes.cranium : genes.cranium,
+        .primaryRadii={1,1,1},.secondaryRadii={1,1,1},.secondary=secondary->head,.hasRegionalProfile=true
     };
-    p->development.cephalic = Math_Lerp(a->development.cephalic,b->development.cephalic,r->head);
-#define EYE(field) p->eyes.field = Math_Lerp(a->eyes.field,b->eyes.field,r->head)
-    EYE(size); EYE(protrusion); EYE(irisScale); EYE(pupilScale); EYE(pupilAspect);
+    HeadAnatomy *regional = &p->headHybrid.regional;
+    HeadAnatomy_BlendRegional(&first,&second,&genes,regional);
+    regional->archetype = primary->head.archetype;
+    const HeadAnatomy *structure = r->headParent ? &second : &first;
+    regional->surface.isBeak = structure->surface.isBeak;
+    regional->oralSystem.shape = structure->oralSystem.shape;
+    p->head.nasalColor = Palette(first.surface.nasalColor,second.surface.nasalColor,r->facial,g);
+    regional->surface.nasalColor=p->head.nasalColor;
+    regional->oralSystem.lipColor=Palette(first.oralSystem.lipColor,second.oralSystem.lipColor,r->facial,g);
+    regional->oralSystem.insideColor=Palette(first.oralSystem.insideColor,second.oralSystem.insideColor,r->facial,g);
+    r->resolvedHeadWeight = genes.cranium;
+    p->development.cephalic = Math_Lerp(a->development.cephalic,b->development.cephalic,genes.cranium);
+#define EYE(field) p->eyes.field = Math_Lerp(a->eyes.field,b->eyes.field,genes.orbit)
+    EYE(size); p->head.eyeSize = p->eyes.size; EYE(protrusion); EYE(irisScale); EYE(pupilScale); EYE(pupilAspect);
 #undef EYE
-#define EYE(color) p->eyes.color = Color_Lerp(a->eyes.color,b->eyes.color,r->head)
+#define EYE(color) p->eyes.color = Palette(a->eyes.color,b->eyes.color,r->eyeColor,g)
     EYE(scleraColor); EYE(irisColor); EYE(pupilColor);
 #undef EYE
+    p->headHybrid.referenceControls=(HeadRegionalControls){p->head.skullWidth,p->head.muzzleLength,
+        p->head.jawDepth,p->head.earSize,p->head.eyeSize};
 }
 
 static bool SameFoot(const LimbPhenotype *a, const LimbPhenotype *b)
@@ -361,27 +615,35 @@ static bool SameFoot(const LimbPhenotype *a, const LimbPhenotype *b)
 }
 
 static void BlendLimb(LimbPhenotype *l, const LimbPhenotype *base, const LimbPhenotype *other,
-    float weight, float thicknessScale)
+    const OffspringGenome *g, unsigned source)
 {
+    const OffspringReport *r = &g->report;
+#define FROM(w) (source ? 1-(w) : (w))
+    float weight = FROM(r->limbMass);
     if (other) {
         float ratio = base->thickness/base->length;
         float target = Math_Clamp(other->thickness/other->length,ratio*.45f,ratio*2.10f);
         l->thickness = l->length*Math_Lerp(ratio,target,weight);
         bool compatible = base->archetype == other->archetype;
-        float jointWeight = compatible ? weight : weight*.50f;
-#define SHAPE(field) l->field = Math_Lerp(base->field,other->field,jointWeight)
-        SHAPE(proximalScale); SHAPE(middleScale); SHAPE(distalScale); SHAPE(sprawl);
-        SHAPE(proximalSweep); SHAPE(distalSweep); SHAPE(attachmentInset);
-        SHAPE(rootThicknessScale); SHAPE(proximalThicknessScale);
-        SHAPE(middleThicknessScale); SHAPE(distalThicknessScale); SHAPE(flexionScale);
+        float compatibility = compatible ? 1 : .50f;
+#define SHAPE(field,w) l->field = Math_Lerp(base->field,other->field,FROM(w)*compatibility)
+        SHAPE(proximalScale,r->upperLimb); SHAPE(middleScale,r->lowerLimb);
+        SHAPE(distalScale,r->lowerLimb); SHAPE(sprawl,r->limbs);
+        SHAPE(proximalSweep,r->upperLimb); SHAPE(distalSweep,r->lowerLimb);
+        SHAPE(attachmentInset,r->upperLimb); SHAPE(rootThicknessScale,r->limbMass);
+        SHAPE(proximalThicknessScale,r->limbMass); SHAPE(middleThicknessScale,r->limbMass);
+        SHAPE(distalThicknessScale,r->limbMass); SHAPE(flexionScale,r->lowerLimb);
 #undef SHAPE
         if (SameFoot(base,other)) {
+            weight = FROM(r->foot);
             l->footScale = Math_Lerp(base->footScale,other->footScale,weight);
             l->footWidthScale = Math_Lerp(base->footWidthScale,other->footWidthScale,weight);
             l->footHeightScale = Math_Lerp(base->footHeightScale,other->footHeightScale,weight);
         }
     }
-    l->thickness *= thicknessScale;
+    l->thickness *= g->limbMassGain;
+    l->footWidthScale *= g->footGain;
+#undef FROM
 }
 
 static bool UsedSlot(const BodyPlan *plan, CreatureModuleKind kind, AttachmentRef attachment)
@@ -504,6 +766,8 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
     snprintf(candidate->document.name,sizeof(candidate->document.name),"%.*s × %.*s #%zu",
         NameBytes(a),a,NameBytes(b),b,index+1);
     out->name = candidate->document.name;
+    out->offspringSeed = r->seed;
+    out->offspringVersion = CREATURE_OFFSPRING_VERSION;
     for (unsigned stage=0; stage<=CREATURE_STAGE_ADULT; ++stage) {
         const CreaturePhenotype *p[] = {CreatureRecipe_GetStage(parents[0],stage),
                                        CreatureRecipe_GetStage(parents[1],stage)};
@@ -511,7 +775,7 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
         *result = *p[base];
         Axial(result,p[0],p[1],g);
         HeadSystem(result,p[0],p[1],batch,stage,g);
-        Surface(result,p[0],p[1],batch,&out->bodyPlan,sources,r);
+        Surface(result,p[0],p[1],batch,&out->bodyPlan,sources,g);
         result->development.appendages = p[r->limbParent]->development.appendages;
         if (result->tailCount == 0 && tails) r->tailParent = donor;
         result->tailCount = tails;
@@ -542,18 +806,24 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                     l->length = Math_Lerp(l->length,equivalent,weight);
                 }
                 BlendLimb(l,original,match ? &opposite->limbs[match->phenotypeIndex] : NULL,
-                    s.parent ? 1-r->limbs : r->limbs,sqrtf(g->build));
+                    g,s.parent);
             } else if (m->kind == CREATURE_MODULE_TAIL) {
                 TailPhenotype *t = &result->tails[to];
                 *t = source->tails[from];
                 float scale = result->axial.trunkLength/source->axial.trunkLength;
                 if (match) {
                     const TailPhenotype *peer = &opposite->tails[match->phenotypeIndex];
-                    if (t->archetype == peer->archetype)
+                    if (t->archetype == peer->archetype) {
+                        float w = s.parent ? 1-r->tail : r->tail;
                         t->length = Math_Lerp(t->length,peer->length*source->axial.trunkLength/
-                            opposite->axial.trunkLength,s.parent ? 1-r->tail : r->tail);
+                            opposite->axial.trunkLength,w);
+                        t->curvature = Math_Lerp(t->curvature,peer->curvature,w);
+                        t->droop = Math_Lerp(t->droop,peer->droop,w);
+                        t->tipLift = Math_Lerp(t->tipLift,peer->tipLift,w);
+                    }
                 }
                 t->length *= scale*g->caudal;
+                t->curvature *= g->tailCurve;
                 float pelvis = result->axial.pelvicWidth/source->axial.pelvicWidth;
                 t->baseWidth *= pelvis;
                 t->baseHeight *= result->axial.pelvicHeight/source->axial.pelvicHeight;
@@ -571,7 +841,8 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                         sqrtf(result->headEnvelope.widthScale*result->headEnvelope.heightScale);
                     if (result->headHybrid.active) {
                         Vector3 a = result->headHybrid.primaryRadii, b = result->headHybrid.secondaryRadii;
-                        Vector3 mixed = Vec3_Lerp(a,b,result->headHybrid.blend);
+                        Vector3 mixed = result->headHybrid.hasRegionalProfile ?
+                            result->headHybrid.regional.surface.craniumRadii : Vec3_Lerp(a,b,result->headHybrid.blend);
                         toEnvelope *= sqrtf(mixed.x*mixed.y)/sqrtf(1.025f*.60f);
                     }
                     float scale = Math_Clamp(toEnvelope/fromEnvelope,.35f,1.25f);
@@ -583,10 +854,17 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                 FlexibleAppendagePhenotype *f = &result->flexibleAppendages[to];
                 *f = source->flexibleAppendages[from];
                 if (result->headHybrid.active) {
-                    float contribution = s.parent ? r->head : 1-r->head;
-                    f->length *= Math_Lerp(.48f,1,contribution);
-                    f->baseRadius *= Math_Lerp(.65f,1,contribution);
-                    f->tipRadius *= Math_Lerp(.63f,1,contribution);
+                    float contribution = s.parent ? r->headGenes.nose : 1-r->headGenes.nose;
+                    float rootScale = 1;
+                    if (result->headHybrid.hasRegionalProfile) {
+                        Vector3 parentRadii = batch->heads[s.parent][stage].surface.craniumRadii;
+                        Vector3 childRadii = result->headHybrid.regional.surface.craniumRadii;
+                        rootScale = Math_Clamp(sqrtf(childRadii.x*childRadii.y/(parentRadii.x*parentRadii.y))
+                            *source->axial.totalScale,.42f,1.18f);
+                    }
+                    f->length *= Math_Lerp(.55f,1,contribution)*sqrtf(rootScale);
+                    f->baseRadius *= Math_Lerp(.72f,1,contribution)*rootScale;
+                    f->tipRadius *= Math_Lerp(.67f,1,contribution)*sqrtf(rootScale);
                 }
             }
         }
@@ -594,120 +872,310 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
     candidate->report = *r;
 }
 
-static bool SameLimbSystems(const CreaturePhenotype *a, const CreaturePhenotype *b)
+static bool HasHeadFrame(AABB3D frame)
 {
-    bool used[CREATURE_MAX_LIMBS] = {0};
-    for (size_t i=0; i<a->limbCount; ++i) {
-        const LimbPhenotype *left = &a->limbs[i];
-        size_t j = 0;
-        for (; j<b->limbCount; ++j) {
-            const LimbPhenotype *right = &b->limbs[j];
-            if (used[j] || left->role != right->role || left->side != right->side ||
-                !SameFoot(left,right)) continue;
-            used[j] = true;
-            break;
-        }
-        if (j == b->limbCount) return false;
-    }
-    return true;
+    Vector3 size=AABB_Size(frame);
+    return size.x>0 && size.y>0 && size.z>0;
 }
 
-static bool Distinct(const CreatureOffspringBatch *batch, const Candidate *candidate, size_t index)
+static bool DescribeHead(const Monster *monster, AABB3D frame, OffspringDescriptor *d)
 {
-    const MorphologicalSignature *a = &candidate->report.signature;
-    const CreaturePhenotype *p = &candidate->document.recipe.adult;
+    if (!monster->hasHead || !HasHeadFrame(frame)) return true;
+    MonsterSDF sdf = MonsterSDF_Create();
+    bool ok = MonsterSDF_Build(&sdf,monster,MonsterSDF_DefaultConfig()) && sdf.mouthCount;
+    if (ok) {
+        MonsterSDFHeadField context;
+        SDFField field = MonsterSDF_GetHeadField(&sdf,0,&context);
+        Vector3 span = AABB_Size(frame);
+        float scale = monster->phenotype.axial.totalScale;
+        Vector3 neck = Vec3_Add(monster->bodyParts[monster->head.anatomy.attachmentBodyPartIndex].positionRender,
+            monster->head.anatomy.landmarks.neckAttachment);
+        float band = Vec3_Length(span)*.13f;
+        unsigned i=0;
+        for (unsigned z=0; z<8; ++z) for (unsigned y=0; y<5; ++y) for (unsigned x=0; x<5; ++x) {
+            Vector3 p = Vec3_Add(frame.start,Vec3_Create(span.x*(x+.5f)/5,
+                span.y*(y+.5f)/5,span.z*(z+.5f)/8));
+            float distance=field.evaluateDistance(field.context,Vec3_Add(neck,Vec3_Scale(p,scale)));
+            d->headField[i++]=Math_Clamp(distance/(scale*band),-1,1);
+        }
+        d->hasHead = true;
+    }
+    MonsterSDF_Free(&sdf);
+    return ok;
+}
+
+static bool Describe(const Monster *actual, const CreatureOffspringBatch *batch, Candidate *candidate)
+{
+    OffspringDescriptor *d=&candidate->descriptor;
+    *d=(OffspringDescriptor){0};
+    const MorphologicalSignature *s=&candidate->report.signature;
+    float appendage=0;
+    for (size_t i=0; i<actual->phenotype.flexibleAppendageCount; ++i)
+        appendage=fmaxf(appendage,actual->phenotype.flexibleAppendages[i].length);
+    float body[] = {s->bodyLengthWidthRatio*.40f,s->bodyHeightWidthRatio*.55f,
+        s->forelimbBodyRatio,s->hindlimbBodyRatio,s->footBodyRatio*3,s->tailBodyLengthRatio,
+        s->forelimbThicknessBodyRatio*3,s->distalTailCurvature*.4f,s->maxOrnamentHeightBodyRatio,appendage*.55f};
+    memcpy(d->shape,body,sizeof(body));
+    if (actual->hasHead) {
+        const HeadAnatomy *h=&actual->head.anatomy;
+        const HeadSurfaceRecipe *r=&h->surface;
+        HeadResolvedMeasurements m=HeadAnatomy_Measure(h);
+        float size=fmaxf(.001f,m.actualHeadLength);
+        float head[] = {m.actualWidthLengthRatio,r->craniumRadii.y/size,
+            (r->faceTip.z-r->faceRoot.z)/size,h->oralSystem.jawThickness/size,
+            m.interEyeDistance/size,r->earShape.y/size,.25f*r->earDirection.y};
+        memcpy(d->shape+sizeof(body)/sizeof(*body),head,sizeof(head));
+    }
+    const SurfacePhenotype *p=&actual->surface;
+    const SurfaceRegion regions[]={SURFACE_REGION_DORSAL_TRUNK,SURFACE_REGION_VENTRAL_TRUNK,
+        SURFACE_REGION_HEAD,SURFACE_REGION_FORELIMB,SURFACE_REGION_TAIL,SURFACE_REGION_NECK};
+    size_t at=0;
+    for (size_t i=0; i<sizeof(regions)/sizeof(*regions); ++i) {
+        SurfaceCoordinate c={.position={.27f,.16f,1.39f},.region=regions[i],.secondaryRegion=regions[i],
+            .ventral=regions[i]==SURFACE_REGION_VENTRAL_TRUNK};
+        Vector3 pigment=Surface_EvaluatePigmentAlbedo(p,&c);
+        d->appearance[at++]=pigment.x;
+        d->appearance[at++]=pigment.y;
+        d->appearance[at++]=pigment.z;
+        d->appearance[at++]=p->furRegions[regions[i]].densityMultiplier*p->integument.coverage;
+    }
+    const PigmentPhenotype *banks[]={&p->transition.from,&p->transition.to};
+    for (unsigned i=0; i<2; ++i) {
+        float weight=i ? p->transition.weight : 1-p->transition.weight;
+        float intensity=banks[i]->patternStrength, frequency=banks[i]->patternScale*.05f;
+        for (size_t j=0; j<banks[i]->layerCount; ++j) {
+            intensity+=banks[i]->layers[j].strength;
+            frequency+=banks[i]->layers[j].scale*.05f*banks[i]->layers[j].strength;
+        }
+        d->appearance[at++]=weight*intensity*.25f;
+        d->appearance[at++]=weight*frequency*.25f;
+    }
+    d->appearance[at++]=p->transition.scaleCoverage;
+    d->appearance[at++]=p->integument.scales.relief*4;
+    d->appearance[at++]=p->integument.fur.density;
+    d->appearance[at++]=p->integument.fur.length*5;
+    return DescribeHead(actual,batch->headFrame,d);
+}
+
+static float Distance(const float *a, const float *b, size_t count)
+{
+    float sum=0;
+    for (size_t i=0; i<count; ++i) {
+        float delta=a[i]-b[i];
+        sum+=delta*delta;
+    }
+    return sqrtf(sum/count);
+}
+
+static bool Score(const CreatureOffspringBatch *batch, Candidate *candidate)
+{
+    float shape=INFINITY, appearance=INFINITY;
     for (size_t i=0; i<batch->config.count; ++i) {
-        const Candidate *other = batch->candidates[i];
-        if (!other) continue;
-        const MorphologicalSignature *b = &other->report.signature;
-        const CreaturePhenotype *q = &other->document.recipe.adult;
-        if (i != index && candidate->document.recipe.id == other->document.recipe.id) return false;
-        if (p->axial.archetype != q->axial.archetype || p->head.archetype != q->head.archetype ||
-            p->ornamentCount != q->ornamentCount || p->flexibleAppendageCount != q->flexibleAppendageCount ||
-            p->limbCount != q->limbCount || p->tailCount != q->tailCount) continue;
-        if (!SameLimbSystems(p,q)) continue;
-        int tails[TAIL_ARCHETYPE_COILED+1] = {0};
-        for (size_t j=0; j<p->tailCount; ++j) {
-            ++tails[p->tails[j].archetype];
-            --tails[q->tails[j].archetype];
-        }
-        bool differentTails = false;
-        for (size_t j=0; j<sizeof(tails)/sizeof(*tails); ++j) differentTails |= tails[j] != 0;
-        if (differentTails) continue;
-#define DELTA(field) (fabsf(a->field-b->field)/fmaxf(.12f,fmaxf(fabsf(a->field),fabsf(b->field))))
-        float distance = DELTA(bodyLengthWidthRatio)+DELTA(bodyHeightWidthRatio)+DELTA(headBodyScale)+
-            DELTA(headLengthWidthRatio)+DELTA(forelimbBodyRatio)+DELTA(hindlimbBodyRatio)+DELTA(footBodyRatio)+
-            DELTA(tailBodyLengthRatio)+DELTA(forelimbThicknessBodyRatio)+DELTA(maxOrnamentHeightBodyRatio);
-#undef DELTA
-        if (distance < .12f) return false;
+        const Candidate *other=batch->candidates[i];
+        if (!other || other==candidate) continue;
+        if (candidate->document.recipe.id==other->document.recipe.id) return false;
+        const OffspringDescriptor *a=&candidate->descriptor, *b=&other->descriptor;
+        float geometry = Distance(a->shape,b->shape,SHAPE_FEATURES);
+        if (a->hasHead && b->hasHead)
+            geometry = .58f*geometry+.42f*Distance(a->headField,b->headField,HEAD_SAMPLES);
+        float color = Distance(a->appearance,b->appearance,APPEARANCE_FEATURES);
+        if (geometry<.008f) return false;
+        shape=fminf(shape,geometry);
+        appearance=fminf(appearance,color);
     }
+    candidate->report.shapeDiversity=isfinite(shape) ? shape : 0;
+    candidate->report.appearanceDiversity=isfinite(appearance) ? appearance : 0;
+    /* La morfología domina la selección; el color desempata familias de
+     * forma parecida y no puede rescatar una propuesta casi idéntica. */
     return true;
 }
 
-static Candidate *Generate(const CreatureOffspringBatch *batch, size_t index, unsigned revision,
-    CreatureOffspringCancel cancel, void *context, char *error, size_t capacity)
+static float SelectionValue(const CreatureOffspringBatch *batch, const Candidate *candidate)
 {
-    Candidate *candidate = malloc(sizeof(*candidate));
-    Monster *target = calloc(1,sizeof(*target)), *actual = calloc(1,sizeof(*actual));
-    if (!candidate || !target || !actual) {
-        free(candidate); free(target); free(actual);
-        snprintf(error,capacity,"Cannot allocate offspring and morph reference");
-        return NULL;
+    const OffspringReport *r=&candidate->report;
+    unsigned same=0, different=0;
+    for (size_t i=0; i<batch->config.count; ++i) {
+        const Candidate *peer=batch->candidates[i];
+        if (!peer || i==candidate->index) continue;
+        if (peer->report.scaffoldParent==r->scaffoldParent) ++same;
+        else ++different;
     }
-    char detail[128] = "No distinct morphology";
-    for (unsigned attempt=0; attempt<batch->config.attempts; ++attempt) {
-        if (cancel && cancel(context)) { strcpy(detail,"Generation cancelled"); break; }
-        OffspringGenome g = Genome(batch,index,revision,attempt);
-        const CreatureRecipe *reference = &batch->parents[g.report.scaffoldParent].recipe;
-        Build(batch,&g,candidate,index,attempt % 4 == 3);
-        candidate->report.hasMorphTarget = CreatureMorph_Interpolate(&batch->adults[0],&batch->adults[1],
-            g.report.global,target);
-        if (candidate->report.hasMorphTarget)
-            OffspringMorph_Fit(&candidate->document.recipe,target,batch->adults,&candidate->report);
-        unsigned repairs = 0;
-        for (unsigned step=0; step<=batch->config.repairs; ++step) {
-            if (cancel && cancel(context)) break;
-            if (OffspringRepair_Validate(&candidate->document.recipe,reference,batch->anatomy[g.report.scaffoldParent],.75f,
-                step < batch->config.repairs,&candidate->report,cancel,context,detail,sizeof(detail))) {
-                candidate->report.repairs += repairs;
-                if (candidate->report.hasMorphTarget) {
-                    const CreatureRecipe *recipe = &candidate->document.recipe;
-                    if (!Creature_ResolveAppearance(actual,recipe,&recipe->adult)) {
-                        strcpy(detail,"Cannot resolve fitted geometry");
-                        break;
-                    }
-                    OffspringMorph_Measure(actual,target,&candidate->report);
-                    if (recipe->adult.headHybrid.active && !candidate->report.simplifiedHeadBasis &&
-                        candidate->report.headError > .19f) {
-                        strcpy(detail,"Head fit exceeds the normalized target tolerance");
-                        break;
-                    }
-                }
-                if (Distinct(batch,candidate,index)) {
-                    if (!CreatureRecipeIO_ValidateFields(&candidate->document.recipe)) {
-                        strcpy(detail,"Recipe exceeds the JSON format limits");
-                        break;
-                    }
-                    candidate->revision = revision;
-                    candidate->index = index;
-                    candidate->owner = batch;
-                    if (capacity) error[0] = 0;
-                    Monster_Free(target); Monster_Free(actual);
-                    free(target); free(actual);
-                    return candidate;
-                }
-                strcpy(detail,"No distinct morphology");
-                break;
+    float balance=.036f*((float)different-(float)same)/(1+same+different);
+    return r->shapeDiversity + .20f*fminf(r->appearanceDiversity,r->shapeDiversity)+.12f*r->quality+balance;
+}
+
+static bool Proposal(const CreatureOffspringBatch *batch, Candidate *candidate, size_t index,
+    unsigned revision, unsigned attempt, Monster *target, Monster *actual,
+    CreatureOffspringCancel cancel, void *context, char *detail, size_t capacity)
+{
+    OffspringGenome genome=Genome(batch,index,revision,attempt);
+    const CreatureRecipe *reference=&batch->parents[genome.report.scaffoldParent].recipe;
+    Build(batch,&genome,candidate,index,attempt%4==3);
+    OffspringReport *report=&candidate->report;
+    CreatureRecipe *recipe=&candidate->document.recipe;
+    report->hasMorphTarget=CreatureMorph_Interpolate(&batch->adults[0],&batch->adults[1],
+        report->global,target);
+    if (report->hasMorphTarget) {
+        if (recipe->adult.headHybrid.hasRegionalProfile) {
+            float scale=target->phenotype.axial.totalScale;
+            target->head.anatomy=recipe->adult.headHybrid.regional;
+            HeadAnatomy_ScaleProfile(&target->head.anatomy,Vec3_Create(scale,scale,scale));
+        }
+        OffspringMorph_Fit(recipe,target,batch->adults,report);
+    }
+    unsigned repairs=0;
+    for (unsigned step=0; step<=batch->config.repairs; ++step) {
+        if (cancel && cancel(context)) return false;
+        if (!OffspringRepair_Validate(recipe,reference,batch->anatomy[report->scaffoldParent],.75f,
+                step<batch->config.repairs,report,cancel,context,detail,capacity)) {
+            if (!report->repairs) return false;
+            repairs+=report->repairs;
+            report->repairs=0;
+            continue;
+        }
+        report->repairs+=repairs;
+        if (!CreatureRecipeIO_ValidateFields(recipe) || !Creature_ResolveAppearance(actual,recipe,&recipe->adult)) {
+            snprintf(detail,capacity,"Cannot serialize or resolve fitted recipe");
+            return false;
+        }
+        if (report->hasMorphTarget) OffspringMorph_MeasureCandidate(actual,target,batch->adults,report);
+        if (!Describe(actual,batch,candidate)) {
+            snprintf(detail,capacity,"Cannot sample head geometry");
+            return false;
+        }
+        report->quality=1/(1+2*report->headError+report->bodyError+.35f*report->limbError
+            +.035f*report->repairs);
+        candidate->revision=revision;
+        candidate->index=index;
+        candidate->owner=batch;
+        return true;
+    }
+    return false;
+}
+
+static void FreePool(ProposalPool *pool)
+{
+    for (unsigned i=0; i<pool->count; ++i) free(pool->items[i]);
+    pool->count=0;
+}
+
+static bool Collect(const CreatureOffspringBatch *batch, ProposalPool *pool, size_t index,
+    unsigned revision, CreatureOffspringCancel cancel, void *context, char *error, size_t capacity)
+{
+    Candidate *trial=calloc(1,sizeof(*trial));
+    Monster *target=calloc(1,sizeof(*target)), *actual=calloc(1,sizeof(*actual));
+    char detail[128]="No valid morphology";
+    unsigned attempts=0;
+    unsigned budget=batch->config.proposalsPerOffspring ? batch->config.proposalsPerOffspring : 6;
+    bool ok=false;
+    if (!trial || !target || !actual) {
+        snprintf(detail,sizeof(detail),"Cannot allocate offspring and morph reference");
+        goto done;
+    }
+    while (attempts<batch->config.attempts && pool->count<budget) {
+        if (cancel && cancel(context)) break;
+        unsigned attempt=attempts++;
+        if (!Proposal(batch,trial,index,revision,attempt,target,actual,cancel,context,detail,sizeof(detail)))
+            continue;
+        Candidate *saved=malloc(sizeof(*saved));
+        if (!saved) {
+            snprintf(detail,sizeof(detail),"Cannot retain offspring proposal");
+            goto done;
+        }
+        *saved=*trial;
+        saved->document.recipe.name=saved->document.name;
+        pool->items[pool->count++]=saved;
+    }
+    ok=pool->count>0;
+done:
+    if (cancel && cancel(context)) {
+        ok=false;
+        snprintf(detail,sizeof(detail),"Generation cancelled");
+    }
+    if (ok) {
+        for (unsigned i=0; i<pool->count; ++i) {
+            pool->items[i]->report.proposalsEvaluated=attempts;
+            pool->items[i]->report.proposalsValid=pool->count;
+        }
+        if (capacity) error[0]=0;
+    } else {
+        FreePool(pool);
+        snprintf(error,capacity,"Candidate %zu: %s",index+1,detail);
+    }
+    if (target) Monster_Free(target);
+    if (actual) Monster_Free(actual);
+    free(target); free(actual); free(trial);
+    return ok;
+}
+
+static Candidate **BestProposal(const CreatureOffspringBatch *batch, ProposalPool pools[],
+    size_t count)
+{
+    Candidate **best=NULL;
+    float value=-INFINITY;
+    for (size_t slot=0; slot<count; ++slot) {
+        for (unsigned i=0; i<pools[slot].count; ++i) {
+            Candidate **proposal=&pools[slot].items[i];
+            if (!*proposal || !Score(batch,*proposal)) continue;
+            float score=SelectionValue(batch,*proposal);
+            if (score>value+1e-6f) {
+                value=score;
+                best=proposal;
             }
-            if (!candidate->report.repairs) break;
-            repairs += candidate->report.repairs;
-            candidate->report.repairs = 0;
         }
     }
-    snprintf(error,capacity,"Candidate %zu: %s",index+1,detail);
-    Monster_Free(target); Monster_Free(actual);
-    free(target); free(actual); free(candidate);
-    return NULL;
+    return best;
+}
+
+static bool SelectBatch(CreatureOffspringBatch *batch, CreatureOffspringCancel cancel,
+    CreatureOffspringProgress progress, void *context, char *error, size_t capacity)
+{
+    ProposalPool pools[CREATURE_OFFSPRING_MAX]={0};
+    size_t count=batch->config.count;
+    bool ok=false;
+    for (size_t i=0; i<count; ++i) {
+        if (!Collect(batch,&pools[i],i,0,cancel,context,error,capacity)) goto done;
+        if (progress) progress(context,i+1);
+    }
+    for (size_t i=0; i<count; ++i) {
+        if (cancel && cancel(context)) {
+            snprintf(error,capacity,"Generation cancelled");
+            goto done;
+        }
+        Candidate **best=BestProposal(batch,pools,count);
+        if (!best) {
+            snprintf(error,capacity,"No distinct morphology in the remaining contribution bands");
+            goto done;
+        }
+        size_t slot=(*best)->index;
+        batch->candidates[slot]=*best;
+        *best=NULL;
+        FreePool(&pools[slot]);
+    }
+    for (size_t i=0; i<count; ++i) Score(batch,batch->candidates[i]);
+    ok=true;
+done:
+    for (size_t i=0; i<count; ++i) FreePool(&pools[i]);
+    return ok;
+}
+
+static void BuildHeadFrame(CreatureOffspringBatch *batch)
+{
+    batch->headFrame=AABB_Empty();
+    for (unsigned i=0; i<2; ++i) {
+        if (!batch->adults[i].hasHead) continue;
+        HeadAnatomy head=batch->heads[i][CREATURE_STAGE_ADULT];
+        float unit=1/batch->adults[i].phenotype.axial.totalScale;
+        HeadAnatomy_ScaleProfile(&head,Vec3_Create(unit,unit,unit));
+        const HeadSurfaceRecipe *s=&head.surface;
+        AABB_ExpandRadius(&batch->headFrame,s->craniumCenter,s->craniumRadii);
+        AABB_ExpandRadius(&batch->headFrame,s->faceTip,s->faceTipRadii);
+        if (s->hasEars) AABB_ExpandRadius(&batch->headFrame,s->leftEarCenter,s->earRadii);
+    }
+    if (HasHeadFrame(batch->headFrame)) {
+        AABB_Pad(&batch->headFrame,.12f);
+        batch->headFrame.start.x=0;
+    }
 }
 
 CreatureOffspringBatch *CreatureOffspring_GenerateProgress(const CreatureRecipe *a, const CreatureRecipe *b,
@@ -743,6 +1211,21 @@ CreatureOffspringBatch *CreatureOffspring_GenerateProgress(const CreatureRecipe 
                 return NULL;
             }
             CreaturePhenotype_Normalize(stage);
+            const AnatomyNode *head = AnatomyGraph_FindFirstRegion(&batch->anatomy[p][s],
+                ANATOMY_REGION_HEAD);
+            if (head) {
+                Vector3 radii = head->envelopeRadii;
+                if (stage->headHybrid.active) {
+                    Vector3 ratio = HeadHybridProfile_EnvelopeRatio(&stage->headHybrid);
+                    radii = Vec3_Create(radii.x/ratio.x,radii.y/ratio.y,radii.z/ratio.z);
+                }
+                if (!HeadAnatomy_ResolveHybrid(&stage->head,&stage->headHybrid,0,radii,&batch->heads[p][s])) {
+                    snprintf(error,capacity,"Parent %.72s: cannot resolve stage %u head",snapshot->name,s);
+                    CreatureOffspring_Destroy(batch);
+                    return NULL;
+                }
+                HeadAnatomy_CenterProfile(&batch->heads[p][s]);
+            }
         }
         for (unsigned s=1; s<=CREATURE_STAGE_ADULT; ++s) {
             if (!CreaturePhenotype_MorphCompatible(Stage(snapshot,0),Stage(snapshot,s))) {
@@ -758,13 +1241,10 @@ CreatureOffspringBatch *CreatureOffspring_GenerateProgress(const CreatureRecipe 
         }
     }
     Match(batch);
-    for (size_t i=0; i<config.count; ++i) {
-        batch->candidates[i] = Generate(batch,i,0,cancel,context,error,capacity);
-        if (!batch->candidates[i]) {
-            CreatureOffspring_Destroy(batch);
-            return NULL;
-        }
-        if (progress) progress(context,i+1);
+    BuildHeadFrame(batch);
+    if (!SelectBatch(batch,cancel,progress,context,error,capacity)) {
+        CreatureOffspring_Destroy(batch);
+        return NULL;
     }
     return batch;
 }
@@ -787,7 +1267,20 @@ OffspringCandidate *CreatureOffspring_PrepareReroll(const CreatureOffspringBatch
         snprintf(error,capacity,"Candidate reroll limit exhausted");
         return NULL;
     }
-    return Generate(batch,index,batch->candidates[index]->revision+1,cancel,context,error,capacity);
+    ProposalPool pool={0};
+    if (!Collect(batch,&pool,index,batch->candidates[index]->revision+1,cancel,context,error,capacity))
+        return NULL;
+    Candidate **best=BestProposal(batch,&pool,1);
+    Candidate *result=best ? *best : NULL;
+    if (cancel && cancel(context)) {
+        snprintf(error,capacity,"Generation cancelled");
+        FreePool(&pool);
+        return NULL;
+    }
+    if (best) *best=NULL;
+    else snprintf(error,capacity,"No distinct morphology for candidate %zu",index+1);
+    FreePool(&pool);
+    return result;
 }
 
 bool CreatureOffspring_AcceptReroll(CreatureOffspringBatch *batch, size_t index, OffspringCandidate *result)
@@ -797,6 +1290,7 @@ bool CreatureOffspring_AcceptReroll(CreatureOffspringBatch *batch, size_t index,
         return false;
     free(batch->candidates[index]);
     batch->candidates[index] = result;
+    for (size_t i=0; i<batch->config.count; ++i) Score(batch,batch->candidates[i]);
     return true;
 }
 

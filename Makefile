@@ -79,6 +79,7 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/Mouth.c \
             $(SRC_DIR)/Head.c \
             $(SRC_DIR)/HeadBlend.c \
+            $(SRC_DIR)/HeadRegionalProfile.c \
             $(SRC_DIR)/Anatomy.c \
             $(SRC_DIR)/CreaturePhenotype.c \
             $(SRC_DIR)/CreatureRecipe.c \
@@ -279,6 +280,9 @@ $(BUILD_DIR)/capture_creature: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_creatur
 
 $(BUILD_DIR)/capture_offspring_comparison: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_offspring_comparison.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+$(BUILD_DIR)/export_offspring_batch: $(CORE_OBJS) tools/export_offspring_batch.c
+	$(CC) $(CFLAGS) $^ -lm -pthread -o $@
 
 $(BUILD_DIR)/capture_animations: $(CORE_OBJS) $(RENDER_OBJS) tools/capture_animations.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@

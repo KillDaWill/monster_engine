@@ -26,6 +26,7 @@ bool UiCommands_Register(UiCommands *, const char *, UiCommandHandler, void *);
 /* El prefijo registrado más largo recibe el sufijo íntegro. */
 bool UiCommands_RegisterPrefix(UiCommands *, const char *, UiCommandHandler, void *);
 bool UiCommands_RegisterLines(UiCommands *, const char *, UiCommandLineHandler, void *);
+bool UiCommands_RegisterPrefixLines(UiCommands *, const char *, UiCommandLineHandler, void *);
 const UiCommand *UiCommands_Find(const UiCommands *, const char *);
 UiCommandResult UiCommands_Execute(const UiCommands *, const char *, char *, size_t);
 UiCommandResult UiCommands_ExecuteLines(const UiCommands *, const char *, UiCommandOutput);

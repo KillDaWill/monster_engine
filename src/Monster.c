@@ -268,6 +268,13 @@ bool Monster_ResolveHead(Monster* monster) {
 
 bool Monster_SetHead(Monster* monster, Head head) {
     if (!monster) return false;
+    if (head.hybrid.hasRegionalProfile) {
+        const Mouth *source=&head.hybrid.regional.oralSystem;
+        Mouth *mouth=monster->mouthCount ? &monster->mouths[0] : &head.anatomy.oralSystem;
+        mouth->lipColor=source->lipColor;
+        mouth->insideColor=source->insideColor;
+        if (!monster->mouthCount) mouth->openFactor=source->openFactor;
+    }
     monster->head=head; monster->hasHead=true;
     return Monster_ResolveHead(monster);
 }

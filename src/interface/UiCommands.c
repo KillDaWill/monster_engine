@@ -49,6 +49,15 @@ bool UiCommands_RegisterLines(UiCommands *registry, const char *name,
     return true;
 }
 
+bool UiCommands_RegisterPrefixLines(UiCommands *registry, const char *name,
+                                   UiCommandLineHandler handler, void *state)
+{
+    if (!name || !*name || name[strlen(name)-1]!='.' ||
+        !UiCommands_RegisterLines(registry,name,handler,state)) return false;
+    registry->entries[registry->count-1].prefix=true;
+    return true;
+}
+
 static UiCommandResult Execute(const UiCommands *registry, const char *line,
                                     char *out, size_t capacity, UiCommandOutput lines, bool emitReply)
 {

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HEADERS = ('Vector', 'Color', 'Anatomy', 'LongHair', 'PigmentPattern', 'Surface', 'Head', 'Eye',
+HEADERS = ('Vector', 'Color', 'Anatomy', 'LongHair', 'PigmentPattern', 'Surface', 'Head', 'Mouth', 'Eye',
            'RigBuilder', 'CreaturePhenotype', 'Attachment', 'CreatureRecipe')
 structs, enums = {}, {}
 for header in HEADERS:
@@ -33,10 +33,12 @@ SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'bool': ('F_BOOL', '1'), 'CreatureRecipeId': ('F_U32', 'UINT32_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
-OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 'withersRoundness'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount'}, 'TailPhenotype': {'droop', 'tipLift'}, 'PigmentLayer': {'regionMask', 'domain'}}
-OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality', 'inheritedBlend'}
+OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 'withersRoundness'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount'}, 'TailPhenotype': {'droop', 'tipLift'}, 'PigmentLayer': {'regionMask', 'domain', 'patternRotation'}}
+OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality', 'inheritedBlend', 'regionalAlbedo'}
 OPTIONAL['LongHairGroup'] = {'rootFullness', 'bend', 'wave', 'transparency', 'verticalBias'}
 OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount', 'headHybrid'}
+OPTIONAL['CreatureRecipe'] = {'offspringSeed', 'offspringVersion'}
+OPTIONAL['HeadHybridProfile'] = {'hasRegionalProfile', 'regional', 'referenceControls'}
 OPTIONAL['HeadPhenotype'] = {'nasalColor'}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 

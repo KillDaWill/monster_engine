@@ -3,6 +3,10 @@
 // Cuatro máscaras por banco; cero en el documento significa todas las regiones.
 vec4 pigmentCoverage[3];
 float wrinkleCoverage;
+vec4 regionalPigment;
+vec3 PigmentBase(vec3 baseColor) {
+    return baseColor*(1.0-regionalPigment.a)+regionalPigment.rgb;
+}
 // Tres filas por capa y banco; los índices anteriores de receta no cambian.
 bool PigmentDomainActive(int bank,int layer) {
     return all(greaterThan(surfaceRecipe[103+12*bank+3*layer+1].xyz,vec3(0)));
@@ -24,8 +28,11 @@ float PigmentRegionBit(float encodedMask,int region) {
 void PigmentClearRegions() {
     for(int bank=0;bank<3;++bank)pigmentCoverage[bank]=vec4(0);
     wrinkleCoverage=0.0;
+    regionalPigment=vec4(0);
 }
 void PigmentAccumulateRegion(int region,float weight) {
+    vec4 palette=surfaceRecipe[139+clamp(region,0,10)];
+    regionalPigment+=vec4(palette.rgb,1.0)*palette.a*weight;
     if(surfaceRecipe[102].y>0.0)
         wrinkleCoverage+=weight*PigmentRegionBit(floor(.5*surfaceRecipe[102].w),region);
     for(int bank=0;bank<3;++bank)for(int layer=0;layer<4;++layer) {
@@ -36,6 +43,7 @@ void PigmentAccumulateRegion(int region,float weight) {
 void PigmentNormalizeRegions(float sum) {
     for(int bank=0;bank<3;++bank)pigmentCoverage[bank]/=max(sum,1e-12);
     wrinkleCoverage/=max(sum,1e-12);
+    regionalPigment/=max(sum,1e-12);
 }
 void PigmentSetRegions(vec4 regions) {
     PigmentClearRegions();

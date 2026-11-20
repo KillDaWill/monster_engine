@@ -19,7 +19,7 @@ Construye y abre Nexus con `make run-interface`. CreatureOffspring y CO comparte
 
 En los comandos de CO también se puede escribir `CreatureOffspring` como prefijo. En la galería se puede seleccionar una fila, hacer doble clic para verla o usar **Preview** y **Save**. La rueda desplaza la galería. En CV, arrastrar orbita la cámara y la rueda ajusta el encuadre. Las recetas guardadas se pueden abrir en Files o mediante `CV.view."/recepies/MiCruce.creature.json"`.
 
-La [síntesis actual de CreatureOffspring V2](CREATURE_OFFSPRING_V2.md) describe el ajuste con CreatureMorph, el perfil cefálico y la comparación visual con V1. Los comandos de esta página se aplican a ambas versiones.
+La [documentación de CreatureOffspring V3](CREATURE_OFFSPRING_V3.md) describe la herencia regional, la selección y las galerías actuales. La [documentación de V2](CREATURE_OFFSPRING_V2.md) conserva la comparación histórica con V1. Los comandos de esta página se aplican a las tres versiones.
 
 ## Generación anatómica de V1
 

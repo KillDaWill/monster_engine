@@ -187,6 +187,7 @@ bool CreaturePhenotype_MorphCompatible(const CreaturePhenotype* a, const Creatur
     if (a->axial.archetype != b->axial.archetype) return false;
     if (a->axial.contourProfile != b->axial.contourProfile) return false;
     if (a->head.archetype != b->head.archetype || a->headHybrid.active != b->headHybrid.active ||
+        a->headHybrid.hasRegionalProfile != b->headHybrid.hasRegionalProfile ||
         (a->headHybrid.active &&
             (a->headHybrid.secondary.archetype != b->headHybrid.secondary.archetype ||
              a->headHybrid.secondary.cranialForm != b->headHybrid.secondary.cranialForm ||
@@ -330,6 +331,13 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         p.headHybrid.primaryRadii = Vec3_Lerp(a->headHybrid.primaryRadii,b->headHybrid.primaryRadii,t);
         p.headHybrid.secondaryRadii = Vec3_Lerp(a->headHybrid.secondaryRadii,b->headHybrid.secondaryRadii,t);
         p.headHybrid.blend = Math_Lerp(a->headHybrid.blend,b->headHybrid.blend,t);
+        if (p.headHybrid.hasRegionalProfile) {
+            HeadAnatomy_Blend(&a->headHybrid.regional,&b->headHybrid.regional,t,&p.headHybrid.regional);
+#define CONTROL(field) p.headHybrid.referenceControls.field = Math_Lerp( \
+                a->headHybrid.referenceControls.field,b->headHybrid.referenceControls.field,t)
+            CONTROL(skullWidth); CONTROL(muzzleLength); CONTROL(jawDepth); CONTROL(earSize); CONTROL(eyeSize);
+#undef CONTROL
+        }
     }
 
     CreaturePhenotype_Normalize(&p);

@@ -117,14 +117,6 @@ typedef struct HeadPhenotype {
     Color nasalColor; /**< Color del planum; alfa cero conserva la trufa oscura heredada. */
 } HeadPhenotype;
 
-/** Perfil cefálico editable. Los radios de ambas bases están en unidades axiales. */
-typedef struct HeadHybridProfile {
-    bool active;
-    float blend;
-    Vector3 primaryRadii, secondaryRadii;
-    HeadPhenotype secondary;
-} HeadHybridProfile;
-
 /** Landmarks locales con identidad anatómica estable. */
 typedef struct HeadLandmarks {
     AnatomyId headId; /**< Identidad estable de la cabeza. */
@@ -266,6 +258,44 @@ typedef struct HeadAnatomy {
     Mouth oralSystem; /**< Subsistema oral propietario. */
     Vector3 eyeScale; /**< Radios reales de los globos oculares separados. */
 } HeadAnatomy;
+
+/** Valores de referencia de los controles semánticos sobre un perfil regional. */
+typedef struct HeadRegionalControls {
+    float skullWidth, muzzleLength, jawDepth, earSize, eyeSize;
+} HeadRegionalControls;
+
+/** Perfil cefálico editable en unidades axiales. V2 conserva sus dos bases.
+ * V3 guarda las secciones y los hitos en un marco cefálico con origen cervical. */
+typedef struct HeadHybridProfile {
+    bool active;
+    float blend;
+    Vector3 primaryRadii, secondaryRadii;
+    HeadPhenotype secondary;
+    bool hasRegionalProfile;
+    HeadAnatomy regional;
+    HeadRegionalControls referenceControls;
+} HeadHybridProfile;
+
+/** Pesos hacia el segundo progenitor y multiplicadores morfológicos acotados. */
+typedef struct HeadRegionalInheritance {
+    float cranium, rostrum, jaw, cheek, orbit, ear, neck, nose;
+    float earHeight, earWidth, earCurve;
+    float skullWidthGain, muzzleLengthGain, jawDepthGain, eyeSizeGain;
+    float earHeightGain, earWidthGain, earThicknessGain, earCurveGain, earAngle;
+    bool inheritEars;
+} HeadRegionalInheritance;
+
+/** @brief Aplica los controles semánticos respecto a los valores al generar el perfil. */
+void HeadAnatomy_EditProfile(HeadAnatomy*,const HeadPhenotype*,const HeadRegionalControls*);
+/** @brief Valida estaciones, secciones y marcos de una anatomía serializada. */
+bool HeadAnatomy_ValidateProfile(const HeadAnatomy*);
+/** @brief Transforma una anatomía local a otras unidades y proporciones. */
+void HeadAnatomy_ScaleProfile(HeadAnatomy*, Vector3 scale);
+/** @brief Alinea el origen cervical sin cambiar la geometría de reposo. */
+void HeadAnatomy_CenterProfile(HeadAnatomy*);
+/** @brief Reconstruye el perfil continuo en el marco local de ambos padres. */
+void HeadAnatomy_BlendRegional(const HeadAnatomy*,const HeadAnatomy*,
+    const HeadRegionalInheritance*,HeadAnatomy*);
 
 /** Dimensiones medibles de la anatomía de reposo. */
 typedef struct HeadResolvedMeasurements {

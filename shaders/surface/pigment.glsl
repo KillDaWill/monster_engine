@@ -40,6 +40,12 @@ float SamplePigmentPattern(int pat, vec3 p, float scale, float sharpness, vec3 d
     return 0.0;
 }
 
+vec3 PigmentPatternPosition(vec3 p,int bank,int layer) {
+    float angle=surfaceRecipe[150+bank][layer];
+    if(angle==0.0)return p;
+    float c=cos(angle),s=sin(angle);
+    return vec3(c*p.x+s*p.z,p.y,c*p.z-s*p.x);
+}
 vec3 EvaluateLocalizedPigmentBank(vec3 p,vec3 baseColor,int bank);
 vec3 EvaluatePigmentLegacy(vec3 p, float underside, vec4 params, uint seed) {
     int layerCount = int(surfaceRecipe[7].z + 0.5);
@@ -53,12 +59,12 @@ vec3 EvaluatePigmentLegacy(vec3 p, float underside, vec4 params, uint seed) {
         float spots = smoothstep(.48, .7, noise);
         float pattern = mix(spots, bands, surfaceRecipe[6].w);
         pattern = mix(pattern, .35, smoothstep(.3, 1.0, footprint));
-        color = mix(surfaceRecipe[0].rgb, surfaceRecipe[1].rgb, pattern * params.z);
+        color = mix(PigmentBase(surfaceRecipe[0].rgb), surfaceRecipe[1].rgb, pattern * params.z);
         color *= 1.0 - params.x * (1.0 - underside);
         return mix(color, surfaceRecipe[2].rgb, underside * params.y);
     }
 
-    color = surfaceRecipe[0].rgb;
+    color = PigmentBase(surfaceRecipe[0].rgb);
     for (int i = 0; i < 4; ++i) {
         if (i >= layerCount) break;
         if(PigmentDomainActive(0,i))continue;
@@ -66,7 +72,7 @@ vec3 EvaluatePigmentLegacy(vec3 p, float underside, vec4 params, uint seed) {
         vec4 layerParam = surfaceRecipe[35 + 3 * i];
         vec4 layerDir = surfaceRecipe[36 + 3 * i];
         uint layerSeed = seed ^ uint(layerParam.w) ^ uint(i * 101);
-        float sampleVal = SamplePigmentPattern(int(layerParam.x + 0.5), p, layerParam.y, layerParam.z, layerDir.xyz, layerSeed);
+        float sampleVal = SamplePigmentPattern(int(layerParam.x + 0.5), PigmentPatternPosition(p,0,i), layerParam.y, layerParam.z, layerDir.xyz, layerSeed);
         float blend = clamp(sampleVal * layerCol.a * pigmentCoverage[0][i] * PigmentDomainWeight(p,0,i), 0.0, 1.0);
         color = mix(color, layerCol.rgb, blend);
     }
@@ -79,7 +85,7 @@ vec3 EvaluatePigmentLegacy(vec3 p, float underside, vec4 params, uint seed) {
 vec3 EvaluatePigmentBank(vec3 p,float underside,int bank) {
     vec4 params=surfaceRecipe[bank+3],meta=surfaceRecipe[bank+4];
     uint seed=uint(meta.z)|(uint(meta.w)<<16u);int count=int(meta.y+.5);
-    vec3 color=surfaceRecipe[bank].rgb;
+    vec3 color=PigmentBase(surfaceRecipe[bank].rgb);
     if(count<=0) {
         vec3 q=p*params.w;float footprint=max(length(dFdx(q)),length(dFdy(q)));
         float noise=PigmentNoise(q,seed);
@@ -92,7 +98,7 @@ vec3 EvaluatePigmentBank(vec3 p,float underside,int bank) {
         if(PigmentDomainActive(bank==48?1:2,i))continue;
         vec4 col=surfaceRecipe[bank+5+3*i],layer=surfaceRecipe[bank+6+3*i];
         uint layerSeed=seed^uint(layer.w)^uint(i*101);
-        float value=SamplePigmentPattern(int(layer.x+.5),p,layer.y,layer.z,surfaceRecipe[bank+7+3*i].xyz,layerSeed);
+        float value=SamplePigmentPattern(int(layer.x+.5),PigmentPatternPosition(p,bank==48?1:2,i),layer.y,layer.z,surfaceRecipe[bank+7+3*i].xyz,layerSeed);
         int domainBank=bank==48?1:2;
         color=mix(color,col.rgb,clamp(value*col.a*pigmentCoverage[domainBank][i]*PigmentDomainWeight(p,domainBank,i),0.0,1.0));
     }
@@ -113,7 +119,7 @@ vec3 EvaluatePigmentMaterialBank(vec3 p,int bank,float roughness) {
         if(!PigmentDomainActive(bank,i))continue;
         vec4 col=surfaceRecipe[base+3*i],param=surfaceRecipe[base+1+3*i],dir=surfaceRecipe[base+2+3*i];
         uint seed=bank==0?pigmentSeed:uint(surfaceRecipe[bank==1?52:69].z)|(uint(surfaceRecipe[bank==1?52:69].w)<<16u);
-        float value=SamplePigmentPattern(int(param.x+.5),p,param.y,param.z,dir.xyz,seed^uint(param.w)^uint(i*101));
+        float value=SamplePigmentPattern(int(param.x+.5),PigmentPatternPosition(p,bank,i),param.y,param.z,dir.xyz,seed^uint(param.w)^uint(i*101));
         vec4 local=surfaceRecipe[105+12*bank+3*i];
         float weight=clamp(value*col.a*pigmentCoverage[bank][i]*PigmentDomainWeight(p,bank,i),0.0,1.0)*local.x;
         material.xy=mix(material.xy,local.yz,weight);
@@ -145,7 +151,7 @@ vec3 EvaluateLocalizedPigmentBank(vec3 p,vec3 baseColor,int bank) {
         if(!PigmentDomainActive(bank,i))continue;
         vec4 col=surfaceRecipe[base+3*i],param=surfaceRecipe[base+1+3*i],dir=surfaceRecipe[base+2+3*i];
         uint seed=bank==0?pigmentSeed:uint(surfaceRecipe[bank==1?52:69].z)|(uint(surfaceRecipe[bank==1?52:69].w)<<16u);
-        float value=SamplePigmentPattern(int(param.x+.5),p,param.y,param.z,dir.xyz,seed^uint(param.w)^uint(i*101));
+        float value=SamplePigmentPattern(int(param.x+.5),PigmentPatternPosition(p,bank,i),param.y,param.z,dir.xyz,seed^uint(param.w)^uint(i*101));
         baseColor=mix(baseColor,col.rgb,clamp(value*col.a*pigmentCoverage[bank][i]*PigmentDomainWeight(p,bank,i),0.0,1.0));
     }
     return baseColor;

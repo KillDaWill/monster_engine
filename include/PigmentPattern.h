@@ -55,12 +55,15 @@ typedef struct PigmentLayer {
     float sharpness;        /**< Nitidez o pendiente de transición de los bordes [0.0 - 1.0] */
     Vector3 direction;      /**< Vector directriz para gradientes y bandas */
     uint32_t seed;          /**< Semilla pseudoaleatoria determinista */
+    float patternRotation; /**< Rotación del patrón alrededor del eje dorsal, en radianes. */
     uint32_t regionMask; /**< Bits de SurfaceRegion; cero conserva cobertura global. */
     PigmentDomain domain; /**< Máscara localizada y respuesta tisular opcional. */
 } PigmentLayer;
 
 #define SURFACE_MAX_PIGMENT_LAYERS 4
 
+/** @brief Coordenada del patrón rotada sin mover su dominio anatómico. */
+Vector3 PigmentLayer_PatternPosition(const PigmentLayer*, Vector3);
 /** @brief Peso continuo del dominio en reposo; uno si está desactivado. */
 float PigmentDomain_Weight(const PigmentDomain* domain,Vector3 position,uint32_t seed);
 

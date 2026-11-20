@@ -139,6 +139,12 @@ float PigmentPattern_SampleSurface(PigmentPattern pattern,Vector3 p,float scale,
     return SamplePattern(pattern,p,fmaxf(scale,.01f),sharpness,direction,seed,SurfaceNoise3D);
 }
 
+Vector3 PigmentLayer_PatternPosition(const PigmentLayer *layer, Vector3 p)
+{
+    if (layer->patternRotation==0) return p;
+    float c=cosf(layer->patternRotation),s=sinf(layer->patternRotation);
+    return Vec3_Create(c*p.x+s*p.z,p.y,c*p.z-s*p.x);
+}
 Color PigmentPattern_EvaluateLayer(
     const PigmentLayer* layer,
     Vector3 p,
@@ -146,7 +152,7 @@ Color PigmentPattern_EvaluateLayer(
     if (!layer || layer->strength <= 1e-4f) return baseColor;
     float sample = PigmentPattern_Sample(
         layer->pattern,
-        p,
+        PigmentLayer_PatternPosition(layer,p),
         layer->scale,
         layer->sharpness,
         layer->direction,

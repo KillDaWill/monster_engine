@@ -286,7 +286,7 @@ static void Draw(void *state, UiRenderer *r, UiRect box, bool active, bool caret
     if (count) {
         const OffspringReport *report;
         CreatureOffspring_Get(app->batch,app->selected,&report);
-        snprintf(line,sizeof(line),"Head blend %.0f%% Y  ·  Tail %.24s",100*report->resolvedHeadWeight,
+        snprintf(line,sizeof(line),"Cranium %.0f%% Y  ·  Tail %.24s",100*report->resolvedHeadWeight,
             CreatureOffspring_Parent(app->batch,report->tailParent)->name);
         UiRenderer_Text(r,box.x+12,box.y+box.h-70,12,UI_ACCENT,line);
         snprintf(line,sizeof(line),"Validated  ·  %u grafts  ·  %u repair passes",
@@ -448,27 +448,29 @@ static void Info(UiOffspringApp *app, size_t index, char *out, size_t capacity)
     char path[UI_VFS_PATH_BYTES] = "Unsaved";
     if (app->saved[index]) UiVfs_Path(app->fs,app->saved[index],path,sizeof(path));
     const CreaturePhenotype *p = &recipe->adult;
-    char fit[192];
-    if (r->hasMorphTarget) {
-        snprintf(fit,sizeof(fit),"Morph reference %.1f%% · geometric weight %.1f%% · head basis Y %.1f%%\n"
-            "Normalized error  head %.3f  body %.3f  limbs %.3f · %u fit evaluations%s",
-            100*r->global,100*r->targetWeight,100*r->resolvedHeadWeight,
-            r->headError,r->bodyError,r->limbError,r->fitEvaluations,
-            r->simplifiedHeadBasis ? " · simplified inherited head" : "");
-    } else strcpy(fit,"Resolved morph reference unavailable");
+    const HeadRegionalInheritance *h=&r->headGenes;
     snprintf(out,capacity,
-        "%s\nBatch seed %" PRIu32 " · candidate seed %" PRIu32 "\n"
-        "Parent Y weights  global %.0f%%  body %.0f%%  head %.0f%%  limbs %.0f%%  tail %.0f%%  surface %.0f%%\n"
-        "%s\n"
-        "Structural systems X/Y  scaffold %c  head slots %c  foot topology %c  tail %c  material seed %c\n"
-        "Adult  %zu limbs  %zu tails  %zu ornaments  %zu flexible appendages  ·  %u grafts  ·  %u omitted modules or anchors\n"
-        "Omissions  %u unsupported  %u capacity or occupied slot  %u unselected  %u surface anchors\n"
-        "Validated 4 stages and 3 intermediate ages  ·  %u attempts  ·  %u repair passes\n%s",
-        recipe->name,CreatureOffspring_Seed(app->batch),r->seed,
-        100*r->global,100*r->body,100*r->head,100*r->limbs,100*r->tail,100*r->surface,
-        fit,'X'+r->scaffoldParent,'X'+r->headParent,'X'+r->limbParent,'X'+r->tailParent,'X'+r->surfaceParent,
-        p->limbCount,p->tailCount,p->ornamentCount,p->flexibleAppendageCount,r->grafts,r->omitted,
-        r->unsupportedGrafts,r->constrainedGrafts,r->unselectedGrafts,r->removedAnchors,r->attempts,r->repairs,path);
+        "%s\nV%u · Batch seed %" PRIu32 " · candidate %" PRIu32 " · mutation %" PRIu32 "\n"
+        "Parent Y %%  global %.0f  body %.0f  limbs %.0f  tail %.0f  surface %.0f\n"
+        "Head Y %%  skull %.0f  muzzle %.0f  jaw %.0f  cheek %.0f  eyes %.0f  ears %.0f  nose %.0f\n"
+        "Ear Y %%  height %.0f  width %.0f  curve %.0f  ·  height gain %.2f\n"
+        "Body Y %%  neck %.0f  shoulder %.0f  abdomen %.0f  pelvis %.0f  ·  leg upper %.0f  lower %.0f\n"
+        "Surface Y %%  dorsal %.0f  ventral %.0f  face %.0f  pattern %.0f  fur %.0f\n"
+        "Selection  shape %.3f  appearance %.3f  quality %.3f  ·  %u/%u eligible\n"
+        "%s  error head %.3f  body %.3f  limbs %.3f  ·  %u fit evaluations\n"
+        "Structure  scaffold %c  head %c  feet %c  tail %c  ·  %zu legs  %zu tails  %zu ornaments  %zu flexible\n"
+        "4 stages + 3 ages  ·  %u repair passes  ·  %u grafts  ·  %u omitted (%u anchors)\n%s",
+        recipe->name,r->generatorVersion,CreatureOffspring_Seed(app->batch),r->seed,r->mutationSeed,
+        100*r->global,100*r->body,100*r->limbs,100*r->tail,100*r->surface,
+        100*h->cranium,100*h->rostrum,100*h->jaw,100*h->cheek,100*h->orbit,100*h->ear,100*h->nose,
+        100*h->earHeight,100*h->earWidth,100*h->earCurve,h->earHeightGain,
+        100*r->neck,100*r->shoulder,100*r->abdomen,100*r->pelvis,100*r->upperLimb,100*r->lowerLimb,
+        100*r->dorsal,100*r->ventral,100*r->facial,100*r->pattern,100*r->fur,
+        r->shapeDiversity,r->appearanceDiversity,r->quality,r->proposalsValid,r->proposalsEvaluated,
+        r->hasMorphTarget ? "Regional morph" : "Morph unavailable",r->headError,r->bodyError,r->limbError,r->fitEvaluations,
+        'X'+r->scaffoldParent,'X'+r->headParent,'X'+r->limbParent,'X'+r->tailParent,
+        p->limbCount,p->tailCount,p->ornamentCount,p->flexibleAppendageCount,r->repairs,r->grafts,
+        r->omitted,r->removedAnchors,path);
 }
 
 static UiCommandResult ViewCommand(void *state, const char *args, char *out, size_t capacity)
@@ -558,12 +560,29 @@ static UiCommandResult Command(void *state, const char *args, char *out, size_t 
     return UI_COMMAND_OK;
 }
 
+static UiCommandResult CommandLines(void *state,const char *args,UiCommandOutput output)
+{
+    char reply[UI_COMMAND_REPLY_BYTES]={0};
+    UiCommandResult result=Command(state,args,reply,sizeof(reply));
+    if (output.write && (result==UI_COMMAND_OK || result==UI_COMMAND_ERROR)) {
+        char *line=reply;
+        while (*line) {
+            char *end=strchr(line,'\n');
+            if (end) *end='\0';
+            output.write(output.state,result,line);
+            if (!end) break;
+            line=end+1;
+        }
+    }
+    return result;
+}
+
 bool UiOffspringApp_Register(UiOffspringApp *app, UiCommands *registry)
 {
     return UiCommands_Register(registry,"CO",OpenCommand,app) &&
         UiCommands_Register(registry,"CreatureOffspring",OpenCommand,app) &&
-        UiCommands_RegisterPrefix(registry,"CO.",Command,app) &&
-        UiCommands_RegisterPrefix(registry,"CreatureOffspring.",Command,app) &&
+        UiCommands_RegisterPrefixLines(registry,"CO.",CommandLines,app) &&
+        UiCommands_RegisterPrefixLines(registry,"CreatureOffspring.",CommandLines,app) &&
         UiCommands_RegisterPrefix(registry,"CV.view.CO.",ViewCommand,app) &&
         UiCommands_RegisterPrefix(registry,"CreatureVisualizer.view.CO.",ViewCommand,app);
 }

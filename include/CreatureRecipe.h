@@ -79,6 +79,8 @@ typedef struct CreatureRecipe {
     BodyPlan bodyPlan;
     CreaturePhenotype seed, larva, juvenile, adult;
     CreatureGait gait;
+    uint32_t offspringSeed;
+    unsigned offspringVersion;
 } CreatureRecipe;
 
 typedef enum CreatureStage {

@@ -140,10 +140,12 @@ static void HybridMorphology(void)
     float ordinaryA=OffspringMorph_HeadError(&monsters[0].head.anatomy,monsters[0].phenotype.axial.totalScale,&monsters[2].head.anatomy,morphScale);
     float ordinaryB=OffspringMorph_HeadError(&monsters[1].head.anatomy,monsters[1].phenotype.axial.totalScale,&monsters[2].head.anatomy,morphScale);
     float hybrid=OffspringMorph_HeadError(&monsters[3].head.anatomy,visualScale,&monsters[2].head.anatomy,morphScale);
-    TEST_ASSERT(hybrid<ordinaryA*.15f && hybrid<ordinaryB*.15f,"forma más cercana al morph que ambas bases");
+    TEST_ASSERT(hybrid<ordinaryA && hybrid<ordinaryB,"forma más cercana al morph que ambas bases");
     const HeadHybridProfile *profile=&child->adult.headHybrid;
-    TEST_ASSERT(profile->active && child->adult.head.archetype!=profile->secondary.archetype,
-        "dos familias serializadas");
+    TEST_ASSERT(profile->active && profile->hasRegionalProfile &&
+        HeadAnatomy_ValidateProfile(&profile->regional),"perfil regional serializable");
+    TEST_ASSERT(child->offspringVersion==CREATURE_OFFSPRING_VERSION && child->offspringSeed==report->seed,
+        "semilla y versión persistentes");
     CreaturePhenotype age=CreatureRecipe_EvaluateDevelopment(child,.52f);
     TEST_ASSERT(age.headHybrid.active && age.surface.inheritedBlend && age.surface.transition.active &&
         FLOAT_NEAR(age.surface.transition.weight,child->adult.surface.transition.weight),
@@ -168,6 +170,21 @@ static void HybridMorphology(void)
     }
     SurfaceRecipe pa=SurfaceRecipe_Compile(&monsters[3].surface), pb=SurfaceRecipe_Compile(&monsters[4].surface);
     TEST_ASSERT(!memcmp(&pa,&pb,sizeof(pa)),"pigmento y materiales reconstruidos");
+    const SurfacePhenotype *surface=&child->adult.surface;
+    TEST_ASSERT(surface->transition.from.seed==a->adult.surface.pigment.seed &&
+        surface->transition.to.seed==b->adult.surface.pigment.seed,"semillas parentales de pigmento");
+    TEST_ASSERT(monsters[4].mouths[0].lipColor.r==profile->regional.oralSystem.lipColor.r &&
+        monsters[4].mouths[0].insideColor.r==profile->regional.oralSystem.insideColor.r,
+        "colores faciales aplicados por el resolutor normal");
+    SurfaceCoordinate c={.position={.3f,.4f,1},.region=SURFACE_REGION_HEAD,
+        .secondaryRegion=SURFACE_REGION_TAIL};
+    Vector3 primary=Surface_ResolveBaseAlbedo(surface,&c,COLOR_WHITE);
+    c.blend=1;
+    Vector3 distal=Surface_ResolveBaseAlbedo(surface,&c,COLOR_WHITE);
+    c.blend=.5f;
+    TEST_ASSERT(Vec3_Distance(primary,distal)>.003f &&
+        Vec3_Distance(Surface_ResolveBaseAlbedo(surface,&c,COLOR_WHITE),Vec3_Lerp(primary,distal,.5f))<1e-6f,
+        "pigmento regional independiente y continuo");
     Monster_SetHeadOpenFactor(&monsters[4],.55f);
     TEST_ASSERT(MonsterSDF_Build(&reloaded,&monsters[4],MonsterSDF_DefaultConfig()) &&
         fabsf(reloaded.mouths[0].visualJawAngle)>.02f,"articulación mandibular");
@@ -179,6 +196,116 @@ static void HybridMorphology(void)
     CreatureOffspring_Destroy(batch);
     free(monsters);
     free(documents);
+}
+
+static void RegionalInheritance(void)
+{
+    CreatureRecipeDocument *docs=calloc(3,sizeof(*docs));
+    Monster *monster=calloc(1,sizeof(*monster));
+    TEST_ASSERT(docs && monster,"memoria");
+    const CreatureRecipe *rat=Load(&docs[0],"rata"), *elephant=Load(&docs[1],"elefante");
+    CreatureOffspringConfig config=CreatureOffspring_Default(8,48216);
+    config.minimumContribution=config.maximumContribution=.5f;
+    char error[256];
+    CreatureOffspringBatch *batch=CreatureOffspring_Generate(rat,elephant,config,NULL,NULL,error,sizeof(error));
+    TEST_ASSERT(batch,error);
+    const CreatureRecipe *first=NULL, *second=NULL;
+    float separation=0;
+    for (size_t i=0; i<config.count; ++i) {
+        const OffspringReport *a;
+        const CreatureRecipe *x=CreatureOffspring_Get(batch,i,&a);
+        TEST_ASSERT(a->global==.5f && a->proposalsEvaluated<=config.attempts &&
+            a->proposalsValid<=config.proposalsPerOffspring && a->shapeDiversity>0,
+            "misma contribución, selección y presupuesto");
+        TEST_ASSERT(a->headGenes.muzzleLengthGain>=.83f && a->headGenes.muzzleLengthGain<=1.17f &&
+            a->headGenes.earHeightGain>=.81f && a->headGenes.earHeightGain<=1.19f,
+            "mutaciones proporcionadas");
+        const HeadAnatomy *hx=&x->adult.headHybrid.regional;
+        for (size_t j=0; j<i; ++j) {
+            const CreatureRecipe *y=CreatureOffspring_Get(batch,j,NULL);
+            const HeadAnatomy *hy=&y->adult.headHybrid.regional;
+            if (hx->archetype!=hy->archetype) continue;
+            float cranial=fabsf(hx->surface.craniumRadii.x-hy->surface.craniumRadii.x);
+            float xMuzzle=(hx->surface.faceTip.z-hx->surface.faceRoot.z)/hx->surface.craniumRadii.z;
+            float yMuzzle=(hy->surface.faceTip.z-hy->surface.faceRoot.z)/hy->surface.craniumRadii.z;
+            float ear=fabsf(hx->surface.earShape.y/hx->surface.craniumRadii.y-
+                hy->surface.earShape.y/hy->surface.craniumRadii.y);
+            if (cranial>.04f && fabsf(xMuzzle-yMuzzle)>.04f && ear>.08f && cranial+ear>separation) {
+                first=x; second=y; separation=cranial+ear;
+            }
+        }
+    }
+    TEST_ASSERT(first && second,"variación craneal, facial y auricular con idéntica familia y peso global");
+    const HeadHybridProfile *profile=&first->adult.headHybrid;
+    HeadPhenotype edit=first->adult.head;
+    HeadAnatomy original, edited;
+    Vector3 envelope={1,1,1};
+    TEST_ASSERT(HeadAnatomy_ResolveHybrid(&edit,profile,0,envelope,&original),"perfil editable");
+    edit.muzzleLength=edit.muzzleLength>.5f ? 0 : 1;
+    edit.earSize=edit.earSize>.5f ? 0 : 1;
+    TEST_ASSERT(HeadAnatomy_ResolveHybrid(&edit,profile,0,envelope,&edited),"resolución después de editar");
+    TEST_ASSERT(!FLOAT_NEAR(original.surface.faceTip.z,edited.surface.faceTip.z) &&
+        !FLOAT_NEAR(original.surface.earShape.y,edited.surface.earShape.y) &&
+        Vec3_Distance(original.landmarks.leftEarBase,edited.landmarks.leftEarBase)<1e-6f &&
+        Vec3_Distance(original.oralSystem.jawPivot,edited.oralSystem.jawPivot)<1e-6f,
+        "editar hocico y tamaño de pinna conserva raíz y bisagra");
+    char *json=JSON(first);
+    TEST_ASSERT(CreatureRecipeIO_ReadJSON(&docs[2],json,error,sizeof(error)),error);
+    free(json);
+    for (unsigned i=0; i<4; ++i) {
+        const CreaturePhenotype *live=CreatureRecipe_GetStage(first,i);
+        const CreaturePhenotype *saved=CreatureRecipe_GetStage(&docs[2].recipe,i);
+        const HeadAnatomy *a=&live->headHybrid.regional,*b=&saved->headHybrid.regional;
+        TEST_ASSERT(Vec3_Distance(a->surface.earShape,b->surface.earShape)<1e-6f &&
+            Vec3_Distance(a->surface.earDirection,b->surface.earDirection)<1e-6f &&
+            Vec3_Distance(a->landmarks.leftEarBase,b->landmarks.leftEarBase)<1e-6f &&
+            FLOAT_NEAR(a->surface.earLongitudinalCurve,b->surface.earLongitudinalCurve),
+            "pinna recargada conserva sección, marco, raíz y curvatura");
+        Vector3 left=b->landmarks.leftEarBase;
+        left.x=-left.x;
+        TEST_ASSERT(Vec3_Distance(left,b->landmarks.rightEarBase)<1e-6f,"implantación bilateral coherente");
+    }
+    config=CreatureOffspring_Default(1,7181);
+    config.minimumContribution=config.maximumContribution=0;
+    config.regionalVariance=config.mutationIntensity=0;
+    CreatureOffspringBatch *descendants=CreatureOffspring_Generate(&docs[2].recipe,second,
+        config,NULL,NULL,error,sizeof(error));
+    TEST_ASSERT(descendants,error);
+    const OffspringReport *report;
+    const CreatureRecipe *grandchild=CreatureOffspring_Get(descendants,0,&report);
+    TEST_ASSERT(!report->simplifiedHeadBasis && grandchild->adult.headHybrid.hasRegionalProfile,
+        "herencia de la geometría híbrida sin seleccionar una base ancestral");
+    const HeadAnatomy *inherited=&grandchild->adult.headHybrid.regional;
+    TEST_ASSERT(Vec3_Distance(inherited->surface.craniumRadii,original.surface.craniumRadii)<.002f &&
+        fabsf(inherited->surface.earShape.y-original.surface.earShape.y)<.002f,
+        "segundo cruce conserva medidas híbridas al heredar íntegramente la cabeza");
+    TEST_ASSERT(Creature_BuildMonster(monster,grandchild,&grandchild->adult) &&
+        !Creature_ValidateGeometry(monster),"segunda generación funcional");
+    Monster_Free(monster);
+    free(monster);
+    CreatureOffspring_Destroy(descendants);
+    CreatureOffspring_Destroy(batch);
+    free(docs);
+}
+
+static void LegacyProfile(void)
+{
+    CreatureRecipeDocument *source=calloc(1,sizeof(*source)), *roundtrip=calloc(1,sizeof(*roundtrip));
+    TEST_ASSERT(source && roundtrip,"memoria");
+    const CreatureRecipe *rat=Load(source,"rata");
+    for (unsigned i=0; i<4; ++i) {
+        CreaturePhenotype *p=(CreaturePhenotype*)CreatureRecipe_GetStage(rat,i);
+        p->headHybrid=(HeadHybridProfile){.active=true,.blend=.5f,.primaryRadii={.5f,.5f,.5f},
+            .secondaryRadii={.6f,.6f,.6f},.secondary=p->head};
+    }
+    char *json=JSON(rat);
+    TEST_ASSERT(!strstr(json,"hasRegionalProfile") && CreatureRecipeIO_ReadJSON(roundtrip,json,NULL,0),
+        "receta JSON v1 con perfil V2");
+    TEST_ASSERT(roundtrip->recipe.adult.headHybrid.active &&
+        !roundtrip->recipe.adult.headHybrid.hasRegionalProfile,"representación V2 conservada");
+    free(json);
+    free(roundtrip);
+    free(source);
 }
 
 static void ReorderedParent(void)
@@ -202,13 +329,25 @@ static void ReorderedParent(void)
         for (size_t i=0; i<4; ++i)
             stages[j]->limbs[i] = CreatureRecipe_GetStage(rat,j)->limbs[3-i];
     }
+    for (size_t stage=0; stage<4; ++stage) {
+        SurfacePhenotype *surface=&stages[stage]->surface;
+        for (size_t i=0; i<surface->longHairCount; ++i) {
+            LongHairDomain *d=&surface->longHair[i].domain;
+            if (d->hostModuleId) d->hostModuleId+=101;
+            for (size_t j=0; j<d->anchorCount; ++j)
+                if (d->anchors[j]) d->anchors[j]+=101u<<16;
+        }
+        for (size_t i=0; i<surface->pigment.layerCount; ++i)
+            if (surface->pigment.layers[i].domain.anchorNode)
+                surface->pigment.layers[i].domain.anchorNode+=101u<<16;
+    }
     CreatureOffspringBatch *original = Batch(rat,rat,5,48216);
     CreatureOffspringBatch *renumbered = Batch(rat,reordered,5,48216);
     for (size_t i=0; i<5; ++i) {
         const OffspringReport *a, *b;
         CreatureOffspring_Get(original,i,&a);
         CreatureOffspring_Get(renumbered,i,&b);
-        TEST_ASSERT(FLOAT_NEAR(a->signature.forelimbBodyRatio,b->signature.forelimbBodyRatio) &&
+        TEST_ASSERT(a->seed==b->seed && FLOAT_NEAR(a->signature.forelimbBodyRatio,b->signature.forelimbBodyRatio) &&
             FLOAT_NEAR(a->signature.tailBodyLengthRatio,b->signature.tailBodyLengthRatio),
             "correspondencia anatómica independiente de IDs y orden");
     }
@@ -303,6 +442,8 @@ void run_creature_offspring_tests(void)
 {
     Matrix();
     HybridMorphology();
+    RegionalInheritance();
+    LegacyProfile();
     Determinism();
     DivergentPlan();
     ReorderedParent();

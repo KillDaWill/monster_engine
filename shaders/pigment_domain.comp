@@ -1,6 +1,6 @@
 #version 430
 layout(local_size_x=64) in;
-uniform vec4 surfaceRecipe[139];
+uniform vec4 surfaceRecipe[153];
 uniform uint pigmentSeed;
 uniform int pointCount;
 layout(std430,binding=0) readonly buffer Points {vec4 points[];};
@@ -13,5 +13,6 @@ layout(std430,binding=1) writeonly buffer Results {vec4 results[];};
 void main() {
     uint i=gl_GlobalInvocationID.x;if(i>=uint(pointCount))return;
     PigmentSetRegions(points[2u*i+1u]);
-    results[i]=vec4(PigmentDomainDebug(points[2u*i].xyz),EvaluatePigmentMaterial(points[2u*i].xyz,.65));
+    results[2u*i]=vec4(PigmentDomainDebug(points[2u*i].xyz),EvaluatePigmentMaterial(points[2u*i].xyz,.65));
+    results[2u*i+1u]=vec4(EvaluatePigment(points[2u*i].xyz,points[2u*i+1u].w,surfaceRecipe[3],pigmentSeed),0);
 }

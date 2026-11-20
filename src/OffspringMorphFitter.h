@@ -7,6 +7,7 @@
 float OffspringMorph_HeadError(const HeadAnatomy *, float scale,
     const HeadAnatomy *target, float targetScale);
 void OffspringMorph_Fit(CreatureRecipe *, const Monster *target, const Monster parents[2], OffspringReport *);
+void OffspringMorph_MeasureCandidate(const Monster *, const Monster *, const Monster parents[2], OffspringReport *);
 void OffspringMorph_Measure(const Monster *, const Monster *target, OffspringReport *);
 
 #endif

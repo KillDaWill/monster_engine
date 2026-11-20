@@ -7,17 +7,24 @@
 #include "Creature.h"
 #include "CreatureRecipeIO.h"
 
-enum { CREATURE_OFFSPRING_MAX = 16, CREATURE_OFFSPRING_VERSION = 2 };
+enum { CREATURE_OFFSPRING_MAX = 16, CREATURE_OFFSPRING_VERSION = 3 };
 
 typedef struct {
     size_t count;
     uint32_t seed;
     unsigned attempts, repairs;
     float minimumContribution, maximumContribution;
+    unsigned proposalsPerOffspring; /**< Cero usa el presupuesto estándar. */
+    float regionalVariance, mutationIntensity; /**< Multiplicadores de variación [0,2]. */
 } CreatureOffspringConfig;
 
 typedef struct {
-    uint32_t seed;
+    uint32_t seed, mutationSeed;
+    unsigned generatorVersion, proposalsEvaluated, proposalsValid;
+    HeadRegionalInheritance headGenes;
+    float neck, shoulder, thorax, abdomen, pelvis, upperLimb, lowerLimb, foot, limbMass;
+    float dorsal, ventral, facial, extremities, tailColor, eyeColor, pattern, fur, relief;
+    float shapeDiversity, appearanceDiversity, quality;
     float global, body, head, limbs, tail, surface, size;
     unsigned scaffoldParent, headParent, limbParent, tailParent, surfaceParent;
     unsigned grafts, omitted, repairs, attempts;

@@ -287,6 +287,53 @@ static bool SupportedSeams(const MonsterSDF *field, const AnatomyGraph *g, float
     return true;
 }
 
+static bool SupportedHead(MonsterSDF *field, const Monster *monster, bool adult)
+{
+    if (!monster->hasHead || !monster->head.hybrid.hasRegionalProfile) return true;
+    const HeadAnatomy *head=&monster->head.anatomy;
+    if (!field->mouthCount || !HeadAnatomy_ValidateProfile(head)) return false;
+    const HeadSurfaceRecipe *s=&head->surface;
+    MonsterSDFHeadField context;
+    SDFField core=MonsterSDF_GetHeadField(field,0,&context);
+    Vector3 origin=monster->bodyParts[head->attachmentBodyPartIndex].positionRender;
+    if (monster->head.development>=.65f) {
+        /* Se busca tejido justo detrás del globo, dentro de la copa orbital.
+         * La envolvente craneal por sí sola no detecta un ojo suspendido. */
+        for (size_t i=0; i<monster->eyeCount; ++i) {
+            const Eye *eye=&monster->eyes[i];
+            if (eye->scale.z<=0) continue;
+            float radius=fmaxf(eye->scale.x,eye->scale.z);
+            Vector3 seat=Vec3_Sub(eye->offset,Vec3_Scale(eye->forward,radius*.90f));
+            float distance=core.evaluateDistance(core.context,Vec3_Add(origin,seat));
+            if (!isfinite(distance) || distance>radius*.20f) return false;
+            /* Una cavidad interna también da distancia positiva. La abertura
+             * debe comunicar con el exterior en la dirección de la mirada. */
+            unsigned samples=adult ? 5 : 1;
+            for (unsigned sample=0; sample<samples; ++sample) {
+                float depth=eye->scale.z*.90f+radius*sample*.55f;
+                Vector3 front=Vec3_Add(eye->offset,Vec3_Scale(eye->forward,depth));
+                float exposed=core.evaluateDistance(core.context,Vec3_Add(origin,front));
+                if (!isfinite(exposed) || exposed<-radius*.10f) return false;
+            }
+        }
+    }
+    MonsterSDFMouth *mouth=&field->mouths[0];
+    if (mouth->hasNasalPad) {
+        mouth->hasNasalPad=false;
+        float distance=core.evaluateDistance(core.context,Vec3_Add(origin,s->noseCenter));
+        mouth->hasNasalPad=true;
+        if (!isfinite(distance) || distance>fminf(s->noseRadii.x,s->noseRadii.y)*.60f) return false;
+    }
+    if (!mouth->hasEars) return true;
+    mouth->hasEars=false;
+    float left=core.evaluateDistance(core.context,Vec3_Add(origin,head->landmarks.leftEarBase));
+    float right=core.evaluateDistance(core.context,Vec3_Add(origin,head->landmarks.rightEarBase));
+    mouth->hasEars=true;
+    /* La raíz debe tocar el cráneo aun al retirar ambos pabellones del campo. */
+    float tolerance=fmaxf(s->earShape.z*.70f,s->craniumRadii.y*.04f);
+    return isfinite(left) && isfinite(right) && fmaxf(left,right)<tolerance;
+}
+
 bool OffspringRepair_Validate(CreatureRecipe *recipe, const CreatureRecipe *reference,
     const AnatomyGraph referenceStages[4], float strength, bool repair, OffspringReport *report, CreatureOffspringCancel cancel, void *context,
     char *error, size_t capacity)
@@ -365,10 +412,12 @@ bool OffspringRepair_Validate(CreatureRecipe *recipe, const CreatureRecipe *refe
         MonsterSDF field = MonsterSDF_Create();
         bool built = MonsterSDF_Build(&field,monster,MonsterSDF_DefaultConfig()) && Bounds(&field);
         bool seams = built && SupportedSeams(&field,&monster->anatomyGraph,p->axial.totalScale);
+        bool head = built && SupportedHead(&field,monster,i==CREATURE_STAGE_ADULT);
         MonsterSDF_Free(&field);
-        if (!built || !seams) {
+        if (!built || !seams || !head) {
             snprintf(error,capacity,"%s at age sample %u",
-                built ? "Gap at a limb or tail attachment" : "Invalid SDF bounds",i);
+                !built ? "Invalid SDF bounds" : !head ? "Unsupported regional head attachment" :
+                "Gap at a limb or tail attachment",i);
             goto done;
         }
         if (i == CREATURE_STAGE_ADULT) report->signature = Creature_MorphologicalSignature(monster);

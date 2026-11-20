@@ -19,7 +19,7 @@ static SurfaceLocalMaterial LocalMaterialBank(const PigmentPhenotype* p,const Su
         const PigmentLayer* l=&p->layers[i];const PigmentDomain* d=&l->domain;
         if(d->radii.x<=0||d->radii.y<=0||d->radii.z<=0)continue;
         float region=RegionCoverage(l,c);
-        float value=PigmentPattern_SampleSurface(l->pattern,c->position,l->scale,l->sharpness,l->direction,p->seed^(l->seed&0xffffu)^(uint32_t)(i*101));
+        float value=PigmentPattern_SampleSurface(l->pattern,PigmentLayer_PatternPosition(l,c->position),l->scale,l->sharpness,l->direction,p->seed^(l->seed&0xffffu)^(uint32_t)(i*101));
         float weight=Limit(value*l->strength*region*PigmentDomain_Weight(d,c->position,l->seed),0,1,0)*d->materialStrength;
         result.furCoverage+=(d->furCoverage-result.furCoverage)*weight;
         result.roughness+=(d->roughness-result.roughness)*weight;
@@ -49,6 +49,74 @@ SurfaceLocalMaterial Surface_EvaluateLocalMaterial(const SurfacePhenotype* p,con
     float t=p->transition.weight;
     return (SurfaceLocalMaterial){a.furCoverage+(b.furCoverage-a.furCoverage)*t,a.roughness+(b.roughness-a.roughness)*t,a.skinWeight+(b.skinWeight-a.skinWeight)*t};
 }
+Vector3 Surface_ResolveBaseAlbedo(const SurfacePhenotype *p, const SurfaceCoordinate *c, Color fallback)
+{
+    Vector3 base = {fallback.r/255.f,fallback.g/255.f,fallback.b/255.f};
+    if (!p || !c) return base;
+    Vector3 rgb = {0};
+    float weight = 0;
+    for (unsigned i=0; i<SURFACE_REGION_COUNT; ++i) {
+        Color color = p->regionalAlbedo[i];
+        if (!color.a) continue;
+        PigmentLayer mask = {.regionMask=1u<<i};
+        float local = RegionCoverage(&mask,c)*color.a/255.f;
+        rgb = Vec3_Add(rgb,Vec3_Scale(Vec3_Create(color.r,color.g,color.b),local/255.f));
+        weight += local;
+    }
+    return Vec3_Add(Vec3_Scale(base,1-weight),rgb);
+}
+
+static Vector3 LinearColor(Color color)
+{
+    return Vec3_Create(color.r/255.f,color.g/255.f,color.b/255.f);
+}
+
+static float Smoothstep(float a, float b, float value)
+{
+    float t=Limit((value-a)/(b-a),0,1,0);
+    return t*t*(3-2*t);
+}
+
+static Vector3 PigmentAlbedoBank(const SurfacePhenotype *surface, const PigmentPhenotype *p,
+    const SurfaceCoordinate *c)
+{
+    Vector3 rgb=Surface_ResolveBaseAlbedo(surface,c,p->baseColor);
+    float ventral=Limit(c->ventral,0,1,0);
+    if (!p->layerCount) {
+        float noise=PigmentPattern_SampleSurface(PIGMENT_PATTERN_NOISE,c->position,
+            p->patternScale,0,Vec3_Zero(),p->seed);
+        float spot=Smoothstep(.48f,.70f,noise);
+        float band=Smoothstep(.48f,.70f,.5f+.5f*sinf(c->position.z*p->patternScale*5+noise*3));
+        rgb=Vec3_Lerp(rgb,LinearColor(p->secondaryColor),(spot+(band-spot)*p->bands)*p->patternStrength);
+    }
+    for (unsigned pass=0; pass<2; ++pass) {
+        for (size_t i=0; i<p->layerCount && i<SURFACE_MAX_PIGMENT_LAYERS; ++i) {
+            const PigmentLayer *l=&p->layers[i];
+            const PigmentDomain *d=&l->domain;
+            bool local=d->radii.x>0 && d->radii.y>0 && d->radii.z>0;
+            if (local!=(pass!=0)) continue;
+            uint32_t seed=p->seed^(l->seed&0xffffu)^(uint32_t)(i*101);
+            float pattern=PigmentPattern_SampleSurface(l->pattern,PigmentLayer_PatternPosition(l,c->position),l->scale,
+                l->sharpness,l->direction,seed);
+            float factor=pattern*l->strength*RegionCoverage(l,c)*PigmentDomain_Weight(d,c->position,l->seed);
+            rgb=Vec3_Lerp(rgb,LinearColor(l->color),Limit(factor,0,1,0));
+        }
+        if (!pass) {
+            rgb=Vec3_Scale(rgb,1-p->dorsalDarkening*(1-ventral));
+            rgb=Vec3_Lerp(rgb,LinearColor(p->ventralColor),ventral*p->ventralLightening);
+        }
+    }
+    return rgb;
+}
+
+Vector3 Surface_EvaluatePigmentAlbedo(const SurfacePhenotype *p, const SurfaceCoordinate *c)
+{
+    if (!p || !c) return Vec3_Zero();
+    if (!p->transition.active) return PigmentAlbedoBank(p,&p->pigment,c);
+    Vector3 a=PigmentAlbedoBank(p,&p->transition.from,c),b=PigmentAlbedoBank(p,&p->transition.to,c);
+    return Vec3_Lerp(a,b,p->transition.weight);
+}
+
 SurfacePhenotype SurfacePhenotype_Default(void) {
     SurfacePhenotype p={0};
     p.pigment=(PigmentPhenotype){.baseColor={150,150,140,255},.secondaryColor={90,90,80,255},
@@ -129,6 +197,7 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
         l->strength=Limit(l->strength,0,1,1);
         l->scale=Limit(l->scale,.01f,50,1);
         l->sharpness=Limit(l->sharpness,0,1,.5f);
+        l->patternRotation=Limit(l->patternRotation,-3.141593f,3.141593f,0);
         PigmentDomain* d=&l->domain;
         float* center[]={&d->center.x,&d->center.y,&d->center.z};
         float* radii[]={&d->radii.x,&d->radii.y,&d->radii.z};
@@ -158,6 +227,7 @@ static PigmentPhenotype DevelopPigmentBank(const PigmentPhenotype *a,const Pigme
         layer->strength = x->strength + (y->strength-x->strength)*t;
         layer->scale = x->scale + (y->scale-x->scale)*t;
         layer->sharpness = x->sharpness + (y->sharpness-x->sharpness)*t;
+        layer->patternRotation = x->patternRotation+(y->patternRotation-x->patternRotation)*t;
         layer->direction = Vec3_Lerp(x->direction,y->direction,t);
         layer->domain.center = Vec3_Lerp(x->domain.center,y->domain.center,t);
         layer->domain.radii = Vec3_Lerp(x->domain.radii,y->domain.radii,t);
@@ -170,6 +240,14 @@ static SurfacePhenotype Interpolate(const SurfacePhenotype* a,const SurfacePheno
     SurfacePhenotype_Normalize(&p); SurfacePhenotype_Normalize(&q); t=Limit(t,0,1,0);
     if(t<=0)return p;
     if(t>=1)return q;
+    for (size_t i=0; i<SURFACE_REGION_COUNT; ++i) {
+        Color x=p.regionalAlbedo[i],y=q.regionalAlbedo[i];
+        unsigned alpha=(unsigned)(x.a+(y.a-x.a)*t);
+        if (!x.a) x=y;
+        if (!y.a) y=x;
+        p.regionalAlbedo[i]=Color_Lerp(x,y,t);
+        p.regionalAlbedo[i].a=alpha;
+    }
     PigmentPhenotype sourcePigment=p.pigment;
     float sourceCoverage=(p.integument.type==INTEGUMENT_SCALES||p.integument.type==INTEGUMENT_PLATES)?p.integument.coverage:0;
     float targetCoverage=(q.integument.type==INTEGUMENT_SCALES||q.integument.type==INTEGUMENT_PLATES)?q.integument.coverage:0;
@@ -262,6 +340,7 @@ static SurfacePhenotype Interpolate(const SurfacePhenotype* a,const SurfacePheno
             layer.color=Color_Lerp(layer.color,dest.color,t);
             layer.strength+=(dest.strength-layer.strength)*t;
             layer.scale+=(dest.scale-layer.scale)*t;layer.sharpness+=(dest.sharpness-layer.sharpness)*t;
+            layer.patternRotation+=(dest.patternRotation-layer.patternRotation)*t;
             layer.direction=Vec3_Lerp(layer.direction,dest.direction,t);
         } else layer.strength*=1-t;
         layers[count++]=layer;
@@ -427,6 +506,12 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
         PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE+SURFACE_RECIPE_DOMAIN_ROWS,&p.transition.from);
         PackDomains(r.data+SURFACE_RECIPE_DOMAIN_BASE+2*SURFACE_RECIPE_DOMAIN_ROWS,&p.transition.to);
     }
+    for (size_t i=0; i<SURFACE_REGION_COUNT; ++i)
+        PackColor(r.data[SURFACE_RECIPE_ALBEDO_BASE+i],p.regionalAlbedo[i]);
+    const PigmentPhenotype *banks[]={&p.pigment,&p.transition.from,&p.transition.to};
+    for (unsigned bank=0; bank<3; ++bank)
+        for (size_t i=0; i<banks[bank]->layerCount && i<SURFACE_MAX_PIGMENT_LAYERS; ++i)
+            r.data[SURFACE_RECIPE_ROTATION_BASE+bank][i]=banks[bank]->layers[i].patternRotation;
     r.pigmentSeed=p.pigment.seed; r.scaleSeed=p.integument.scales.seed; r.furSeed=p.integument.fur.seed; return r;
 }
 

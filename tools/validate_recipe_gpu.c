@@ -91,6 +91,18 @@ int main(int argc,char** argv){
         fragment=fmaxf(fragment,chunkError);
     }
     ok=ok&&compute<.0002f&&fragment<.0002f;
+    SurfaceCoordinate pigmentProbes[128];
+    for (unsigned i=0; i<128; ++i) {
+        pigmentProbes[i]=(SurfaceCoordinate){
+            .position={((i*7%31)-15.f)*.13f,((i*5%23)-11.f)*.12f,(i*13%37)*.11f},
+            .region=i%SURFACE_REGION_COUNT,.secondaryRegion=(i+3)%SURFACE_REGION_COUNT,
+            .blend=(i%7)/6.f,.ventral=(i%5)*.25f
+        };
+    }
+    float pigmentError=0;
+    ok=OpenGLRenderer_ValidatePigmentDomains(&monster->surface,pigmentProbes,128,&pigmentError) &&
+        pigmentError<.002f && ok;
+    printf("[RECETA GPU] pigmento_error_lineal=%.9g\n",pigmentError);
     float intervalError=0;
     ok=OpenGLRenderer_ValidatePinnaIntervals(&renderer,&sdf,&intervalError)&&ok;
     printf("[RECETA GPU] intervalo_error_m=%.9g\n",intervalError);

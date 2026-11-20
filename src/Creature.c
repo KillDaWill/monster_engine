@@ -148,7 +148,7 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
             Eye* eye = &monster->eyes[i];
             const HeadAnatomy* anatomy = &monster->head.anatomy;
             Vector3 center = i == 0 ? anatomy->landmarks.leftEyeCenter : anatomy->landmarks.rightEyeCenter;
-            float nominalEye = p.headHybrid.active ?
+            float nominalEye = p.headHybrid.active && !p.headHybrid.hasRegionalProfile ?
                 Math_Lerp(p.head.eyeSize,p.headHybrid.secondary.eyeSize,p.headHybrid.blend) : p.head.eyeSize;
             float eyeFactor = nominalEye > 1e-4f ? p.eyes.size / nominalEye : 1.0f;
             /* El globo debe caber entre techo/base del cráneo y región temporal.

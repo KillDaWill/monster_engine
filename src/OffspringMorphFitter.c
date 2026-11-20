@@ -50,10 +50,28 @@ static bool AxialSamples(const AnatomyGraph *graph, float scale, Vector3 points[
     return true;
 }
 
-static void FitAxial(CreatureRecipe *recipe, const Monster *target)
+static bool RegionalAxialSamples(const Monster parents[2], const OffspringReport *report,
+    Vector3 points[6], Vector3 sections[6])
+{
+    Vector3 parentPoints[2][6], parentSections[2][6];
+    for (unsigned p=0; p<2; ++p)
+        if (!AxialSamples(&parents[p].anatomyGraph,parents[p].phenotype.axial.totalScale,
+                parentPoints[p],parentSections[p])) return false;
+    const float weights[] = {report->neck,report->shoulder,report->thorax,
+        report->abdomen,report->abdomen,report->pelvis};
+    for (size_t i=0; i<6; ++i) {
+        points[i]=Vec3_Lerp(parentPoints[0][i],parentPoints[1][i],weights[i]);
+        sections[i]=Vec3_Lerp(parentSections[0][i],parentSections[1][i],weights[i]);
+    }
+    return true;
+}
+
+static void FitAxial(CreatureRecipe *recipe, const Monster *target,
+    const Monster parents[2], const OffspringReport *report)
 {
     Vector3 targetPoints[6], targetSections[6];
-    if (!AxialSamples(&target->anatomyGraph,target->phenotype.axial.totalScale,targetPoints,targetSections))
+    if (!RegionalAxialSamples(parents,report,targetPoints,targetSections) &&
+        !AxialSamples(&target->anatomyGraph,target->phenotype.axial.totalScale,targetPoints,targetSections))
         return;
     AxialPhenotype *adult = &recipe->adult.axial;
     AnatomyGraph graph = {0};
@@ -134,7 +152,7 @@ static float BoundedGain(float current, float target)
     return current>.01f ? Math_Lerp(1,Math_Clamp(target/current,.72f,1.36f),.63f) : 1;
 }
 
-static void FitLimbs(CreatureRecipe *recipe, const Monster parents[2], float weight, OffspringReport *report)
+static void FitLimbs(CreatureRecipe *recipe, const Monster parents[2], OffspringReport *report)
 {
     AnatomyGraph *graph = malloc(sizeof(*graph));
     if (!graph) return;
@@ -152,9 +170,11 @@ static void FitLimbs(CreatureRecipe *recipe, const Monster parents[2], float wei
         if (!ReadLimb(graph,own,adult->axial.totalScale,&original[i]) ||
             !ReadLimb(&parents[0].anatomyGraph,a,parents[0].phenotype.axial.totalScale,&first) ||
             !ReadLimb(&parents[1].anatomyGraph,b,parents[1].phenotype.axial.totalScale,&second)) continue;
-#define TARGET(field) wanted[i].field = Math_Lerp(first.field,second.field,weight)
-        TARGET(upper); TARGET(lower); TARGET(lateral);
-        TARGET(rootRadius); TARGET(middleRadius); TARGET(distalRadius);
+#define TARGET(field,weight) wanted[i].field = Math_Lerp(first.field,second.field,weight)
+        TARGET(upper,report->upperLimb); TARGET(lower,report->lowerLimb);
+        TARGET(lateral,report->limbs);
+        TARGET(rootRadius,report->limbMass); TARGET(middleRadius,report->limbMass);
+        TARGET(distalRadius,report->limbMass);
 #undef TARGET
         LimbShape x=original[i], y=wanted[i];
         previous[i]=*l;
@@ -176,7 +196,7 @@ static void FitLimbs(CreatureRecipe *recipe, const Monster parents[2], float wei
         const CreatureModuleInstance *module=FindLimb(recipe,adult,l->role,l->side);
         LimbShape trial;
         if (!valid || !ReadLimb(graph,module,adult->axial.totalScale,&trial) ||
-            LimbCost(trial,wanted[i])>=LimbCost(original[i],wanted[i])) { *l=previous[i]; continue; }
+            LimbCost(trial,wanted[i])+1e-6f>=LimbCost(original[i],wanted[i])) { *l=previous[i]; continue; }
         for (unsigned j=0; j<3; ++j) {
             LimbPhenotype *stage=&young[j]->limbs[i];
 #define APPLY(field) stage->field *= l->field/previous[i].field
@@ -223,10 +243,10 @@ void OffspringMorph_Fit(CreatureRecipe *recipe, const Monster *target, const Mon
     OffspringReport *report)
 {
     FitStance(recipe,target,parents);
-    FitAxial(recipe,target);
-    FitLimbs(recipe,parents,report->targetWeight,report);
+    FitAxial(recipe,target,parents,report);
+    FitLimbs(recipe,parents,report);
     CreaturePhenotype *adult = &recipe->adult;
-    if (!adult->headHybrid.active || !target->hasHead) return;
+    if (!adult->headHybrid.active || adult->headHybrid.hasRegionalProfile || !target->hasHead) return;
     HeadEnvelopePhenotype *envelope = &adult->headEnvelope;
     Vector3 initial = {envelope->widthScale,envelope->heightScale,envelope->lengthScale};
     Vector3 factor = initial;
@@ -260,6 +280,34 @@ static float SignatureError(MorphologicalSignature a, MorphologicalSignature b)
 #undef REL
 }
 
+static float AxialError(const Vector3 pa[6],const Vector3 pb[6],
+    const Vector3 ra[6],const Vector3 rb[6])
+{
+    float sum=0;
+    for (size_t i=0; i<6; ++i)
+        sum+=Vec3_LengthSq(Vec3_Sub(pa[i],pb[i]))+Vec3_LengthSq(Vec3_Sub(ra[i],rb[i]));
+    return sqrtf(sum/12)/fmaxf(.001f,Vec3_Length(Vec3_Sub(pb[0],pb[5])));
+}
+
+void OffspringMorph_MeasureCandidate(const Monster *candidate, const Monster *reference,
+    const Monster parents[2], OffspringReport *report)
+{
+    OffspringMorph_Measure(candidate,reference,report);
+    Vector3 pa[6],pb[6],ra[6],rb[6];
+    if (AxialSamples(&candidate->anatomyGraph,candidate->phenotype.axial.totalScale,pa,ra) &&
+        RegionalAxialSamples(parents,report,pb,rb))
+        report->bodyError=AxialError(pa,pb,ra,rb);
+    MorphologicalSignature a=Creature_MorphologicalSignature(&parents[0]);
+    MorphologicalSignature b=Creature_MorphologicalSignature(&parents[1]);
+    MorphologicalSignature wanted={
+        .forelimbBodyRatio=Math_Lerp(a.forelimbBodyRatio,b.forelimbBodyRatio,report->limbs),
+        .hindlimbBodyRatio=Math_Lerp(a.hindlimbBodyRatio,b.hindlimbBodyRatio,report->limbs),
+        .footBodyRatio=Math_Lerp(a.footBodyRatio,b.footBodyRatio,report->foot),
+        .forelimbThicknessBodyRatio=Math_Lerp(a.forelimbThicknessBodyRatio,b.forelimbThicknessBodyRatio,report->limbMass)
+    };
+    report->limbError=SignatureError(report->signature,wanted);
+}
+
 void OffspringMorph_Measure(const Monster *candidate, const Monster *target, OffspringReport *report)
 {
     float sa = candidate->phenotype.axial.totalScale, sb = target->phenotype.axial.totalScale;
@@ -267,11 +315,7 @@ void OffspringMorph_Measure(const Monster *candidate, const Monster *target, Off
         report->headError = OffspringMorph_HeadError(&candidate->head.anatomy,sa,&target->head.anatomy,sb);
     Vector3 pa[6], pb[6], ra[6], rb[6];
     if (AxialSamples(&candidate->anatomyGraph,sa,pa,ra) &&
-        AxialSamples(&target->anatomyGraph,sb,pb,rb)) {
-        float sum = 0;
-        for (size_t i=0; i<6; ++i)
-            sum += Vec3_LengthSq(Vec3_Sub(pa[i],pb[i]))+Vec3_LengthSq(Vec3_Sub(ra[i],rb[i]));
-        report->bodyError = sqrtf(sum/12)/fmaxf(.001f,Vec3_Length(Vec3_Sub(pb[0],pb[5])));
-    }
+        AxialSamples(&target->anatomyGraph,sb,pb,rb))
+        report->bodyError=AxialError(pa,pb,ra,rb);
     report->limbError = SignatureError(report->signature,Creature_MorphologicalSignature(target));
 }
