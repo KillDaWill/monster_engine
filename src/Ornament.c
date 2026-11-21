@@ -17,6 +17,7 @@ bool Ornament_Resolve(const OrnamentPhenotype* phenotype,
     if (!phenotype || !slot || !graph || !Anatomy_MakeId(module, 1)) return false;
     if (phenotype->archetype != ORNAMENT_ARCHETYPE_HORN &&
         phenotype->archetype != ORNAMENT_ARCHETYPE_TUSK &&
+        phenotype->archetype != ORNAMENT_ARCHETYPE_OSSICONE &&
         phenotype->archetype != ORNAMENT_ARCHETYPE_SPINE &&
         phenotype->archetype != ORNAMENT_ARCHETYPE_MEMBRANE &&
         phenotype->archetype != ORNAMENT_ARCHETYPE_PLATE &&
@@ -34,6 +35,31 @@ bool Ornament_Resolve(const OrnamentPhenotype* phenotype,
     float tipR = fmaxf(phenotype->tipRadius * s * dev, baseR * 0.30f);
     float midR = (baseR + tipR) * 0.5f;
     bool tusk=phenotype->archetype==ORNAMENT_ARCHETYPE_TUSK;
+    bool ossicone=phenotype->archetype==ORNAMENT_ARCHETYPE_OSSICONE;
+    if(ossicone){
+        /* Osicono cubierto de piel: inserción craneal amplia, tallo ahusado y
+         * remate distal romo o ligeramente bulboso. */
+        Vector3 v=phenotype->growthDirection;
+        Vector3 axis=Vec3_LengthSq(v)>1e-6f?Vec3_Normalize(Vec3_Add(Vec3_Scale(slot->side,v.x),
+            Vec3_Add(Vec3_Scale(slot->up,v.y),Vec3_Scale(slot->forward,v.z)))):slot->up;
+        const uint16_t ids[]={ORNAMENT_NODE_BASE,4,ORNAMENT_NODE_MID,5,ORNAMENT_NODE_TIP};
+        float knobR=fmaxf(phenotype->tipRadius*s*dev,baseR*0.42f);
+        const float radiusFactors[]={1.12f,0.72f,0.68f,knobR/baseR,knobR*0.86f/baseR};
+        for(unsigned i=0;i<5;++i){
+            float t=(float)i/4.0f,curve=t*t;
+            Vector3 center=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length*t-baseR*.75f*(1-t)),
+                Vec3_Add(Vec3_Scale(slot->side,length*phenotype->lateralSweep*curve),
+                         Vec3_Scale(slot->up,length*phenotype->curvature*curve))));
+            float radius=fmaxf(baseR*radiusFactors[i],1e-5f);
+            if(!Module_Node(graph,module,ids[i],center,radius,radius,2,ANATOMY_ROLE_AXIAL,
+                ANATOMY_REGION_ORNAMENT,ANATOMY_SIDE_CENTER,phenotype->development))return false;
+            BodyConnectionKind kind=i?BODY_CONNECTION_ORNAMENT_SEGMENT:BODY_CONNECTION_SUPPORT;
+            if(!Module_Edge(graph,module,(uint16_t)(i+1),i?Anatomy_MakeId(module,ids[i-1]):slot->hostNode,
+                Anatomy_MakeId(module,ids[i]),kind,phenotype->development))return false;
+            graph->dormantConnections[graph->connectionCount-1]=phenotype->development<=0;
+        }
+        return true;
+    }
     if(tusk||phenotype->archetype==ORNAMENT_ARCHETYPE_HORN){
         /* Barrido curvo con estaciones persistentes: la base crece hacia
          * growthDirection y curvature dobla gradualmente la punta hacia up. */

@@ -233,6 +233,9 @@ bool Creature_ConfigureAnimation(struct Monster* monster) {
     case CREATURE_GAIT_FELINE_STALK:
         gait=GaitPreset_FelineStalk(&rig);
         break;
+    case CREATURE_GAIT_BIPEDAL_HOP:
+        gait=GaitPreset_BipedalHop(&rig);
+        break;
     default:
         return false;
     }

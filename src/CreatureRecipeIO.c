@@ -273,7 +273,7 @@ bool CreatureRecipeIO_ReadJSON(CreatureRecipeDocument* out,const char* json,char
     Envelope* e=calloc(1,sizeof(*e));if(!e)return false;
     Reader r={.start=json,.p=json};
     bool ok=Object(&r,e,envelopeFields,0);Space(&r);
-    ok=ok&&!*r.p&&e->version==1&&r.name[0]&&e->recipe.gait<=CREATURE_GAIT_COLUMNAR_WALK;
+    ok=ok&&!*r.p&&e->version==1&&r.name[0]&&e->recipe.gait<=CREATURE_GAIT_BIPEDAL_HOP;
     /* Resolver cada etapa detecta ranuras inexistentes, ciclos y arquetipos no implementados. */
     AnatomyGraph* graph=malloc(sizeof(*graph));
     if(!graph)ok=false;

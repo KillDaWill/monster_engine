@@ -30,7 +30,8 @@ typedef enum PigmentPattern {
     PIGMENT_PATTERN_STRIPES,   /**< Rayas longitudinales paralelas al tronco/columna */
     PIGMENT_PATTERN_BLOTCHES,  /**< Manchas poligonales/irregulares amplias (gecko/pitón) */
     PIGMENT_PATTERN_OCELLI,    /**< Ocelos concéntricos (ojos dérmicos) */
-    PIGMENT_PATTERN_GRADIENT   /**< Transición direccional continua */
+    PIGMENT_PATTERN_GRADIENT,  /**< Transición direccional continua */
+    PIGMENT_PATTERN_RETICULATED /**< Parches poligonales celulares con red separadora */
 } PigmentPattern;
 
 /**
@@ -85,6 +86,12 @@ typedef struct PlatePhenotype {
     float overlap;       /**< Solapamiento imbricado */
     float irregularity;  /**< Distorsión angular aleatoria */
     float relief;        /**< Relieve en la normal */
+    float armorScale;    /**< Intensidad [0..1] de escamas geométricas imbricadas reales (0 = sólo textura). */
+    float scaleCurvature;/**< Curvatura y quilla central de cada escama [0..1]. */
+    float tipTaper;      /**< Afinamiento distal en punta/escudo [0..1]. */
+    float ventralCoverage;/**< Cobertura ventral [0..1] (0 = sólo dorso/flancos/cola). */
+    Color scaleColor;    /**< Color basal queratínico de la coraza. */
+    Color scaleTipColor; /**< Color de desgaste distal en el borde libre. */
 } PlatePhenotype;
 
 /**

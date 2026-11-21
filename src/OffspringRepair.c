@@ -189,8 +189,12 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
     bool upright = p->axial.archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD;
     float referenceFloor = upright ? 0 : ReferenceFloor(plan,original)*body/originalBody;
     bool weightBearing = false;
-    for (size_t i=0; i<p->limbCount; ++i)
+    bool hasMacropodHind = false;
+    for (size_t i=0; i<p->limbCount; ++i) {
         weightBearing |= p->limbs[i].development*p->development.appendages >= .65f;
+        if (p->limbs[i].role == LIMB_HIND && p->limbs[i].anatomyProfile == LIMB_PROFILE_MACROPOD)
+            hasMacropodHind = true;
+    }
     if (!p->headHybrid.active && p->head.archetype == ref->head.archetype) {
         float neckRatio = p->axial.neckWidth/ref->axial.neckWidth;
         float headScale = ref->headEnvelope.scale/sqrtf(neckRatio);
@@ -211,7 +215,9 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
             }
             /* La referencia conserva postura y fase. Se aproxima la suela
              * mediante estaciones de apoyo, con tolerancia al espesor SDF. */
-            if (!m->pathAttached && limb->development*p->development.appendages >= .65f) {
+            if (!m->pathAttached && limb->archetype != LIMB_ARCHETYPE_WING &&
+                !(hasMacropodHind && limb->role == LIMB_FORE) &&
+                limb->development*p->development.appendages >= .65f) {
                 float now = Sole(graph,m->instanceId);
                 const AnatomyNode *root = AnatomyGraph_FindModuleNode(graph,m->instanceId,LIMB_NODE_ROOT);
                 if (!root || !isfinite(now)) continue;
@@ -230,7 +236,8 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
             issues += Clamp(&tail->length,trunk*.025f,trunk*2.20f,repair);
         } else if (m->kind == CREATURE_MODULE_ORNAMENT) {
             OrnamentPhenotype *o = &p->ornaments[at];
-            if (o->archetype == ORNAMENT_ARCHETYPE_HORN || o->archetype == ORNAMENT_ARCHETYPE_TUSK) {
+            if (o->archetype == ORNAMENT_ARCHETYPE_HORN || o->archetype == ORNAMENT_ARCHETYPE_TUSK ||
+                o->archetype == ORNAMENT_ARCHETYPE_OSSICONE) {
                 issues += Clamp(&o->baseRadius,o->length*.025f,o->length*.70f,repair);
                 if (p->axial.totalScale >= .45f && o->development >= .5f)
                     issues += Clamp(&o->length,
@@ -451,7 +458,10 @@ static float ProfilePenalty(const Monster *m)
         const BodyPlan *plan = &m->recipe.bodyPlan;
         for (size_t i=0; i<plan->moduleCount; ++i) {
             const CreatureModuleInstance *module = &plan->modules[i];
-            if (module->kind != CREATURE_MODULE_LIMB) continue;
+            if (module->kind != CREATURE_MODULE_LIMB || module->phenotypeIndex >= m->phenotype.limbCount) continue;
+            const LimbPhenotype *lp = &m->phenotype.limbs[module->phenotypeIndex];
+            if (lp->archetype == LIMB_ARCHETYPE_WING ||
+                (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP && lp->role == LIMB_FORE)) continue;
             float sole = Sole(&m->anatomyGraph,module->instanceId);
             if (!isfinite(sole)) continue;
             low = fminf(low,sole);

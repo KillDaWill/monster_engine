@@ -26,21 +26,23 @@ for header in HEADERS:
             structs[name[1]] = body
 
 COUNTS = {'modules': 'moduleCount', 'limbs': 'limbCount', 'tails': 'tailCount',
-          'ornaments': 'ornamentCount', 'flexibleAppendages': 'flexibleAppendageCount', 'layers': 'layerCount', 'tufts': 'tuftCount', 'longHair': 'longHairCount', 'anchors': 'anchorCount'}
+          'ornaments': 'ornamentCount', 'flexibleAppendages': 'flexibleAppendageCount',
+          'membranes': 'membraneCount', 'layers': 'layerCount', 'tufts': 'tuftCount', 'longHair': 'longHairCount', 'anchors': 'anchorCount'}
 SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'size_t': ('F_SIZE', 'SIZE_MAX'), 'uint32_t': ('F_U32', 'UINT32_MAX'),
            'uint16_t': ('F_U16', 'UINT16_MAX'), 'uint8_t': ('F_U8', 'UINT8_MAX'),
            'bool': ('F_BOOL', '1'), 'CreatureRecipeId': ('F_U32', 'UINT32_MAX'),
            'AnatomyId': ('F_U32', 'UINT32_MAX'), 'AttachmentSlotId': ('F_U16', 'UINT16_MAX'),
            'const char*': ('F_STRING', '191')}
-OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 'withersRoundness'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount'}, 'TailPhenotype': {'droop', 'tipLift'}, 'PigmentLayer': {'regionMask', 'domain', 'patternRotation'}}
+OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 'withersRoundness', 'cervicalSegments', 'cervicalPitch', 'spineFlexion'}, 'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount', 'webbingCoverage', 'webbingThickness', 'webbingEdgeCurve', 'webbingFold'}, 'TailPhenotype': {'droop', 'tipLift'}, 'PigmentLayer': {'regionMask', 'domain', 'patternRotation'}}
 OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality', 'inheritedBlend', 'regionalAlbedo'}
 OPTIONAL['LongHairGroup'] = {'rootFullness', 'bend', 'wave', 'transparency', 'verticalBias'}
-OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount', 'headHybrid'}
+OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount', 'membranes', 'membraneCount', 'headHybrid'}
 OPTIONAL['CreatureRecipe'] = {'offspringSeed', 'offspringVersion'}
 OPTIONAL['HeadHybridProfile'] = {'hasRegionalProfile', 'regional', 'referenceControls'}
 OPTIONAL['HeadPhenotype'] = {'nasalColor'}
-OPTIONAL['HeadSurfaceRecipe'] = {'nasalDiscWeight', 'oralArch'}
+OPTIONAL['HeadSurfaceRecipe'] = {'nasalDiscWeight', 'oralArch', 'isBill'}
+OPTIONAL['PlatePhenotype'] = {'armorScale', 'scaleCurvature', 'tipTaper', 'ventralCoverage', 'scaleColor', 'scaleTipColor'}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
 

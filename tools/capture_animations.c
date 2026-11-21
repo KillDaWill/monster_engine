@@ -42,6 +42,11 @@ typedef enum AnimKind {
     ANIM_ATTACK,
     ANIM_REACH_SIDE_LEFT,
     ANIM_REACH_UP,
+    ANIM_CURL,
+    ANIM_WING_EXTENDED,
+    ANIM_WING_PARTIAL,
+    ANIM_WING_FOLDED,
+    ANIM_WING_FLAP,
     ANIM_COUNT
 } AnimKind;
 
@@ -66,7 +71,12 @@ static const AnimSpec kAnimSpecs[ANIM_COUNT] = {
     {ANIM_DRINK, "drink"},
     {ANIM_ATTACK, "attack"},
     {ANIM_REACH_SIDE_LEFT, "reach_side_left"},
-    {ANIM_REACH_UP, "reach_up"}
+    {ANIM_REACH_UP, "reach_up"},
+    {ANIM_CURL, "curl"},
+    {ANIM_WING_EXTENDED, "wing_extended"},
+    {ANIM_WING_PARTIAL, "wing_partial"},
+    {ANIM_WING_FOLDED, "wing_folded"},
+    {ANIM_WING_FLAP, "wing_flap"}
 };
 
 typedef struct ViewSpec {
@@ -241,7 +251,11 @@ static bool LoadRecipeArg(const char* arg, CreatureRecipe* outRecipe, CreatureRe
     if (!strcasecmp(arg, "brumacerno")) { *outRecipe = *CreatureRecipes_Brumacerno(); return true; }
     if (!strcasecmp(arg, "velkar")) { *outRecipe = *CreatureRecipes_Velkar(); return true; }
     static const struct { const char* name; CreatureRecipeId id; } kExt[] = {
-        {"caballo", 1005}, {"asno", 1006}, {"explorador", 1000}
+        {"caballo", 1005}, {"asno", 1006}, {"cerdo", 1007}, {"elefante", 1008},
+        {"rinoceronte", 1009}, {"rata", 1010}, {"jirafa", 1011}, {"giraffe", 1011},
+        {"ornitorrinco", 1012}, {"platypus", 1012}, {"pangolin", 1013},
+        {"canguro", 1014}, {"kangaroo", 1014}, {"murcielago", 1015}, {"bat", 1015},
+        {"explorador", 1000}
     };
     for (size_t i = 0; i < sizeof(kExt) / sizeof(kExt[0]); ++i) {
         if (!strcasecmp(arg, kExt[i].name)) {
@@ -261,6 +275,9 @@ static void ConfigureAnimState(const Monster* m, const Rig* rig, ProceduralAnima
     a->angularVelocity = 0.0f;
     a->lookDirection = Vec3_Create(0, 0, 1);
     a->mouthOpen = 0.0f;
+    a->defensiveCurl = 0.0f;
+    a->wingFold = 0.0f;
+    a->wingFlap = 0.0f;
     a->oralReachActive = false;
     a->interactionTarget.valid = false;
 
@@ -275,11 +292,21 @@ static void ConfigureAnimState(const Monster* m, const Rig* rig, ProceduralAnima
         case ANIM_IDLE:
             break;
         case ANIM_WALK:
-            a->gait = GaitPreset_QuadrupedMotion(rig, agile, baseSpeed * 0.9f, 0.0f);
+            if (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+                a->gait = GaitPreset_BipedalHop(rig);
+            } else {
+                a->gait = GaitPreset_QuadrupedMotion(rig, agile, baseSpeed * 0.9f, 0.0f);
+            }
             a->desiredVelocity = Vec3_Create(0, 0, baseSpeed * 0.9f);
             break;
         case ANIM_RUN:
-            a->gait = GaitPreset_QuadrupedMotion(rig, agile, baseSpeed * 1.9f, 1.0f);
+            if (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+                a->gait = GaitPreset_BipedalHop(rig);
+                a->gait.cycleDuration *= 0.85f;
+                a->gait.strideLength *= 1.15f;
+            } else {
+                a->gait = GaitPreset_QuadrupedMotion(rig, agile, baseSpeed * 1.9f, 1.0f);
+            }
             a->desiredVelocity = Vec3_Create(0, 0, baseSpeed * 1.9f);
             break;
         case ANIM_TURN_LEFT:
@@ -330,7 +357,11 @@ static void ConfigureAnimState(const Monster* m, const Rig* rig, ProceduralAnima
             break;
         }
         case ANIM_ATTACK: {
-            a->gait = GaitPreset_QuadrupedMotion(rig, agile, baseSpeed * 1.4f, 0.7f);
+            if (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+                a->gait = GaitPreset_BipedalHop(rig);
+            } else {
+                a->gait = GaitPreset_QuadrupedMotion(rig, agile, baseSpeed * 1.4f, 0.7f);
+            }
             a->desiredVelocity = Vec3_Create(0, 0, baseSpeed * 0.4f);
             Vector3 tpos = Vec3_Add(neckBaseRest, Vec3_Create(0, -0.25f * R, 0.92f * R));
             a->oralReachActive = true;
@@ -368,6 +399,25 @@ static void ConfigureAnimState(const Monster* m, const Rig* rig, ProceduralAnima
             };
             break;
         }
+        case ANIM_CURL:
+            a->defensiveCurl = 1.0f;
+            break;
+        case ANIM_WING_EXTENDED:
+            a->wingFold = 0.0f;
+            a->wingFlap = 0.08f;
+            break;
+        case ANIM_WING_PARTIAL:
+            a->wingFold = 0.48f;
+            a->wingFlap = -0.15f;
+            break;
+        case ANIM_WING_FOLDED:
+            a->wingFold = 0.92f;
+            a->wingFlap = -0.25f;
+            break;
+        case ANIM_WING_FLAP:
+            a->wingFold = 0.08f;
+            a->wingFlap = sinf((float)step * 0.25f) * 0.85f;
+            break;
         default: break;
     }
 }
@@ -376,6 +426,8 @@ static AABB3D ComputePosedBounds(const MonsterVisual* v, const Monster* m) {
     AABB3D b = AABB_Empty();
     for (size_t i = 0; i < v->mesh.vertexCount; ++i) AABB_ExpandPoint(&b, v->mesh.vertices[i].position);
     for (size_t i = 0; i < v->headMesh.vertexCount; ++i) AABB_ExpandPoint(&b, v->headMesh.vertices[i].position);
+    for (size_t i = 0; i < v->membraneMesh.vertexCount; ++i) AABB_ExpandPoint(&b, v->membraneMesh.vertices[i].position);
+    for (size_t i = 0; i < v->armorMesh.vertexCount; ++i) AABB_ExpandPoint(&b, v->armorMesh.vertices[i].position);
     if (m->animation) {
         for (size_t j = 0; j < m->animation->pose.jointCount; ++j)
             AABB_ExpandPoint(&b, m->animation->pose.joints[j].worldPosition);
@@ -501,6 +553,7 @@ int main(int argc, char** argv) {
         GaitProfile baseGait = recipe.gait == CREATURE_GAIT_FELINE_STALK ? GaitPreset_FelineStalk(&m->animation->rig) :
                                recipe.gait == CREATURE_GAIT_BOVINE_WALK ? GaitPreset_BovineWalk(&m->animation->rig) :
                                recipe.gait == CREATURE_GAIT_SPRAWLING_QUADRUPED ? GaitPreset_SprawlingQuadruped(scale) :
+                               recipe.gait == CREATURE_GAIT_BIPEDAL_HOP ? GaitPreset_BipedalHop(&m->animation->rig) :
                                GaitPreset_CanidWalk(&m->animation->rig);
         MonsterAnimation_Configure(m, &m->animation->rig, baseGait);
         m->animation->rigGeneration = binding.rigGeneration;
@@ -508,6 +561,14 @@ int main(int argc, char** argv) {
         for (int step = 0; step < totalSteps; ++step) {
             ConfigureAnimState(m, &m->animation->rig, &m->animation->animator, kAnimSpecs[ai].kind, step, totalSteps);
             MonsterAnimation_Update(m, 1.0f / 30.0f);
+        }
+        if (ai == ANIM_RUN && recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+            for (int extra = 0; extra < 40; ++extra) {
+                float ph = fmodf(m->animation->animator.locomotion.phase, 1.0f);
+                if (ph >= 0.68f && ph <= 0.78f) break;
+                ConfigureAnimState(m, &m->animation->rig, &m->animation->animator, ANIM_RUN, totalSteps, totalSteps);
+                MonsterAnimation_Update(m, 1.0f / 30.0f);
+            }
         }
         /* Anclar cuerpo en origen XZ para que la cámara no derive tras caminar/girar */
         Vector3 shift = m->animation->animator.locomotion.bodyPosition;

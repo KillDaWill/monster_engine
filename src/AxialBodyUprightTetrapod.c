@@ -17,18 +17,64 @@ bool AxialBodyUprightTetrapod_Resolve(const AxialPhenotype* p, uint32_t module,
         p->thoraxHeight*.46f,p->abdomenHeight*.5f,p->pelvicHeight*.5f};
     float z[] = {p->neckLength*.85f,0,-p->trunkLength*.23f,
         -p->trunkLength*.48f,-p->trunkLength*.73f,-p->trunkLength};
+    float pecH = heights[1]*(p->profile[1].heightScale>0?p->profile[1].heightScale:1);
+    float pecY = p->withersHeight - pecH + p->profile[1].verticalOffset;
+    float pecZ = z[1] + p->profile[1].longitudinalOffset;
     for (unsigned i=0;i<6;++i) {
         const AxialStationMorph* morph=&p->profile[i];
         float h=heights[i]*(morph->heightScale>0?morph->heightScale:1);
         float w=widths[i]*(morph->widthScale>0?morph->widthScale:1);
         /* El techo común conserva el dorso; la reducción de sección eleva el vientre. */
         float y=i==0?p->withersHeight+p->neckLength*.16f:p->withersHeight-h;
-        Vector3 c={0,(y+morph->verticalOffset)*s,(z[i]+morph->longitudinalOffset)*s};
+        float zi=z[i];
+        if (i==0 && p->cervicalPitch>0.0f) {
+            zi = pecZ + p->neckLength*cosf(p->cervicalPitch);
+            y = pecY + p->neckLength*sinf(p->cervicalPitch);
+        }
+        Vector3 c={0,(y+morph->verticalOffset)*s,(zi+morph->longitudinalOffset)*s};
         AnatomyRegion region=i==0?ANATOMY_REGION_NECK:i==5?ANATOMY_REGION_PELVIS:ANATOMY_REGION_TRUNK;
         if (!Module_Node(g,module,(uint16_t)(i+1),c,w*s,h*s,2,ANATOMY_ROLE_AXIAL,
             region,ANATOMY_SIDE_CENTER,1)) return false;
-        if (i && !Module_Edge(g,module,(uint16_t)i,Anatomy_MakeId(module,(uint16_t)i),
+        if (i>=2 && !Module_Edge(g,module,(uint16_t)i,Anatomy_MakeId(module,(uint16_t)i),
             Anatomy_MakeId(module,(uint16_t)(i+1)),BODY_CONNECTION_AXIAL_LOFT,1)) return false;
+    }
+    if (p->cervicalSegments >= 2) {
+        const AnatomyNode* neckN = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_NECK);
+        const AnatomyNode* pecN = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_PECTORAL);
+        if (!neckN || !pecN) return false;
+        Vector3 nPos = neckN->center, pPos = pecN->center;
+        float nW = neckN->widthRadius, nH = neckN->heightRadius;
+        float pW = pecN->widthRadius, pH = pecN->heightRadius;
+        float curvature = isfinite(p->cervicalCurvature) ? Math_Clamp01(p->cervicalCurvature) : 0.45f;
+        float dorsalMass = isfinite(p->cervicalDorsalMass) && p->cervicalDorsalMass > 0.0f ? p->cervicalDorsalMass : 1.0f;
+        float midNarrow = isfinite(p->cervicalMidNarrowing) && p->cervicalMidNarrowing > 0.0f ? p->cervicalMidNarrowing : 0.82f;
+        Vector3 chord = Vec3_Sub(pPos, nPos);
+        float chordLen = Vec3_Length(chord);
+        Vector3 dir = chordLen > 1e-5f ? Vec3_Scale(chord, 1.0f / chordLen) : Vec3_Create(0, -1, 0);
+        Vector3 sagNormal = Vec3_Normalize(Vec3_Cross(Vec3_Create(1, 0, 0), dir));
+        AnatomyId prevId = neckN->id;
+        unsigned segs = p->cervicalSegments > 8 ? 8 : p->cervicalSegments;
+        for (unsigned k = 1; k < segs; ++k) {
+            float t = (float)k / (float)segs;
+            float arch = sinf(t * 3.14159265f) * chordLen * (curvature - 0.35f) * 0.16f;
+            Vector3 c = Vec3_Add(Vec3_Lerp(nPos, pPos, t), Vec3_Scale(sagNormal, arch));
+            float widthT = powf(t, 1.0f / Math_Clamp(midNarrow, 0.5f, 1.0f));
+            float heightT = powf(t, Math_Clamp(dorsalMass * 0.85f, 0.45f, 2.0f));
+            float baseW = Math_Lerp(nW, pW * 0.82f, widthT);
+            float baseH = Math_Lerp(nH, pH * 0.86f, heightT) + sinf(t * 3.14159265f) * nH * fmaxf(0.0f, dorsalMass - 1.0f) * 0.16f;
+            uint16_t localId = (uint16_t)(10 + k - 1);
+            AnatomyId nodeId = Anatomy_MakeId(module, localId);
+            if (!Module_Node(g, module, localId, c, baseW, baseH, 2, ANATOMY_ROLE_AXIAL,
+                ANATOMY_REGION_NECK, ANATOMY_SIDE_CENTER, 1)) return false;
+            if (!Module_Edge(g, module, localId, prevId, nodeId, BODY_CONNECTION_AXIAL_LOFT, 1)) return false;
+            g->connections[g->connectionCount - 1].transverseAxis = Vec3_Create(1, 0, 0);
+            prevId = nodeId;
+        }
+        if (!Module_Edge(g, module, 1, prevId, pecN->id, BODY_CONNECTION_AXIAL_LOFT, 1)) return false;
+        g->connections[g->connectionCount - 1].transverseAxis = Vec3_Create(1, 0, 0);
+    } else {
+        if (!Module_Edge(g,module,1,Anatomy_MakeId(module,1),
+            Anatomy_MakeId(module,2),BODY_CONNECTION_AXIAL_LOFT,1)) return false;
     }
     const AttachmentRole roles[]={ATTACHMENT_CERVICAL,ATTACHMENT_PECTORAL_LEFT,
         ATTACHMENT_PECTORAL_RIGHT,ATTACHMENT_PELVIC_LEFT,ATTACHMENT_PELVIC_RIGHT,
@@ -67,10 +113,11 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     const AnatomyGraph* g, uint32_t module,
     SDFSweepStation* outStations, int maxStations, int* outCount) {
     if (!p || !g || !outStations || !outCount || maxStations < 9 || p->archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD) return false;
+    bool articulatedNeck = p->cervicalSegments >= 2;
     bool cursorial=p->contourProfile==AXIAL_CONTOUR_CURSORIAL;
     float roundness=isfinite(p->withersRoundness)?Math_Clamp01(p->withersRoundness):0.0f;
-    unsigned cervicalCount=cursorial||roundness>0?6:4;
-    if(maxStations<(int)cervicalCount+(cursorial?7:5))return false;
+    unsigned cervicalCount=articulatedNeck?0:(cursorial||roundness>0?6:4);
+    if(maxStations<(int)(articulatedNeck?2:cervicalCount)+(cursorial?7:5))return false;
     float s = p->totalScale;
 
     const AnatomyNode* neckNode = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_NECK);
@@ -96,8 +143,21 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
     float ventral0 = neckNode->center.y - neckNode->heightRadius-p->dewlapDepth*p->neckWidth*s;
     float dorsalW = pectoralNode->center.y + pectoralNode->heightRadius + deltaW * (cursorial ? .72f : 1.0f);
     float ventralW = pectoralNode->center.y - pectoralNode->heightRadius-p->brisketDepth*p->thoraxHeight*s;
-    if (z0 <= zW) return false;
+    if (!articulatedNeck && z0 <= zW) return false;
     int count = 0;
+    if (articulatedNeck) {
+        float pecCenterY = (dorsalW + ventralW) * 0.5f;
+        float pecHalfH = (dorsalW - ventralW) * 0.5f;
+        float capSpan = Math_Max(pectoralNode->widthRadius * 0.42f, 0.02f * s);
+        outStations[count++] = (SDFSweepStation){
+            .center = {pectoralNode->center.x, pecCenterY - pecHalfH * 0.08f, zW + capSpan},
+            .width = pectoralNode->widthRadius * 0.72f,
+            .height = pecHalfH * 0.78f};
+        outStations[count++] = (SDFSweepStation){
+            .center = {pectoralNode->center.x, pecCenterY, zW},
+            .width = pectoralNode->widthRadius,
+            .height = pecHalfH};
+    }
     for (unsigned i=0;i<cervicalCount;++i) {
         float t=(float)i/(cervicalCount-1);
         /* La masa dorsal redistribuye la transición sin crear un máximo
@@ -170,9 +230,10 @@ bool AxialBodyUprightTetrapod_BuildSweepStations(const AxialPhenotype* p,
         /* La caída dorsal se reparte progresivamente desde el sacro hacia pelvis y
          * grupa conservando anchura pélvica para evitar un tapón central atrás. */
         float unit=p->withersHeight*s;
-        const float top[] = {0,0,0,0,0,0,-.004f,-.010f,-.012f,-.008f,-.008f,-.036f,-.032f};
-        for(int i=6;i<count;++i) {
-            float d=top[i]*unit;
+        const float top[] = {-.004f,-.010f,-.012f,-.008f,-.008f,-.036f,-.032f};
+        int postStart = articulatedNeck ? 2 : 6;
+        for(int i=postStart;i<count && (i-postStart)<7;++i) {
+            float d=top[i-postStart]*unit;
             outStations[i].center.y+=d*.5f;
             outStations[i].height=Math_Max(outStations[i].height+d*.5f,.02f*s);
         }

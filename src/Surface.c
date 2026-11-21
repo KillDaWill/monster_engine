@@ -189,10 +189,14 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
     CLAMP(integument.plates.overlap,0.0f,1.0f,0.25f);
     CLAMP(integument.plates.irregularity,0.0f,1.0f,0.25f);
     CLAMP(integument.plates.relief,0.0f,0.1f,0.035f);
+    p->integument.plates.armorScale=Limit(p->integument.plates.armorScale,0.0f,1.0f,0.0f);
+    p->integument.plates.scaleCurvature=Limit(p->integument.plates.scaleCurvature,0.0f,1.0f,0.45f);
+    p->integument.plates.tipTaper=Limit(p->integument.plates.tipTaper,0.0f,1.0f,0.65f);
+    p->integument.plates.ventralCoverage=Limit(p->integument.plates.ventralCoverage,0.0f,1.0f,0.12f);
     if(p->pigment.layerCount>SURFACE_MAX_PIGMENT_LAYERS)p->pigment.layerCount=SURFACE_MAX_PIGMENT_LAYERS;
     for(size_t i=0;i<p->pigment.layerCount;++i) {
         PigmentLayer* l=&p->pigment.layers[i];
-        if(l->pattern>PIGMENT_PATTERN_GRADIENT)l->pattern=PIGMENT_PATTERN_SOLID;
+        if(l->pattern>PIGMENT_PATTERN_RETICULATED)l->pattern=PIGMENT_PATTERN_SOLID;
         l->regionMask&=(1u<<SURFACE_REGION_COUNT)-1;
         l->strength=Limit(l->strength,0,1,1);
         l->scale=Limit(l->scale,.01f,50,1);
@@ -280,6 +284,10 @@ static SurfacePhenotype Interpolate(const SurfacePhenotype* a,const SurfacePheno
     MIX(integument.plates.size); MIX(integument.plates.aspect); MIX(integument.plates.thickness);
     MIX(integument.plates.bevel); MIX(integument.plates.overlap); MIX(integument.plates.irregularity);
     MIX(integument.plates.relief);
+    MIX(integument.plates.armorScale); MIX(integument.plates.scaleCurvature);
+    MIX(integument.plates.tipTaper); MIX(integument.plates.ventralCoverage);
+    p.integument.plates.scaleColor=Color_Lerp(p.integument.plates.scaleColor,q.integument.plates.scaleColor,t);
+    p.integument.plates.scaleTipColor=Color_Lerp(p.integument.plates.scaleTipColor,q.integument.plates.scaleTipColor,t);
     MIX(integument.fur.length); MIX(integument.fur.density); MIX(integument.fur.thickness);
     MIX(integument.fur.lay); MIX(integument.fur.stiffness); MIX(integument.fur.clumping);
     MIX(integument.fur.irregularity); MIX(integument.fur.undercoat); MIX(integument.fur.undercoatLength);

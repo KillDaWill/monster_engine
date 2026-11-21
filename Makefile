@@ -18,6 +18,8 @@ BUILD_DIR = build
 # Archivos fuente del núcleo puro (Desacoplado de Render)
 CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/LongHair.c \
+            $(SRC_DIR)/Membrane.c \
+            $(SRC_DIR)/ArmorScales.c \
             $(SRC_DIR)/LongHairScheduler.c \
             $(SRC_DIR)/EcosystemAnatomy.c \
             $(SRC_DIR)/SimulationClock.c \
@@ -98,6 +100,7 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/Limb.c \
             $(SRC_DIR)/LimbReptile.c \
             $(SRC_DIR)/LimbMammal.c \
+            $(SRC_DIR)/LimbBatWing.c \
             $(SRC_DIR)/FlexibleAppendage.c \
             $(SRC_DIR)/AxialBodyUprightTetrapod.c \
             $(SRC_DIR)/Tail.c \
@@ -141,6 +144,7 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_flexible_appendage.c \
             $(TEST_DIR)/test_module_dependencies.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
+            $(TEST_DIR)/test_five_mammals.c \
             $(TEST_DIR)/test_creature_offspring.c \
             $(TEST_DIR)/test_cloven_hoof.c \
             $(TEST_DIR)/test_bovine_editor.c \

@@ -74,6 +74,18 @@ static TailProfileSample EvaluateTailProfile(TailArchetype archetype, float t, f
         s.localOffset.z = 0.0f;
         break;
     }
+    case TAIL_ARCHETYPE_PADDLE: {
+        /* Pala ancha y aplanada dorsoventralmente (ornitorrinco/castor) con remate redondo. */
+        float u = (t >= 0.10f && t <= 0.94f) ? (t - 0.10f) / 0.84f : 0.0f;
+        float paddleBlade = (u > 0.0f) ? sinf(u * 3.14159265f) * 0.82f : 0.0f;
+        float tipDrop = (t > 0.80f) ? powf(fmaxf(0.0f, (1.0f - t) / 0.20f), 0.65f) : 1.0f;
+        s.widthFactor = fmaxf((1.0f - 0.22f * t + paddleBlade) * tipDrop, 0.08f);
+        s.heightFactor = fmaxf(powf(fmaxf(0.0f, 1.0f - t), 0.58f) * (1.0f - 0.55f * t), 0.05f);
+        s.localOffset.x = curvature * t * t * 0.25f;
+        s.localOffset.y = -0.04f * sinf(t * 3.14159265f);
+        s.localOffset.z = 0.0f;
+        break;
+    }
     case TAIL_ARCHETYPE_CUSTOM: {
         /* Curva en J felina: caída inicial detrás del sacro y remate suave
          * ascendente hacia la punta con ondulación lateral contenida. */

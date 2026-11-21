@@ -11,6 +11,9 @@ typedef struct ProceduralAnimator {
     Vector3 desiredVelocity,lookDirection;
     float angularVelocity,currentAngularVelocity;
     float mouthOpen;
+    float defensiveCurl; /**< Flexión defensiva progresiva [0..1] para enrollamiento axial-caudal. */
+    float wingFold; /**< Plegado alar [0..1] para recogida articular de húmero, codo, carpo y radios digitales. */
+    float wingFlap; /**< Oscilación de batida alar [-1..1] sobre el eje escapular. */
     double crouchRemainder;
     float reachCrouch, reachCrouchVelocity, oralReachTime;
     bool oralReachActive; /**< Solicitud corporal de alcanzar un punto con la boca. */

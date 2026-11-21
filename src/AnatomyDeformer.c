@@ -560,6 +560,41 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
     free(d->skinBindings); d->skinBindings=skin;
     d->poseBound=true; return true;
 }
+
+bool AnatomyDeformer_BindExplicitSkin(AnatomyDeformer* d,const Mesh* mesh,
+    const AnatomyGraph* rest,const Skeleton* s,const AnatomySkinBinding* explicitSkin) {
+    if (!d || !mesh || !rest || !Skeleton_Validate(s) || !explicitSkin) return false;
+    if (mesh->vertexCount == 0) { d->vertexCount = 0; d->isBound = false; d->poseBound = false; return true; }
+    if (mesh->vertexCount > d->vertexCapacity) {
+        AnatomyDeformerBinding* nb = realloc(d->bindings, mesh->vertexCount * sizeof(*nb));
+        Vector3* np = realloc(d->basePositions, mesh->vertexCount * sizeof(*np));
+        Vector3* nn = realloc(d->baseNormals, mesh->vertexCount * sizeof(*nn));
+        if (!nb || !np || !nn) {
+            if (nb) d->bindings = nb;
+            if (np) d->basePositions = np;
+            if (nn) d->baseNormals = nn;
+            return false;
+        }
+        d->bindings = nb; d->basePositions = np; d->baseNormals = nn;
+        d->vertexCapacity = mesh->vertexCount;
+    }
+    memset(d->bindings, 0, mesh->vertexCount * sizeof(*d->bindings));
+    for (size_t i = 0; i < mesh->vertexCount; ++i) {
+        d->basePositions[i] = mesh->vertices[i].position;
+        d->baseNormals[i] = mesh->vertices[i].normal;
+    }
+    AnatomySkinBinding* skin = calloc(mesh->vertexCount, sizeof(*skin));
+    if (!skin) return false;
+    memcpy(skin, explicitSkin, mesh->vertexCount * sizeof(*skin));
+    if (!SkeletonPose_Init(&d->bindPose, s)) { free(skin); return false; }
+    d->refGraph = *rest;
+    d->vertexCount = mesh->vertexCount;
+    free(d->skinBindings);
+    d->skinBindings = skin;
+    d->isBound = true;
+    d->poseBound = true;
+    return true;
+}
 float AnatomyDeformer_CranialWeight(Vector3 p,Vector3 attachment,Vector3 axis,float collar) {
     float t=Math_Clamp01(1+Vec3_Dot(Vec3_Sub(p,attachment),axis)/fmaxf(collar,1e-6f));
     return t*t*(3-2*t);

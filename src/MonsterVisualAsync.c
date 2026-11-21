@@ -376,6 +376,7 @@ static uint64_t HashHeadSurface(const HeadSurfaceRecipe* surface,uint64_t hash) 
     hash=HashFloat(surface->unionSmoothness,hash);
     hash=HashFloat(surface->headBodySmoothness,hash);
     hash=HashBool(surface->hasNasalPad,hash);
+    hash=HashBool(surface->isBill,hash);
     hash=HashBool(surface->hasEars,hash);
     hash=HashBool(surface->sweptSkull,hash);
     hash=HashBool(surface->isBeak,hash);

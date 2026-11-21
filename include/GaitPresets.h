@@ -22,4 +22,6 @@ GaitProfile GaitPreset_BovineWalk(const Rig* rig);
 GaitProfile GaitPreset_FelineStalk(const Rig* rig);
 /** @brief Mezcla paso y carrera según velocidad local y capacidades del rig. */
 GaitProfile GaitPreset_QuadrupedMotion(const Rig* rig,bool agile,float speed,float running);
+/** @brief Salto bípedo sincronizado para especies macrópodas de apoyo posterior. */
+GaitProfile GaitPreset_BipedalHop(const Rig* rig);
 #endif

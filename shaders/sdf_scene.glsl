@@ -81,7 +81,8 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(!M_anatomicalHead(m))result=joinSemantic(semantic,result,vec4(M_skinColor(m),MonsterSDF_EvalMuzzleDistance(m,local)),M_muzzleSmoothness(m),uint(M_moduleInstanceId(m)),1u,1u,1.0);
         vec3 headColor=M_skinColor(m);float headSkin=1.0;uint headMaterial=1u;
-        if(M_hasNasalPad(m) && SDF_Ellipsoid(local-M_noseCenterLocal(m),M_noseRadii(m))<M_headUnionSmoothness(m)*.5) {headColor=M_nasalColor(m);headSkin=0.0;headMaterial=4u;}
+        if((M_hasNasalPad(m) && SDF_Ellipsoid(local-M_noseCenterLocal(m),M_noseRadii(m))<M_headUnionSmoothness(m)*.5) ||
+           (M_isBill(m) && local.z >= M_noseCenterLocal(m).z)) {headColor=M_nasalColor(m);headSkin=0.0;headMaterial=4u;}
         result=joinSemantic(semantic,result,vec4(headColor,MonsterSDF_EvalUpperHeadDistance(m,local)),M_anatomicalHead(m)?M_headBodySmoothness(m):M_muzzleSmoothness(m),uint(M_moduleInstanceId(m)),1u,headMaterial,headSkin);
     }
     for(int i=0;i<mouthCount;++i) {
@@ -120,7 +121,10 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         float kCheek=MonsterSDF_EquineCheekSmoothness(m,local);
         float hCheek=kCheek<=1e-5?(result.w<d?1.0:0.0):clamp(.5+.5*(d-result.w)/kCheek,0.0,1.0);
         if(hCheek<1.0) {
-            vec3 col=M_skinColor(m);float jawSkin=1.0;uint jawMaterial=1u;
+            bool billJaw = M_isBill(m) && local.z >= M_noseCenterLocal(m).z;
+            vec3 col=billJaw ? M_nasalColor(m) : M_skinColor(m);
+            float jawSkin=billJaw ? 0.0 : 1.0;
+            uint jawMaterial=billJaw ? 4u : 1u;
             if(M_taperedMandible(m)&&tongueDistance<=d+0.005){col=M_insideColor(m);jawSkin=0.0;jawMaterial=2u;}
             semantic.skinWeight=mix(jawSkin,semantic.skinWeight,hCheek);
             if(hCheek<.5) {

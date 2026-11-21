@@ -27,7 +27,9 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_SUID, /**< Rostro descendente con disco nasal frontal y ganachas llenas. */
     HEAD_ARCHETYPE_PROBOSCIDEAN, /**< Bóveda alta y maxilar que soporta una probóscide. */
     HEAD_ARCHETYPE_RHINOCEROTID, /**< Perfil nasal descendente y labios de pastoreo anchos. */
-    HEAD_ARCHETYPE_RODENT /**< Caja posterior ancha, hocico en cuña y mandíbula corta. */
+    HEAD_ARCHETYPE_RODENT, /**< Caja posterior ancha, hocico en cuña y mandíbula corta. */
+    HEAD_ARCHETYPE_MONOTREME, /**< Pico flexible aplanado en espátula con narinas dorsales. */
+    HEAD_ARCHETYPE_PHOLIDOTE /**< Cráneo y rostro cónico alargado sin salto nasal brusco. */
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */
@@ -223,6 +225,7 @@ typedef struct HeadSurfaceRecipe {
     float unionSmoothness; /**< Suavidad común de uniones SDF. */
     float headBodySmoothness; /**< Suavidad local de integración cefalocervical. */
     bool hasNasalPad; /**< Activa el planum y su material nasal en el perfil. */
+    bool isBill; /**< Activa superficie nasal plana/coriácea continua tipo pico de monotrema. */
     bool hasEars; /**< Activa volúmenes auriculares. */
     bool sweptSkull; /**< Compila el cráneo mediante secciones continuas. */
     bool isBeak; /**< Indica una receta facial aviar. */

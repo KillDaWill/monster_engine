@@ -20,6 +20,7 @@ typedef struct LimbRig {
 } LimbRig;
 #define RIG_MAX_TAILS 8
 #define RIG_MAX_TAIL_JOINTS 32
+#define RIG_MAX_CERVICAL_JOINTS 10
 typedef struct TailRig {
     uint32_t moduleInstanceId;
     int joints[RIG_MAX_TAIL_JOINTS];
@@ -30,6 +31,8 @@ typedef struct Rig {
     LimbRig limbs[RIG_MAX_LIMBS]; size_t limbCount;
     int headJoint,neckJoint,jawJoint,pelvisJoint;
     int cervicalBaseJoint; /**< Pivote cervical que no arrastra la cintura ni los apoyos. */
+    int cervicalChain[RIG_MAX_CERVICAL_JOINTS]; /**< Articulaciones cervicales ordenadas desde la base al cráneo. */
+    size_t cervicalChainCount;
     Vector3 oralDirection; /**< Dirección oral resuelta en el marco cefálico de reposo. */
     Vector3 oralPoint; /**< Landmark oral en el marco local de la cabeza de reposo. */
     Vector3 cranialAttachment,cranialAxis; /**< Plano occipital de reposo: el cráneo es rígido. */

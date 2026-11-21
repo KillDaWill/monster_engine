@@ -1,4 +1,5 @@
 #include "ProceduralAnimator.h"
+#include "Limb.h"
 #include <math.h>
 #include <string.h>
 bool ProceduralAnimator_Init(ProceduralAnimator* a,const Rig* rig,GaitProfile gait,World* world,Vector3 position) {
@@ -87,17 +88,35 @@ static void AxialControllers(ProceduralAnimator* a,const Rig* r,SkeletonPose* p)
         float pitch=-asinf(fmaxf(-1.0f,fminf(1.0f,lookDir.y)));
         bool hasBase=r->cervicalBaseJoint>=0,hasNeck=r->neckJoint>=0;
         /* Al bajar la cabeza (pitch > 0), la base cervical lidera la inclinación para que todo el cuello acompañe. */
-        float pBase=pitch>0.0f?0.52f:0.34f;
-        float pNeck=pitch>0.0f?0.34f:0.44f;
-        float pHead=1.0f-pBase-pNeck;
-        if(!hasBase) { pNeck+=pBase*0.75f; pHead+=pBase*0.25f; pBase=0.0f; }
-        if(!hasNeck) { pHead+=pNeck; pNeck=0.0f; }
-        float yBase=hasBase?0.40f:0.0f;
-        float yNeck=hasNeck?(hasBase?0.42f:0.76f):0.0f;
-        float yHead=1.0f-yBase-yNeck;
-        if(hasBase) RotateEuler(&r->skeleton,p,r->cervicalBaseJoint,yaw*yBase,pitch*pBase,0.0f);
-        if(hasNeck) RotateEuler(&r->skeleton,p,r->neckJoint,yaw*yNeck,pitch*pNeck,0.0f);
-        RotateEuler(&r->skeleton,p,head,yaw*yHead,pitch*pHead,0.0f);
+        if (r->cervicalChainCount > 2) {
+            float pHead = 0.16f, yHead = 0.18f;
+            float remP = 1.0f - pHead, remY = 1.0f - yHead;
+            float n = (float)r->cervicalChainCount;
+            float sumW = 0.0f;
+            for (size_t k = 0; k < r->cervicalChainCount; ++k) {
+                float u = (float)k / (n - 1.0f);
+                sumW += (pitch > 0.0f ? (1.35f - 0.65f * u) : 1.0f);
+            }
+            for (size_t k = 0; k < r->cervicalChainCount; ++k) {
+                float u = (float)k / (n - 1.0f);
+                float wp = (pitch > 0.0f ? (1.35f - 0.65f * u) : 1.0f) / fmaxf(sumW, 1e-4f);
+                float wy = 1.0f / n;
+                RotateEuler(&r->skeleton, p, r->cervicalChain[k], yaw * remY * wy, pitch * remP * wp, 0.0f);
+            }
+            RotateEuler(&r->skeleton, p, head, yaw * yHead, pitch * pHead, 0.0f);
+        } else {
+            float pBase=pitch>0.0f?0.52f:0.34f;
+            float pNeck=pitch>0.0f?0.34f:0.44f;
+            float pHead=1.0f-pBase-pNeck;
+            if(!hasBase) { pNeck+=pBase*0.75f; pHead+=pBase*0.25f; pBase=0.0f; }
+            if(!hasNeck) { pHead+=pNeck; pNeck=0.0f; }
+            float yBase=hasBase?0.40f:0.0f;
+            float yNeck=hasNeck?(hasBase?0.42f:0.76f):0.0f;
+            float yHead=1.0f-yBase-yNeck;
+            if(hasBase) RotateEuler(&r->skeleton,p,r->cervicalBaseJoint,yaw*yBase,pitch*pBase,0.0f);
+            if(hasNeck) RotateEuler(&r->skeleton,p,r->neckJoint,yaw*yNeck,pitch*pNeck,0.0f);
+            RotateEuler(&r->skeleton,p,head,yaw*yHead,pitch*pHead,0.0f);
+        }
     }
     if(r->jawJoint>=0)Rotate(&r->skeleton,p,r->jawJoint,r->skeleton.joints[r->jawJoint].constraint.hingeAxis,
         fmaxf(0,fminf(1,a->mouthOpen))*r->maxJawAngle);
@@ -108,11 +127,14 @@ static float AreaXZ(Vector3 a,Vector3 b,Vector3 c) {
 /* La proyección axial debe permanecer dentro de la envolvente de apoyos. */
 static bool Balanced(const ProceduralAnimator *a,const Rig *r,const SkeletonPose *p) {
     if(!r->spineCount)return true;
-    Vector3 mass=Vec3_Zero(),feet[RIG_MAX_LIMBS];unsigned count=0;
+    Vector3 mass=Vec3_Zero(),feet[RIG_MAX_LIMBS];unsigned count=0,walkingLimbs=0;
     for(size_t k=0;k<r->spineCount;++k)mass=Vec3_Add(mass,p->joints[r->spine[k]].worldPosition);
     mass=Vec3_Scale(mass,1.f/r->spineCount);
-    for(size_t k=0;k<r->limbCount;++k)if(r->limbs[k].walking&&a->locomotion.feet[k].phase==FOOT_STANCE)
-        feet[count++]=a->locomotion.feet[k].targetPosition;
+    for(size_t k=0;k<r->limbCount;++k)if(r->limbs[k].walking) {
+        ++walkingLimbs;
+        if(a->locomotion.feet[k].phase==FOOT_STANCE)feet[count++]=a->locomotion.feet[k].targetPosition;
+    }
+    if(walkingLimbs<=2)return count>=1;
     if(count<3)return false;
     for(unsigned i=0;i<count;++i)for(unsigned j=i+1;j<count;++j)for(unsigned k=j+1;k<count;++k) {
         float area=AreaXZ(feet[i],feet[j],feet[k]);if(fabsf(area)<1e-6f)continue;
@@ -146,11 +168,23 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
 
     float phase=a->locomotion.phase*6.28318530718f;
     float speed=fminf(1,Vec3_Length(a->locomotion.velocity));
+    float activity=fminf(1,Vec3_Length(a->locomotion.velocity)*a->gait.cycleDuration/fmaxf(.01f,a->gait.strideLength));
+    unsigned walkingCount=0;
+    for(size_t k=0;k<r->limbCount;++k)if(r->limbs[k].walking)++walkingCount;
     for(size_t j=0;j<r->skeleton.jointCount;++j) if(r->skeleton.joints[j].parentIndex<0) {
         p->joints[j].localPosition=Vec3_Add(p->joints[j].localPosition,a->locomotion.bodyPosition);
         p->joints[j].localPosition.y-=a->gait.supportCompression;
-        p->joints[j].localPosition.y+=a->gait.bodyBob*speed*sinf(phase*2);
-        p->joints[j].localPosition.x+=a->gait.bodySway*speed*sinf(phase);
+        if(walkingCount==2&&a->gait.stanceRatio<.55f) {
+            float pNorm=fmodf(a->locomotion.phase,1.0f);
+            if(pNorm<0)pNorm+=1.0f;
+            float stance=fmaxf(.15f,fminf(.85f,a->gait.stanceRatio));
+            float hopOffset=pNorm>=stance?(4.0f*((pNorm-stance)/(1.0f-stance))*(1.0f-((pNorm-stance)/(1.0f-stance)))):
+                (-0.28f*sinf((pNorm/stance)*3.14159265f));
+            p->joints[j].localPosition.y+=a->gait.bodyBob*activity*hopOffset;
+        } else {
+            p->joints[j].localPosition.y+=a->gait.bodyBob*speed*sinf(phase*2);
+            p->joints[j].localPosition.x+=a->gait.bodySway*speed*sinf(phase);
+        }
     }
     AxialControllers(a,r,p);
     SkeletonPose_UpdateWorldTransforms(p,&r->skeleton);
@@ -231,6 +265,71 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
     if(a->applyAxialPose) {
         a->applyAxialPose(r,p,a->axialContext);
         SkeletonPose_UpdateWorldTransforms(p,&r->skeleton);
+    }
+    float curl = fmaxf(0.0f, fminf(1.0f, a->defensiveCurl));
+    if (curl > 0.01f) {
+        /* Enrollamiento defensivo ventroflexor: columna, cuello y cola convergen en esfera acorazada. */
+        float spineBend = 0.34f * curl;
+        for (size_t i = 0; i < r->spineCount; ++i) {
+            int j = r->spine[i];
+            if (j < 0) continue;
+            Quaternion q = Quat_FromAxisAngle(Vec3_Create(1, 0, 0), spineBend);
+            p->joints[j].localRotation = Skeleton_ConstrainRotation(&r->skeleton.joints[j],
+                Quat_Multiply(p->joints[j].localRotation, q));
+        }
+        size_t nCount = r->cervicalChainCount > 0 ? r->cervicalChainCount : 2;
+        for (size_t i = 0; i < nCount; ++i) {
+            int j = r->cervicalChainCount > 0 ? r->cervicalChain[i] : (i == 0 ? r->cervicalBaseJoint : r->neckJoint);
+            if (j < 0) continue;
+            Quaternion q = Quat_FromAxisAngle(Vec3_Create(1, 0, 0), (0.95f * curl) / (float)nCount);
+            p->joints[j].localRotation = Quat_Multiply(p->joints[j].localRotation, q);
+        }
+        if (r->headJoint >= 0) {
+            p->joints[r->headJoint].localRotation = Quat_Multiply(p->joints[r->headJoint].localRotation,
+                Quat_FromAxisAngle(Vec3_Create(1, 0, 0), 0.55f * curl));
+        }
+        for (size_t ti = 0; ti < r->tailCount; ++ti) {
+            const TailRig* tr = &r->tails[ti];
+            for (size_t i = 0; i < tr->jointCount; ++i) {
+                int j = tr->joints[i];
+                if (j < 0) continue;
+                float tailAngle = -(2.75f * curl) / fmaxf(1.0f, (float)tr->jointCount);
+                p->joints[j].localRotation = Quat_Multiply(p->joints[j].localRotation,
+                    Quat_FromAxisAngle(Vec3_Create(1, 0, 0), tailAngle));
+            }
+        }
+        SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+        if (curl > 0.25f) return true;
+    }
+    float wingFold = fmaxf(0.0f, fminf(1.0f, a->wingFold));
+    float wingFlap = fmaxf(-1.0f, fminf(1.0f, a->wingFlap));
+    if (wingFold > 0.005f || fabsf(wingFlap) > 0.005f) {
+        for (size_t i = 0; i < r->limbCount; ++i) {
+            const LimbRig* limb = &r->limbs[i];
+            if (limb->walking || limb->chain.jointCount < 4) continue;
+            int childDigits[CREATURE_MAX_DIGITS];
+            unsigned childCount = 0;
+            for (size_t j = 0; j < r->skeleton.jointCount && childCount < CREATURE_MAX_DIGITS; ++j) {
+                if (r->skeleton.joints[j].parentIndex == limb->endEffectorJoint)
+                    childDigits[childCount++] = (int)j;
+            }
+            if (childCount < 4) continue;
+            float side = (limb->side == LIMB_RIGHT) ? -1.0f : 1.0f;
+            int sh = limb->chain.jointIndices[0];
+            int el = limb->chain.jointIndices[1];
+            int wr = limb->chain.jointIndices[3];
+            RotateEuler(&r->skeleton, p, sh, -side * 0.75f * wingFold, -0.24f * wingFold,
+                        side * (0.72f * wingFlap - 0.58f * wingFold));
+            RotateEuler(&r->skeleton, p, el, side * 1.35f * wingFold, 0.18f * wingFold,
+                        -side * 0.22f * wingFlap);
+            RotateEuler(&r->skeleton, p, wr, -side * 1.10f * wingFold, -0.26f * wingFold, 0.0f);
+            unsigned firstWingDigit = (childCount >= 5) ? 1u : 0u;
+            for (unsigned d = firstWingDigit; d < childCount; ++d) {
+                RotateEuler(&r->skeleton, p, childDigits[d], side * 1.12f * wingFold * (1.0f - 0.08f * (float)d),
+                            -0.38f * wingFold, -side * 0.14f * wingFlap);
+            }
+        }
+        SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
     }
     for(int attempt=0;attempt<2;++attempt) {
     for(size_t i=0;i<r->limbCount;++i) {

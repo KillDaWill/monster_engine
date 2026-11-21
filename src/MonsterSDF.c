@@ -596,7 +596,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 sdf->axialStationCount = 0;
             }
         }
-        if(sdf->axialStationCount>1 && monster->hasHead)
+        if(sdf->axialStationCount>1 && monster->hasHead && monster->phenotype.axial.cervicalSegments < 2)
             MatchSweepCapTangent(&sdf->axialStations[0],monster->head.anatomy.surface.neckCollarContinuity);
         for (int s = 0; s < sdf->axialStationCount; ++s) {
             AABB_ExpandRadius(&sdf->bounds, sdf->axialStations[s].center,
@@ -676,10 +676,13 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             c->fromId=edge->fromId;c->toId=edge->toId;c->connectionId=edge->id;c->kind=edge->kind;
             c->nasalTerminal=c->kind==BODY_CONNECTION_PAIRED_OPENINGS &&
                 MonsterSDF_IsNasalModule(monster,edge->moduleInstanceId);
+            bool separateCervical = monster->hasCreaturePhenotype &&
+                monster->phenotype.axial.cervicalSegments >= 2 &&
+                (a->region == ANATOMY_REGION_NECK || b->region == ANATOMY_REGION_NECK);
             c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&
                 a->region!=ANATOMY_REGION_ORNAMENT&&b->region!=ANATOMY_REGION_ORNAMENT&&
                 a->region!=ANATOMY_REGION_HEAD&&b->region!=ANATOMY_REGION_HEAD&&
-                !MonsterSDF_SeparateTail(monster,edge->moduleInstanceId);
+                !separateCervical&&!MonsterSDF_SeparateTail(monster,edge->moduleInstanceId);
             const TailPhenotype* rootTail=c->kind==BODY_CONNECTION_AXIAL_LOFT&&!c->axialSweepMember&&
                 a->region!=ANATOMY_REGION_TAIL&&b->region==ANATOMY_REGION_TAIL ?
                 MonsterSDF_TailPhenotype(monster,edge->moduleInstanceId) : NULL;
@@ -758,7 +761,12 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         float maxR = Math_Max(Math_Max(c->widthA,c->widthB)+Math_Max(c->widthBulge,0),
             Math_Max(c->heightA,c->heightB)+Math_Max(c->heightBulge,0));
         float minR = Math_Min(Math_Min(c->widthA, c->heightA), Math_Min(c->widthB, c->heightB));
-        float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ? 0.0f : c->kind == BODY_CONNECTION_LIMB_SEGMENT ? Math_Lerp(.18f,.65f,c->jointBlend) : 0.08f;
+        float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ?
+            ((!c->axialSweepMember && c->region == ANATOMY_REGION_NECK) ? 0.28f :
+             (!c->axialSweepMember && monster->hasCreaturePhenotype && monster->phenotype.axial.cervicalSegments >= 2 &&
+              AnatomyGraph_FindNode(&monster->anatomyGraph, c->fromId) &&
+              AnatomyGraph_FindNode(&monster->anatomyGraph, c->fromId)->region == ANATOMY_REGION_NECK) ? 0.28f : 0.0f) :
+            c->kind == BODY_CONNECTION_LIMB_SEGMENT ? Math_Lerp(.18f,.65f,c->jointBlend) : 0.08f;
         c->localSmoothness = Math_Min(config.connectionSmoothness, minR * factor);
         if(c->kind==BODY_CONNECTION_FLEXIBLE_SEGMENT||c->kind==BODY_CONNECTION_PAIRED_OPENINGS) {
             /* Los tramos de la misma trompa ya comparten la sección de cada
@@ -886,6 +894,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             sdf->mouths[m].browRadii = Vec3_Create(hostRadii.x * mouth->brows.x, hostRadii.y * 0.28f * mouth->brows.y, hostRadii.z * 0.34f * mouth->brows.z);
             sdf->mouths[m].anatomicalHead = useAnatomicalHead;
             sdf->mouths[m].hasNasalPad = false;
+            sdf->mouths[m].isBill = false;
             sdf->mouths[m].hasEars = false;
             if (useAnatomicalHead) {
                 const HeadSurfaceRecipe* recipe=&resolvedHead.surface;
@@ -971,7 +980,9 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 }
 
                 float continuity=Math_Clamp01(recipe->neckCollarContinuity);
-                if (sdf->axialStationCount > 0) {
+                bool articulatedCervical = monster->hasCreaturePhenotype &&
+                    monster->phenotype.axial.cervicalSegments >= 2 && neckNode != NULL;
+                if (sdf->axialStationCount > 0 && !articulatedCervical) {
                     Vector3 cervicalDir = Vec3_Create(0.0f, -0.6f, -0.8f);
                     if (sdf->axialStationCount > 1) {
                         Vector3 diff = Vec3_Sub(sdf->axialStations[1].center, sdf->axialStations[0].center);
@@ -1050,6 +1061,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 collarMidY=Math_Lerp(collarMidY,Math_Lerp(sdf->mouths[m].neckCollarRootRadii.y,sdf->mouths[m].neckCollarTipRadii.y,.45f),continuity);
                 sdf->mouths[m].neckCollarMidRadii=Vec3_Create(collarMidX,collarMidY,Math_Min(collarMidX,collarMidY));
                 sdf->mouths[m].hasNasalPad=recipe->hasNasalPad;
+                sdf->mouths[m].isBill=recipe->isBill;
                 sdf->mouths[m].hasEars=recipe->hasEars;
                 sdf->mouths[m].hasTympana=recipe->hasTympana;
                 sdf->mouths[m].tympanumDevelopment=recipe->tympanumDevelopment;
@@ -2071,7 +2083,8 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
             accumulated = SDFSample_SmoothUnion(accumulated, muzzleSample, mouth->muzzleSmoothness);
         }
         float upperHeadDist = MonsterSDF_EvalUpperHeadDistanceCached(mouth, localP);
-        bool nasal=mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(localP,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f;
+        bool nasal=(mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(localP,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) ||
+            (mouth->isBill && localP.z >= mouth->noseCenterLocal.z);
         accumulated = SDFSample_SmoothUnion(accumulated, SDFSample_Create(upperHeadDist,
             nasal?mouth->nasalColor:mouth->skinColor,nasal?SDF_MATERIAL_NASAL_PAD:SDF_MATERIAL_SKIN), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
     }
@@ -2291,7 +2304,8 @@ static float MonsterSDF_EvaluateBodyPartitionDistance(const MonsterSDF* sdf,Vect
 static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vector3 point) {
     Vector3 local=Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(point,mouth->center));
     SDFSample sample=SDFSample_Create(MonsterSDF_EvalUpperHeadDistanceCached(mouth,local),mouth->skinColor,SDF_MATERIAL_SKIN);
-    if (mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(local,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) {
+    if ((mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(local,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) ||
+        (mouth->isBill && local.z >= mouth->noseCenterLocal.z)) {
         sample.color=mouth->nasalColor; sample.material=SDF_MATERIAL_NASAL_PAD;
     }
     sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalMouthDistance(mouth,point,NULL),mouth->insideColor,SDF_MATERIAL_MOUTH),mouth->rimBevel);
@@ -2374,14 +2388,18 @@ static SDFSample MonsterSDF_EvaluateJawWrapper(const void* context, Vector3 poin
     if(mouth->taperedMandible) {
         float tongue = MonsterSDF_EvalTongueDistance(mouth, point);
         float k = Math_Max(mouth->seamScale * .08f, .005f);
-        SDFSample bodySample = SDFSample_Create(body, mouth->skinColor, SDF_MATERIAL_SKIN);
+        bool billJaw = mouth->isBill && point.z >= mouth->noseCenterLocal.z;
+        SDFSample bodySample = SDFSample_Create(body, billJaw ? mouth->nasalColor : mouth->skinColor,
+            billJaw ? SDF_MATERIAL_NASAL_PAD : SDF_MATERIAL_SKIN);
         SDFSample tongueSample = SDFSample_Create(tongue, mouth->insideColor, SDF_MATERIAL_LIP);
         return SDFSample_SmoothUnion(bodySample, tongueSample, k);
     }
     Vector3 basinCenter, basinRadii; float k;
     MonsterSDF_GetBasinParams(mouth, &basinCenter, &basinRadii, &k);
     float oral = SDF_Ellipsoid(Vec3_Sub(point, basinCenter), basinRadii);
-    return SDFSample_Subtract(SDFSample_Create(body, mouth->skinColor, SDF_MATERIAL_SKIN), SDFSample_Create(oral, mouth->insideColor, SDF_MATERIAL_MOUTH), k);
+    bool billJaw = mouth->isBill && point.z >= mouth->noseCenterLocal.z;
+    return SDFSample_Subtract(SDFSample_Create(body, billJaw ? mouth->nasalColor : mouth->skinColor,
+        billJaw ? SDF_MATERIAL_NASAL_PAD : SDF_MATERIAL_SKIN), SDFSample_Create(oral, mouth->insideColor, SDF_MATERIAL_MOUTH), k);
 }
 static float MonsterSDF_EvaluateJawDistanceWrapper(const void* context, Vector3 point) {
     const MonsterSDFJawField* field=(const MonsterSDFJawField*)context;

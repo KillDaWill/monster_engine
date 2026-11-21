@@ -506,13 +506,23 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
         surface->integument.scales = substrate->scales;
         surface->integument.plates = substrate->plates;
         surface->transition.targetScaleSeed = substrate->scales.seed;
+    } else if (scaleA && scaleB) {
+        surface->integument.plates.armorScale = Math_Lerp(ia->plates.armorScale, ib->plates.armorScale, r->relief);
+        surface->integument.plates.scaleCurvature = Math_Lerp(ia->plates.scaleCurvature, ib->plates.scaleCurvature, r->relief);
+        surface->integument.plates.tipTaper = Math_Lerp(ia->plates.tipTaper, ib->plates.tipTaper, r->relief);
+        surface->integument.plates.ventralCoverage = Math_Lerp(ia->plates.ventralCoverage, ib->plates.ventralCoverage, r->relief);
+        surface->integument.plates.scaleColor = Palette(ia->plates.scaleColor, ib->plates.scaleColor, r->relief, g);
+        surface->integument.plates.scaleTipColor = Palette(ia->plates.scaleTipColor, ib->plates.scaleTipColor, r->relief, g);
     }
     surface->transition.scaleCoverage=Math_Lerp(scaleA ? ia->coverage : input[0].transition.scaleCoverage,
         scaleB ? ib->coverage : input[1].transition.scaleCoverage,r->relief);
     surface->integument.scales.size*=g->frequency;
     surface->integument.scales.relief*=g->coverage;
     float furCoverage = Math_Lerp(furA,furB,r->fur);
-    if (furCoverage > 0) {
+    bool keepArmorPlates = (ia->type == INTEGUMENT_PLATES || ib->type == INTEGUMENT_PLATES) &&
+        surface->integument.plates.armorScale > 0.05f &&
+        input[r->surfaceParent].integument.type == INTEGUMENT_PLATES;
+    if (furCoverage > 0 && !keepArmorPlates) {
         surface->integument.type = INTEGUMENT_FUR;
         surface->integument.coverage = Math_Clamp01(furCoverage*g->coverage);
         if (!furA) surface->integument.fur = ib->fur;
@@ -642,6 +652,7 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
     regional->archetype = primary->head.archetype;
     const HeadAnatomy *structure = r->headParent ? &second : &first;
     regional->surface.isBeak = structure->surface.isBeak;
+    regional->surface.isBill = structure->surface.isBill;
     regional->oralSystem.shape = structure->oralSystem.shape;
     p->head.nasalColor = Palette(first.surface.nasalColor,second.surface.nasalColor,r->facial,g);
     regional->surface.nasalColor=p->head.nasalColor;
@@ -690,6 +701,10 @@ static void BlendLimb(LimbPhenotype *l, const LimbPhenotype *base, const LimbPhe
             l->footScale = Math_Lerp(base->footScale,other->footScale,weight);
             l->footWidthScale = Math_Lerp(base->footWidthScale,other->footWidthScale,weight);
             l->footHeightScale = Math_Lerp(base->footHeightScale,other->footHeightScale,weight);
+            l->webbingCoverage = Math_Lerp(base->webbingCoverage,other->webbingCoverage,weight);
+            l->webbingThickness = Math_Lerp(base->webbingThickness,other->webbingThickness,weight);
+            l->webbingEdgeCurve = Math_Lerp(base->webbingEdgeCurve,other->webbingEdgeCurve,weight);
+            l->webbingFold = Math_Lerp(base->webbingFold,other->webbingFold,weight);
         }
     }
     l->thickness *= g->limbMassGain;
@@ -933,6 +948,25 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                     }
                 }
             }
+        }
+        /* Remapeo seguro de membranas explícitas y patagios desde el progenitor de extremidades. */
+        result->membraneCount = 0;
+        const CreaturePhenotype *memSrc = p[r->limbParent];
+        for (size_t mi=0; mi<memSrc->membraneCount && result->membraneCount<CREATURE_MAX_MEMBRANES; ++mi) {
+            AnatomicalMembraneProfile mp = memSrc->membranes[mi];
+            uint32_t mA = MapModule(batch,&out->bodyPlan,sources,r->limbParent,mp.moduleAInstanceId);
+            uint32_t mB = MapModule(batch,&out->bodyPlan,sources,r->limbParent,mp.moduleBInstanceId);
+            uint32_t mAE = mp.moduleAEndInstanceId ?
+                MapModule(batch,&out->bodyPlan,sources,r->limbParent,mp.moduleAEndInstanceId) : mA;
+            uint32_t mBE = mp.moduleBEndInstanceId ?
+                MapModule(batch,&out->bodyPlan,sources,r->limbParent,mp.moduleBEndInstanceId) : mB;
+            if (!mA || !mB || !mAE || !mBE) continue;
+            mp.moduleInstanceId = 0;
+            mp.moduleAInstanceId = mA;
+            mp.moduleAEndInstanceId = mAE == mA ? 0 : mAE;
+            mp.moduleBInstanceId = mB;
+            mp.moduleBEndInstanceId = mBE == mB ? 0 : mBE;
+            result->membranes[result->membraneCount++] = mp;
         }
     }
     candidate->report = *r;

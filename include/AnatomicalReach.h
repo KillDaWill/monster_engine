@@ -4,7 +4,7 @@
 #define MONSTER_ANATOMICAL_REACH_H
 #include "RigBuilder.h"
 #include "InteractionTarget.h"
-#define REACH_MAX_JOINTS 8
+#define REACH_MAX_JOINTS 12
 typedef struct ReachPreset {
     float comfortFraction, velocity, acceleration, strainWeight, continuityWeight, crouchFraction;
     unsigned iterations, torsoJoints;

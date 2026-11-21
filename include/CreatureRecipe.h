@@ -66,7 +66,8 @@ typedef enum CreatureGait {
     CREATURE_GAIT_UPRIGHT_QUADRUPED, /**< Paso cuadrúpedo digitígrado genérico. */
     CREATURE_GAIT_FELINE_STALK,     /**< Merodeo felino: ciclo largo, zancada corta y cuerpo agachado. */
     CREATURE_GAIT_BOVINE_WALK,      /**< Transferencia lenta de peso para ungulados robustos. */
-    CREATURE_GAIT_COLUMNAR_WALK    /**< Paso lento con elevación y oscilación reducidas. */
+    CREATURE_GAIT_COLUMNAR_WALK,    /**< Paso lento con elevación y oscilación reducidas. */
+    CREATURE_GAIT_BIPEDAL_HOP       /**< Salto bípedo sincronizado con fase de impulso, vuelo parabólico y contrapeso caudal. */
 } CreatureGait;
 
 /**

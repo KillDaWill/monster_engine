@@ -264,7 +264,8 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
         return p->archetype==LIMB_ARCHETYPE_MAMMAL && Columnar(p,module,slot,g);
     bool hoof=p->archetype==LIMB_ARCHETYPE_UNGULATE;
     bool plantigrade=p->anatomyProfile==LIMB_PROFILE_PLANTIGRADE;
-    if(plantigrade&&(hoof||!p->digitCount))return false;
+    bool macropod=p->anatomyProfile==LIMB_PROFILE_MACROPOD;
+    if((plantigrade||macropod)&&(hoof||!p->digitCount))return false;
     if(hoof&&(p->digitCount<1||p->digitCount>3))return false;
     if(hoof&&p->digitCount==1&&p->dewclawSize>0)return false;
     for (unsigned d=0;d<p->digitCount;++d) if (!p->digitPhalanges[d] || p->digitPhalanges[d]>5) return false;
@@ -275,20 +276,25 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     float side=p->side==LIMB_RIGHT?-1:1;
     float length=p->length*slot->scale*fmaxf(.01f,p->development);
     float r=p->thickness*slot->scale*fmaxf(.01f,p->development);
-    float upper=(hoof?(hind?.32f:.29f):(hind?.36f:.35f))*p->proximalScale;
-    float lower=(hoof?(hind?.36f:.40f):(hind?.40f:.53f))*p->middleScale;
-    float distal=(hoof?(hind?.32f:.31f):(hind?.24f:.12f))*p->distalScale;
+    float upper=(hoof?(hind?.32f:.29f):(macropod&&hind?.25f:(hind?.36f:.35f)))*p->proximalScale;
+    float lower=(hoof?(hind?.36f:.40f):(macropod&&hind?.44f:(hind?.40f:.53f)))*p->middleScale;
+    float distal=(hoof?(hind?.32f:.31f):(macropod&&hind?.31f:(hind?.24f:.12f)))*p->distalScale;
     float sum=upper+lower+distal;
     upper/=sum; lower/=sum;
     float inset=-side*r*p->attachmentInset;
     float lateral=side*length*p->sprawl*.18f;
     Vector3 positions[4]={{inset,0,0},
-        {inset+lateral,-length*upper,length*((hind?.16f:-.055f)+p->proximalSweep)},
-        {inset+lateral,-length*(upper+lower),length*((hind?-.10f:0)+p->distalSweep)},
-        {inset+lateral,-length,length*(hind?-.075f:.025f)}};
-    float w[]={r*p->rootThicknessScale,r*.78f*p->middleThicknessScale,
-        r*.40f*p->distalThicknessScale,r*1.05f*p->footScale*p->footWidthScale};
-    float h[]={w[0],w[1],w[2],r*.48f*p->footScale*p->footHeightScale};
+        {inset+lateral,-length*upper,length*((hind?(macropod?.24f:.16f):-.055f)+p->proximalSweep)},
+        {inset+lateral,-length*(macropod&&hind?.90f:(upper+lower)),length*((hind?(macropod?-.16f:-.10f):0)+p->distalSweep)},
+        {inset+lateral,macropod&&hind?(-length+r*.24f*p->footHeightScale):-length,length*(hind?(macropod?.22f*p->footScale:-.075f):.025f)}};
+    float w[]={r*p->rootThicknessScale*(macropod&&hind?1.24f:1.0f),
+        r*(macropod&&hind?.68f:.78f)*p->middleThicknessScale,
+        r*(macropod&&hind?.38f:.40f)*p->distalThicknessScale,
+        r*(macropod&&hind?.50f:1.05f)*p->footScale*p->footWidthScale};
+    float h[]={w[0]*(macropod&&hind?1.10f:1.0f),
+        w[1]*(macropod&&hind?1.14f:1.0f),
+        w[2]*(macropod&&hind?1.18f:1.0f),
+        r*(macropod&&hind?.28f:.48f)*p->footScale*p->footHeightScale};
     if(hoof){
         /* El metapodio termina en un menudillo estrecho; no existe el cojín
          * común de la pata carnívora que rellenaría la hendidura del casco. */
@@ -318,15 +324,15 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             edge->widthBulge=fullness;
             edge->heightBulge=fullness*(hind?1.15f:.85f);
             if(compact)edge->jointBlend=1.0f;
-            /* El metapodio conserva un tallo estrecho hasta el cojín distal. */
-            if (i==3 && !compact) edge->widthBulge=hoof?-r*.04f:-r*.28f*p->footScale;
+            /* El metapodio conserva un tallo estrecho hasta el cojín distal; en macrópodos forma una viga plantar continua. */
+            if (i==3 && !compact) edge->widthBulge=hoof?-r*.04f:(macropod&&hind?r*.04f:-r*.28f*p->footScale);
         }
     }
     if (!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)) return false;
     if(hoof)return UngulateFoot(p,module,slot,g,positions[3],r,h[3]);
     float footYaw=side*p->footYaw;
     if(plantigrade && !Palm(p,module,slot,g,positions[3],pawRadius,h[3],footYaw))return false;
-    float rootSpacing=.44f;
+    float rootSpacing=macropod&&hind?.34f:.44f;
     if(plantigrade) {
         /* Más dedos comparten la anchura de la palma en lugar de nacer fuera. */
         float halfSpan=fmaxf(1,((float)p->digitCount-1)*.5f);

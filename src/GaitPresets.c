@@ -90,3 +90,25 @@ GaitProfile GaitPreset_QuadrupedMotion(const Rig* rig,bool agile,float speed,flo
     }
     return g;
 }
+
+GaitProfile GaitPreset_BipedalHop(const Rig* rig) {
+    float reach=INFINITY,distal=INFINITY;
+    if(rig)for(size_t i=0;i<rig->limbCount;++i) {
+        const LimbRig* limb=&rig->limbs[i];
+        if(!limb->walking)continue;
+        float length=0;
+        for(size_t k=1;k<limb->chain.jointCount;++k)
+            length+=Vec3_Length(rig->skeleton.joints[limb->chain.jointIndices[k]].restPosition);
+        reach=fminf(reach,length);
+        distal=fminf(distal,Vec3_Length(rig->skeleton.joints[limb->endEffectorJoint].restPosition));
+    }
+    if(!isfinite(reach)||reach<=0)reach=1;
+    if(!isfinite(distal)||distal<=0)distal=reach*.22f;
+    GaitProfile g={.cycleDuration=.68f,.strideLength=.92f*reach,.stepHeight=.28f*reach,
+        .stanceRatio=.44f,.bodyBob=.18f*reach,.bodySway=0.0f,
+        .spineWave=.014f,.tailCounterSwing=.09f,.spineTurn=.06f,.tailTurn=.14f,.bodyBank=.02f,
+        .supportCompression=.045f*reach};
+    /* Salto bípedo sincronizado: ambas extremidades posteriores comparten fase 0. */
+    if(rig)for(size_t i=0;i<rig->limbCount;++i)g.limbPhase[i]=0.0f;
+    return g;
+}

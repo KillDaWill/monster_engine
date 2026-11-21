@@ -81,7 +81,7 @@ static void AnatomyChecks(void) {
     CreaturePhenotype unsupported=r->adult;
     unsupported.axial.archetype=AXIAL_ARCHETYPE_CUSTOM;
     TEST_ASSERT(!CreatureRecipe_Validate(r,&unsupported),"Rechazar capacidades axiales no implementadas");
-    unsupported=r->adult;unsupported.limbs[0].archetype=LIMB_ARCHETYPE_WING;
+    unsupported=r->adult;unsupported.limbs[0].archetype=LIMB_ARCHETYPE_FLIPPER;
     TEST_ASSERT(!CreatureRecipe_Validate(r,&unsupported),"Rechazar miembros no implementados");
 }
 /* La apariencia no puede reconstruir la posición desde la órbita ni

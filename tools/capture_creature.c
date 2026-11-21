@@ -104,7 +104,7 @@ int main(int argc,char** argv) {
     }
     if(neutral) {
         LongHairSet_Free(&v->longHair);
-        Neutral(&v->mesh);Neutral(&v->headMesh);
+        Neutral(&v->mesh);Neutral(&v->headMesh);Neutral(&v->membraneMesh);Neutral(&v->armorMesh);
         for(size_t i=0;i<v->mouthCount;++i) {
             Neutral(&v->mouths[i].jawBase);Neutral(&v->mouths[i].hingeBase);
             Neutral(&v->mouths[i].jaw);Neutral(&v->mouths[i].hinge);

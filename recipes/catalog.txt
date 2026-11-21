@@ -7,3 +7,8 @@ cerdo.creature.json
 elefante.creature.json
 rinoceronte.creature.json
 rata.creature.json
+jirafa.creature.json
+ornitorrinco.creature.json
+pangolin.creature.json
+canguro.creature.json
+murcielago.creature.json

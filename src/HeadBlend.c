@@ -203,6 +203,7 @@ void HeadAnatomy_Blend(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAna
     out->surface.hasEars=a->surface.hasEars || b->surface.hasEars;
     out->surface.sweptSkull=t<0.5f?a->surface.sweptSkull:b->surface.sweptSkull;
     out->surface.isBeak=t<0.5f?a->surface.isBeak:b->surface.isBeak;
+    out->surface.isBill=t<0.5f?a->surface.isBill:b->surface.isBill;
     out->surface.tympanumDevelopment=Math_Lerp(a->surface.hasTympana?a->surface.tympanumDevelopment:0,b->surface.hasTympana?b->surface.tympanumDevelopment:0,t);
     out->surface.hasTympana=(a->surface.hasTympana && t<1.0f)||(b->surface.hasTympana && t>0.0f);
     out->surface.faceCapWeight=Math_Lerp(a->surface.faceCapWeight,b->surface.faceCapWeight,t);
@@ -404,6 +405,7 @@ bool HeadAnatomy_ResolveHybrid(const HeadPhenotype *primary, const HeadHybridPro
      * aunque cráneo, músculos y mandíbula tengan una geometría intermedia. */
     out->archetype = first.archetype;
     out->surface.isBeak = first.surface.isBeak;
+    out->surface.isBill = first.surface.isBill;
     out->oralSystem.shape = first.oralSystem.shape;
     out->landmarks.leftOrbitNormal = Vec3_Normalize(out->landmarks.leftOrbitNormal);
     out->landmarks.rightOrbitNormal = Vec3_Normalize(out->landmarks.rightOrbitNormal);

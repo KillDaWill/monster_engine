@@ -8,9 +8,11 @@
 #include "Limb.h"
 #include "LimbReptile.h"
 #include "LimbMammal.h"
+#include "LimbBatWing.h"
 
 bool Limb_Supports(LimbArchetype a) {
-    return a == LIMB_ARCHETYPE_REPTILE || a == LIMB_ARCHETYPE_MAMMAL || a == LIMB_ARCHETYPE_UNGULATE;
+    return a == LIMB_ARCHETYPE_REPTILE || a == LIMB_ARCHETYPE_MAMMAL ||
+           a == LIMB_ARCHETYPE_UNGULATE || a == LIMB_ARCHETYPE_WING;
 }
 
 uint16_t Limb_DigitLocalId(unsigned digit, unsigned station) {
@@ -25,6 +27,8 @@ bool Limb_Resolve(const LimbPhenotype* phenotype, uint32_t moduleInstanceId, con
         return LimbMammal_Resolve(phenotype, moduleInstanceId, slot, graph);
     case LIMB_ARCHETYPE_REPTILE:
         return LimbReptile_Resolve(phenotype, moduleInstanceId, slot, graph);
+    case LIMB_ARCHETYPE_WING:
+        return LimbBatWing_Resolve(phenotype, moduleInstanceId, slot, graph);
     default:
         return false;
     }
@@ -38,6 +42,8 @@ bool Limb_BuildRigDescriptor(const LimbPhenotype* phenotype, uint32_t moduleInst
         return LimbMammal_BuildRigDescriptor(phenotype, moduleInstanceId, graph, out);
     case LIMB_ARCHETYPE_REPTILE:
         return LimbReptile_BuildRigDescriptor(phenotype, moduleInstanceId, graph, out);
+    case LIMB_ARCHETYPE_WING:
+        return LimbBatWing_BuildRigDescriptor(phenotype, moduleInstanceId, graph, out);
     default:
         return false;
     }
@@ -52,6 +58,9 @@ void Limb_ConfigureRig(const LimbRigDescriptor* limb, const AnatomyGraph* graph,
         break;
     case LIMB_ARCHETYPE_REPTILE:
         LimbReptile_ConfigureRig(limb, graph, rig);
+        break;
+    case LIMB_ARCHETYPE_WING:
+        LimbBatWing_ConfigureRig(limb, graph, rig);
         break;
     default:
         break;

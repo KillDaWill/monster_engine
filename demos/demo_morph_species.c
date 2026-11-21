@@ -35,7 +35,7 @@
 #include <string.h>
 #include <time.h>
 
-#define MAX_CATALOG_RECIPES 16
+#define MAX_CATALOG_RECIPES 32
 #define MAX_CYCLE_SAMPLES 11
 #define MORPH_ZOOM_MIN 0.55f
 #define MORPH_ZOOM_MAX 1.85f
@@ -221,6 +221,10 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "elephant") || EqualsIgnoreCase(spec, "african-elephant")) spec = "Elefante";
     else if (EqualsIgnoreCase(spec, "pig") || EqualsIgnoreCase(spec, "swine")) spec = "Cerdo";
     else if (EqualsIgnoreCase(spec, "explorer")) spec = "Explorador";
+    else if (EqualsIgnoreCase(spec, "giraffe")) spec = "Jirafa";
+    else if (EqualsIgnoreCase(spec, "platypus")) spec = "Ornitorrinco";
+    else if (EqualsIgnoreCase(spec, "kangaroo")) spec = "Canguro";
+    else if (EqualsIgnoreCase(spec, "bat")) spec = "Murcielago";
 
     char* end = NULL;
     unsigned long num = strtoul(spec, &end, 10);

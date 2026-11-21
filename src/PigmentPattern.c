@@ -128,6 +128,38 @@ static float SamplePattern(
         return Math_Clamp01(d * 0.5f + 0.5f);
     }
 
+    case PIGMENT_PATTERN_RETICULATED: {
+        int bx = (int)floorf(q.x), by = (int)floorf(q.y), bz = (int)floorf(q.z);
+        float fx = q.x - (float)bx, fy = q.y - (float)by, fz = q.z - (float)bz;
+        float f1 = 1e9f, f2 = 1e9f;
+        for (int dz = -1; dz <= 1; ++dz) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    int cx = bx + dx, cy = by + dy, cz = bz + dz;
+                    uint32_t h = (uint32_t)cx * 0x9e3779b9u ^ (uint32_t)cy * 0x85ebca6bu ^ (seed ^ (uint32_t)cz);
+                    h ^= h >> 16; h *= 0x7feb352du; h ^= h >> 15; h *= 0x846ca68bu; h ^= h >> 16;
+                    uint32_t h2 = h;
+                    h2 ^= h2 >> 16; h2 *= 0x7feb352du; h2 ^= h2 >> 15; h2 *= 0x846ca68bu; h2 ^= h2 >> 16;
+                    uint32_t h3 = h + 1u;
+                    h3 ^= h3 >> 16; h3 *= 0x7feb352du; h3 ^= h3 >> 15; h3 *= 0x846ca68bu; h3 ^= h3 >> 16;
+                    float jx = 0.10f + 0.80f * (float)(h >> 8) * (1.0f / 16777216.0f);
+                    float jy = 0.10f + 0.80f * (float)(h2 >> 8) * (1.0f / 16777216.0f);
+                    float jz = 0.10f + 0.80f * (float)(h3 >> 8) * (1.0f / 16777216.0f);
+                    float px = (float)dx + jx - fx;
+                    float py = (float)dy + jy - fy;
+                    float pz = (float)dz + jz - fz;
+                    float d2 = px * px + py * py + pz * pz;
+                    if (d2 < f1) { f2 = f1; f1 = d2; }
+                    else if (d2 < f2) { f2 = d2; }
+                }
+            }
+        }
+        float edge = sqrtf(f2) - sqrtf(f1);
+        float border = 0.14f - 0.06f * sh;
+        float w = 0.06f * (1.0f - sh * 0.75f);
+        return Smoothstep(border - w, border + w, edge);
+    }
+
     default:
         return 0.0f;
     }

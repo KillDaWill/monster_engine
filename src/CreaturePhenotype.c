@@ -21,6 +21,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     if (p->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES)
         p->flexibleAppendageCount = CREATURE_MAX_FLEXIBLE_APPENDAGES;
     if (p->ornamentCount > CREATURE_MAX_ORNAMENTS) p->ornamentCount = CREATURE_MAX_ORNAMENTS;
+    if (p->membraneCount > CREATURE_MAX_MEMBRANES) p->membraneCount = CREATURE_MAX_MEMBRANES;
 
 #define POS(name, value) p->axial.name = Positive(p->axial.name, value)
     POS(withersHeight, 4.0f); POS(totalScale, 1.0f); POS(neckLength, 1.0f); POS(neckWidth, 0.7f); POS(shoulderWidth, 1.5f);
@@ -49,6 +50,9 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     p->axial.withersRoundness=Unit(p->axial.withersRoundness,0);
     p->axial.dewlapDepth=Unit(p->axial.dewlapDepth,0);
     p->axial.brisketDepth=Unit(p->axial.brisketDepth,0);
+    if (p->axial.cervicalSegments > 8) p->axial.cervicalSegments = 8;
+    p->axial.cervicalPitch = isfinite(p->axial.cervicalPitch) ? Math_Clamp(p->axial.cervicalPitch, 0.0f, 1.45f) : 0.0f;
+    p->axial.spineFlexion = isfinite(p->axial.spineFlexion) ? Math_Clamp(p->axial.spineFlexion, 0.0f, 0.65f) : 0.0f;
     p->development.appendages = Unit(p->development.appendages, 1.0f);
     p->development.cephalic = Unit(p->development.cephalic, 1.0f);
     p->development.pigmentation = Unit(p->development.pigmentation, 1.0f);
@@ -68,6 +72,10 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         l->hoofToeRoundness=Math_Clamp(Positive(l->hoofToeRoundness,.8f),.3f,1);
         l->hoofHeelHeight=Math_Clamp(Positive(l->hoofHeelHeight,.75f),.4f,1);
         l->clawScale=Math_Clamp(isfinite(l->clawScale)?l->clawScale:0,0,3);
+        l->webbingCoverage=Unit(l->webbingCoverage,0);
+        l->webbingThickness=Math_Clamp(isfinite(l->webbingThickness)&&l->webbingThickness>0?l->webbingThickness:0.22f,0.06f,0.55f);
+        l->webbingEdgeCurve=Math_Clamp(isfinite(l->webbingEdgeCurve)?l->webbingEdgeCurve:0.18f,-0.30f,0.55f);
+        l->webbingFold=Unit(l->webbingFold,0);
         l->dewclawSize=Unit(l->dewclawSize,0);
         l->proximalScale = Positive(l->proximalScale, 1);
         l->middleScale = Positive(l->middleScale, 1);
@@ -106,7 +114,8 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         t->length = Positive(t->length, 1.0f);
         t->baseWidth = Positive(t->baseWidth, 0.6f);
         t->baseHeight = Positive(t->baseHeight, 0.45f);
-        t->tipWidth = Math_Min(Positive(t->tipWidth, 0.05f), t->baseWidth * 0.45f);
+        float tipWidthCap = t->archetype == TAIL_ARCHETYPE_PADDLE ? 1.50f : 0.45f;
+        t->tipWidth = Math_Min(Positive(t->tipWidth, 0.05f), t->baseWidth * tipWidthCap);
         t->tipHeight = Math_Min(Positive(t->tipHeight, 0.04f), t->baseHeight * 0.45f);
         t->taperCurve = Math_Clamp(Positive(t->taperCurve, 1.35f), 0.6f, 2.5f);
         t->development = Unit(t->development, 1.0f);
@@ -143,6 +152,16 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         f->restBend = isfinite(f->restBend) ? Math_Clamp(f->restBend, -1.57f, 1.57f) : 0;
     }
 
+    for (size_t i = 0; i < p->membraneCount; ++i) {
+        AnatomicalMembraneProfile* m = &p->membranes[i];
+        m->coverage = Unit(m->coverage, 1.0f);
+        m->thickness = Math_Clamp(isfinite(m->thickness) && m->thickness > 0 ? m->thickness : 0.012f, 0.002f, 0.08f);
+        m->edgeConcavity = Math_Clamp(isfinite(m->edgeConcavity) ? m->edgeConcavity : 0.16f, -0.25f, 0.55f);
+        m->camber = Math_Clamp(isfinite(m->camber) ? m->camber : 0.04f, -0.20f, 0.30f);
+        m->tension = Unit(m->tension, 0.85f);
+        m->development = Unit(m->development, 1.0f);
+    }
+
     p->eyes.size = isfinite(p->eyes.size) ? Math_Clamp(p->eyes.size, 0.0f, 4.0f) : 1.0f;
     p->eyes.protrusion = isfinite(p->eyes.protrusion) ? Math_Clamp(p->eyes.protrusion, 0.0f, 2.0f) : 1.0f;
     p->eyes.irisScale = Unit(p->eyes.irisScale, 0.72f);
@@ -162,8 +181,13 @@ bool CreaturePhenotype_TopologyCompatible(const CreaturePhenotype* a, const Crea
         a->tailCount > CREATURE_MAX_TAILS || a->ornamentCount > CREATURE_MAX_ORNAMENTS) {
         return false;
     }
+    unsigned cervA = a->axial.cervicalSegments > 1 ? a->axial.cervicalSegments : 1;
+    unsigned cervB = b->axial.cervicalSegments > 1 ? b->axial.cervicalSegments : 1;
+    if (cervA != cervB) return false;
     if (a->flexibleAppendageCount != b->flexibleAppendageCount ||
         a->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES) return false;
+    if (a->membraneCount != b->membraneCount ||
+        a->membraneCount > CREATURE_MAX_MEMBRANES) return false;
     for (size_t i = 0; i < a->flexibleAppendageCount; ++i)
         if (a->flexibleAppendages[i].terminal != b->flexibleAppendages[i].terminal) return false;
     for (size_t i = 0; i < a->limbCount; ++i) {
@@ -257,6 +281,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     LERP_BODY(axial.cervicalMidNarrowing); LERP_BODY(axial.withersElevation);
     LERP_BODY(axial.withersRoundness);
     LERP_BODY(axial.dewlapDepth); LERP_BODY(axial.brisketDepth);
+    LERP_BODY(axial.cervicalPitch); LERP_BODY(axial.spineFlexion);
     LERP_BODY(development.colorMaturity); LERP_BODY(development.pigmentation);
     LERP_BODY(development.appendages); LERP_BODY(development.cephalic); LERP_BODY(development.integument);
     LERP_BODY(eyes.size); LERP_BODY(eyes.protrusion); LERP_BODY(eyes.irisScale);
@@ -281,6 +306,10 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         p.limbs[i].thickness = Math_Lerp(a->limbs[i].thickness, b->limbs[i].thickness, mature);
         LERP_BODY(limbs[i].digitSpread); LERP_BODY(limbs[i].footScale);
         LERP_BODY(limbs[i].clawScale);
+        LERP_BODY(limbs[i].webbingCoverage);
+        LERP_BODY(limbs[i].webbingThickness);
+        LERP_BODY(limbs[i].webbingEdgeCurve);
+        LERP_BODY(limbs[i].webbingFold);
         for (unsigned j = 0; j < p.limbs[i].digitCount; ++j) {
             LERP_BODY(limbs[i].digitLengths[j]); LERP_BODY(limbs[i].digitAngles[j]);
         }
@@ -299,6 +328,15 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(ornaments[i].curvature); LERP_BODY(ornaments[i].development);
         LERP_BODY(ornaments[i].growthDirection.x);LERP_BODY(ornaments[i].growthDirection.y);LERP_BODY(ornaments[i].growthDirection.z);
         LERP_BODY(ornaments[i].lateralSweep);
+    }
+    for (size_t i = 0; i < p.membraneCount; ++i) {
+        LERP_BODY(membranes[i].coverage);
+        LERP_BODY(membranes[i].thickness);
+        LERP_BODY(membranes[i].edgeConcavity);
+        LERP_BODY(membranes[i].camber);
+        LERP_BODY(membranes[i].tension);
+        LERP_BODY(membranes[i].development);
+        p.membranes[i].color = Color_Lerp(a->membranes[i].color, b->membranes[i].color, t);
     }
 #undef LERP_BODY
 

@@ -36,6 +36,26 @@ float SamplePigmentPattern(int pat, vec3 p, float scale, float sharpness, vec3 d
         vec3 d = length(dir) > 0.001 ? normalize(dir) : vec3(0.0, -1.0, 0.0);
         float grad = dot(p, d) * scale;
         return clamp(grad * 0.5 + 0.5, 0.0, 1.0);
+    } else if (pat == 8) {
+        ivec3 base = ivec3(floor(q));
+        vec3 frac = q - vec3(base);
+        float f1 = 1e9, f2 = 1e9;
+        for (int dz = -1; dz <= 1; ++dz) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    ivec3 cell = base + ivec3(dx, dy, dz);
+                    vec3 jitter = vec3(0.10) + 0.80 * CellHash(cell.xy, seed ^ uint(cell.z));
+                    vec3 delta = vec3(float(dx), float(dy), float(dz)) + jitter - frac;
+                    float d2 = dot(delta, delta);
+                    if (d2 < f1) { f2 = f1; f1 = d2; }
+                    else if (d2 < f2) { f2 = d2; }
+                }
+            }
+        }
+        float edge = sqrt(f2) - sqrt(f1);
+        float border = 0.14 - 0.06 * sh;
+        float w = 0.06 * (1.0 - sh * 0.75);
+        return smoothstep(border - w, border + w, edge);
     }
     return 0.0;
 }

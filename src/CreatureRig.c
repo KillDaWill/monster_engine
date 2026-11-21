@@ -58,10 +58,20 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
     const bool sprawling = (m->phenotype.axial.archetype == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD);
     float neckUpSlope = 0.0f;
     r->cervicalBaseJoint = -1;
+    r->cervicalChainCount = 0;
     /* Articulación auxiliar sin volumen: gira el segmento completo desde su
      * inserción torácica, en lugar de doblar únicamente el extremo del cuello.
-     * Se inserta antes de resolver índices de extremidades y controladores. */
-    int cervical = neck ? Skeleton_FindJoint(s, neck->id) : -1;
+     * En cadenas cervicales largas se inserta en la estación cervical más
+     * basal (hija directa del tórax) y todas las juntas intermedias reciben
+     * límites elipsoidales continuos. */
+    int distalNeck = neck ? Skeleton_FindJoint(s, neck->id) : -1;
+    int cervical = distalNeck;
+    while (cervical >= 0 && s->joints[cervical].parentIndex >= 0) {
+        int parent = s->joints[cervical].parentIndex;
+        const AnatomyNode* pNode = AnatomyGraph_FindNode(g, s->joints[parent].anatomyId);
+        if (!pNode || pNode->region != ANATOMY_REGION_NECK) break;
+        cervical = parent;
+    }
     if (cervical >= 0 && s->joints[cervical].parentIndex >= 0) {
         int parent = s->joints[cervical].parentIndex;
         const AnatomyNode* insertion=AnatomyGraph_FindNode(g,s->joints[parent].anatomyId);
@@ -78,11 +88,13 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
         s->joints[cervical + 1].restPosition.y += ventral;
         s->joints[cervical + 1].parentIndex = cervical;
         /* Calibrar rango vertical respecto a la inclinación en reposo del segmento cervical:
-         * cuellos muy erguidos (cánidos/équidos) necesitan bajar más en ángulo relativo para pastar
+         * cuellos muy erguidos (cánidos/équidos/jirafas) necesitan bajar más en ángulo relativo para pastar
          * o beber sin rebasar la vertical al mirar arriba; reptiles reptantes están limitados por el suelo. */
-        Vector3 nvec = s->joints[cervical + 1].restPosition;
-        float nHoriz = sqrtf(nvec.x * nvec.x + nvec.z * nvec.z);
-        float restSlope = atan2f(nvec.y, fmaxf(1e-4f, nHoriz));
+        Vector3 distalPos = (distalNeck != cervical && neck && insertion)
+            ? Vec3_Sub(neck->center, insertion->center)
+            : s->joints[cervical + 1].restPosition;
+        float nHoriz = sqrtf(distalPos.x * distalPos.x + distalPos.z * distalPos.z);
+        float restSlope = atan2f(distalPos.y, fmaxf(1e-4f, nHoriz));
         neckUpSlope = fmaxf(0.0f, restSlope);
         JointConstraint baseLimits = sprawling
             ? Ellipsoid(Vec3_Create(0, 0, 1), 0.14f,
@@ -100,8 +112,23 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
     r->pelvisJoint = pelvis ? Skeleton_FindJoint(s, pelvis->id) : -1;
     r->headJoint = head ? Skeleton_FindJoint(s, head->id) : -1;
     r->neckJoint = neck ? Skeleton_FindJoint(s, neck->id) : -1;
+    if (r->neckJoint >= 0) {
+        int reverse[RIG_MAX_CERVICAL_JOINTS];
+        size_t count = 0;
+        int cur = r->neckJoint;
+        int stop = r->cervicalBaseJoint >= 0 ? r->cervicalBaseJoint : r->neckJoint;
+        while (cur >= 0 && count < RIG_MAX_CERVICAL_JOINTS) {
+            reverse[count++] = cur;
+            if (cur == stop) break;
+            cur = s->joints[cur].parentIndex;
+        }
+        for (size_t k = 0; k < count; ++k)
+            r->cervicalChain[k] = reverse[count - 1 - k];
+        r->cervicalChainCount = count;
+    }
 
     /* Orden desde pelvis/tronco hacia cuello para la onda axial */
+    float spineSwing = m->phenotype.axial.spineFlexion > 0.0f ? m->phenotype.axial.spineFlexion : 0.12f;
     for (size_t i = g->nodeCount; i > 0; --i) {
         const AnatomyNode* n = &g->nodes[i - 1];
         if (n->region == ANATOMY_REGION_TRUNK && r->spineCount < RIG_MAX_AXIAL_JOINTS) {
@@ -109,7 +136,7 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
             if (joint >= 0) {
                 r->spineRadius[r->spineCount]=fmaxf(n->widthRadius,n->heightRadius);
                 r->spine[r->spineCount++] = joint;
-                s->joints[joint].constraint = Ball(Vec3_Create(0, 0, 1), 0.12f, 0.08f);
+                s->joints[joint].constraint = Ball(Vec3_Create(0, 0, 1), spineSwing, 0.08f);
             }
         }
     }
@@ -170,9 +197,19 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
     }
     if (r->neckJoint >= 0) {
         float uprightNeckUp = fminf(0.21f, fmaxf(0.13f, 0.90f - 0.55f * neckUpSlope));
-        s->joints[r->neckJoint].constraint = sprawling
+        JointConstraint neckLimit = sprawling
             ? Ellipsoid(Vec3_Create(0, 0, 1), 0.16f, 0.22f, 0.34f, 0.05f)
             : Ellipsoid(Vec3_Create(0, 0, 1), uprightNeckUp, 0.65f, 0.42f, 0.07f);
+        s->joints[r->neckJoint].constraint = neckLimit;
+        if (r->cervicalChainCount > 2) {
+            float segScale = 1.0f / (float)(r->cervicalChainCount - 1);
+            JointConstraint segLimit = Ellipsoid(Vec3_Create(0, 0, 1),
+                fmaxf(0.12f, (1.15f - neckUpSlope) * segScale),
+                fmaxf(0.32f, (0.90f + neckUpSlope) * segScale),
+                0.28f * segScale + 0.08f, 0.04f);
+            for (size_t k = 1; k + 1 < r->cervicalChainCount; ++k)
+                s->joints[r->cervicalChain[k]].constraint = segLimit;
+        }
     }
     if (head && m->hasHead) {
         Vector3 host = m->head.anatomy.attachmentBodyPartIndex < m->bodyPartCount
@@ -202,6 +239,8 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
 
         LimbRigDescriptor desc = {0};
         if (!Limb_BuildRigDescriptor(p, module->instanceId, g, &desc)) return false;
+        if (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP && desc.role == LIMB_FORE)
+            desc.locomotionLimb = false;
 
         if (!RigBuilder_AddLimb(r, desc.joints, desc.jointCount, desc.role, desc.side, desc.locomotionLimb)) {
             return false;

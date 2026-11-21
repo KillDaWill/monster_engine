@@ -163,6 +163,9 @@ size_t AnatomyDeformer_GetVertexCount(const AnatomyDeformer* morph);
 /** @brief Vincula malla y transformados de reposo; reserva solo durante bind. */
 bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* deformer,const Mesh* mesh,
     const AnatomyGraph* rest,const Skeleton* skeleton);
+/** @brief Vincula una malla auxiliar con pesos articulares explícitos en pose de reposo. */
+bool AnatomyDeformer_BindExplicitSkin(AnatomyDeformer* deformer,const Mesh* mesh,
+    const AnatomyGraph* rest,const Skeleton* skeleton,const AnatomySkinBinding* skinBindings);
 /** @brief Fija el cráneo a su articulación; sólo el collar posterior mezcla piel.
  * @param deformer Vinculación esquelética actual. @param skeleton Esqueleto vinculado.
  * @param headJoint Articulación cefálica. @param attachment Plano occipital en reposo.

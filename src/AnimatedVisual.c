@@ -1,4 +1,6 @@
 #include "AnimatedVisual.h"
+#include "Membrane.h"
+#include "ArmorScales.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -12,7 +14,7 @@ static bool CopyMesh(Mesh* dst,const Mesh* src) {
 }
 void AnimatedVisual_Free(AnimatedVisual* a) {
     if(!a)return;
-    AnatomyDeformer_Free(a->body); Mesh_Free(&a->headBase);
+    AnatomyDeformer_Free(a->body); AnatomyDeformer_Free(a->membrane); AnatomyDeformer_Free(a->armor); Mesh_Free(&a->headBase);
     for(size_t i=0;i<a->eyeCount;++i) Mesh_Free(&a->eyeBases[i].globe);
     free(a->eyeBases); memset(a,0,sizeof(*a));
 }
@@ -22,6 +24,18 @@ bool AnimatedVisual_Bind(AnimatedVisual* a,const MonsterVisual* v,const Monster*
     AnimatedVisual next={0}; next.body=AnatomyDeformer_Create();
     if(!next.body || !AnatomyDeformer_BindSkeleton(next.body,&v->mesh,&m->anatomyGraph,&m->animation->rig.skeleton) ||
         !CopyMesh(&next.headBase,&v->headMesh)) { AnimatedVisual_Free(&next); return false; }
+    if(v->membraneMesh.vertexCount>0) {
+        next.membrane=AnatomyDeformer_Create();
+        if(!next.membrane || !Membrane_BindDeformer(m,&m->animation->rig.skeleton,&v->membraneMesh,next.membrane)) {
+            AnimatedVisual_Free(&next); return false;
+        }
+    }
+    if(v->armorMesh.vertexCount>0) {
+        next.armor=AnatomyDeformer_Create();
+        if(!next.armor || !ArmorScales_BindDeformer(m,&v->sdf,&m->animation->rig.skeleton,&v->armorMesh,next.armor)) {
+            AnimatedVisual_Free(&next); return false;
+        }
+    }
     if(v->eyeCount) {
         next.eyeBases=calloc(v->eyeCount,sizeof(*next.eyeBases));
         if(!next.eyeBases) { AnimatedVisual_Free(&next); return false; }
@@ -57,6 +71,10 @@ static bool DeformVisual(const AnimatedVisual* a,MonsterVisual* v,const Monster*
     if(!MonsterVisual_UpdateLongHair(&v->longHair,m))return false;
     const MonsterAnimation* animation=m->animation; const Rig* rig=&animation->rig; const SkeletonPose* p=&animation->pose;
     if(body&&!AnatomyDeformer_DeformPose(a->body,&rig->skeleton,p,&v->mesh))return false;
+    if(body&&a->membrane&&v->membraneMesh.vertexCount==a->membrane->vertexCount&&a->membrane->vertexCount>0&&
+       !AnatomyDeformer_DeformPose(a->membrane,&rig->skeleton,p,&v->membraneMesh))return false;
+    if(body&&a->armor&&v->armorMesh.vertexCount==a->armor->vertexCount&&a->armor->vertexCount>0&&
+       !AnatomyDeformer_DeformPose(a->armor,&rig->skeleton,p,&v->armorMesh))return false;
     int head=rig->headJoint; if(head<0)return true;
     Quaternion q=Quat_Multiply(p->joints[head].worldRotation,Quat_Inverse(a->restPose.joints[head].worldRotation));
     Vector3 rest=a->restPose.joints[head].worldPosition,target=p->joints[head].worldPosition;

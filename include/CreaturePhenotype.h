@@ -62,6 +62,9 @@ typedef struct AxialPhenotype {
     AxialStationMorph profile[AXIAL_PROFILE_STATIONS];
     AxialContourProfile contourProfile; /**< Opcional v1: cresta, flanco y grupa continuos. */
     float withersRoundness; /**< Redondeo de la cresta escapular a altura constante (0..1). */
+    unsigned cervicalSegments; /**< Opcional v1: tramos cervicales articulados (0/1 legado, 2..8 cadena larga). */
+    float cervicalPitch; /**< Opcional v1: elevación cervical en radianes cuando hay cadena articulada. */
+    float spineFlexion; /**< Opcional v1: límite angular de flexión espinal en radianes; cero usa el predeterminado. */
 } AxialPhenotype;
 
 typedef enum LimbArchetype {
@@ -80,7 +83,8 @@ typedef enum LimbAnatomyProfile {
     LIMB_PROFILE_CURSORIAL, /**< Musculatura integrada y estaciones distales ungulígradas. */
     LIMB_PROFILE_COMPACT_UNGULATE, /**< Miembro corto con mezcla muscular y transición al menudillo. */
     LIMB_PROFILE_COLUMNAR, /**< Extremidad columnar con apoyo acolchado. */
-    LIMB_PROFILE_PLANTIGRADE /**< Palma y planta continuas con dedos independientes. */
+    LIMB_PROFILE_PLANTIGRADE, /**< Palma y planta continuas con dedos independientes. */
+    LIMB_PROFILE_MACROPOD /**< Extremidad posterior saltadora macrópoda con tibia larga, tarso-metatarso alargado y cuarto dedo dominante. */
 } LimbAnatomyProfile;
 
 typedef struct LimbPhenotype {
@@ -107,6 +111,10 @@ typedef struct LimbPhenotype {
     unsigned nailCount; /**< Placas del borde anterior independientes de los dedos. */
     LimbAnatomyProfile anatomyProfile; /**< Opcional en JSON v1; ausencia equivale a LEGACY. */
     float clawScale; /**< Longitud del ungual mamífero en radios digitales. Cero lo omite. */
+    float webbingCoverage; /**< Extensión interdigital de membrana [0..1]; cero la omite. */
+    float webbingThickness; /**< Espesor de membrana relativo al radio digital [0.06..0.5]. */
+    float webbingEdgeCurve; /**< Concavidad festoneada del borde libre [-0.3..0.55]. */
+    float webbingFold; /**< Plegamiento/retracción terrestre de la membrana [0..1]. */
 } LimbPhenotype;
 
 typedef enum TailArchetype {
@@ -116,7 +124,8 @@ typedef enum TailArchetype {
     TAIL_ARCHETYPE_PREHENSILE,
     TAIL_ARCHETYPE_FINNED,
     TAIL_ARCHETYPE_CUSTOM,
-    TAIL_ARCHETYPE_COILED /**< Espiral cartilaginosa corta con paso lateral y longitud de arco estable. */
+    TAIL_ARCHETYPE_COILED, /**< Espiral cartilaginosa corta con paso lateral y longitud de arco estable. */
+    TAIL_ARCHETYPE_PADDLE /**< Cola ancha y aplanada dorsoventralmente con extremo redondeado. */
 } TailArchetype;
 
 typedef struct TailPhenotype {
@@ -136,7 +145,8 @@ typedef enum OrnamentArchetype {
     ORNAMENT_ARCHETYPE_PLATE,
     ORNAMENT_ARCHETYPE_CREST,
     ORNAMENT_ARCHETYPE_CUSTOM,
-    ORNAMENT_ARCHETYPE_TUSK
+    ORNAMENT_ARCHETYPE_TUSK,
+    ORNAMENT_ARCHETYPE_OSSICONE /**< Osicono cubierto de piel y pelo con extremo redondeado. */
 } OrnamentArchetype;
 
 typedef struct OrnamentPhenotype {
@@ -161,6 +171,31 @@ typedef struct FlexibleAppendagePhenotype {
     float initialPitch, restBend;
     FlexibleTerminal terminal;
 } FlexibleAppendagePhenotype;
+
+#define CREATURE_MAX_MEMBRANES 12
+
+/**
+ * @struct AnatomicalMembraneProfile
+ * @brief Membrana/patagio genérico acotado por dos cadenas de nodos anatómicos.
+ */
+typedef struct AnatomicalMembraneProfile {
+    uint32_t moduleInstanceId;    /**< Módulo anfitrión principal o 0 si es intermodular. */
+    uint32_t moduleAInstanceId;   /**< Módulo de inicio de la cadena A. */
+    uint32_t chainAStartNodeId;   /**< Nodo inicial local de la cadena A. */
+    uint32_t moduleAEndInstanceId;/**< Módulo final de la cadena A (0 usa moduleAInstanceId). */
+    uint32_t chainAEndNodeId;     /**< Nodo final local de la cadena A. */
+    uint32_t moduleBInstanceId;   /**< Módulo de inicio de la cadena B. */
+    uint32_t chainBStartNodeId;   /**< Nodo inicial local de la cadena B. */
+    uint32_t moduleBEndInstanceId;/**< Módulo final de la cadena B (0 usa moduleBInstanceId). */
+    uint32_t chainBEndNodeId;     /**< Nodo final local de la cadena B. */
+    float coverage;               /**< Cobertura a lo largo del borde distal/libre [0..1]. */
+    float thickness;              /**< Espesor relativo a escala total [0.002..0.06]. */
+    float edgeConcavity;          /**< Concavidad festoneada del borde libre [-0.25..0.55]. */
+    float camber;                 /**< Arqueamiento dorsal sutil de la lámina [-0.2..0.3]. */
+    float tension;                /**< Tensión de la membrana en reposo [0..1]. */
+    float development;            /**< Desarrollo ontogenético [0..1]. */
+    Color color;                  /**< Color base coriáceo de la membrana. */
+} AnatomicalMembraneProfile;
 
 typedef struct EyePhenotype {
     float size, protrusion, irisScale, pupilScale, pupilAspect;
@@ -191,6 +226,8 @@ typedef struct CreaturePhenotype {
     size_t ornamentCount;
     FlexibleAppendagePhenotype flexibleAppendages[CREATURE_MAX_FLEXIBLE_APPENDAGES];
     size_t flexibleAppendageCount;
+    AnatomicalMembraneProfile membranes[CREATURE_MAX_MEMBRANES];
+    size_t membraneCount;
     SurfacePhenotype surface;
     CreatureDevelopment development;
     Color dorsalColor, ventralColor, unpigmentedVentralColor;

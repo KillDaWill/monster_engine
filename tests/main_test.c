@@ -5,6 +5,7 @@ void run_suid_anatomy_tests(void);
 void run_flexible_appendage_tests(void);
 
 void run_creature_recipe_io_tests(void);
+void run_five_mammals_tests(void);
 void run_creature_offspring_tests(void);
 void run_bovine_editor_tests(void);
 void run_cloven_hoof_tests(void);
@@ -67,6 +68,7 @@ int main(void) {
     run_cloven_hoof_tests();
     run_bovine_editor_tests();
     run_creature_recipe_io_tests();
+    run_five_mammals_tests();
     run_creature_offspring_tests();
     run_ecosystem_tests();
     run_creature_visual_variation_tests();

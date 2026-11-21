@@ -131,6 +131,8 @@ typedef struct MonsterVisual {
     Mesh stagingMesh;       /**< Malla 3D de trabajo (reutilizable) */
     Mesh headMesh;          /**< Malla local anatómica de cabeza activa. */
     Mesh stagingHeadMesh;   /**< Malla cefálica transaccional de trabajo. */
+    Mesh membraneMesh;      /**< Malla paramétrica continua de membranas y patagios. */
+    Mesh armorMesh;         /**< Malla geométrica de placas imbricadas y coraza. */
     MonsterVisualEye* eyes; /**< Arreglo dinámico de mallas de ojos */
     size_t eyeCount;        /**< Cantidad actual de ojos */
     size_t eyeCapacity;     /**< Capacidad reservada de ojos */

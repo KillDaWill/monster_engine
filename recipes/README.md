@@ -57,3 +57,13 @@ la cola en reposo. Ambos campos se pueden omitir en documentos v1. Los
 arquetipos cefálicos 7 y 8 resuelven los perfiles rinocerótido y roedor.
 Las ranuras 15 y 16 del módulo cefálico corresponden al puente nasal
 anterior y posterior.
+
+`jirafa.creature.json` (ID 1011, Jirafa) utiliza cuello cervical articulado multiestación (`cervicalSegments`, `cervicalPitch`), osiconos craneales (`ORNAMENT_ARCHETYPE_OSSICONE`) y pelaje reticulado (`PIGMENT_PATTERN_RETICULATED`).
+
+`ornitorrinco.creature.json` (ID 1012, Ornitorrinco) emplea cabeza monotrema con pico en espátula flexible (`HEAD_ARCHETYPE_MONOTREME`), membrana interdigital retráctil en `limbs[].webbing*` y cola plana (`TAIL_ARCHETYPE_PADDLE`).
+
+`pangolin.creature.json` (ID 1013, Pangolín Chino) incorpora cabeza cónica (`HEAD_ARCHETYPE_PHOLIDOTE`), armadura geométrica imbrincada de queratina (`ArmorScales` configurable mediante `surface.integument.plates.*`) y enrollamiento defensivo (`defensiveCurl`).
+
+`canguro.creature.json` (ID 1014, Canguro Rojo) añade perfil macrópodo (`LIMB_PROFILE_MACROPOD`) con tibia larga y cuarto dedo dominante junto a marcha de salto bípedo sincronizado (`CREATURE_GAIT_BIPEDAL_HOP`).
+
+`murcielago.creature.json` (ID 1015, Murciélago Orejudo Pardo) implementa alas quiropteras (`LIMB_ARCHETYPE_WING`, `LimbBatWing`), patagios explícitos en `membranes[]` (plagiopatagio, propatagio, uropatagio) y dactilopatagios interdigitales II-V.

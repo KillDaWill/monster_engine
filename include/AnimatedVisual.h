@@ -8,6 +8,8 @@
 #include "AnatomyDeformer.h"
 typedef struct AnimatedVisual {
     AnatomyDeformer* body;
+    AnatomyDeformer* membrane;
+    AnatomyDeformer* armor;
     Mesh headBase;
     MonsterVisualEye* eyeBases;
     size_t eyeCount;

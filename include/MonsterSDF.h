@@ -232,6 +232,7 @@ typedef struct MonsterSDFMouth {
     Vector3 neckCollarMidRadii; /**< Radios intermedios del collar. */
     Vector3 neckCollarTipRadii; /**< Radios terminales, menores que el cuello corporal. */
     bool hasNasalPad; /**< Incluye almohadilla nasal diferenciada. */
+    bool isBill; /**< Activa material coriáceo continuo en pico plano sin lóbulo nasal esférico. */
     bool hasEars; /**< Incluye volúmenes auriculares. */
     float tympanumDevelopment; /**< Peso continuo de apertura timpánica. */
     bool hasTympana;

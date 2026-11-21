@@ -162,6 +162,9 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (!AxialBody_Supports(p->axial.archetype)) return false;
             if (p->axial.contourProfile < AXIAL_CONTOUR_LEGACY || p->axial.contourProfile > AXIAL_CONTOUR_CURSORIAL ||
                 (p->axial.contourProfile == AXIAL_CONTOUR_CURSORIAL && p->axial.archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD)) return false;
+            if (p->axial.cervicalSegments > 8 ||
+                !isfinite(p->axial.cervicalPitch) || p->axial.cervicalPitch < 0.0f || p->axial.cervicalPitch > 1.45f ||
+                !isfinite(p->axial.spineFlexion) || p->axial.spineFlexion < 0.0f || p->axial.spineFlexion > 0.65f) return false;
             ++axial;
             break;
         case CREATURE_MODULE_HEAD:
@@ -172,16 +175,26 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (m->phenotypeIndex >= p->limbCount || limbs[m->phenotypeIndex]) return false;
             if (!Limb_Supports(p->limbs[m->phenotypeIndex].archetype)) return false;
             const LimbPhenotype* limb = &p->limbs[m->phenotypeIndex];
-            bool plantigrade=limb->anatomyProfile==LIMB_PROFILE_PLANTIGRADE;
+            bool plantigrade = limb->anatomyProfile == LIMB_PROFILE_PLANTIGRADE;
+            bool macropod = limb->anatomyProfile == LIMB_PROFILE_MACROPOD;
+            bool wing = limb->archetype == LIMB_ARCHETYPE_WING;
             if (limb->digitCount > CREATURE_MAX_DIGITS || !isfinite(limb->clawScale) ||
                 limb->clawScale < 0 || limb->clawScale > 3 ||
-                (limb->clawScale > 0 && (limb->archetype != LIMB_ARCHETYPE_MAMMAL ||
-                  (limb->anatomyProfile != LIMB_PROFILE_LEGACY && !plantigrade) || !limb->digitCount))) return false;
-            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_PLANTIGRADE ||
+                (limb->clawScale > 0 && ((limb->archetype != LIMB_ARCHETYPE_MAMMAL && !wing) ||
+                  (!wing && limb->anatomyProfile != LIMB_PROFILE_LEGACY && !plantigrade && !macropod) || !limb->digitCount))) return false;
+            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_MACROPOD ||
                 limb->nailCount > CREATURE_MAX_DIGITS) return false;
-            if (limb->anatomyProfile == LIMB_PROFILE_COLUMNAR) {
+            if (!isfinite(limb->webbingCoverage) || limb->webbingCoverage < 0 || limb->webbingCoverage > 1 ||
+                !isfinite(limb->webbingFold) || limb->webbingFold < 0 || limb->webbingFold > 1 ||
+                !isfinite(limb->webbingEdgeCurve) || limb->webbingEdgeCurve < -0.35f || limb->webbingEdgeCurve > 0.6f ||
+                !isfinite(limb->webbingThickness) || limb->webbingThickness < 0 || limb->webbingThickness > 0.6f) return false;
+            if (wing) {
+                if (limb->digitCount < 2 || limb->nailCount) return false;
+                for (unsigned d = 0; d < limb->digitCount; ++d)
+                    if (!limb->digitPhalanges[d] || limb->digitPhalanges[d] > 5) return false;
+            } else if (limb->anatomyProfile == LIMB_PROFILE_COLUMNAR) {
                 if (limb->archetype != LIMB_ARCHETYPE_MAMMAL) return false;
-            } else if (plantigrade) {
+            } else if (plantigrade || macropod) {
                 if (limb->archetype != LIMB_ARCHETYPE_MAMMAL || !limb->digitCount || limb->nailCount)
                     return false;
             } else if (limb->nailCount ||
@@ -193,14 +206,14 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             break;
         case CREATURE_MODULE_TAIL:
             if (m->phenotypeIndex >= p->tailCount || tails[m->phenotypeIndex]) return false;
-            if (p->tails[m->phenotypeIndex].archetype > TAIL_ARCHETYPE_COILED ||
+            if (p->tails[m->phenotypeIndex].archetype > TAIL_ARCHETYPE_PADDLE ||
                 !isfinite(p->tails[m->phenotypeIndex].tipLift) ||
                 fabsf(p->tails[m->phenotypeIndex].tipLift)>1) return false;
             tails[m->phenotypeIndex] = true;
             break;
         case CREATURE_MODULE_ORNAMENT:
             if (m->phenotypeIndex >= p->ornamentCount || ornaments[m->phenotypeIndex]) return false;
-            if (p->ornaments[m->phenotypeIndex].archetype > ORNAMENT_ARCHETYPE_TUSK) return false;
+            if (p->ornaments[m->phenotypeIndex].archetype > ORNAMENT_ARCHETYPE_OSSICONE) return false;
             ornaments[m->phenotypeIndex] = true;
             break;
         case CREATURE_MODULE_FLEXIBLE_APPENDAGE:
