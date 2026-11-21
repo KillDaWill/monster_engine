@@ -2,9 +2,13 @@
 #include "AxialBody.h"
 #include "CreatureMorph.h"
 #include "CreatureRecipeIO.h"
+#include "FlexibleAppendage.h"
+#include "MonsterAnimation.h"
+#include "MonsterAger.h"
 #include "MonsterVisual.h"
 #include "OpenGLRenderer.h"
 #include "../src/OffspringMorphFitter.h"
+#include <GL/gl.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,7 +72,8 @@ static bool Compile(Subject *s,AABB3D shared[2])
 static ICamera Camera(const Subject *s,AABB3D bounds,Vector3 direction,bool head)
 {
     Vector3 forward=Vec3_Normalize(direction);
-    Vector3 right=Vec3_Normalize(Vec3_Cross(Vec3_Create(0,1,0),forward));
+    Vector3 referenceUp=fabsf(forward.y)>.9f?Vec3_Create(0,0,1):Vec3_Create(0,1,0);
+    Vector3 right=Vec3_Normalize(Vec3_Cross(referenceUp,forward));
     Vector3 up=Vec3_Cross(forward,right);
     Vector3 size=AABB_Size(bounds);
     float x=fabsf(right.x)*size.x+fabsf(right.y)*size.y+fabsf(right.z)*size.z;
@@ -76,7 +81,7 @@ static ICamera Camera(const Subject *s,AABB3D bounds,Vector3 direction,bool head
     float height=fmaxf(x*HEIGHT/WIDTH,y)*1.15f*s->scale;
     Vector3 center=Vec3_Add(s->origin[head],Vec3_Scale(Vec3_Add(bounds.start,bounds.end),.5f*s->scale));
     return (ICamera){.target=center,.position=Vec3_Add(center,Vec3_Scale(forward,24*s->scale)),
-        .up={0,1,0},.fov=-height,.aspectRatio=(float)WIDTH/HEIGHT,.nearPlane=.01f,.farPlane=100};
+        .up=referenceUp,.fov=-height,.aspectRatio=(float)WIDTH/HEIGHT,.nearPlane=.01f,.farPlane=100};
 }
 
 static float HeadFieldError(const Subject *a,const Subject *target,AABB3D frame)
@@ -100,7 +105,71 @@ static float HeadFieldError(const Subject *a,const Subject *target,AABB3D frame)
     return count ? sqrtf(sum/count)/Vec3_Length(length) : NAN;
 }
 
-static bool Render(Renderer3D *r,const Subject *s,ICamera camera,const char *path,bool renderEyes)
+static Vector3 MouthWorld(const MonsterSDFMouth *mouth, Vector3 local)
+{
+    RotationBasis3D basis=mouth->inverseRotation;
+    return Vec3_Add(mouth->center,Vec3_Add(Vec3_Scale(basis.row0,local.x),
+        Vec3_Add(Vec3_Scale(basis.row1,local.y),Vec3_Scale(basis.row2,local.z))));
+}
+
+static void DrawAnatomy(const Subject *s)
+{
+    const Monster *m = &s->monster;
+    const AnatomyGraph *graph = &m->anatomyGraph;
+    const HeadAnatomy *head = &m->head.anatomy;
+    glPushAttrib(GL_ENABLE_BIT|GL_LINE_BIT|GL_POINT_BIT|GL_CURRENT_BIT|GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    glDepthMask(GL_FALSE);
+    glLineWidth(2);
+    glColor3f(.25f,1,.94f);
+    glBegin(GL_LINES);
+    for (size_t i=0; i<graph->connectionCount; ++i) {
+        if (graph->dormantConnections[i]) continue;
+        const AnatomyNode *a = AnatomyGraph_FindNode(graph,graph->connections[i].fromId);
+        const AnatomyNode *b = AnatomyGraph_FindNode(graph,graph->connections[i].toId);
+        glVertex3f(a->center.x,a->center.y,a->center.z);
+        glVertex3f(b->center.x,b->center.y,b->center.z);
+    }
+    glEnd();
+    Vector3 origin = m->bodyParts[head->attachmentBodyPartIndex].positionRender;
+    const HeadLandmarks *l = &head->landmarks;
+    Vector3 landmarks[] = {l->leftOrbit,l->rightOrbit,l->leftJawHinge,l->rightJawHinge,
+        l->leftMouthCorner,l->rightMouthCorner,
+        l->mandibularSymphysis,l->muzzleRoot,l->muzzleTip,l->leftEarBase,l->rightEarBase};
+    glPointSize(6);
+    glColor3f(1,.66f,.20f);
+    glBegin(GL_POINTS);
+    for (size_t i=0; i<sizeof(landmarks)/sizeof(*landmarks); ++i) {
+        Vector3 point = Vec3_Add(origin,landmarks[i]);
+        glVertex3f(point.x,point.y,point.z);
+    }
+    glEnd();
+    if (s->field.mouthCount) {
+        const MonsterSDFMouth *mouth=&s->field.mouths[0];
+        glColor3f(.9f,.30f,.70f);
+        glBegin(GL_POINTS);
+        if (mouth->nostrilRadii.x>0) {
+            Vector3 left=MouthWorld(mouth,mouth->leftNostrilCenterLocal);
+            Vector3 right=MouthWorld(mouth,mouth->rightNostrilCenterLocal);
+            glVertex3f(left.x,left.y,left.z);
+            glVertex3f(right.x,right.y,right.z);
+        }
+        glEnd();
+        glColor3f(.4f,.70f,1);
+        glBegin(GL_LINE_STRIP);
+        if(mouth->sweptSkull) for(size_t i=0;i<6;++i) {
+            Vector3 point=MouthWorld(mouth,mouth->headStations[i].center);
+            glVertex3f(point.x,point.y,point.z);
+        }
+        glEnd();
+    }
+    glPopAttrib();
+}
+
+static bool RenderView(Renderer3D *r,const Subject *s,ICamera camera,const char *path,
+    bool renderEyes,bool overlay)
 {
     MonsterVisualEye eyes[2]={0};
     OpenGLRenderer_SetupCamera(&camera,WIDTH,HEIGHT);
@@ -116,9 +185,18 @@ static bool Render(Renderer3D *r,const Subject *s,ICamera camera,const char *pat
         if (ok) for (unsigned i=0; i<2; ++i) r->renderEye(r,&eyes[i]);
     }
     for (unsigned i=0; i<2; ++i) Mesh_Free(&eyes[i].globe);
+    if (ok && overlay) {
+        OpenGLRenderer_SetupCamera(&camera,WIDTH,HEIGHT);
+        DrawAnatomy(s);
+    }
     if (ok) ok=OpenGLRenderer_SavePPM(path,WIDTH,HEIGHT);
     r->endFrame(r);
     return ok;
+}
+
+static bool Render(Renderer3D *r,const Subject *s,ICamera camera,const char *path,bool renderEyes)
+{
+    return RenderView(r,s,camera,path,renderEyes,false);
 }
 
 static float OrdinaryError(const HeadPhenotype *phenotype,Vector3 radii,const HeadAnatomy *reference)
@@ -158,7 +236,8 @@ static void FitOrdinary(const Subject *parent,const HeadAnatomy *reference)
     printf("%s %.5f -> %.5f\n",parent->monster.recipe.name,initial,best);
 }
 
-static bool RenderGallery(Subject *subjects, unsigned count, AABB3D shared[2], const char *directory)
+static bool RenderGallery(Subject *subjects, unsigned count, AABB3D shared[2], const char *directory,
+    bool overview)
 {
     OpenGLDemoWindow *window = OpenGLDemoWindow_Create("Offspring gallery",WIDTH,HEIGHT);
     if (!window) return false;
@@ -170,12 +249,13 @@ static bool RenderGallery(Subject *subjects, unsigned count, AABB3D shared[2], c
     for (unsigned i=0; i<count && ok; ++i) {
         const Subject *s = &subjects[i];
         ok = OpenGLRenderer_SetMorphSurfaceDomain(&renderer,&s->monster,&s->monster);
-        for (unsigned mode=0; mode<3 && ok; ++mode) {
+        for (unsigned mode=0; mode<(overview ? 1u : 3u) && ok; ++mode) {
             OpenGLRenderer_SetSurfaceDebug(&renderer,mode==1 ? 25 : mode==2 ? 27 : 0);
             unsigned viewsInMode = mode==2 ? 1 : 5;
             for (unsigned v=0; v<viewsInMode && ok; ++v) {
                 char path[4096];
                 unsigned view = mode==2 ? 2 : v;
+                if (overview && view != 0 && view != 2 && view != 4) continue;
                 const char *prefix = mode==1 ? "shape-" : mode==2 ? "albedo-" : "";
                 snprintf(path,sizeof(path),"%s/%s%s-%u.ppm",directory,prefix,views[view],i);
                 bool head = view>=3;
@@ -189,6 +269,191 @@ static bool RenderGallery(Subject *subjects, unsigned count, AABB3D shared[2], c
 }
 
 enum { GRID_SIDE=16, GRID_POINTS=GRID_SIDE*GRID_SIDE*GRID_SIDE, ALBEDO_POINTS=66 };
+
+static bool Section(const Subject *s, ICamera camera, const char *path)
+{
+    FILE *output = fopen(path,"wb");
+    if (!output) return false;
+    unsigned char row[WIDTH*3];
+    const MonsterSDFMouth *mouth = &s->field.mouths[0];
+    MonsterSDFJawField context;
+    SDFField jaw = MonsterSDF_GetJawField(&s->field,0,&context);
+    float cs = cosf(mouth->visualJawAngle), sn = sinf(mouth->visualJawAngle);
+    fprintf(output,"P6\n%d %d\n255\n",WIDTH,HEIGHT);
+    for (unsigned y=0; y<HEIGHT; ++y) {
+        for (unsigned x=0; x<WIDTH; ++x) {
+            Vector3 p = camera.target;
+            float step = -camera.fov/HEIGHT;
+            p.x = 0;
+            p.y += (HEIGHT*.5f-y)*step;
+            p.z -= (x-WIDTH*.5f)*step;
+            float upper = MonsterSDF_EvaluateDebug(&s->field,p,MONSTER_HEAD_DEBUG_UPPER_HEAD).distance;
+            Vector3 local = Transform3D_ApplyRotationBasis(mouth->inverseRotation,Vec3_Sub(p,mouth->center));
+            Vector3 v = Vec3_Sub(local,mouth->visualJawPivot);
+            Vector3 rotated = {v.x,cs*v.y+sn*v.z,-sn*v.y+cs*v.z};
+            Vector3 rest = Vec3_Add(mouth->visualJawPivot,Vec3_Scale(rotated,1/mouth->visualJawScale));
+            float lower = jaw.evaluateDistance(jaw.context,rest);
+            row[3*x] = lower<=0 ? 232 : 18;
+            row[3*x+1] = upper<=0 ? 204 : lower<=0 ? 138 : 20;
+            row[3*x+2] = upper<=0 ? 224 : 28;
+        }
+        if (fwrite(row,1,sizeof(row),output) != sizeof(row)) {
+            fclose(output);
+            return false;
+        }
+    }
+    return fclose(output)==0;
+}
+
+static bool DiagnosticViews(Renderer3D *renderer,Subject *s,AABB3D shared[2],
+    AABB3D insertion,AABB3D shoulder,AABB3D tail,const char *directory,unsigned i)
+{
+    Monster *monster = &s->monster;
+    const Vector3 side = {1,0,0};
+    ICamera head = Camera(s,shared[1],side,true);
+    ICamera body = Camera(s,shared[0],side,false);
+    ICamera root = Camera(s,insertion,(Vector3){.88f,.14f,.42f},true);
+    ICamera limb = Camera(s,shoulder,(Vector3){.94f,.12f,.32f},false);
+    char path[4096];
+#define PATH(name) snprintf(path,sizeof(path),"%s/" name "-%u.ppm",directory,i)
+    OpenGLRenderer_SetSurfaceDebug(renderer,0);
+    PATH("insertion");
+    if (!Render(renderer,s,root,path,true)) return false;
+    OpenGLRenderer_SetSurfaceDebug(renderer,10);
+    PATH("insertion-neutral");
+    if (!Render(renderer,s,root,path,false)) return false;
+    PATH("body-neutral");
+    if (!Render(renderer,s,body,path,false)) return false;
+    OpenGLRenderer_SetSurfaceDebug(renderer,25);
+    PATH("insertion-normals");
+    if (!RenderView(renderer,s,root,path,false,true)) return false;
+    PATH("limb-chain");
+    if (!RenderView(renderer,s,limb,path,false,true)) return false;
+    if (isfinite(tail.start.x)) {
+        ICamera caudal = Camera(s,tail,side,false);
+        PATH("tail-root");
+        if (!RenderView(renderer,s,caudal,path,false,true)) return false;
+    }
+    PATH("graph");
+    if (!RenderView(renderer,s,body,path,false,true)) return false;
+    PATH("landmarks");
+    if (!RenderView(renderer,s,head,path,false,true)) return false;
+    PATH("section-closed");
+    if (!Section(s,head,path)) return false;
+
+    Mesh mesh = {0};
+    SDFMesher mesher = SDFMesher_Create(SDFMesher_DefaultConfig());
+    SDFField field = MonsterSDF_GetField(&s->field);
+    Vector3 start = Vec3_Add(s->origin[1],Vec3_Scale(insertion.start,s->scale));
+    Vector3 end = Vec3_Add(s->origin[1],Vec3_Scale(insertion.end,s->scale));
+    AABB3D box = {start,end};
+    bool ok = SDFMesher_MeshRegion(&mesher,&field,box,-root.fov/75,&mesh);
+    if (ok) {
+        OpenGLRenderer_SetupCamera(&root,WIDTH,HEIGHT);
+        OpenGLRenderer_SetWireframe(renderer,true);
+        renderer->beginFrame(renderer);
+        renderer->renderMesh(renderer,&mesh);
+        PATH("insertion-wire");
+        ok = OpenGLRenderer_SavePPM(path,WIDTH,HEIGHT);
+        renderer->endFrame(renderer);
+        OpenGLRenderer_SetWireframe(renderer,false);
+    }
+    Mesh_Free(&mesh);
+    SDFMesher_Free(&mesher);
+    if (!ok) return false;
+
+    Monster_SetHeadOpenFactor(monster,.60f);
+    if (!MonsterSDF_Build(&s->field,monster,MonsterSDF_DefaultConfig())) return false;
+    PATH("section-open");
+    if (!Section(s,head,path)) return false;
+    PATH("jaw-open");
+    if (!Render(renderer,s,head,path,false)) return false;
+    Monster_SetHeadOpenFactor(monster,0);
+    if (!monster->animation) return true;
+    AnatomyGraph *rest = malloc(sizeof(*rest));
+    if (!rest) return false;
+    *rest = monster->anatomyGraph;
+    const Skeleton *skeleton = &monster->animation->rig.skeleton;
+    const BodyPlan *plan = &monster->recipe.bodyPlan;
+    const char *gestures[] = {"curled","reaching","feeding"};
+    for (unsigned pose=FLEXIBLE_POSE_CURLED; pose<FLEXIBLE_POSE_COUNT && ok; ++pose) {
+        SkeletonPose *state = &monster->animation->pose;
+        ok = SkeletonPose_ResetToRest(state,skeleton);
+        bool flexible = false;
+        for (size_t j=0; j<plan->moduleCount && ok; ++j) {
+            const CreatureModuleInstance *m = &plan->modules[j];
+            if (m->kind != CREATURE_MODULE_FLEXIBLE_APPENDAGE) continue;
+            flexible = true;
+            ok = FlexibleAppendage_ApplyPose(m->instanceId,pose,1,skeleton,state);
+        }
+        if (!flexible) break;
+        ok = ok && SkeletonPose_ToAnatomy(skeleton,state,rest,&monster->anatomyGraph) &&
+            MonsterSDF_Build(&s->field,monster,MonsterSDF_DefaultConfig());
+        snprintf(path,sizeof(path),"%s/pose-%s-%u.ppm",directory,gestures[pose-1],i);
+        ok = ok && Render(renderer,s,body,path,false);
+    }
+    monster->anatomyGraph = *rest;
+    if (ok && monster->animation->rig.limbCount) {
+        MonsterAnimation *animation = monster->animation;
+        animation->animator.desiredVelocity = Vec3_Create(0,0,.55f*s->scale);
+        for (unsigned frame=0; frame<32 && ok; ++frame)
+            ok = MonsterAnimation_Update(monster,1.f/60);
+        ok = ok && SkeletonPose_ToAnatomy(skeleton,&animation->pose,rest,&monster->anatomyGraph) &&
+            MonsterSDF_Build(&s->field,monster,MonsterSDF_DefaultConfig());
+        PATH("walk");
+        ok = ok && RenderView(renderer,s,body,path,false,true);
+        monster->anatomyGraph = *rest;
+    }
+    free(rest);
+#undef PATH
+    return ok;
+}
+
+static bool RenderDiagnostics(Subject *subjects,unsigned count,AABB3D shared[2],const char *directory)
+{
+    AABB3D insertion = AABB_Empty(), shoulder = AABB_Empty(), tail = AABB_Empty();
+    for (unsigned i=0; i<count; ++i) {
+        Subject *s = &subjects[i];
+        const AnatomyGraph *graph = &s->monster.anatomyGraph;
+        const HeadSurfaceRecipe *face = &s->monster.head.anatomy.surface;
+        Vector3 origin = s->monster.bodyParts[s->monster.head.anatomy.attachmentBodyPartIndex].positionRender;
+        AABB3D roots = AABB_Empty(), girdle = AABB_Empty(), caudal = AABB_Empty();
+        AABB_ExpandRadius(&roots,Vec3_Add(origin,face->faceTip),face->faceTipRadii);
+        for (size_t j=0; j<graph->nodeCount; ++j) {
+            const AnatomyNode *n = &graph->nodes[j];
+            Vector3 radius = {n->widthRadius,n->heightRadius,n->widthRadius};
+            if (n->localNodeId == 1 &&
+                (n->region == ANATOMY_REGION_ORNAMENT || n->region == ANATOMY_REGION_FLEXIBLE) &&
+                Vec3_Distance(n->center,s->origin[1]) < 2.6f*s->scale)
+                AABB_ExpandRadius(&roots,n->center,radius);
+            if (n->region == ANATOMY_REGION_FORELIMB || n->region == ANATOMY_REGION_HINDLIMB)
+                AABB_ExpandRadius(&girdle,n->center,radius);
+            if (n->region == ANATOMY_REGION_TAIL && n->localNodeId<=2)
+                AABB_ExpandRadius(&caudal,n->center,radius);
+        }
+        AABB_Pad(&roots,.13f*s->scale);
+        UnionNormalized(&insertion,roots,s->origin[1],s->scale);
+        if (isfinite(girdle.start.x)) UnionNormalized(&shoulder,girdle,s->origin[0],s->scale);
+        if (isfinite(caudal.start.x)) {
+            AABB_Pad(&caudal,.35f*s->scale);
+            UnionNormalized(&tail,caudal,s->origin[0],s->scale);
+        }
+    }
+    OpenGLDemoWindow *window = OpenGLDemoWindow_Create("Offspring anatomy",WIDTH,HEIGHT);
+    if (!window) return false;
+    ICamera initial = Camera(&subjects[0],shared[1],(Vector3){1,0,0},true);
+    Renderer3D renderer = OpenGLRenderer_Create(&initial);
+    bool ok = true;
+    for (unsigned i=0; i<count && ok; ++i) {
+        Subject *s = &subjects[i];
+        ok = OpenGLRenderer_SetMorphSurfaceDomain(&renderer,&s->monster,&s->monster) &&
+             DiagnosticViews(&renderer,s,shared,insertion,isfinite(shoulder.start.x) ? shoulder : shared[0],
+                 tail,directory,i);
+    }
+    OpenGLRenderer_Destroy(&renderer);
+    OpenGLDemoWindow_Free(window);
+    return ok;
+}
 
 static void GalleryGrid(const Subject *s, AABB3D frame, float grid[GRID_POINTS])
 {
@@ -236,7 +501,174 @@ static float AppearanceDistance(const Vector3 a[ALBEDO_POINTS], const Vector3 b[
     return sqrtf(sum/(3*ALBEDO_POINTS));
 }
 
-static bool Gallery(const char *directory, unsigned count, char **files)
+/* Corte transversal por detrás del plano distal y por el centro de ambas narinas. */
+static bool NasalSection(const Subject *s,const char *path)
+{
+    const MonsterSDFMouth *m=&s->field.mouths[0];
+    FILE *out=fopen(path,"wb");
+    if(!out)return false;
+    fprintf(out,"P6\n%d %d\n255\n",WIDTH,HEIGHT);
+    Vector3 center=Vec3_Lerp(m->leftNostrilCenterLocal,m->rightNostrilCenterLocal,.5f);
+    Vector3 side=m->nasalTerminalWeight>0?m->nostrilSideLocal:Vec3_Create(1,0,0);
+    Vector3 forward=m->nasalTerminalWeight>0?m->nostrilForwardLocal:Vec3_Create(0,0,1);
+    Vector3 up=Vec3_Cross(forward,side);
+    center=Vec3_Sub(center,Vec3_Scale(forward,m->nostrilRadii.z*.28f));
+    float width=fmaxf(Vec3_Distance(m->leftNostrilCenterLocal,m->rightNostrilCenterLocal)+
+        4*m->nostrilRadii.x,.005f);
+    unsigned char row[WIDTH*3];
+    for(unsigned y=0;y<HEIGHT;++y) {
+        for(unsigned x=0;x<WIDTH;++x) {
+            Vector3 p=Vec3_Add(center,Vec3_Add(Vec3_Scale(side,width*(x-WIDTH*.5f)/WIDTH),
+                Vec3_Scale(up,width*(HEIGHT*.5f-y)/WIDTH)));
+            Vector3 world=MouthWorld(m,p);
+            float distance=MonsterSDF_EvaluateDistance(&s->field,world);
+            float cut=MonsterSDF_EvaluateDebug(&s->field,world,MONSTER_HEAD_DEBUG_NOSTRILS).distance;
+            row[3*x]=cut<0?231:distance<0?101:18;
+            row[3*x+1]=cut<0?121:distance<0?190:20;
+            row[3*x+2]=cut<0?177:distance<0?212:28;
+        }
+        if(fwrite(row,1,sizeof(row),out)!=sizeof(row)) {fclose(out);return false;}
+    }
+    return fclose(out)==0;
+}
+
+static void FacialMetrics(const Subject *s,unsigned index,float age)
+{
+    const MonsterSDFMouth *mouth=&s->field.mouths[0];
+    const MonsterSDFConnector *root=NULL,*tip=NULL;
+    float length=0;
+    for(size_t j=0;j<s->field.connectorCount;++j) {
+        const MonsterSDFConnector *c=&s->field.connectors[j];
+        if(c->nasalTerminal)tip=c;
+    }
+    if(tip)for(size_t j=0;j<s->field.connectorCount;++j) {
+        const MonsterSDFConnector *c=&s->field.connectors[j];
+        if(c->moduleInstanceId!=tip->moduleInstanceId || (uint16_t)c->toId>FLEXIBLE_APPENDAGE_STATIONS)
+            continue;
+        if(!root)root=c;
+        length+=c->length;
+    }
+    Vector3 left=mouth->leftNostrilCenterLocal;
+    Vector3 right=mouth->rightNostrilCenterLocal;
+    Vector3 septum=Vec3_Lerp(left,right,.5f);
+    float insideL=MonsterSDF_EvaluateDistance(&s->field,MouthWorld(mouth,left));
+    float insideR=MonsterSDF_EvaluateDistance(&s->field,MouthWorld(mouth,right));
+    Vector3 forward=mouth->nasalTerminalWeight>0?mouth->nostrilForwardLocal:Vec3_Create(0,0,1);
+    septum=Vec3_Sub(septum,Vec3_Scale(forward,mouth->nostrilRadii.z*.24f));
+    float between=MonsterSDF_EvaluateDistance(&s->field,MouthWorld(mouth,septum));
+    float rootDepth=root?MonsterSDF_EvaluateDebug(&s->field,root->a,MONSTER_HEAD_DEBUG_UPPER_HEAD).distance:0;
+    printf("nasal\t%u\t%.3f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n",
+        index,age,length,root?root->widthA:0,root?root->heightA:0,rootDepth,
+        left.x,left.y,left.z,mouth->nasalTerminalWeight,insideL,insideR,between);
+}
+
+static bool RenderFaces(Subject *subjects,unsigned count,AABB3D frame,const char *directory,
+    bool diagnostics)
+{
+    const Vector3 directions[]={{1,0,0},{0,0,1},{.8f,.24f,.65f},{0,1,0}};
+    const char *names[]={"side","front","three-quarter","top"};
+    OpenGLDemoWindow *window=OpenGLDemoWindow_Create("Perfil facial",WIDTH,HEIGHT);
+    if(!window)return false;
+    ICamera initial=Camera(&subjects[0],frame,directions[0],true);
+    Renderer3D renderer=OpenGLRenderer_Create(&initial);
+    bool ok=true;
+    for(unsigned i=0;i<count&&ok;++i) {
+        Subject *s=&subjects[i];
+        ok=OpenGLRenderer_SetMorphSurfaceDomain(&renderer,&s->monster,&s->monster);
+        for(unsigned v=0;v<4&&ok;++v) {
+            char path[4096];
+            ICamera camera=Camera(s,frame,directions[v],true);
+            if(v==0 || v==2 || diagnostics) {
+                OpenGLRenderer_SetSurfaceDebug(&renderer,0);
+                snprintf(path,sizeof(path),"%s/%s-%u.ppm",directory,names[v],i);
+                ok=Render(&renderer,s,camera,path,true);
+            }
+            OpenGLRenderer_SetSurfaceDebug(&renderer,10);
+            snprintf(path,sizeof(path),"%s/neutral-%s-%u.ppm",directory,names[v],i);
+            ok=ok&&Render(&renderer,s,camera,path,false);
+        }
+        if(diagnostics&&ok) {
+            char path[4096];
+            ICamera side=Camera(s,frame,directions[0],true);
+            snprintf(path,sizeof(path),"%s/stations-%u.ppm",directory,i);
+            ok=RenderView(&renderer,s,side,path,false,true);
+            if(ok) {
+                snprintf(path,sizeof(path),"%s/section-%u.ppm",directory,i);
+                ok=Section(s,side,path);
+            }
+            if(ok) {
+                snprintf(path,sizeof(path),"%s/nasal-section-%u.ppm",directory,i);
+                ok=NasalSection(s,path);
+            }
+        }
+    }
+    OpenGLRenderer_Destroy(&renderer);
+    OpenGLDemoWindow_Free(window);
+    return ok;
+}
+
+static void IncludeNasalExtent(const Subject *s,AABB3D *frame)
+{
+    AABB3D bounds=AABB_Empty();
+    for(size_t i=0;i<s->field.connectorCount;++i) {
+        const MonsterSDFConnector *c=&s->field.connectors[i];
+        if(c->region!=ANATOMY_REGION_FLEXIBLE)continue;
+        AABB_ExpandPoint(&bounds,c->bounds.start);
+        AABB_ExpandPoint(&bounds,c->bounds.end);
+    }
+    if(bounds.start.x<=bounds.end.x)UnionNormalized(frame,bounds,s->origin[1],s->scale);
+}
+
+static float EndpointDifference(const MonsterSDF *parent,const MonsterSDF *morph)
+{
+    float maximum=0;
+    Vector3 size=AABB_Size(parent->bounds);
+    for(unsigned x=0;x<12;++x)for(unsigned y=0;y<12;++y)for(unsigned z=0;z<12;++z) {
+        Vector3 p=Vec3_Add(parent->bounds.start,Vec3_Create(size.x*x/11,size.y*y/11,size.z*z/11));
+        float difference=fabsf(MonsterSDF_EvaluateVisualDistance(parent,p)-
+            MonsterSDF_EvaluateVisualDistance(morph,p));
+        maximum=fmaxf(maximum,difference);
+    }
+    return maximum;
+}
+
+static bool NasalMorph(const char *directory,const char *from,const char *to)
+{
+    static const float ages[]={0,.10f,.25f,.40f,.50f,.60f,.75f,.90f,1};
+    enum { SAMPLES=sizeof(ages)/sizeof(*ages) };
+    Subject *subjects=calloc(SAMPLES,sizeof(*subjects));
+    Subject *parents=calloc(2,sizeof(*parents));
+    if(!subjects || !parents) {free(subjects);free(parents);return false;}
+    AABB3D frame[]={AABB_Empty(),AABB_Empty()};
+    bool ok=Load(&parents[0],from)&&Load(&parents[1],to);
+    for(unsigned i=0;i<2&&ok;++i)
+        ok=MonsterSDF_Build(&parents[i].field,&parents[i].monster,MonsterSDF_DefaultConfig());
+    puts("kind\tindex\tage\tlength\troot_width\troot_height\troot_sdf\tleft_x\tleft_y\tleft_z\tterminal_weight\tleft_sdf\tright_sdf\tseptum_sdf");
+    for(unsigned i=0;i<SAMPLES&&ok;++i) {
+        MonsterAger_Interpolate(&parents[0].monster,&parents[1].monster,ages[i],&subjects[i].monster);
+        ok=subjects[i].monster.hasResolvedMorph && Compile(&subjects[i],frame);
+        if(ok) {
+            IncludeNasalExtent(&subjects[i],&frame[1]);
+            FacialMetrics(&subjects[i],i,ages[i]);
+            if(i==0 || i==SAMPLES-1)
+                printf("endpoint\t%.3f\t%.8g\n",ages[i],
+                    EndpointDifference(&parents[i==0?0:1].field,&subjects[i].field));
+        }
+    }
+    if(ok)ok=RenderFaces(subjects,SAMPLES,frame[1],directory,true);
+    for(unsigned i=0;i<SAMPLES;++i) {
+        MonsterSDF_Free(&subjects[i].field);
+        Monster_Free(&subjects[i].monster);
+    }
+    for(unsigned i=0;i<2;++i) {
+        MonsterSDF_Free(&parents[i].field);
+        Monster_Free(&parents[i].monster);
+    }
+    free(parents);free(subjects);
+    return ok;
+}
+
+static bool Gallery(const char *directory, unsigned count, char **files, const char *mode)
 {
     if (count < 2 || count > 2*CREATURE_OFFSPRING_MAX+2) return false;
     Subject *subjects = calloc(count,sizeof(*subjects));
@@ -253,6 +685,14 @@ static bool Gallery(const char *directory, unsigned count, char **files)
             fprintf(stderr,"No se pudo cargar %s\n",files[i]);
             goto done;
         }
+    }
+    if(!strcmp(mode,"--faces")) {
+        for(unsigned i=0;i<count;++i) {
+            IncludeNasalExtent(&subjects[i],&shared[1]);
+            FacialMetrics(&subjects[i],i,1);
+        }
+        ok=RenderFaces(subjects,count,shared[1],directory,false);
+        goto done;
     }
     for (unsigned i=0; i<count; ++i) {
         const HeadAnatomy *head=&subjects[i].monster.head.anatomy;
@@ -278,7 +718,9 @@ static bool Gallery(const char *directory, unsigned count, char **files)
             .5f*(ab.bodyError+ba.bodyError),.5f*(ab.limbError+ba.limbError),
             AppearanceDistance(albedo[i],albedo[j]));
     }
-    ok = RenderGallery(subjects,count,shared,directory);
+    ok = !strcmp(mode,"--metrics") || (!strcmp(mode,"--anatomy") ?
+        RenderDiagnostics(subjects,count,shared,directory) :
+        RenderGallery(subjects,count,shared,directory,!strcmp(mode,"--overview")));
 done:
     for (unsigned i=0; i<count; ++i) {
         MonsterSDF_Free(&subjects[i].field);
@@ -290,7 +732,11 @@ done:
 
 int main(int argc,char **argv)
 {
-    if (argc>4 && !strcmp(argv[1],"--gallery")) return Gallery(argv[2],argc-3,argv+3) ? 0 : 1;
+    if(argc==5&&!strcmp(argv[1],"--nasal-morph"))
+        return NasalMorph(argv[2],argv[3],argv[4]) ? 0 : 1;
+    if (argc>4 && (!strcmp(argv[1],"--gallery") || !strcmp(argv[1],"--faces") || !strcmp(argv[1],"--anatomy") ||
+        !strcmp(argv[1],"--metrics") || !strcmp(argv[1],"--overview")))
+        return Gallery(argv[2],argc-3,argv+3,argv[1]) ? 0 : 1;
     bool onlyReference=argc==8 && !strcmp(argv[7],"--reference");
     bool roundtrip=argc==8 && !strcmp(argv[7],"--roundtrip");
     bool ordinary=argc==8 && !strcmp(argv[7],"--ordinary-fit");

@@ -5,6 +5,8 @@
 #include "AxialBodyUprightTetrapod.h"
 #include "MathUtils.h"
 #include "Tail.h"
+#include "FlexibleAppendage.h"
+#include "HeadModule.h"
 #include <math.h>
 #include <string.h>
 
@@ -152,6 +154,17 @@ static bool Morph_ShiftConflictingDigits(const AnatomyGraph* a,const AnatomyGrap
     return true;
 }
 
+static const BodyConnection* Morph_NasalSupport(const AnatomyGraph* graph) {
+    for(size_t i=0;i<graph->connectionCount;++i) {
+        const BodyConnection* edge=&graph->connections[i];
+        if(edge->kind!=BODY_CONNECTION_PAIRED_OPENINGS)continue;
+        const BodyConnection* root=Incoming(graph,Anatomy_MakeId(edge->moduleInstanceId,1));
+        const AnatomyNode* head=root?AnatomyGraph_FindNode(graph,root->fromId):NULL;
+        if(head && head->region==ANATOMY_REGION_HEAD)return root;
+    }
+    return NULL;
+}
+
 static bool Morph_RemapConflictingModules(const AnatomyGraph* a,const AnatomyGraph* b,
     AnatomyGraph* remapped,uint32_t* outOld,uint32_t* outNew,size_t* outCount) {
     *remapped=*b;
@@ -221,6 +234,17 @@ static bool Morph_RemapConflictingModules(const AnatomyGraph* a,const AnatomyGra
         }
         if(candidate>65534)return false;
         newModules[i]=candidate;
+    }
+    const BodyConnection* noseA=Morph_NasalSupport(a);
+    const BodyConnection* noseB=Morph_NasalSupport(b);
+    if(noseA && noseB && noseA->fromId==noseB->fromId &&
+       noseA->moduleInstanceId!=noseB->moduleInstanceId &&
+       !Morph_ModuleUsed(b,b,noseA->moduleInstanceId)) {
+        size_t at=0;
+        while(at<count && oldModules[at]!=noseB->moduleInstanceId)++at;
+        oldModules[at]=noseB->moduleInstanceId;
+        newModules[at]=noseA->moduleInstanceId;
+        if(at==count)++count;
     }
     for(size_t i=0;i<remapped->nodeCount;++i) {
         AnatomyNode* node=&remapped->nodes[i];
@@ -328,24 +352,31 @@ size_t CreatureMorph_CollectTopologyEvents(const Monster* a,const Monster* b,
 }
 static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,AnatomyGraph* out) {
     AnatomyGraph_Init(out);
+    /* La unión suave del SDF depende del orden de sus operandos. En el
+     * extremo se conserva el orden del progenitor activo y sus valores. */
+    const AnatomyGraph* order[]={t>=1?b:a,t>=1?a:b};
     for(int pass=0;pass<2;++pass) {
-        const AnatomyGraph* g=pass?b:a;
+        const AnatomyGraph* g=order[pass];
         for(size_t i=0;i<g->nodeCount;++i) {
             const AnatomyNode* n=&g->nodes[i];
             if(AnatomyGraph_FindNode(out,n->id))continue;
             AnatomyNode x=Counterpart(g,a,n),y=Counterpart(g,b,n),v=*n;
             if(x.role!=y.role || x.region!=y.region || x.side!=y.side)return false;
-            v.center=Vec3_Lerp(x.center,y.center,t);
-            v.envelopeRadii=Vec3_Lerp(x.envelopeRadii,y.envelopeRadii,t);
-            v.widthRadius=Math_Lerp(x.widthRadius,y.widthRadius,t);
-            v.heightRadius=Math_Lerp(x.heightRadius,y.heightRadius,t);
-            v.development=Math_Lerp(x.development,y.development,t);
+            if(t<=0) v=x;
+            else if(t>=1) v=y;
+            else {
+                v.center=Vec3_Lerp(x.center,y.center,t);
+                v.envelopeRadii=Vec3_Lerp(x.envelopeRadii,y.envelopeRadii,t);
+                v.widthRadius=Math_Lerp(x.widthRadius,y.widthRadius,t);
+                v.heightRadius=Math_Lerp(x.heightRadius,y.heightRadius,t);
+                v.development=Math_Lerp(x.development,y.development,t);
+            }
             if(!AnatomyGraph_AddNode(out,v))return false;
         }
 
     }
     for(int pass=0;pass<2;++pass) {
-        const AnatomyGraph* g=pass?b:a;
+        const AnatomyGraph* g=order[pass];
         for(size_t i=0;i<g->connectionCount;++i) {
             const BodyConnection* e=&g->connections[i];
             if(EdgeSameEnds(out,e))continue;
@@ -375,6 +406,7 @@ static bool MixGraph(const AnatomyGraph* a,const AnatomyGraph* b,float t,Anatomy
             out->dormantConnections[out->connectionCount-1]=(dormantA && dormantB)||(t<=0 && dormantA)||(t>=1 && dormantB);
         }
     }
+    if(t<=0 || t>=1)return AnatomyGraph_Validate(out);
     /* Los dedos cambian de dirección mediante rotación, sin atravesar longitud cero. */
     for(size_t i=0;i<out->nodeCount;++i) {
         AnatomyNode* n=&out->nodes[i];
@@ -607,9 +639,23 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
         const CreatureModuleInstance* ma=&a->recipe.bodyPlan.modules[i];
         if(ma->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,ma->instanceId))continue;
         const CreatureModuleInstance* mb=Morph_FindBodyModule(&b->recipe.bodyPlan,ma->instanceId);
-        bool sharedUnremapped=mb && mb->kind==ma->kind &&
-            Morph_RemapModule(mb->instanceId,oldModules,newModules,remapCount)==mb->instanceId;
-        if(sharedUnremapped && ma->kind==CREATURE_MODULE_TAIL &&
+        for(size_t id=0;id<remapCount;++id) {
+            if(newModules[id]!=ma->instanceId)continue;
+            mb=Morph_FindBodyModule(&b->recipe.bodyPlan,oldModules[id]);
+            break;
+        }
+        bool shared=mb && mb->kind==ma->kind &&
+            Morph_RemapModule(mb->instanceId,oldModules,newModules,remapCount)==ma->instanceId;
+        if(shared && ma->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE &&
+           ma->phenotypeIndex<a->phenotype.flexibleAppendageCount &&
+           mb->phenotypeIndex<b->phenotype.flexibleAppendageCount) {
+            size_t at=out->phenotype.flexibleAppendageCount;
+            Morph_AppendModule(&out->recipe,&out->phenotype,ma,&a->phenotype,ma->instanceId);
+            if(at<out->phenotype.flexibleAppendageCount)
+                out->phenotype.flexibleAppendages[at]=FlexibleAppendage_Interpolate(
+                    &a->phenotype.flexibleAppendages[ma->phenotypeIndex],
+                    &b->phenotype.flexibleAppendages[mb->phenotypeIndex],u,u);
+        } else if(shared && ma->kind==CREATURE_MODULE_TAIL &&
            ma->phenotypeIndex<a->phenotype.tailCount && mb->phenotypeIndex<b->phenotype.tailCount) {
             Morph_AppendModule(&out->recipe,&out->phenotype,t>=0.5f?mb:ma,
                 t>=0.5f?&b->phenotype:&a->phenotype,ma->instanceId);
@@ -620,7 +666,7 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
                 dt->droop=Math_Lerp(ta->droop,tb->droop,u);
                 dt->rootMatchStrength=Math_Lerp(ta->rootMatchStrength,tb->rootMatchStrength,u);
             }
-        } else if(sharedUnremapped && t>=0.5f) {
+        } else if(shared && t>=0.5f) {
             Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,ma->instanceId);
         } else {
             Morph_AppendModule(&out->recipe,&out->phenotype,ma,&a->phenotype,ma->instanceId);
@@ -633,6 +679,47 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
         if(mb->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,effId))continue;
         Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,effId);
     }
+}
+
+/* El grafo unión conserva los IDs para rig y seguimiento de superficie.
+ * Las estaciones nasales se reconstruyen desde la sección del rostro mezclado. */
+static bool Morph_ResolveNasalExtension(Monster* out, float weight) {
+    if(weight<=0 || weight>=1 || !out->hasHead)return true;
+    AnatomyGraph* graph=&out->anatomyGraph;
+    const HeadSurfaceRecipe* surface=&out->head.anatomy.surface;
+    for(size_t i=0;i<out->recipe.bodyPlan.moduleCount;++i) {
+        const CreatureModuleInstance* m=&out->recipe.bodyPlan.modules[i];
+        if(m->kind!=CREATURE_MODULE_FLEXIBLE_APPENDAGE || m->pathAttached ||
+           !HeadModule_IsNasalExtension(m->attachment.slotId))continue;
+        const AnatomyNode* root=AnatomyGraph_FindModuleNode(graph,m->instanceId,1);
+        const AnatomyNode* second=AnatomyGraph_FindModuleNode(graph,m->instanceId,2);
+        const BodyConnection* support=root?Incoming(graph,root->id):NULL;
+        const AnatomyNode* head=support?AnatomyGraph_FindNode(graph,support->fromId):NULL;
+        if(!head || !second || m->phenotypeIndex>=out->phenotype.flexibleAppendageCount)continue;
+        float length=(FLEXIBLE_APPENDAGE_STATIONS-1)*Vec3_Distance(root->center,second->center);
+        if(length<=1e-6f)continue;
+        float scale=out->phenotype.axial.totalScale;
+        FlexibleAppendagePhenotype* phenotype=&out->phenotype.flexibleAppendages[m->phenotypeIndex];
+        phenotype->length=length/scale;
+        AttachmentSlot slot={.id=m->attachment.slotId,.hostNode=head->id,.scale=scale,
+            .hostRadii=HeadModule_FacialSupport(surface,HEAD_SLOT_FITTED_PROBOSCIS),
+            .position=Vec3_Add(head->center,HeadModule_NasalRoot(surface)),
+            .side={1,0,0},.up={0,1,0},.forward={0,0,1}};
+        AnatomyGraph nasal;
+        AnatomyGraph_Init(&nasal);
+        if(!AnatomyGraph_AddNode(&nasal,*head) ||
+           !FlexibleAppendage_Resolve(phenotype,m->instanceId,&slot,&nasal))return false;
+        for(size_t j=0;j<graph->nodeCount;++j) {
+            AnatomyNode* node=&graph->nodes[j];
+            if(node->moduleInstanceId!=m->instanceId)continue;
+            const AnatomyNode* station=AnatomyGraph_FindNode(&nasal,node->id);
+            if(!station)continue;
+            node->center=station->center;
+            node->widthRadius=station->widthRadius;
+            node->heightRadius=station->heightRadius;
+        }
+    }
+    return true;
 }
 
 float CreatureMorph_GeometricWeight(float age) {
@@ -689,13 +776,11 @@ bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monst
         }
     }
     out->phenotype.surface=out->surface;
-    out->surfaceMapping=SurfaceMapping_FromAnatomy(&out->anatomyGraph,out->phenotype.axial.totalScale);
     /* Los descriptores locales permanecen en fenotipo; el campo de render se
      * resuelve contra la anatomía interpolada, no contra un extremo obsoleto. */
     SurfacePhenotype local=SurfacePhenotype_Interpolate(&a->phenotype.surface,&b->phenotype.surface,u);
     SurfacePhenotype_CopyAnchoredDomains(&out->phenotype.surface,&local);
     SurfacePhenotype_CopyAnchoredDomains(&out->surface,&local);
-    SurfaceMapper_ResolvePigmentDomains(&out->surface,&out->anatomyGraph,&out->surfaceMapping);
     size_t colors=a->colorPalette.count<b->colorPalette.count?a->colorPalette.count:b->colorPalette.count;
     for(size_t i=0;i<colors;++i)out->colorPalette.colors[i]=Color_Lerp(a->colorPalette.colors[i],b->colorPalette.colors[i],u);
     if(a->hasHead && b->hasHead) {
@@ -710,6 +795,9 @@ bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monst
         }
         if(out->mouthCount)out->mouths[0]=out->head.anatomy.oralSystem;
     }
+    if(!Morph_ResolveNasalExtension(out,u))return false;
+    out->surfaceMapping=SurfaceMapping_FromAnatomy(&out->anatomyGraph,out->phenotype.axial.totalScale);
+    SurfaceMapper_ResolvePigmentDomains(&out->surface,&out->anatomyGraph,&out->surfaceMapping);
     size_t eyes=a->eyeCount<b->eyeCount?a->eyeCount:b->eyeCount;
     for(size_t i=0;i<eyes;++i) {
         Eye* e=&out->eyes[i];const Eye* x=&a->eyes[i],*y=&b->eyes[i];

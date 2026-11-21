@@ -9,6 +9,8 @@ struct Monster;
 bool Creature_ResolveAnatomy(const CreatureRecipe*,const CreaturePhenotype*,AnatomyGraph*);
 /** @brief Actualiza anatomía y apariencia preservando animación. @return Éxito. */
 bool Creature_ResolveAppearance(struct Monster*,const CreatureRecipe*,const CreaturePhenotype*);
+/** @brief Configura el rig a partir del grafo y la apariencia ya resueltos. */
+bool Creature_ConfigureAnimation(struct Monster*);
 /** @brief Construye criatura y rig. @return Éxito. */
 bool Creature_BuildMonster(struct Monster*,const CreatureRecipe*,const CreaturePhenotype*);
 /** @brief Invierte la curva de escala entre extremos. @return Edad normalizada. */

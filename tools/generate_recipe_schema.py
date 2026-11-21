@@ -40,6 +40,7 @@ OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount',
 OPTIONAL['CreatureRecipe'] = {'offspringSeed', 'offspringVersion'}
 OPTIONAL['HeadHybridProfile'] = {'hasRegionalProfile', 'regional', 'referenceControls'}
 OPTIONAL['HeadPhenotype'] = {'nasalColor'}
+OPTIONAL['HeadSurfaceRecipe'] = {'nasalDiscWeight', 'oralArch'}
 output, emitted = ['/* Generado por tools/generate_recipe_schema.py; no editar. */'], set()
 
 

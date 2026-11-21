@@ -1,6 +1,7 @@
 #include "Creature.h"
 #include "CreatureMorph.h"
 #include "MonsterAger.h"
+#include "MonsterAnimation.h"
 #include "MathUtils.h"
 #include <stdlib.h>
 #include <string.h>
@@ -134,6 +135,13 @@ void MonsterAger_NormalizeEndpoints(Monster* monster1, Monster* monster2) {
 }
 
 
+static void Ager_UpdateActiveRig(Monster* monster) {
+    if(monster->animation && !Creature_ConfigureAnimation(monster)) {
+        MonsterAnimation_Free(monster->animation);
+        monster->animation=NULL;
+    }
+}
+
 void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, float perc, Monster* dst) {
     if (!monster1 || !monster2 || !dst) return;
 
@@ -146,6 +154,7 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
         if (!Creature_ResolveAppearance(dst,&monster1->recipe,&phenotype)) return;
         dst->growthAge=Math_Clamp01(perc); dst->hasGrowthAge=true;
         Monster_SetHeadOpenFactor(dst,open);
+        Ager_UpdateActiveRig(dst);
         dst->angle=Math_Lerp(monster1->angle,monster2->angle,perc);
         dst->updateSpeed=Math_Lerp(monster1->updateSpeed,monster2->updateSpeed,perc);
         return;
@@ -153,7 +162,16 @@ void MonsterAger_Interpolate(const Monster* monster1, const Monster* monster2, f
 
     /* Inter-especies: cuando ambas entidades poseen fenotipo biológico modular */
     if (monster1->hasCreaturePhenotype && monster2->hasCreaturePhenotype) {
-        if (CreatureMorph_Interpolate(monster1, monster2, perc, dst)) return;
+        /* Los resultados visuales y snapshots sin rig siguen siendo ligeros.
+         * El usuario que ya anima el destino conserva el estado del controlador. */
+        MonsterAnimation* animation=dst->animation;
+        dst->animation=NULL;
+        bool resolved=CreatureMorph_Interpolate(monster1,monster2,perc,dst);
+        dst->animation=animation;
+        if(resolved) {
+            Ager_UpdateActiveRig(dst);
+            return;
+        }
     }
 
     /* Topologías distintas de modelos heredados sólo admiten selección discreta de extremos. */

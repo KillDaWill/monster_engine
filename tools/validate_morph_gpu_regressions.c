@@ -5,6 +5,7 @@
 #include "Creature.h"
 #include "CreatureMorph.h"
 #include "CreatureRecipes.h"
+#include "CreatureRecipeIO.h"
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
 #include <stdio.h>
@@ -140,19 +141,32 @@ static bool SparseMaterialRefresh(Renderer3D* r,ICamera* camera) {
     return true;
 }
 
-static bool FieldParity(Renderer3D* r) {
-    Monster dog=Monster_Create(),lizard=Monster_Create(),current=Monster_Create();
-    const CreatureRecipe* a=CreatureRecipes_Dog();const CreatureRecipe* b=CreatureRecipes_Lizard();
-    CHECK(Creature_BuildMonster(&dog,a,&a->adult)&&Creature_BuildMonster(&lizard,b,&b->adult),"Extremos de paridad");
+static bool FieldParity(Renderer3D* r,const CreatureRecipe* a,const CreatureRecipe* b) {
+    Monster first=Monster_Create(),second=Monster_Create(),current=Monster_Create();
+    CHECK(Creature_BuildMonster(&first,a,&a->adult)&&Creature_BuildMonster(&second,b,&b->adult),"Extremos de paridad");
     MonsterSDF field=MonsterSDF_Create();MonsterSDFConfig config=MonsterSDF_DefaultConfig();
     float ages[]={0,.1f,.2f,.35f,.5f,.65f,.8f,.9f,1,.5f,0};
     for(unsigned age=0;age<sizeof(ages)/sizeof(*ages);++age) {
-        CHECK(CreatureMorph_Interpolate(&dog,&lizard,ages[age],&current)&&MonsterSDF_Build(&field,&current,config),"Campo de paridad por edad");
+        CHECK(CreatureMorph_Interpolate(&first,&second,ages[age],&current)&&MonsterSDF_Build(&field,&current,config),"Campo de paridad por edad");
         Vector3 points[4096];size_t count=0;
         for(size_t i=0;i<current.anatomyGraph.nodeCount&&count<2048;++i) {
             const AnatomyNode* node=&current.anatomyGraph.nodes[i];
             points[count++]=node->center;
             points[count++]=Vec3_Add(node->center,Vec3_Scale(node->envelopeRadii,.7f));
+        }
+        for(size_t m=0;m<field.mouthCount;++m) {
+            const MonsterSDFMouth* mouth=&field.mouths[m];
+            if(mouth->nostrilRadii.x<=0)continue;
+            for(unsigned side=0;side<2;++side) {
+                Vector3 center=side?mouth->rightNostrilCenterLocal:mouth->leftNostrilCenterLocal;
+                float step=mouth->nostrilRadii.x*.62f;
+                for(int x=-2;x<=2;++x)for(int y=-2;y<=2;++y)for(int z=-2;z<=2;++z) {
+                    Vector3 p=Vec3_Add(center,Vec3_Create(step*x,step*y,step*z));
+                    RotationBasis3D base=mouth->inverseRotation;
+                    points[count++]=Vec3_Add(mouth->center,Vec3_Add(Vec3_Scale(base.row0,p.x),
+                        Vec3_Add(Vec3_Scale(base.row1,p.y),Vec3_Scale(base.row2,p.z))));
+                }
+            }
         }
         for(unsigned i=0;i<2048&&count<4096;++i) {
             float x=(float)((i*97u)%2039u)/2038,y=(float)((i*193u)%2029u)/2028,z=(float)((i*251u)%2017u)/2016;
@@ -162,9 +176,9 @@ static bool FieldParity(Renderer3D* r) {
         float compute=0,ray=0;
         CHECK(OpenGLRenderer_ValidateComputeSDF(r,&field,points,count,&compute)&&compute<.0002f,"Paridad CPU/compute con grupos contiguos");
         CHECK(OpenGLRenderer_ValidateSDF(r,&field,points,count,&ray)&&ray<.0002f,"Paridad CPU/fragment con grupos contiguos");
-        printf("[PARIDAD] edad=%.2f puntos=%zu compute=%g fragment=%g\n",ages[age],count,compute,ray);
+        printf("[PARIDAD] %s → %s edad=%.2f puntos=%zu compute=%g fragment=%g\n",a->name,b->name,ages[age],count,compute,ray);
     }
-    MonsterSDF_Free(&field);Monster_Free(&dog);Monster_Free(&lizard);Monster_Free(&current);
+    MonsterSDF_Free(&field);Monster_Free(&first);Monster_Free(&second);Monster_Free(&current);
     return true;
 }
 
@@ -179,7 +193,14 @@ int main(void) {
     glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LESS);glClearDepth(1);glDisable(GL_CULL_FACE);
     ICamera camera={.position={0,0,4},.target={0,0,0},.up={0,1,0},.fov=60,.aspectRatio=1,.nearPlane=.1f,.farPlane=20};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
-    bool ok=OrthographicTrace(&renderer,&camera)&&RootOwnership(&renderer,&camera)&&DenseReuse(&renderer,&camera)&&SparseMaterialRefresh(&renderer,&camera)&&FieldParity(&renderer)&&OpenGLRenderer_CheckErrors();
+    CreatureRecipeDocument* recipes=calloc(2,sizeof(*recipes));
+    bool ok=recipes && CreatureRecipeIO_LoadFile(&recipes[0],"recipes/cerdo.creature.json",NULL,0) &&
+        CreatureRecipeIO_LoadFile(&recipes[1],"recipes/elefante.creature.json",NULL,0) &&
+        OrthographicTrace(&renderer,&camera) && RootOwnership(&renderer,&camera) &&
+        DenseReuse(&renderer,&camera) && SparseMaterialRefresh(&renderer,&camera) &&
+        FieldParity(&renderer,CreatureRecipes_Dog(),CreatureRecipes_Lizard()) &&
+        FieldParity(&renderer,&recipes[0].recipe,&recipes[1].recipe) && OpenGLRenderer_CheckErrors();
+    free(recipes);
     OpenGLRenderer_Destroy(&renderer);SDL_GL_DeleteContext(context);SDL_DestroyWindow(window);SDL_Quit();
     if(ok)puts("[PASS] Raíz propietaria posterior y caché densa GPU");
     return ok?0:1;

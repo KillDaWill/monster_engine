@@ -3,7 +3,7 @@
 #include <float.h>
 #include <string.h>
 #include <time.h>
-static SurfaceRegion Region(const SurfaceMapping* map,AnatomyId id) {
+SurfaceRegion SurfaceMapping_NodeRegion(const SurfaceMapping* map,AnatomyId id) {
     if(map)for(size_t i=0;i<map->tagCount && i<ANATOMY_MAX_NODES;++i)
         if(map->tags[i].node==id && map->tags[i].region<SURFACE_REGION_COUNT)return map->tags[i].region;
     return SURFACE_REGION_UNKNOWN;
@@ -55,7 +55,7 @@ static size_t Compile(const AnatomyGraph* graph,const SurfaceMapping* map,MapSeg
         const AnatomyNode* b=AnatomyGraph_FindNode(graph,c->toId);
         if(!a || !b)continue;
         Vector3 ab=Vec3_Sub(b->center,a->center); float len=Vec3_Dot(ab,ab);
-        SurfaceRegion ar=Region(map,a->id),br=Region(map,b->id);
+        SurfaceRegion ar=SurfaceMapping_NodeRegion(map,a->id),br=SurfaceMapping_NodeRegion(map,b->id);
         if(c->kind==BODY_CONNECTION_DIGIT_SEGMENT)ar=br=SURFACE_REGION_DIGIT;
         segments[count++]=(MapSegment){a->center,ab,len>1e-10f?1/len:0,
             (a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,ar,br};
@@ -288,7 +288,7 @@ bool SurfaceMapper_MapBoundMesh(Mesh* mesh,const AnatomyDeformer* binder,
         MaterialTransform* t=&transforms[c];t->a=a->center;t->ab=Vec3_Sub(b->center,a->center);
         t->rotation=Quat_FromTo(Vec3_Sub(rb->center,ra->center),t->ab);
         t->ra=(a->widthRadius+a->heightRadius)*.5f;t->rb=(b->widthRadius+b->heightRadius)*.5f;
-        t->region=Region(mapping,edge->toId);
+        t->region=SurfaceMapping_NodeRegion(mapping,edge->toId);
         if(edge->kind==BODY_CONNECTION_DIGIT_SEGMENT)t->region=SURFACE_REGION_DIGIT;
     }
     for(size_t v=0;v<mesh->vertexCount;++v) {
@@ -317,7 +317,26 @@ SurfaceMapping SurfaceMapping_FromAnatomy(const AnatomyGraph* g,float scale) {
     for(size_t i=0;i<g->nodeCount;++i) {
         SurfaceRegion region=SURFACE_REGION_DORSAL_TRUNK;
         switch(g->nodes[i].region) {
-        case ANATOMY_REGION_FLEXIBLE:
+        case ANATOMY_REGION_FLEXIBLE: {
+            region=SURFACE_REGION_HEAD;
+            /* Una cadena con raíz cefálica y dos aberturas conserva piel
+             * corporal a lo largo del tramo libre y la cara en su inserción. */
+            const AnatomyNode* node=&g->nodes[i];
+            if(node->localNodeId<=2)break;
+            AnatomyId root=Anatomy_MakeId(node->moduleInstanceId,1);
+            bool cranial=false, nasal=false;
+            for(size_t c=0;c<g->connectionCount;++c) {
+                const BodyConnection* edge=&g->connections[c];
+                if(edge->moduleInstanceId!=node->moduleInstanceId)continue;
+                if(edge->toId==root) {
+                    const AnatomyNode* host=AnatomyGraph_FindNode(g,edge->fromId);
+                    cranial=host && host->region==ANATOMY_REGION_HEAD;
+                }
+                nasal|=edge->kind==BODY_CONNECTION_PAIRED_OPENINGS;
+            }
+            if(cranial && nasal)region=SURFACE_REGION_DORSAL_TRUNK;
+            break;
+        }
         case ANATOMY_REGION_HEAD:region=SURFACE_REGION_HEAD;break;
         case ANATOMY_REGION_NECK:region=SURFACE_REGION_NECK;break;
         case ANATOMY_REGION_FORELIMB:case ANATOMY_REGION_LIMB:case ANATOMY_REGION_WING:region=SURFACE_REGION_FORELIMB;break;
@@ -374,8 +393,8 @@ bool SurfaceMapper_BuildMorphDomain(SurfaceMorphDomain* domain,const AnatomyGrap
             data[j][0]=points[j].x;data[j][1]=points[j].y;data[j][2]=points[j].z;data[j][3]=radii[j];
         }
         data[4][0]=q.x;data[4][1]=q.y;data[4][2]=q.z;data[4][3]=q.w;
-        data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:Region(mapping,ra->id));
-        data[5][1]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:Region(mapping,rb->id));
+        data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:SurfaceMapping_NodeRegion(mapping,ra->id));
+        data[5][1]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:SurfaceMapping_NodeRegion(mapping,rb->id));
         data[5][2]=data[5][3]=0;
     }
     if(!domain->count)return false;

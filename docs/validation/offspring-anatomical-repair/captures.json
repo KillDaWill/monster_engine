@@ -1,0 +1,318 @@
+{
+  "build": {
+    "source_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+    "capture_revision": "6043b94-dirty",
+    "batch_seed": 48216,
+    "renderer_sha256": "8e0c920fe3ace51dc5f01422bd6707a3c7c04bd88f2d3997252ab238e25d4a67",
+    "exporter_sha256": "55ff1b2e0202a5cc1d9cb2023a1580e594522d0b27b8a395aa2ebfc5edb499f4"
+  },
+  "images": {
+    "lagarto-rinoceronte-01.png": {
+      "combination": "lagarto_x_rinoceronte",
+      "offspring": 1,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/lagarto_x_rinoceronte/1.creature.json",
+          "seed": 2777404871,
+          "batch_seed": 48216,
+          "sha256": "3cf3f71a724fd402391163db9d053f2c3476f914149f0ab4adca1ecb6cc5c2de",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/lagarto_x_rinoceronte/1/replayed.creature.json",
+          "seed": 2777404871,
+          "batch_seed": 48216,
+          "sha256": "c5d9d8cc087706173419a602cea708d4cd54a58e387193b70613c33d8a05d9b5",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "rinoceronte-rata-09.png": {
+      "combination": "rinoceronte_x_rata",
+      "offspring": 9,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/rinoceronte_x_rata/9.creature.json",
+          "seed": 3096599572,
+          "batch_seed": 48216,
+          "sha256": "35e0506da6f03f8224687ac98b6d9197364c3492f0ff588bf7a0049fc4eb9193",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/rinoceronte_x_rata/9/replayed.creature.json",
+          "seed": 3096599572,
+          "batch_seed": 48216,
+          "sha256": "9380c14561a0b514912a3b7775cd1deef3bfbb65f749cc37b4811886cddefc98",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "cerdo-elefante-04.png": {
+      "combination": "cerdo_x_elefante",
+      "offspring": 4,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/cerdo_x_elefante/4.creature.json",
+          "seed": 3802516999,
+          "batch_seed": 48216,
+          "sha256": "78476478256dea42a8cb61047b27992cee411e4656b88ad66f289bd76fb1194a",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/cerdo_x_elefante/4/replayed.creature.json",
+          "seed": 3802516999,
+          "batch_seed": 48216,
+          "sha256": "b3d60fd964e919a24664d986e9cf15a72998673d9b62ceca5bfa4917a96afb24",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "cerdo-elefante-04-poses.png": {
+      "combination": "cerdo_x_elefante",
+      "offspring": 4,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/cerdo_x_elefante/4.creature.json",
+          "seed": 3802516999,
+          "batch_seed": 48216,
+          "sha256": "78476478256dea42a8cb61047b27992cee411e4656b88ad66f289bd76fb1194a",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/cerdo_x_elefante/4/replayed.creature.json",
+          "seed": 3802516999,
+          "batch_seed": 48216,
+          "sha256": "b3d60fd964e919a24664d986e9cf15a72998673d9b62ceca5bfa4917a96afb24",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "elefante-rata-01-poses.png": {
+      "combination": "elefante_x_rata",
+      "offspring": 1,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/elefante_x_rata/1.creature.json",
+          "seed": 2777404871,
+          "batch_seed": 48216,
+          "sha256": "673b7ef0f2f082f3b8aded5659068b2154e48f38eed82495806c870b5fea3a2f",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/elefante_x_rata/1/replayed.creature.json",
+          "seed": 2777404871,
+          "batch_seed": 48216,
+          "sha256": "c5db9f3816b9dd58cb603a31d74df8dbeedc5916f2296143de35ad9c2fd12d5b",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "lagarto-asno-05.png": {
+      "combination": "lagarto_x_asno",
+      "offspring": 5,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/lagarto_x_asno/5.creature.json",
+          "seed": 2732142972,
+          "batch_seed": 48216,
+          "sha256": "a4ba62f64373c75d5e624c11f1b0f69d1edc90f881ea945330043e9649d136ae",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/lagarto_x_asno/5/replayed.creature.json",
+          "seed": 2732142972,
+          "batch_seed": 48216,
+          "sha256": "b97f3939f042d2769820a472695dc4410c4ae9a40e6c12ecd535ca006c875fd3",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "caballo-rata-02.png": {
+      "combination": "caballo_x_rata",
+      "offspring": 2,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/caballo_x_rata/2.creature.json",
+          "seed": 3776624900,
+          "batch_seed": 48216,
+          "sha256": "5b643857c6a91ceb1749898705a623f5155ba577a4bb155e4d690d28d1c83ffe",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/caballo_x_rata/2/replayed.creature.json",
+          "seed": 3776624900,
+          "batch_seed": 48216,
+          "sha256": "436ff107d02fa566725275b341c7d0097feef5829572a9d6aa6b5c3c8fc5a078",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "cerdo-rata-02.png": {
+      "combination": "cerdo_x_rata",
+      "offspring": 2,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/cerdo_x_rata/2.creature.json",
+          "seed": 2134546933,
+          "batch_seed": 48216,
+          "sha256": "29a8a1f7a4f07282ee6e094126cecf0ed18ca9dcc5a52ee4006768913bad9c76",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/cerdo_x_rata/2/replayed.creature.json",
+          "seed": 2134546933,
+          "batch_seed": 48216,
+          "sha256": "f5fad36050df416c8b030c0c05776a67982c54ae64793952b57c5c401cb4da22",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "caballo-cerdo-02.png": {
+      "combination": "caballo_x_cerdo",
+      "offspring": 2,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/caballo_x_cerdo/2.creature.json",
+          "seed": 335264434,
+          "batch_seed": 48216,
+          "sha256": "a20dc5577802eb976493abe3e6cee48553784039c93d4dcc7cb3218b3056143c",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/caballo_x_cerdo/2/replayed.creature.json",
+          "seed": 335264434,
+          "batch_seed": 48216,
+          "sha256": "67cff033e88f1118b5bfb93961240b9adb2230d54f4a2dd46597e7c079451f0b",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "lagarto-cerdo-08.png": {
+      "combination": "lagarto_x_cerdo",
+      "offspring": 8,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/lagarto_x_cerdo/8.creature.json",
+          "seed": 2886628893,
+          "batch_seed": 48216,
+          "sha256": "60a9d7dc0a94659711e29c501365d3878373052e098f1122a08b94e81aa3be16",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/review-visual/targets/lagarto_x_cerdo/8/replayed.creature.json",
+          "seed": 2886628893,
+          "batch_seed": 48216,
+          "sha256": "0cd9cffe4e8e5d2a7b1294cf9f0f15eff2fb7894c7b708aa3ddb48f42e96db12",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ]
+    },
+    "lagarto-asno-05-marcha.png": {
+      "combination": "lagarto_x_asno",
+      "offspring": 5,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/lagarto_x_asno/5.creature.json",
+          "seed": 2732142972,
+          "batch_seed": 48216,
+          "sha256": "a4ba62f64373c75d5e624c11f1b0f69d1edc90f881ea945330043e9649d136ae",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/walk-visual/targets/lagarto_x_asno/5/replayed.creature.json",
+          "seed": 2732142972,
+          "batch_seed": 48216,
+          "sha256": "b97f3939f042d2769820a472695dc4410c4ae9a40e6c12ecd535ca006c875fd3",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ],
+      "build": {
+        "source_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+        "capture_revision": "6043b94-dirty",
+        "batch_seed": 48216,
+        "renderer_sha256": "33dcb6971a9290c79b19b69cf73b7539d970f0eef6080d32f3e71d6255f818b1",
+        "exporter_sha256": "55ff1b2e0202a5cc1d9cb2023a1580e594522d0b27b8a395aa2ebfc5edb499f4"
+      }
+    },
+    "caballo-rata-02-cola.png": {
+      "combination": "caballo_x_rata",
+      "offspring": 2,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/caballo_x_rata/2.creature.json",
+          "seed": 3776624900,
+          "batch_seed": 48216,
+          "sha256": "5b643857c6a91ceb1749898705a623f5155ba577a4bb155e4d690d28d1c83ffe",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/tail-visual/targets/caballo_x_rata/2/replayed.creature.json",
+          "seed": 3776624900,
+          "batch_seed": 48216,
+          "sha256": "436ff107d02fa566725275b341c7d0097feef5829572a9d6aa6b5c3c8fc5a078",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ],
+      "build": {
+        "source_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+        "capture_revision": "6043b94-dirty",
+        "batch_seed": 48216,
+        "renderer_sha256": "a7372ec2a2d88999a825c2aa79a3aa4614be0ad3c6a78e7329ab9da918021236",
+        "exporter_sha256": "55ff1b2e0202a5cc1d9cb2023a1580e594522d0b27b8a395aa2ebfc5edb499f4"
+      }
+    },
+    "rinoceronte-rata-09-cola.png": {
+      "combination": "rinoceronte_x_rata",
+      "offspring": 9,
+      "columns": [
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/source/offspring_report/recipes/rinoceronte_x_rata/9.creature.json",
+          "seed": 3096599572,
+          "batch_seed": 48216,
+          "sha256": "35e0506da6f03f8224687ac98b6d9197364c3492f0ff588bf7a0049fc4eb9193",
+          "recipe_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+          "capture_revision": "6043b94-dirty"
+        },
+        {
+          "path": "/home/guillermo/Escritorio/monster_engine/build/offspring-repair/tail-visual/targets/rinoceronte_x_rata/9/replayed.creature.json",
+          "seed": 3096599572,
+          "batch_seed": 48216,
+          "sha256": "9380c14561a0b514912a3b7775cd1deef3bfbb65f749cc37b4811886cddefc98",
+          "recipe_revision": "6043b94-dirty",
+          "capture_revision": "6043b94-dirty"
+        }
+      ],
+      "build": {
+        "source_revision": "6043b9499aedb3893dff62e79fd0b79767f04a8b",
+        "capture_revision": "6043b94-dirty",
+        "batch_seed": 48216,
+        "renderer_sha256": "a7372ec2a2d88999a825c2aa79a3aa4614be0ad3c6a78e7329ab9da918021236",
+        "exporter_sha256": "55ff1b2e0202a5cc1d9cb2023a1580e594522d0b27b8a395aa2ebfc5edb499f4"
+      }
+    }
+  }
+}

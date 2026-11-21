@@ -457,7 +457,7 @@ static void Info(UiOffspringApp *app, size_t index, char *out, size_t capacity)
         "Body Y %%  neck %.0f  shoulder %.0f  abdomen %.0f  pelvis %.0f  ·  leg upper %.0f  lower %.0f\n"
         "Surface Y %%  dorsal %.0f  ventral %.0f  face %.0f  pattern %.0f  fur %.0f\n"
         "Selection  shape %.3f  appearance %.3f  quality %.3f  ·  %u/%u eligible\n"
-        "%s  error head %.3f  body %.3f  limbs %.3f  ·  %u fit evaluations\n"
+        "Anatomical coherence %.3f  ·  %s  error head %.3f  body %.3f  limbs %.3f  ·  %u fit evaluations\n"
         "Structure  scaffold %c  head %c  feet %c  tail %c  ·  %zu legs  %zu tails  %zu ornaments  %zu flexible\n"
         "4 stages + 3 ages  ·  %u repair passes  ·  %u grafts  ·  %u omitted (%u anchors)\n%s",
         recipe->name,r->generatorVersion,CreatureOffspring_Seed(app->batch),r->seed,r->mutationSeed,
@@ -467,7 +467,8 @@ static void Info(UiOffspringApp *app, size_t index, char *out, size_t capacity)
         100*r->neck,100*r->shoulder,100*r->abdomen,100*r->pelvis,100*r->upperLimb,100*r->lowerLimb,
         100*r->dorsal,100*r->ventral,100*r->facial,100*r->pattern,100*r->fur,
         r->shapeDiversity,r->appearanceDiversity,r->quality,r->proposalsValid,r->proposalsEvaluated,
-        r->hasMorphTarget ? "Regional morph" : "Morph unavailable",r->headError,r->bodyError,r->limbError,r->fitEvaluations,
+        r->anatomicalCoherence,r->hasMorphTarget ? "Regional morph" : "Morph unavailable",
+        r->headError,r->bodyError,r->limbError,r->fitEvaluations,
         'X'+r->scaffoldParent,'X'+r->headParent,'X'+r->limbParent,'X'+r->tailParent,
         p->limbCount,p->tailCount,p->ornamentCount,p->flexibleAppendageCount,r->repairs,r->grafts,
         r->omitted,r->removedAnchors,path);

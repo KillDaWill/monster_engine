@@ -47,11 +47,23 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
         if (!slot) return false;
 
         switch (m->kind) {
-        case CREATURE_MODULE_HEAD:
-            if (!HeadModule_ResolveProfile(&p.head, &p.headEnvelope, &p.headHybrid, p.development.cephalic, m->instanceId, slot, graph, &slots)) {
+        case CREATURE_MODULE_HEAD: {
+            unsigned fittedSites = 0;
+            for (size_t j=0; j<recipe->bodyPlan.moduleCount; ++j) {
+                const CreatureModuleInstance *child = &recipe->bodyPlan.modules[j];
+                AttachmentSlotId id = child->attachment.slotId;
+                if (child->pathAttached || child->attachment.hostModuleInstanceId != m->instanceId) continue;
+                if (id >= HEAD_SLOT_FITTED_PROBOSCIS && id <= HEAD_SLOT_FITTED_NASAL_POSTERIOR)
+                    fittedSites |= 1u << (id-HEAD_SLOT_FITTED_PROBOSCIS);
+                if (id == HEAD_SLOT_PROBOSCIS && child->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE)
+                    fittedSites |= HEAD_SITE_LEGACY_PROBOSCIS;
+            }
+            if (!HeadModule_ResolveProfileWithSites(&p.head,&p.headEnvelope,&p.headHybrid,
+                    p.development.cephalic,m->instanceId,slot,graph,&slots,fittedSites)) {
                 return false;
             }
             break;
+        }
         case CREATURE_MODULE_LIMB: {
             LimbPhenotype limb = p.limbs[m->phenotypeIndex];
             limb.development *= p.development.appendages;
@@ -67,9 +79,14 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
                 Anatomy_MakeId(m->membranePrevious, ORNAMENT_NODE_MID),
                 Anatomy_MakeId(m->instanceId, ORNAMENT_NODE_MID), BODY_CONNECTION_SUPPORT, 1)) return false;
             break;
-        case CREATURE_MODULE_FLEXIBLE_APPENDAGE:
-            if (!FlexibleAppendage_Resolve(&p.flexibleAppendages[m->phenotypeIndex], m->instanceId, slot, graph)) return false;
+        case CREATURE_MODULE_FLEXIBLE_APPENDAGE: {
+            FlexibleAppendagePhenotype flexible=p.flexibleAppendages[m->phenotypeIndex];
+            if(recipe->offspringVersion && HeadModule_IsNasalExtension(slot->id))
+                flexible.length=fmaxf(flexible.length,
+                    FlexibleAppendage_MinNasalLength(&flexible,slot->hostRadii.y/slot->scale));
+            if (!FlexibleAppendage_Resolve(&flexible,m->instanceId,slot,graph)) return false;
             break;
+        }
         default:
             return false;
         }
@@ -164,7 +181,15 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
              * pequeño y relativo. La cobertura palpebral pertenece al párpado,
              * no debe hundir de nuevo el globo dentro del cráneo. */
             float offset = eye->scale.z * .10f * (Math_Clamp01(p.eyes.protrusion) - .5f);
-            eye->offset = Vec3_Add(center, Vec3_Scale(eye->forward, offset));
+            Vector3 orbit = i == 0 ? anatomy->landmarks.leftOrbit : anatomy->landmarks.rightOrbit;
+            Vector3 seat = Vec3_Sub(center, orbit);
+            float exposure = Vec3_Length(seat);
+            /* El globo emergente puede ser mucho menor que el globo del
+             * perfil. Limita su exposición respecto a la órbita resuelta. */
+            float maxExposure = eye->scale.z * .80f;
+            if (p.headHybrid.hasRegionalProfile && exposure > maxExposure)
+                center = Vec3_Add(orbit,Vec3_Scale(seat,maxExposure/exposure));
+            eye->offset = Vec3_Add(center,Vec3_Scale(eye->forward,offset));
 
         }
     } else {
@@ -176,12 +201,11 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
     return true;
 }
 
-bool Creature_BuildMonster(struct Monster* monster, const CreatureRecipe* recipe, const CreaturePhenotype* source) {
-    if (!Creature_ResolveAppearance(monster, recipe, source)) return false;
+bool Creature_ConfigureAnimation(struct Monster* monster) {
     Rig rig;
     if (!CreatureRig_Build(monster, &rig)) return false;
     GaitProfile gait;
-    switch (recipe->gait) {
+    switch (monster->recipe.gait) {
     case CREATURE_GAIT_NONE:
         if (monster->animation) {
             MonsterAnimation_Free(monster->animation);
@@ -213,6 +237,10 @@ bool Creature_BuildMonster(struct Monster* monster, const CreatureRecipe* recipe
         return false;
     }
     return MonsterAnimation_Configure(monster, &rig, gait);
+}
+
+bool Creature_BuildMonster(struct Monster* monster,const CreatureRecipe* recipe,const CreaturePhenotype* source) {
+    return Creature_ResolveAppearance(monster,recipe,source) && Creature_ConfigureAnimation(monster);
 }
 
 float Creature_AgeFromScaleBetween(float scale, float initialScale, float finalScale) {

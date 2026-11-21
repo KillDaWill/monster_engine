@@ -183,6 +183,10 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     RayBounds_Ellipsoid(&head,Vec3_Add(m.leftOrbitCenterLocal,Vec3_Scale(m.leftOrbitNormal,m.orbitRadii.x*.18f)),m.orbitRadii,cut);
     RayBounds_Ellipsoid(&head,Vec3_Add(m.rightOrbitCenterLocal,Vec3_Scale(m.rightOrbitNormal,m.orbitRadii.x*.18f)),m.orbitRadii,cut);
     Vector3 nasal=m.nostrilRadii;nasal.x+=m.nostrilCurve*(nasal.y*.35f+nasal.x*.60f);nasal.z*=1+m.nostrilCurve*.45f;
+    if(m.nasalTerminalWeight>0) {
+        float r=Vec3_Length(nasal);
+        nasal=Vec3_Create(r,r,r);
+    }
     RayBounds_Ellipsoid(&head,m.leftNostrilCenterLocal,nasal,cut);
     RayBounds_Ellipsoid(&head,m.rightNostrilCenterLocal,nasal,cut);
     if(m.hasTympana){RayBounds_Ellipsoid(&head,m.leftTympanumCenterLocal,m.tympanumRadii,cut);RayBounds_Ellipsoid(&head,m.rightTympanumCenterLocal,m.tympanumRadii,cut);}
@@ -190,11 +194,11 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
     AABB_ExpandPoint(&m.headBounds,world.start);AABB_ExpandPoint(&m.headBounds,world.end);
     AABB3D mouth=AABB_Empty();
     float oral=m.rimBevel+m.entranceToCavitySmoothness*.25f+8.f*tolerance;
-    Vector3 cavity=m.cavityRadii;cavity.y+=fabsf(m.oralSlope)*cavity.z;
+    Vector3 cavity=m.cavityRadii;cavity.y+=fabsf(m.oralSlope)*cavity.z+fabsf(m.oralArch);
     RayBounds_Ellipsoid(&mouth,m.cavityCenterLocal,cavity,oral);
     Vector3 ext=m.entranceHalfExtents;
     ext.x=fmaxf(ext.x,ext.y);ext=Vec3_Add(ext,Vec3_Create(oral,oral,oral));
-    ext.y+=fabsf(m.oralSlope)*ext.z;
+    ext.y+=fabsf(m.oralSlope)*ext.z+fabsf(m.oralArch);
     AABB_ExpandRadius(&mouth,m.entranceCenterLocal,ext);
     world=RayBounds_World(&m,mouth);
     AABB_ExpandPoint(&m.influenceBounds,world.start);AABB_ExpandPoint(&m.influenceBounds,world.end);

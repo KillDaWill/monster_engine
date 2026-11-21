@@ -134,6 +134,33 @@ static bool Object(Reader* r,void* ptr,const Field* fields,unsigned depth) {
     }
     if(!Take(r,'}'))return false;
     for(size_t i=0;i<count;++i)if(!seen[i]&&!fields[i].optional)return false;
+    if(fields==HeadSurfaceRecipe_fields) {
+        HeadSurfaceRecipe* surface=ptr;
+        for(size_t i=0;i<count;++i) {
+            if(strcmp(fields[i].name,"nasalDiscWeight")!=0)continue;
+            if(!seen[i])surface->nasalDiscWeight=-1;
+            else if(surface->nasalDiscWeight<0 || surface->nasalDiscWeight>1)return false;
+            break;
+        }
+    }
+    if(fields==HeadHybridProfile_fields) {
+        HeadHybridProfile* hybrid=ptr;
+        HeadSurfaceRecipe* surface=&hybrid->regional.surface;
+        if(surface->nasalDiscWeight<0) {
+            surface->nasalDiscWeight=0;
+            /* v1 guardaba el plano de corte y el planum, sin su peso nasal.
+             * Sólo se migra el disco cuando el perfil antiguo identifica
+             * ascendencia suida y conserva un planum y un casquete. */
+            bool suid=hybrid->regional.archetype==HEAD_ARCHETYPE_SUID ||
+                hybrid->secondary.archetype==HEAD_ARCHETYPE_SUID;
+            if(suid && surface->sweptSkull && surface->hasNasalPad) {
+                float weight=fminf(1,fmaxf(0,surface->faceCapWeight*(1-surface->nostrilCurve)));
+                surface->nasalDiscWeight=weight;
+                surface->faceCapDepth+=(surface->cranialRadii[0].y*.40f-surface->faceCapDepth)*weight;
+                surface->oralArch=surface->faceTipRadii.y*.09f*weight;
+            }
+        }
+    }
     for(size_t i=0;i<count;++i)if(fields[i].countOffset!=NO_COUNT &&
         lengths[i]!=*(size_t*)((char*)ptr+fields[i].countOffset))return false;
     return true;

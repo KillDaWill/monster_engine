@@ -69,10 +69,10 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result.w+k))continue;
         float distance=MonsterSDF_EvalConnectorDistance(c,p);
-        bool lumen=C_kind(c)==BODY_CONNECTION_PAIRED_OPENINGS&&C_length(c)>=1e-6&&
+        bool lumen=C_kind(c)==BODY_CONNECTION_PAIRED_OPENINGS&&!C_nasalTerminal(c)&&C_length(c)>=1e-6&&
             MonsterSDF_PairedConnectorCavity(c,p-C_a(c))>=distance-1e-6;
         result=joinSemantic(semantic,result,vec4(lumen?vec3(52,43,37)/255.0:C_color(c),distance),k,
-            uint(C_moduleInstanceId(c)),uint(C_region(c)),lumen?3u:tissueMaterial(C_material(c)),
+            uint(C_moduleInstanceId(c)),C_nasalBodySkin(c)?3u:uint(C_region(c)),lumen?3u:tissueMaterial(C_material(c)),
             C_material(c)==0&&!lumen?1.0:0.0);
     }
     for(int i=0;i<mouthCount;++i) {
@@ -90,9 +90,9 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(rayMouthActive) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
-            vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=M_oralSlope(m)*oralRel.z;
+            vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=MonsterSDF_OralShift(m,local.z);
             float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);
-            vec3 cavityRel=local-M_cavityCenterLocal(m);cavityRel.y-=M_oralSlope(m)*cavityRel.z;
+            vec3 cavityRel=local-M_cavityCenterLocal(m);cavityRel.y-=MonsterSDF_OralShift(m,local.z)-MonsterSDF_OralShift(m,M_cavityCenterLocal(m).z);
             float cavity=SDF_Ellipsoid(cavityRel,M_cavityRadii(m));
             if(M_sweptSkull(m)) {
                 float wall=max(ext.y*2.0,M_faceMidRadii(m).x*.12);
@@ -176,9 +176,9 @@ float sceneDistance(vec3 p) {
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
         if(rayMouthActive) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
-            vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=M_oralSlope(m)*oralRel.z;
+            vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=MonsterSDF_OralShift(m,local.z);
             float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);
-            vec3 cavityRel=local-M_cavityCenterLocal(m);cavityRel.y-=M_oralSlope(m)*cavityRel.z;
+            vec3 cavityRel=local-M_cavityCenterLocal(m);cavityRel.y-=MonsterSDF_OralShift(m,local.z)-MonsterSDF_OralShift(m,M_cavityCenterLocal(m).z);
             float cavity=SDF_Ellipsoid(cavityRel,M_cavityRadii(m));
             if(M_sweptSkull(m)) {
                 float wall=max(ext.y*2.0,M_faceMidRadii(m).x*.12);

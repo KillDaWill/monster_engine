@@ -1,8 +1,10 @@
 #include "CreatureOffspring.h"
+#include "CreatureOffspringInternal.h"
 #include "CreatureGenome.h"
 #include "CreatureMorph.h"
 #include "OffspringMorphFitter.h"
 #include "HeadModule.h"
+#include "FlexibleAppendage.h"
 #include "MathUtils.h"
 #include "MonsterSDF.h"
 #include "OffspringRepair.h"
@@ -93,6 +95,13 @@ static const CreatureModuleInstance *FindModule(const BodyPlan *plan, uint32_t i
     return NULL;
 }
 
+static AttachmentSlotId InheritedSlot(const CreatureModuleInstance *module)
+{
+    AttachmentSlotId slot = module->attachment.slotId;
+    return slot >= HEAD_SLOT_FITTED_PROBOSCIS && slot <= HEAD_SLOT_FITTED_NASAL_POSTERIOR ?
+        slot-(HEAD_SLOT_FITTED_PROBOSCIS-HEAD_SLOT_PROBOSCIS) : slot;
+}
+
 static const AnatomyNode *HostLandmark(const CreatureModuleInstance *module, const AnatomyGraph *graph)
 {
     if (module->pathAttached || !module->attachment.hostModuleInstanceId) return NULL;
@@ -113,7 +122,7 @@ static bool Equivalent(const CreatureRecipe *a, size_t i, const AnatomyNode *lan
 {
     const CreatureModuleInstance *m = &a->bodyPlan.modules[i], *n = &b->bodyPlan.modules[j];
     if (m->kind != n->kind || m->pathAttached || n->pathAttached ||
-        m->attachment.slotId != n->attachment.slotId) return false;
+        InheritedSlot(m) != InheritedSlot(n)) return false;
     if (m->kind == CREATURE_MODULE_AXIAL) return m->instanceId == a->bodyPlan.root.moduleInstanceId &&
         n->instanceId == b->bodyPlan.root.moduleInstanceId;
     if (!landmarkA || !landmarkB || landmarkA->region != landmarkB->region ||
@@ -251,6 +260,7 @@ static OffspringGenome Genome(const CreatureOffspringBatch *batch, size_t index,
     g.sharpness = .10f*intensity*Variation(&mutation);
     g.orientation = .16f*intensity*Variation(&mutation);
     g.coverage = MUTATE(.15f);
+    h->nasalExtension = SAMPLE(Math_Lerp(.5f,h->nose,.24f),1.05f,head);
     g.graft = attempt%4 < 2;
 #undef MUTATE
 #undef SAMPLE
@@ -425,12 +435,43 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
         source->pigment=InheritBank(source,r);
         MapPigment(&source->pigment,batch,plan,sources,parent,r);
         MutatePattern(&source->pigment,g);
+        const CreatureRecipe *donor=&batch->parents[parent].recipe;
+        bool compatibleTail=false;
+        for (size_t i=0; i<plan->moduleCount; ++i) {
+            if (plan->modules[i].kind!=CREATURE_MODULE_TAIL) continue;
+            ModuleSource inherited=sources[i];
+            const CreatureRecipe *owner=&batch->parents[inherited.parent].recipe;
+            const CreatureModuleInstance *tail=&owner->bodyPlan.modules[inherited.module];
+            TailArchetype archetype=owner->adult.tails[tail->phenotypeIndex].archetype;
+            for (size_t j=0; j<donor->adult.tailCount; ++j)
+                compatibleTail|=donor->adult.tails[j].archetype==archetype;
+        }
+        /* Las recetas antiguas también describen mechones de cola por región,
+         * sin un identificador de módulo que se pueda reasignar. */
+        if (!compatibleTail) {
+            size_t kept=0;
+            for (size_t i=0; i<source->tuftCount; ++i)
+                if (source->tufts[i].region!=SURFACE_REGION_TAIL)
+                    source->tufts[kept++]=source->tufts[i];
+            source->tuftCount=kept;
+        }
         size_t count = 0;
         for (size_t i=0; i<source->longHairCount; ++i) {
             LongHairGroup hair = source->longHair[i];
             LongHairDomain *d = &hair.domain;
+            const CreatureModuleInstance *oldHost=FindModule(&donor->bodyPlan,d->hostModuleId);
             d->hostModuleId = MapModule(batch,plan,sources,parent,d->hostModuleId);
             bool valid = d->hostModuleId != 0;
+            if(valid && oldHost && oldHost->kind==CREATURE_MODULE_TAIL) {
+                const CreatureModuleInstance *host=FindModule(plan,d->hostModuleId);
+                if(host) {
+                    ModuleSource inherited=sources[host-plan->modules];
+                    const CreatureRecipe *owner=&batch->parents[inherited.parent].recipe;
+                    const CreatureModuleInstance *tail=&owner->bodyPlan.modules[inherited.module];
+                    valid=donor->adult.tails[oldHost->phenotypeIndex].archetype==
+                        owner->adult.tails[tail->phenotypeIndex].archetype;
+                }
+            }
             for (size_t j=0; j<d->anchorCount; ++j) {
                 d->anchors[j] = MapNode(batch,plan,sources,parent,d->anchors[j]);
                 valid &= d->anchors[j] != 0;
@@ -529,6 +570,15 @@ static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const Creatu
     p->axial.shoulderWidth *= g->build;
     if (compatible && base->archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD)
         p->axial.withersHeight = Math_Lerp(base->withersHeight,other->withersHeight,w);
+    if (!compatible) {
+        /* Conserva la cadena locomotora y ajusta en conjunto la altura
+         * de apoyo y la longitud del torso en el marco del plan elegido. */
+        float baseStance = base->withersHeight/base->trunkLength;
+        float peerStance = other->withersHeight/other->trunkLength;
+        float stance = Math_Lerp(baseStance,peerStance,.34f*w);
+        p->axial.withersHeight = Math_Clamp(stance*length,
+            base->withersHeight*.86f,base->withersHeight*1.14f);
+    }
     p->axial.withersHeight *= g->stance;
     float heightRatio = base->withersHeight/other->withersHeight;
     float newHeightRatio = p->axial.withersHeight/base->withersHeight;
@@ -576,6 +626,8 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
     HeadAnatomy_ScaleProfile(&first,Vec3_Create(inverse,inverse,inverse));
     HeadAnatomy_ScaleProfile(&second,Vec3_Create(inverse,inverse,inverse));
     HeadRegionalInheritance genes = r->headGenes;
+    p->development.cephalic = Math_Lerp(a->development.cephalic,b->development.cephalic,genes.cranium);
+    genes.facialSeatStrength = Math_Clamp01((p->development.cephalic-.58f)/.42f);
     const HeadAnatomy *adultA = &batch->heads[0][CREATURE_STAGE_ADULT];
     const HeadAnatomy *adultB = &batch->heads[1][CREATURE_STAGE_ADULT];
     if (adultA->surface.hasEars && adultB->surface.hasEars) genes.inheritEars = true;
@@ -596,7 +648,6 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
     regional->oralSystem.lipColor=Palette(first.oralSystem.lipColor,second.oralSystem.lipColor,r->facial,g);
     regional->oralSystem.insideColor=Palette(first.oralSystem.insideColor,second.oralSystem.insideColor,r->facial,g);
     r->resolvedHeadWeight = genes.cranium;
-    p->development.cephalic = Math_Lerp(a->development.cephalic,b->development.cephalic,genes.cranium);
 #define EYE(field) p->eyes.field = Math_Lerp(a->eyes.field,b->eyes.field,genes.orbit)
     EYE(size); p->head.eyeSize = p->eyes.size; EYE(protrusion); EYE(irisScale); EYE(pupilScale); EYE(pupilAspect);
 #undef EYE
@@ -652,7 +703,7 @@ static bool UsedSlot(const BodyPlan *plan, CreatureModuleKind kind, AttachmentRe
         const CreatureModuleInstance *m = &plan->modules[i];
         if (m->kind == kind && !m->pathAttached &&
             m->attachment.hostModuleInstanceId == attachment.hostModuleInstanceId &&
-            m->attachment.slotId == attachment.slotId) return true;
+            InheritedSlot(m) == attachment.slotId) return true;
     }
     return false;
 }
@@ -663,15 +714,16 @@ static bool SupportedGraft(const CreatureRecipe *donor, const CreatureModuleInst
     if (!host || m->pathAttached || m->membranePrevious) return false;
     if (m->kind == CREATURE_MODULE_TAIL) return host->kind == CREATURE_MODULE_AXIAL;
     if (m->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE)
-        return host->kind == CREATURE_MODULE_HEAD && head == donorHead;
+        return host->kind == CREATURE_MODULE_HEAD &&
+            (HeadModule_IsNasalExtension(InheritedSlot(m)) || head == donorHead);
     if (m->kind != CREATURE_MODULE_ORNAMENT) return false;
     OrnamentArchetype type = donor->adult.ornaments[m->phenotypeIndex].archetype;
     if (type == ORNAMENT_ARCHETYPE_MEMBRANE) return false;
     if (host->kind == CREATURE_MODULE_AXIAL) return true;
     return host->kind == CREATURE_MODULE_HEAD &&
         (head == donorHead || (type == ORNAMENT_ARCHETYPE_HORN &&
-            (m->attachment.slotId == HEAD_SLOT_NASAL_ANTERIOR ||
-             m->attachment.slotId == HEAD_SLOT_NASAL_POSTERIOR)));
+            (InheritedSlot(m) == HEAD_SLOT_NASAL_ANTERIOR ||
+             InheritedSlot(m) == HEAD_SLOT_NASAL_POSTERIOR)));
 }
 
 static int NameBytes(const char *name)
@@ -706,8 +758,8 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
         /* Un anfitrión cefálico con dependencias especializadas se hereda entero. */
         const CreatureModuleInstance *host = FindModule(&out->bodyPlan,m->attachment.hostModuleInstanceId);
         if (m->pathAttached || (host && host->kind == CREATURE_MODULE_HEAD &&
-                m->attachment.slotId >= HEAD_SLOT_PROBOSCIS &&
-                m->attachment.slotId <= HEAD_SLOT_MAXILLARY_RIGHT))
+                InheritedSlot(m) >= HEAD_SLOT_PROBOSCIS &&
+                InheritedSlot(m) <= HEAD_SLOT_MAXILLARY_RIGHT))
             r->headParent = base;
     }
     if (!completeLimbs) r->limbParent = base;
@@ -729,7 +781,7 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
             m->kind != CREATURE_MODULE_ORNAMENT && m->kind != CREATURE_MODULE_FLEXIBLE_APPENDAGE))
             continue;
         uint32_t hostId = MapModule(batch,&out->bodyPlan,sources,donor,m->attachment.hostModuleInstanceId);
-        AttachmentRef attachment = AttachmentRef_Create(hostId,m->attachment.slotId);
+        AttachmentRef attachment = AttachmentRef_Create(hostId,InheritedSlot(m));
         size_t *count = m->kind == CREATURE_MODULE_TAIL ? &tails :
             m->kind == CREATURE_MODULE_ORNAMENT ? &ornaments : &flexible;
         size_t limit = m->kind == CREATURE_MODULE_TAIL ? CREATURE_MAX_TAILS :
@@ -746,7 +798,10 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
             ++r->omitted;
             continue;
         }
-        if (!g->graft || conservative) {
+        bool nasal=m->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE &&
+            HeadModule_IsNasalExtension(attachment.slotId);
+        float nasalContribution=donor ? r->headGenes.nasalExtension : 1-r->headGenes.nasalExtension;
+        if (nasal ? nasalContribution<.015f : (!g->graft || conservative)) {
             ++r->unselectedGrafts;
             ++r->omitted;
             continue;
@@ -807,6 +862,18 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                 }
                 BlendLimb(l,original,match ? &opposite->limbs[match->phenotypeIndex] : NULL,
                     g,s.parent);
+                if (source->axial.archetype != opposite->axial.archetype) {
+                    l->sprawl = original->sprawl;
+                    l->proximalSweep = original->proximalSweep;
+                    l->distalSweep = original->distalSweep;
+                    l->flexionScale = original->flexionScale;
+                    /* El apoyo sigue el espesor de la cadena, con la
+                     * topología de dedos y pie del arquetipo seleccionado. */
+                    float massGain = l->thickness/original->thickness;
+                    float reachGain = l->length/original->length;
+                    l->footWidthScale *= Math_Clamp(sqrtf(massGain/reachGain),.88f,1.18f);
+                    l->rootThicknessScale = fmaxf(l->rootThicknessScale,original->rootThicknessScale);
+                }
             } else if (m->kind == CREATURE_MODULE_TAIL) {
                 TailPhenotype *t = &result->tails[to];
                 *t = source->tails[from];
@@ -834,6 +901,7 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                 *o = source->ornaments[from];
                 const CreatureModuleInstance *host = FindModule(&out->bodyPlan,m->attachment.hostModuleInstanceId);
                 if (host && host->kind == CREATURE_MODULE_HEAD && !m->pathAttached &&
+                    InheritedSlot(m) < HEAD_SLOT_PROBOSCIS &&
                     source->head.archetype != result->head.archetype) {
                     float fromEnvelope = source->headEnvelope.scale *
                         sqrtf(source->headEnvelope.widthScale*source->headEnvelope.heightScale);
@@ -853,18 +921,16 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
             } else if (m->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE) {
                 FlexibleAppendagePhenotype *f = &result->flexibleAppendages[to];
                 *f = source->flexibleAppendages[from];
-                if (result->headHybrid.active) {
-                    float contribution = s.parent ? r->headGenes.nose : 1-r->headGenes.nose;
-                    float rootScale = 1;
-                    if (result->headHybrid.hasRegionalProfile) {
-                        Vector3 parentRadii = batch->heads[s.parent][stage].surface.craniumRadii;
-                        Vector3 childRadii = result->headHybrid.regional.surface.craniumRadii;
-                        rootScale = Math_Clamp(sqrtf(childRadii.x*childRadii.y/(parentRadii.x*parentRadii.y))
-                            *source->axial.totalScale,.42f,1.18f);
+                if (HeadModule_IsNasalExtension(InheritedSlot(m))) {
+                    float extension=s.parent ? 1-r->headGenes.nasalExtension : r->headGenes.nasalExtension;
+                    float terminal=s.parent ? 1-r->headGenes.nose : r->headGenes.nose;
+                    if (match) {
+                        const FlexibleAppendagePhenotype *peer=&opposite->flexibleAppendages[match->phenotypeIndex];
+                        *f=FlexibleAppendage_Interpolate(f,peer,extension,terminal);
+                    } else {
+                        f->length*=fmaxf(1-extension,.01f);
+                        f->tipRadius*=Math_Lerp(.72f,1,1-terminal);
                     }
-                    f->length *= Math_Lerp(.55f,1,contribution)*sqrtf(rootScale);
-                    f->baseRadius *= Math_Lerp(.72f,1,contribution)*rootScale;
-                    f->tipRadius *= Math_Lerp(.67f,1,contribution)*sqrtf(rootScale);
                 }
             }
         }
@@ -1023,6 +1089,7 @@ static bool Proposal(const CreatureOffspringBatch *batch, Candidate *candidate, 
         }
         OffspringMorph_Fit(recipe,target,batch->adults,report);
     }
+    OffspringRepair_Integrate(recipe);
     unsigned repairs=0;
     for (unsigned step=0; step<=batch->config.repairs; ++step) {
         if (cancel && cancel(context)) return false;
@@ -1044,7 +1111,7 @@ static bool Proposal(const CreatureOffspringBatch *batch, Candidate *candidate, 
             return false;
         }
         report->quality=1/(1+2*report->headError+report->bodyError+.35f*report->limbError
-            +.035f*report->repairs);
+            +.035f*report->repairs+.12f*(1-report->anatomicalCoherence));
         candidate->revision=revision;
         candidate->index=index;
         candidate->owner=batch;
@@ -1178,9 +1245,8 @@ static void BuildHeadFrame(CreatureOffspringBatch *batch)
     }
 }
 
-CreatureOffspringBatch *CreatureOffspring_GenerateProgress(const CreatureRecipe *a, const CreatureRecipe *b,
-    CreatureOffspringConfig config, CreatureOffspringCancel cancel, CreatureOffspringProgress progress,
-    void *context, char *error, size_t capacity)
+static CreatureOffspringBatch *AnalyzeParents(const CreatureRecipe *a, const CreatureRecipe *b,
+    CreatureOffspringConfig config, CreatureOffspringCancel cancel, void *context, char *error, size_t capacity)
 {
     if (!a || !b || !ValidConfig(config)) {
         snprintf(error,capacity,"Invalid parents or generation configuration");
@@ -1242,11 +1308,43 @@ CreatureOffspringBatch *CreatureOffspring_GenerateProgress(const CreatureRecipe 
     }
     Match(batch);
     BuildHeadFrame(batch);
+    return batch;
+}
+
+CreatureOffspringBatch *CreatureOffspring_GenerateProgress(const CreatureRecipe *a, const CreatureRecipe *b,
+    CreatureOffspringConfig config, CreatureOffspringCancel cancel, CreatureOffspringProgress progress,
+    void *context, char *error, size_t capacity)
+{
+    CreatureOffspringBatch *batch = AnalyzeParents(a,b,config,cancel,context,error,capacity);
+    if (!batch) return NULL;
     if (!SelectBatch(batch,cancel,progress,context,error,capacity)) {
         CreatureOffspring_Destroy(batch);
         return NULL;
     }
     return batch;
+}
+
+bool CreatureOffspring_ReplayProposal(const CreatureRecipe *a, const CreatureRecipe *b,
+    CreatureOffspringConfig config, size_t index, unsigned attempt, CreatureRecipeDocument *out,
+    char *error, size_t capacity)
+{
+    if (!out || index>=config.count || attempt>=config.attempts) return false;
+    CreatureOffspringBatch *batch = AnalyzeParents(a,b,config,NULL,NULL,error,capacity);
+    if (!batch) return false;
+    Candidate *candidate = calloc(1,sizeof(*candidate));
+    Monster *target = calloc(1,sizeof(*target)), *actual = calloc(1,sizeof(*actual));
+    bool ok = false;
+    if (candidate && target && actual) {
+        ok = Proposal(batch,candidate,index,0,attempt,target,actual,NULL,NULL,error,capacity);
+        if (ok) CreatureRecipeDocument_Copy(out,&candidate->document.recipe);
+    }
+    if (target) Monster_Free(target);
+    if (actual) Monster_Free(actual);
+    free(target);
+    free(actual);
+    free(candidate);
+    CreatureOffspring_Destroy(batch);
+    return ok;
 }
 
 CreatureOffspringBatch *CreatureOffspring_Generate(const CreatureRecipe *a, const CreatureRecipe *b,

@@ -382,6 +382,11 @@ static uint64_t HashHeadSurface(const HeadSurfaceRecipe* surface,uint64_t hash) 
     hash=HashFloat(surface->tympanumDevelopment,hash);
     hash=HashBool(surface->hasTympana,hash);
     hash=HashFloat(surface->faceRounding,hash);
+    hash=HashFloat(surface->nasalDiscWeight,hash);
+    hash=HashFloat(surface->faceCapWeight,hash);
+    hash=HashFloat(surface->faceCapDepth,hash);
+    hash=HashFloat(surface->oralSlope,hash);
+    hash=HashFloat(surface->oralArch,hash);
     return hash;
 }
 

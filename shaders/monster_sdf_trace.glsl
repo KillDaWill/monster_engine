@@ -141,10 +141,44 @@ void main() {
         vec4 list=dataAt(tileDataBase+tile);tileOffset=int(list.x);tileCount=int(list.y);
     }
     spatialTrace=!referenceTrace;
+    float earEnter[4],earExit[4],earInvStep[4];
+    int earIntervalCount=0;
+    float earFallbackInvStep=1.0;
+    if(!referenceTrace&&rayHeadActive) {
+        for(int i=0;i<mouthCount;++i) {
+            int m=mouthBase+i*M_STRIDE;
+            if(!M_anatomicalHead(m)||!M_hasEars(m))continue;
+            mat3 invRot=M_inverseRotation(m);
+            vec3 roLocal=invRot*(ro-M_center(m)),rdLocal=invRot*rd;
+            vec3 es=M_earShape(m);
+            float cupScale=M_earConcavity(m)>0.001?
+                min(es.x*.73,es.y*.34)/max(es.z*(.80+.70*M_earConcavity(m)),.002):0.0;
+            float bendScale=(abs(M_earLongitudinalCurve(m))+abs(M_earFold(m))+
+                es.x*.69*abs(M_earMarginBow(m)))/max(es.y,.01);
+            float tipSlope=es.x/max(es.y*(.10+.10*M_earTipRoundness(m)),.01);
+            float invStep=1.0/max(2.5,2.0+cupScale+3.2*bendScale+0.5*tipSlope);
+            vec3 earPad=M_earRadii(m)+vec3(max(M_headUnionSmoothness(m),.005)*.42+.05);
+            for(int side=0;side<2;++side) {
+                vec3 center=side==0?M_leftEarCenterLocal(m):M_rightEarCenterLocal(m);
+                float esT=t,eeT=end;
+                if(rayBox(roLocal,rdLocal,center-earPad,center+earPad,esT,eeT)) {
+                    if(earIntervalCount<4) {
+                        earEnter[earIntervalCount]=esT;
+                        earExit[earIntervalCount]=eeT;
+                        earInvStep[earIntervalCount]=invStep;
+                        ++earIntervalCount;
+                    } else {
+                        earFallbackInvStep=min(earFallbackInvStep,invStep);
+                    }
+                }
+            }
+        }
+    }
     vec3 p=vec3(0);vec4 sampleValue=vec4(0);bool hit=false;
     float traceTolerance=referenceTrace?hitTolerance*.01:hitTolerance;
     float previousT=t,previousDistance=0;bool previousValid=false,rejectedRoot=false;
-    for(int step=0;step<(referenceTrace?referenceSteps:256);++step) {
+    int maxSteps=referenceTrace?referenceSteps:(earIntervalCount>0?512:256);
+    for(int step=0;step<maxSteps;++step) {
         if(traceRegionCount>0) {
             bool inside=false;float next=1e30;
             for(int i=0;i<traceRegionCount;++i) {
@@ -176,9 +210,19 @@ void main() {
         if(abs(sampleValue.w)>=traceTolerance)rejectedRoot=false;
         previousT=t;previousDistance=sampleValue.w;previousValid=true;
         float stepFactor=sampleValue.w>0.04?1.0:0.8;
+        float maxStepT=1e30;
+        if(!referenceTrace&&earIntervalCount>0) {
+            stepFactor=min(stepFactor,earFallbackInvStep);
+            for(int e=0;e<earIntervalCount;++e) {
+                if(t<earEnter[e])maxStepT=min(maxStepT,earEnter[e]);
+                else if(t<=earExit[e])stepFactor=min(stepFactor,earInvStep[e]);
+            }
+        }
         float advance=max(abs(sampleValue.w)*stepFactor,traceTolerance*.35);
         if(referenceTrace&&referenceMaxStep>0)advance=min(advance,referenceMaxStep);
-        t+=advance;
+        float nextT=t+advance;
+        if(t<maxStepT&&nextT>maxStepT)nextT=maxStepT;
+        t=nextT;
         if(t>end)break;
     }
     if(!hit)discard;

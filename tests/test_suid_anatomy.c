@@ -125,6 +125,32 @@ static void PigPipeline(void) {
             MonsterSDFHeadField context;SDFField field=MonsterSDF_GetHeadField(&sdf,0,&context);
             TEST_ASSERT(field.evaluate(field.context,world).distance>0,"Narinas geométricas abiertas, no pigmentadas");
         }
+        TEST_ASSERT(mouth->nasalDiscWeight==1 && mouth->nasalTerminalWeight==0,
+            "El disco pertenece al barrido sin extremo articulado");
+        TEST_ASSERT(mouth->headStations[0].widthSlope==0 && mouth->headStations[0].heightSlope==0 &&
+            mouth->headStations[0].centerSlope==0,"Tangentes igualadas en el casquete nasal");
+        Vector3 septum=Vec3_Add(mouth->center,Vec3_Lerp(mouth->leftNostrilCenterLocal,
+            mouth->rightNostrilCenterLocal,.5f));
+        septum.z-=mouth->nostrilRadii.z*.24f;
+        TEST_ASSERT(MonsterSDF_EvaluateDistance(&sdf,septum)<0,"Tabique sólido entre las narinas suinas");
+        if(age==12) {
+            MonsterSDFJawField jawContext;
+            SDFField jaw=MonsterSDF_GetJawField(&sdf,0,&jawContext);
+            float span=mouth->entranceHalfExtents.z;
+            float center=mouth->entranceCenterLocal.z;
+            for(unsigned i=1;i<=3;++i) {
+                float z=center-span+span*.45f*i;
+                float y=mouth->entranceCenterLocal.y+mouth->oralSlope*(z-center)+
+                    Head_OralBend(z,center-span,center+span,mouth->oralArch);
+                float thickness=mouth->entranceHalfExtents.y;
+                float allowance=thickness+mouth->jawRadii.y*.36f;
+                Vector3 lower={0,y-allowance,z};
+                Vector3 upper=Vec3_Add(mouth->center,Vec3_Create(0,y+allowance,z));
+                TEST_ASSERT(jaw.evaluateDistance(jaw.context,lower)<0 &&
+                    MonsterSDF_EvaluateDebug(&sdf,upper,MONSTER_HEAD_DEBUG_UPPER_HEAD).distance<0,
+                    "El cierre acota la holgura por ambos lados de la línea oral");
+            }
+        }
         TEST_ASSERT(mouth->nasalColor.r==p.head.nasalColor.r,"Pigmento nasal compartido");
         TEST_ASSERT(isfinite(MonsterSDF_EvaluateVisualDistance(&sdf,sdf.bounds.start)),"Campo finito");
         MonsterSDF_Free(&sdf);

@@ -222,15 +222,17 @@ typedef struct HeadSurfaceRecipe {
     Vector3 cranialOccipitalRadii; /**< Radios del tramo occipital posterior. */
     float unionSmoothness; /**< Suavidad común de uniones SDF. */
     float headBodySmoothness; /**< Suavidad local de integración cefalocervical. */
-    bool hasNasalPad; /**< Activa volumen nasal diferenciado. */
+    bool hasNasalPad; /**< Activa el planum y su material nasal en el perfil. */
     bool hasEars; /**< Activa volúmenes auriculares. */
     bool sweptSkull; /**< Compila el cráneo mediante secciones continuas. */
     bool isBeak; /**< Indica una receta facial aviar. */
     float tympanumDevelopment; /**< Peso continuo de apertura timpánica. */
     bool hasTympana; /**< Activa aberturas timpánicas externas. */
     float faceCapWeight; /**< Mezcla continua del límite facial durante metamorfosis. */
+    float nasalDiscWeight; /**< Integración del disco en la sección terminal del rostro. */
     float faceCapDepth; /**< Profundidad terminal del rostro; cero conserva el casquete redondo. */
     float jawRearClipWeight; /**< Recorte caudal heredado independiente del casquete superior. */
+    float oralArch; /**< Desplazamiento central del cierre entre comisura y ápice. */
     float oralSlope; /**< Pendiente sagital de labios y plano oral. */
     float nostrilCurve; /**< Curvatura resuelta de la fosa nasal; cero elipsoidal. */
     float faceRounding; /**< Redondeo de la cuña facial. */
@@ -282,8 +284,22 @@ typedef struct HeadRegionalInheritance {
     float earHeight, earWidth, earCurve;
     float skullWidthGain, muzzleLengthGain, jawDepthGain, eyeSizeGain;
     float earHeightGain, earWidthGain, earThicknessGain, earCurveGain, earAngle;
+    float nasalExtension; /**< Peso parental de longitud y curvatura nasales. */
+    float facialSeatStrength; /**< Peso del asiento facial según el desarrollo. */
     bool inheritEars;
 } HeadRegionalInheritance;
+
+/** Par de aberturas y límite rostral derivados de la sección nasal de reposo. */
+typedef struct HeadNasalTerminal {
+    Vector3 left, right, radii;
+    float faceCapDepth;
+} HeadNasalTerminal;
+
+/** @brief Resuelve las narinas anteriores en el marco local del rostro. */
+HeadNasalTerminal HeadSurfaceRecipe_NasalTerminal(const HeadSurfaceRecipe* surface);
+
+/** @brief Curvatura local del cierre oral; tiene pendiente nula en ambos extremos. */
+float Head_OralBend(float z,float corner,float front,float arch);
 
 /** @brief Aplica los controles semánticos respecto a los valores al generar el perfil. */
 void HeadAnatomy_EditProfile(HeadAnatomy*,const HeadPhenotype*,const HeadRegionalControls*);

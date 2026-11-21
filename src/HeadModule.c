@@ -8,15 +8,106 @@
 #include "HeadModule.h"
 #include "CreatureModuleInternal.h"
 #include "MathUtils.h"
+#include "SDFPrimitives.h"
+#include <math.h>
 
-bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
+Vector3 HeadModule_NasalRoot(const HeadSurfaceRecipe* s)
+{
+    Vector3 tip=s->hasCranialProfile?s->cranialCenters[0]:s->faceTip;
+    Vector3 mid=s->hasCranialProfile?s->cranialCenters[1]:s->faceMid;
+    Vector3 support=HeadModule_FacialSupport(s,HEAD_SLOT_FITTED_PROBOSCIS);
+    Vector3 root=Vec3_Lerp(tip,mid,.16f);
+    root.y+=support.y*.16f;
+    return root;
+}
+
+Vector3 HeadModule_FacialSupport(const HeadSurfaceRecipe *s, AttachmentSlotId id)
+{
+    switch (id) {
+    case HEAD_SLOT_FITTED_NASAL_ANTERIOR:
+        return s->hasCranialProfile ? Vec3_Lerp(s->cranialRadii[0],s->cranialRadii[1],.23f) :
+            Vec3_Lerp(s->faceTipRadii,s->faceMidRadii,.23f);
+    case HEAD_SLOT_FITTED_NASAL_POSTERIOR:
+        return s->hasCranialProfile ? s->cranialRadii[1] : s->faceMidRadii;
+    case HEAD_SLOT_FITTED_PROBOSCIS:
+        return s->hasCranialProfile ? Vec3_Lerp(s->cranialRadii[0],s->cranialRadii[1],.25f) :
+            Vec3_Lerp(s->faceTipRadii,s->faceMidRadii,.25f);
+    case HEAD_SLOT_FITTED_MAXILLARY_LEFT:
+    case HEAD_SLOT_FITTED_MAXILLARY_RIGHT:
+        return Vec3_Lerp(s->faceTipRadii,s->maxillaryRadii,.25f);
+    default:
+        return s->craniumRadii;
+    }
+}
+
+static float FacialSupportField(const HeadSurfaceRecipe *s, const SDFSweepStation stations[6],
+    bool sweep, Vector3 point)
+{
+    if (sweep) return SDF_EllipticalSweepZ(point,stations,6);
+    float tip = SDF_Ellipsoid(Vec3_Sub(point,s->faceTip),s->faceTipRadii);
+    float mid = SDF_Ellipsoid(Vec3_Sub(point,s->faceMid),s->faceMidRadii);
+    return fminf(tip,mid);
+}
+
+static void FitFacialSlot(AttachmentSlot *site, const HeadSurfaceRecipe *s, Vector3 origin,
+    const SDFSweepStation stations[6], bool sweep)
+{
+    Vector3 support = HeadModule_FacialSupport(s,site->id);
+    Vector3 interior = s->faceTip, outward = {0,0,1};
+    float span = fmaxf(s->faceTip.z-s->faceRoot.z,s->faceTipRadii.z);
+    float distance = span;
+    if (site->id >= HEAD_SLOT_FITTED_NASAL_ANTERIOR) {
+        Vector3 tip = sweep ? s->cranialCenters[0] : s->faceTip;
+        Vector3 mid = sweep ? s->cranialCenters[1] : s->faceMid;
+        interior = site->id == HEAD_SLOT_FITTED_NASAL_ANTERIOR ? Vec3_Lerp(tip,mid,.23f) : mid;
+        outward = Vec3_Create(0,1,0);
+        distance = support.y*1.7f;
+    } else {
+        float sign = site->id == HEAD_SLOT_FITTED_MAXILLARY_LEFT ? 1 : -1;
+        interior = Vec3_Lerp(s->faceTip,s->faceMid,.32f);
+        interior.x = sign*s->faceTipRadii.x*.74f;
+        interior.y -= s->faceTipRadii.y*.48f;
+        outward = Vec3_Normalize(Vec3_Create(sign*.28f,-.18f,1));
+    }
+
+    if (FacialSupportField(s,stations,sweep,interior) >= 0) return;
+    Vector3 exterior = Vec3_Add(interior,Vec3_Scale(outward,distance));
+    if (FacialSupportField(s,stations,sweep,exterior) <= 0) return;
+    for (unsigned i=0; i<10; ++i) {
+        Vector3 midpoint = Vec3_Lerp(interior,exterior,.5f);
+        if (FacialSupportField(s,stations,sweep,midpoint) <= 0) interior=midpoint;
+        else exterior=midpoint;
+    }
+    if (site->id >= HEAD_SLOT_FITTED_NASAL_ANTERIOR) {
+        float h = support.y*.025f;
+        Vector3 dy = Vec3_Create(0,h,0), dz = Vec3_Create(0,0,h);
+        float vertical = FacialSupportField(s,stations,sweep,Vec3_Add(interior,dy)) -
+                         FacialSupportField(s,stations,sweep,Vec3_Sub(interior,dy));
+        float depth = FacialSupportField(s,stations,sweep,Vec3_Add(interior,dz)) -
+                      FacialSupportField(s,stations,sweep,Vec3_Sub(interior,dz));
+        if (vertical > 1e-6f) {
+            site->up = Vec3_Normalize(Vec3_Create(0,1,Math_Clamp(depth/vertical*.48f,-.32f,.32f)));
+            site->forward = Vec3_Normalize(Vec3_Cross(site->side,site->up));
+        }
+    } else {
+        /* La sección inicial del barrido queda parcialmente dentro del
+         * hocico. El premáxilar recibe los incisivos a ambos lados del eje. */
+        float penetration = support.y*.36f;
+        interior = Vec3_Sub(interior,Vec3_Scale(outward,penetration));
+    }
+    site->position = Vec3_Add(origin,interior);
+    site->hostRadii = support;
+}
+
+bool HeadModule_ResolveProfileWithSites(const HeadPhenotype* phenotype,
                         const HeadEnvelopePhenotype* envelope,
                         const HeadHybridProfile* hybrid,
                         float development,
                         uint32_t module,
                         const AttachmentSlot* slot,
                         AnatomyGraph* graph,
-                        AttachmentSlotSet* slots) {
+                        AttachmentSlotSet* slots,
+                        unsigned requestedSites) {
     if (!phenotype || !slot || !graph || !Anatomy_MakeId(module, HEAD_NODE_MAIN)) return false;
 
     float s = slot->scale;
@@ -207,12 +298,8 @@ bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
         };
         if (slots->count < ATTACHMENT_MAX_SLOTS) slots->slots[slots->count++] = hornTR;
         if (phenotype->archetype == HEAD_ARCHETYPE_PROBOSCIDEAN) {
-            if (slots->count+3 > ATTACHMENT_MAX_SLOTS) return false;
+            if (slots->count+2 > ATTACHMENT_MAX_SLOTS) return false;
             AttachmentSlot facial=cranial;
-            facial.id=HEAD_SLOT_PROBOSCIS;
-            facial.position=Vec3_Add(c,Vec3_Add(anatomy.surface.faceTip,
-                Vec3_Create(0,h*.19f,-depth*.22f)));
-            slots->slots[slots->count++]=facial;
             facial.id=HEAD_SLOT_MAXILLARY_LEFT;
             facial.position=Vec3_Add(c,Vec3_Add(anatomy.surface.leftMaxillaryCenter,
                 Vec3_Create(w*.04f,-h*.06f,depth*.23f)));
@@ -225,6 +312,17 @@ bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
         }
         if (slots->count+2 > ATTACHMENT_MAX_SLOTS) return false;
         const HeadSurfaceRecipe* surface=&anatomy.surface;
+        const AttachmentSlotId nasalSlots[]={HEAD_SLOT_PROBOSCIS,HEAD_SLOT_FITTED_PROBOSCIS};
+        for (unsigned i=0; i<2; ++i) {
+            if (i ? !(requestedSites & 1u) : (!(requestedSites & HEAD_SITE_LEGACY_PROBOSCIS) &&
+                phenotype->archetype!=HEAD_ARCHETYPE_PROBOSCIDEAN)) continue;
+            if (slots->count>=ATTACHMENT_MAX_SLOTS) return false;
+            AttachmentSlot nasal=cranial;
+            nasal.id=nasalSlots[i];
+            nasal.position=Vec3_Add(c,HeadModule_NasalRoot(surface));
+            nasal.hostRadii=HeadModule_FacialSupport(surface,HEAD_SLOT_FITTED_PROBOSCIS);
+            slots->slots[slots->count++]=nasal;
+        }
         Vector3 tip=surface->faceTip, mid=surface->faceMid;
         tip.y+=surface->faceTipRadii.y;
         mid.y+=surface->faceMidRadii.y;
@@ -256,9 +354,35 @@ bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
             if(slots->count>=ATTACHMENT_MAX_SLOTS)return false;
             slots->slots[slots->count++]=tip;
         }
+        if (requestedSites && hybrid && hybrid->hasRegionalProfile) {
+            SDFSweepStation stations[6];
+            for (unsigned i=0; i<6; ++i) {
+                stations[i] = (SDFSweepStation){.center=surface->cranialCenters[i],
+                    .width=surface->cranialRadii[i].x,.height=surface->cranialRadii[i].y};
+            }
+            bool sweep = surface->sweptSkull && SDF_SweepResolveTangents(stations,6);
+            for (AttachmentSlotId legacy=HEAD_SLOT_MAXILLARY_LEFT; legacy<=HEAD_SLOT_NASAL_POSTERIOR; ++legacy) {
+                if (!(requestedSites & (1u << (legacy-HEAD_SLOT_PROBOSCIS)))) continue;
+                const AttachmentSlot *original = AttachmentSlotSet_Find(slots,module,legacy);
+                if (!original) continue;
+                if (slots->count >= ATTACHMENT_MAX_SLOTS) return false;
+                AttachmentSlot fitted = *original;
+                fitted.id = legacy + (HEAD_SLOT_FITTED_PROBOSCIS-HEAD_SLOT_PROBOSCIS);
+                FitFacialSlot(&fitted,surface,c,stations,sweep);
+                slots->slots[slots->count++] = fitted;
+            }
+        }
     }
 
     return true;
+}
+
+bool HeadModule_ResolveProfile(const HeadPhenotype *phenotype, const HeadEnvelopePhenotype *envelope,
+    const HeadHybridProfile *hybrid, float development, uint32_t module, const AttachmentSlot *slot,
+    AnatomyGraph *graph, AttachmentSlotSet *slots)
+{
+    return HeadModule_ResolveProfileWithSites(phenotype,envelope,hybrid,development,module,slot,
+        graph,slots,0);
 }
 
 bool HeadModule_Resolve(const HeadPhenotype *phenotype,const HeadEnvelopePhenotype *envelope,

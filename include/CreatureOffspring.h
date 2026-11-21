@@ -25,6 +25,7 @@ typedef struct {
     float neck, shoulder, thorax, abdomen, pelvis, upperLimb, lowerLimb, foot, limbMass;
     float dorsal, ventral, facial, extremities, tailColor, eyeColor, pattern, fur, relief;
     float shapeDiversity, appearanceDiversity, quality;
+    float anatomicalCoherence; /**< Soporte y continuidad geométrica, de cero a uno. */
     float global, body, head, limbs, tail, surface, size;
     unsigned scaffoldParent, headParent, limbParent, tailParent, surfaceParent;
     unsigned grafts, omitted, repairs, attempts;

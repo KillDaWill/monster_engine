@@ -36,8 +36,27 @@ enum {
     HEAD_SLOT_MAXILLARY_LEFT,
     HEAD_SLOT_MAXILLARY_RIGHT,
     HEAD_SLOT_NASAL_ANTERIOR,
-    HEAD_SLOT_NASAL_POSTERIOR
+    HEAD_SLOT_NASAL_POSTERIOR,
+    HEAD_SLOT_FITTED_PROBOSCIS,
+    HEAD_SLOT_FITTED_MAXILLARY_LEFT,
+    HEAD_SLOT_FITTED_MAXILLARY_RIGHT,
+    HEAD_SLOT_FITTED_NASAL_ANTERIOR,
+    HEAD_SLOT_FITTED_NASAL_POSTERIOR
 };
+
+/* Petición de la ranura nasal original, además del rango de ranuras ajustadas. */
+#define HEAD_SITE_LEGACY_PROBOSCIS (1u << 8)
+
+/** @brief Posición local del pedículo nasal en la sección premaxilar. */
+Vector3 HeadModule_NasalRoot(const HeadSurfaceRecipe* surface);
+
+/** @brief Comprueba si la ranura corresponde a la prolongación nasal. */
+static inline bool HeadModule_IsNasalExtension(AttachmentSlotId id) {
+    return id==HEAD_SLOT_PROBOSCIS || id==HEAD_SLOT_FITTED_PROBOSCIS;
+}
+
+/** Resuelve el tamaño de soporte de una inserción facial en el perfil local. */
+Vector3 HeadModule_FacialSupport(const HeadSurfaceRecipe *surface, AttachmentSlotId fitted);
 
 /**
  * @brief Resuelve la estación cefálica anclada a una ranura cervical.
@@ -63,6 +82,11 @@ bool HeadModule_ResolveProfile(const HeadPhenotype* phenotype,
                         const AttachmentSlot* cervicalSlot,
                         AnatomyGraph* graph,
                         AttachmentSlotSet* slots);
+
+/** Publica además los sitios solicitados por el plan, en orden desde HEAD_SLOT_FITTED_PROBOSCIS. */
+bool HeadModule_ResolveProfileWithSites(const HeadPhenotype *, const HeadEnvelopePhenotype *,
+    const HeadHybridProfile *, float development, uint32_t module, const AttachmentSlot *,
+    AnatomyGraph *, AttachmentSlotSet *, unsigned requestedSites);
 
 #ifdef __cplusplus
 }

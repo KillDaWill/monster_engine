@@ -10,6 +10,7 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
         -dot(viewDelta,cameraForward));
     vec3 viewN=normalize(vec3(dot(displayNormal,cameraRight),dot(displayNormal,cameraUp),
         -dot(displayNormal,cameraForward)));
+    if(sdfSurfaceDebug==10)return SurfaceLighting(SurfaceResponse(vec3(.57),viewN,.65,.12),viewP);
     if(sdfSurfaceDebug==28)return vec3(float(semantic.moduleId%256u),float(semantic.regionId),float(semantic.materialId&255u))/255.0;
     vec3 light=normalize(vec3(10,20,15)-p);
     vec3 color=sampleValue.xyz*(.4+max(dot(n,light),0.0));

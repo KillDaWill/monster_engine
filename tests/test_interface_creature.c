@@ -129,6 +129,7 @@ static void OrbitFraming(void)
                                           (i&4)?bounds.end.z:bounds.start.z};
                         Vector3 delta = Vec3_Sub(corner,camera.position);
                         ICamera preview = UiCreatureOrbit_PreviewCamera(&orbit,bounds,aspects[a]);
+                    assert(preview.fov == reference.fov && preview.aspectRatio == aspects[a]);
                     float previewHalf = -.5f*preview.fov;
                     assert(fabsf(Vec3_Dot(delta,right)) < previewHalf*aspects[a]);
                     assert(fabsf(Vec3_Dot(delta,up)) < previewHalf);

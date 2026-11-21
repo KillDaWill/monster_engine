@@ -65,17 +65,7 @@ ICamera UiCreatureOrbit_Camera(const UiCreatureOrbit *orbit, AABB3D bounds, floa
 
 ICamera UiCreatureOrbit_PreviewCamera(const UiCreatureOrbit *orbit, AABB3D bounds, float aspect)
 {
-    ICamera camera = UiCreatureOrbit_Camera(orbit,bounds,aspect);
-    Vector3 forward = Vec3_Normalize(Vec3_Sub(camera.target,camera.position));
-    Vector3 right = Vec3_Normalize(Vec3_Cross(forward,camera.up));
-    Vector3 up = Vec3_Cross(right,forward);
-    Vector3 half = Vec3_Scale(AABB_Size(bounds),.5f);
-    /* Proyecta la caja sobre el marco orbital sin cambiar el plano de recorte
-     * ni la orientación, incluso con proporciones como una cola muy larga. */
-    float vertical = fabsf(up.x)*half.x+fabsf(up.y)*half.y+fabsf(up.z)*half.z;
-    float horizontal = fabsf(right.x)*half.x+fabsf(right.y)*half.y+fabsf(right.z)*half.z;
-    float extent = fmaxf(vertical,horizontal/aspect);
-    float zoom = (orbit->zoom-UI_ORBIT_MIN_ZOOM)/(UI_ORBIT_MAX_ZOOM-UI_ORBIT_MIN_ZOOM);
-    camera.fov = -2.16f*fmaxf(.01f,extent)*(1.0f+1.35f*zoom);
-    return camera;
+    /* Conserva el encuadre esférico invariante bajo rotación para que el
+     * tamaño aparente no varíe al girar la criatura. */
+    return UiCreatureOrbit_Camera(orbit,bounds,aspect);
 }

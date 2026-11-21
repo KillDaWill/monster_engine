@@ -84,6 +84,7 @@ void HeadAnatomy_ScaleProfile(HeadAnatomy *head, Vector3 scale)
     s->equineCrestStart.z *= scale.z;
     s->equineCrestEnd.y *= scale.y;
     s->equineCrestEnd.z *= scale.z;
+    s->oralArch *= scale.y;
     s->oralSlope *= scale.y/scale.z;
     s->unionSmoothness *= mean;
     s->headBodySmoothness *= mean;
@@ -186,6 +187,7 @@ void HeadAnatomy_EditProfile(HeadAnatomy *head, const HeadPhenotype *p, const He
 #define STRETCH(z) (z) += fmaxf(0,(z)-root)*(length-1)
 #define FACE(field) STRETCH(s->field.z)
         FACE(faceMid); FACE(faceTip); FACE(noseCenter); FACE(leftNostrilCenter); FACE(rightNostrilCenter);
+        FACE(leftMaxillaryCenter); FACE(rightMaxillaryCenter);
         FACE(equineNasalRoot); FACE(equineNasalTip); FACE(equineNasalRoof); FACE(equineCrestStart); FACE(equineCrestEnd);
 #undef FACE
 #define LANDMARK(field) STRETCH(l->field.z)

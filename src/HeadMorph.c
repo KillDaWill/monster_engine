@@ -16,6 +16,7 @@ static void Frames(const HeadAnatomy* head,Vector3 origin,HeadFrame frames[CAGE_
     const HeadSurfaceRecipe* r=&head->surface;
     const HeadLandmarks* l=&head->landmarks;
     const Mouth* m=&head->oralSystem;
+    HeadNasalTerminal nasal=HeadSurfaceRecipe_NasalTerminal(r);
 
     float chinRadiusY=fmaxf(m->jawThickness*0.5f,0.02f);
     float chinRadiusX=fmaxf(r->faceTipRadii.x*0.85f,0.02f);
@@ -40,7 +41,7 @@ static void Frames(const HeadAnatomy* head,Vector3 origin,HeadFrame frames[CAGE_
         {r->leftCheekCenter,r->cheekRadii},{r->rightCheekCenter,r->cheekRadii},
         {r->leftBrowCenter,r->browRadii},{r->rightBrowCenter,r->browRadii},
         {r->leftOrbitCenter,r->orbitRadii},{r->rightOrbitCenter,r->orbitRadii},
-        {r->leftNostrilCenter,r->nostrilRadii},{r->rightNostrilCenter,r->nostrilRadii},
+        {nasal.left,nasal.radii},{nasal.right,nasal.radii},
         {r->leftTympanumCenter,r->tympanumRadii},{r->rightTympanumCenter,r->tympanumRadii},
         {l->mandibularSymphysis,chinRadii},
         {l->leftJawHinge,hingeRadii},{l->rightJawHinge,hingeRadii},

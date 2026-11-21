@@ -652,10 +652,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->nostrilRadii=Vec3_Scale(r->nostrilRadii,.25f+1.5f*p.noseScale);
     }
     if(suid) {
-        /* Disco integrado en el campo compartido; los cutters perforan la cara
-         * anterior, no el puente dorsal. No hay malla decorativa separada. */
-        r->faceCapWeight=1;r->faceCapDepth=tipDepth*.35f;
-        r->faceTipRadii.y*=.82f;
+        r->oralArch=faceDepth*.075f;
+        /* La última sección craneal sostiene el disco y sus narinas.
+         * Los radios de la trufa delimitan el material del planum. */
+        r->nasalDiscWeight=1;
+        r->faceCapWeight=1;r->faceCapDepth=tipHeight*.48f;
         float depth=tipWidth*(.18f+.06f*p.noseScale);
         r->noseRadii=Vec3_Create(tipWidth*1.06f,tipHeight*.94f,depth);
         r->noseCenter=Vec3_Create(0,tip.y,tip.z+depth*.40f);
@@ -1040,14 +1041,14 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->hasMandibularProfile=true;
         /* Sínfisis redonda, cuerpo ascendente y ángulo que se hunde en el masetero. */
         const float positions[]={.93f,.80f,.58f,.35f,.15f,0};
-        const float depths[]={.155f,.22f,.31f,.38f,.39f,.31f};
-        const float widths[]={.48f,.57f,.66f,.76f,.81f,.76f};
+        const float depths[]={.22f,.27f,.32f,.38f,.39f,.31f};
+        const float widths[]={.64f,.72f,.76f,.78f,.81f,.76f};
         for(int i=0;i<6;++i) {
             float z=Math_Lerp(hingeZ,tip.z,positions[i]);
             float h=faceDepth*depths[i];
             float top=l->leftMouthCorner.y+oralSlope*(z-cornerZ);
             float width=tipWidth*widths[i];
-            r->mandibularCenters[i]=Vec3_Create(0,top-h*(i<2?1.02f:.82f),z);
+            r->mandibularCenters[i]=Vec3_Create(0,top-h*(i<2?.52f:.76f),z);
             r->mandibularRadii[i]=Vec3_Create(width,h,0);
         }
     }
@@ -1186,3 +1187,31 @@ float HeadAnatomy_RecommendedVoxelSize(const HeadAnatomy* a){
 }
 Head Head_Create(HeadArchetype archetype,size_t attachment,Vector3 hostRadii){Head h;memset(&h,0,sizeof(h));h.development=1;h.phenotype=HeadPreset(archetype);HeadAnatomy_Resolve(&h.phenotype,attachment,hostRadii,&h.anatomy);return h;}
 void Head_SetOpenFactor(Head* head,float factor){if(head)Mouth_SetOpenFactor(&head->anatomy.oralSystem,factor);}
+
+
+HeadNasalTerminal HeadSurfaceRecipe_NasalTerminal(const HeadSurfaceRecipe* s)
+{
+    HeadNasalTerminal terminal={s->leftNostrilCenter,s->rightNostrilCenter,
+        s->nostrilRadii,s->faceCapDepth};
+    float weight=s->sweptSkull?Math_Clamp01(s->nasalDiscWeight):0;
+    if(weight<=0)return terminal;
+    Vector3 tip=s->hasCranialProfile?s->cranialCenters[0]:s->faceTip;
+    Vector3 section=s->hasCranialProfile?s->cranialRadii[0]:s->faceTipRadii;
+    float depth=Math_Clamp(s->faceTip.z+s->faceCapDepth-tip.z,section.y*.22f,section.y*.55f);
+    terminal.faceCapDepth=Math_Lerp(s->faceCapDepth,tip.z+depth-s->faceTip.z,weight);
+    Vector3 opening=Vec3_Add(tip,Vec3_Create(section.x*.43f,section.y*.19f,depth));
+    terminal.left=Vec3_Lerp(terminal.left,opening,weight);
+    opening.x=-opening.x;
+    terminal.right=Vec3_Lerp(terminal.right,opening,weight);
+    Vector3 radii=Vec3_Create(section.x*.17f,section.y*.23f,depth*.70f);
+    terminal.radii=Vec3_Lerp(terminal.radii,radii,weight);
+    return terminal;
+}
+
+float Head_OralBend(float z,float corner,float front,float arch)
+{
+    if(arch==0) return 0;
+    float t=Math_Clamp01((z-corner)/Math_Max(front-corner,.001f));
+    float shape=4*t*(1-t);
+    return arch*shape*shape;
+}

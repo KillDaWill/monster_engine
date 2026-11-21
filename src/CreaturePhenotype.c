@@ -6,6 +6,7 @@
  */
 
 #include "CreaturePhenotype.h"
+#include "FlexibleAppendage.h"
 #include "MathUtils.h"
 #include <math.h>
 #include <string.h>
@@ -290,12 +291,9 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(tails[i].curvature); LERP_BODY(tails[i].development); LERP_BODY(tails[i].tipLift);
         LERP_BODY(tails[i].rootMatchStrength);
     }
-    for (size_t i = 0; i < p.flexibleAppendageCount; ++i) {
-        LERP_BODY(flexibleAppendages[i].length); LERP_BODY(flexibleAppendages[i].baseRadius);
-        LERP_BODY(flexibleAppendages[i].tipRadius); LERP_BODY(flexibleAppendages[i].aspect);
-        LERP_BODY(flexibleAppendages[i].taper); LERP_BODY(flexibleAppendages[i].initialPitch);
-        LERP_BODY(flexibleAppendages[i].restBend);
-    }
+    for (size_t i = 0; i < p.flexibleAppendageCount; ++i)
+        p.flexibleAppendages[i]=FlexibleAppendage_Interpolate(
+            &a->flexibleAppendages[i],&b->flexibleAppendages[i],t,t);
     for (size_t i = 0; i < p.ornamentCount; ++i) {
         LERP_BODY(ornaments[i].length); LERP_BODY(ornaments[i].baseRadius); LERP_BODY(ornaments[i].tipRadius);
         LERP_BODY(ornaments[i].curvature); LERP_BODY(ornaments[i].development);
@@ -332,7 +330,22 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         p.headHybrid.secondaryRadii = Vec3_Lerp(a->headHybrid.secondaryRadii,b->headHybrid.secondaryRadii,t);
         p.headHybrid.blend = Math_Lerp(a->headHybrid.blend,b->headHybrid.blend,t);
         if (p.headHybrid.hasRegionalProfile) {
-            HeadAnatomy_Blend(&a->headHybrid.regional,&b->headHybrid.regional,t,&p.headHybrid.regional);
+            HeadAnatomy *head = &p.headHybrid.regional;
+            HeadAnatomy_Blend(&a->headHybrid.regional,&b->headHybrid.regional,t,head);
+            /* La pendiente interpolada multiplicada por la distancia al
+             * cóndilo no equivale a interpolar las dos alturas labiales. */
+            HeadLandmarks *l = &head->landmarks;
+            float oralLine = l->leftMouthCorner.y + head->surface.oralSlope *
+                (l->leftJawHinge.z-l->leftMouthCorner.z);
+            float drop = l->leftJawHinge.y-oralLine;
+            if (drop >= 0) {
+                drop += head->surface.craniumRadii.y*.002f;
+                l->leftJawHinge.y -= drop;
+                l->rightJawHinge.y -= drop;
+                head->oralSystem.jawPivot.y -= drop;
+                head->surface.mandibularCenters[4].y -= drop*.55f;
+                head->surface.mandibularCenters[5].y -= drop;
+            }
 #define CONTROL(field) p.headHybrid.referenceControls.field = Math_Lerp( \
                 a->headHybrid.referenceControls.field,b->headHybrid.referenceControls.field,t)
             CONTROL(skullWidth); CONTROL(muzzleLength); CONTROL(jawDepth); CONTROL(earSize); CONTROL(eyeSize);

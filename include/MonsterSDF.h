@@ -81,6 +81,8 @@ typedef struct MonsterSDFConnector {
     uint32_t moduleInstanceId;
     AnatomyRegion region; /**< Identidad del tejido resuelto; independiente del color. */
     bool isHeadNeck, isDistalLimb;
+    bool nasalBodySkin; /**< El tramo libre usa el dominio de piel corporal. */
+    bool nasalTerminal; /**< El extremo delega el corte de narinas al perfil cefálico. */
     bool axialSweepMember; /**< El tramo está representado por el barrido global Z. */
     float development;
     bool isAttachment; /**< Unión axial al miembro; su detalle pertenece al brote, no al torso. */
@@ -197,7 +199,11 @@ typedef struct MonsterSDFMouth {
     float eyelidCoverage;
     Vector3 eyelidProfile; /**< Contorno resuelto de los márgenes palpebrales. */
     float faceCapWeight; /**< Peso continuo del límite terminal facial. */
+    Vector3 nostrilForwardLocal, nostrilSideLocal; /**< Marco de la sección nasal distal. */
+    float nasalTerminalWeight; /**< Transición del cutter facial a la sección articulada. */
+    float nasalDiscWeight; /**< Peso del disco resuelto en el propio barrido craneal. */
     float faceCapDepth; /**< Límite longitudinal del casquete facial, antes del planum. */
+    float oralArch; /**< Elevación del cierre sobre su pendiente media. */
     float oralSlope; /**< Pendiente del plano labial en el marco cefálico. */
     float nostrilCurve; /**< Curvatura continua del cutter nasal. */
     Vector3 noseCenterLocal; /**< Centro de almohadilla nasal. */

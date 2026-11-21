@@ -245,9 +245,7 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     AABB3D framing = scene->sdf.bounds;
     AABB_Pad(&framing,-scene->sdf.config.boundsPadding);
     float aspect = (float)width/height;
-    ICamera camera = scene->temporaryCandidate ?
-        UiCreatureOrbit_PreviewCamera(&engine->orbit,framing,aspect) :
-        UiCreatureOrbit_Camera(&engine->orbit,framing,aspect);
+    ICamera camera = UiCreatureOrbit_Camera(&engine->orbit,framing,aspect);
     float age = scene->ager ? scene->ager->perc : 0.0f;
     bool geometryChanged = engine->materialScene != scene || engine->materialAge != age;
     if (geometryChanged) {

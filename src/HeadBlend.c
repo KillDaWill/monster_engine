@@ -59,6 +59,35 @@ static void Morph_HeadJawStations(const HeadAnatomy* h,Vector3 centers[6],Vector
     }
 }
 
+/* Cuando el progenitor aún usa una mandíbula implícita, se le asigna un
+ * perfil propio antes de recombinar sus proporciones. La mandíbula termina
+ * en el cóndilo y la sínfisis, en vez de copiar las estaciones de la bóveda. */
+static void RegionalJawStations(const HeadAnatomy* head,Vector3 centers[6],Vector3 radii[6])
+{
+    Morph_HeadJawStations(head,centers,radii);
+    if(head->surface.hasMandibularProfile || !head->surface.sweptSkull)return;
+
+    const HeadLandmarks* l=&head->landmarks;
+    const HeadSurfaceRecipe* s=&head->surface;
+    float hingeZ=l->leftJawHinge.z;
+    float span=fmaxf(l->mandibularSymphysis.z-hingeZ,s->faceTipRadii.z);
+    float end=fminf(hingeZ+span,s->faceTip.z-span*.025f);
+    float halfDepth=radii[2].y;
+    float rearWidth=fmaxf(l->leftJawHinge.x*.78f,s->faceTipRadii.x*.40f);
+    float tipWidth=s->faceTipRadii.x*.71f;
+    const float positions[]={1,.82f,.61f,.38f,.16f,0};
+    const float depths[]={.62f,.83f,.98f,1.07f,1.01f,.72f};
+    const float widths[]={.76f,.96f,1,1,.91f,.71f};
+    for(unsigned i=0;i<6;++i) {
+        float t=positions[i],z=Math_Lerp(hingeZ,end,t);
+        float h=halfDepth*depths[i];
+        float lip=l->leftMouthCorner.y+s->oralSlope*(z-l->leftMouthCorner.z)-head->oralSystem.slitThickness*.5f;
+        float y=Math_Lerp(l->leftJawHinge.y,lip-h*.60f,Math_Clamp01(t/.38f));
+        centers[i]=Vec3_Create(0,y,z);
+        radii[i]=Vec3_Create(Math_Lerp(rearWidth,tipWidth,t)*widths[i],h,0);
+    }
+}
+
 /* Interpolar un marco ortonormal. Dos ejes opuestos no se pueden mezclar
  * componente a componente: la sección se vuelve casi invariante al desplazar
  * el punto en el eje que se anula, extendiendo la lámina fuera de sus cotas. */
@@ -177,8 +206,10 @@ void HeadAnatomy_Blend(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAna
     out->surface.tympanumDevelopment=Math_Lerp(a->surface.hasTympana?a->surface.tympanumDevelopment:0,b->surface.hasTympana?b->surface.tympanumDevelopment:0,t);
     out->surface.hasTympana=(a->surface.hasTympana && t<1.0f)||(b->surface.hasTympana && t>0.0f);
     out->surface.faceCapWeight=Math_Lerp(a->surface.faceCapWeight,b->surface.faceCapWeight,t);
+    out->surface.nasalDiscWeight=Math_Lerp(a->surface.nasalDiscWeight,b->surface.nasalDiscWeight,t);
     out->surface.faceCapDepth=Math_Lerp(a->surface.faceCapDepth,b->surface.faceCapDepth,t);
     out->surface.jawRearClipWeight=Math_Lerp(a->surface.jawRearClipWeight,b->surface.jawRearClipWeight,t);
+    out->surface.oralArch=Math_Lerp(a->surface.oralArch,b->surface.oralArch,t);
     out->surface.oralSlope=Math_Lerp(a->surface.oralSlope,b->surface.oralSlope,t);
     out->surface.nostrilCurve=Math_Lerp(a->surface.nostrilCurve,b->surface.nostrilCurve,t);
     out->surface.faceRounding=Math_Lerp(a->surface.faceRounding,b->surface.faceRounding,t);
@@ -335,6 +366,8 @@ Vector3 HeadHybridProfile_EnvelopeRatio(const HeadHybridProfile *profile)
     return Vec3_Lerp(profile->primaryRadii,profile->secondaryRadii,profile->blend);
 }
 
+static void FitRostralMaxilla(HeadSurfaceRecipe* surface);
+
 bool HeadAnatomy_ResolveHybrid(const HeadPhenotype *primary, const HeadHybridProfile *hybrid,
     size_t attachment, Vector3 envelope, HeadAnatomy *out)
 {
@@ -345,6 +378,16 @@ bool HeadAnatomy_ResolveHybrid(const HeadPhenotype *primary, const HeadHybridPro
         HeadAnatomy_EditProfile(out,primary,&hybrid->referenceControls);
         HeadAnatomy_ScaleProfile(out,envelope);
         out->archetype = primary->archetype;
+        HeadSurfaceRecipe *s=&out->surface;
+        if(s->nasalDiscWeight>0 && s->equineSculptWeight>0 && s->hasNasalPad) {
+            Vector3 tip=s->cranialCenters[0], section=s->cranialRadii[0];
+            float cap=fminf(s->faceTip.z+s->faceCapDepth-tip.z,section.y*.55f);
+            s->noseRadii.x=fminf(s->noseRadii.x,section.x*.91f);
+            s->noseRadii.y=fminf(s->noseRadii.y,section.y*.68f);
+            s->noseCenter.y=Math_Clamp(s->noseCenter.y,tip.y-section.y*.20f,tip.y+section.y*.20f);
+            s->noseCenter.z=fminf(s->noseCenter.z,tip.z+cap-s->noseRadii.z*.72f);
+            FitRostralMaxilla(s);
+        }
         out->surface.nasalColor = primary->nasalColor;
         out->attachmentBodyPartIndex = out->oralSystem.bodyPartIndex = attachment;
         return true;
@@ -493,7 +536,12 @@ static void RegionalEars(const HeadAnatomy *a, const HeadAnatomy *b,
     Vector3 radial = Vec3_Sub(root,s->craniumCenter);
     float distance = Vec3_Length(Vec3_Create(radial.x/s->craniumRadii.x,
         radial.y/s->craniumRadii.y,radial.z/s->craniumRadii.z));
-    if (distance>.96f) root=Vec3_Add(s->craniumCenter,Vec3_Scale(radial,.96f/distance));
+    float tall = Math_Clamp01((s->earShape.y/s->craniumRadii.y-1.8f)*.40f);
+    float mismatch = fabsf(g->ear-g->cranium);
+    float inset = tall*mismatch*.12f;
+    float seat = .96f-inset;
+    if (distance>seat) root=Vec3_Add(s->craniumCenter,Vec3_Scale(radial,seat/distance));
+    s->earRootFlare = Math_Clamp01(s->earRootFlare+inset);
     /* Se conserva el asiento local de la pinna; la inserción acompaña la bóveda. */
     out->landmarks.leftEarBase = root;
     out->landmarks.rightEarBase = Mirror(root);
@@ -512,6 +560,64 @@ static float OrbitSupport(const HeadSurfaceRecipe *s, const SDFSweepStation sect
     d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(p,s->leftTemporalCenter),s->temporalRadii),k*.38f);
     d=SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(p,s->leftMaxillaryCenter),s->maxillaryRadii),k*.34f);
     return SDF_SmoothUnion(d,SDF_Ellipsoid(Vec3_Sub(p,s->leftCheekCenter),s->cheekRadii),k*.42f);
+}
+
+static float CoreFace(const HeadSurfaceRecipe *s, const SDFSweepStation sections[6],
+    bool swept, Vector3 point)
+{
+    if (swept) return SDF_EllipticalSweepZ(point,sections,6);
+    float cranium = SDF_Ellipsoid(Vec3_Sub(point,s->craniumCenter),s->craniumRadii);
+    float rostrum = SDF_ThreeSectionEllipticalLoftApprox(point,s->faceRoot,s->faceMid,s->faceTip,
+        s->faceRootRadii,s->faceMidRadii,s->faceTipRadii,s->faceRounding);
+    return SDF_SmoothUnion(cranium,rostrum,fmaxf(s->unionSmoothness,.005f));
+}
+
+static Vector3 SeatFacialVolume(const HeadSurfaceRecipe *s, Vector3 center, Vector3 radii,
+    const SDFSweepStation sections[6], bool swept, float fraction)
+{
+    float depth = -fraction*fminf(radii.x,radii.y);
+    if (CoreFace(s,sections,swept,center) <= depth) return center;
+    Vector3 axis = s->cranialCenters[5];
+    for (unsigned i=1; i<6; ++i) {
+        Vector3 a = s->cranialCenters[i-1], b = s->cranialCenters[i];
+        if (center.z < b.z) continue;
+        axis = Vec3_Lerp(a,b,Math_Clamp01((a.z-center.z)/(a.z-b.z)));
+        break;
+    }
+    if (CoreFace(s,sections,swept,axis) > depth) return center;
+    Vector3 outside = center, inside = axis;
+    for (unsigned i=0; i<9; ++i) {
+        Vector3 point = Vec3_Lerp(outside,inside,.5f);
+        if (CoreFace(s,sections,swept,point) > depth) outside = point;
+        else inside = point;
+    }
+    return inside;
+}
+
+static void FitRostralMaxilla(HeadSurfaceRecipe *s)
+{
+    SDFSweepStation sections[6];
+    for (unsigned i=0; i<6; ++i)
+        sections[i]=(SDFSweepStation){.center=s->cranialCenters[i],
+            .width=s->cranialRadii[i].x,.height=s->cranialRadii[i].y};
+    if (!s->sweptSkull || !SDF_SweepResolveTangents(sections,6)) return;
+
+    /* El centro puede quedar dentro de un puente inclinado mientras el
+     * extremo anterodorsal del maxilar sobresale por encima del morro. */
+    Vector3 radii=s->maxillaryRadii;
+    Vector3 center=SeatFacialVolume(s,s->leftMaxillaryCenter,radii,sections,true,.72f);
+    const Vector3 offsets[]={{0,radii.y,0},{0,.866f*radii.y,.5f*radii.z},
+        {0,.5f*radii.y,.866f*radii.z}};
+    float overhang=0;
+    for (unsigned i=0; i<sizeof(offsets)/sizeof(*offsets); ++i) {
+        Vector3 probe=Vec3_Add(center,offsets[i]);
+        overhang=fmaxf(overhang,SDF_EllipticalSweepZ(probe,sections,6));
+    }
+    float correction=Math_Clamp01(overhang/fmaxf(radii.y*.65f,.001f));
+    s->leftMaxillaryCenter=Vec3_Sub(center,Vec3_Scale(Vec3_Create(0,radii.y*.42f,radii.z*.37f),correction));
+    s->rightMaxillaryCenter=Mirror(s->leftMaxillaryCenter);
+    s->maxillaryRadii.y*=1-.42f*correction;
+    s->maxillaryRadii.z*=1-.30f*correction;
 }
 
 static Vector3 OrbitSeat(const HeadSurfaceRecipe *s, Vector3 orbit, Vector3 normal, float eyeRadius)
@@ -609,10 +715,35 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
 #define SKULL(field, sample) s->field = RelativeToSkull(sample.surface.field,&sample.surface,s)
     SKULL(leftTemporalCenter,cheek); SKULL(rightTemporalCenter,cheek);
     SKULL(leftCheekCenter,cheek); SKULL(rightCheekCenter,cheek);
-    SKULL(leftMaxillaryCenter,cheek); SKULL(rightMaxillaryCenter,cheek);
+    Vector3 maxilla = RelativeToSkull(cheek.surface.leftMaxillaryCenter,&cheek.surface,s);
+    Vector3 rostralMaxilla = FacialPoint(cheek.surface.leftMaxillaryCenter,&cheek.surface,s);
+    /* El pilar anterior sigue el rostro, conservando su relación caudal
+     * con el arco cigomático. El cambio es nulo si ambos marcos coinciden. */
+    float dependency = Math_Clamp01(fabsf(g->rostrum-g->cheek)*2);
+    s->leftMaxillaryCenter = Vec3_Lerp(maxilla,rostralMaxilla,dependency*.72f);
+    s->rightMaxillaryCenter = Mirror(s->leftMaxillaryCenter);
+    Vector3 upperCheek = Vec3_Lerp(s->leftTemporalCenter,s->leftMaxillaryCenter,.40f);
+    s->leftCheekCenter = Vec3_Lerp(s->leftCheekCenter,upperCheek,dependency*.26f);
+    s->rightCheekCenter = Mirror(s->leftCheekCenter);
     s->temporalRadii = cheek.surface.temporalRadii;
     s->cheekRadii = cheek.surface.cheekRadii;
     s->maxillaryRadii = cheek.surface.maxillaryRadii;
+    /* La prominencia conserva sus radios heredados y se asienta en el
+     * volumen receptor, antes de proyectar el reborde y el globo ocular. */
+    if (g->facialSeatStrength>0) {
+        SDFSweepStation sections[6];
+        for (unsigned i=0; i<6; ++i)
+            sections[i]=(SDFSweepStation){.center=s->cranialCenters[i],
+                .width=s->cranialRadii[i].x,.height=s->cranialRadii[i].y};
+        bool swept = s->sweptSkull && SDF_SweepResolveTangents(sections,6);
+        Vector3 maxillaSeat = SeatFacialVolume(s,s->leftMaxillaryCenter,s->maxillaryRadii,
+            sections,swept,.52f);
+        Vector3 cheekSeat = SeatFacialVolume(s,s->leftCheekCenter,s->cheekRadii,sections,swept,.28f);
+        s->leftMaxillaryCenter = Vec3_Lerp(s->leftMaxillaryCenter,maxillaSeat,g->facialSeatStrength);
+        s->leftCheekCenter = Vec3_Lerp(s->leftCheekCenter,cheekSeat,g->facialSeatStrength);
+    }
+    s->rightMaxillaryCenter = Mirror(s->leftMaxillaryCenter);
+    s->rightCheekCenter = Mirror(s->leftCheekCenter);
     SKULL(neckCollarRoot,neck);
     s->neckCollarRadii = neck.surface.neckCollarRadii;
     s->neckCollarContinuity = neck.surface.neckCollarContinuity;
@@ -674,8 +805,8 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     out->oralSystem.jawThickness *= g->jawDepthGain;
     s->jawRearClipWeight = jaw.surface.jawRearClipWeight;
 
-    Morph_HeadJawStations(a,ca,ra);
-    Morph_HeadJawStations(b,cb,rb);
+    RegionalJawStations(a,ca,ra);
+    RegionalJawStations(b,cb,rb);
     s->hasMandibularProfile = true;
     for (size_t i=0; i<6; ++i) {
         Vector3 point = Vec3_Lerp(ca[i],cb[i],g->jaw);
@@ -695,11 +826,15 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     /* El maxilar y la mandíbula comparten la línea labial. Se conserva
      * el espesor heredado al proyectar las secciones sobre ambos labios. */
     float slit = .5f*out->oralSystem.slitThickness;
+    float oralCorner=l->leftMouthCorner.z, oralFront=s->faceTip.z+s->faceTipRadii.z;
+    s->oralArch=Math_Lerp(s->oralArch,s->faceTipRadii.y*.14f,g->facialSeatStrength*.68f);
     for (size_t i=0; i<3; ++i) {
         Vector3 *upper=&s->cranialCenters[i], *lower=&s->mandibularCenters[i];
         Vector3 *u=&s->cranialRadii[i], *v=&s->mandibularRadii[i];
-        float upperLip=l->leftMouthCorner.y+s->oralSlope*(upper->z-l->leftMouthCorner.z)+slit;
-        float lowerLip=l->leftMouthCorner.y+s->oralSlope*(lower->z-l->leftMouthCorner.z)-slit;
+        float upperLip=l->leftMouthCorner.y+s->oralSlope*(upper->z-oralCorner)+slit+
+            Head_OralBend(upper->z,oralCorner,oralFront,s->oralArch);
+        float lowerLip=l->leftMouthCorner.y+s->oralSlope*(lower->z-oralCorner)-slit+
+            Head_OralBend(lower->z,oralCorner,oralFront,s->oralArch);
         float dropped=fmaxf(0,upper->y-u->y-upperLip+u->y*.12f);
         upper->y-=dropped*.5f;
         u->y+=dropped*.5f;
@@ -707,17 +842,27 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
             lower->z=fminf(lower->z,upper->z+u->z*.55f);
             v->x=fminf(v->x,u->x*.91f);
         }
-        float desired=lowerLip-v->y*(i==0 ? .74f : .66f);
-        float strength=i==0 ? .82f : i==1 ? .74f : .58f;
+        float desired=lowerLip-v->y*(i==0 ? .56f : .62f);
+        float strength=i==0 ? .86f : i==1 ? .80f : .62f;
         lower->y=Math_Lerp(lower->y,desired,strength);
     }
     s->mandibularCenters[0].z=fmaxf(s->mandibularCenters[0].z,s->mandibularCenters[1].z+gap);
+    /* Corrige sólo saltos grandes entre secciones internas del cuerpo
+     * mandibular. Los extremos y el asiento sobre el labio se conservan. */
+    for (size_t i=1; i<4; ++i) {
+        Vector3 *section = &s->mandibularRadii[i];
+        float adjacent = sqrtf(s->mandibularRadii[i-1].x*s->mandibularRadii[i+1].x);
+        section->x = Math_Clamp(section->x,adjacent*.66f,adjacent*1.5f);
+    }
     l->noseTip = FacialPoint(nose.landmarks.noseTip,&nose.surface,s);
     l->leftNostril = FacialPoint(nose.landmarks.leftNostril,&nose.surface,s);
     s->noseCenter = FacialPoint(nose.surface.noseCenter,&nose.surface,s);
     s->noseRadii = nose.surface.noseRadii;
     s->nostrilRadii = nose.surface.nostrilRadii;
     s->nostrilCurve = nose.surface.nostrilCurve;
+    s->nasalDiscWeight = s->sweptSkull ? nose.surface.nasalDiscWeight : 0;
+    s->faceCapWeight = Math_Lerp(s->faceCapWeight,1,s->nasalDiscWeight);
+    s->faceCapDepth = Math_Lerp(s->faceCapDepth,s->cranialRadii[0].y*.40f,s->nasalDiscWeight);
     s->nasalColor = nose.surface.nasalColor;
     s->hasNasalPad = nose.surface.hasNasalPad;
     if (s->hasNasalPad && s->noseRadii.x>0 && s->noseRadii.y>0 && s->noseRadii.z>0) {

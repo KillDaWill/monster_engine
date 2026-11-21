@@ -2,6 +2,10 @@
 #define _POSIX_C_SOURCE 200809L
 #include "CreatureOffspring.h"
 #include "CreatureRecipes.h"
+#ifndef OFFSPRING_V2_BASELINE
+#include "../src/CreatureOffspringInternal.h"
+#include "../src/OffspringRepair.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,8 +24,42 @@ static double Seconds(void)
     return now.tv_sec + now.tv_nsec*1e-9;
 }
 
+#ifndef OFFSPRING_V2_BASELINE
+static bool Save(const CreatureRecipe *recipe, const char *path)
+{
+    FILE *output = fopen(path,"w");
+    if (!output) return false;
+    bool ok = CreatureRecipeIO_WriteJSON(output,recipe);
+    return fclose(output)==0 && ok;
+}
+#endif
+
 int main(int argc, char **argv)
 {
+#ifndef OFFSPRING_V2_BASELINE
+    if (argc == 4 && !strcmp(argv[1],"--adapt-saved")) {
+        CreatureRecipeDocument *doc = calloc(1,sizeof(*doc));
+        bool ok = doc && CreatureRecipeIO_LoadFile(doc,argv[2],NULL,0);
+        if (ok) {
+            OffspringRepair_Integrate(&doc->recipe);
+            ok = Save(&doc->recipe,argv[3]);
+        }
+        free(doc);
+        return !ok;
+    }
+    if (argc == 9 && !strcmp(argv[1],"--replay")) {
+        CreatureRecipeDocument *docs = calloc(3,sizeof(*docs));
+        if (!docs) return 1;
+        const CreatureRecipe *a = Load(&docs[0],argv[2]), *b = Load(&docs[1],argv[3]);
+        CreatureOffspringConfig config = CreatureOffspring_Default(strtoul(argv[4],NULL,10),strtoul(argv[5],NULL,10));
+        char error[256] = "Cannot replay proposal";
+        bool ok = CreatureOffspring_ReplayProposal(a,b,config,strtoul(argv[6],NULL,10)-1,
+            strtoul(argv[7],NULL,10)-1,&docs[2],error,sizeof(error)) && Save(&docs[2].recipe,argv[8]);
+        if (!ok) fprintf(stderr,"%s\n",error);
+        free(docs);
+        return !ok;
+    }
+#endif
     if (argc != 7 && (argc != 8 || strcmp(argv[7],"--fixed-global"))) {
         fprintf(stderr,"Uso: %s padreX padreY cantidad semilla repeticiones directorio [--fixed-global]\n",argv[0]);
         return 2;
@@ -59,6 +97,7 @@ int main(int argc, char **argv)
         printf("selection\t%zu\t%u\t%u\t%.6f\t%.6f\t%.6f\t%u\t%u\n",
             i+1,r->proposalsEvaluated,r->proposalsValid,r->shapeDiversity,
             r->appearanceDiversity,r->quality,r->scaffoldParent,r->grafts);
+        printf("anatomy\t%zu\t%.6f\n",i+1,r->anatomicalCoherence);
         const HeadRegionalInheritance *h=&r->headGenes;
         printf("head_genes\t%zu\t%d\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n",
             i+1,recipe->adult.head.archetype,h->cranium,h->rostrum,h->jaw,h->orbit,h->ear,

@@ -2,8 +2,12 @@
 #include "CreatureOffspring.h"
 #include "Monster.h"
 #include "CreatureMorph.h"
+#include "FlexibleAppendage.h"
+#include "HeadModule.h"
 #include "MonsterAnimation.h"
 #include "MonsterSDF.h"
+#include "SurfaceMapper.h"
+#include "Tail.h"
 #include "../src/OffspringMorphFitter.h"
 #include "test_utils.h"
 #include <string.h>
@@ -438,6 +442,209 @@ static void Determinism(void)
     CreatureOffspring_Destroy(changed);
 }
 
+static void DevelopmentRegressions(void)
+{
+    CreatureRecipeDocument *doc = calloc(1,sizeof(*doc));
+    TEST_ASSERT(doc,"memoria");
+    const CreatureRecipe *horse = Load(doc,"caballo");
+    const CreatureRecipe *velkar = CreatureRecipes_Find(4);
+    const CreatureRecipe *pairs[][2] = {
+        {CreatureRecipes_Lizard(),velkar},{velkar,velkar},{horse,horse}
+    };
+    for (unsigned i=0; i<3; ++i) {
+        CreatureOffspringBatch *batch = Batch(pairs[i][0],pairs[i][1],10,48216);
+        for (unsigned j=0; j<10; ++j) {
+            const OffspringReport *report;
+            const CreatureRecipe *recipe = CreatureOffspring_Get(batch,j,&report);
+            CheckRecipe(recipe,report);
+        }
+        CreatureOffspring_Destroy(batch);
+    }
+    free(doc);
+}
+
+static void FacialAppendages(void)
+{
+    CreatureRecipeDocument *documents = calloc(2,sizeof(*documents));
+    Monster *m = calloc(1,sizeof(*m));
+    AnatomyGraph *rest = malloc(sizeof(*rest));
+    TEST_ASSERT(documents && m && rest,"memoria");
+    const CreatureRecipe *pig = Load(&documents[0],"cerdo");
+    const CreatureRecipe *elephant = Load(&documents[1],"elefante");
+    CreatureOffspringBatch *batch = Batch(pig,elephant,10,48216);
+    unsigned flexible = 0, tusks = 0;
+    float shortest=INFINITY,longest=0;
+    const CreatureRecipe *intermediate=NULL;
+    for (unsigned i=0; i<10; ++i) {
+        const OffspringReport *report;
+        const CreatureRecipe *recipe = CreatureOffspring_Get(batch,i,&report);
+        TEST_ASSERT(report->anatomicalCoherence>=0 && report->anatomicalCoherence<=1,"coherencia acotada");
+        if (!recipe->adult.flexibleAppendageCount) continue;
+        float length=recipe->adult.flexibleAppendages[0].length;
+        shortest=fminf(shortest,length);
+        longest=fmaxf(longest,length);
+        if(length>.4f && length<1.2f)intermediate=recipe;
+        TEST_ASSERT(Creature_BuildMonster(m,recipe,&recipe->adult) && m->animation,"rig facial");
+        MonsterSDF field = MonsterSDF_Create();
+        TEST_ASSERT(MonsterSDF_Build(&field,m,MonsterSDF_DefaultConfig()),"campo facial");
+        *rest = m->anatomyGraph;
+        const Skeleton *rig = &m->animation->rig.skeleton;
+        for (size_t k=0; k<recipe->bodyPlan.moduleCount; ++k) {
+            const CreatureModuleInstance *module = &recipe->bodyPlan.modules[k];
+            AttachmentSlotId slot = module->attachment.slotId;
+            if (slot<HEAD_SLOT_FITTED_PROBOSCIS || slot>HEAD_SLOT_FITTED_MAXILLARY_RIGHT) continue;
+            const AnatomyNode *root = AnatomyGraph_FindModuleNode(rest,module->instanceId,1);
+            TEST_ASSERT(root,"raíz persistente");
+            float support = MonsterSDF_EvaluateDebug(&field,root->center,MONSTER_HEAD_DEBUG_UPPER_HEAD).distance;
+            TEST_ASSERT(support<root->widthRadius*.66f,"solapamiento con tejido del anfitrión");
+            if (slot!=HEAD_SLOT_FITTED_PROBOSCIS) { ++tusks; continue; }
+            ++flexible;
+            TEST_ASSERT(SurfaceMapping_NodeRegion(&m->surfaceMapping,root->id)==SURFACE_REGION_HEAD,
+                "La raíz nasal conserva la piel de la cara");
+            size_t terminals=0;
+            for (size_t j=0; j<field.connectorCount; ++j) {
+                const MonsterSDFConnector *connector=&field.connectors[j];
+                if (connector->moduleInstanceId!=module->instanceId || !connector->nasalTerminal) continue;
+                ++terminals;
+                TEST_ASSERT(connector->nasalBodySkin &&
+                    SurfaceMapping_NodeRegion(&m->surfaceMapping,connector->toId)==SURFACE_REGION_DORSAL_TRUNK,
+                    "La punta nasal usa el mismo dominio de piel en las dos rutas");
+            }
+            TEST_ASSERT(terminals==1,"El apéndice tiene un único extremo nasal");
+            for (unsigned j=1; j<FLEXIBLE_APPENDAGE_STATIONS; ++j) {
+                const AnatomyNode *a = AnatomyGraph_FindModuleNode(rest,module->instanceId,j);
+                const AnatomyNode *b = AnatomyGraph_FindModuleNode(rest,module->instanceId,j+1);
+                TEST_ASSERT(a && b && b->widthRadius<=a->widthRadius,"ahusamiento continuo");
+                TEST_ASSERT(MonsterSDF_EvaluateDistance(&field,Vec3_Lerp(a->center,b->center,.5f))<0,
+                    "secciones conectadas en el campo");
+            }
+            for (unsigned gesture=0; gesture<FLEXIBLE_POSE_COUNT; ++gesture) {
+                SkeletonPose pose;
+                TEST_ASSERT(SkeletonPose_Init(&pose,rig) &&
+                    FlexibleAppendage_ApplyPose(module->instanceId,gesture,1,rig,&pose) &&
+                    SkeletonPose_ToAnatomy(rig,&pose,rest,&m->anatomyGraph),"flexión y estación animada");
+                const AnatomyNode *anchor = AnatomyGraph_FindModuleNode(&m->anatomyGraph,module->instanceId,1);
+                TEST_ASSERT(Vec3_Distance(root->center,anchor->center)<1e-5f,"anclaje estable durante la flexión");
+                if ((gesture==FLEXIBLE_POSE_FEEDING || gesture==FLEXIBLE_POSE_CURLED) && length<1.2f) {
+                    TEST_ASSERT(MonsterSDF_Build(&field,m,MonsterSDF_DefaultConfig()),
+                        "campo nasal en pose de flexión");
+                    const MonsterSDFMouth *mouth=&field.mouths[0];
+                    const Vector3 openings[]={mouth->leftNostrilCenterLocal,mouth->rightNostrilCenterLocal};
+                    RotationBasis3D frame=mouth->inverseRotation;
+                    for (unsigned side=0; side<2; ++side) {
+                        for (unsigned step=0; step<=4; ++step) {
+                            Vector3 local=Vec3_Add(openings[side],Vec3_Scale(mouth->nostrilForwardLocal,
+                                step*.5f*mouth->nostrilRadii.z));
+                            Vector3 point=Vec3_Add(mouth->center,Vec3_Add(Vec3_Scale(frame.row0,local.x),
+                                Vec3_Add(Vec3_Scale(frame.row1,local.y),Vec3_Scale(frame.row2,local.z))));
+                            TEST_ASSERT(MonsterSDF_EvaluateDistance(&field,point)>0,
+                                "Las dos narinas de una trompa corta siguen abiertas al exterior al flexionar");
+                        }
+                    }
+                }
+                for (unsigned j=2; j<=FLEXIBLE_APPENDAGE_STATIONS; ++j) {
+                    const AnatomyNode *node = AnatomyGraph_FindModuleNode(&m->anatomyGraph,module->instanceId,j);
+                    TEST_ASSERT(node->center.y-node->heightRadius>=-.05f*m->phenotype.axial.totalScale,
+                        "trompa por encima del suelo durante la flexión");
+                    for (size_t index=0; index<recipe->bodyPlan.moduleCount; ++index) {
+                        const CreatureModuleInstance *tooth = &recipe->bodyPlan.modules[index];
+                        if (tooth->attachment.slotId!=HEAD_SLOT_FITTED_MAXILLARY_LEFT &&
+                            tooth->attachment.slotId!=HEAD_SLOT_FITTED_MAXILLARY_RIGHT) continue;
+                        const unsigned distal[] = {6,7,3,8,9};
+                        for (unsigned n=0; n<sizeof(distal)/sizeof(*distal); ++n) {
+                            const AnatomyNode *tusk = AnatomyGraph_FindModuleNode(
+                                &m->anatomyGraph,tooth->instanceId,distal[n]);
+                            float innerRadiuses = fminf(node->widthRadius,node->heightRadius)+tusk->widthRadius;
+                            TEST_ASSERT(Vec3_Distance(tusk->center,node->center)>.55f*innerRadiuses,
+                                "los núcleos distales de incisivo y trompa no se cruzan");
+                        }
+                    }
+                }
+            }
+        }
+        m->anatomyGraph = *rest;
+        Monster_SetHeadOpenFactor(m,.65f);
+        TEST_ASSERT(MonsterSDF_Build(&field,m,MonsterSDF_DefaultConfig()) &&
+            m->mouths[0].openFactor>.6f,"la mandíbula se abre con la trompa anclada");
+        Monster_SetHeadOpenFactor(m,0);
+        MonsterSDF_Free(&field);
+    }
+    TEST_ASSERT(flexible>=2 && tusks>=4,"se ejercitan varias trompas e incisivos");
+    TEST_ASSERT(shortest<longest*.35f && intermediate,
+        "La extensión hereda longitudes cortas, intermedias y largas");
+    CreatureRecipeDocument *saved=calloc(1,sizeof(*saved));
+    char *json=JSON(intermediate);
+    TEST_ASSERT(saved && CreatureRecipeIO_ReadJSON(saved,json,NULL,0),"recargar un perfil nasal intermedio");
+    free(json);
+    CreatureOffspringBatch *generation=Batch(&saved->recipe,pig,10,48216);
+    unsigned inherited=0;
+    for(unsigned i=0;i<10;++i) {
+        const CreatureRecipe *child=CreatureOffspring_Get(generation,i,NULL);
+        if(!child->adult.flexibleAppendageCount)continue;
+        inherited++;
+        TEST_ASSERT(child->adult.flexibleAppendages[0].length <=
+            saved->recipe.adult.flexibleAppendages[0].length,
+            "El segundo cruce utiliza la longitud guardada del padre híbrido");
+    }
+    TEST_ASSERT(inherited>0,"La morfología guardada se hereda en la segunda generación");
+    CreatureOffspring_Destroy(generation);
+    free(saved);
+    CreatureOffspring_Destroy(batch);
+    Monster_Free(m);
+    free(rest);
+    free(m);
+    free(documents);
+}
+
+static void CaudalInheritance(void)
+{
+    CreatureRecipeDocument *documents = calloc(2,sizeof(*documents));
+    Monster *monster = calloc(1,sizeof(*monster));
+    TEST_ASSERT(documents && monster,"memoria para revisar colas");
+    const CreatureRecipe *horse=Load(&documents[0],"caballo");
+    const CreatureRecipe *pig=Load(&documents[1],"cerdo");
+    CreatureOffspringBatch *batch=Batch(horse,pig,10,48216);
+    unsigned coils=0, hangingWithHair=0;
+    for (unsigned i=0; i<10; ++i) {
+        const CreatureRecipe *recipe=CreatureOffspring_Get(batch,i,NULL);
+        TEST_ASSERT(Creature_BuildMonster(monster,recipe,&recipe->adult),"resolver descendiente");
+        for (size_t j=0; j<recipe->bodyPlan.moduleCount; ++j) {
+            const CreatureModuleInstance *module=&recipe->bodyPlan.modules[j];
+            if (module->kind!=CREATURE_MODULE_TAIL) continue;
+            const TailPhenotype *tail=&recipe->adult.tails[module->phenotypeIndex];
+            const SurfacePhenotype *surface=&recipe->adult.surface;
+            bool tailHair=false;
+            for (size_t k=0; k<surface->longHairCount; ++k)
+                tailHair|=surface->longHair[k].domain.hostModuleId==module->instanceId;
+            if (tail->droop>0 && tailHair) ++hangingWithHair;
+            if (tail->archetype!=TAIL_ARCHETYPE_COILED) continue;
+            ++coils;
+            TEST_ASSERT(!tailHair,"La espiral no hereda el pelo de una cola colgante incompatible");
+            for (size_t k=0; k<surface->tuftCount; ++k)
+                TEST_ASSERT(surface->tufts[k].region!=SURFACE_REGION_TAIL,
+                    "El mechón caudal histórico requiere una cola compatible");
+            MonsterSDF field=MonsterSDF_Create();
+            TEST_ASSERT(MonsterSDF_Build(&field,monster,MonsterSDF_DefaultConfig()),"campo caudal");
+            const AnatomyNode *root=AnatomyGraph_FindModuleNode(&monster->anatomyGraph,module->instanceId,1);
+            bool attachment=false;
+            for (size_t k=0; k<field.connectorCount; ++k) {
+                const MonsterSDFConnector *connector=&field.connectors[k];
+                if (connector->toId!=root->id) continue;
+                attachment=true;
+                TEST_ASSERT(!connector->axialSweepMember && connector->widthA<=1.56f*root->widthRadius,
+                    "La unión de la espiral no extiende la sección pélvica");
+            }
+            TEST_ASSERT(attachment,"La cola tiene tejido de unión con la pelvis");
+            MonsterSDF_Free(&field);
+        }
+    }
+    TEST_ASSERT(coils>0 && hangingWithHair>0,"El lote conserva las dos morfologías de cola");
+    CreatureOffspring_Destroy(batch);
+    Monster_Free(monster);
+    free(monster);
+    free(documents);
+}
+
 void run_creature_offspring_tests(void)
 {
     Matrix();
@@ -447,6 +654,9 @@ void run_creature_offspring_tests(void)
     Determinism();
     DivergentPlan();
     ReorderedParent();
+    DevelopmentRegressions();
+    FacialAppendages();
+    CaudalInheritance();
     char error[256];
     const CreatureRecipe *dog = CreatureRecipes_Dog();
     TEST_ASSERT(!CreatureOffspring_Generate(dog,NULL,CreatureOffspring_Default(1,0),

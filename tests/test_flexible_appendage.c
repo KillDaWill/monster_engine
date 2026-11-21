@@ -6,6 +6,7 @@
 #include "MonsterSDF.h"
 #include "Monster.h"
 #include "MonsterAnimation.h"
+#include "MonsterAger.h"
 #include "test_utils.h"
 #include <math.h>
 #include <stdlib.h>
@@ -66,6 +67,14 @@ static void CheckWalk(Monster* m) {
 static void CheckTerminal(const MonsterSDF* sdf,const MonsterSDFConnector* end) {
     Vector3 face=Vec3_Add(end->b,Vec3_Scale(end->forward,end->r2*.34f));
     Vector3 offset=Vec3_Scale(end->side,end->widthB*.39f);
+    const MonsterSDFMouth* mouth=&sdf->mouths[0];
+    TEST_ASSERT(end->nasalTerminal && mouth->nasalTerminalWeight==1,
+        "Un único par de cutters cefálicos se desplaza al extremo flexible");
+    Vector3 expected=Transform3D_ApplyRotationBasis(mouth->inverseRotation,
+        Vec3_Sub(face,mouth->center));
+    Vector3 actual=Vec3_Lerp(mouth->leftNostrilCenterLocal,mouth->rightNostrilCenterLocal,.5f);
+    TEST_ASSERT(Vec3_Distance(expected,actual)<end->r2*.02f,
+        "El cutter se resuelve en el plano del ápice móvil");
     for(int side=-1;side<=1;side+=2) {
         Vector3 opening=Vec3_Add(face,Vec3_Scale(offset,side));
         Vector3 inner=Vec3_Sub(opening,Vec3_Scale(end->forward,end->r2*1.06f));
@@ -146,6 +155,21 @@ static void CheckMorph(const Monster* elephant) {
             recipe=CreatureRecipes_Find(builtins[i-3]);
         }
         TEST_ASSERT(recipe&&Creature_BuildMonster(other,recipe,&recipe->adult),"Construir extremo externo o incorporado");
+        if(i==1) {
+            TEST_ASSERT(Creature_BuildMonster(blend,&elephant->recipe,&elephant->phenotype),
+                "Configurar un destino animado para Ager");
+            unsigned oldGeneration=blend->animation->rigGeneration;
+            MonsterAger_Interpolate(other,elephant,.5f,blend);
+            TEST_ASSERT(blend->animation && blend->animation->rigGeneration>oldGeneration,
+                "Ager actualiza el rig activo para el perfil intermedio");
+            CheckPoses(blend);
+            MonsterAger_Interpolate(elephant,other,.75f,blend);
+            TEST_ASSERT(blend->animation &&
+                Skeleton_FindJoint(&blend->animation->rig.skeleton,Anatomy_MakeId(40,1))>=0,
+                "El rig conserva la raíz nasal durante el regreso");
+        }
+        float nasalLengths[5]={0};
+        Vector3 openings[5]={0};
         for(unsigned direction=0;direction<2;++direction) {
             const Monster* from=direction?elephant:other;
             const Monster* to=direction?other:elephant;
@@ -167,11 +191,31 @@ static void CheckMorph(const Monster* elephant) {
                 for(size_t c=0;c<sdf.connectorCount;++c) {
                     const MonsterSDFConnector* connection=&sdf.connectors[c];
                     if(connection->kind!=BODY_CONNECTION_PAIRED_OPENINGS)continue;
-                    TEST_ASSERT(!connection->axialSweepMember && connection->widthB<=.16f,
-                        "El extremo mantiene propiedad y radio local");
+                    TEST_ASSERT(!connection->axialSweepMember && connection->widthB<=connection->widthA+1e-5f,
+                        "El extremo conserva un ahusamiento acotado por la sección precedente");
+                    if((direction==0&&sample==4)||(direction==1&&sample==0))
+                        TEST_ASSERT(connection->widthB<=.16f,"El ápice adulto conserva su radio parental");
                     ++terminal;
                 }
                 TEST_ASSERT(terminal==(direction?sample!=4:sample!=0),"El apéndice se retira en su extremo correcto");
+                if(i==1) {
+                    float length=0;
+                    for(size_t c=0;c<sdf.connectorCount;++c) {
+                        const MonsterSDFConnector* edge=&sdf.connectors[c];
+                        if(edge->region==ANATOMY_REGION_FLEXIBLE && (uint16_t)edge->toId<=FLEXIBLE_APPENDAGE_STATIONS)
+                            length+=edge->length;
+                    }
+                    Vector3 opening=sdf.mouths[0].leftNostrilCenterLocal;
+                    if(direction==0) {
+                        nasalLengths[sample]=length;
+                        openings[sample]=opening;
+                        if(sample) TEST_ASSERT(length>nasalLengths[sample-1],"La extensión crece a lo largo de la metamorfosis");
+                    } else {
+                        TEST_ASSERT(fabsf(length-nasalLengths[4-sample])<1e-4f &&
+                            Vec3_Distance(opening,openings[4-sample])<1e-4f,
+                            "Extensión y narinas reversibles para el mismo valor geométrico");
+                    }
+                }
                 MonsterSDF_Free(&sdf);
             }
         }

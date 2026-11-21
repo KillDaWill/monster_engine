@@ -493,7 +493,7 @@ visual-morph-gpu-regressions: $(BUILD_DIR)/validate_morph_gpu_regressions
 benchmark-ager-realtime: benchmarks/benchmark_ager_realtime
 	./benchmarks/benchmark_ager_realtime
 
-src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_sdf_trace.glsl shaders/sdf_scene.glsl shaders/sdf_surface_material.glsl $(wildcard shaders/sdf_surface_*) $(wildcard shaders/sdf_sparse_*) shaders/sdf_interval_validate.comp shaders/morph_handoff.glsl $(wildcard shaders/surface/*.glsl) src/MonsterSDF.c src/SDFPrimitives.c src/SDFOperations.c src/SDFInterval.c include/SDFInterval.h include/MonsterSDF.h
+src/MonsterSDFShader.generated.h: tools/generate_sdf_shader.py shaders/monster_sdf_trace.glsl shaders/sdf_scene.glsl shaders/sdf_surface_material.glsl $(wildcard shaders/sdf_surface_*) $(wildcard shaders/sdf_sparse_*) shaders/sdf_interval_validate.comp shaders/morph_handoff.glsl $(wildcard shaders/surface/*.glsl) src/Head.c src/MonsterSDF.c src/SDFPrimitives.c src/SDFOperations.c src/SDFInterval.c include/SDFInterval.h include/MonsterSDF.h
 	python3 tools/generate_sdf_shader.py
 
 src/MonsterSDFCompute.generated.h: src/MonsterSDFShader.generated.h

@@ -111,6 +111,9 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
 
     AttachmentSlot hanging=*slot;
     if(p->droop>0) {
+        /* El giro hacia abajo parte de la superficie posterior de la grupa.
+         * Desde la ranura interna, un maslo corto queda enterrado al colgar. */
+        hanging.position=Vec3_Add(slot->position,Vec3_Scale(slot->forward,slot->hostRadii.x*.30f));
         hanging.forward=Vec3_Normalize(Vec3_Lerp(slot->forward,Vec3_Create(0,-1,0),Math_Clamp01(p->droop)));
         hanging.up=Vec3_Normalize(Vec3_Cross(hanging.side,hanging.forward));
         slot=&hanging;
@@ -133,6 +136,10 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
             float hostWeight = Math_Clamp01(p->rootMatchStrength) * powf(fmaxf(0.0f, 1.0f - t), 3.0f);
             float hostW = slot->hostRadii.x * 0.95f;
             float hostH = slot->hostRadii.y * 0.95f;
+            if(Tail_UsesIndependentCurve(p)) {
+                hostW=fminf(hostW,wr*1.55f);
+                hostH=fminf(hostH,hr*1.55f);
+            }
             wr = Math_Lerp(wr, hostW, hostWeight);
             hr = Math_Lerp(hr, hostH, hostWeight);
         }
@@ -168,8 +175,8 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
             float radius=p->length/(6.2831853f*turns);
             float shrink=1-.28f*t;
             Vector3 root=Vec3_Add(slot->position,Vec3_Add(
-                Vec3_Scale(slot->up,slot->hostRadii.y*.77f),
-                Vec3_Scale(slot->forward,slot->hostRadii.x*.13f)));
+                Vec3_Scale(slot->up,slot->hostRadii.y*.49f),
+                Vec3_Scale(slot->forward,-slot->hostRadii.x*.12f)));
             c=Vec3_Add(root,Vec3_Add(
                 Vec3_Scale(slot->forward,radius*s*development*sinf(angle)*shrink),
                 Vec3_Add(Vec3_Scale(slot->up,radius*s*development*(1-cosf(angle)*shrink)),
