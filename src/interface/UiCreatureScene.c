@@ -3,6 +3,8 @@
 #include "Creature.h"
 #include "CreatureMorph.h"
 #include "CreatureRecipes.h"
+#include "ArmorScales.h"
+#include "Membrane.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,8 +48,18 @@ bool UiCreatureScene_SetAge(UiCreatureScene *scene, float age)
     }
     if (!scene->fieldValid) {
         ++scene->fieldBuilds;
-        scene->fieldValid = MonsterSDF_Build(&scene->sdf,UiCreatureScene_Monster(scene),
-                                             MonsterSDF_DefaultConfig());
+        const Monster *monster = UiCreatureScene_Monster(scene);
+        scene->fieldValid = MonsterSDF_Build(&scene->sdf,monster,MonsterSDF_DefaultConfig()) &&
+            Membrane_BuildMesh(monster,&scene->membranes) &&
+            ArmorScales_BuildMesh(monster,&scene->sdf,&scene->armor);
+        if (scene->fieldValid) {
+            scene->framing = scene->sdf.bounds;
+            AABB_Pad(&scene->framing,-scene->sdf.config.boundsPadding);
+            const Mesh *extras[] = {&scene->membranes, &scene->armor};
+            for (size_t i = 0; i < sizeof(extras) / sizeof(extras[0]); ++i)
+                for (size_t v = 0; v < extras[i]->vertexCount; ++v)
+                    AABB_ExpandPoint(&scene->framing,extras[i]->vertices[v].position);
+        }
     }
     return scene->fieldValid;
 }
@@ -69,6 +81,8 @@ void UiCreatureScene_Destroy(UiCreatureScene *scene)
     LongHairAsync_Destroy(scene->hair);
     for (size_t i=0; i<scene->eyeCapacity; ++i) Mesh_Free(&scene->eyes[i].globe);
     free(scene->eyes);
+    Mesh_Free(&scene->membranes);
+    Mesh_Free(&scene->armor);
     MonsterSDF_Free(&scene->sdf);
     if (scene->ager) {
         MonsterAger_Free(scene->ager);
@@ -93,6 +107,8 @@ static UiCreatureScene *Allocate(char *error, size_t capacity)
     scene->adult = Monster_Create();
     scene->reference = Monster_Create();
     scene->sdf = MonsterSDF_Create();
+    scene->membranes = Mesh_Create();
+    scene->armor = Mesh_Create();
     return scene;
 }
 

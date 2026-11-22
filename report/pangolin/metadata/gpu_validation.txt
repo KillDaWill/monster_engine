@@ -1,0 +1,69 @@
+=== stage 0 ===
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+[SDF GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04
+[RECETA GPU] pigmento_error_lineal=5.96046448e-08
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000069 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000022 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000022 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000011 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000004 PASS
+[RECETA GPU] intervalo_error_m=6.89178705e-08
+[RECETA GPU] etapa=0 muestras=6635 compute_error_m=4.76837158e-07 fragment_error_m=4.76837158e-07 PASS
+
+=== stage 1 ===
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+[SDF GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04
+[RECETA GPU] pigmento_error_lineal=5.96046448e-08
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000019 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000022 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000011 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000006 PASS
+[RECETA GPU] intervalo_error_m=2.98023224e-08
+[RECETA GPU] etapa=1 muestras=6635 compute_error_m=4.76837158e-07 fragment_error_m=4.76837158e-07 PASS
+
+=== stage 2 ===
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+[SDF GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04
+[RECETA GPU] pigmento_error_lineal=5.96046448e-08
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000063 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000022 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000020 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000009 PASS
+[RECETA GPU] intervalo_error_m=6.33299351e-08
+[RECETA GPU] etapa=2 muestras=6635 compute_error_m=4.76837158e-07 fragment_error_m=4.76837158e-07 PASS
+
+=== stage 3 ===
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+[SDF GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04
+[RECETA GPU] pigmento_error_lineal=5.96046448e-08
+[INTERVALOS SDF] receta=0 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=1 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=2 cajas=512 muestras=4608 error=0.000000030 PASS
+[INTERVALOS SDF] receta=3 cajas=512 muestras=4608 error=0.000000015 PASS
+[INTERVALOS SDF] receta=4 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=5 cajas=512 muestras=4608 error=0.000000045 PASS
+[INTERVALOS SDF] receta=6 cajas=512 muestras=4608 error=0.000000019 PASS
+[INTERVALOS SDF] receta=7 cajas=512 muestras=4608 error=0.000000013 PASS
+[RECETA GPU] intervalo_error_m=4.47034836e-08
+[RECETA GPU] etapa=3 muestras=6635 compute_error_m=3.57627869e-07 fragment_error_m=3.57627869e-07 PASS
+[SDF compute] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04; extracción experimental sin readback
+[RECETA GPU] extracción y captura PASS

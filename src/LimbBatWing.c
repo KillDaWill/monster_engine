@@ -131,11 +131,12 @@ bool LimbBatWing_Resolve(const LimbPhenotype* p, uint32_t module, const Attachme
         float rayAngle = defaultFanAngles[d] + p->digitAngles[d] * 0.45f;
         float rayLen = tipSpan * fmaxf(0.15f, p->digitLengths[d]) * 1.25f;
         float rayBaseR = r * 0.26f * p->digitThicknessScale;
-        Vector3 radialOut = {side * cosf(rayAngle), 0.0f, sinf(rayAngle)};
         for (unsigned j = 0; j < count; ++j) {
             float t = (float)(j + 1) / (float)count;
             /* Comba alar suave: metacarpiano se arquea levemente dorsal y falanges caen hacia el borde. */
             float camberY = tipSpan * (0.045f * sinf(t * 3.14159265f) - 0.035f * t * t);
+            float angle = rayAngle - (.08f + .035f * (float)d) * t * t;
+            Vector3 radialOut = {side * cosf(angle), 0.0f, sinf(angle)};
             Vector3 localPos = Vec3_Add(wrist, Vec3_Scale(radialOut, rayLen * t));
             localPos.y += camberY;
             float radj = fmaxf(0.0012f * slot->scale, rayBaseR * (1.0f - 0.62f * t));
@@ -177,6 +178,7 @@ void LimbBatWing_ConfigureRig(const LimbRigDescriptor* d, const AnatomyGraph* g,
         LimbRig* l = &rig->limbs[i];
         if (rig->skeleton.joints[l->rootJoint].anatomyId != d->joints[0]) continue;
         l->soleHeight = 0.0f;
+        l->role = LIMB_WING;
         l->walking = false;
         l->digitigrade = false;
         l->unguligrade = false;
@@ -204,15 +206,17 @@ void LimbBatWing_ConfigureRig(const LimbRigDescriptor* d, const AnatomyGraph* g,
                 };
             }
         }
-        /* Permitir flexión en bisagra vertical/alar de las bases metacarpianas II-V para el plegado. */
+        /* Distribuir el plegado entre bases metacarpianas y falanges de los dedos II–V. */
         uint32_t modId = d->moduleInstanceId;
         for (unsigned dig = 1; dig < CREATURE_MAX_DIGITS; ++dig) {
-            int mj = Skeleton_FindJoint(&rig->skeleton, Anatomy_MakeId(modId, Limb_DigitLocalId(dig, 0)));
-            if (mj >= 0) {
+            for (unsigned digitJoint = 0; digitJoint < 6; ++digitJoint) {
+                int mj = Skeleton_FindJoint(&rig->skeleton,
+                    Anatomy_MakeId(modId, Limb_DigitLocalId(dig, digitJoint)));
+                if (mj < 0) break;
                 rig->skeleton.joints[mj].constraint = (JointConstraint){
                     .type = JOINT_BALL,
                     .hingeAxis = {0.0f, 1.0f, 0.0f},
-                    .maxSwingAngle = 1.25f * flexion,
+                    .maxSwingAngle = (digitJoint == 0 ? 1.25f : .43f) * flexion,
                     .maxTwistAngle = 0.25f
                 };
             }

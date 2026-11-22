@@ -1,0 +1,9 @@
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+idle             | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.30..10.10] area=[0.06..15.51] ext=130 crush=9 err=0.000 sat=0.00
+walk             | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.32..25.39] area=[0.04..51.07] ext=204 crush=4 err=0.000 sat=0.07
+look_up          | cbPitch=-0.11 cbYaw=+0.00 nPitch=-0.17 nYaw=+0.00 hPitch=-0.16 hYaw=+0.00 | edge=[0.14..12.07] area=[0.08..13.33] ext=147 crush=8 err=0.000 sat=1.00
+look_down        | cbPitch=+0.22 cbYaw=+0.00 nPitch=+0.12 nYaw=+0.00 hPitch=+0.16 hYaw=+0.00 | edge=[0.13..10.58] area=[0.05..10.13] ext=114 crush=7 err=0.000 sat=0.54
+eat              | cbPitch=+1.32 cbYaw=+0.05 nPitch=-0.21 nYaw=-0.01 hPitch=-0.18 hYaw=+0.00 | edge=[0.19..7.02] area=[0.08..23.12] ext=2666 crush=6 err=0.596 sat=1.00
+drink            | cbPitch=+1.31 cbYaw=+0.08 nPitch=-0.21 nYaw=-0.01 hPitch=-0.18 hYaw=+0.01 | edge=[0.07..6.31] area=[0.07..27.20] ext=2880 crush=152 err=0.819 sat=1.00

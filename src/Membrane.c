@@ -165,14 +165,17 @@ static void AddSkinInfluence(AnatomySkinBinding* b, int joint, float weight) {
 }
 
 static void AddDigitChain(const AnatomyGraph* graph, const Skeleton* skel, uint32_t moduleId,
-                          bool plantigrade, unsigned digitIdx, unsigned phalanges, MembraneChain* out) {
+                          bool plantigrade, bool wing, unsigned digitIdx, unsigned phalanges,
+                          MembraneChain* out) {
     memset(out, 0, sizeof(*out));
     AnatomyId rootId = Anatomy_MakeId(moduleId, plantigrade ? LIMB_NODE_PALM_BALL : LIMB_NODE_AUTOPOD);
     if (!AnatomyGraph_FindNode(graph, rootId)) {
         rootId = Anatomy_MakeId(moduleId, LIMB_NODE_AUTOPOD);
     }
     PushNode(out, graph, skel, rootId);
-    unsigned count = phalanges + 2;
+    /* El tramo queratínico queda libre. Las alas tienen una falange menos
+     * que el pie y terminan antes de cualquier garra. */
+    unsigned count = phalanges + (wing ? 1 : 2);
     for (unsigned j = 0; j < count; ++j) {
         AnatomyId did = Anatomy_MakeId(moduleId, Limb_DigitLocalId(digitIdx, j));
         if (AnatomyGraph_FindNode(graph, did)) {
@@ -185,7 +188,15 @@ static bool GatherPanels(const Monster* monster, const Skeleton* skel,
                          ResolvedPanel** outPanels, size_t* outCount) {
     const CreaturePhenotype* p = &monster->phenotype;
     const AnatomyGraph* g = &monster->anatomyGraph;
-    size_t cap = p->membraneCount + CREATURE_MAX_LIMBS * (CREATURE_MAX_DIGITS - 1);
+    size_t cap = p->membraneCount;
+    for (size_t i = 0; i < p->limbCount; ++i) {
+        const LimbPhenotype* limb = &p->limbs[i];
+        if (limb->webbingCoverage > 0.01f && limb->digitCount >= 2)
+            cap += limb->digitCount - 1;
+    }
+    *outPanels = NULL;
+    *outCount = 0;
+    if (!cap) return true;
     ResolvedPanel* panels = cap ? calloc(cap, sizeof(*panels)) : NULL;
     if (cap && !panels) return false;
     size_t count = 0;
@@ -201,7 +212,9 @@ static bool GatherPanels(const Monster* monster, const Skeleton* skel,
         if (limb->webbingCoverage <= 0.01f || limb->digitCount < 2 || dev <= 0.05f) continue;
 
         bool plantigrade = limb->anatomyProfile == LIMB_PROFILE_PLANTIGRADE;
-        float effCov = Math_Clamp01(limb->webbingCoverage * dev * (1.0f - 0.62f * limb->webbingFold));
+        bool wing = limb->archetype == LIMB_ARCHETYPE_WING;
+        float effCov = Math_Clamp01(limb->webbingCoverage * (wing ? 1.0f : dev) *
+                                   (1.0f - 0.62f * limb->webbingFold));
         if (effCov <= 0.02f) continue;
 
         Color baseCol = p->surface.regionalAlbedo[SURFACE_REGION_DIGIT].a > 0
@@ -211,12 +224,12 @@ static bool GatherPanels(const Monster* monster, const Skeleton* skel,
 
         for (unsigned d = 0; d + 1 < limb->digitCount; ++d) {
             /* En alas quiropteras el dedo 0 (pulgar libre) no lleva patagio interdigital al dedo II. */
-            if (limb->archetype == LIMB_ARCHETYPE_WING && d == 0) continue;
+            if (wing && d == 0) continue;
             if (limb->digitLengths[d] <= 0.01f || limb->digitLengths[d + 1] <= 0.01f) continue;
             ResolvedPanel rp;
             memset(&rp, 0, sizeof(rp));
-            AddDigitChain(g, skel, mod->instanceId, plantigrade, d, limb->digitPhalanges[d], &rp.chainA);
-            AddDigitChain(g, skel, mod->instanceId, plantigrade, d + 1, limb->digitPhalanges[d + 1], &rp.chainB);
+            AddDigitChain(g, skel, mod->instanceId, plantigrade, wing, d, limb->digitPhalanges[d], &rp.chainA);
+            AddDigitChain(g, skel, mod->instanceId, plantigrade, wing, d + 1, limb->digitPhalanges[d + 1], &rp.chainB);
             if (rp.chainA.count < 2 || rp.chainB.count < 2) continue;
 
             float meanR = 0.5f * (rp.chainA.pts[rp.chainA.count - 1].radius +
@@ -248,7 +261,8 @@ static bool GatherPanels(const Monster* monster, const Skeleton* skel,
         memset(&rp, 0, sizeof(rp));
         if (!BuildChainBFS(g, skel, sA, eA, &rp.chainA)) continue;
         if (!BuildChainBFS(g, skel, sB, eB, &rp.chainB)) continue;
-        rp.coverage = Math_Clamp01(m->coverage * dev);
+        /* Los extremos de un borde completo crecen con la cadena de anclaje. */
+        rp.coverage = m->coverage >= 1.0f ? 1.0f : Math_Clamp01(m->coverage * dev);
         rp.thickness = fmaxf(0.002f * s, m->thickness * s * (0.4f + 0.6f * dev));
         rp.edgeConcavity = m->edgeConcavity;
         rp.camber = m->camber * s;
@@ -321,14 +335,14 @@ static bool EmitPanels(const Monster* monster, const ResolvedPanel* panels, size
 
         Vector3 midPts[MEMBRANE_GRID_U + 1][MEMBRANE_GRID_V + 1];
         Vector3 normals[MEMBRANE_GRID_U + 1][MEMBRANE_GRID_V + 1];
-        float radii[MEMBRANE_GRID_U + 1][MEMBRANE_GRID_V + 1];
+        float offsets[MEMBRANE_GRID_U + 1][MEMBRANE_GRID_V + 1];
         AnatomySkinBinding cellSkin[MEMBRANE_GRID_U + 1][MEMBRANE_GRID_V + 1];
 
         for (size_t iu = 0; iu <= MEMBRANE_GRID_U; ++iu) {
             float u = (float)iu / (float)MEMBRANE_GRID_U;
             for (size_t iv = 0; iv <= MEMBRANE_GRID_V; ++iv) {
                 float v = (float)iv / (float)MEMBRANE_GRID_V;
-                midPts[iu][iv] = PanelSampleMid(rp, u, v, &radii[iu][iv], &cellSkin[iu][iv], wantSkin);
+                midPts[iu][iv] = PanelSampleMid(rp, u, v, NULL, &cellSkin[iu][iv], wantSkin);
             }
         }
 
@@ -353,7 +367,7 @@ static bool EmitPanels(const Monster* monster, const ResolvedPanel* panels, size
                 if (rp->fold > 0.02f) {
                     offset += rp->fold * rp->thickness * 1.4f * sinf(6.2831853f * u) * interior;
                 }
-                midPts[iu][iv] = Vec3_Add(midPts[iu][iv], Vec3_Scale(n, offset));
+                offsets[iu][iv] = offset;
             }
         }
 
@@ -367,7 +381,8 @@ static bool EmitPanels(const Monster* monster, const ResolvedPanel* panels, size
                     float edgeTaper = (1.0f - 0.35f * v) * (0.65f + 0.35f * edgeFactor);
                     float h = 0.5f * rp->thickness * edgeTaper;
                     Vector3 n = Vec3_Scale(normals[iu][iv], sign);
-                    Vector3 pos = Vec3_Add(midPts[iu][iv], Vec3_Scale(normals[iu][iv], sign * h));
+                    Vector3 pos = Vec3_Add(midPts[iu][iv],
+                        Vec3_Scale(normals[iu][iv], offsets[iu][iv] + sign * h));
 
                     MeshVertex mv;
                     memset(&mv, 0, sizeof(mv));

@@ -35,14 +35,14 @@ def build_platypus(base):
         a.update(
             totalScale=0.64 * scale,
             withersHeight=1.32,
-            trunkLength=3.05 + 0.35 * maturity,
-            neckLength=0.62,
-            neckWidth=1.18,
+            trunkLength=2.38 + 0.28 * maturity,
+            neckLength=0.42,
+            neckWidth=1.07,
             shoulderWidth=1.42,
             thoraxWidth=1.56,
-            thoraxHeight=1.08,
+            thoraxHeight=1.15,
             abdomenWidth=1.72,
-            abdomenHeight=1.18,
+            abdomenHeight=1.22,
             pelvicWidth=1.50,
             pelvicHeight=1.04,
             bodyFlattening=0.84,
@@ -54,8 +54,8 @@ def build_platypus(base):
             dewlapDepth=0.0,
             brisketDepth=0.02,
             contourProfile=1,
-            cervicalSegments=0,
-            cervicalPitch=0.0,
+            cervicalSegments=2,
+            cervicalPitch=0.28,
             spineFlexion=0.22,
         )
         a["profile"] = [
@@ -79,10 +79,10 @@ def build_platypus(base):
             skullWidth=0.62,
             skullHeight=0.44,
             skullLength=0.58,
-            muzzleLength=0.86 * (0.70 + 0.30 * maturity),
+            muzzleLength=0.67 * (0.70 + 0.30 * maturity),
             muzzleWidth=0.90,
             muzzleTaper=0.08,
-            rostrumDepth=0.42,
+            rostrumDepth=0.70,
             rostrumDorsalSlope=0.28,
             temporalWidth=0.52,
             temporalDepth=0.46,
@@ -128,7 +128,7 @@ def build_platypus(base):
             st = a["profile"][st_idx]
             host_h = a["pelvicHeight" if hind else "thoraxHeight"] * 0.5 * st["heightScale"]
             thickness = 0.24 * (0.82 + 0.18 * maturity)
-            foot_scale = 1.24 if not hind else 1.12
+            foot_scale = 1.38 if not hind else 1.12
             foot_h_scale = 0.42
             sole = thickness * 0.54 * foot_scale * foot_h_scale * 0.7
             length = max(0.38, a["withersHeight"] - host_h + st["verticalOffset"] - sole)
@@ -139,9 +139,9 @@ def build_platypus(base):
                 development=1.0,
                 length=length,
                 thickness=thickness,
-                sprawl=0.18 if not hind else 0.14,
+                sprawl=0.36 if not hind else 0.29,
                 footScale=foot_scale,
-                footWidthScale=1.24 if not hind else 1.06,
+                footWidthScale=1.38 if not hind else 1.06,
                 footHeightScale=foot_h_scale,
                 proximalScale=1.18,
                 middleScale=0.86,
@@ -163,23 +163,23 @@ def build_platypus(base):
                 digitSpread=1.42 if not hind else 1.12,
                 webbingCoverage=(0.95 if not hind else 0.65) * (0.65 + 0.35 * maturity),
                 webbingThickness=0.22,
-                webbingEdgeCurve=0.16 if not hind else 0.24,
-                webbingFold=0.12 if not hind else 0.06,
+                webbingEdgeCurve=0.085 if not hind else 0.24,
+                webbingFold=0.04 if not hind else 0.14,
             )
 
         # Cola ancha en pala aplanada dorsoventralmente (TAIL_ARCHETYPE_PADDLE = 7).
         p["tails"][0].update(
             archetype=7,
-            length=2.35 * (0.75 + 0.25 * maturity),
-            baseWidth=0.56,
-            baseHeight=0.44,
+            length=1.50 * (0.78 + 0.22 * maturity),
+            baseWidth=0.52,
+            baseHeight=0.25,
             tipWidth=0.36,
-            tipHeight=0.09,
+            tipHeight=0.095,
             taperCurve=0.92,
             curvature=0.0,
-            droop=0.05,
+            droop=0.0,
             tipLift=0.0,
-            rootMatchStrength=0.88,
+            rootMatchStrength=0.48,
             segmentCount=12,
             development=1.0,
         )

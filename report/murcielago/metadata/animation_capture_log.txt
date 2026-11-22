@@ -1,0 +1,7 @@
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+wing_extended    | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.92..1.06] area=[0.92..1.06] ext=0 crush=0 err=0.000 sat=0.00
+wing_partial     | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.54..1.75] area=[0.53..1.73] ext=0 crush=0 err=0.000 sat=0.00
+wing_folded      | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.16..2.55] area=[0.15..2.40] ext=1781 crush=88 err=0.000 sat=0.00
+wing_flap        | cbPitch=+0.00 cbYaw=+0.00 nPitch=+0.00 nYaw=+0.00 hPitch=+0.00 hYaw=+0.00 | edge=[0.83..1.33] area=[0.83..1.33] ext=0 crush=0 err=0.000 sat=0.00

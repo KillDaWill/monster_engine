@@ -206,6 +206,22 @@ int main(void)
     CheckField(scene);
     UiCreatureScene_Destroy(scene);
 
+    const UiVfsNode *pangolin = Find(fs,folder,"pangolin.creature.json");
+    const UiVfsNode *bat = Find(fs,folder,"murcielago.creature.json");
+    scene = UiCreatureScene_Create("demos",pangolin,NULL,error,sizeof(error));
+    assert(scene && scene->armor.indexCount > 0 && scene->membranes.indexCount == 0);
+    UiCreatureScene_Destroy(scene);
+    scene = UiCreatureScene_Create("demos",bat,bat,error,sizeof(error));
+    assert(scene && scene->membranes.indexCount > 0);
+    assert(UiCreatureScene_SetAge(scene,1.0f) && scene->membranes.indexCount > 0);
+    assert(scene->armor.indexCount == 0);
+    size_t membraneCount = scene->membranes.indexCount;
+    unsigned fieldBuilds = scene->fieldBuilds;
+    assert(UiCreatureScene_SetAge(scene,1.0f) && scene->fieldBuilds == fieldBuilds);
+    assert(scene->membranes.indexCount == membraneCount);
+    assert(UiCreatureScene_SetAge(scene,0.0f) && scene->membranes.indexCount == membraneCount);
+    UiCreatureScene_Destroy(scene);
+
     scene = UiCreatureScene_Create("demos",pig,elephant,error,sizeof(error));
     assert(scene && scene->ager && scene->ager->perc == 0 && !scene->ager->geometrySnapshotEnabled);
     for (int i=0; i<=8; ++i) {

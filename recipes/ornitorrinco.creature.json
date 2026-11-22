@@ -156,16 +156,16 @@
       "axial": {
         "archetype": 1,
         "totalScale": 0.217600003,
-        "neckLength": 0.620000005,
-        "neckWidth": 1.17999995,
+        "neckLength": 0.419999987,
+        "neckWidth": 1.07000005,
         "shoulderWidth": 1.41999996,
         "thoraxWidth": 1.55999994,
-        "thoraxHeight": 1.08000004,
+        "thoraxHeight": 1.14999998,
         "abdomenWidth": 1.72000003,
-        "abdomenHeight": 1.17999995,
+        "abdomenHeight": 1.22000003,
         "pelvicWidth": 1.5,
         "pelvicHeight": 1.03999996,
-        "trunkLength": 3.13750005,
+        "trunkLength": 2.45000005,
         "bodyFlattening": 0.839999974,
         "limbAttachmentLateral": 0.74000001,
         "withersHeight": 1.32000005,
@@ -215,8 +215,8 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0,
-        "cervicalSegments": 0,
-        "cervicalPitch": 0,
+        "cervicalSegments": 2,
+        "cervicalPitch": 0.280000001,
         "spineFlexion": 0.219999999
       },
       "head": {
@@ -224,10 +224,10 @@
         "skullWidth": 0.620000005,
         "skullHeight": 0.439999998,
         "skullLength": 0.579999983,
-        "muzzleLength": 0.666499972,
+        "muzzleLength": 0.519249976,
         "muzzleWidth": 0.899999976,
         "muzzleTaper": 0.0799999982,
-        "rostrumDepth": 0.419999987,
+        "rostrumDepth": 0.699999988,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
@@ -400,9 +400,9 @@
           "archetype": 1,
           "role": 0,
           "side": 0,
-          "length": 0.708331347,
+          "length": 0.668017149,
           "thickness": 0.207599998,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -436,7 +436,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -444,7 +444,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -461,16 +461,16 @@
           "clawScale": 1.04624999,
           "webbingCoverage": 0.700625002,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
           "role": 0,
           "side": 1,
-          "length": 0.708331347,
+          "length": 0.668017149,
           "thickness": 0.207599998,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -504,7 +504,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -512,7 +512,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -529,8 +529,8 @@
           "clawScale": 1.04624999,
           "webbingCoverage": 0.700625002,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
@@ -538,7 +538,7 @@
           "side": 0,
           "length": 0.734286368,
           "thickness": 0.207599998,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -598,7 +598,7 @@
           "webbingCoverage": 0.479375005,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         },
         {
           "archetype": 1,
@@ -606,7 +606,7 @@
           "side": 1,
           "length": 0.734286368,
           "thickness": 0.207599998,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -666,23 +666,23 @@
           "webbingCoverage": 0.479375005,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         }
       ],
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.0500000007,
+          "droop": 0,
           "archetype": 7,
-          "length": 1.90937495,
-          "baseWidth": 0.560000002,
-          "baseHeight": 0.439999998,
+          "length": 1.25250006,
+          "baseWidth": 0.519999981,
+          "baseHeight": 0.25,
           "tipWidth": 0.360000014,
-          "tipHeight": 0.0900000036,
+          "tipHeight": 0.0949999988,
           "taperCurve": 0.920000017,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.879999995,
+          "rootMatchStrength": 0.479999989,
           "segmentCount": 12,
           "tipLift": 0
         }
@@ -1177,16 +1177,16 @@
       "axial": {
         "archetype": 1,
         "totalScale": 0.345600009,
-        "neckLength": 0.620000005,
-        "neckWidth": 1.17999995,
+        "neckLength": 0.419999987,
+        "neckWidth": 1.07000005,
         "shoulderWidth": 1.41999996,
         "thoraxWidth": 1.55999994,
-        "thoraxHeight": 1.08000004,
+        "thoraxHeight": 1.14999998,
         "abdomenWidth": 1.72000003,
-        "abdomenHeight": 1.17999995,
+        "abdomenHeight": 1.22000003,
         "pelvicWidth": 1.5,
         "pelvicHeight": 1.03999996,
-        "trunkLength": 3.2249999,
+        "trunkLength": 2.51999998,
         "bodyFlattening": 0.839999974,
         "limbAttachmentLateral": 0.74000001,
         "withersHeight": 1.32000005,
@@ -1236,8 +1236,8 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0,
-        "cervicalSegments": 0,
-        "cervicalPitch": 0,
+        "cervicalSegments": 2,
+        "cervicalPitch": 0.280000001,
         "spineFlexion": 0.219999999
       },
       "head": {
@@ -1245,10 +1245,10 @@
         "skullWidth": 0.620000005,
         "skullHeight": 0.439999998,
         "skullLength": 0.579999983,
-        "muzzleLength": 0.731000006,
+        "muzzleLength": 0.569500029,
         "muzzleWidth": 0.899999976,
         "muzzleTaper": 0.0799999982,
-        "rostrumDepth": 0.419999987,
+        "rostrumDepth": 0.699999988,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
@@ -1421,9 +1421,9 @@
           "archetype": 1,
           "role": 0,
           "side": 0,
-          "length": 0.706205249,
+          "length": 0.665651023,
           "thickness": 0.218400002,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -1457,7 +1457,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -1465,7 +1465,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -1482,16 +1482,16 @@
           "clawScale": 1.14750004,
           "webbingCoverage": 0.783749998,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
           "role": 0,
           "side": 1,
-          "length": 0.706205249,
+          "length": 0.665651023,
           "thickness": 0.218400002,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -1525,7 +1525,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -1533,7 +1533,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -1550,8 +1550,8 @@
           "clawScale": 1.14750004,
           "webbingCoverage": 0.783749998,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
@@ -1559,7 +1559,7 @@
           "side": 0,
           "length": 0.732366025,
           "thickness": 0.218400002,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -1619,7 +1619,7 @@
           "webbingCoverage": 0.536249995,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         },
         {
           "archetype": 1,
@@ -1627,7 +1627,7 @@
           "side": 1,
           "length": 0.732366025,
           "thickness": 0.218400002,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -1687,23 +1687,23 @@
           "webbingCoverage": 0.536249995,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         }
       ],
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.0500000007,
+          "droop": 0,
           "archetype": 7,
-          "length": 2.0562501,
-          "baseWidth": 0.560000002,
-          "baseHeight": 0.439999998,
+          "length": 1.33500004,
+          "baseWidth": 0.519999981,
+          "baseHeight": 0.25,
           "tipWidth": 0.360000014,
-          "tipHeight": 0.0900000036,
+          "tipHeight": 0.0949999988,
           "taperCurve": 0.920000017,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.879999995,
+          "rootMatchStrength": 0.479999989,
           "segmentCount": 12,
           "tipLift": 0
         }
@@ -2198,16 +2198,16 @@
       "axial": {
         "archetype": 1,
         "totalScale": 0.499199986,
-        "neckLength": 0.620000005,
-        "neckWidth": 1.17999995,
+        "neckLength": 0.419999987,
+        "neckWidth": 1.07000005,
         "shoulderWidth": 1.41999996,
         "thoraxWidth": 1.55999994,
-        "thoraxHeight": 1.08000004,
+        "thoraxHeight": 1.14999998,
         "abdomenWidth": 1.72000003,
-        "abdomenHeight": 1.17999995,
+        "abdomenHeight": 1.22000003,
         "pelvicWidth": 1.5,
         "pelvicHeight": 1.03999996,
-        "trunkLength": 3.32299995,
+        "trunkLength": 2.59840012,
         "bodyFlattening": 0.839999974,
         "limbAttachmentLateral": 0.74000001,
         "withersHeight": 1.32000005,
@@ -2257,8 +2257,8 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0,
-        "cervicalSegments": 0,
-        "cervicalPitch": 0,
+        "cervicalSegments": 2,
+        "cervicalPitch": 0.280000001,
         "spineFlexion": 0.219999999
       },
       "head": {
@@ -2266,10 +2266,10 @@
         "skullWidth": 0.620000005,
         "skullHeight": 0.439999998,
         "skullLength": 0.579999983,
-        "muzzleLength": 0.803240001,
+        "muzzleLength": 0.625779986,
         "muzzleWidth": 0.899999976,
         "muzzleTaper": 0.0799999982,
-        "rostrumDepth": 0.419999987,
+        "rostrumDepth": 0.699999988,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
@@ -2442,9 +2442,9 @@
           "archetype": 1,
           "role": 0,
           "side": 0,
-          "length": 0.703823984,
+          "length": 0.663000882,
           "thickness": 0.230496004,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -2478,7 +2478,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -2486,7 +2486,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -2503,16 +2503,16 @@
           "clawScale": 1.26090002,
           "webbingCoverage": 0.876850009,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
           "role": 0,
           "side": 1,
-          "length": 0.703823984,
+          "length": 0.663000882,
           "thickness": 0.230496004,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -2546,7 +2546,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -2554,7 +2554,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -2571,8 +2571,8 @@
           "clawScale": 1.26090002,
           "webbingCoverage": 0.876850009,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
@@ -2580,7 +2580,7 @@
           "side": 0,
           "length": 0.730215251,
           "thickness": 0.230496004,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -2640,7 +2640,7 @@
           "webbingCoverage": 0.599950016,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         },
         {
           "archetype": 1,
@@ -2648,7 +2648,7 @@
           "side": 1,
           "length": 0.730215251,
           "thickness": 0.230496004,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -2708,23 +2708,23 @@
           "webbingCoverage": 0.599950016,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         }
       ],
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.0500000007,
+          "droop": 0,
           "archetype": 7,
-          "length": 2.22075009,
-          "baseWidth": 0.560000002,
-          "baseHeight": 0.439999998,
+          "length": 1.42739999,
+          "baseWidth": 0.519999981,
+          "baseHeight": 0.25,
           "tipWidth": 0.360000014,
-          "tipHeight": 0.0900000036,
+          "tipHeight": 0.0949999988,
           "taperCurve": 0.920000017,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.879999995,
+          "rootMatchStrength": 0.479999989,
           "segmentCount": 12,
           "tipLift": 0
         }
@@ -3219,16 +3219,16 @@
       "axial": {
         "archetype": 1,
         "totalScale": 0.639999986,
-        "neckLength": 0.620000005,
-        "neckWidth": 1.17999995,
+        "neckLength": 0.419999987,
+        "neckWidth": 1.07000005,
         "shoulderWidth": 1.41999996,
         "thoraxWidth": 1.55999994,
-        "thoraxHeight": 1.08000004,
+        "thoraxHeight": 1.14999998,
         "abdomenWidth": 1.72000003,
-        "abdomenHeight": 1.17999995,
+        "abdomenHeight": 1.22000003,
         "pelvicWidth": 1.5,
         "pelvicHeight": 1.03999996,
-        "trunkLength": 3.4000001,
+        "trunkLength": 2.66000009,
         "bodyFlattening": 0.839999974,
         "limbAttachmentLateral": 0.74000001,
         "withersHeight": 1.32000005,
@@ -3278,8 +3278,8 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0,
-        "cervicalSegments": 0,
-        "cervicalPitch": 0,
+        "cervicalSegments": 2,
+        "cervicalPitch": 0.280000001,
         "spineFlexion": 0.219999999
       },
       "head": {
@@ -3287,10 +3287,10 @@
         "skullWidth": 0.620000005,
         "skullHeight": 0.439999998,
         "skullLength": 0.579999983,
-        "muzzleLength": 0.860000014,
+        "muzzleLength": 0.670000017,
         "muzzleWidth": 0.899999976,
         "muzzleTaper": 0.0799999982,
-        "rostrumDepth": 0.419999987,
+        "rostrumDepth": 0.699999988,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
@@ -3463,9 +3463,9 @@
           "archetype": 1,
           "role": 0,
           "side": 0,
-          "length": 0.701953053,
+          "length": 0.660918713,
           "thickness": 0.239999995,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -3499,7 +3499,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -3507,7 +3507,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -3524,16 +3524,16 @@
           "clawScale": 1.35000002,
           "webbingCoverage": 0.949999988,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
           "role": 0,
           "side": 1,
-          "length": 0.701953053,
+          "length": 0.660918713,
           "thickness": 0.239999995,
-          "sprawl": 0.180000007,
+          "sprawl": 0.360000014,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -3567,7 +3567,7 @@
             0
           ],
           "digitSpread": 1.41999996,
-          "footScale": 1.24000001,
+          "footScale": 1.38,
           "proximalScale": 1.17999995,
           "middleScale": 0.860000014,
           "distalScale": 0.949999988,
@@ -3575,7 +3575,7 @@
           "proximalThicknessScale": 0.920000017,
           "middleThicknessScale": 0.819999993,
           "distalThicknessScale": 0.699999988,
-          "footWidthScale": 1.24000001,
+          "footWidthScale": 1.38,
           "footHeightScale": 0.419999987,
           "digitThicknessScale": 0.519999981,
           "attachmentInset": 0.75999999,
@@ -3592,8 +3592,8 @@
           "clawScale": 1.35000002,
           "webbingCoverage": 0.949999988,
           "webbingThickness": 0.219999999,
-          "webbingEdgeCurve": 0.159999996,
-          "webbingFold": 0.119999997
+          "webbingEdgeCurve": 0.0850000009,
+          "webbingFold": 0.0399999991
         },
         {
           "archetype": 1,
@@ -3601,7 +3601,7 @@
           "side": 0,
           "length": 0.728525341,
           "thickness": 0.239999995,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -3661,7 +3661,7 @@
           "webbingCoverage": 0.649999976,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         },
         {
           "archetype": 1,
@@ -3669,7 +3669,7 @@
           "side": 1,
           "length": 0.728525341,
           "thickness": 0.239999995,
-          "sprawl": 0.140000001,
+          "sprawl": 0.289999992,
           "development": 1,
           "digitCount": 5,
           "digitLengths": [
@@ -3729,23 +3729,23 @@
           "webbingCoverage": 0.649999976,
           "webbingThickness": 0.219999999,
           "webbingEdgeCurve": 0.239999995,
-          "webbingFold": 0.0599999987
+          "webbingFold": 0.140000001
         }
       ],
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.0500000007,
+          "droop": 0,
           "archetype": 7,
-          "length": 2.3499999,
-          "baseWidth": 0.560000002,
-          "baseHeight": 0.439999998,
+          "length": 1.5,
+          "baseWidth": 0.519999981,
+          "baseHeight": 0.25,
           "tipWidth": 0.360000014,
-          "tipHeight": 0.0900000036,
+          "tipHeight": 0.0949999988,
           "taperCurve": 0.920000017,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.879999995,
+          "rootMatchStrength": 0.479999989,
           "segmentCount": 12,
           "tipLift": 0
         }

@@ -242,10 +242,9 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     }
     Renderer3D *r = &engine->renderer;
     const Monster *monster = UiCreatureScene_Monster(scene);
-    AABB3D framing = scene->sdf.bounds;
-    AABB_Pad(&framing,-scene->sdf.config.boundsPadding);
+    const Mesh *extras[] = {&scene->membranes, &scene->armor};
     float aspect = (float)width/height;
-    ICamera camera = UiCreatureOrbit_Camera(&engine->orbit,framing,aspect);
+    ICamera camera = UiCreatureOrbit_Camera(&engine->orbit,scene->framing,aspect);
     float age = scene->ager ? scene->ager->perc : 0.0f;
     bool geometryChanged = engine->materialScene != scene || engine->materialAge != age;
     if (geometryChanged) {
@@ -265,6 +264,8 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     const char *error = NULL;
     if (ok) {
         OpenGLRenderer_SetupCamera(&camera,width,height);
+        for (size_t i = 0; i < sizeof(extras) / sizeof(extras[0]); ++i)
+            if (extras[i]->indexCount) r->renderMesh(r,extras[i]);
         if (!Eyes(scene,r,monster,age)) error = "ERROR: Cannot prepare creature eyes";
         if (geometryChanged && !Hair(scene,monster)) error = "ERROR: Cannot prepare creature hair";
         const LongHairSet *hair = LongHairAsync_GetDisplay(scene->hair);

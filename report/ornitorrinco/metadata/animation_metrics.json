@@ -1,0 +1,11 @@
+{
+  "species": "Ornitorrinco",
+  "recipeId": 1012,
+  "stage": 3,
+  "animations": {
+    "idle": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.1328, "maxEdge": 6.3558, "minArea": 0.1264, "maxArea": 5.7276, "extremeTris": 102, "crushedTris": 9, "reachErr": 0.0000, "reachSat": 0.0000},
+    "walk": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.1147, "maxEdge": 27.6834, "minArea": 0.0407, "maxArea": 26.9857, "extremeTris": 563, "crushedTris": 35, "reachErr": 0.0000, "reachSat": 0.0157},
+    "look_up": {"cbPitch": -0.1388, "cbYaw": 0.0000, "neckPitch": -0.2100, "neckYaw": 0.0000, "headPitch": -0.1800, "headYaw": 0.0000, "minEdge": 0.0323, "maxEdge": 11.6347, "minArea": 0.0328, "maxArea": 13.4399, "extremeTris": 574, "crushedTris": 76, "reachErr": 0.0000, "reachSat": 1.0000},
+    "look_down": {"cbPitch": 0.5269, "cbYaw": 0.0000, "neckPitch": 0.3445, "neckYaw": 0.0000, "headPitch": 0.1419, "headYaw": 0.0000, "minEdge": 0.0700, "maxEdge": 66.1852, "minArea": 0.0910, "maxArea": 57.6818, "extremeTris": 1715, "crushedTris": 16, "reachErr": 0.0000, "reachSat": 0.5300}
+  }
+}

@@ -44,9 +44,9 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     ax["archetype"] = 1  # AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD
     ax["contourProfile"] = 0
     ax["totalScale"] = total_scale
-    ax["trunkLength"] = 0.56
+    ax["trunkLength"] = 0.44
     ax["withersHeight"] = 0.42
-    ax["neckLength"] = 0.11
+    ax["neckLength"] = 0.075
     ax["cervicalCurvature"] = 0.36
     ax["cervicalDorsalMass"] = 0.85
     ax["cervicalMidNarrowing"] = 0.84
@@ -56,7 +56,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     ax["brisketDepth"] = 0.04
     ax["neckWidth"] = 0.17
     ax["shoulderWidth"] = 0.25
-    ax["thoraxWidth"] = 0.27
+    ax["thoraxWidth"] = 0.30
     ax["thoraxHeight"] = 0.28
     ax["abdomenWidth"] = 0.20
     ax["abdomenHeight"] = 0.21
@@ -82,13 +82,13 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["skullWidth"] = 0.70
     hp["skullHeight"] = 0.68
     hp["skullLength"] = 0.66
-    hp["muzzleLength"] = 0.22
+    hp["muzzleLength"] = 0.12
     hp["muzzleWidth"] = 0.56
     hp["muzzleTaper"] = 0.42
     hp["rostrumDepth"] = 0.56
     hp["snoutBluntness"] = 0.68
-    hp["eyeSize"] = 0.72
-    hp["eyeExposure"] = 0.90
+    hp["eyeSize"] = 0.49
+    hp["eyeExposure"] = 0.62
     hp["orbitDepth"] = 0.06
     hp["browProminence"] = 0.04
     hp["eyelidCoverage"] = 0.0
@@ -99,14 +99,14 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["earThickness"] = 0.20
     hp["earPointiness"] = 0.20
     hp["earConcavity"] = 0.94
-    hp["earWidthRatio"] = 1.04
+    hp["earWidthRatio"] = 1.28
     hp["earHeightRatio"] = 1.76
     hp["earLongitudinalCurve"] = 0.64
     hp["earMarginBow"] = 0.82
     hp["earTipRoundness"] = 0.78
     hp["earFold"] = 0.10
     hp["earOutward"] = 0.28
-    hp["earForward"] = 0.48
+    hp["earForward"] = 0.30
     hp["nasalColor"] = rgba(76, 56, 50)
 
     s["headEnvelope"]["scale"] = 0.23 + 0.025 * (1.0 - dev_ceph)
@@ -142,13 +142,13 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
         w["digitCount"] = 5
         w["digitPhalanges"] = [1, 2, 3, 2, 2, 0, 0, 0]
         # Pulgar libre corto + abanico II..V
-        w["digitLengths"] = [0.74, 0.72, 0.98, 0.78, 0.66, 0.0, 0.0, 0.0]
+        w["digitLengths"] = [0.74, 0.57, 1.04, 0.92, 0.82, 0.0, 0.0, 0.0]
         w["digitSpread"] = 0.0
         w["digitAngles"] = [0.0, 0.04, -0.06, -0.18, -0.26, 0.0, 0.0, 0.0]
         w["digitThicknessScale"] = 0.92
         w["clawScale"] = 1.50
         w["nailCount"] = 0
-        w["webbingCoverage"] = 0.96
+        w["webbingCoverage"] = 1.0
         w["webbingThickness"] = 0.16
         w["webbingEdgeCurve"] = 0.22
         w["webbingFold"] = 0.0
@@ -197,7 +197,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     # Cola fina contenida dentro del uropatagio interfemoral
     tail = s["tails"][0]
     tail["archetype"] = 0  # TAIL_ARCHETYPE_TAPERED
-    tail["length"] = 0.38
+    tail["length"] = 0.30
     tail["baseWidth"] = 0.032
     tail["baseHeight"] = 0.032
     tail["tipWidth"] = 0.011
@@ -218,14 +218,14 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     s["membraneCount"] = 6
     s["membranes"] = [
         # Plagiopatagio izquierdo / derecho
-        make_panel(1, 2, 12, 3, 10, 1, 10, 66, 0.98, 0.008, 0.18, 0.016, 0.90, dev_app, wing_col),
-        make_panel(1, 2, 13, 3, 11, 1, 11, 66, 0.98, 0.008, 0.18, 0.016, 0.90, dev_app, wing_col),
-        # Propatagio izquierdo / derecho (sin cruzar el codo caudal: antebrazo distal <-> carpo)
-        make_panel(1, 1, 10, 1, 10, 3, 10, 4, 0.95, 0.007, 0.05, 0.010, 0.92, dev_app, patag_col),
-        make_panel(1, 1, 11, 1, 11, 3, 11, 4, 0.95, 0.007, 0.05, 0.010, 0.92, dev_app, patag_col),
+        make_panel(1, 2, 12, 3, 10, 1, 10, 66, 1.0, 0.008, 0.13, 0.016, 0.90, dev_app, wing_col),
+        make_panel(1, 2, 13, 3, 11, 1, 11, 66, 1.0, 0.008, 0.13, 0.016, 0.90, dev_app, wing_col),
+        # Propatagio izquierdo / derecho desde la base cervical hasta hombro, codo y carpo
+        make_panel(1, 1, 10, 1, 10, 1, 10, 4, 1.0, 0.007, 0.05, 0.010, 0.92, dev_app, patag_col),
+        make_panel(1, 1, 11, 1, 11, 1, 11, 4, 1.0, 0.007, 0.05, 0.010, 0.92, dev_app, patag_col),
         # Uropatagio izquierdo / derecho
-        make_panel(20, 1, 20, 5, 12, 1, 12, 3, 0.94, 0.007, 0.22, 0.010, 0.88, dev_app, patag_col),
-        make_panel(20, 1, 20, 5, 13, 1, 13, 3, 0.94, 0.007, 0.22, 0.010, 0.88, dev_app, patag_col),
+        make_panel(20, 1, 20, 5, 12, 1, 12, 4, 1.0, 0.007, 0.18, 0.010, 0.88, dev_app, patag_col),
+        make_panel(20, 1, 20, 5, 13, 1, 13, 4, 1.0, 0.007, 0.18, 0.010, 0.88, dev_app, patag_col),
     ]
 
     # Pelaje pardo-grisáceo sedoso dorsal y gris-pardo pálido ventral; membranas coriáceas oscuras

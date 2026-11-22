@@ -14,6 +14,8 @@
 #include "CreatureRecipeRegistry.h"
 #include "CreatureVariation.h"
 #include "GpuSDFSurfaceCache.h"
+#include "ArmorScales.h"
+#include "Membrane.h"
 #include "MathUtils.h"
 #include "MonsterAger.h"
 #include "MonsterSDF.h"
@@ -120,6 +122,7 @@ typedef struct MorphRuntime {
     GpuSDFSurfaceCache* gpuCache;
     bool gpuGridValid;
     MonsterSDF frameSdf;
+    Mesh membranes, armor;
     float fieldAge;
     bool fieldValid;
     bool materialValid;
@@ -223,8 +226,9 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "explorer")) spec = "Explorador";
     else if (EqualsIgnoreCase(spec, "giraffe")) spec = "Jirafa";
     else if (EqualsIgnoreCase(spec, "platypus")) spec = "Ornitorrinco";
-    else if (EqualsIgnoreCase(spec, "kangaroo")) spec = "Canguro";
-    else if (EqualsIgnoreCase(spec, "bat")) spec = "Murcielago";
+    else if (EqualsIgnoreCase(spec, "pangolin")) spec = "1013";
+    else if (EqualsIgnoreCase(spec, "kangaroo") || EqualsIgnoreCase(spec, "canguro")) spec = "1014";
+    else if (EqualsIgnoreCase(spec, "bat") || EqualsIgnoreCase(spec, "murcielago")) spec = "1015";
 
     char* end = NULL;
     unsigned long num = strtoul(spec, &end, 10);
@@ -429,6 +433,8 @@ static bool InitMorphRuntime(MorphRuntime* rt, const Monster* initialSource, con
         opt->surfaceMode == SURFACE_MODE_LEGACY_HANDOFF && !opt->legacyLag);
 
     rt->frameSdf = MonsterSDF_Create();
+    rt->membranes = Mesh_Create();
+    rt->armor = Mesh_Create();
     return true;
 }
 
@@ -464,8 +470,12 @@ static void InvalidateMorphPair(MorphRuntime* rt) {
 static const MonsterSDF* PrepareFrameField(MorphRuntime* rt, const DemoOptions* opt) {
     if (!rt->fieldValid || rt->fieldAge != rt->ager.perc) {
         double start = opt->profile ? OpenGLDemoWindow_Time() : 0;
-        rt->fieldValid = MonsterSDF_Build(&rt->frameSdf, MonsterAger_GetResultConst(&rt->ager),
-            MonsterSDF_DefaultConfig());
+        const Monster* current = MonsterAger_GetResultConst(&rt->ager);
+        rt->fieldValid = MonsterSDF_Build(&rt->frameSdf, current, MonsterSDF_DefaultConfig());
+        if (rt->fieldValid) {
+            if (!Membrane_BuildMesh(current, &rt->membranes)) Mesh_Clear(&rt->membranes);
+            if (!ArmorScales_BuildMesh(current, &rt->frameSdf, &rt->armor)) Mesh_Clear(&rt->armor);
+        }
         rt->fieldAge = rt->ager.perc;
         rt->materialValid = rt->rayFrameValid = false;
         if (opt->profile) rt->sdfMs += (OpenGLDemoWindow_Time() - start) * 1000;
@@ -483,6 +493,8 @@ static void DestroyMorphRuntime(MorphRuntime* rt) {
         rt->visual = NULL;
     }
     MonsterSDF_Free(&rt->frameSdf);
+    Mesh_Free(&rt->membranes);
+    Mesh_Free(&rt->armor);
     for (size_t i = 0; i < rt->eyeCapacity; ++i) Mesh_Free(&rt->eyes[i].globe);
     free(rt->eyes);
     LongHairAsync_Destroy(rt->longHairAsync);
@@ -863,6 +875,11 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
     }
 
     OpenGLRenderer_SetupCamera(cam, w, h);
+    if (sdf) {
+        OpenGLRenderer_SetMeshSurfaceOverride(renderer,NULL);
+        if (rt->membranes.indexCount) renderer->renderMesh(renderer,&rt->membranes);
+        if (rt->armor.indexCount) renderer->renderMesh(renderer,&rt->armor);
+    }
     if (opt->profile) phase = OpenGLDemoWindow_Time();
     if (!drewAsyncVisual) RenderCurrentEyes(rt, renderer, current);
     if (opt->profile) rt->eyeMs = (OpenGLDemoWindow_Time() - phase) * 1000;

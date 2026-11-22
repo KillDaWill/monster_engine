@@ -1,0 +1,11 @@
+{
+  "species": "PangolinChino",
+  "recipeId": 1013,
+  "stage": 3,
+  "animations": {
+    "idle": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.4080, "maxEdge": 4.2098, "minArea": 0.3686, "maxArea": 4.6824, "extremeTris": 245, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0000},
+    "walk": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.0900, "maxEdge": 8.6539, "minArea": 0.0371, "maxArea": 23.5368, "extremeTris": 741, "crushedTris": 33, "reachErr": 0.0000, "reachSat": 0.0066},
+    "look_down": {"cbPitch": 0.3737, "cbYaw": 0.0000, "neckPitch": 0.1938, "neckYaw": 0.0000, "headPitch": 0.1621, "headYaw": 0.0000, "minEdge": 0.0825, "maxEdge": 12.6325, "minArea": 0.0840, "maxArea": 54.5838, "extremeTris": 1122, "crushedTris": 29, "reachErr": 0.0000, "reachSat": 0.6224},
+    "curl": {"cbPitch": 0.3167, "cbYaw": 0.0000, "neckPitch": 0.3167, "neckYaw": 0.0000, "headPitch": 0.5500, "headYaw": 0.0000, "minEdge": 0.1017, "maxEdge": 10.6929, "minArea": 0.0540, "maxArea": 50.6400, "extremeTris": 2324, "crushedTris": 199, "reachErr": 0.0000, "reachSat": 0.0013}
+  }
+}

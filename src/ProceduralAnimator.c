@@ -89,17 +89,21 @@ static void AxialControllers(ProceduralAnimator* a,const Rig* r,SkeletonPose* p)
         bool hasBase=r->cervicalBaseJoint>=0,hasNeck=r->neckJoint>=0;
         /* Al bajar la cabeza (pitch > 0), la base cervical lidera la inclinación para que todo el cuello acompañe. */
         if (r->cervicalChainCount > 2) {
-            float pHead = 0.16f, yHead = 0.18f;
+            float length = 0.0f;
+            for (size_t k = 1; k < r->cervicalChainCount; ++k)
+                length += Vec3_Length(r->skeleton.joints[r->cervicalChain[k]].restPosition);
+            float shortNeck = fmaxf(0.0f, fminf(1.0f, 2.0f - length / fmaxf(.001f, r->cranialCollar)));
+            /* En cuellos cortos el atlas acompaña al cráneo y la cintura
+             * escapular conserva su postura al seguir el blanco. */
+            float pHead = .16f + .15f * shortNeck, yHead = .18f;
             float remP = 1.0f - pHead, remY = 1.0f - yHead;
             float n = (float)r->cervicalChainCount;
-            float sumW = 0.0f;
+            float slope = pitch > 0.0f ? -.65f + 1.25f * shortNeck : 0.0f;
+            float intercept = pitch > 0.0f ? 1.35f - .65f * shortNeck : 1.0f;
+            float sumW = n * (intercept + .5f * slope);
             for (size_t k = 0; k < r->cervicalChainCount; ++k) {
                 float u = (float)k / (n - 1.0f);
-                sumW += (pitch > 0.0f ? (1.35f - 0.65f * u) : 1.0f);
-            }
-            for (size_t k = 0; k < r->cervicalChainCount; ++k) {
-                float u = (float)k / (n - 1.0f);
-                float wp = (pitch > 0.0f ? (1.35f - 0.65f * u) : 1.0f) / fmaxf(sumW, 1e-4f);
+                float wp = (intercept + slope * u) / sumW;
                 float wy = 1.0f / n;
                 RotateEuler(&r->skeleton, p, r->cervicalChain[k], yaw * remY * wy, pitch * remP * wp, 0.0f);
             }
@@ -161,9 +165,12 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
     if(!SkeletonPose_ResetToRest(p,&r->skeleton))return false;
     /* La IK arranca desde la flexión anterior, no desde una cadena casi
      * extendida en cada fotograma. Conserva codos y corvejones continuos. */
-    for(size_t i=0;i<r->limbCount;++i)for(size_t k=0;k+1<r->limbs[i].chain.jointCount;++k) {
-        int j=r->limbs[i].chain.jointIndices[k];
-        p->joints[j].localRotation=Skeleton_ConstrainRotation(&r->skeleton.joints[j],previous[i][k]);
+    for(size_t i=0;i<r->limbCount;++i) {
+        if(r->limbs[i].role==LIMB_WING)continue;
+        for(size_t k=0;k+1<r->limbs[i].chain.jointCount;++k) {
+            int j=r->limbs[i].chain.jointIndices[k];
+            p->joints[j].localRotation=Skeleton_ConstrainRotation(&r->skeleton.joints[j],previous[i][k]);
+        }
     }
 
     float phase=a->locomotion.phase*6.28318530718f;
@@ -306,7 +313,7 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
     if (wingFold > 0.005f || fabsf(wingFlap) > 0.005f) {
         for (size_t i = 0; i < r->limbCount; ++i) {
             const LimbRig* limb = &r->limbs[i];
-            if (limb->walking || limb->chain.jointCount < 4) continue;
+            if (limb->role != LIMB_WING || limb->chain.jointCount < 4) continue;
             int childDigits[CREATURE_MAX_DIGITS];
             unsigned childCount = 0;
             for (size_t j = 0; j < r->skeleton.jointCount && childCount < CREATURE_MAX_DIGITS; ++j) {
@@ -318,15 +325,24 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
             int sh = limb->chain.jointIndices[0];
             int el = limb->chain.jointIndices[1];
             int wr = limb->chain.jointIndices[3];
-            RotateEuler(&r->skeleton, p, sh, -side * 0.75f * wingFold, -0.24f * wingFold,
-                        side * (0.72f * wingFlap - 0.58f * wingFold));
-            RotateEuler(&r->skeleton, p, el, side * 1.35f * wingFold, 0.18f * wingFold,
+            RotateEuler(&r->skeleton, p, sh, -side * .44f * wingFold, -0.18f * wingFold,
+                        side * (0.72f * wingFlap - .38f * wingFold));
+            RotateEuler(&r->skeleton, p, el, side * 1.24f * wingFold, 0.18f * wingFold,
                         -side * 0.22f * wingFlap);
-            RotateEuler(&r->skeleton, p, wr, -side * 1.10f * wingFold, -0.26f * wingFold, 0.0f);
+            RotateEuler(&r->skeleton, p, wr, -side * .82f * wingFold, -0.26f * wingFold, 0.0f);
             unsigned firstWingDigit = (childCount >= 5) ? 1u : 0u;
             for (unsigned d = firstWingDigit; d < childCount; ++d) {
-                RotateEuler(&r->skeleton, p, childDigits[d], side * 1.12f * wingFold * (1.0f - 0.08f * (float)d),
+                int root = childDigits[d];
+                RotateEuler(&r->skeleton, p, root, side * .70f * wingFold * (1.0f - 0.08f * (float)d),
                             -0.38f * wingFold, -side * 0.14f * wingFlap);
+                /* Las falanges recogen la parte distal del ala en la misma
+                 * dirección; el pulgar queda libre. */
+                int parent = root;
+                for (size_t j = (size_t)root + 1; j < r->skeleton.jointCount; ++j) {
+                    if (r->skeleton.joints[j].parentIndex != parent) continue;
+                    RotateEuler(&r->skeleton, p, (int)j, side * .21f * wingFold, 0.0f, 0.0f);
+                    parent = (int)j;
+                }
             }
         }
         SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);

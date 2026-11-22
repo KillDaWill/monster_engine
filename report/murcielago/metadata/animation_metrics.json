@@ -1,0 +1,11 @@
+{
+  "species": "Murcielago Orejudo",
+  "recipeId": 1015,
+  "stage": 3,
+  "animations": {
+    "wing_extended": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.9196, "maxEdge": 1.0564, "minArea": 0.9189, "maxArea": 1.0563, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0000},
+    "wing_partial": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.5398, "maxEdge": 1.7538, "minArea": 0.5290, "maxArea": 1.7318, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0000},
+    "wing_folded": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.1582, "maxEdge": 2.5467, "minArea": 0.1464, "maxArea": 2.3972, "extremeTris": 1781, "crushedTris": 88, "reachErr": 0.0000, "reachSat": 0.0000},
+    "wing_flap": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.8261, "maxEdge": 1.3294, "minArea": 0.8295, "maxArea": 1.3279, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0000}
+  }
+}

@@ -762,7 +762,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             Math_Max(c->heightA,c->heightB)+Math_Max(c->heightBulge,0));
         float minR = Math_Min(Math_Min(c->widthA, c->heightA), Math_Min(c->widthB, c->heightB));
         float factor = c->kind == BODY_CONNECTION_AXIAL_LOFT ?
-            ((!c->axialSweepMember && c->region == ANATOMY_REGION_NECK) ? 0.28f :
+            ((!c->axialSweepMember && c->region == ANATOMY_REGION_NECK) ? 0.08f :
              (!c->axialSweepMember && monster->hasCreaturePhenotype && monster->phenotype.axial.cervicalSegments >= 2 &&
               AnatomyGraph_FindNode(&monster->anatomyGraph, c->fromId) &&
               AnatomyGraph_FindNode(&monster->anatomyGraph, c->fromId)->region == ANATOMY_REGION_NECK) ? 0.28f : 0.0f) :

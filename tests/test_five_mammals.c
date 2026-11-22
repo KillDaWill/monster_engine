@@ -15,6 +15,8 @@
 #include "Membrane.h"
 #include "ArmorScales.h"
 #include "PigmentPattern.h"
+#include "Limb.h"
+#include "Ornament.h"
 #include "test_utils.h"
 #include <math.h>
 #include <stdlib.h>
@@ -30,6 +32,31 @@ static AABB3D MeshBounds(const Mesh* mesh) {
 static bool LoadSpecDoc(const char* path, CreatureRecipeDocument* doc) {
     char err[256] = {0};
     return CreatureRecipeIO_LoadFile(doc, path, err, sizeof(err));
+}
+
+static void TestFacialFrames(void) {
+    Vector3 envelope = Vec3_Create(.32f, .24f, .36f);
+    for (int archetype = HEAD_ARCHETYPE_LIZARD; archetype <= HEAD_ARCHETYPE_PHOLIDOTE; ++archetype) {
+        HeadPhenotype phenotype = HeadPhenotype_RandomValid((HeadArchetype)archetype, 489u);
+        HeadAnatomy anatomy;
+        TEST_ASSERT(HeadAnatomy_Resolve(&phenotype, 0, envelope, &anatomy),
+                    "Resolver todos los arquetipos cefálicos");
+        const HeadSurfaceRecipe* surface = &anatomy.surface;
+        TEST_ASSERT(surface->faceTipRadii.y > 0 && surface->faceTip.z > surface->faceRoot.z,
+                    "Volumen facial y estaciones en orden");
+        if (archetype == HEAD_ARCHETYPE_MONOTREME || archetype == HEAD_ARCHETYPE_PHOLIDOTE) {
+            float scale = archetype == HEAD_ARCHETYPE_MONOTREME ? .78f * .74f : .84f;
+            const float cranialHeight[] = {1, 1.14f, 1.18f, .96f, .90f};
+            HeadPhenotype_Normalize(&phenotype);
+            float expected = envelope.y * (.55f + .48f * phenotype.skullHeight)
+                * cranialHeight[phenotype.cranialForm] * scale;
+            TEST_ASSERT(fabsf(expected - surface->craniumRadii.y) < .00001f,
+                        "Escala craneal aplicada una sola vez");
+            TEST_ASSERT(fabsf(surface->cranialCenters[0].z - surface->faceTip.z) < .00001f &&
+                        surface->mandibularCenters[0].z < surface->faceTip.z,
+                        "Cara, barrido y mandíbula derivados de la misma punta");
+        }
+    }
 }
 
 static void TestAllFiveRecipesFourStagesAndAger(void) {
@@ -85,6 +112,18 @@ static void TestAllFiveRecipesFourStagesAndAger(void) {
             MonsterAger_Interpolate(juvenile, adult, ages[a], agerOut);
             TEST_ASSERT(agerOut->hasAnatomyGraph && AnatomyGraph_Validate(&agerOut->anatomyGraph),
                         "Topología coherente en edades intermedias");
+            if (a == 0 || a == 4) {
+                const Monster* endpoint = a == 0 ? juvenile : adult;
+                TEST_ASSERT(AnatomyGraph_Fingerprint(&agerOut->anatomyGraph) ==
+                            AnatomyGraph_Fingerprint(&endpoint->anatomyGraph),
+                            "Ager conserva exactamente la geometría en cada extremo");
+            }
+            if (specs[s].id == 1012u || specs[s].id == 1015u) {
+                Mesh membranes = Mesh_Create();
+                TEST_ASSERT(Membrane_BuildMesh(agerOut, &membranes) && membranes.indexCount > 0,
+                            "Las membranas se conservan en los extremos y edades intermedias");
+                Mesh_Free(&membranes);
+            }
         }
 
         Monster_Free(juvenile);
@@ -121,6 +160,20 @@ static void TestGiraffeCapabilities(void) {
         if (m->anatomyGraph.nodes[i].region == ANATOMY_REGION_ORNAMENT) ++ossicones;
     }
     TEST_ASSERT(ossicones >= 4, "Osiconos craneales resueltos en anatomía");
+    for (uint32_t module = 8; module <= 9; ++module) {
+        const AnatomyNode* base = AnatomyGraph_FindModuleNode(&m->anatomyGraph, module, ORNAMENT_NODE_BASE);
+        const AnatomyNode* tip = AnatomyGraph_FindModuleNode(&m->anatomyGraph, module, ORNAMENT_NODE_TIP);
+        TEST_ASSERT(base && tip && tip->center.y - base->center.y > fabsf(tip->center.z - base->center.z) * 2,
+                    "Osicono corto crece desde la bóveda craneal");
+    }
+    const Rig* rig = &m->animation->rig;
+    float previousWidth = INFINITY;
+    for (size_t i = 1; i < rig->cervicalChainCount; ++i) {
+        const AnatomyNode* node = AnatomyGraph_FindNode(&m->anatomyGraph,
+            rig->skeleton.joints[rig->cervicalChain[i]].anatomyId);
+        TEST_ASSERT(node && node->widthRadius < previousWidth, "Cuello afinado de hombro a cráneo");
+        previousWidth = node->widthRadius;
+    }
     Monster_Free(m);
     free(m);
     free(doc);
@@ -138,6 +191,15 @@ static void TestPlatypusCapabilities(void) {
     const AnatomyNode* tailTip = AnatomyGraph_FindFirstRegion(&m->anatomyGraph, ANATOMY_REGION_TAIL);
     TEST_ASSERT(tailTip != NULL && doc->recipe.adult.tails[0].archetype == TAIL_ARCHETYPE_PADDLE,
                 "Cola plana tipo remo activa");
+    const HeadSurfaceRecipe* head = &m->head.anatomy.surface;
+    TEST_ASSERT(head->cranialRadii[1].x > head->cranialRadii[1].y * 3.0f &&
+                head->cranialRadii[1].y > head->craniumRadii.y * .38f,
+                "Pico ancho y con espesor dorsal proporcional");
+    const AnatomyNode* paddle = AnatomyGraph_FindModuleNode(&m->anatomyGraph, tailTip->moduleInstanceId, 8);
+    const AnatomyNode* paddleEnd = AnatomyGraph_FindModuleNode(&m->anatomyGraph, tailTip->moduleInstanceId, 12);
+    TEST_ASSERT(paddle && paddleEnd && paddle->widthRadius > paddle->heightRadius * 2.0f &&
+                paddle->widthRadius > paddleEnd->widthRadius && paddleEnd->widthRadius > paddle->widthRadius * .45f,
+                "La pala conserva anchura hasta cerca del remate");
 
     Mesh openWeb = Mesh_Create();
     TEST_ASSERT(Membrane_BuildMesh(m, &openWeb) && openWeb.vertexCount > 0 && openWeb.indexCount > 0,
@@ -169,6 +231,7 @@ static void TestPangolinCapabilities(void) {
     *m = Monster_Create();
     TEST_ASSERT(Creature_BuildMonster(m, &doc->recipe, &doc->recipe.adult), "Construir pangolín");
     TEST_ASSERT(m->phenotype.head.archetype == HEAD_ARCHETYPE_PHOLIDOTE, "Cabeza cónica de pangolín");
+    TEST_ASSERT(m->head.anatomy.surface.hasEars, "El pangolín chino tiene pabellones");
 
     SDFMesherConfig cfg = SDFMesher_DefaultConfig();
     cfg.voxelSize = 0.04f; cfg.maxCells = 250000; cfg.maxResolution = 128;
@@ -176,6 +239,16 @@ static void TestPangolinCapabilities(void) {
     TEST_ASSERT(MonsterVisual_RebuildNow(&vis, m, MonsterSDF_DefaultConfig()), "Visual de pangolín construido");
     TEST_ASSERT(vis.armorMesh.vertexCount > 100 && vis.armorMesh.indexCount % 3 == 0,
                 "Coraza geométrica de escamas queratínicas generada");
+    /* Cada arista de una placa cerrada aparece una vez en ambos sentidos. */
+    for (size_t t = 0; t < 72; ++t) {
+        MeshIndex a = vis.armorMesh.indices[t];
+        MeshIndex b = vis.armorMesh.indices[t - t % 3 + (t + 1) % 3];
+        unsigned opposite = 0;
+        for (size_t e = 0; e < 72; ++e)
+            if (vis.armorMesh.indices[e] == b &&
+                vis.armorMesh.indices[e - e % 3 + (e + 1) % 3] == a) ++opposite;
+        TEST_ASSERT(a != b && opposite == 1, "Escama cerrada sin caras duplicadas");
+    }
 
     AnimatedVisual bind = {0};
     TEST_ASSERT(AnimatedVisual_Bind(&bind, &vis, m) && bind.armor != NULL, "Deformer de coraza vinculado");
@@ -211,6 +284,16 @@ static void TestKangarooCapabilities(void) {
                 "Miembros anteriores no caminan en salto bípedo");
     TEST_ASSERT(m->animation->rig.limbs[2].walking && m->animation->rig.limbs[3].walking,
                 "Miembros posteriores sustentan salto bípedo");
+    const Skeleton* skeleton = &m->animation->rig.skeleton;
+    AnatomyId pawId = skeleton->joints[m->animation->rig.limbs[2].endEffectorJoint].anatomyId;
+    const AnatomyNode* paw = AnatomyGraph_FindNode(&m->anatomyGraph, pawId);
+    TEST_ASSERT(paw && fabsf(paw->center.y - paw->heightRadius) < .006f,
+                "La suela del metatarso en reposo coincide con el suelo");
+    uint32_t module = pawId >> 16;
+    const AnatomyNode* ankle = AnatomyGraph_FindModuleNode(&m->anatomyGraph, module, LIMB_NODE_DISTAL);
+    const AnatomyNode* toe = AnatomyGraph_FindModuleNode(&m->anatomyGraph, module, Limb_DigitLocalId(1, 4));
+    TEST_ASSERT(ankle && toe && toe->center.z - ankle->center.z > doc->recipe.adult.limbs[2].length *
+                doc->recipe.adult.axial.totalScale * .80f, "Metatarso largo y cuarto dedo dominante");
 
     float minHipY = 1e6f, maxHipY = -1e6f;
     bool sawFlight = false;
@@ -251,6 +334,7 @@ static void TestBatCapabilitiesAndOffspring(void) {
     TEST_ASSERT(Creature_BuildMonster(bat, &batDoc->recipe, &batDoc->recipe.adult), "Construir murciélago");
     TEST_ASSERT(!bat->animation->rig.limbs[0].walking && !bat->animation->rig.limbs[1].walking,
                 "Las alas son no ambulatorias");
+    TEST_ASSERT(bat->animation->rig.limbs[0].role == LIMB_WING, "Asociación explícita del controlador alar");
 
     SDFMesherConfig cfg = SDFMesher_DefaultConfig();
     cfg.voxelSize = 0.025f; cfg.maxCells = 250000; cfg.maxResolution = 128;
@@ -270,6 +354,11 @@ static void TestBatCapabilitiesAndOffspring(void) {
     float foldSpan = AABB_Size(foldBox).x;
     TEST_ASSERT(isfinite(foldSpan) && foldSpan < extSpan * 0.88f,
                 "El plegado alar recoge realmente la envergadura del patagio");
+    bat->animation->animator.wingFold = 0;
+    TEST_ASSERT(MonsterAnimation_Update(bat, 1.0f / 30.0f) && AnimatedVisual_Deform(&bind, &vis, bat),
+                "Extensión después del plegado");
+    TEST_ASSERT(FLOAT_NEAR(AABB_Size(MeshBounds(&vis.membraneMesh)).x, extSpan),
+                "El ala recupera la extensión al soltar el controlador");
 
     /* Cruces entre especies nuevas via CreatureOffspring */
     char err[256] = {0};
@@ -295,6 +384,7 @@ static void TestBatCapabilitiesAndOffspring(void) {
 }
 
 void run_five_mammals_tests(void) {
+    TestFacialFrames();
     TestAllFiveRecipesFourStagesAndAger();
     TestGiraffeCapabilities();
     TestPlatypusCapabilities();

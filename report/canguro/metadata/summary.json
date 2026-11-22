@@ -1,0 +1,91 @@
+{
+  "id": 1014,
+  "name": "Canguro Rojo",
+  "scientific_name": "Osphranter rufus",
+  "slug": "canguro",
+  "recipe_file": "canguro.creature.json",
+  "gait_enum": 6,
+  "stage_total_scales": {
+    "seed": 0.28,
+    "larva": 0.52,
+    "juvenile": 0.82,
+    "adult": 1.18
+  },
+  "anatomy": {
+    "axial_archetype": 1,
+    "cervical_segments": 3,
+    "head_archetype": 4,
+    "limb_count": 4,
+    "limb_archetypes": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "limb_profiles": [
+      4,
+      4,
+      5,
+      5
+    ],
+    "tail_count": 1,
+    "tail_archetype": 0,
+    "ornament_count": 0,
+    "membrane_count": 0,
+    "plates_armor_scale": 0.0
+  },
+  "gpu_validation": {
+    "stage_0": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 5.92321157e-06,
+      "stage": 0,
+      "sample_count": 5474,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    },
+    "stage_1": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 6.03869557e-06,
+      "stage": 1,
+      "sample_count": 5474,
+      "compute_error_m": 6.55651093e-07,
+      "fragment_error_m": 6.55651093e-07,
+      "status": "PASS"
+    },
+    "stage_2": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 5.21540642e-08,
+      "stage": 2,
+      "sample_count": 5474,
+      "compute_error_m": 3.57627869e-07,
+      "fragment_error_m": 3.57627869e-07,
+      "status": "PASS"
+    },
+    "stage_3": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 1.08331442e-05,
+      "stage": 3,
+      "sample_count": 5474,
+      "compute_error_m": 7.15255737e-07,
+      "fragment_error_m": 7.15255737e-07,
+      "status": "PASS"
+    }
+  },
+  "adult_mesh_capture": {
+    "leaves": 290870,
+    "minimum_voxel_m": 0.00177467,
+    "effective_voxel_m": 0.0141974,
+    "budget_adjusted": false,
+    "classification_ms": 1047.71,
+    "contour_ms": 2280.86,
+    "attributes_ms": 65.07,
+    "vertices": 101090,
+    "status": "PASS"
+  },
+  "photo_counts": {
+    "adult_views": 17,
+    "stage_views": 6,
+    "animation_views": 10
+  }
+}

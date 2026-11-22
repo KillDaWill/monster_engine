@@ -1,0 +1,13 @@
+{
+  "species": "Jirafa",
+  "recipeId": 1011,
+  "stage": 3,
+  "animations": {
+    "idle": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.2963, "maxEdge": 10.1036, "minArea": 0.0587, "maxArea": 15.5135, "extremeTris": 130, "crushedTris": 9, "reachErr": 0.0000, "reachSat": 0.0000},
+    "walk": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.3206, "maxEdge": 25.3907, "minArea": 0.0425, "maxArea": 51.0702, "extremeTris": 204, "crushedTris": 4, "reachErr": 0.0000, "reachSat": 0.0746},
+    "look_up": {"cbPitch": -0.1100, "cbYaw": 0.0000, "neckPitch": -0.1702, "neckYaw": 0.0000, "headPitch": -0.1621, "headYaw": 0.0000, "minEdge": 0.1439, "maxEdge": 12.0660, "minArea": 0.0813, "maxArea": 13.3310, "extremeTris": 147, "crushedTris": 8, "reachErr": 0.0000, "reachSat": 1.0000},
+    "look_down": {"cbPitch": 0.2242, "cbYaw": 0.0000, "neckPitch": 0.1163, "neckYaw": 0.0000, "headPitch": 0.1621, "headYaw": 0.0000, "minEdge": 0.1263, "maxEdge": 10.5821, "minArea": 0.0493, "maxArea": 10.1318, "extremeTris": 114, "crushedTris": 7, "reachErr": 0.0000, "reachSat": 0.5404},
+    "eat": {"cbPitch": 1.3241, "cbYaw": 0.0534, "neckPitch": -0.2099, "neckYaw": -0.0140, "headPitch": -0.1799, "headYaw": 0.0040, "minEdge": 0.1929, "maxEdge": 7.0170, "minArea": 0.0814, "maxArea": 23.1239, "extremeTris": 2666, "crushedTris": 6, "reachErr": 0.5962, "reachSat": 1.0000},
+    "drink": {"cbPitch": 1.3147, "cbYaw": 0.0767, "neckPitch": -0.2099, "neckYaw": -0.0114, "headPitch": -0.1798, "headYaw": 0.0083, "minEdge": 0.0735, "maxEdge": 6.3123, "minArea": 0.0668, "maxArea": 27.1974, "extremeTris": 2880, "crushedTris": 152, "reachErr": 0.8194, "reachSat": 1.0000}
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "id": 1012,
+  "name": "Ornitorrinco",
+  "scientific_name": "Ornithorhynchus anatinus",
+  "slug": "ornitorrinco",
+  "recipe_file": "ornitorrinco.creature.json",
+  "gait_enum": 2,
+  "stage_total_scales": {
+    "seed": 0.217600003,
+    "larva": 0.345600009,
+    "juvenile": 0.499199986,
+    "adult": 0.639999986
+  },
+  "anatomy": {
+    "axial_archetype": 1,
+    "cervical_segments": 0,
+    "head_archetype": 9,
+    "limb_count": 4,
+    "limb_archetypes": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "limb_profiles": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "tail_count": 1,
+    "tail_archetype": 7,
+    "ornament_count": 0,
+    "membrane_count": 0,
+    "plates_armor_scale": 0
+  },
+  "gpu_validation": {
+    "stage_0": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 5.21540642e-08,
+      "stage": 0,
+      "sample_count": 6632,
+      "compute_error_m": 3.57627869e-07,
+      "fragment_error_m": 3.57627869e-07,
+      "status": "PASS"
+    },
+    "stage_1": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 7.07805157e-08,
+      "stage": 1,
+      "sample_count": 6632,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    },
+    "stage_2": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 9.68575478e-08,
+      "stage": 2,
+      "sample_count": 6632,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    },
+    "stage_3": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 2.98023224e-07,
+      "stage": 3,
+      "sample_count": 6632,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    }
+  },
+  "adult_mesh_capture": {
+    "leaves": 1382686,
+    "minimum_voxel_m": 0.00157952,
+    "effective_voxel_m": 0.00631808,
+    "budget_adjusted": false,
+    "classification_ms": 5844.75,
+    "contour_ms": 13042.53,
+    "attributes_ms": 367.98,
+    "vertices": 514863,
+    "status": "PASS"
+  },
+  "photo_counts": {
+    "adult_views": 17,
+    "stage_views": 6,
+    "animation_views": 8
+  }
+}

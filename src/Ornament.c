@@ -40,16 +40,21 @@ bool Ornament_Resolve(const OrnamentPhenotype* phenotype,
         /* Osicono cubierto de piel: inserción craneal amplia, tallo ahusado y
          * remate distal romo o ligeramente bulboso. */
         Vector3 v=phenotype->growthDirection;
-        Vector3 axis=Vec3_LengthSq(v)>1e-6f?Vec3_Normalize(Vec3_Add(Vec3_Scale(slot->side,v.x),
-            Vec3_Add(Vec3_Scale(slot->up,v.y),Vec3_Scale(slot->forward,v.z)))):slot->up;
+        /* Las ranuras de cuerno apuntan hacia atrás; el osicono crece desde
+         * la bóveda según el marco craneal publicado por la cabeza. */
+        Vector3 cranialUp=Vec3_Normalize(Vec3_Sub(slot->up,
+            Vec3_Scale(slot->forward,Vec3_Dot(slot->up,slot->forward))));
+        Vector3 cranialSide=Vec3_Cross(cranialUp,slot->forward);
+        Vector3 axis=Vec3_LengthSq(v)>1e-6f?Vec3_Normalize(Vec3_Add(Vec3_Scale(cranialSide,v.x),
+            Vec3_Add(Vec3_Scale(cranialUp,v.y),Vec3_Scale(slot->forward,v.z)))):cranialUp;
         const uint16_t ids[]={ORNAMENT_NODE_BASE,4,ORNAMENT_NODE_MID,5,ORNAMENT_NODE_TIP};
         float knobR=fmaxf(phenotype->tipRadius*s*dev,baseR*0.42f);
         const float radiusFactors[]={1.12f,0.72f,0.68f,knobR/baseR,knobR*0.86f/baseR};
         for(unsigned i=0;i<5;++i){
             float t=(float)i/4.0f,curve=t*t;
             Vector3 center=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length*t-baseR*.75f*(1-t)),
-                Vec3_Add(Vec3_Scale(slot->side,length*phenotype->lateralSweep*curve),
-                         Vec3_Scale(slot->up,length*phenotype->curvature*curve))));
+                Vec3_Add(Vec3_Scale(cranialSide,length*phenotype->lateralSweep*curve),
+                         Vec3_Scale(cranialUp,length*phenotype->curvature*curve))));
             float radius=fmaxf(baseR*radiusFactors[i],1e-5f);
             if(!Module_Node(graph,module,ids[i],center,radius,radius,2,ANATOMY_ROLE_AXIAL,
                 ANATOMY_REGION_ORNAMENT,ANATOMY_SIDE_CENTER,phenotype->development))return false;

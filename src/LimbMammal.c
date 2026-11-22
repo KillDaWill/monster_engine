@@ -286,7 +286,7 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     Vector3 positions[4]={{inset,0,0},
         {inset+lateral,-length*upper,length*((hind?(macropod?.24f:.16f):-.055f)+p->proximalSweep)},
         {inset+lateral,-length*(macropod&&hind?.90f:(upper+lower)),length*((hind?(macropod?-.16f:-.10f):0)+p->distalSweep)},
-        {inset+lateral,macropod&&hind?(-length+r*.24f*p->footHeightScale):-length,length*(hind?(macropod?.22f*p->footScale:-.075f):.025f)}};
+        {inset+lateral,macropod&&hind?(-length+r*.24f*p->footHeightScale):-length,length*(hind?(macropod?.32f*p->footScale:-.075f):.025f)}};
     float w[]={r*p->rootThicknessScale*(macropod&&hind?1.24f:1.0f),
         r*(macropod&&hind?.68f:.78f)*p->middleThicknessScale,
         r*(macropod&&hind?.38f:.40f)*p->distalThicknessScale,
@@ -320,7 +320,7 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
         if (i) {
             BodyConnection* edge=&g->connections[g->connectionCount-1];
             edge->transverseAxis=slot->side;
-            float fullness=i==1?r*p->proximalThicknessScale*(hoof?(hind?.15f:.08f):(hind?.50f:.36f)):i==2?r*(hoof?.035f:(hind?.18f:.12f)):0;
+            float fullness=i==1?r*p->proximalThicknessScale*(hoof?(hind?.15f:.08f):(macropod&&hind?.30f:(hind?.50f:.36f))):i==2?r*(hoof?.035f:(hind?.18f:.12f)):0;
             edge->widthBulge=fullness;
             edge->heightBulge=fullness*(hind?1.15f:.85f);
             if(compact)edge->jointBlend=1.0f;
@@ -349,6 +349,11 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             float x=(offset*rootSpacing+sinf(p->digitAngles[d])*p->digitSpread*t*.5f)*pawRadius;
             float base=plantigrade?(hind?.62f:.48f):.28f;
             float z=Math_Lerp(base,.28f+1.35f*p->digitLengths[d],t)*pawRadius;
+            /* En el pie macrópodo la longitud es independiente del ancho. */
+            if(macropod&&hind) {
+                float digitSpan=length*.13f*p->footScale;
+                z=Math_Lerp(base*pawRadius,.28f*pawRadius+digitSpan*p->digitLengths[d],t);
+            }
             /* Cada falange apoya en la misma suela; el carpo/tarso permanece elevado. */
             Vector3 c=PawPoint(slot,positions[3],footYaw,x,radius-h[3],z);
             unsigned local=Limb_DigitLocalId(d,j);

@@ -129,9 +129,11 @@ static float SamplePattern(
     }
 
     case PIGMENT_PATTERN_RETICULATED: {
+        float warp = noise(Vec3_Scale(q, 1.65f), seed ^ 194u) - .5f;
+        q = Vec3_Add(q, Vec3_Scale(Vec3_Create(.28f, -.22f, .30f), warp));
         int bx = (int)floorf(q.x), by = (int)floorf(q.y), bz = (int)floorf(q.z);
         float fx = q.x - (float)bx, fy = q.y - (float)by, fz = q.z - (float)bz;
-        float f1 = 1e9f, f2 = 1e9f;
+        float f1 = 1e9f, f2 = 1e9f, tint = 1.0f;
         for (int dz = -1; dz <= 1; ++dz) {
             for (int dy = -1; dy <= 1; ++dy) {
                 for (int dx = -1; dx <= 1; ++dx) {
@@ -149,7 +151,7 @@ static float SamplePattern(
                     float py = (float)dy + jy - fy;
                     float pz = (float)dz + jz - fz;
                     float d2 = px * px + py * py + pz * pz;
-                    if (d2 < f1) { f2 = f1; f1 = d2; }
+                    if (d2 < f1) { f2 = f1; f1 = d2; tint = .87f + .13f * jz; }
                     else if (d2 < f2) { f2 = d2; }
                 }
             }
@@ -157,7 +159,7 @@ static float SamplePattern(
         float edge = sqrtf(f2) - sqrtf(f1);
         float border = 0.14f - 0.06f * sh;
         float w = 0.06f * (1.0f - sh * 0.75f);
-        return Smoothstep(border - w, border + w, edge);
+        return tint * Smoothstep(border - w, border + w, edge);
     }
 
     default:

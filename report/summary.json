@@ -1,0 +1,463 @@
+{
+  "generated_at_utc": "2026-11-21T23:24:05.794652+00:00",
+  "global_tests": {
+    "run_tests": "PASS"
+  },
+  "species": [
+    {
+      "id": 1011,
+      "name": "Jirafa",
+      "scientific_name": "Giraffa camelopardalis",
+      "slug": "jirafa",
+      "recipe_file": "jirafa.creature.json",
+      "gait_enum": 3,
+      "stage_total_scales": {
+        "seed": 0.340000004,
+        "larva": 0.540000021,
+        "juvenile": 0.800000012,
+        "adult": 1
+      },
+      "anatomy": {
+        "axial_archetype": 1,
+        "cervical_segments": 4,
+        "head_archetype": 4,
+        "limb_count": 4,
+        "limb_archetypes": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "limb_profiles": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "tail_count": 1,
+        "tail_archetype": 0,
+        "ornament_count": 2,
+        "membrane_count": 0,
+        "plates_armor_scale": 0.0
+      },
+      "gpu_validation": {
+        "stage_0": {
+          "pigment_linear_error": 9.53674316e-07,
+          "sdf_interval_error_m": 1.40769407e-06,
+          "stage": 0,
+          "sample_count": 4487,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_1": {
+          "pigment_linear_error": 9.53674316e-07,
+          "sdf_interval_error_m": 7.82310963e-08,
+          "stage": 1,
+          "sample_count": 4487,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_2": {
+          "pigment_linear_error": 9.53674316e-07,
+          "sdf_interval_error_m": 6.70552254e-08,
+          "stage": 2,
+          "sample_count": 4487,
+          "compute_error_m": 7.15255737e-07,
+          "fragment_error_m": 7.15255737e-07,
+          "status": "PASS"
+        },
+        "stage_3": {
+          "pigment_linear_error": 9.53674316e-07,
+          "sdf_interval_error_m": 1.44354999e-07,
+          "stage": 3,
+          "sample_count": 4487,
+          "compute_error_m": 7.15255737e-07,
+          "fragment_error_m": 8.64267349e-07,
+          "status": "PASS"
+        }
+      },
+      "adult_mesh_capture": {
+        "leaves": 788225,
+        "minimum_voxel_m": 0.00425375,
+        "effective_voxel_m": 0.017015,
+        "budget_adjusted": false,
+        "classification_ms": 1660.48,
+        "contour_ms": 6201.79,
+        "attributes_ms": 141.38,
+        "vertices": 240559,
+        "status": "PASS"
+      },
+      "photo_counts": {
+        "adult_views": 17,
+        "stage_views": 6,
+        "animation_views": 12
+      }
+    },
+    {
+      "id": 1012,
+      "name": "Ornitorrinco",
+      "scientific_name": "Ornithorhynchus anatinus",
+      "slug": "ornitorrinco",
+      "recipe_file": "ornitorrinco.creature.json",
+      "gait_enum": 2,
+      "stage_total_scales": {
+        "seed": 0.217600003,
+        "larva": 0.345600009,
+        "juvenile": 0.499199986,
+        "adult": 0.639999986
+      },
+      "anatomy": {
+        "axial_archetype": 1,
+        "cervical_segments": 0,
+        "head_archetype": 9,
+        "limb_count": 4,
+        "limb_archetypes": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "limb_profiles": [
+          4,
+          4,
+          4,
+          4
+        ],
+        "tail_count": 1,
+        "tail_archetype": 7,
+        "ornament_count": 0,
+        "membrane_count": 0,
+        "plates_armor_scale": 0
+      },
+      "gpu_validation": {
+        "stage_0": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 5.21540642e-08,
+          "stage": 0,
+          "sample_count": 6632,
+          "compute_error_m": 3.57627869e-07,
+          "fragment_error_m": 3.57627869e-07,
+          "status": "PASS"
+        },
+        "stage_1": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 7.07805157e-08,
+          "stage": 1,
+          "sample_count": 6632,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_2": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 9.68575478e-08,
+          "stage": 2,
+          "sample_count": 6632,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_3": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 2.98023224e-07,
+          "stage": 3,
+          "sample_count": 6632,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        }
+      },
+      "adult_mesh_capture": {
+        "leaves": 1382686,
+        "minimum_voxel_m": 0.00157952,
+        "effective_voxel_m": 0.00631808,
+        "budget_adjusted": false,
+        "classification_ms": 5844.75,
+        "contour_ms": 13042.53,
+        "attributes_ms": 367.98,
+        "vertices": 514863,
+        "status": "PASS"
+      },
+      "photo_counts": {
+        "adult_views": 17,
+        "stage_views": 6,
+        "animation_views": 8
+      }
+    },
+    {
+      "id": 1013,
+      "name": "PangolinChino",
+      "scientific_name": "Manis pentadactyla",
+      "slug": "pangolin",
+      "recipe_file": "pangolin.creature.json",
+      "gait_enum": 2,
+      "stage_total_scales": {
+        "seed": 0.244800001,
+        "larva": 0.388799995,
+        "juvenile": 0.561600029,
+        "adult": 0.720000029
+      },
+      "anatomy": {
+        "axial_archetype": 1,
+        "cervical_segments": 2,
+        "head_archetype": 10,
+        "limb_count": 4,
+        "limb_archetypes": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "limb_profiles": [
+          4,
+          4,
+          4,
+          4
+        ],
+        "tail_count": 1,
+        "tail_archetype": 2,
+        "ornament_count": 0,
+        "membrane_count": 0,
+        "plates_armor_scale": 1
+      },
+      "gpu_validation": {
+        "stage_0": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 6.89178705e-08,
+          "stage": 0,
+          "sample_count": 6635,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_1": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 2.98023224e-08,
+          "stage": 1,
+          "sample_count": 6635,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_2": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 6.33299351e-08,
+          "stage": 2,
+          "sample_count": 6635,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_3": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 4.47034836e-08,
+          "stage": 3,
+          "sample_count": 6635,
+          "compute_error_m": 3.57627869e-07,
+          "fragment_error_m": 3.57627869e-07,
+          "status": "PASS"
+        }
+      },
+      "adult_mesh_capture": {
+        "leaves": 1242892,
+        "minimum_voxel_m": 0.00172499,
+        "effective_voxel_m": 0.00689998,
+        "budget_adjusted": false,
+        "classification_ms": 4431.88,
+        "contour_ms": 10990.43,
+        "attributes_ms": 428.7,
+        "vertices": 661871,
+        "status": "PASS"
+      },
+      "photo_counts": {
+        "adult_views": 17,
+        "stage_views": 6,
+        "animation_views": 8
+      }
+    },
+    {
+      "id": 1014,
+      "name": "Canguro Rojo",
+      "scientific_name": "Osphranter rufus",
+      "slug": "canguro",
+      "recipe_file": "canguro.creature.json",
+      "gait_enum": 6,
+      "stage_total_scales": {
+        "seed": 0.28,
+        "larva": 0.52,
+        "juvenile": 0.82,
+        "adult": 1.18
+      },
+      "anatomy": {
+        "axial_archetype": 1,
+        "cervical_segments": 3,
+        "head_archetype": 4,
+        "limb_count": 4,
+        "limb_archetypes": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "limb_profiles": [
+          4,
+          4,
+          5,
+          5
+        ],
+        "tail_count": 1,
+        "tail_archetype": 0,
+        "ornament_count": 0,
+        "membrane_count": 0,
+        "plates_armor_scale": 0.0
+      },
+      "gpu_validation": {
+        "stage_0": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 5.92321157e-06,
+          "stage": 0,
+          "sample_count": 5474,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        },
+        "stage_1": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 6.03869557e-06,
+          "stage": 1,
+          "sample_count": 5474,
+          "compute_error_m": 6.55651093e-07,
+          "fragment_error_m": 6.55651093e-07,
+          "status": "PASS"
+        },
+        "stage_2": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 5.21540642e-08,
+          "stage": 2,
+          "sample_count": 5474,
+          "compute_error_m": 3.57627869e-07,
+          "fragment_error_m": 3.57627869e-07,
+          "status": "PASS"
+        },
+        "stage_3": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 1.08331442e-05,
+          "stage": 3,
+          "sample_count": 5474,
+          "compute_error_m": 7.15255737e-07,
+          "fragment_error_m": 7.15255737e-07,
+          "status": "PASS"
+        }
+      },
+      "adult_mesh_capture": {
+        "leaves": 290870,
+        "minimum_voxel_m": 0.00177467,
+        "effective_voxel_m": 0.0141974,
+        "budget_adjusted": false,
+        "classification_ms": 1047.71,
+        "contour_ms": 2280.86,
+        "attributes_ms": 65.07,
+        "vertices": 101090,
+        "status": "PASS"
+      },
+      "photo_counts": {
+        "adult_views": 17,
+        "stage_views": 6,
+        "animation_views": 10
+      }
+    },
+    {
+      "id": 1015,
+      "name": "Murcielago Orejudo",
+      "scientific_name": "Plecotus auritus",
+      "slug": "murcielago",
+      "recipe_file": "murcielago.creature.json",
+      "gait_enum": 2,
+      "stage_total_scales": {
+        "seed": 0.14,
+        "larva": 0.24,
+        "juvenile": 0.34,
+        "adult": 0.44
+      },
+      "anatomy": {
+        "axial_archetype": 1,
+        "cervical_segments": 0,
+        "head_archetype": 8,
+        "limb_count": 4,
+        "limb_archetypes": [
+          3,
+          3,
+          1,
+          1
+        ],
+        "limb_profiles": [
+          0,
+          0,
+          4,
+          4
+        ],
+        "tail_count": 1,
+        "tail_archetype": 0,
+        "ornament_count": 0,
+        "membrane_count": 6,
+        "plates_armor_scale": 0.0
+      },
+      "gpu_validation": {
+        "stage_0": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 2.98023224e-08,
+          "stage": 0,
+          "sample_count": 4605,
+          "compute_error_m": 3.57627869e-07,
+          "fragment_error_m": 3.57627869e-07,
+          "status": "PASS"
+        },
+        "stage_1": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 2.98023224e-08,
+          "stage": 1,
+          "sample_count": 4605,
+          "compute_error_m": 3.57627869e-07,
+          "fragment_error_m": 3.57627869e-07,
+          "status": "PASS"
+        },
+        "stage_2": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 3.7252903e-08,
+          "stage": 2,
+          "sample_count": 4605,
+          "compute_error_m": 1.90734863e-06,
+          "fragment_error_m": 1.90734863e-06,
+          "status": "PASS"
+        },
+        "stage_3": {
+          "pigment_linear_error": 5.96046448e-08,
+          "sdf_interval_error_m": 2.98023224e-08,
+          "stage": 3,
+          "sample_count": 4605,
+          "compute_error_m": 4.76837158e-07,
+          "fragment_error_m": 4.76837158e-07,
+          "status": "PASS"
+        }
+      },
+      "adult_mesh_capture": {
+        "leaves": 2077392,
+        "minimum_voxel_m": 0.000392477,
+        "effective_voxel_m": 0.00627963,
+        "budget_adjusted": false,
+        "classification_ms": 7214.16,
+        "contour_ms": 14839.88,
+        "attributes_ms": 200.24,
+        "vertices": 370921,
+        "status": "PASS"
+      },
+      "photo_counts": {
+        "adult_views": 17,
+        "stage_views": 6,
+        "animation_views": 8
+      }
+    }
+  ]
+}

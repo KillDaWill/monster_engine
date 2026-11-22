@@ -1,0 +1,41 @@
+=== adult (age=1.0) ===
+mesh leaves=290870 minimumVoxel=0.00177467 effectiveVoxel=0.0141974 budgetAdjusted=0 classificationMs=1047.71 contourMs=2280.86 attributesMs=65.07
+oral angle=0 entrance=-0.216183,0.287102 slope=-0.664919 half=0.001
+station 0 head=-0.191679,0.27991,0.0595299,0.0258416 jaw=-0.214489,0.27651,0.0431379,0.0211135
+station 1 head=-0.135299,0.214763,0.0633297,0.0325121 jaw=-0.16283,0.198429,0.0407743,0.030276
+station 2 head=-0.0980893,0.153688,0.0830108,0.0525052 jaw=-0.0937134,0.0957554,0.0627829,0.0501944
+station 3 head=-0.0231683,0.0488151,0.0976258,0.0780956 jaw=-0.0353866,-0.00325091,0.079091,0.0653324
+station 4 head=0,-0.0569628,0.0991743,0.0549272 jaw=-0.0203981,-0.0545875,0.0695682,0.0541781
+station 5 head=-0.00105629,-0.126273,0.0843852,0.0454206 jaw=-0.0123119,-0.0949234,0.0516792,0.0310727
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+capture age=1 voxel=0.02124 vertices=101090 PASS
+
+=== seed (age=0.0) ===
+mesh leaves=362051 minimumVoxel=0.00039204 effectiveVoxel=0.00313632 budgetAdjusted=0 classificationMs=1680.49 contourMs=2978.97 attributesMs=83.00
+oral angle=0 entrance=-0.0864497,0.106139 slope=-0.478185 half=0.001
+station 0 head=-0.0662818,0.0896662,0.0226423,0.0161056 jaw=-0.0808937,0.087547,0.0164076,0.0131589
+station 1 head=-0.0471481,0.0687971,0.0240875,0.021276 jaw=-0.0695867,0.0635645,0.0155085,0.0188694
+station 2 head=-0.0389621,0.0492323,0.0315732,0.0346862 jaw=-0.0533309,0.0306742,0.0238795,0.0312834
+station 3 head=-0.0180328,0.0156374,0.0371321,0.052266 jaw=-0.042842,-0.00104139,0.0300823,0.0407181
+station 4 head=0,-0.0182474,0.037721,0.0342331 jaw=-0.0277601,-0.0174865,0.0264603,0.0337662
+station 5 head=-0.00065833,-0.0404502,0.032096,0.0283082 jaw=-0.00767334,-0.0304077,0.0196562,0.0193659
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+capture age=0 voxel=0.00504 vertices=127155 PASS
+
+=== juvenile (age=0.6) ===
+mesh leaves=259751 minimumVoxel=0.00118289 effectiveVoxel=0.00946314 budgetAdjusted=0 classificationMs=1037.58 contourMs=2020.47 attributesMs=67.60
+oral angle=0 entrance=-0.147948,0.197227 slope=-0.664617 half=0.001
+station 0 head=-0.127197,0.185723,0.0395132,0.0171723 jaw=-0.142356,0.183463,0.028633,0.0140304
+station 1 head=-0.0897849,0.142497,0.0420354,0.0216085 jaw=-0.108098,0.131659,0.0270641,0.0201191
+station 2 head=-0.0651084,0.101973,0.0550988,0.0348975 jaw=-0.0622578,0.0635346,0.0416724,0.0333554
+station 3 head=-0.0154079,0.0323893,0.0647996,0.0519084 jaw=-0.0235848,-0.00215701,0.052497,0.0434149
+station 4 head=0,-0.0377954,0.0658274,0.0365004 jaw=-0.0136054,-0.0362193,0.0461762,0.0360026
+station 5 head=-0.000701932,-0.0837833,0.056011,0.0301831 jaw=-0.00818156,-0.0629826,0.0343023,0.0206486
+[GPU actual] policy=direct (sin lanzador) | GL_VENDOR=NVIDIA Corporation | GL_RENDERER=NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | GL_VERSION=4.6.0 NVIDIA 580.178.04 | MSAA=0
+[GPU verificación] PCI=sin verificar (mapeado por sondeo) | hardware=sin certificar | contexto coincide=sin verificar | preferencia dedicada=NO / no solicitada
+[GPU] NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2 | 4.6.0 NVIDIA 580.178.04 | MSAA=0
+capture age=0.6 voxel=0.0141984 vertices=98782 PASS

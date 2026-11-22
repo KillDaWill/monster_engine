@@ -515,6 +515,15 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
         !SkeletonPose_Init(&d->bindPose,s)) return false;
     AnatomySkinBinding* skin=calloc(mesh->vertexCount,sizeof(*skin));
     if(!skin)return false;
+    bool axialBlend[ANATOMY_MAX_CONNECTIONS]={0};
+    for(size_t i=0;i<rest->connectionCount;++i) {
+        const BodyConnection* c=&rest->connections[i];
+        if(c->kind!=BODY_CONNECTION_AXIAL_LOFT)continue;
+        const AnatomyNode* a=AnatomyGraph_FindNode(rest,c->fromId);
+        const AnatomyNode* b=AnatomyGraph_FindNode(rest,c->toId);
+        axialBlend[i]=a&&b&&a->region!=ANATOMY_REGION_HEAD&&b->region!=ANATOMY_REGION_HEAD&&
+            a->region!=ANATOMY_REGION_NECK&&b->region!=ANATOMY_REGION_NECK;
+    }
     for(size_t v=0;v<mesh->vertexCount;++v) {
         const AnatomyDeformerBinding* binding=&d->bindings[v];
         for(int k=0;k<ANATOMY_MORPH_INFLUENCES;++k) {
@@ -533,13 +542,13 @@ bool AnatomyDeformer_BindSkeleton(AnatomyDeformer* d,const Mesh* mesh,const Anat
              * el árbol IK. No son huesos adicionales: interpolar los marcos
              * de ambos extremos permite vincular también estas aristas. */
             bool surfaceLink=!reverse&&!forward;
-            /* Un pivote interpuesto también transporta el segmento: omitirlo
-             * dejaba vértices cervicales anclados al tórax durante la flexión. */
+            /* El pivote interpuesto transporta la inserción cervical. El
+             * tronco y la cola reparten la flexión a lo largo del tramo. */
             int auxiliary=s->joints[b].parentIndex;
             if(auxiliary>=0&&!s->joints[auxiliary].anatomyId&&s->joints[auxiliary].parentIndex==a)a=auxiliary;
-            /* Transición suave alrededor del extremo distal; el centro de
-             * la articulación coincide en ambos transformados. Incluye twist. */
-            if(!surfaceLink)t=fmaxf(0,(t-.5f)*2);
+            if(!surfaceLink&&!axialBlend[binding->connIndex[k]]) {
+                t=fmaxf(0,(t-.5f)*2);
+            }
             t=t*t*(3-2*t);
             if(!surfaceLink&&s->joints[b].constraint.type==JOINT_FIXED)t=0;
             skin[v].joints[k*2]=a; skin[v].weights[k*2]=binding->weight[k]*(1-t);

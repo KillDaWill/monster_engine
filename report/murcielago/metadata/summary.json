@@ -1,0 +1,91 @@
+{
+  "id": 1015,
+  "name": "Murcielago Orejudo",
+  "scientific_name": "Plecotus auritus",
+  "slug": "murcielago",
+  "recipe_file": "murcielago.creature.json",
+  "gait_enum": 2,
+  "stage_total_scales": {
+    "seed": 0.14,
+    "larva": 0.24,
+    "juvenile": 0.34,
+    "adult": 0.44
+  },
+  "anatomy": {
+    "axial_archetype": 1,
+    "cervical_segments": 0,
+    "head_archetype": 8,
+    "limb_count": 4,
+    "limb_archetypes": [
+      3,
+      3,
+      1,
+      1
+    ],
+    "limb_profiles": [
+      0,
+      0,
+      4,
+      4
+    ],
+    "tail_count": 1,
+    "tail_archetype": 0,
+    "ornament_count": 0,
+    "membrane_count": 6,
+    "plates_armor_scale": 0.0
+  },
+  "gpu_validation": {
+    "stage_0": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 2.98023224e-08,
+      "stage": 0,
+      "sample_count": 4605,
+      "compute_error_m": 3.57627869e-07,
+      "fragment_error_m": 3.57627869e-07,
+      "status": "PASS"
+    },
+    "stage_1": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 2.98023224e-08,
+      "stage": 1,
+      "sample_count": 4605,
+      "compute_error_m": 3.57627869e-07,
+      "fragment_error_m": 3.57627869e-07,
+      "status": "PASS"
+    },
+    "stage_2": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 3.7252903e-08,
+      "stage": 2,
+      "sample_count": 4605,
+      "compute_error_m": 1.90734863e-06,
+      "fragment_error_m": 1.90734863e-06,
+      "status": "PASS"
+    },
+    "stage_3": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 2.98023224e-08,
+      "stage": 3,
+      "sample_count": 4605,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    }
+  },
+  "adult_mesh_capture": {
+    "leaves": 2077392,
+    "minimum_voxel_m": 0.000392477,
+    "effective_voxel_m": 0.00627963,
+    "budget_adjusted": false,
+    "classification_ms": 7214.16,
+    "contour_ms": 14839.88,
+    "attributes_ms": 200.24,
+    "vertices": 370921,
+    "status": "PASS"
+  },
+  "photo_counts": {
+    "adult_views": 17,
+    "stage_views": 6,
+    "animation_views": 8
+  }
+}

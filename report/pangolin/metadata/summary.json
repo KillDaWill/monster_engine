@@ -1,0 +1,91 @@
+{
+  "id": 1013,
+  "name": "PangolinChino",
+  "scientific_name": "Manis pentadactyla",
+  "slug": "pangolin",
+  "recipe_file": "pangolin.creature.json",
+  "gait_enum": 2,
+  "stage_total_scales": {
+    "seed": 0.244800001,
+    "larva": 0.388799995,
+    "juvenile": 0.561600029,
+    "adult": 0.720000029
+  },
+  "anatomy": {
+    "axial_archetype": 1,
+    "cervical_segments": 2,
+    "head_archetype": 10,
+    "limb_count": 4,
+    "limb_archetypes": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "limb_profiles": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "tail_count": 1,
+    "tail_archetype": 2,
+    "ornament_count": 0,
+    "membrane_count": 0,
+    "plates_armor_scale": 1
+  },
+  "gpu_validation": {
+    "stage_0": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 6.89178705e-08,
+      "stage": 0,
+      "sample_count": 6635,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    },
+    "stage_1": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 2.98023224e-08,
+      "stage": 1,
+      "sample_count": 6635,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    },
+    "stage_2": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 6.33299351e-08,
+      "stage": 2,
+      "sample_count": 6635,
+      "compute_error_m": 4.76837158e-07,
+      "fragment_error_m": 4.76837158e-07,
+      "status": "PASS"
+    },
+    "stage_3": {
+      "pigment_linear_error": 5.96046448e-08,
+      "sdf_interval_error_m": 4.47034836e-08,
+      "stage": 3,
+      "sample_count": 6635,
+      "compute_error_m": 3.57627869e-07,
+      "fragment_error_m": 3.57627869e-07,
+      "status": "PASS"
+    }
+  },
+  "adult_mesh_capture": {
+    "leaves": 1242892,
+    "minimum_voxel_m": 0.00172499,
+    "effective_voxel_m": 0.00689998,
+    "budget_adjusted": false,
+    "classification_ms": 4431.88,
+    "contour_ms": 10990.43,
+    "attributes_ms": 428.7,
+    "vertices": 661871,
+    "status": "PASS"
+  },
+  "photo_counts": {
+    "adult_views": 17,
+    "stage_views": 6,
+    "animation_views": 8
+  }
+}

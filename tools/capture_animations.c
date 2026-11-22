@@ -22,8 +22,13 @@ typedef struct AnimPoseStats {
     float withersPitch, cervPitch, cervYaw, neckPitch, neckYaw, neckRoll, headPitch, headYaw, headRoll;
     float reachErr, reachOri, reachSat;
     float minEdgeRatio, maxEdgeRatio, minAreaRatio, maxAreaRatio;
-    int crushedTris, extremeTris, status;
+    int checkedTris, crushedTris, extremeTris, status;
 } AnimPoseStats;
+
+typedef struct SurfaceStrain {
+    size_t checked, extreme, crushed;
+    double area, extremeArea;
+} SurfaceStrain;
 
 typedef enum AnimKind {
     ANIM_IDLE = 0,
@@ -43,6 +48,10 @@ typedef enum AnimKind {
     ANIM_REACH_SIDE_LEFT,
     ANIM_REACH_UP,
     ANIM_CURL,
+    ANIM_CURL_PARTIAL,
+    ANIM_HOP_LAUNCH,
+    ANIM_HOP_FLIGHT,
+    ANIM_HOP_LANDING,
     ANIM_WING_EXTENDED,
     ANIM_WING_PARTIAL,
     ANIM_WING_FOLDED,
@@ -73,6 +82,10 @@ static const AnimSpec kAnimSpecs[ANIM_COUNT] = {
     {ANIM_REACH_SIDE_LEFT, "reach_side_left"},
     {ANIM_REACH_UP, "reach_up"},
     {ANIM_CURL, "curl"},
+    {ANIM_CURL_PARTIAL, "curl_partial"},
+    {ANIM_HOP_LAUNCH, "hop_launch"},
+    {ANIM_HOP_FLIGHT, "hop_flight"},
+    {ANIM_HOP_LANDING, "hop_landing"},
     {ANIM_WING_EXTENDED, "wing_extended"},
     {ANIM_WING_PARTIAL, "wing_partial"},
     {ANIM_WING_FOLDED, "wing_folded"},
@@ -117,12 +130,51 @@ static void NeutralMesh(Mesh* mesh) {
 static void NeutralVisual(MonsterVisual* v) {
     NeutralMesh(&v->mesh);
     NeutralMesh(&v->headMesh);
+    NeutralMesh(&v->membraneMesh);
+    NeutralMesh(&v->armorMesh);
     for (size_t i = 0; i < v->mouthCount; ++i) {
         NeutralMesh(&v->mouths[i].jawBase);
         NeutralMesh(&v->mouths[i].hingeBase);
         NeutralMesh(&v->mouths[i].jaw);
         NeutralMesh(&v->mouths[i].hinge);
     }
+}
+
+static float TriangleArea2(Vector3 a, Vector3 b, Vector3 c) {
+    return Vec3_Length(Vec3_Cross(Vec3_Sub(b, a), Vec3_Sub(c, a)));
+}
+
+static SurfaceStrain MeasureSurface(Mesh* mesh, const AnatomyDeformer* def, float scale, bool paint) {
+    SurfaceStrain result = {0};
+    if (!def || mesh->vertexCount != def->vertexCount) return result;
+    if (paint) NeutralMesh(mesh);
+    float minimumArea = scale * scale * 1e-6f;
+    for (size_t i = 0; i + 2 < mesh->indexCount; i += 3) {
+        MeshIndex a = mesh->indices[i], b = mesh->indices[i + 1], c = mesh->indices[i + 2];
+        float rest = TriangleArea2(def->basePositions[a], def->basePositions[b], def->basePositions[c]);
+        if (rest <= minimumArea) continue;
+        float ratio = TriangleArea2(mesh->vertices[a].position, mesh->vertices[b].position,
+                                    mesh->vertices[c].position) / rest;
+        ++result.checked;
+        result.area += rest;
+        if (ratio < .25f) ++result.crushed;
+        if (ratio >= .35f && ratio <= 2.0f) continue;
+        ++result.extreme;
+        result.extremeArea += rest;
+        if (paint) {
+            Color color = ratio < .35f ? Color_FromRGB(30, 112, 230) : Color_FromRGB(240, 55, 28);
+            mesh->vertices[a].color = color;
+            mesh->vertices[b].color = color;
+            mesh->vertices[c].color = color;
+        }
+    }
+    return result;
+}
+
+static void WriteSurfaceStrain(FILE* file, const char* name, SurfaceStrain strain) {
+    fprintf(file, ", \"%s\": {\"triangles\": %zu, \"extreme\": %zu, \"crushed\": %zu, "
+                  "\"extremeAreaFraction\": %.7f}", name, strain.checked, strain.extreme,
+                  strain.crushed, strain.area > 0.0 ? strain.extremeArea / strain.area : 0.0);
 }
 
 static void QuatToAngles(Quaternion q, float* pitchDown, float* yawLeft, float* rollRight) {
@@ -217,6 +269,7 @@ static void ComputeMetrics(const Mesh* restMesh, const Mesh* posedMesh, const Mo
         float ra = Vec3_Length(Vec3_Cross(Vec3_Sub(rpos[1], rpos[0]), Vec3_Sub(rpos[2], rpos[0])));
         float pa = Vec3_Length(Vec3_Cross(Vec3_Sub(ppos[1], ppos[0]), Vec3_Sub(ppos[2], ppos[0])));
         if (ra > 1e-6f) {
+            ++out->checkedTris;
             float ar = pa / ra;
             if (ar < minA) minA = ar;
             if (ar > maxA) maxA = ar;
@@ -299,6 +352,9 @@ static void ConfigureAnimState(const Monster* m, const Rig* rig, ProceduralAnima
             }
             a->desiredVelocity = Vec3_Create(0, 0, baseSpeed * 0.9f);
             break;
+        case ANIM_HOP_LAUNCH:
+        case ANIM_HOP_FLIGHT:
+        case ANIM_HOP_LANDING:
         case ANIM_RUN:
             if (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
                 a->gait = GaitPreset_BipedalHop(rig);
@@ -402,6 +458,9 @@ static void ConfigureAnimState(const Monster* m, const Rig* rig, ProceduralAnima
         case ANIM_CURL:
             a->defensiveCurl = 1.0f;
             break;
+        case ANIM_CURL_PARTIAL:
+            a->defensiveCurl = .50f;
+            break;
         case ANIM_WING_EXTENDED:
             a->wingFold = 0.0f;
             a->wingFlap = 0.08f;
@@ -461,9 +520,57 @@ static void ComputeFraming(const MonsterVisual* v, const Monster* m, const char*
     *outHeight = fmaxf(3.5f * s, fmaxf(ext.y * 1.25f, fmaxf(ext.x, ext.z) * 0.95f));
 }
 
+static bool MatchPoseFraming(const char* name, Vector3* target, float* height) {
+    const char* path = getenv("MONSTER_CAPTURE_CAMERA_REFERENCE");
+    if (path) {
+        FILE* input = fopen(path, "r");
+        if (!input) return false;
+        char line[256], pose[80];
+        bool found = false;
+        while (fgets(line, sizeof(line), input)) {
+            Vector3 center;
+            float fixedHeight;
+            if (sscanf(line, "camera %79s %f %f %f %f", pose, &center.x, &center.y, &center.z,
+                       &fixedHeight) == 5 && !strcmp(name, pose)) {
+                *target = center;
+                *height = fixedHeight;
+                found = true;
+                break;
+            }
+        }
+        fclose(input);
+        if (!found) return false;
+    }
+    printf("camera %s %.9g %.9g %.9g %.9g\n", name, target->x, target->y, target->z, *height);
+    return true;
+}
+
+static bool CapturePose(Renderer3D* renderer, ICamera* camera, const MonsterVisual* visual,
+                        Vector3 target, float height, const ViewSpec* view,
+                        const char* directory, const char* name, int width, int pixelsHigh) {
+    Vector3 dir = Vec3_Normalize(view->dir);
+    camera->target = target;
+    camera->position = Vec3_Add(target, Vec3_Scale(dir, 22.0f));
+    camera->up = fabsf(dir.y) > 0.9f ? Vec3_Create(0, 0, 1) : Vec3_Create(0, 1, 0);
+    renderer->beginFrame(renderer);
+    OpenGLRenderer_SetupCameraOrtho(camera, height, width, pixelsHigh);
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/%s_%s.ppm", directory, name, view->name);
+    bool ok = MonsterVisual_Render(visual, renderer) && OpenGLRenderer_SavePPM(path, width, pixelsHigh);
+    renderer->endFrame(renderer);
+    return ok;
+}
+
+static void CenterTravel(MonsterAnimation* animation) {
+    Vector3 shift = animation->animator.locomotion.bodyPosition;
+    shift.y = 0;
+    for (size_t j = 0; j < animation->pose.jointCount; ++j)
+        animation->pose.joints[j].worldPosition = Vec3_Sub(animation->pose.joints[j].worldPosition, shift);
+}
+
 int main(int argc, char** argv) {
     if (argc < 3) {
-        fprintf(stderr, "Uso: %s <receta|id|nombre> <out_dir> [--stage=0..3] [--anims=all|...] [--views=side,three-quarter,...] [--focus=body|neck|head] [--flat] [--width=900] [--height=900]\n", argv[0]);
+        fprintf(stderr, "Uso: %s <receta|id|nombre> <out_dir> [--stage=0..3] [--anims=all|...] [--views=side,three-quarter,...] [--focus=body|neck|head] [--flat] [--strain] [--hop-cycle] [--width=900] [--height=900]\n", argv[0]);
         return 2;
     }
     const char* recipeArg = argv[1];
@@ -472,7 +579,7 @@ int main(int argc, char** argv) {
     const char* animFilter = "all";
     const char* viewFilter = "side,three-quarter";
     const char* focus = "body";
-    bool flat = false;
+    bool flat = false, strainOverlay = false, hopCycle = false;
 
     for (int i = 3; i < argc; ++i) {
         if (!strncmp(argv[i], "--stage=", 8)) stage = atoi(argv[i] + 8);
@@ -480,6 +587,8 @@ int main(int argc, char** argv) {
         else if (!strncmp(argv[i], "--views=", 8)) viewFilter = argv[i] + 8;
         else if (!strncmp(argv[i], "--focus=", 8)) focus = argv[i] + 8;
         else if (!strcmp(argv[i], "--flat")) flat = true;
+        else if (!strcmp(argv[i], "--strain")) strainOverlay = true;
+        else if (!strcmp(argv[i], "--hop-cycle")) hopCycle = true;
         else if (!strncmp(argv[i], "--width=", 8)) width = atoi(argv[i] + 8);
         else if (!strncmp(argv[i], "--height=", 9)) height = atoi(argv[i] + 9);
     }
@@ -548,6 +657,8 @@ int main(int argc, char** argv) {
 
     for (int ai = 0; ai < ANIM_COUNT; ++ai) {
         if (!ContainsToken(animFilter, kAnimSpecs[ai].name)) continue;
+        bool hopPose = ai >= ANIM_HOP_LAUNCH && ai <= ANIM_HOP_LANDING;
+        if (hopPose && recipe.gait != CREATURE_GAIT_BIPEDAL_HOP) continue;
         /* Reiniciar la pose limpia antes de cada animación para reproductibilidad exacta */
         Monster_SetHeadOpenFactor(m, 0);
         GaitProfile baseGait = recipe.gait == CREATURE_GAIT_FELINE_STALK ? GaitPreset_FelineStalk(&m->animation->rig) :
@@ -562,25 +673,27 @@ int main(int argc, char** argv) {
             ConfigureAnimState(m, &m->animation->rig, &m->animation->animator, kAnimSpecs[ai].kind, step, totalSteps);
             MonsterAnimation_Update(m, 1.0f / 30.0f);
         }
-        if (ai == ANIM_RUN && recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+        if ((ai == ANIM_RUN || hopPose) && recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+            float targetPhase = ai == ANIM_HOP_LAUNCH ? .40f :
+                ai == ANIM_HOP_LANDING ? .97f : .73f;
             for (int extra = 0; extra < 40; ++extra) {
                 float ph = fmodf(m->animation->animator.locomotion.phase, 1.0f);
-                if (ph >= 0.68f && ph <= 0.78f) break;
+                if (fabsf(ph - targetPhase) <= .065f) break;
                 ConfigureAnimState(m, &m->animation->rig, &m->animation->animator, ANIM_RUN, totalSteps, totalSteps);
                 MonsterAnimation_Update(m, 1.0f / 30.0f);
             }
         }
         /* Anclar cuerpo en origen XZ para que la cámara no derive tras caminar/girar */
-        Vector3 shift = m->animation->animator.locomotion.bodyPosition;
-        shift.y = 0;
-        for (size_t j = 0; j < m->animation->pose.jointCount; ++j)
-            m->animation->pose.joints[j].worldPosition = Vec3_Sub(m->animation->pose.joints[j].worldPosition, shift);
+        CenterTravel(m->animation);
 
         ok = AnimatedVisual_Deform(&binding, v, m) && ok;
         if (flat) NeutralVisual(v);
 
         AnimPoseStats st;
         ComputeMetrics(&restCopy, &v->mesh, m, binding.body, &st);
+        SurfaceStrain bodyStrain = MeasureSurface(&v->mesh, binding.body, scale, strainOverlay);
+        SurfaceStrain membraneStrain = MeasureSurface(&v->membraneMesh, binding.membrane, scale, strainOverlay);
+        SurfaceStrain armorStrain = MeasureSurface(&v->armorMesh, binding.armor, scale, strainOverlay);
         printf("%-16s | cbPitch=%+.2f cbYaw=%+.2f nPitch=%+.2f nYaw=%+.2f hPitch=%+.2f hYaw=%+.2f | edge=[%.2f..%.2f] area=[%.2f..%.2f] ext=%d crush=%d err=%.3f sat=%.2f\n",
                kAnimSpecs[ai].name, st.cervPitch, st.cervYaw, st.neckPitch, st.neckYaw, st.headPitch, st.headYaw,
                st.minEdgeRatio, st.maxEdgeRatio, st.minAreaRatio, st.maxAreaRatio,
@@ -588,33 +701,63 @@ int main(int argc, char** argv) {
 
         if (jf) {
             fprintf(jf, "%s    \"%s\": {\"cbPitch\": %.4f, \"cbYaw\": %.4f, \"neckPitch\": %.4f, \"neckYaw\": %.4f, \"headPitch\": %.4f, \"headYaw\": %.4f, "
-                        "\"minEdge\": %.4f, \"maxEdge\": %.4f, \"minArea\": %.4f, \"maxArea\": %.4f, \"extremeTris\": %d, \"crushedTris\": %d, \"reachErr\": %.4f, \"reachSat\": %.4f}",
+                        "\"minEdge\": %.4f, \"maxEdge\": %.4f, \"minArea\": %.4f, \"maxArea\": %.4f, \"extremeTris\": %d, \"crushedTris\": %d, "
+                        "\"checkedTris\": %d, \"reachErr\": %.4f, \"reachSat\": %.4f, \"gaitPhase\": %.4f",
                     firstJson ? "" : ",\n", kAnimSpecs[ai].name,
                     st.cervPitch, st.cervYaw, st.neckPitch, st.neckYaw, st.headPitch, st.headYaw,
                     st.minEdgeRatio, st.maxEdgeRatio, st.minAreaRatio, st.maxAreaRatio,
-                    st.extremeTris, st.crushedTris, st.reachErr, st.reachSat);
+                    st.extremeTris, st.crushedTris, st.checkedTris, st.reachErr, st.reachSat,
+                    m->animation->animator.locomotion.phase);
+            WriteSurfaceStrain(jf, "body", bodyStrain);
+            WriteSurfaceStrain(jf, "membranes", membraneStrain);
+            WriteSurfaceStrain(jf, "armor", armorStrain);
+            fputc('}', jf);
             firstJson = false;
         }
 
         Vector3 target;
         float viewH;
         ComputeFraming(v, m, focus, &target, &viewH);
+        ok = MatchPoseFraming(kAnimSpecs[ai].name, &target, &viewH) && ok;
         for (size_t vi = 0; vi < sizeof(kViews) / sizeof(kViews[0]); ++vi) {
             if (!ContainsToken(viewFilter, kViews[vi].name)) continue;
-            Vector3 dir = Vec3_Normalize(kViews[vi].dir);
-            camera.target = target;
-            camera.position = Vec3_Add(target, Vec3_Scale(dir, 22.0f));
-            camera.up = fabsf(dir.y) > 0.9f ? Vec3_Create(0, 0, 1) : Vec3_Create(0, 1, 0);
-            renderer.beginFrame(&renderer);
-            OpenGLRenderer_SetupCameraOrtho(&camera, viewH, width, height);
-            MonsterVisual_Render(v, &renderer);
-            char ppmPath[1024];
-            snprintf(ppmPath, sizeof(ppmPath), "%s/%s_%s.ppm", outDir, kAnimSpecs[ai].name, kViews[vi].name);
-            ok = OpenGLRenderer_SavePPM(ppmPath, width, height) && ok;
-            renderer.endFrame(&renderer);
+            ok = CapturePose(&renderer, &camera, v, target, viewH, &kViews[vi], outDir,
+                             kAnimSpecs[ai].name, width, height) && ok;
         }
     }
     if (jf) { fprintf(jf, "\n  }\n}\n"); fclose(jf); }
+
+    if (hopCycle && recipe.gait == CREATURE_GAIT_BIPEDAL_HOP) {
+        const int samples = 12, steps = 480;
+        int captured = 0;
+        float previous = 0;
+        bool started = false;
+        Vector3 target;
+        float viewH;
+        ComputeFraming(v, m, "body", &target, &viewH);
+        ok = MatchPoseFraming("hop_cycle", &target, &viewH) && ok;
+        MonsterAnimation_Configure(m, &m->animation->rig, GaitPreset_BipedalHop(&m->animation->rig));
+        m->animation->rigGeneration = binding.rigGeneration;
+        for (int step = 0; step < steps && captured < samples; ++step) {
+            ConfigureAnimState(m, &m->animation->rig, &m->animation->animator, ANIM_RUN, step, steps);
+            ok = MonsterAnimation_Update(m, 1.0f / 120.0f) && ok;
+            float phase = m->animation->animator.locomotion.phase;
+            if (step > 60 && phase < previous) started = true;
+            previous = phase;
+            if (!started || phase < (float)captured / samples) continue;
+            CenterTravel(m->animation);
+            ok = AnimatedVisual_Deform(&binding, v, m) && ok;
+            if (flat) NeutralVisual(v);
+            char name[32];
+            snprintf(name, sizeof(name), "hop_cycle_%02d", captured++);
+            for (size_t i = 0; i < sizeof(kViews) / sizeof(kViews[0]); ++i) {
+                if (ContainsToken(viewFilter, kViews[i].name))
+                    ok = CapturePose(&renderer, &camera, v, target, viewH, &kViews[i], outDir,
+                                     name, width, height) && ok;
+            }
+        }
+        ok = captured == samples && ok;
+    }
 
     OpenGLRenderer_Destroy(&renderer);
     OpenGLDemoWindow_Free(window);

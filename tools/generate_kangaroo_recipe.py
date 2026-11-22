@@ -22,7 +22,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     ax["archetype"] = 1  # AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD
     ax["contourProfile"] = 0
     ax["totalScale"] = total_scale
-    ax["trunkLength"] = 0.62
+    ax["trunkLength"] = 0.54
     ax["withersHeight"] = 0.72
     ax["neckLength"] = 0.17 + 0.03 * dev_app
     ax["cervicalCurvature"] = 0.30
@@ -47,8 +47,8 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
 
     # Estaciones axiales inclinadas hacia arriba de pelvis a tórax (sin hacking de especie)
     profiles = [
-        {"widthScale": 0.94, "heightScale": 0.94, "verticalOffset": 0.20, "longitudinalOffset": 0.02},   # cuello
-        {"widthScale": 0.98, "heightScale": 0.96, "verticalOffset": 0.20, "longitudinalOffset": 0.00},   # pectoral
+        {"widthScale": 0.94, "heightScale": 0.94, "verticalOffset": 0.24, "longitudinalOffset": 0.02},   # cuello
+        {"widthScale": 0.98, "heightScale": 0.96, "verticalOffset": 0.24, "longitudinalOffset": 0.00},   # pectoral
         {"widthScale": 1.04, "heightScale": 1.02, "verticalOffset": 0.14, "longitudinalOffset": 0.02},   # tórax ant.
         {"widthScale": 1.12, "heightScale": 1.08, "verticalOffset": 0.06, "longitudinalOffset": 0.04},   # tórax post.
         {"widthScale": 1.16, "heightScale": 1.16, "verticalOffset": -0.04, "longitudinalOffset": 0.03},  # abdomen
@@ -64,7 +64,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["skullWidth"] = 0.56
     hp["skullHeight"] = 0.64
     hp["skullLength"] = 0.66
-    hp["muzzleLength"] = 0.52
+    hp["muzzleLength"] = 0.48
     hp["muzzleWidth"] = 0.46
     hp["muzzleTaper"] = 0.56
     hp["rostrumDepth"] = 0.58
@@ -89,7 +89,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["eyeCompression"] = 0.06
     hp["noseScale"] = 0.54
     hp["nostrilPosition"] = 0.80
-    hp["earSize"] = 1.05 + 0.10 * dev_ceph
+    hp["earSize"] = 0.90 + 0.08 * dev_ceph
     hp["earBaseWidth"] = 0.58
     hp["earThickness"] = 0.28
     hp["earPointiness"] = 0.22
@@ -99,16 +99,16 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["earLongitudinalCurve"] = 0.56
     hp["earMarginBow"] = 0.78
     hp["earRootRoll"] = 0.50
-    hp["earTipRoundness"] = 0.80
+    hp["earTipRoundness"] = 0.68
     hp["earFold"] = 0.10
     hp["earOutward"] = 0.34
-    hp["earForward"] = 0.32
+    hp["earForward"] = 0.23
     hp["nasalColor"] = rgba(46, 34, 30)
 
     s["headEnvelope"]["scale"] = 0.185 + 0.015 * (1.0 - dev_ceph)
     s["headEnvelope"]["widthScale"] = 0.94
     s["headEnvelope"]["heightScale"] = 0.98
-    s["headEnvelope"]["lengthScale"] = 1.04
+    s["headEnvelope"]["lengthScale"] = 0.82
     s.pop("headHybrid", None)
 
     # Extremidades: anteriores cortas con garras prensiles, posteriores largas macrópodas
@@ -150,8 +150,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
         fl["flexionScale"] = 0.95
         fl["development"] = 1.0
 
-    # Pelvis en Y ≈ (withersHeight - pelvicHeight*0.5 + profile[5].verticalOffset) = 0.72 - 0.20 - 0.10 = 0.42
-    # Longitud posterior = 0.44..0.46 coloca la planta metatarsiana macrópoda a ras del suelo.
+    # Patas posteriores con metatarso largo y planta horizontal.
     for idx in (2, 3):
         hl = s["limbs"][idx]
         hl["archetype"] = 1  # LIMB_ARCHETYPE_MAMMAL
@@ -166,13 +165,13 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
         hl["proximalSweep"] = 0.08
         hl["distalSweep"] = -0.04
         hl["sprawl"] = 0.14
-        hl["attachmentInset"] = 0.16
-        hl["rootThicknessScale"] = 1.48
+        hl["attachmentInset"] = 0.46
+        hl["rootThicknessScale"] = 1.27
         hl["middleThicknessScale"] = 0.96
         hl["distalThicknessScale"] = 0.68
-        hl["proximalThicknessScale"] = 1.25
-        hl["footScale"] = 1.48 + 0.15 * dev_app
-        hl["footWidthScale"] = 0.68
+        hl["proximalThicknessScale"] = 0.91
+        hl["footScale"] = 1.72 + 0.17 * dev_app
+        hl["footWidthScale"] = 0.57
         hl["footHeightScale"] = 0.72
         hl["footYaw"] = 0.02
         hl["digitCount"] = 3
@@ -190,17 +189,29 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
         hl["flexionScale"] = 1.25
         hl["development"] = 1.0
 
+    # Alinear la suela con el suelo trasladando las estaciones axiales. El
+    # anclaje cervical hereda el traslado desde el pectoral. La altura de
+    # referencia sigue describiendo las proporciones que hereda la cría.
+    foot = s["limbs"][2]
+    pelvis = ax["profile"][5]
+    sole_offset = foot["thickness"] * foot["footHeightScale"] * (0.28 * foot["footScale"] - 0.24)
+    floor_offset = (foot["length"] + sole_offset
+                    + 0.5 * ax["pelvicHeight"] * pelvis["heightScale"] - pelvis["verticalOffset"]
+                    - ax["withersHeight"])
+    for station in ax["profile"][1:]:
+        station["verticalOffset"] += floor_offset
+
     # Cola larga musculosa de equilibrio y apoyo macrópodo
     tail = s["tails"][0]
     tail["archetype"] = 0  # TAIL_ARCHETYPE_TAPERED
     tail["length"] = 0.92 + 0.12 * dev_app
     tail["baseWidth"] = 0.125
     tail["baseHeight"] = 0.135
-    tail["tipWidth"] = 0.036
-    tail["tipHeight"] = 0.038
+    tail["tipWidth"] = 0.019
+    tail["tipHeight"] = 0.021
     tail["taperCurve"] = 0.90
     tail["droop"] = 0.34
-    tail["tipLift"] = 0.42
+    tail["tipLift"] = 0.36
     tail["segmentCount"] = 8
     tail["development"] = 1.0
 

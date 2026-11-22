@@ -31,8 +31,8 @@ def build_pangolin(base):
         a.update(
             totalScale=0.72 * scale,
             withersHeight=1.52,
-            trunkLength=3.15 + 0.35 * maturity,
-            neckLength=0.68,
+            trunkLength=2.65 + 0.35 * maturity,
+            neckLength=0.50,
             neckWidth=1.08,
             shoulderWidth=1.42,
             thoraxWidth=1.62,
@@ -50,7 +50,7 @@ def build_pangolin(base):
             dewlapDepth=0.0,
             brisketDepth=0.02,
             contourProfile=1,
-            cervicalSegments=2,
+            cervicalSegments=4,
             cervicalPitch=0.10,
             spineFlexion=0.52,  # Columna muy flexible para enrollamiento defensivo.
         )
@@ -59,12 +59,12 @@ def build_pangolin(base):
             dict(longitudinalOffset=0.0, verticalOffset=-0.06, widthScale=0.94, heightScale=0.92),
             dict(longitudinalOffset=0.0, verticalOffset=0.02, widthScale=0.98, heightScale=1.00),
             dict(longitudinalOffset=0.0, verticalOffset=0.12, widthScale=1.05, heightScale=1.08),
-            dict(longitudinalOffset=0.0, verticalOffset=0.14, widthScale=1.08, heightScale=1.10),
+            dict(longitudinalOffset=0.0, verticalOffset=0.25, widthScale=1.08, heightScale=1.10),
             dict(longitudinalOffset=0.0, verticalOffset=0.05, widthScale=1.02, heightScale=1.02),
             dict(longitudinalOffset=0.0, verticalOffset=-0.08, widthScale=0.96, heightScale=0.98),
         ]
 
-        # Cabeza pequeña cónica alargada (HEAD_ARCHETYPE_PHOLIDOTE = 10), casi sin orejas.
+        # Cabeza pequeña cónica alargada (HEAD_ARCHETYPE_PHOLIDOTE = 10), con pabellones pequeños.
         p["headEnvelope"].update(
             scale=0.58 + 0.08 * (1.0 - maturity),
             widthScale=0.90,
@@ -76,9 +76,9 @@ def build_pangolin(base):
             skullWidth=0.44,
             skullHeight=0.46,
             skullLength=0.58,
-            muzzleLength=0.82 * (0.72 + 0.28 * maturity),
+            muzzleLength=0.57 * (0.72 + 0.28 * maturity),
             muzzleWidth=0.46,
-            muzzleTaper=0.76,
+            muzzleTaper=0.57,
             rostrumDepth=0.46,
             rostrumDorsalSlope=0.52,
             temporalWidth=0.42,
@@ -98,8 +98,10 @@ def build_pangolin(base):
             noseScale=0.36,
             nostrilPosition=0.88,
             orbitDepth=0.32,
-            earSize=0.0,  # Sin pabellón auricular prominente en Manis pentadactyla.
-            earBaseWidth=0.45,
+            earSize=0.26,  # Pabellón pequeño y redondeado.
+            earBaseWidth=0.60,
+            earHeightRatio=0.72,
+            earWidthRatio=1.16,
             earOutward=0.35,
             earTipRoundness=0.75,
             cheekMass=0.28,
@@ -127,7 +129,7 @@ def build_pangolin(base):
             st_idx = 5 if hind else 1
             st = a["profile"][st_idx]
             host_h = a["pelvicHeight" if hind else "thoraxHeight"] * 0.5 * st["heightScale"]
-            thickness = 0.28 * (0.82 + 0.18 * maturity)
+            thickness = 0.34 * (0.82 + 0.18 * maturity)
             foot_scale = 1.06 if not hind else 1.02
             foot_h_scale = 0.52
             sole = thickness * 0.54 * foot_scale * foot_h_scale * 0.72
@@ -166,17 +168,17 @@ def build_pangolin(base):
 
         # Cola pesada, ancha y musculosa acoplada suavemente a la pelvis.
         p["tails"][0].update(
-            archetype=2,  # TAIL_ARCHETYPE_HEAVY
-            length=3.35 * (0.72 + 0.28 * maturity),
-            baseWidth=0.68,
-            baseHeight=0.58,
-            tipWidth=0.14,
-            tipHeight=0.10,
+            archetype=3,  # TAIL_ARCHETYPE_PREHENSILE
+            length=2.65 * (0.72 + 0.28 * maturity),
+            baseWidth=0.45,
+            baseHeight=0.40,
+            tipWidth=0.085,
+            tipHeight=0.062,
             taperCurve=1.15,
-            curvature=0.0,
-            droop=0.16,
+            curvature=0.18,
+            droop=0.05,
             tipLift=-0.04,
-            rootMatchStrength=0.86,
+            rootMatchStrength=0.27,
             segmentCount=14,
             development=1.0,
         )
@@ -212,7 +214,7 @@ def build_pangolin(base):
             thickness=0.058,
             bevel=0.48,
             overlap=0.52,
-            irregularity=0.14,
+            irregularity=0.56,
             relief=0.045,
             armorScale=1.0 * (0.65 + 0.35 * maturity),
             scaleCurvature=0.72,

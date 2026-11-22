@@ -1,0 +1,12 @@
+{
+  "species": "Canguro Rojo",
+  "recipeId": 1014,
+  "stage": 3,
+  "animations": {
+    "idle": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.9990, "maxEdge": 1.0012, "minArea": 0.9989, "maxArea": 1.0017, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0000},
+    "walk": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.9863, "maxEdge": 1.0137, "minArea": 0.9866, "maxArea": 1.0148, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0577},
+    "run": {"cbPitch": 0.0000, "cbYaw": 0.0000, "neckPitch": 0.0000, "neckYaw": 0.0000, "headPitch": 0.0000, "headYaw": 0.0000, "minEdge": 0.9896, "maxEdge": 1.0104, "minArea": 0.9898, "maxArea": 1.0112, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.0438},
+    "look_up": {"cbPitch": -0.1532, "cbYaw": 0.0000, "neckPitch": -0.2100, "neckYaw": 0.0000, "headPitch": -0.1621, "headYaw": 0.0000, "minEdge": 0.6738, "maxEdge": 1.4540, "minArea": 0.6482, "maxArea": 1.7236, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 1.0000},
+    "look_down": {"cbPitch": 0.2802, "cbYaw": 0.0000, "neckPitch": 0.1453, "neckYaw": 0.0000, "headPitch": 0.1621, "headYaw": 0.0000, "minEdge": 0.5369, "maxEdge": 1.6416, "minArea": 0.4332, "maxArea": 1.8791, "extremeTris": 0, "crushedTris": 0, "reachErr": 0.0000, "reachSat": 0.5404}
+  }
+}

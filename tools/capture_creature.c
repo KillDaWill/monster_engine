@@ -29,6 +29,24 @@ static float ViewHeight(AABB3D bounds, Vector3 direction) {
 
 static bool Capture(Renderer3D* r,ICamera* camera,MonsterVisual* v,Vector3 target,
     Vector3 direction,float height,const char* directory,const char* name) {
+    const char* reference=getenv("MONSTER_CAPTURE_CAMERA_REFERENCE");
+    if(reference) {
+        FILE* input=fopen(reference,"r");
+        if(!input)return false;
+        char line[256],view[80];
+        Vector3 fixed;
+        float fixedHeight;
+        while(fgets(line,sizeof(line),input)) {
+            if(sscanf(line,"camera %79s %f %f %f %f",view,&fixed.x,&fixed.y,&fixed.z,&fixedHeight)==5 &&
+                !strcmp(name,view)) {
+                target=fixed;
+                height=fixedHeight;
+                break;
+            }
+        }
+        fclose(input);
+    }
+    printf("camera %s %.9g %.9g %.9g %.9g\n",name,target.x,target.y,target.z,height);
     camera->target=target;camera->position=Vec3_Add(target,Vec3_Scale(direction,20));
     camera->up=fabsf(direction.y)>.9f?Vec3_Create(0,0,1):Vec3_Create(0,1,0);
     r->beginFrame(r);OpenGLRenderer_SetupCameraOrtho(camera,height,1200,900);
@@ -114,14 +132,18 @@ int main(int argc,char** argv) {
     if(!window)return 1;
     ICamera camera={.fov=40,.aspectRatio=4.f/3,.nearPlane=.01f,.farPlane=100};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
+    bool stageViews=getenv("MONSTER_CAPTURE_STAGE_VIEWS")!=NULL;
     AABB3D framing=v->sdf.bounds;
     AABB_Pad(&framing,-v->sdf.config.boundsPadding);
     Vector3 center=Vec3_Scale(Vec3_Add(framing.start,framing.end),.5f);
     float height=ViewHeight(framing,Vec3_Create(1,0,0));
-    Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f},{0,1,0},{-1,0,0}};
-    const char* names[]={"side","front","rear","three-quarter","top","opposite-side"};
+    Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f},{0,1,0},{-1,0,0},{.8f,.24f,-.65f}};
+    const char* names[]={"side","front","rear","three-quarter","top","opposite-side","three-quarter-rear"};
     bool ok=true;
-    for(int i=0;i<6;++i)ok=Capture(&renderer,&camera,v,center,directions[i],ViewHeight(framing,directions[i]),argv[2],names[i])&&ok;
+    for(int i=0;i<7;++i) {
+        if(stageViews && i!=0 && i!=3 && i!=4)continue;
+        ok=Capture(&renderer,&camera,v,center,directions[i],ViewHeight(framing,directions[i]),argv[2],names[i])&&ok;
+    }
     if(v->sdf.mouthCount && m->hasHead) {
         AABB3D headBox=v->sdf.mouths[0].headBounds;
         const AnatomyNode* head=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_HEAD);
@@ -137,12 +159,13 @@ int main(int argc,char** argv) {
             }
         }
         Vector3 hc=Vec3_Scale(Vec3_Add(headBox.start,headBox.end),.5f);
-        for(int i=0;i<4;++i) {
+        for(int i=0;i<5;++i) {
+            if(stageViews && i!=0)continue;
             char name[80];snprintf(name,sizeof(name),"head-%s",names[i]);
             ok=Capture(&renderer,&camera,v,hc,directions[i],ViewHeight(headBox,directions[i]),argv[2],name)&&ok;
         }
     }
-    for (int role=LIMB_FORE;role<=LIMB_HIND;++role) {
+    for (int role=LIMB_FORE;!stageViews&&role<=LIMB_HIND;++role) {
         for (size_t i=0;i<doc->recipe.bodyPlan.moduleCount;++i) {
             const CreatureModuleInstance* module=&doc->recipe.bodyPlan.modules[i];
             if (module->kind!=CREATURE_MODULE_LIMB) continue;
@@ -159,7 +182,32 @@ int main(int argc,char** argv) {
                        limb->thickness*s*4.2f,argv[2],role==LIMB_FORE?"forefoot-sole":"hindfoot-sole")&&ok;
         }
     }
-    if(m->animation) {
+    if(!stageViews) {
+        const AnatomyNode* tail=AnatomyGraph_FindFirstRegion(&m->anatomyGraph,ANATOMY_REGION_TAIL);
+        if(tail) {
+            AABB3D tailBox=AABB_Empty();
+            for(size_t i=0;i<m->anatomyGraph.nodeCount;++i) {
+                const AnatomyNode* n=&m->anatomyGraph.nodes[i];
+                if(n->moduleInstanceId!=tail->moduleInstanceId)continue;
+                AABB_ExpandRadius(&tailBox,n->center,
+                    Vec3_Create(n->widthRadius,n->heightRadius,n->widthRadius));
+            }
+            Vector3 target=Vec3_Scale(Vec3_Add(tailBox.start,tailBox.end),.5f);
+            ok=Capture(&renderer,&camera,v,target,directions[4],ViewHeight(tailBox,directions[4]),argv[2],"tail-top")&&ok;
+        }
+        if(p.membraneCount) {
+            AABB3D wing=AABB_Empty();
+            for(size_t i=0;i<v->membraneMesh.vertexCount;++i) {
+                Vector3 point=v->membraneMesh.vertices[i].position;
+                if(point.x>=0)AABB_ExpandPoint(&wing,point);
+            }
+            if(wing.start.x<=wing.end.x) {
+                Vector3 target=Vec3_Scale(Vec3_Add(wing.start,wing.end),.5f);
+                ok=Capture(&renderer,&camera,v,target,directions[4],ViewHeight(wing,directions[4]),argv[2],"wing-top")&&ok;
+            }
+        }
+    }
+    if(!stageViews&&m->animation) {
         AnimatedVisual binding={0};
         if(!AnimatedVisual_Bind(&binding,v,m))ok=false;
         else {

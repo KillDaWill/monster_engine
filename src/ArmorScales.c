@@ -204,15 +204,18 @@ static bool CollectPlacements(const Monster* monster, const MonsterSDF* sdf, con
         unsigned slots = (unsigned)Math_Clamp(floorf(circ / arcPitch + 0.5f), 5.0f, 22.0f);
 
         for (unsigned ri = 0; ri < rings && count < ARMOR_MAX_SCALES; ++ri) {
-            float tRaw = ((float)ri + 0.5f) / (float)rings;
-            float tFlow = (Vec3_Dot(flowDir, dir) > 0.0f) ? tRaw : (1.0f - tRaw);
-            Vector3 center = Vec3_Lerp(na->center, nb->center, tFlow);
-            float localW = Math_Lerp(na->widthRadius, nb->widthRadius, tFlow);
-            float localH = Math_Lerp(na->heightRadius, nb->heightRadius, tFlow);
             float stagger = (ri & 1u) ? 0.5f : 0.0f;
 
             for (unsigned si = 0; si < slots && count < ARMOR_MAX_SCALES; ++si) {
-                float theta = (((float)si + stagger) / (float)slots) * 6.2831853f;
+                uint32_t h = ArmorHash(seed ^ c->id ^ ArmorHash(ri * 32u + si));
+                float along = (ArmorHash01(h, 4) - 0.5f) * 0.38f * pl->irregularity;
+                float across = (ArmorHash01(h, 5) - 0.5f) * 0.44f * pl->irregularity;
+                float tRaw = ((float)ri + 0.5f + along) / (float)rings;
+                float tFlow = Vec3_Dot(flowDir, dir) > 0.0f ? tRaw : 1.0f - tRaw;
+                Vector3 center = Vec3_Lerp(na->center, nb->center, tFlow);
+                float localW = Math_Lerp(na->widthRadius, nb->widthRadius, tFlow);
+                float localH = Math_Lerp(na->heightRadius, nb->heightRadius, tFlow);
+                float theta = (((float)si + stagger + across) / (float)slots) * 6.2831853f;
                 Vector3 radial = Vec3_Normalize(Vec3_Add(Vec3_Scale(uAxis, cosf(theta) * fmaxf(localW, 0.01f)),
                                                          Vec3_Scale(vAxis, sinf(theta) * fmaxf(localH, 0.01f))));
                 float minDotY = isTail ? (-0.95f + 0.50f * (1.0f - pl->ventralCoverage))
@@ -238,9 +241,8 @@ static bool CollectPlacements(const Monster* monster, const MonsterSDF* sdf, con
                 tangF = Vec3_Normalize(tangF);
                 Vector3 tangR = Vec3_Normalize(Vec3_Cross(surfN, tangF));
 
-                uint32_t h = ArmorHash(seed ^ (uint32_t)(ci * 977u + ri * 53u + si));
                 float jitter = (ArmorHash01(h, 1) - 0.5f) * 2.0f * pl->irregularity;
-                float ang = jitter * 0.14f;
+                float ang = jitter * 0.23f;
                 Vector3 jf = Vec3_Normalize(Vec3_Add(Vec3_Scale(tangF, cosf(ang)), Vec3_Scale(tangR, sinf(ang))));
                 Vector3 jr = Vec3_Normalize(Vec3_Cross(surfN, jf));
 
@@ -249,7 +251,7 @@ static bool CollectPlacements(const Monster* monster, const MonsterSDF* sdf, con
                 sp.normal = surfN;
                 sp.forward = jf;
                 sp.right = jr;
-                float sizeJitter = 1.0f + 0.12f * jitter;
+                float sizeJitter = 1.0f + 0.21f * jitter;
                 sp.length = baseLen * localScaleFactor * sizeJitter;
                 sp.width = baseWidth * localScaleFactor * sizeJitter;
                 sp.thickness = baseThick * (0.65f + 0.35f * localScaleFactor);
@@ -328,9 +330,9 @@ static void EmitScaleSolid(const ScalePlacement* sp, Color baseCol, Color tipCol
     float T = sp->thickness;
     float lift = sp->overlapLift;
     float shoulderW = W;
-    float rootW = W * 0.72f;
-    float distalW = W * (0.28f + 0.55f * (1.0f - sp->tipTaper));
-    float keelH = T * (0.55f + 0.55f * sp->curvature);
+    float rootW = W * 0.82f;
+    float distalW = W * (0.44f + 0.47f * (1.0f - sp->tipTaper));
+    float keelH = T * (0.44f + 0.42f * sp->curvature);
 
     Vector3 O = Vec3_Sub(sp->pos, Vec3_Scale(sp->normal, T * 0.28f));
     Vector3 F = sp->forward;
@@ -402,14 +404,13 @@ static void EmitScaleSolid(const ScalePlacement* sp, Color baseCol, Color tipCol
         /* Caras dorsales (8 tris) */
         0, 3, 4,   0, 4, 1,   1, 4, 5,   1, 5, 2,
         3, 6, 4,   4, 6, 13,  4, 13, 7,  4, 7, 5,
-        /* Caras ventrales (6 tris) */
-        8, 10, 9,  9, 10, 11, 10, 12, 11,
-        10, 6, 12, 12, 7, 11, 6, 13, 12,
-        /* Biseles laterales y raíz (10 tris) */
+        /* Caras ventrales (7 tris) */
+        12, 10, 8,  12, 6, 10,  12, 13, 6,  12, 7, 13,
+        12, 11, 7,  12, 9, 11,  12, 8, 9,
+        /* Biseles laterales y raíz (9 tris) */
         0, 8, 3,   3, 8, 10,  3, 10, 6,
         2, 5, 9,   5, 11, 9,  5, 7, 11,
-        6, 13, 12, 7, 12, 13,
-        0, 1, 8,   1, 2, 9
+        0, 1, 8,   1, 9, 8,   1, 2, 9
     };
     for (size_t k = 0; k < ARMOR_TRIS_PER_SCALE * 3; ++k) {
         out->indices[out->indexCount++] = (MeshIndex)(baseV + tris[k]);

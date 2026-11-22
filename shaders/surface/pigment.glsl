@@ -37,9 +37,11 @@ float SamplePigmentPattern(int pat, vec3 p, float scale, float sharpness, vec3 d
         float grad = dot(p, d) * scale;
         return clamp(grad * 0.5 + 0.5, 0.0, 1.0);
     } else if (pat == 8) {
+        float warp = PigmentNoise(q * 1.65, seed ^ 194u) - .5;
+        q += vec3(.28, -.22, .30) * warp;
         ivec3 base = ivec3(floor(q));
         vec3 frac = q - vec3(base);
-        float f1 = 1e9, f2 = 1e9;
+        float f1 = 1e9, f2 = 1e9, tint = 1.0;
         for (int dz = -1; dz <= 1; ++dz) {
             for (int dy = -1; dy <= 1; ++dy) {
                 for (int dx = -1; dx <= 1; ++dx) {
@@ -47,7 +49,7 @@ float SamplePigmentPattern(int pat, vec3 p, float scale, float sharpness, vec3 d
                     vec3 jitter = vec3(0.10) + 0.80 * CellHash(cell.xy, seed ^ uint(cell.z));
                     vec3 delta = vec3(float(dx), float(dy), float(dz)) + jitter - frac;
                     float d2 = dot(delta, delta);
-                    if (d2 < f1) { f2 = f1; f1 = d2; }
+                    if (d2 < f1) { f2 = f1; f1 = d2; tint = .87 + .13 * jitter.z; }
                     else if (d2 < f2) { f2 = d2; }
                 }
             }
@@ -55,7 +57,7 @@ float SamplePigmentPattern(int pat, vec3 p, float scale, float sharpness, vec3 d
         float edge = sqrt(f2) - sqrt(f1);
         float border = 0.14 - 0.06 * sh;
         float w = 0.06 * (1.0 - sh * 0.75);
-        return smoothstep(border - w, border + w, edge);
+        return tint * smoothstep(border - w, border + w, edge);
     }
     return 0.0;
 }
