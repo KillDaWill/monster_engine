@@ -7,6 +7,7 @@
 #include "AnimatedVisual.h"
 #include "FlexibleAppendage.h"
 #include "Limb.h"
+#include <SDL2/SDL_opengl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -122,6 +123,7 @@ int main(int argc,char** argv) {
     }
     if(neutral) {
         LongHairSet_Free(&v->longHair);
+        if (getenv("MONSTER_CAPTURE_BARE")) Mesh_Free(&v->armorMesh);
         Neutral(&v->mesh);Neutral(&v->headMesh);Neutral(&v->membraneMesh);Neutral(&v->armorMesh);
         for(size_t i=0;i<v->mouthCount;++i) {
             Neutral(&v->mouths[i].jawBase);Neutral(&v->mouths[i].hingeBase);
@@ -132,6 +134,7 @@ int main(int argc,char** argv) {
     if(!window)return 1;
     ICamera camera={.fov=40,.aspectRatio=4.f/3,.nearPlane=.01f,.farPlane=100};
     Renderer3D renderer=OpenGLRenderer_Create(&camera);
+    if (getenv("MONSTER_CAPTURE_LIGHT_BACKGROUND")) glClearColor(.36f,.39f,.43f,1.0f);
     bool stageViews=getenv("MONSTER_CAPTURE_STAGE_VIEWS")!=NULL;
     AABB3D framing=v->sdf.bounds;
     AABB_Pad(&framing,-v->sdf.config.boundsPadding);
@@ -180,6 +183,14 @@ int main(int argc,char** argv) {
             Vector3 soleTarget=Vec3_Add(target,Vec3_Create(0,0,limb->thickness*s*.40f));
             ok=Capture(&renderer,&camera,v,soleTarget,Vec3_Create(0,-1,0),
                        limb->thickness*s*4.2f,argv[2],role==LIMB_FORE?"forefoot-sole":"hindfoot-sole")&&ok;
+            const AnatomyNode* root=AnatomyGraph_FindModuleNode(&m->anatomyGraph,module->instanceId,LIMB_NODE_ROOT);
+            const AnatomyNode* middle=AnatomyGraph_FindModuleNode(&m->anatomyGraph,module->instanceId,LIMB_NODE_MIDDLE);
+            if (root && middle) {
+                Vector3 joint=Vec3_Lerp(root->center,middle->center,.36f);
+                joint.x*=.55f;
+                ok=Capture(&renderer,&camera,v,joint,directions[3],
+                           limb->length*s*.92f,argv[2],role==LIMB_FORE?"shoulder":"hip")&&ok;
+            }
         }
     }
     if(!stageViews) {
@@ -194,6 +205,10 @@ int main(int argc,char** argv) {
             }
             Vector3 target=Vec3_Scale(Vec3_Add(tailBox.start,tailBox.end),.5f);
             ok=Capture(&renderer,&camera,v,target,directions[4],ViewHeight(tailBox,directions[4]),argv[2],"tail-top")&&ok;
+            AABB_Pad(&tailBox, .12f*ViewHeight(tailBox,directions[0]));
+            target=Vec3_Scale(Vec3_Add(tailBox.start,tailBox.end),.5f);
+            ok=Capture(&renderer,&camera,v,target,directions[0],ViewHeight(tailBox,directions[0]),argv[2],"tail-side")&&ok;
+            ok=Capture(&renderer,&camera,v,target,directions[6],ViewHeight(tailBox,directions[6]),argv[2],"tail-three-quarter")&&ok;
         }
         if(p.membraneCount) {
             AABB3D wing=AABB_Empty();

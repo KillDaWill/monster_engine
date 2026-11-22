@@ -75,14 +75,15 @@ static TailProfileSample EvaluateTailProfile(TailArchetype archetype, float t, f
         break;
     }
     case TAIL_ARCHETYPE_PADDLE: {
-        /* Pala ancha y aplanada dorsoventralmente (ornitorrinco/castor) con remate redondo. */
-        float blade = sinf(t * 3.14159265f);
-        float end = Math_Clamp01((t - 0.72f) / 0.28f);
+        /* Pedículo corto, pala casi paralela y cierre en media elipse. */
+        float neck = Math_Clamp01(t / .34f);
+        float blade = Math_Lerp(.46f, 1.0f, neck*neck*(3.0f-2.0f*neck));
+        float end = Math_Clamp01((t - 0.66f) / 0.34f);
         float roundEnd = sqrtf(fmaxf(0.0f, 1.0f - end * end));
-        s.widthFactor = fmaxf((1.0f + 0.65f * blade) * roundEnd, 0.10f);
-        s.heightFactor = (1.0f - 0.50f * t) * roundEnd;
+        s.widthFactor = blade * roundEnd;
+        s.heightFactor = (1.0f - 0.30f * t) * roundEnd;
         s.localOffset.x = curvature * t * t * 0.25f;
-        s.localOffset.y = -0.04f * sinf(t * 3.14159265f);
+        s.localOffset.y = -0.018f * sinf(t * 3.14159265f);
         s.localOffset.z = 0.0f;
         break;
     }
@@ -129,8 +130,16 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
         hanging.forward=Vec3_Normalize(Vec3_Lerp(slot->forward,Vec3_Create(0,-1,0),Math_Clamp01(p->droop)));
         hanging.up=Vec3_Normalize(Vec3_Cross(hanging.side,hanging.forward));
         slot=&hanging;
+    } else if(p->archetype == TAIL_ARCHETYPE_PADDLE) {
+        /* El pedículo sigue la grupa y la pala continúa casi horizontal. */
+        hanging.forward.y *= .34f;
+        hanging.forward=Vec3_Normalize(hanging.forward);
+        hanging.up=Vec3_Normalize(Vec3_Cross(hanging.side,hanging.forward));
+        slot=&hanging;
     }
     AnatomyId previous = slot->hostNode;
+    float hangingBend = p->archetype==TAIL_ARCHETYPE_TAPERED ?
+        Math_Clamp01(2.0f*p->droop-1.0f)*Math_Clamp(-p->tipLift,0.0f,p->baseWidth) : 0.0f;
     for (unsigned i = 0; i < p->segmentCount; ++i) {
         const float four[] = {0.0f, 0.28f, 0.62f, 1.0f};
         float t = (p->segmentCount == 4 && p->archetype == TAIL_ARCHETYPE_TAPERED) ?
@@ -197,6 +206,12 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
 
         if(p->tipLift!=0)
             c=Vec3_Add(c,Vec3_Scale(slot->up,p->tipLift*t*t*s*development));
+        if(hangingBend>0.0f) {
+            /* El maslo sale hacia atrás antes de caer, a lo largo de unas
+             * pocas secciones de su propio diámetro. */
+            float arc=1.0f-expf(-p->length*t/fmaxf(2.5f*p->baseWidth,1e-5f));
+            c=Vec3_Add(c,Vec3_Scale(slot->up,arc*hangingBend*s*development));
+        }
 
         AnatomyId id = Anatomy_MakeId(module, (uint16_t)(i + 1));
         if (!Module_Node(g, module, (uint16_t)(i + 1), c, wr, hr, i < 2 ? 2 : 1,
@@ -206,6 +221,8 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
             return false;
         }
         g->dormantConnections[g->connectionCount - 1] = (p->development <= 0.0f);
+        if(p->archetype==TAIL_ARCHETYPE_PADDLE || hangingBend>0.0f)
+            g->connections[g->connectionCount-1].transverseAxis=slot->side;
         previous = id;
     }
     return true;

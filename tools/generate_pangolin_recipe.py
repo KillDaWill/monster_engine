@@ -32,8 +32,8 @@ def build_pangolin(base):
             totalScale=0.72 * scale,
             withersHeight=1.52,
             trunkLength=2.65 + 0.35 * maturity,
-            neckLength=0.50,
-            neckWidth=1.08,
+            neckLength=0.61,
+            neckWidth=0.80,
             shoulderWidth=1.42,
             thoraxWidth=1.62,
             thoraxHeight=1.34,
@@ -44,14 +44,14 @@ def build_pangolin(base):
             bodyFlattening=0.92,
             limbAttachmentLateral=0.72,
             cervicalCurvature=0.18,
-            cervicalDorsalMass=1.24,
+            cervicalDorsalMass=1.43,
             cervicalMidNarrowing=0.94,
             withersElevation=0.04,
             dewlapDepth=0.0,
             brisketDepth=0.02,
             contourProfile=1,
             cervicalSegments=4,
-            cervicalPitch=0.10,
+            cervicalPitch=0.045,
             spineFlexion=0.52,  # Columna muy flexible para enrollamiento defensivo.
         )
         # Dorso ligeramente arqueado y grupa robusta continua hacia la cola gruesa.
@@ -68,15 +68,15 @@ def build_pangolin(base):
         p["headEnvelope"].update(
             scale=0.58 + 0.08 * (1.0 - maturity),
             widthScale=0.90,
-            heightScale=0.88,
+            heightScale=1.09,
             lengthScale=1.10,
         )
         p["head"].update(
             archetype=10,  # HEAD_ARCHETYPE_PHOLIDOTE
             skullWidth=0.44,
-            skullHeight=0.46,
+            skullHeight=0.64,
             skullLength=0.58,
-            muzzleLength=0.57 * (0.72 + 0.28 * maturity),
+            muzzleLength=0.51 * (0.72 + 0.28 * maturity),
             muzzleWidth=0.46,
             muzzleTaper=0.57,
             rostrumDepth=0.46,
@@ -91,7 +91,7 @@ def build_pangolin(base):
             eyeCompression=0.16,
             eyeExposure=0.38,
             browProminence=0.28,
-            snoutBluntness=0.34,
+            snoutBluntness=0.47,
             jawLength=0.74 * (0.72 + 0.28 * maturity),
             jawDepth=0.22,
             jawStrength=0.30,

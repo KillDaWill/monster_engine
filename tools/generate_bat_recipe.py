@@ -79,16 +79,19 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     s["head"] = copy.deepcopy(head_ref["head"])
     hp = s["head"]
     hp["archetype"] = 8  # HEAD_ARCHETYPE_RODENT (hocico corto redondeado microquiroptero)
-    hp["skullWidth"] = 0.70
+    hp["skullWidth"] = 0.52
+    hp["temporalWidth"] = 0.39
+    hp["zygomaticWidth"] = 0.42
+    hp["maxillaryWidth"] = 0.44
     hp["skullHeight"] = 0.68
     hp["skullLength"] = 0.66
-    hp["muzzleLength"] = 0.12
-    hp["muzzleWidth"] = 0.56
+    hp["muzzleLength"] = 0.095
+    hp["muzzleWidth"] = 0.46
     hp["muzzleTaper"] = 0.42
     hp["rostrumDepth"] = 0.56
     hp["snoutBluntness"] = 0.68
-    hp["eyeSize"] = 0.49
-    hp["eyeExposure"] = 0.62
+    hp["eyeSize"] = 0.43
+    hp["eyeExposure"] = 0.54
     hp["orbitDepth"] = 0.06
     hp["browProminence"] = 0.04
     hp["eyelidCoverage"] = 0.0
@@ -99,10 +102,11 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["earThickness"] = 0.20
     hp["earPointiness"] = 0.20
     hp["earConcavity"] = 0.94
-    hp["earWidthRatio"] = 1.28
+    hp["earWidthRatio"] = 1.57
     hp["earHeightRatio"] = 1.76
     hp["earLongitudinalCurve"] = 0.64
     hp["earMarginBow"] = 0.82
+    hp["earRootFlare"] = 0.72
     hp["earTipRoundness"] = 0.78
     hp["earFold"] = 0.10
     hp["earOutward"] = 0.28
@@ -110,7 +114,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     hp["nasalColor"] = rgba(76, 56, 50)
 
     s["headEnvelope"]["scale"] = 0.23 + 0.025 * (1.0 - dev_ceph)
-    s["headEnvelope"]["widthScale"] = 1.05
+    s["headEnvelope"]["widthScale"] = 0.94
     s["headEnvelope"]["heightScale"] = 1.00
     s["headEnvelope"]["lengthScale"] = 0.96
     s.pop("headHybrid", None)
@@ -205,6 +209,7 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     tail["taperCurve"] = 1.15
     tail["droop"] = 0.08
     tail["tipLift"] = 0.06
+    tail["rootMatchStrength"] = 0.48
     tail["segmentCount"] = 5
     tail["development"] = 1.0
 

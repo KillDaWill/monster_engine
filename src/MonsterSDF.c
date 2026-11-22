@@ -545,6 +545,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             if (AxialBodyUprightTetrapod_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
                                                            sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &uprightCount)) {
                 sdf->axialStationCount = uprightCount;
+                const TailPhenotype* axialTail = NULL;
+                bool caudalTransition = false;
                 const AnatomyNode* pelvisNode = AnatomyGraph_FindModuleNode(g, axialModule, AXIAL_NODE_PELVIS);
                 if (pelvisNode) {
                     const AnatomyNode* tailNext = NULL;
@@ -554,7 +556,23 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                             break;
                         }
                     }
+                    SDFSweepStation* rump = &sdf->axialStations[uprightCount-1];
+                    if (tailNext && MonsterSDF_SeparateTail(monster,tailNext->moduleInstanceId) &&
+                        !g->separateMorphTail && uprightCount < MONSTER_SDF_MAX_AXIAL_STATIONS &&
+                        tailNext->center.z < rump->center.z && tailNext->widthRadius > rump->width*.50f &&
+                        tailNext->heightRadius > rump->height*.50f) {
+                        /* Una cola musculosa sale del contorno sacro. Prolongar
+                         * el barrido hasta su pedículo evita una tapa pélvica
+                         * redonda expuesta por debajo de la cola articulada. */
+                        sdf->axialStations[sdf->axialStationCount++] = (SDFSweepStation){
+                            .center = tailNext->center,
+                            .width = tailNext->widthRadius,
+                            .height = tailNext->heightRadius,
+                        };
+                        caudalTransition = true;
+                    }
                     while (tailNext && !MonsterSDF_SeparateTail(monster,tailNext->moduleInstanceId) && sdf->axialStationCount < MONSTER_SDF_MAX_AXIAL_STATIONS) {
+                        axialTail = MonsterSDF_TailPhenotype(monster, tailNext->moduleInstanceId);
                         sdf->axialStations[sdf->axialStationCount++] = (SDFSweepStation){
                             .center = tailNext->center,
                             .width = tailNext->widthRadius,
@@ -572,6 +590,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 }
                 if (!SDF_SweepResolveTangents(sdf->axialStations, sdf->axialStationCount)) {
                     sdf->axialStationCount = 0;
+                } else if (caudalTransition || (axialTail && axialTail->archetype == TAIL_ARCHETYPE_PADDLE)) {
+                    MatchSweepCapTangent(&sdf->axialStations[sdf->axialStationCount-1],1.0f);
                 }
             }
         } else if (linear && start && count >= 2 && count <= MONSTER_SDF_MAX_AXIAL_STATIONS) {
@@ -679,6 +699,17 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             bool separateCervical = monster->hasCreaturePhenotype &&
                 monster->phenotype.axial.cervicalSegments >= 2 &&
                 (a->region == ANATOMY_REGION_NECK || b->region == ANATOMY_REGION_NECK);
+            if (separateCervical && a->region == ANATOMY_REGION_NECK &&
+                b->region == ANATOMY_REGION_TRUNK && c->kind == BODY_CONNECTION_AXIAL_LOFT) {
+                /* Una sección cervical inclinada que usa toda la sección
+                 * pectoral proyecta su tapa fuera del propio hombro. */
+                Vector3 inward=Vec3_Normalize(c->ba);
+                float tilt=inward.y*inward.y;
+                c->widthB=Math_Max(c->widthA,c->widthB*(1.0f-.12f*tilt));
+                c->heightB=Math_Max(c->heightA,c->heightB*(1.0f-.17f*tilt));
+                c->r2=Math_Min(c->widthB,c->heightB);
+                c->radiusDelta=c->r2-c->r1;
+            }
             c->axialSweepMember=c->kind==BODY_CONNECTION_AXIAL_LOFT&&
                 a->region!=ANATOMY_REGION_ORNAMENT&&b->region!=ANATOMY_REGION_ORNAMENT&&
                 a->region!=ANATOMY_REGION_HEAD&&b->region!=ANATOMY_REGION_HEAD&&
@@ -966,15 +997,9 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 if(neckNode && monster->hasAnatomyGraph) {
                     for(size_t c=0;c<monster->anatomyGraph.connectionCount;++c) {
                         const BodyConnection* conn=&monster->anatomyGraph.connections[c];
-                        if(conn->kind==BODY_CONNECTION_AXIAL_LOFT) {
-                            if(conn->fromId==neckNode->id) {
-                                pectoralNode=AnatomyGraph_FindNode(&monster->anatomyGraph,conn->toId);
-                                if(pectoralNode)break;
-                            } else if(conn->toId==neckNode->id) {
-                                pectoralNode=AnatomyGraph_FindNode(&monster->anatomyGraph,conn->fromId);
-                                if(pectoralNode)break;
-                            }
-                        }
+                        if(conn->kind!=BODY_CONNECTION_AXIAL_LOFT || conn->fromId!=neckNode->id)continue;
+                        pectoralNode=AnatomyGraph_FindNode(&monster->anatomyGraph,conn->toId);
+                        if(pectoralNode)break;
                     }
                     if(!pectoralNode) pectoralNode=AnatomyGraph_FindFirstRegion(&monster->anatomyGraph,ANATOMY_REGION_TRUNK);
                 }

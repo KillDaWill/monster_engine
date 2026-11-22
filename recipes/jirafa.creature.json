@@ -197,7 +197,7 @@
         "archetype": 1,
         "totalScale": 0.340000004,
         "neckLength": 3.33744001,
-        "neckWidth": 0.930000007,
+        "neckWidth": 0.660000026,
         "shoulderWidth": 1.38,
         "thoraxWidth": 1.51999998,
         "thoraxHeight": 2,
@@ -209,12 +209,12 @@
         "bodyFlattening": 1,
         "limbAttachmentLateral": 0.779999971,
         "withersHeight": 4.98000002,
-        "cervicalCurvature": 0.639999986,
-        "cervicalDorsalMass": 0.970000029,
-        "cervicalMidNarrowing": 0.810000002,
+        "cervicalCurvature": 0.529999971,
+        "cervicalDorsalMass": 1.52999997,
+        "cervicalMidNarrowing": 0.620000005,
         "dewlapDepth": 0,
         "brisketDepth": 0.0399999991,
-        "withersElevation": 0.0500000007,
+        "withersElevation": 0.0299999993,
         "profile": [
           {
             "longitudinalOffset": 0,
@@ -255,7 +255,7 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0.850000024,
-        "cervicalSegments": 6,
+        "cervicalSegments": 7,
         "cervicalPitch": 1.03919995,
         "spineFlexion": 0.159999996
       },
@@ -712,19 +712,19 @@
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.959999979,
+          "droop": 0.810000002,
           "archetype": 0,
-          "length": 1.85000002,
-          "baseWidth": 0.140000001,
-          "baseHeight": 0.140000001,
-          "tipWidth": 0.0450000018,
-          "tipHeight": 0.0450000018,
-          "taperCurve": 1.25,
+          "length": 1.83599997,
+          "baseWidth": 0.101999998,
+          "baseHeight": 0.112000003,
+          "tipWidth": 0.0320000015,
+          "tipHeight": 0.0320000015,
+          "taperCurve": 1.41999996,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.25,
+          "rootMatchStrength": 0.100000001,
           "segmentCount": 10,
-          "tipLift": 0
+          "tipLift": -0.180000007
         }
       ],
       "tailCount": 1,
@@ -1295,44 +1295,73 @@
               "b": 16,
               "a": 255
             }
-          },
+          }
+        ],
+        "tuftCount": 1,
+        "longHair": [
           {
-            "region": 7,
-            "center": {
-              "x": 0,
-              "y": 2.5236001,
-              "z": -2.98399997
+            "id": 1011,
+            "seed": 83,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 9,
+              "anchors": [
+                1310729,
+                1310730
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28000021,
+              "start": 0.180000007,
+              "end": 0.980000019,
+              "patchRadius": 0.150000006
             },
-            "halfExtents": {
-              "x": 0.349999994,
-              "y": 0.550000012,
-              "z": 0.449999988
-            },
+            "guideCount": 48,
+            "childrenPerGuide": 20,
             "direction": {
               "x": 0,
               "y": -1,
-              "z": -0.0500000007
+              "z": -0.119999997
             },
-            "normal": {
-              "x": 0,
-              "y": 1,
-              "z": 0
+            "length": 0.361600012,
+            "lengthVariation": 0.270000011,
+            "width": 0.00209999993,
+            "rootSpread": 0.0299999993,
+            "clumping": 0.460000008,
+            "stiffness": 0.600000024,
+            "gravityInfluence": 0.850000024,
+            "density": 1,
+            "rootFullness": 0.600000024,
+            "bend": 0,
+            "wave": 0,
+            "transparency": 0,
+            "verticalBias": 0,
+            "rootColor": {
+              "r": 38,
+              "g": 25,
+              "b": 17,
+              "a": 255
             },
-            "length": 0.209999993,
-            "density": 1.20000005,
-            "width": 0.00400000019,
-            "minNormalDot": -1,
-            "color": {
-              "r": 32,
-              "g": 20,
-              "b": 12,
+            "tipColor": {
+              "r": 25,
+              "g": 17,
+              "b": 14,
               "a": 255
             }
           }
         ],
-        "tuftCount": 2,
-        "longHair": [],
-        "longHairCount": 0,
+        "longHairCount": 1,
         "transition": {
           "from": {
             "baseColor": {
@@ -1429,7 +1458,7 @@
         "archetype": 1,
         "totalScale": 0.540000021,
         "neckLength": 3.9249599,
-        "neckWidth": 0.930000007,
+        "neckWidth": 0.660000026,
         "shoulderWidth": 1.38,
         "thoraxWidth": 1.51999998,
         "thoraxHeight": 2,
@@ -1441,12 +1470,12 @@
         "bodyFlattening": 1,
         "limbAttachmentLateral": 0.779999971,
         "withersHeight": 4.98000002,
-        "cervicalCurvature": 0.639999986,
-        "cervicalDorsalMass": 0.970000029,
-        "cervicalMidNarrowing": 0.810000002,
+        "cervicalCurvature": 0.529999971,
+        "cervicalDorsalMass": 1.52999997,
+        "cervicalMidNarrowing": 0.620000005,
         "dewlapDepth": 0,
         "brisketDepth": 0.0399999991,
-        "withersElevation": 0.0500000007,
+        "withersElevation": 0.0299999993,
         "profile": [
           {
             "longitudinalOffset": 0,
@@ -1487,7 +1516,7 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0.850000024,
-        "cervicalSegments": 6,
+        "cervicalSegments": 7,
         "cervicalPitch": 1.07280004,
         "spineFlexion": 0.159999996
       },
@@ -1944,19 +1973,19 @@
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.959999979,
+          "droop": 0.810000002,
           "archetype": 0,
-          "length": 1.85000002,
-          "baseWidth": 0.140000001,
-          "baseHeight": 0.140000001,
-          "tipWidth": 0.0450000018,
-          "tipHeight": 0.0450000018,
-          "taperCurve": 1.25,
+          "length": 1.88399994,
+          "baseWidth": 0.101999998,
+          "baseHeight": 0.112000003,
+          "tipWidth": 0.0320000015,
+          "tipHeight": 0.0320000015,
+          "taperCurve": 1.41999996,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.25,
+          "rootMatchStrength": 0.100000001,
           "segmentCount": 10,
-          "tipLift": 0
+          "tipLift": -0.180000007
         }
       ],
       "tailCount": 1,
@@ -2527,44 +2556,73 @@
               "b": 16,
               "a": 255
             }
-          },
+          }
+        ],
+        "tuftCount": 1,
+        "longHair": [
           {
-            "region": 7,
-            "center": {
-              "x": 0,
-              "y": 2.5236001,
-              "z": -3.07999992
+            "id": 1011,
+            "seed": 83,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 9,
+              "anchors": [
+                1310729,
+                1310730
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28000021,
+              "start": 0.180000007,
+              "end": 0.980000019,
+              "patchRadius": 0.150000006
             },
-            "halfExtents": {
-              "x": 0.349999994,
-              "y": 0.550000012,
-              "z": 0.449999988
-            },
+            "guideCount": 48,
+            "childrenPerGuide": 20,
             "direction": {
               "x": 0,
               "y": -1,
-              "z": -0.0500000007
+              "z": -0.119999997
             },
-            "normal": {
-              "x": 0,
-              "y": 1,
-              "z": 0
+            "length": 0.414400011,
+            "lengthVariation": 0.270000011,
+            "width": 0.00209999993,
+            "rootSpread": 0.0299999993,
+            "clumping": 0.460000008,
+            "stiffness": 0.600000024,
+            "gravityInfluence": 0.850000024,
+            "density": 1,
+            "rootFullness": 0.600000024,
+            "bend": 0,
+            "wave": 0,
+            "transparency": 0,
+            "verticalBias": 0,
+            "rootColor": {
+              "r": 38,
+              "g": 25,
+              "b": 17,
+              "a": 255
             },
-            "length": 0.389999986,
-            "density": 1.20000005,
-            "width": 0.00400000019,
-            "minNormalDot": -1,
-            "color": {
-              "r": 32,
-              "g": 20,
-              "b": 12,
+            "tipColor": {
+              "r": 25,
+              "g": 17,
+              "b": 14,
               "a": 255
             }
           }
         ],
-        "tuftCount": 2,
-        "longHair": [],
-        "longHairCount": 0,
+        "longHairCount": 1,
         "transition": {
           "from": {
             "baseColor": {
@@ -2661,7 +2719,7 @@
         "archetype": 1,
         "totalScale": 0.800000012,
         "neckLength": 4.6104002,
-        "neckWidth": 0.930000007,
+        "neckWidth": 0.660000026,
         "shoulderWidth": 1.38,
         "thoraxWidth": 1.51999998,
         "thoraxHeight": 2,
@@ -2673,12 +2731,12 @@
         "bodyFlattening": 1,
         "limbAttachmentLateral": 0.779999971,
         "withersHeight": 4.98000002,
-        "cervicalCurvature": 0.639999986,
-        "cervicalDorsalMass": 0.970000029,
-        "cervicalMidNarrowing": 0.810000002,
+        "cervicalCurvature": 0.529999971,
+        "cervicalDorsalMass": 1.52999997,
+        "cervicalMidNarrowing": 0.620000005,
         "dewlapDepth": 0,
         "brisketDepth": 0.0399999991,
-        "withersElevation": 0.0500000007,
+        "withersElevation": 0.0299999993,
         "profile": [
           {
             "longitudinalOffset": 0,
@@ -2719,7 +2777,7 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0.850000024,
-        "cervicalSegments": 6,
+        "cervicalSegments": 7,
         "cervicalPitch": 1.11199999,
         "spineFlexion": 0.159999996
       },
@@ -3176,19 +3234,19 @@
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.959999979,
+          "droop": 0.810000002,
           "archetype": 0,
-          "length": 1.85000002,
-          "baseWidth": 0.140000001,
-          "baseHeight": 0.140000001,
-          "tipWidth": 0.0450000018,
-          "tipHeight": 0.0450000018,
-          "taperCurve": 1.25,
+          "length": 1.94000006,
+          "baseWidth": 0.101999998,
+          "baseHeight": 0.112000003,
+          "tipWidth": 0.0320000015,
+          "tipHeight": 0.0320000015,
+          "taperCurve": 1.41999996,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.25,
+          "rootMatchStrength": 0.100000001,
           "segmentCount": 10,
-          "tipLift": 0
+          "tipLift": -0.180000007
         }
       ],
       "tailCount": 1,
@@ -3759,44 +3817,73 @@
               "b": 16,
               "a": 255
             }
-          },
+          }
+        ],
+        "tuftCount": 1,
+        "longHair": [
           {
-            "region": 7,
-            "center": {
-              "x": 0,
-              "y": 2.5236001,
-              "z": -3.19199991
+            "id": 1011,
+            "seed": 83,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 9,
+              "anchors": [
+                1310729,
+                1310730
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28000021,
+              "start": 0.180000007,
+              "end": 0.980000019,
+              "patchRadius": 0.150000006
             },
-            "halfExtents": {
-              "x": 0.349999994,
-              "y": 0.550000012,
-              "z": 0.449999988
-            },
+            "guideCount": 48,
+            "childrenPerGuide": 20,
             "direction": {
               "x": 0,
               "y": -1,
-              "z": -0.0500000007
+              "z": -0.119999997
             },
-            "normal": {
-              "x": 0,
-              "y": 1,
-              "z": 0
+            "length": 0.476000011,
+            "lengthVariation": 0.270000011,
+            "width": 0.00209999993,
+            "rootSpread": 0.0299999993,
+            "clumping": 0.460000008,
+            "stiffness": 0.600000024,
+            "gravityInfluence": 0.850000024,
+            "density": 1,
+            "rootFullness": 0.600000024,
+            "bend": 0,
+            "wave": 0,
+            "transparency": 0,
+            "verticalBias": 0,
+            "rootColor": {
+              "r": 38,
+              "g": 25,
+              "b": 17,
+              "a": 255
             },
-            "length": 0.600000024,
-            "density": 1.20000005,
-            "width": 0.00400000019,
-            "minNormalDot": -1,
-            "color": {
-              "r": 32,
-              "g": 20,
-              "b": 12,
+            "tipColor": {
+              "r": 25,
+              "g": 17,
+              "b": 14,
               "a": 255
             }
           }
         ],
-        "tuftCount": 2,
-        "longHair": [],
-        "longHairCount": 0,
+        "longHairCount": 1,
         "transition": {
           "from": {
             "baseColor": {
@@ -3893,7 +3980,7 @@
         "archetype": 1,
         "totalScale": 1,
         "neckLength": 5.0999999,
-        "neckWidth": 0.930000007,
+        "neckWidth": 0.660000026,
         "shoulderWidth": 1.38,
         "thoraxWidth": 1.51999998,
         "thoraxHeight": 2,
@@ -3905,12 +3992,12 @@
         "bodyFlattening": 1,
         "limbAttachmentLateral": 0.779999971,
         "withersHeight": 4.98000002,
-        "cervicalCurvature": 0.639999986,
-        "cervicalDorsalMass": 0.970000029,
-        "cervicalMidNarrowing": 0.810000002,
+        "cervicalCurvature": 0.529999971,
+        "cervicalDorsalMass": 1.52999997,
+        "cervicalMidNarrowing": 0.620000005,
         "dewlapDepth": 0,
         "brisketDepth": 0.0399999991,
-        "withersElevation": 0.0500000007,
+        "withersElevation": 0.0299999993,
         "profile": [
           {
             "longitudinalOffset": 0,
@@ -3951,7 +4038,7 @@
         ],
         "contourProfile": 1,
         "withersRoundness": 0.850000024,
-        "cervicalSegments": 6,
+        "cervicalSegments": 7,
         "cervicalPitch": 1.13999999,
         "spineFlexion": 0.159999996
       },
@@ -4408,19 +4495,19 @@
       "limbCount": 4,
       "tails": [
         {
-          "droop": 0.959999979,
+          "droop": 0.810000002,
           "archetype": 0,
-          "length": 1.85000002,
-          "baseWidth": 0.140000001,
-          "baseHeight": 0.140000001,
-          "tipWidth": 0.0450000018,
-          "tipHeight": 0.0450000018,
-          "taperCurve": 1.25,
+          "length": 1.98000002,
+          "baseWidth": 0.101999998,
+          "baseHeight": 0.112000003,
+          "tipWidth": 0.0320000015,
+          "tipHeight": 0.0320000015,
+          "taperCurve": 1.41999996,
           "curvature": 0,
           "development": 1,
-          "rootMatchStrength": 0.25,
+          "rootMatchStrength": 0.100000001,
           "segmentCount": 10,
-          "tipLift": 0
+          "tipLift": -0.180000007
         }
       ],
       "tailCount": 1,
@@ -4991,44 +5078,73 @@
               "b": 16,
               "a": 255
             }
-          },
+          }
+        ],
+        "tuftCount": 1,
+        "longHair": [
           {
-            "region": 7,
-            "center": {
-              "x": 0,
-              "y": 2.5236001,
-              "z": -3.27200007
+            "id": 1011,
+            "seed": 83,
+            "domain": {
+              "kind": 0,
+              "hostModuleId": 20,
+              "region": 9,
+              "anchors": [
+                1310729,
+                1310730
+              ],
+              "anchorCount": 2,
+              "offset": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "normal": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              },
+              "angle": 0,
+              "angularSpread": 6.28000021,
+              "start": 0.180000007,
+              "end": 0.980000019,
+              "patchRadius": 0.150000006
             },
-            "halfExtents": {
-              "x": 0.349999994,
-              "y": 0.550000012,
-              "z": 0.449999988
-            },
+            "guideCount": 48,
+            "childrenPerGuide": 20,
             "direction": {
               "x": 0,
               "y": -1,
-              "z": -0.0500000007
+              "z": -0.119999997
             },
-            "normal": {
-              "x": 0,
-              "y": 1,
-              "z": 0
+            "length": 0.519999981,
+            "lengthVariation": 0.270000011,
+            "width": 0.00209999993,
+            "rootSpread": 0.0299999993,
+            "clumping": 0.460000008,
+            "stiffness": 0.600000024,
+            "gravityInfluence": 0.850000024,
+            "density": 1,
+            "rootFullness": 0.600000024,
+            "bend": 0,
+            "wave": 0,
+            "transparency": 0,
+            "verticalBias": 0,
+            "rootColor": {
+              "r": 38,
+              "g": 25,
+              "b": 17,
+              "a": 255
             },
-            "length": 0.75,
-            "density": 1.20000005,
-            "width": 0.00400000019,
-            "minNormalDot": -1,
-            "color": {
-              "r": 32,
-              "g": 20,
-              "b": 12,
+            "tipColor": {
+              "r": 25,
+              "g": 17,
+              "b": 14,
               "a": 255
             }
           }
         ],
-        "tuftCount": 2,
-        "longHair": [],
-        "longHairCount": 0,
+        "longHairCount": 1,
         "transition": {
           "from": {
             "baseColor": {

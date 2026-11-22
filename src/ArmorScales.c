@@ -277,10 +277,12 @@ static bool CollectPlacements(const Monster* monster, const MonsterSDF* sdf, con
 
         unsigned cRings = 4;
         for (unsigned ri = 0; ri < cRings && count < ARMOR_MAX_SCALES; ++ri) {
-            float zFrac = -0.55f + 0.35f * (float)ri; /* Desde frente post-ocular hasta nuca */
+            float zFrac = -0.28f + 0.37f * (float)ri;
             float zWorld = headPos.z - zFrac * headR * 0.72f;
             float taperScale = 0.72f + 0.34f * ((float)ri / (float)(cRings - 1));
-            int slots = 3 + (ri >= 2 ? 2 : 0);
+            /* La cobertura empieza en la línea media y se abre hacia la nuca,
+             * dejando libre el volumen lateral del cráneo y los pabellones. */
+            int slots = ri < 2 ? 1 : 3;
             for (int si = -slots / 2; si <= slots / 2 && count < ARMOR_MAX_SCALES; ++si) {
                 float ang = ((float)si + ((ri & 1u) ? 0.35f : 0.0f)) * 0.32f;
                 Vector3 radial = Vec3_Normalize(Vec3_Create(sinf(ang), cosf(ang), 0.12f));

@@ -241,14 +241,15 @@ static Vector3 PawPoint(const AttachmentSlot* slot,Vector3 foot,float yaw,
 /* El tejido plantar termina bajo las primeras falanges. Sus tramos de
  * soporte son articulaciones del grafo y no vuelven a dibujar la palma. */
 static bool Palm(const LimbPhenotype* p,uint32_t module,const AttachmentSlot* slot,
-    AnatomyGraph* g,Vector3 foot,float radius,float sole,float yaw) {
+    AnatomyGraph* g,Vector3 foot,float radius,float sole,float yaw,float freeHand) {
     bool hind=p->role==LIMB_HIND;
     float heelHeight=sole*.79f,ballHeight=sole*.92f;
     Vector3 heel=PawPoint(slot,foot,yaw,0,heelHeight-sole,-radius*(hind?.30f:.18f));
-    Vector3 ball=PawPoint(slot,foot,yaw,0,ballHeight-sole,radius*(hind?.67f:.52f));
+    Vector3 ball=PawPoint(slot,foot,yaw,0,ballHeight-sole,
+        radius*Math_Lerp(hind?.67f:.52f, .84f, freeHand));
     unsigned a=LIMB_NODE_PALM_HEEL,b=LIMB_NODE_PALM_BALL;
     if(!Node(g,module,a,heel,radius*(hind?.44f:.53f),heelHeight,p,true) ||
-       !Node(g,module,b,ball,radius*(hind?.93f:.83f),ballHeight,p,true) ||
+       !Node(g,module,b,ball,radius*Math_Lerp(hind?.93f:.83f,.75f,freeHand),ballHeight,p,true) ||
        !Module_Edge(g,module,(uint16_t)a,Anatomy_MakeId(module,LIMB_NODE_AUTOPOD),
                     Anatomy_MakeId(module,a),BODY_CONNECTION_LIMB_SEGMENT,p->development) ||
        !Module_Edge(g,module,(uint16_t)b,Anatomy_MakeId(module,a),
@@ -273,6 +274,8 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     bool compact=p->anatomyProfile==LIMB_PROFILE_COMPACT_UNGULATE;
     if(compact&&!hoof)return false;
     bool hind=p->role==LIMB_HIND;
+    bool hoppingFoot=macropod&&hind;
+    float freeHand=plantigrade&&!hind ? 1.0f-Math_Clamp01(p->webbingCoverage/.30f) : 0.0f;
     float side=p->side==LIMB_RIGHT?-1:1;
     float length=p->length*slot->scale*fmaxf(.01f,p->development);
     float r=p->thickness*slot->scale*fmaxf(.01f,p->development);
@@ -283,11 +286,11 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     upper/=sum; lower/=sum;
     float inset=-side*r*p->attachmentInset;
     float lateral=side*length*p->sprawl*.18f;
-    Vector3 positions[4]={{inset,0,0},
+    Vector3 positions[4]={{inset,0,hoppingFoot?length*.082f:0},
         {inset+lateral,-length*upper,length*((hind?(macropod?.24f:.16f):-.055f)+p->proximalSweep)},
-        {inset+lateral,-length*(macropod&&hind?.90f:(upper+lower)),length*((hind?(macropod?-.16f:-.10f):0)+p->distalSweep)},
-        {inset+lateral,macropod&&hind?(-length+r*.24f*p->footHeightScale):-length,length*(hind?(macropod?.32f*p->footScale:-.075f):.025f)}};
-    float w[]={r*p->rootThicknessScale*(macropod&&hind?1.24f:1.0f),
+        {inset+lateral,-length*(hoppingFoot?Math_Lerp(upper+lower,1.0f,.66f):(upper+lower)),length*((hind?(macropod?-.16f:-.10f):0)+p->distalSweep)},
+        {inset+lateral-side*r*.30f*freeHand,hoppingFoot?(-length+r*.24f*p->footHeightScale):-length,length*(hind?(macropod?.32f*p->footScale:-.075f):.025f)}};
+    float w[]={r*p->rootThicknessScale*(hoppingFoot?1.17f:1.0f),
         r*(macropod&&hind?.68f:.78f)*p->middleThicknessScale,
         r*(macropod&&hind?.38f:.40f)*p->distalThicknessScale,
         r*(macropod&&hind?.50f:1.05f)*p->footScale*p->footWidthScale};
@@ -304,6 +307,7 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     }
     float pawRadius=w[3];
     if(plantigrade)w[3]*=.56f;
+    if(hoppingFoot)w[3]*=.80f;
     if(compact) {
         /* El corvejón conserva una sección sagital firme y la caña
          * se ahúsa hasta el menudillo sin ensancharse entre articulaciones. */
@@ -322,17 +326,17 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             edge->transverseAxis=slot->side;
             float fullness=i==1?r*p->proximalThicknessScale*(hoof?(hind?.15f:.08f):(macropod&&hind?.30f:(hind?.50f:.36f))):i==2?r*(hoof?.035f:(hind?.18f:.12f)):0;
             edge->widthBulge=fullness;
-            edge->heightBulge=fullness*(hind?1.15f:.85f);
+            edge->heightBulge=fullness*(hoppingFoot&&i==1?1.48f:(hind?1.15f:.85f));
             if(compact)edge->jointBlend=1.0f;
             /* El metapodio conserva un tallo estrecho hasta el cojín distal; en macrópodos forma una viga plantar continua. */
-            if (i==3 && !compact) edge->widthBulge=hoof?-r*.04f:(macropod&&hind?r*.04f:-r*.28f*p->footScale);
+            if (i==3 && !compact) edge->widthBulge=hoof?-r*.04f:(hoppingFoot?r*.065f:-r*.28f*p->footScale);
         }
     }
     if (!Module_Edge(g,module,4,slot->hostNode,Anatomy_MakeId(module,1),BODY_CONNECTION_SUPPORT,p->development)) return false;
     if(hoof)return UngulateFoot(p,module,slot,g,positions[3],r,h[3]);
     float footYaw=side*p->footYaw;
-    if(plantigrade && !Palm(p,module,slot,g,positions[3],pawRadius,h[3],footYaw))return false;
-    float rootSpacing=macropod&&hind?.34f:.44f;
+    if(plantigrade && !Palm(p,module,slot,g,positions[3],pawRadius,h[3],footYaw,freeHand))return false;
+    float rootSpacing=hoppingFoot?.42f:.44f;
     if(plantigrade) {
         /* Más dedos comparten la anchura de la palma en lugar de nacer fuera. */
         float halfSpan=fmaxf(1,((float)p->digitCount-1)*.5f);
@@ -341,21 +345,27 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
     for (unsigned d=0;d<p->digitCount;++d) {
         AnatomyId previous=Anatomy_MakeId(module,plantigrade?LIMB_NODE_PALM_BALL:LIMB_NODE_AUTOPOD);
         float offset=((float)d-((float)p->digitCount-1)*.5f);
-        float toeR=pawRadius*.28f*p->digitThicknessScale;
+        /* El pie de tres radios representa II–III (medial), IV y V (lateral). */
+        bool threeRays=hoppingFoot&&p->digitCount==3;
+        const float toeFactors[]={.62f,1.20f,.79f};
+        float toeR=pawRadius*.28f*p->digitThicknessScale*(threeRays?toeFactors[d]:1.0f);
+        float mirror=hoppingFoot?side:1.0f;
         unsigned count=p->digitPhalanges[d]+2;
         for (unsigned j=0;j<count;++j) {
             float t=(float)j/(count-1);
-            float radius=toeR*(1-.25f*t);
-            float x=(offset*rootSpacing+sinf(p->digitAngles[d])*p->digitSpread*t*.5f)*pawRadius;
-            float base=plantigrade?(hind?.62f:.48f):.28f;
-            float z=Math_Lerp(base,.28f+1.35f*p->digitLengths[d],t)*pawRadius;
+            float radius=toeR*(1-Math_Lerp(.25f,.39f,freeHand)*t);
+            float x=mirror*(offset*rootSpacing+sinf(p->digitAngles[d])*p->digitSpread*t*.5f)*pawRadius;
+            float base=plantigrade?(hind?.62f:Math_Lerp(.48f,.87f-.045f*fabsf(offset),freeHand)):.28f;
+            float z=Math_Lerp(base,.28f+.48f*freeHand+1.35f*p->digitLengths[d],t)*pawRadius;
             /* En el pie macrópodo la longitud es independiente del ancho. */
-            if(macropod&&hind) {
+            if(hoppingFoot) {
                 float digitSpan=length*.13f*p->footScale;
+                if (threeRays && d!=1) base-=.24f;
                 z=Math_Lerp(base*pawRadius,.28f*pawRadius+digitSpan*p->digitLengths[d],t);
             }
             /* Cada falange apoya en la misma suela; el carpo/tarso permanece elevado. */
-            Vector3 c=PawPoint(slot,positions[3],footYaw,x,radius-h[3],z);
+            float curl=freeHand*pawRadius*.21f*t*t;
+            Vector3 c=PawPoint(slot,positions[3],footYaw,x,radius-h[3]-curl,z);
             unsigned local=Limb_DigitLocalId(d,j);
             if (!Node(g,module,local,c,radius,radius,p,true) ||
                 !Module_Edge(g,module,(uint16_t)local,previous,Anatomy_MakeId(module,local),
@@ -366,7 +376,7 @@ bool LimbMammal_Resolve(const LimbPhenotype* p,uint32_t module,const AttachmentS
             const AnatomyNode* toe=AnatomyGraph_FindNode(g,previous);
             float radius=toeR*.75f;
             float length=radius*p->clawScale;
-            float yaw=side*p->footYaw+p->digitAngles[d]*.35f;
+            float yaw=side*p->footYaw+mirror*p->digitAngles[d]*.35f;
             Vector3 tip=Vec3_Add(toe->center,Vec3_Add(Vec3_Scale(slot->up,-radius*.30f),
                 Vec3_Add(Vec3_Scale(slot->forward,cosf(yaw)*length),Vec3_Scale(slot->side,sinf(yaw)*length))));
             unsigned local=Limb_DigitLocalId(d,count);

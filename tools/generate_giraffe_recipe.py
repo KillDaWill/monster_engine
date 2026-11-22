@@ -37,7 +37,7 @@ def build_giraffe(base):
     doc = copy.deepcopy(base)
     r = doc["recipe"]
     r.update(id=1011, name="Jirafa", gait=3)
-    # Conservar módulo axial (1), cabeza (2), 4 extremidades (3..6), cola (7) y 2 osiconos (8, 9).
+    # Conservar módulos principales y añadir dos osiconos.
     modules = [m for m in r["bodyPlan"]["modules"] if m["kind"] != 4]
     modules.append(dict(
         instanceId=8, kind=4,
@@ -69,7 +69,7 @@ def build_giraffe(base):
             withersHeight=4.98,
             trunkLength=2.30 + 0.40 * maturity,
             neckLength=5.10 * neck_growth,
-            neckWidth=0.93,
+            neckWidth=0.66,
             shoulderWidth=1.38,
             thoraxWidth=1.52,
             thoraxHeight=2.00,
@@ -78,15 +78,15 @@ def build_giraffe(base):
             pelvicWidth=1.24,
             pelvicHeight=1.38,
             limbAttachmentLateral=0.78,
-            cervicalCurvature=0.64,
-            cervicalDorsalMass=0.97,
-            cervicalMidNarrowing=0.81,
-            withersElevation=0.05,
+            cervicalCurvature=0.53,
+            cervicalDorsalMass=1.53,
+            cervicalMidNarrowing=0.62,
+            withersElevation=0.030,
             withersRoundness=0.85,
             dewlapDepth=0.0,
             brisketDepth=0.04,
             contourProfile=1,
-            cervicalSegments=6,
+            cervicalSegments=7,
             cervicalPitch=1.00 + 0.14 * maturity,
             spineFlexion=0.16,
         )
@@ -206,16 +206,16 @@ def build_giraffe(base):
         # Cola delgada con caída natural y pincel terminal.
         p["tails"][0].update(
             archetype=0,
-            length=1.85,
-            baseWidth=0.14,
-            baseHeight=0.14,
-            tipWidth=0.045,
-            tipHeight=0.045,
-            taperCurve=1.25,
+            length=1.78 + 0.20 * maturity,
+            baseWidth=0.102,
+            baseHeight=0.112,
+            tipWidth=0.032,
+            tipHeight=0.032,
+            taperCurve=1.42,
             curvature=0.0,
-            droop=0.96,
-            tipLift=0.0,
-            rootMatchStrength=0.25,
+            droop=0.81,
+            tipLift=-0.18,
+            rootMatchStrength=0.10,
             segmentCount=10,
             development=1.0,
         )
@@ -328,12 +328,10 @@ def build_giraffe(base):
         surface["furRegions"][1]["lengthMultiplier"] = 0.45
         surface["furRegions"][10]["lengthMultiplier"] = 0.55
 
-        # Crin cervical corta y pincel caudal en reposo.
+        # Crin cervical corta y pincel fijado a las dos últimas estaciones de la cola.
         pec_y = a["withersHeight"] - a["thoraxHeight"] * 0.5 * a["profile"][1]["heightScale"] + a["profile"][1]["verticalOffset"]
         neck_tip_y = pec_y + a["neckLength"] * __import__("math").sin(a["cervicalPitch"])
         neck_tip_z = a["neckLength"] * __import__("math").cos(a["cervicalPitch"])
-        tail_y = a["withersHeight"] - 0.5 * a["pelvicHeight"] + a["profile"][5]["verticalOffset"] + a["pelvicHeight"] * 0.22
-        tail_z = -a["trunkLength"] - a["pelvicWidth"] * 0.30
         surface["tufts"] = [
             tuft(
                 2,
@@ -346,19 +344,25 @@ def build_giraffe(base):
                 cone=0.52,
                 col=(54, 30, 16),
             ),
-            tuft(
-                7,
-                (0.0, tail_y - 1.55, tail_z - 0.20),
-                (0.35, 0.55, 0.45),
-                (0.0, -1.0, -0.05),
-                0.75 * maturity,
-                density=1.2,
-                width=0.004,
-                cone=-1.0,
-                col=(32, 20, 12),
-            ),
         ]
         surface["tuftCount"] = len(surface["tufts"])
+        tail_module = next(m["instanceId"] for m in modules if m["kind"] == 3)
+        last = p["tails"][0]["segmentCount"]
+        surface["longHair"] = [dict(
+            id=1011, seed=83,
+            domain=dict(
+                kind=0, hostModuleId=tail_module, region=9,
+                anchors=[(tail_module << 16) | i for i in (last - 1, last)],
+                anchorCount=2, normal=vector(1, 0, 0), offset=vector(0, 0, 0),
+                angle=0.0, angularSpread=6.28, start=0.18, end=0.98, patchRadius=0.15,
+            ),
+            guideCount=48, childrenPerGuide=20, direction=vector(0, -1, -0.12),
+            length=0.30 + 0.22 * maturity, lengthVariation=0.27, width=0.0021,
+            rootSpread=0.030, rootFullness=0.6, clumping=0.46,
+            stiffness=0.60, gravityInfluence=0.85, density=1.0,
+            rootColor=color(38, 25, 17), tipColor=color(25, 17, 14),
+        )]
+        surface["longHairCount"] = len(surface["longHair"])
         r[stage] = p
     return doc
 

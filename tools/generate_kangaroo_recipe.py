@@ -22,9 +22,9 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     ax["archetype"] = 1  # AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD
     ax["contourProfile"] = 0
     ax["totalScale"] = total_scale
-    ax["trunkLength"] = 0.54
+    ax["trunkLength"] = 0.50
     ax["withersHeight"] = 0.72
-    ax["neckLength"] = 0.17 + 0.03 * dev_app
+    ax["neckLength"] = 0.13 + 0.028 * dev_app
     ax["cervicalCurvature"] = 0.30
     ax["cervicalDorsalMass"] = 0.72
     ax["cervicalMidNarrowing"] = 0.78
@@ -33,26 +33,26 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     ax["dewlapDepth"] = 0.0
     ax["brisketDepth"] = 0.02
     ax["neckWidth"] = 0.16
-    ax["shoulderWidth"] = 0.21
-    ax["thoraxWidth"] = 0.24
-    ax["thoraxHeight"] = 0.28
-    ax["abdomenWidth"] = 0.35
-    ax["abdomenHeight"] = 0.40
-    ax["pelvicWidth"] = 0.39
-    ax["pelvicHeight"] = 0.42
-    ax["limbAttachmentLateral"] = 0.74
+    ax["shoulderWidth"] = 0.205
+    ax["thoraxWidth"] = 0.255
+    ax["thoraxHeight"] = 0.33
+    ax["abdomenWidth"] = 0.34
+    ax["abdomenHeight"] = 0.395
+    ax["pelvicWidth"] = 0.38
+    ax["pelvicHeight"] = 0.395
+    ax["limbAttachmentLateral"] = 0.72
     ax["cervicalSegments"] = 3
-    ax["cervicalPitch"] = 0.52
+    ax["cervicalPitch"] = 0.67
     ax["spineFlexion"] = 0.14
 
     # Estaciones axiales inclinadas hacia arriba de pelvis a tórax (sin hacking de especie)
     profiles = [
-        {"widthScale": 0.94, "heightScale": 0.94, "verticalOffset": 0.24, "longitudinalOffset": 0.02},   # cuello
-        {"widthScale": 0.98, "heightScale": 0.96, "verticalOffset": 0.24, "longitudinalOffset": 0.00},   # pectoral
-        {"widthScale": 1.04, "heightScale": 1.02, "verticalOffset": 0.14, "longitudinalOffset": 0.02},   # tórax ant.
-        {"widthScale": 1.12, "heightScale": 1.08, "verticalOffset": 0.06, "longitudinalOffset": 0.04},   # tórax post.
-        {"widthScale": 1.16, "heightScale": 1.16, "verticalOffset": -0.04, "longitudinalOffset": 0.03},  # abdomen
-        {"widthScale": 1.12, "heightScale": 1.14, "verticalOffset": -0.12, "longitudinalOffset": 0.00},  # pelvis
+        {"widthScale": 0.94, "heightScale": 0.94, "verticalOffset": 0.155, "longitudinalOffset": 0.02},   # cuello
+        {"widthScale": 0.98, "heightScale": 0.96, "verticalOffset": 0.32, "longitudinalOffset": 0.00},   # pectoral
+        {"widthScale": 1.04, "heightScale": 1.02, "verticalOffset": 0.21, "longitudinalOffset": 0.02},   # tórax ant.
+        {"widthScale": 1.22, "heightScale": 1.18, "verticalOffset": 0.09, "longitudinalOffset": 0.015},   # tórax post.
+        {"widthScale": 1.05, "heightScale": 1.07, "verticalOffset": -0.02, "longitudinalOffset": 0.0},  # abdomen
+        {"widthScale": 1.08, "heightScale": 1.06, "verticalOffset": -0.12, "longitudinalOffset": 0.00},  # pelvis
     ]
     for i, prof in enumerate(profiles):
         ax["profile"][i] = prof
@@ -126,14 +126,14 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
         fl["proximalSweep"] = -0.14
         fl["distalSweep"] = 0.28
         fl["sprawl"] = 0.12
-        fl["attachmentInset"] = 0.18
-        fl["rootThicknessScale"] = 1.08
+        fl["attachmentInset"] = 0.40
+        fl["rootThicknessScale"] = 0.96
         fl["middleThicknessScale"] = 0.88
         fl["distalThicknessScale"] = 0.72
         fl["proximalThicknessScale"] = 1.00
         fl["footScale"] = 0.92
-        fl["footWidthScale"] = 0.86
-        fl["footHeightScale"] = 0.72
+        fl["footWidthScale"] = 0.76
+        fl["footHeightScale"] = 0.67
         fl["footYaw"] = 0.05
         fl["digitCount"] = 5
         fl["digitPhalanges"] = [2, 2, 2, 2, 2, 0, 0, 0]
@@ -160,25 +160,25 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
         hl["length"] = 0.455
         hl["thickness"] = 0.088
         hl["proximalScale"] = 1.02
-        hl["middleScale"] = 1.24
+        hl["middleScale"] = 1.28
         hl["distalScale"] = 0.95
-        hl["proximalSweep"] = 0.08
+        hl["proximalSweep"] = 0.13
         hl["distalSweep"] = -0.04
         hl["sprawl"] = 0.14
-        hl["attachmentInset"] = 0.46
-        hl["rootThicknessScale"] = 1.27
+        hl["attachmentInset"] = 0.55
+        hl["rootThicknessScale"] = 1.10
         hl["middleThicknessScale"] = 0.96
-        hl["distalThicknessScale"] = 0.68
-        hl["proximalThicknessScale"] = 0.91
+        hl["distalThicknessScale"] = 0.63
+        hl["proximalThicknessScale"] = 1.06
         hl["footScale"] = 1.72 + 0.17 * dev_app
         hl["footWidthScale"] = 0.57
-        hl["footHeightScale"] = 0.72
+        hl["footHeightScale"] = 0.64
         hl["footYaw"] = 0.02
         hl["digitCount"] = 3
         hl["digitPhalanges"] = [2, 3, 2, 0, 0, 0, 0, 0]
-        hl["digitLengths"] = [0.46, 1.48, 0.74, 0.0, 0.0, 0.0, 0.0, 0.0]
+        hl["digitLengths"] = [0.40, 1.39, 0.79, 0.0, 0.0, 0.0, 0.0, 0.0]
         hl["digitSpread"] = 0.18
-        hl["digitAngles"] = [-0.22, 0.0, 0.20, 0.0, 0.0, 0.0, 0.0, 0.0]
+        hl["digitAngles"] = [-0.22, 0.0, 0.29, 0.0, 0.0, 0.0, 0.0, 0.0]
         hl["digitThicknessScale"] = 0.92
         hl["clawScale"] = 1.20
         hl["nailCount"] = 0
@@ -211,7 +211,8 @@ def configure_stage(stage, head_ref, total_scale, dev_app, dev_ceph, dev_pig, de
     tail["tipHeight"] = 0.021
     tail["taperCurve"] = 0.90
     tail["droop"] = 0.34
-    tail["tipLift"] = 0.36
+    tail["tipLift"] = 0.49
+    tail["rootMatchStrength"] = 0.48
     tail["segmentCount"] = 8
     tail["development"] = 1.0
 

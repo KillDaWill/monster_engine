@@ -381,10 +381,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if (p.muzzleForm == HEAD_MUZZLE_BLUNT) midWidth = Math_Lerp(rootWidth,tipWidth,.30f);
     /* Resolver el marco facial una vez, antes de derivar órbitas, boca y barridos. */
     if(monotreme) {
-        /* Cráneo deprimido hidrodinámico y pico en espátula flexible ancho y suavemente grueso. */
+        /* La bóveda y el pico tienen alturas independientes: el pico nace
+         * bajo el frente del cráneo y conserva una sección aplanada. */
         faceLength = hz * (.48f + 1.05f * p.muzzleLength);
         root = Vec3_Create(0, -skullR.y * .14f, skull.z + skullR.z * .32f);
-        faceDepth = skullR.y * (.53f + .32f * p.rostrumDepth);
+        faceDepth = hy * (.30f + .22f * p.rostrumDepth);
         tip = Vec3_Create(0, root.y - faceDepth * (.14f + .28f * p.rostrumDorsalSlope), root.z + faceLength);
         mid = Vec3_Lerp(root, tip, .52f);
         rootWidth = skullR.x * (.58f + .24f * p.muzzleWidth);
@@ -398,6 +399,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         faceDepth = skullR.y * (.58f + .26f * p.rostrumDepth);
         tip = Vec3_Create(0, root.y - faceLength * (.06f + .12f * p.rostrumDorsalSlope), root.z + faceLength);
         mid = Vec3_Lerp(root, tip, .52f);
+        mid.y += faceDepth * .11f;
         rootWidth = skullR.x * (.74f + .14f * p.muzzleWidth);
         midWidth = rootWidth * (.66f + .12f * (1.0f - p.muzzleTaper));
         tipWidth = rootWidth * (.40f + .14f * p.snoutBluntness);
@@ -1077,7 +1079,7 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->neckCollarContinuity=1.0f;
         r->neckCollarRoot=Vec3_Add(skull,Vec3_Create(0,-skullR.y*.04f,-skullR.z*.36f));
         r->neckCollarRadii=Vec3_Create(skullR.x*.84f,skullR.y*.74f,Math_Min(skullR.x,skullR.y)*.74f);
-        r->craniumRadii.y=skullR.y*.74f;
+        r->craniumRadii.y=skullR.y*.94f;
         r->browRadii=Vec3_Scale(r->browRadii,.25f);
         r->orbitSocketDepth=orbitRadius*.45f;
         r->leftOrbitRimCenter=Vec3_Sub(l->leftOrbit,Vec3_Scale(ln,orbitRadius*.65f));
@@ -1103,14 +1105,14 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->faceRounding=Math_Max(faceDepth*.34f,.015f);
         r->hasCranialProfile=true;
         Vector3 distalCurve=Vec3_Lerp(mid,tip,.70f);
-        Vector3 shieldZone=Vec3_Lerp(root,r->cranialPostorbitalCenter,.35f);
+        Vector3 shieldZone=Vec3_Lerp(root,r->cranialPostorbitalCenter,.22f);
         const Vector3 centers[]={tip,distalCurve,mid,shieldZone,
             r->cranialTemporalCenter,r->cranialOccipitalCenter};
         const float widths[]={tipWidth*.58f,tipWidth*.96f,midWidth,Math_Lerp(rootWidth*.94f,skullR.x*.84f,.45f),
             skullR.x*.88f,skullR.x*.78f};
-        float rootThick=Math_Lerp(faceDepth*.62f,skullR.y*.68f,.45f);
+        float rootThick=Math_Lerp(faceDepth*.70f,skullR.y*.90f,.42f);
         const float thicks[]={faceDepth*.46f,faceDepth*.52f,faceDepth*.59f,rootThick,
-            skullR.y*.72f,skullR.y*.64f};
+            skullR.y*.95f,skullR.y*.73f};
         for(int i=0;i<6;++i) {
             float z=centers[i].z;
             float baseC=i<3?centers[i].y:Math_Lerp(root.y,skull.y,(float)(i-2)/3.0f);
@@ -1144,8 +1146,8 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
             r->cranialTemporalCenter,r->cranialOccipitalCenter};
         const float widths[]={tipWidth*.92f,midWidth,rootWidth,skullR.x*.88f,
             skullR.x*.92f,skullR.x*.74f};
-        const float thicks[]={faceDepth*.44f,faceDepth*.62f,faceDepth*.78f,
-            skullR.y*.82f,skullR.y*.86f,skullR.y*.66f};
+        const float thicks[]={faceDepth*.43f,faceDepth*.59f,faceDepth*.78f,
+            skullR.y*.87f,skullR.y*.95f,skullR.y*.71f};
         for(int i=0;i<6;++i) {
             float z=centers[i].z;
             float baseC=i<3?centers[i].y:Math_Lerp(root.y,skull.y,(float)(i-2)/3.0f);
