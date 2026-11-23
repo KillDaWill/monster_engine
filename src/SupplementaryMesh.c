@@ -507,8 +507,19 @@ static bool BuildAvianTailFan(const Monster* m, BuildTarget* opaque) {
         /* 12 rectrices superpuestas desde la base corta del uropigio (sin tallo largo desnudo). */
         const unsigned nRect = 12u;
         float fanHalf = Math_Clamp(0.08f + fabsf(tail->curvature) * 0.42f, 0.06f, 0.65f);
-        float rectLen = fmaxf(tail->length * s * dev * 2.48f, Vec3_Distance(base->center, tip->center) * 2.60f);
+        float boneLen = Vec3_Distance(base->center, tip->center);
+        float rectLen = fmaxf(tail->length * s * dev * 2.48f, boneLen * 2.60f);
         float rectHalfW = fmaxf(tail->baseWidth * s * 0.46f, rectLen * 0.100f);
+        if (p->axial.archetype != AXIAL_ARCHETYPE_AVIAN) {
+            /* En andamiajes no aviares, normalizar la longitud y anchura del
+             * abanico caudal al tronco y base de la cola para evitar palas gigantes. */
+            float trunkWorld = p->axial.trunkLength * s;
+            rectLen = Math_Clamp(fminf(boneLen * 1.15f, trunkWorld * 0.72f),
+                trunkWorld * 0.18f, trunkWorld * 0.78f);
+            rectHalfW = fminf(fmaxf(base->widthRadius * 0.42f, rectLen * 0.075f),
+                fminf(base->widthRadius * 0.60f, rectLen * 0.12f));
+            fanHalf = Math_Clamp(fanHalf, 0.10f, 0.42f);
+        }
         Vector3 rootOrigin = Vec3_Sub(base->center, Vec3_Scale(axis, base->widthRadius * 0.55f));
 
         for (unsigned i = 0; i < nRect; ++i) {
@@ -842,33 +853,69 @@ static bool BuildArmSuckers(const Monster* m, BuildTarget* opaque) {
         }
         Color webTop = p->surface.pigment.baseColor;
         Color webBot = Color_Lerp(p->surface.pigment.ventralColor, p->surface.pigment.baseColor, 0.40f);
+        /* Membrana interbraquial teselada suavemente con curvatura festoneada
+         * entre raíces y segmento medio de cada par de brazos adyacentes. */
+        enum { WEB_U = 5, WEB_V = 4 };
         for (unsigned k = 0; k < armCount; ++k) {
             unsigned a = order[k], b = order[(k + 1) % armCount];
             Vector3 rA = armRoot[a]->center, rB = armRoot[b]->center;
             Vector3 mA = armMid[a]->center, mB = armMid[b]->center;
-            float thick = 0.5f * (armMid[a]->heightRadius + armMid[b]->heightRadius) * 0.36f;
-            Vector3 midEdge = Vec3_Lerp(Vec3_Lerp(mA, mB, 0.5f), Vec3_Lerp(rA, rB, 0.5f), 0.20f);
-            midEdge.y -= thick * 0.45f;
-            AnatomySkinBinding skA0 = MakeSkin1(armJ0[a]), skB0 = MakeSkin1(armJ0[b]);
-            AnatomySkinBinding skA2 = MakeSkin1(armJ2[a]), skB2 = MakeSkin1(armJ2[b]);
-            AnatomySkinBinding skM = MakeSkin2(armJ2[a], 0.5f, armJ2[b], 0.5f);
-            Vector3 nUp = Vec3_Create(0, 1, 0), nDn = Vec3_Create(0, -1, 0);
-            Vector3 off = Vec3_Create(0, thick, 0);
-            MeshIndex t0, t1, t2, t3, tM, b0, b1, b2, b3, bM;
-            if (!EmitVertex(opaque, Vec3_Add(rA, off), nUp, webTop, SURFACE_REGION_FORELIMB, 0.0f, skA0, &t0) ||
-                !EmitVertex(opaque, Vec3_Add(rB, off), nUp, webTop, SURFACE_REGION_FORELIMB, 0.0f, skB0, &t1) ||
-                !EmitVertex(opaque, Vec3_Add(mB, off), nUp, webTop, SURFACE_REGION_FORELIMB, 0.0f, skB2, &t2) ||
-                !EmitVertex(opaque, Vec3_Add(midEdge, off), nUp, webTop, SURFACE_REGION_FORELIMB, 0.0f, skM, &tM) ||
-                !EmitVertex(opaque, Vec3_Add(mA, off), nUp, webTop, SURFACE_REGION_FORELIMB, 0.0f, skA2, &t3) ||
-                !EmitVertex(opaque, Vec3_Sub(rA, off), nDn, webBot, SURFACE_REGION_FORELIMB, 1.0f, skA0, &b0) ||
-                !EmitVertex(opaque, Vec3_Sub(rB, off), nDn, webBot, SURFACE_REGION_FORELIMB, 1.0f, skB0, &b1) ||
-                !EmitVertex(opaque, Vec3_Sub(mB, off), nDn, webBot, SURFACE_REGION_FORELIMB, 1.0f, skB2, &b2) ||
-                !EmitVertex(opaque, Vec3_Sub(midEdge, off), nDn, webBot, SURFACE_REGION_FORELIMB, 1.0f, skM, &bM) ||
-                !EmitVertex(opaque, Vec3_Sub(mA, off), nDn, webBot, SURFACE_REGION_FORELIMB, 1.0f, skA2, &b3))
-                return false;
-            if (!EmitTri(opaque, t0, t1, tM) || !EmitTri(opaque, t1, t2, tM) || !EmitTri(opaque, t0, tM, t3) ||
-                !EmitTri(opaque, b0, bM, b1) || !EmitTri(opaque, b1, bM, b2) || !EmitTri(opaque, b0, b3, bM))
-                return false;
+            float baseThick = 0.5f * (armMid[a]->heightRadius + armMid[b]->heightRadius) * 0.34f;
+            Vector3 gridP[WEB_V][WEB_U];
+            float gridT[WEB_V][WEB_U];
+            for (unsigned vi = 0; vi < WEB_V; ++vi) {
+                float v = (float)vi / (float)(WEB_V - 1);
+                for (unsigned ui = 0; ui < WEB_U; ++ui) {
+                    float u = (float)ui / (float)(WEB_U - 1);
+                    float arch = sinf(3.14159265f * u);
+                    float vEff = v * (1.0f - 0.22f * arch);
+                    Vector3 pA = Vec3_Lerp(rA, mA, vEff);
+                    Vector3 pB = Vec3_Lerp(rB, mB, vEff);
+                    Vector3 pt = Vec3_Lerp(pA, pB, u);
+                    pt.y -= baseThick * (0.40f * arch * v + 0.12f * v * v);
+                    gridP[vi][ui] = pt;
+                    gridT[vi][ui] = baseThick * (1.0f - 0.52f * v) * (1.0f - 0.18f * arch);
+                }
+            }
+            MeshIndex topIdx[WEB_V][WEB_U], botIdx[WEB_V][WEB_U];
+            for (unsigned vi = 0; vi < WEB_V; ++vi) {
+                float v = (float)vi / (float)(WEB_V - 1);
+                for (unsigned ui = 0; ui < WEB_U; ++ui) {
+                    float u = (float)ui / (float)(WEB_U - 1);
+                    unsigned u0 = ui > 0 ? ui - 1 : 0, u1 = ui + 1 < WEB_U ? ui + 1 : WEB_U - 1;
+                    unsigned v0 = vi > 0 ? vi - 1 : 0, v1 = vi + 1 < WEB_V ? vi + 1 : WEB_V - 1;
+                    Vector3 dU = Vec3_Sub(gridP[vi][u1], gridP[vi][u0]);
+                    Vector3 dV = Vec3_Sub(gridP[v1][ui], gridP[v0][ui]);
+                    Vector3 n = Vec3_Cross(dV, dU);
+                    if (Vec3_LengthSq(n) < 1e-10f) n = Vec3_Create(0, 1, 0);
+                    else n = Vec3_Normalize(n);
+                    if (n.y < 0.0f) n = Vec3_Scale(n, -1.0f);
+                    Vector3 off = Vec3_Scale(n, gridT[vi][ui]);
+                    int jA = v < 0.45f ? armJ0[a] : armJ2[a];
+                    int jB = v < 0.45f ? armJ0[b] : armJ2[b];
+                    AnatomySkinBinding sk = MakeSkin2(jA, 1.0f - u, jB, u);
+                    if (!EmitVertex(opaque, Vec3_Add(gridP[vi][ui], off), n, webTop,
+                            SURFACE_REGION_FORELIMB, 0.0f, sk, &topIdx[vi][ui]) ||
+                        !EmitVertex(opaque, Vec3_Sub(gridP[vi][ui], off), Vec3_Scale(n, -1.0f), webBot,
+                            SURFACE_REGION_FORELIMB, 1.0f, sk, &botIdx[vi][ui]))
+                        return false;
+                }
+            }
+            for (unsigned vi = 0; vi + 1 < WEB_V; ++vi) {
+                for (unsigned ui = 0; ui + 1 < WEB_U; ++ui) {
+                    if (!EmitTri(opaque, topIdx[vi][ui], topIdx[vi][ui + 1], topIdx[vi + 1][ui + 1]) ||
+                        !EmitTri(opaque, topIdx[vi][ui], topIdx[vi + 1][ui + 1], topIdx[vi + 1][ui]) ||
+                        !EmitTri(opaque, botIdx[vi][ui], botIdx[vi + 1][ui + 1], botIdx[vi][ui + 1]) ||
+                        !EmitTri(opaque, botIdx[vi][ui], botIdx[vi + 1][ui], botIdx[vi + 1][ui + 1]))
+                        return false;
+                }
+            }
+            /* Cierre del borde libre distal entre ambos brazos. */
+            for (unsigned ui = 0; ui + 1 < WEB_U; ++ui) {
+                if (!EmitTri(opaque, topIdx[WEB_V - 1][ui], topIdx[WEB_V - 1][ui + 1], botIdx[WEB_V - 1][ui + 1]) ||
+                    !EmitTri(opaque, topIdx[WEB_V - 1][ui], botIdx[WEB_V - 1][ui + 1], botIdx[WEB_V - 1][ui]))
+                    return false;
+            }
         }
     }
     return true;

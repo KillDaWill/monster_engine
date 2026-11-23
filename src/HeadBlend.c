@@ -547,6 +547,13 @@ static void RegionalEars(const HeadAnatomy *a, const HeadAnatomy *b,
         Math_Lerp(sa->earShape.x/earScaleA,sb->earShape.x/earScaleB,g->earWidth)*g->earWidthGain*earScale*fold,
         Math_Lerp(sa->earShape.y/earScaleA,sb->earShape.y/earScaleB,g->earHeight)*g->earHeightGain*earScale*fold,
         ear->earShape.z/sourceScale*g->earThicknessGain*earScale);
+    /* Preservar espesor y anchura mínimos para evitar pabellones en aguja o colapsados. */
+    bool broadPinna = ear->earDirection.y < -0.20f && ear->earShape.x > 4.0f * fmaxf(ear->earShape.z, 1e-4f);
+    if (!broadPinna) {
+        s->earShape.x = fmaxf(s->earShape.x, s->earShape.y * 0.24f);
+        s->earShape.y = fminf(s->earShape.y, s->craniumRadii.y * 2.20f);
+    }
+    s->earShape.z = fmaxf(s->earShape.z, fmaxf(earScale * 0.022f, fminf(s->earShape.x, s->earShape.y) * 0.032f));
 #define COPY(field) s->field = ear->field
     COPY(earConcavity); COPY(earTipFraction); COPY(earRootRoll); COPY(earTipRoundness);
     COPY(earRootFlare); COPY(earMarginBow); COPY(earMarginAsymmetry);
@@ -561,16 +568,35 @@ static void RegionalEars(const HeadAnatomy *a, const HeadAnatomy *b,
         radial.y/s->craniumRadii.y,radial.z/s->craniumRadii.z));
     float tall = Math_Clamp01((s->earShape.y/s->craniumRadii.y-1.8f)*.40f);
     float mismatch = fabsf(g->ear-g->cranium);
-    float inset = tall*mismatch*.12f;
+    float inset = broadPinna ? fminf(tall*mismatch*.04f, .04f) : tall*mismatch*.12f;
     float seat = .96f-inset;
     if (distance>seat) root=Vec3_Add(s->craniumCenter,Vec3_Scale(radial,seat/distance));
+    if (broadPinna && root.x < s->craniumRadii.x * 0.72f)
+        root.x = s->craniumRadii.x * 0.72f;
     s->earRootFlare = Math_Clamp01(s->earRootFlare+inset);
+    /* Transformar orientación de la pinna al marco anatómico local del cráneo receptor. */
+    Vector3 aspectRatio = Vec3_Create(
+        s->craniumRadii.x / fmaxf(ear->craniumRadii.x, 1e-4f),
+        s->craniumRadii.y / fmaxf(ear->craniumRadii.y, 1e-4f),
+        s->craniumRadii.z / fmaxf(ear->craniumRadii.z, 1e-4f));
+    float meanAspect = cbrtf(aspectRatio.x * aspectRatio.y * aspectRatio.z);
+    Vector3 normAspect = Vec3_Scale(aspectRatio, 1.0f / fmaxf(meanAspect, 1e-4f));
+    Vector3 invAspect = Vec3_Create(1.0f / fmaxf(normAspect.x, 0.25f),
+        1.0f / fmaxf(normAspect.y, 0.25f), 1.0f / fmaxf(normAspect.z, 0.25f));
+    Vector3 localUp = Vec3_Normalize(Vec3_Create(
+        ear->earDirection.x * normAspect.x,
+        ear->earDirection.y * normAspect.y,
+        ear->earDirection.z * normAspect.z));
+    Vector3 localNormal = Vec3_Normalize(Vec3_Create(
+        ear->leftEarNormal.x * invAspect.x,
+        ear->leftEarNormal.y * invAspect.y,
+        ear->leftEarNormal.z * invAspect.z));
     /* Se conserva el asiento local de la pinna; la inserción acompaña la bóveda. */
     out->landmarks.leftEarBase = root;
     out->landmarks.rightEarBase = Mirror(root);
     Quaternion angle = Quat_FromAxisAngle(Vec3_Create(0,0,1),g->earAngle);
-    Vector3 up = Quat_RotateVector(angle,ear->earDirection);
-    Vector3 normal = Quat_RotateVector(angle,ear->leftEarNormal);
+    Vector3 up = Quat_RotateVector(angle,localUp);
+    Vector3 normal = Quat_RotateVector(angle,localNormal);
     HeadSurfaceRecipe_SetEarPose(s,false,root,up,normal);
     HeadSurfaceRecipe_SetEarPose(s,true,Mirror(root),Mirror(up),Mirror(normal));
 }
@@ -734,15 +760,75 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     s->equineNasalRoof = face.surface.equineNasalRoof;
     s->equineNasalRoof.z += s->faceMid.z-face.surface.faceMid.z;
     s->equineCrestRadii = face.surface.equineCrestRadii;
-    s->beakWeight = face.surface.beakWeight;
-    s->beakBase = FacialPoint(face.surface.beakBase,&face.surface,s);
-    s->beakMid = FacialPoint(face.surface.beakMid,&face.surface,s);
-    s->beakTip = FacialPoint(face.surface.beakTip,&face.surface,s);
-    s->beakLowerTip = FacialPoint(face.surface.beakLowerTip,&face.surface,s);
-    s->beakBaseRadii = face.surface.beakBaseRadii;
-    s->beakShape = face.surface.beakShape;
-    s->beakTipShape = face.surface.beakTipShape;
-    s->beakLowerRadii = face.surface.beakLowerRadii;
+    /* Herencia coherente del pico aviar: evita picos intermedios colapsados
+     * o estirados en hocicos cilíndricos al cruzar con especies no aviares. */
+    bool beakA = a->surface.beakWeight > 0.5f;
+    bool beakB = b->surface.beakWeight > 0.5f;
+    bool inheritBeak = (beakA && beakB) ||
+        (beakA && !beakB && face.surface.beakWeight >= 0.5f) ||
+        (!beakA && beakB && face.surface.beakWeight >= 0.5f);
+    if (inheritBeak) {
+        const HeadAnatomy *bkH = (beakA && beakB) ? &face : (beakA ? a : b);
+        const HeadSurfaceRecipe *bk = &bkH->surface;
+        float sx = s->craniumRadii.x / fmaxf(bk->craniumRadii.x, 1e-4f);
+        float sy = s->craniumRadii.y / fmaxf(bk->craniumRadii.y, 1e-4f);
+        float sz = s->craniumRadii.z / fmaxf(bk->craniumRadii.z, 1e-4f);
+        float beakLenGain = Math_Clamp(g->muzzleLengthGain, 0.78f, 1.32f);
+        Vector3 bBase = RelativeToSkull(bk->beakBase, bk, s);
+        Vector3 bMid = RelativeToSkull(bk->beakMid, bk, s);
+        Vector3 bTip = RelativeToSkull(bk->beakTip, bk, s);
+        Vector3 bLow = RelativeToSkull(bk->beakLowerTip, bk, s);
+        bMid.z = bBase.z + (bMid.z - bBase.z) * beakLenGain;
+        bTip.z = bBase.z + (bTip.z - bBase.z) * beakLenGain;
+        bLow.z = bBase.z + (bLow.z - bBase.z) * beakLenGain;
+        /* Garantizar una longitud mínima y máxima relativa al cráneo. */
+        float culmen = bTip.z - bBase.z;
+        float minCulmen = s->craniumRadii.z * 0.42f;
+        float maxCulmen = s->craniumRadii.z * 1.85f;
+        if (culmen < minCulmen || culmen > maxCulmen) {
+            float fix = Math_Clamp(culmen, minCulmen, maxCulmen) / fmaxf(culmen, 1e-4f);
+            bMid.z = bBase.z + (bMid.z - bBase.z) * fix;
+            bTip.z = bBase.z + (bTip.z - bBase.z) * fix;
+            bLow.z = bBase.z + (bLow.z - bBase.z) * fix;
+        }
+        s->beakWeight = 1.0f;
+        s->isBeak = true;
+        s->beakBase = bBase;
+        s->beakMid = bMid;
+        s->beakTip = bTip;
+        s->beakLowerTip = bLow;
+        s->beakBaseRadii = Vec3_Create(bk->beakBaseRadii.x * sx, bk->beakBaseRadii.y * sy, bk->beakBaseRadii.z);
+        s->beakShape = bk->beakShape;
+        s->beakTipShape = Vec3_Create(bk->beakTipShape.x * sx, bk->beakTipShape.y * sy, bk->beakTipShape.z);
+        s->beakLowerRadii = Vec3_Create(bk->beakLowerRadii.x * sx, bk->beakLowerRadii.y * sy, bk->beakLowerRadii.z * sx);
+        /* Mantener las estaciones rostrales del cráneo contenidas en la base
+         * del pico para que un hocico donante no sobresalga sobre el pico. */
+        Vector3 bkC[6], bkR[6];
+        Morph_HeadCranialStations(bk, bkC, bkR);
+        for (size_t i = 0; i < 3; ++i) {
+            s->cranialCenters[i] = RelativeToSkull(bkC[i], bk, s);
+            s->cranialRadii[i] = Vec3_Create(bkR[i].x * sx, bkR[i].y * sy, bkR[i].z * sz);
+        }
+        for (size_t i = 5; i > 0; --i)
+            s->cranialCenters[i-1].z = fmaxf(s->cranialCenters[i-1].z, s->cranialCenters[i].z + gap);
+        s->faceRoot = bBase; s->faceRootRadii = Vec3_Create(s->beakBaseRadii.x, s->beakBaseRadii.y, s->beakBaseRadii.x * 0.35f);
+        s->faceMid = bMid; s->faceMidRadii = Vec3_Create(Math_Lerp(s->beakBaseRadii.x, s->beakTipShape.x, 0.46f),
+            Math_Lerp(s->beakBaseRadii.y, s->beakTipShape.y, 0.44f), s->beakBaseRadii.x * 0.25f);
+        s->faceTip = bTip; s->faceTipRadii = Vec3_Create(s->beakTipShape.x, s->beakTipShape.y, fminf(s->beakTipShape.x, s->beakTipShape.y));
+        l->muzzleRoot = bBase;
+        l->muzzleTip = bTip;
+    } else {
+        s->beakWeight = 0.0f;
+        s->isBeak = false;
+        s->beakBase = FacialPoint(face.surface.beakBase,&face.surface,s);
+        s->beakMid = FacialPoint(face.surface.beakMid,&face.surface,s);
+        s->beakTip = FacialPoint(face.surface.beakTip,&face.surface,s);
+        s->beakLowerTip = FacialPoint(face.surface.beakLowerTip,&face.surface,s);
+        s->beakBaseRadii = face.surface.beakBaseRadii;
+        s->beakShape = face.surface.beakShape;
+        s->beakTipShape = face.surface.beakTipShape;
+        s->beakLowerRadii = face.surface.beakLowerRadii;
+    }
 
 #define SKULL(field, sample) s->field = RelativeToSkull(sample.surface.field,&sample.surface,s)
     SKULL(leftTemporalCenter,cheek); SKULL(rightTemporalCenter,cheek);
@@ -787,7 +873,23 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
 #undef SKULL
     l->leftOrbit = RelativeToSkull(orbit.landmarks.leftOrbit,&orbit.surface,s);
     Vector3 orbitalNormal=Vec3_Normalize(orbit.landmarks.leftOrbitNormal);
-    Vector3 seat=OrbitSeat(s,l->leftOrbit,orbitalNormal,orbit.eyeScale.x*g->eyeSizeGain);
+    float orbitSkullScale = cbrtf(
+        (s->craniumRadii.x / fmaxf(orbit.surface.craniumRadii.x, 1e-4f)) *
+        (s->craniumRadii.y / fmaxf(orbit.surface.craniumRadii.y, 1e-4f)) *
+        (s->craniumRadii.z / fmaxf(orbit.surface.craniumRadii.z, 1e-4f)));
+    float eyeFactor = g->eyeSizeGain * Math_Clamp(orbitSkullScale, 0.55f, 1.80f);
+    Vector3 scaledEye = Vec3_Scale(orbit.eyeScale, eyeFactor);
+    /* Acotar el globo ocular respecto al cráneo receptor para evitar ojos
+     * esféricos desproporcionados o flotantes al cruzar artrópodos con reptiles. */
+    float maxEyeRatio = (out->archetype == HEAD_ARCHETYPE_ARTHROPOD) ? 0.85f : 0.52f;
+    float maxEyeR = fminf(s->craniumRadii.x, s->craniumRadii.y) * maxEyeRatio;
+    float curEyeR = fmaxf(scaledEye.x, fmaxf(scaledEye.y, scaledEye.z));
+    if (curEyeR > maxEyeR && curEyeR > 1e-4f) {
+        float shrink = maxEyeR / curEyeR;
+        scaledEye = Vec3_Scale(scaledEye, shrink);
+        eyeFactor *= shrink;
+    }
+    Vector3 seat=OrbitSeat(s,l->leftOrbit,orbitalNormal,scaledEye.x);
     Vector3 shift=Vec3_Sub(seat,l->leftOrbit);
     l->leftOrbit=seat;
     s->leftOrbitRimCenter=Vec3_Add(s->leftOrbitRimCenter,shift);
@@ -798,16 +900,16 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     s->leftOrbitCenter = l->leftOrbit; s->rightOrbitCenter = l->rightOrbit;
     l->leftOrbitNormal = s->leftOrbitNormal = orbitalNormal;
     l->rightOrbitNormal = s->rightOrbitNormal = Mirror(l->leftOrbitNormal);
-    out->eyeScale = Vec3_Scale(orbit.eyeScale,g->eyeSizeGain);
+    out->eyeScale = scaledEye;
     float exposure = Vec3_Dot(Vec3_Sub(orbit.landmarks.leftEyeCenter,orbit.landmarks.leftOrbit),
         l->leftOrbitNormal);
     l->leftEyeCenter = Vec3_Add(l->leftOrbit,Vec3_Scale(l->leftOrbitNormal,
         Math_Clamp(exposure,out->eyeScale.x*.025f,out->eyeScale.x*.18f)));
     l->rightEyeCenter = Mirror(l->leftEyeCenter);
-    s->orbitRadii = Vec3_Scale(orbit.surface.orbitRadii,g->eyeSizeGain);
-    s->orbitRimRadii = Vec3_Scale(orbit.surface.orbitRimRadii,g->eyeSizeGain);
+    s->orbitRadii = Vec3_Scale(orbit.surface.orbitRadii,eyeFactor);
+    s->orbitRimRadii = Vec3_Scale(orbit.surface.orbitRimRadii,eyeFactor);
     s->browRadii = orbit.surface.browRadii;
-    s->orbitSocketDepth = orbit.surface.orbitSocketDepth*g->eyeSizeGain;
+    s->orbitSocketDepth = orbit.surface.orbitSocketDepth*eyeFactor;
     s->eyelidCoverage = orbit.surface.eyelidCoverage;
     s->eyelidProfile = orbit.surface.eyelidProfile;
     l->leftTympanum = RelativeToSkull(orbit.landmarks.leftTympanum,&orbit.surface,s);
@@ -896,7 +998,22 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     s->faceCapWeight = Math_Lerp(s->faceCapWeight,1,s->nasalDiscWeight);
     s->faceCapDepth = Math_Lerp(s->faceCapDepth,s->cranialRadii[0].y*.40f,s->nasalDiscWeight);
     s->nasalColor = nose.surface.nasalColor;
-    s->hasNasalPad = nose.surface.hasNasalPad;
+    s->hasNasalPad = s->beakWeight >= 0.5f ? false : nose.surface.hasNasalPad;
+    if (s->beakWeight >= 0.5f) {
+        l->muzzleRoot = s->beakBase;
+        l->muzzleTip = s->beakTip;
+        l->noseTip = s->beakTip;
+        l->upperBeakAnchor = s->beakBase;
+        l->lowerBeakAnchor = Vec3_Create(0.0f, s->beakBase.y - s->beakBaseRadii.y * 0.34f,
+            s->beakBase.z - s->beakBaseRadii.x * 0.20f);
+        s->nasalDiscWeight = 0.0f;
+        s->equineSculptWeight = 0.0f;
+        if (s->mandibularCenters[0].z > s->beakLowerTip.z) {
+            float maxZ = s->beakLowerTip.z;
+            for (size_t i = 0; i < 3; ++i)
+                if (s->mandibularCenters[i].z > maxZ) s->mandibularCenters[i].z = maxZ - gap * (float)i;
+        }
+    }
     if (s->hasNasalPad && s->noseRadii.x>0 && s->noseRadii.y>0 && s->noseRadii.z>0) {
         /* Una trufa corta puede proceder de un perfil más alto que el nuevo
          * hocico. Se asienta sobre la sección distal, con sus narinas. */

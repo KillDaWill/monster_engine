@@ -17,7 +17,8 @@
     X(rightMaxillaryCenter) X(leftBrowCenter) X(rightBrowCenter) X(leftOrbitCenter) \
     X(rightOrbitCenter) X(leftOrbitRimCenter) X(rightOrbitRimCenter) X(noseCenter) \
     X(leftNostrilCenter) X(rightNostrilCenter) X(leftTympanumCenter) X(rightTympanumCenter) \
-    X(leftEarCenter) X(rightEarCenter) X(equineNasalRoot) X(equineNasalTip)
+    X(leftEarCenter) X(rightEarCenter) X(equineNasalRoot) X(equineNasalTip) \
+    X(beakBase) X(beakMid) X(beakTip) X(beakLowerTip)
 #define SURFACE_RADII(X) \
     X(craniumRadii) X(neckCollarRadii) X(faceRootRadii) X(faceMidRadii) X(faceTipRadii) \
     X(cheekRadii) X(temporalRadii) X(maxillaryRadii) X(browRadii) X(orbitRadii) \
@@ -84,6 +85,15 @@ void HeadAnatomy_ScaleProfile(HeadAnatomy *head, Vector3 scale)
     s->equineCrestStart.z *= scale.z;
     s->equineCrestEnd.y *= scale.y;
     s->equineCrestEnd.z *= scale.z;
+    /* beakBaseRadii.z (fracción de cera), beakShape.* y beakTipShape.z (quilla)
+     * son controles adimensionales; beakLowerRadii.z es el semiancho distal. */
+    s->beakBaseRadii.x *= scale.x;
+    s->beakBaseRadii.y *= scale.y;
+    s->beakTipShape.x *= scale.x;
+    s->beakTipShape.y *= scale.y;
+    s->beakLowerRadii.x *= scale.x;
+    s->beakLowerRadii.y *= scale.y;
+    s->beakLowerRadii.z *= scale.x;
     s->oralArch *= scale.y;
     s->oralSlope *= scale.y/scale.z;
     s->unionSmoothness *= mean;
@@ -189,6 +199,7 @@ void HeadAnatomy_EditProfile(HeadAnatomy *head, const HeadPhenotype *p, const He
         FACE(faceMid); FACE(faceTip); FACE(noseCenter); FACE(leftNostrilCenter); FACE(rightNostrilCenter);
         FACE(leftMaxillaryCenter); FACE(rightMaxillaryCenter);
         FACE(equineNasalRoot); FACE(equineNasalTip); FACE(equineNasalRoof); FACE(equineCrestStart); FACE(equineCrestEnd);
+        FACE(beakBase); FACE(beakMid); FACE(beakTip); FACE(beakLowerTip);
 #undef FACE
 #define LANDMARK(field) STRETCH(l->field.z)
         LANDMARK(muzzleRoot); LANDMARK(muzzleTip); LANDMARK(noseTip); LANDMARK(leftNostril); LANDMARK(rightNostril);

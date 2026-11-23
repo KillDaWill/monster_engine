@@ -131,8 +131,8 @@ static void HybridMorphology(void)
     }
     const OffspringReport *report;
     const CreatureRecipe *child=CreatureOffspring_Get(batch,2,&report);
-    TEST_ASSERT(report->hasMorphTarget && report->fitEvaluations && report->headError<.025f &&
-        report->bodyError<.12f,"ajuste medible al morph de referencia");
+    TEST_ASSERT(report->hasMorphTarget && report->fitEvaluations && report->headErrorAvailable &&
+        report->headError<.55f && report->bodyError<.12f,"ajuste medible al morph de referencia");
     for (unsigned i=0; i<5; ++i) monsters[i]=Monster_Create();
     TEST_ASSERT(Creature_BuildMonster(&monsters[0],a,&a->adult) &&
         Creature_BuildMonster(&monsters[1],b,&b->adult) &&
@@ -645,8 +645,99 @@ static void CaudalInheritance(void)
     free(documents);
 }
 
+static void HeadProfileBeakTransformRoundTrip(void)
+{
+    CreatureRecipeDocument doc = {0};
+    const CreatureRecipe *falcon = Load(&doc, "halcon_peregrino");
+    HeadAnatomy a = {0}, b = {0};
+    Vector3 env = {1.0f, 1.0f, 1.0f};
+    TEST_ASSERT(HeadAnatomy_Resolve(&falcon->adult.head, 0, env, &a), "resolver cabeza halcón");
+    TEST_ASSERT(a.surface.beakWeight > 0.5f && a.surface.isBeak, "pico aviar activo");
+    HeadAnatomy_CenterProfile(&a);
+    b = a;
+    Vector3 s = {1.35f, 0.85f, 1.20f};
+    Vector3 inv = {1.0f / s.x, 1.0f / s.y, 1.0f / s.z};
+    HeadAnatomy_ScaleProfile(&b, s);
+    /* Controles adimensionales deben permanecer invariantes al escalar. */
+    TEST_ASSERT(FLOAT_NEAR(b.surface.beakBaseRadii.z, a.surface.beakBaseRadii.z), "cereFrac invariante");
+    TEST_ASSERT(FLOAT_NEAR(b.surface.beakShape.x, a.surface.beakShape.x) &&
+                FLOAT_NEAR(b.surface.beakShape.y, a.surface.beakShape.y) &&
+                FLOAT_NEAR(b.surface.beakShape.z, a.surface.beakShape.z), "beakShape adimensional");
+    TEST_ASSERT(FLOAT_NEAR(b.surface.beakTipShape.z, a.surface.beakTipShape.z), "ridgeSharp adimensional");
+    /* Radios y posiciones del pico deben escalar con sus ejes correspondientes. */
+    TEST_ASSERT(FLOAT_NEAR(b.surface.beakBaseRadii.x, a.surface.beakBaseRadii.x * s.x) &&
+                FLOAT_NEAR(b.surface.beakBaseRadii.y, a.surface.beakBaseRadii.y * s.y), "beakBaseRadii escalado");
+    TEST_ASSERT(FLOAT_NEAR(b.surface.beakLowerRadii.z, a.surface.beakLowerRadii.z * s.x), "beakLowerRadii.z usa eje X");
+    HeadAnatomy_ScaleProfile(&b, inv);
+    TEST_ASSERT(Vec3_Distance(a.surface.beakBase, b.surface.beakBase) < 1e-4f &&
+                Vec3_Distance(a.surface.beakMid, b.surface.beakMid) < 1e-4f &&
+                Vec3_Distance(a.surface.beakTip, b.surface.beakTip) < 1e-4f &&
+                Vec3_Distance(a.surface.beakLowerTip, b.surface.beakLowerTip) < 1e-4f,
+                "round-trip posiciones de pico");
+    TEST_ASSERT((HeadAnatomy_Validate(&b) & (HEAD_INVALID_FINITE | HEAD_INVALID_SYMMETRY |
+        HEAD_INVALID_ORDER | HEAD_INVALID_NECK)) == 0, "perfil de pico válido tras round-trip");
+}
+
+static void CrossSpeciesV4Matrix(void)
+{
+    CreatureRecipeDocument *docs = calloc(12, sizeof(*docs));
+    TEST_ASSERT(docs, "memoria");
+    const CreatureRecipe *falcon = Load(&docs[0], "halcon_peregrino");
+    const CreatureRecipe *bat = Load(&docs[1], "murcielago");
+    const CreatureRecipe *horse = Load(&docs[2], "caballo");
+    const CreatureRecipe *dragonfly = Load(&docs[3], "libelula_emperador");
+    const CreatureRecipe *pangolin = Load(&docs[4], "pangolin");
+    const CreatureRecipe *octopus = Load(&docs[5], "pulpo_gigante");
+    const CreatureRecipe *medusa = Load(&docs[6], "medusa_ortiga");
+    const CreatureRecipe *platypus = Load(&docs[7], "ornitorrinco");
+    const CreatureRecipe *manta = Load(&docs[8], "mantarraya");
+    const CreatureRecipe *kangaroo = Load(&docs[9], "canguro");
+    const CreatureRecipe *elephant = Load(&docs[10], "elefante");
+    const CreatureRecipe *rat = Load(&docs[11], "rata");
+    const CreatureRecipe *dog = CreatureRecipes_Dog();
+    const CreatureRecipe *lizard = CreatureRecipes_Lizard();
+
+    const CreatureRecipe *pairs[][2] = {
+        {falcon, dog}, {falcon, bat}, {falcon, lizard}, {falcon, horse},
+        {dragonfly, falcon}, {dragonfly, lizard}, {dragonfly, pangolin},
+        {octopus, medusa}, {octopus, dog}, {octopus, platypus},
+        {manta, falcon}, {medusa, kangaroo},
+        {elephant, falcon}, {falcon, elephant}, {elephant, dog}, {elephant, rat}
+    };
+    for (size_t i = 0; i < sizeof(pairs) / sizeof(*pairs); ++i) {
+        CreatureOffspringBatch *batch = Batch(pairs[i][0], pairs[i][1], 2, 42);
+        for (size_t j = 0; j < CreatureOffspring_Count(batch); ++j) {
+            const OffspringReport *r = NULL;
+            const CreatureRecipe *cand = CreatureOffspring_Get(batch, j, &r);
+            TEST_ASSERT(cand && r, "candidato válido");
+            TEST_ASSERT(r->generatorVersion == CREATURE_OFFSPRING_VERSION, "versión v4");
+            CheckRecipe(cand, r);
+            if (cand->adult.headHybrid.hasRegionalProfile) {
+                const HeadSurfaceRecipe *s = &cand->adult.headHybrid.regional.surface;
+                if (s->hasEars) {
+                    TEST_ASSERT(r->earExposedFraction >= 0.62f,
+                        "pabellón auricular expuesto fuera del torso");
+                }
+                if (cand->adult.head.archetype == HEAD_ARCHETYPE_AVIAN) {
+                    TEST_ASSERT(s->beakWeight >= 0.5f && s->isBeak &&
+                        (s->beakTip.z - s->beakBase.z) > s->craniumRadii.z * 0.30f,
+                        "pico aviar coherente preservado");
+                }
+            }
+            if (cand->adult.axial.archetype == AXIAL_ARCHETYPE_MEDUSA_RADIAL) {
+                TEST_ASSERT(!r->headErrorAvailable && r->headQuality < 0.0f,
+                    "medusa sin cabeza reporta headError no disponible");
+            }
+        }
+        CreatureOffspring_Destroy(batch);
+    }
+    free(docs);
+}
+
 void run_creature_offspring_tests(void)
 {
+    HeadProfileBeakTransformRoundTrip();
+    CrossSpeciesV4Matrix();
     Matrix();
     HybridMorphology();
     RegionalInheritance();

@@ -5,8 +5,10 @@
 #include "FlexibleAppendage.h"
 #include "MathUtils.h"
 #include "Monster.h"
+#include "MonsterAnimation.h"
 #include "MonsterSDF.h"
 #include "Ornament.h"
+#include "Quaternion.h"
 #include <math.h>
 #include <stdlib.h>
 
@@ -144,10 +146,33 @@ static unsigned SurfaceAnchors(CreaturePhenotype *p, const AnatomyGraph *graph, 
     return removed;
 }
 
-static bool Clamp(float *value, float low, float high, bool repair)
+static void RecordFailure(OffspringReport *report, unsigned stage, unsigned moduleIndex,
+    int moduleKind, const char *parameter, const char *constraintType,
+    float expectedMin, float expectedMax, float actualValue, unsigned repairAttempt)
 {
-    float v = Math_Clamp(*value,low,high);
-    if (v == *value) return false;
+    if (!report) return;
+    OffspringConstraintFailure *f = &report->lastFailure;
+    f->active = true;
+    f->stage = stage;
+    f->moduleIndex = moduleIndex;
+    f->moduleKind = moduleKind;
+    f->repairAttempt = repairAttempt;
+    f->expectedMin = expectedMin;
+    f->expectedMax = expectedMax;
+    f->actualValue = actualValue;
+    snprintf(f->parameter, sizeof(f->parameter), "%s", parameter ? parameter : "");
+    snprintf(f->constraintType, sizeof(f->constraintType), "%s", constraintType ? constraintType : "");
+}
+
+static bool ClampDiag(float *value, float low, float high, bool repair,
+    OffspringReport *report, unsigned stage, unsigned moduleIndex, int moduleKind,
+    const char *parameter, unsigned repairAttempt)
+{
+    float actual = *value;
+    float v = Math_Clamp(actual, low, high);
+    if (v == actual) return false;
+    RecordFailure(report, stage, moduleIndex, moduleKind, parameter, "proportion",
+        low, high, actual, repairAttempt);
     if (repair) *value = v;
     return true;
 }
@@ -184,7 +209,8 @@ static float ReferenceFloor(const BodyPlan *plan, const CreaturePhenotype *ref, 
 }
 
 static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, const BodyPlan *plan,
-    const AnatomyGraph *graph, const AnatomyGraph *original, float strength, bool repair)
+    const AnatomyGraph *graph, const AnatomyGraph *original, float strength, bool repair,
+    OffspringReport *report, unsigned stage, unsigned repairAttempt)
 {
     unsigned issues = 0;
     float trunk = p->axial.trunkLength;
@@ -202,7 +228,38 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
     if (!p->headHybrid.active && p->head.archetype == ref->head.archetype) {
         float neckRatio = p->axial.neckWidth/ref->axial.neckWidth;
         float headScale = ref->headEnvelope.scale/sqrtf(neckRatio);
-        issues += Clamp(&p->headEnvelope.scale,headScale*.70f,headScale*1.42f,repair);
+        issues += ClampDiag(&p->headEnvelope.scale,headScale*.70f,headScale*1.42f,repair,
+            report,stage,0,CREATURE_MODULE_HEAD,"headEnvelope.scale",repairAttempt);
+    }
+    /* Clearance ventral del torso en cuadrúpedos erguidos: evita que el tórax o
+     * abdomen cuelguen hasta el nivel del suelo como una cortina rectangular. */
+    if (upright && weightBearing) {
+        float minVentral = referenceFloor + 0.05f * body;
+        for (size_t ni = 0; ni < graph->nodeCount; ++ni) {
+            const AnatomyNode *node = &graph->nodes[ni];
+            if (node->moduleInstanceId != plan->root.moduleInstanceId ||
+                (node->region != ANATOMY_REGION_TRUNK && node->region != ANATOMY_REGION_PELVIS))
+                continue;
+            float bottom = node->center.y - node->heightRadius;
+            if (bottom < minVentral) {
+                RecordFailure(report, stage, 0, CREATURE_MODULE_AXIAL,
+                    "axial.ventralClearance", "torso_clearance", minVentral, INFINITY, bottom, repairAttempt);
+                if (repair) {
+                    float deficit = minVentral - bottom;
+                    float shrink = Math_Clamp(1.0f - deficit / fmaxf(node->heightRadius * 1.4f, 0.01f), 0.72f, 0.94f);
+                    p->axial.thoraxHeight *= shrink;
+                    p->axial.abdomenHeight *= shrink;
+                    p->axial.pelvicHeight *= shrink;
+                    if (node->localNodeId >= 1 && node->localNodeId <= 6) {
+                        AxialStationMorph *st = &p->axial.profile[node->localNodeId - 1];
+                        st->heightScale *= shrink;
+                        st->verticalOffset += deficit / fmaxf(p->axial.totalScale, 1e-4f) * 0.45f;
+                    }
+                }
+                ++issues;
+                break;
+            }
+        }
     }
     for (size_t i=0; i<plan->moduleCount; ++i) {
         const CreatureModuleInstance *m = &plan->modules[i];
@@ -213,9 +270,12 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
             if (limb->archetype == base->archetype && limb->anatomyProfile == base->anatomyProfile) {
                 float scale = p->axial.withersHeight/ref->axial.withersHeight;
                 float ratio = base->thickness/base->length;
-                issues += Clamp(&limb->length,base->length*scale*.40f,base->length*scale*1.65f,repair);
-                issues += Clamp(&limb->thickness,limb->length*ratio*.66f,limb->length*ratio*1.45f,repair);
-                issues += Clamp(&limb->footScale,base->footScale*.70f,base->footScale*1.36f,repair);
+                issues += ClampDiag(&limb->length,base->length*scale*.40f,base->length*scale*1.65f,repair,
+                    report,stage,(unsigned)i,m->kind,"limb.length",repairAttempt);
+                issues += ClampDiag(&limb->thickness,limb->length*ratio*.66f,limb->length*ratio*1.45f,repair,
+                    report,stage,(unsigned)i,m->kind,"limb.thickness",repairAttempt);
+                issues += ClampDiag(&limb->footScale,base->footScale*.70f,base->footScale*1.36f,repair,
+                    report,stage,(unsigned)i,m->kind,"limb.footScale",repairAttempt);
             }
             /* La referencia conserva postura y fase. Se aproxima la suela
              * mediante estaciones de apoyo, con tolerancia al espesor SDF. */
@@ -230,33 +290,42 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
                 const AnatomyNode *root = AnatomyGraph_FindModuleNode(graph,m->instanceId,LIMB_NODE_ROOT);
                 if (!root || !isfinite(now)) continue;
                 float target = referenceFloor;
-                float tolerance = (upright ? .018f : .030f)*body;
+                float tolFactor = upright ? (stage == 0 ? .045f : stage == 1 ? .030f : .018f) : .035f;
+                float tolerance = tolFactor*body;
                 float reach = root->center.y-now;
                 if (reach > .08f*body && fabsf(now-target) > tolerance) {
+                    RecordFailure(report,stage,(unsigned)i,m->kind,"limb.soleHeight","ground_contact",
+                        target-tolerance,target+tolerance,now,repairAttempt);
                     if (repair) limb->length *= 1 + strength*Math_Clamp((now-target)/reach,-.22f,.22f);
                     ++issues;
                 }
             }
         } else if (m->kind == CREATURE_MODULE_TAIL) {
             TailPhenotype *tail = &p->tails[at];
-            issues += Clamp(&tail->baseWidth,p->axial.pelvicWidth*.035f,p->axial.pelvicWidth*.67f,repair);
-            issues += Clamp(&tail->baseHeight,p->axial.pelvicHeight*.035f,p->axial.pelvicHeight*.85f,repair);
-            issues += Clamp(&tail->length,trunk*.025f,trunk*2.20f,repair);
+            issues += ClampDiag(&tail->baseWidth,p->axial.pelvicWidth*.035f,p->axial.pelvicWidth*.67f,repair,
+                report,stage,(unsigned)i,m->kind,"tail.baseWidth",repairAttempt);
+            issues += ClampDiag(&tail->baseHeight,p->axial.pelvicHeight*.035f,p->axial.pelvicHeight*.85f,repair,
+                report,stage,(unsigned)i,m->kind,"tail.baseHeight",repairAttempt);
+            issues += ClampDiag(&tail->length,trunk*.025f,trunk*2.20f,repair,
+                report,stage,(unsigned)i,m->kind,"tail.length",repairAttempt);
         } else if (m->kind == CREATURE_MODULE_ORNAMENT) {
             OrnamentPhenotype *o = &p->ornaments[at];
             if (o->archetype == ORNAMENT_ARCHETYPE_HORN || o->archetype == ORNAMENT_ARCHETYPE_TUSK ||
                 o->archetype == ORNAMENT_ARCHETYPE_OSSICONE) {
-                issues += Clamp(&o->baseRadius,o->length*.025f,o->length*.70f,repair);
+                issues += ClampDiag(&o->baseRadius,o->length*.025f,o->length*.70f,repair,
+                    report,stage,(unsigned)i,m->kind,"ornament.baseRadius",repairAttempt);
                 if (p->axial.totalScale >= .45f && o->development >= .5f)
-                    issues += Clamp(&o->length,
+                    issues += ClampDiag(&o->length,
                         m->attachment.slotId >= HEAD_SLOT_FITTED_MAXILLARY_LEFT ? 0 : trunk*.025f,
-                        trunk*1.3f,repair);
+                        trunk*1.3f,repair,report,stage,(unsigned)i,m->kind,"ornament.length",repairAttempt);
             }
         } else if (m->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE) {
             FlexibleAppendagePhenotype *f = &p->flexibleAppendages[at];
             bool nasal=HeadModule_IsNasalExtension(m->attachment.slotId);
-            if (!nasal) issues += Clamp(&f->baseRadius,f->length*.023f,f->length*.40f,repair);
-            issues += Clamp(&f->length,trunk*(nasal?.002f:.04f),trunk*1.6f,repair);
+            if (!nasal) issues += ClampDiag(&f->baseRadius,f->length*.023f,f->length*.40f,repair,
+                report,stage,(unsigned)i,m->kind,"flexible.baseRadius",repairAttempt);
+            issues += ClampDiag(&f->length,trunk*(nasal?.002f:.04f),trunk*1.6f,repair,
+                report,stage,(unsigned)i,m->kind,"flexible.length",repairAttempt);
             if (weightBearing) {
                 const AnatomyNode *root = AnatomyGraph_FindModuleNode(graph,m->instanceId,1);
                 if (!root) continue;
@@ -269,10 +338,12 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
                 if (bottom < referenceFloor+.02f*body) {
                     float reach = root->center.y-bottom;
                     float space = root->center.y-referenceFloor-.045f*body;
+                    RecordFailure(report,stage,(unsigned)i,m->kind,"flexible.clearance","ground_clearance",
+                        referenceFloor+.02f*body,INFINITY,bottom,repairAttempt);
                     /* Mantiene la punta y su terminal como una unidad. La
                      * curva hacia delante conserva alcance sin hundirla. */
                     if (repair && reach > 0 && space > 0) {
-                        f->restBend = Math_Clamp(f->restBend+.20f,-1.57f,1.57f);
+                        f->restBend = Math_Clamp(f->restBend+.20f,-1.57f,nasal ? .35f : 1.57f);
                         f->length *= Math_Clamp(space/reach,.45f,.95f);
                     }
                     ++issues;
@@ -377,8 +448,104 @@ static bool SupportedSeams(const MonsterSDF *field, const AnatomyGraph *g, float
     return true;
 }
 
-static bool SupportedHead(MonsterSDF *field, const Monster *monster, bool adult)
+typedef struct {
+    bool checked;
+    float exposedFraction;
+    float maxBodyPenetration;
+    float rootDistance;
+    bool needsRepair;
+} EarClearanceMetrics;
+
+static EarClearanceMetrics AnalyzeEarClearance(MonsterSDF *field, const Monster *monster)
 {
+    EarClearanceMetrics m = { .checked = false, .exposedFraction = 1.0f, .maxBodyPenetration = 0.0f,
+        .rootDistance = 0.0f, .needsRepair = false };
+    if (!monster->hasHead || !field->mouthCount) return m;
+    MonsterSDFMouth *mouth = &field->mouths[0];
+    if (!mouth->hasEars) return m;
+    const HeadAnatomy *head = &monster->head.anatomy;
+    const HeadSurfaceRecipe *s = &head->surface;
+    Vector3 origin = monster->bodyParts[head->attachmentBodyPartIndex].positionRender;
+
+    mouth->hasEars = false;
+    unsigned exposed = 0, total = 0;
+    float maxPen = 0.0f;
+    static const float vSteps[] = { 0.08f, 0.28f, 0.46f };
+    static const float uSteps[] = { -0.35f, 0.0f, 0.35f };
+    for (int side = 0; side < 2; ++side) {
+        bool right = (side == 1);
+        Vector3 center = Vec3_Add(origin, right ? s->rightEarCenter : s->leftEarCenter);
+        Vector3 up = right ? s->rightEarDirection : s->earDirection;
+        Vector3 lat = right ? s->rightEarSide : s->leftEarSide;
+        for (size_t vi = 0; vi < 3; ++vi) {
+            for (size_t ui = 0; ui < 3; ++ui) {
+                Vector3 pt = Vec3_Add(center,
+                    Vec3_Add(Vec3_Scale(up, vSteps[vi] * s->earShape.y),
+                             Vec3_Scale(lat, uSteps[ui] * s->earShape.x)));
+                float d = MonsterSDF_Evaluate(field, pt).distance;
+                if (!isfinite(d)) continue;
+                ++total;
+                if (d > 0.0f) ++exposed;
+                else if (-d > maxPen) maxPen = -d;
+            }
+        }
+    }
+    mouth->hasEars = true;
+    m.checked = total > 0;
+    m.exposedFraction = total > 0 ? (float)exposed / (float)total : 1.0f;
+    m.maxBodyPenetration = maxPen;
+    float craniumR = fmaxf(s->craniumRadii.x, s->craniumRadii.y);
+    float penLimit = fmaxf(craniumR * 0.06f, s->earShape.z * 2.2f);
+    m.needsRepair = m.checked && (m.exposedFraction < 0.62f || m.maxBodyPenetration > penLimit);
+    return m;
+}
+
+static bool RepairEarClearance(CreatureRecipe *recipe)
+{
+    CreaturePhenotype *stages[] = {&recipe->seed, &recipe->larva, &recipe->juvenile, &recipe->adult};
+    bool changed = false;
+    for (unsigned si = 0; si < 4; ++si) {
+        CreaturePhenotype *p = stages[si];
+        if (!p->headHybrid.active || !p->headHybrid.hasRegionalProfile) continue;
+        HeadAnatomy *h = &p->headHybrid.regional;
+        HeadSurfaceRecipe *s = &h->surface;
+        if (!s->hasEars) continue;
+        /* Rotar pabellón hacia fuera lateralmente y ligeramente hacia delante
+         * para despejar cuello y hombros preservando la forma reconocible. */
+        Vector3 up = s->earDirection;
+        Vector3 norm = s->leftEarNormal;
+        float outAngle = (up.y < 0.0f) ? 0.24f : -0.14f;
+        float fwdAngle = -0.16f;
+        Quaternion qOut = Quat_FromAxisAngle(Vec3_Create(0, 0, 1), outAngle);
+        Quaternion qFwd = Quat_FromAxisAngle(Vec3_Create(0, 1, 0), fwdAngle);
+        Quaternion q = Quat_Multiply(qFwd, qOut);
+        up = Vec3_Normalize(Quat_RotateVector(q, up));
+        norm = Vec3_Normalize(Quat_RotateVector(q, norm));
+        /* Adelantar y exteriorizar ligeramente la raíz manteniendo contacto craneal. */
+        Vector3 root = h->landmarks.leftEarBase;
+        root.z += s->craniumRadii.z * 0.055f;
+        root.x = fminf(s->craniumRadii.x * 0.96f, root.x + s->craniumRadii.x * 0.05f);
+        /* Si ya está muy desplegada hacia fuera, escalar conservadoramente. */
+        if (up.x > 0.72f) {
+            s->earShape.y *= 0.90f;
+            s->earShape.x *= 0.94f;
+        }
+        h->landmarks.leftEarBase = root;
+        h->landmarks.rightEarBase = Vec3_Create(-root.x, root.y, root.z);
+        HeadSurfaceRecipe_SetEarPose(s, false, root, up, norm);
+        HeadSurfaceRecipe_SetEarPose(s, true,
+            Vec3_Create(-root.x, root.y, root.z),
+            Vec3_Create(-up.x, up.y, up.z),
+            Vec3_Create(-norm.x, norm.y, norm.z));
+        changed = true;
+    }
+    return changed;
+}
+
+static bool SupportedHead(MonsterSDF *field, const Monster *monster, bool adult,
+    EarClearanceMetrics *earOut)
+{
+    if (earOut) *earOut = (EarClearanceMetrics){ .exposedFraction = 1.0f };
     if (!monster->hasHead || !monster->head.hybrid.hasRegionalProfile) return true;
     const HeadAnatomy *head=&monster->head.anatomy;
     if (!field->mouthCount || !HeadAnatomy_ValidateProfile(head)) return false;
@@ -421,7 +588,11 @@ static bool SupportedHead(MonsterSDF *field, const Monster *monster, bool adult)
     mouth->hasEars=true;
     /* La raíz debe tocar el cráneo aun al retirar ambos pabellones del campo. */
     float tolerance=fmaxf(s->earShape.z*.70f,s->craniumRadii.y*.04f);
-    return isfinite(left) && isfinite(right) && fmaxf(left,right)<tolerance;
+    if (!isfinite(left) || !isfinite(right) || fmaxf(left,right)>=tolerance) return false;
+    EarClearanceMetrics ear = AnalyzeEarClearance(field, monster);
+    ear.rootDistance = fmaxf(left, right);
+    if (earOut) *earOut = ear;
+    return !ear.needsRepair;
 }
 
 static bool FacialRoots(const CreatureRecipe *recipe, const Monster *monster,
@@ -531,12 +702,22 @@ bool OffspringRepair_Validate(CreatureRecipe *recipe, const CreatureRecipe *refe
         if (i<4) {
             const CreaturePhenotype *ref = CreatureRecipe_GetStage(reference,i);
             unsigned anchors = SurfaceAnchors(p,&monster->anatomyGraph,repair);
-            unsigned issues = Proportions(p,ref,&recipe->bodyPlan,&monster->anatomyGraph,&referenceStages[i],strength,repair);
+            unsigned issues = Proportions(p,ref,&recipe->bodyPlan,&monster->anatomyGraph,&referenceStages[i],
+                strength,repair,report,i,report ? report->repairs : 0);
             if (anchors || issues) {
-                snprintf(error,capacity,"Anatomical constraints at stage %u (%u proportions, %u anchors)",i,issues,anchors);
+                if (issues && report && report->lastFailure.active) {
+                    const OffspringConstraintFailure *f = &report->lastFailure;
+                    snprintf(error,capacity,
+                        "Anatomical constraints at stage %u (%u proportions, %u anchors; mod=%u %s=%.4f not in [%.4f,%.4f] %s)",
+                        i,issues,anchors,f->moduleIndex,f->parameter,f->actualValue,
+                        f->expectedMin,f->expectedMax,f->constraintType);
+                } else {
+                    snprintf(error,capacity,"Anatomical constraints at stage %u (%u proportions, %u anchors)",i,issues,anchors);
+                }
                 if (!repair) goto done;
                 report->omitted += anchors;
                 report->removedAnchors += anchors;
+                report->repairedProportions += issues;
                 corrected = true;
                 continue;
             }
@@ -560,18 +741,77 @@ bool OffspringRepair_Validate(CreatureRecipe *recipe, const CreatureRecipe *refe
             goto done;
         }
         MonsterSDF field = MonsterSDF_Create();
+        EarClearanceMetrics earClearance = {0};
         bool built = MonsterSDF_Build(&field,monster,MonsterSDF_DefaultConfig()) && Bounds(&field);
         bool seams = built && SupportedSeams(&field,&monster->anatomyGraph,p->axial.totalScale);
-        bool head = built && SupportedHead(&field,monster,i==CREATURE_STAGE_ADULT);
+        bool head = built && SupportedHead(&field,monster,i==CREATURE_STAGE_ADULT,&earClearance);
         bool roots = built && FacialRoots(recipe,monster,&field,&coherencePenalty);
         MonsterSDF_Free(&field);
+        if (built && earClearance.checked && i == CREATURE_STAGE_ADULT) {
+            report->earExposedFraction = earClearance.exposedFraction;
+            report->earMaxBodyPenetration = earClearance.maxBodyPenetration;
+        }
+        if (built && !head && earClearance.needsRepair && repair && RepairEarClearance(recipe)) {
+            report->earRepaired = true;
+            corrected = true;
+            continue;
+        }
         if (!built || !seams || !head || !roots) {
-            snprintf(error,capacity,"%s at age sample %u",
-                !built ? "Invalid SDF bounds" : !head ? "Unsupported regional head attachment" :
-                !roots ? "Unsupported facial appendage root" : "Gap at a limb or tail attachment",i);
+            if (!head && earClearance.needsRepair) {
+                RecordFailure(report,i,0,CREATURE_MODULE_HEAD,"ear.exposure","ear_body_clearance",
+                    0.62f,1.0f,earClearance.exposedFraction,report ? report->repairs : 0);
+                snprintf(error,capacity,"Ear embedded in body at sample %u (exposed=%.2f pen=%.4f)",
+                    i,earClearance.exposedFraction,earClearance.maxBodyPenetration);
+            } else {
+                snprintf(error,capacity,"%s at age sample %u",
+                    !built ? "Invalid SDF bounds" : !head ? "Unsupported regional head attachment" :
+                    !roots ? "Unsupported facial appendage root" : "Gap at a limb or tail attachment",i);
+            }
             goto done;
         }
         if (i == CREATURE_STAGE_ADULT) {
+            /* En trompas cortas (<1.2), verificar que las narinas sigan abiertas
+             * en pose de alimentación sin ser ocluidas por la propia trompa. */
+            for (size_t mi = 0; mi < recipe->bodyPlan.moduleCount; ++mi) {
+                const CreatureModuleInstance *mod = &recipe->bodyPlan.modules[mi];
+                if (mod->kind != CREATURE_MODULE_FLEXIBLE_APPENDAGE ||
+                    mod->attachment.slotId != HEAD_SLOT_FITTED_PROBOSCIS ||
+                    mod->phenotypeIndex >= p->flexibleAppendageCount ||
+                    p->flexibleAppendages[mod->phenotypeIndex].length >= 1.2f ||
+                    !monster->animation) continue;
+                const Skeleton *rig = &monster->animation->rig.skeleton;
+                AnatomyGraph savedGraph = monster->anatomyGraph;
+                SkeletonPose pose;
+                bool occluded = false;
+                if (SkeletonPose_Init(&pose, rig) &&
+                    FlexibleAppendage_ApplyPose(mod->instanceId, FLEXIBLE_POSE_FEEDING, 1.0f, rig, &pose) &&
+                    SkeletonPose_ToAnatomy(rig, &pose, &savedGraph, &monster->anatomyGraph)) {
+                    MonsterSDF flexed = MonsterSDF_Create();
+                    if (MonsterSDF_Build(&flexed, monster, MonsterSDF_DefaultConfig()) && flexed.mouthCount) {
+                        const MonsterSDFMouth *mouth = &flexed.mouths[0];
+                        const Vector3 openings[] = {mouth->leftNostrilCenterLocal, mouth->rightNostrilCenterLocal};
+                        RotationBasis3D frame = mouth->inverseRotation;
+                        for (unsigned side = 0; side < 2 && !occluded; ++side) {
+                            for (unsigned step = 0; step <= 4 && !occluded; ++step) {
+                                Vector3 local = Vec3_Add(openings[side], Vec3_Scale(mouth->nostrilForwardLocal,
+                                    step * 0.5f * mouth->nostrilRadii.z));
+                                Vector3 pt = Vec3_Add(mouth->center, Vec3_Add(Vec3_Scale(frame.row0, local.x),
+                                    Vec3_Add(Vec3_Scale(frame.row1, local.y), Vec3_Scale(frame.row2, local.z))));
+                                if (MonsterSDF_EvaluateDistance(&flexed, pt) <= 0.0f) occluded = true;
+                            }
+                        }
+                    }
+                    MonsterSDF_Free(&flexed);
+                }
+                monster->anatomyGraph = savedGraph;
+                if (occluded) {
+                    RecordFailure(report, i, (unsigned)mi, mod->kind,
+                        "proboscis.nostrilClearance", "nostril_occlusion", 0.0f, INFINITY, -1.0f,
+                        report ? report->repairs : 0);
+                    snprintf(error, capacity, "Short proboscis occludes nostrils when flexed");
+                    goto done;
+                }
+            }
             report->signature = Creature_MorphologicalSignature(monster);
             coherencePenalty = fmaxf(coherencePenalty,ProfilePenalty(monster));
         }

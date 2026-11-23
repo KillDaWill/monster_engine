@@ -45,6 +45,8 @@ struct CreatureOffspringBatch {
     AnatomyGraph anatomy[2][4];
     Monster adults[2];
     HeadAnatomy heads[2][4];
+    OffspringDescriptor parentDescriptors[2];
+    bool hasParentDescriptors[2];
     AABB3D headFrame;
     Candidate *candidates[CREATURE_OFFSPRING_MAX];
 };
@@ -306,7 +308,7 @@ static OffspringGenome Genome(const CreatureOffspringBatch *batch, size_t index,
     g.orientation = .16f*intensity*Variation(&mutation);
     g.coverage = MUTATE(.15f);
     h->nasalExtension = SAMPLE(Math_Lerp(.5f,h->nose,.24f),1.05f,head);
-    g.graft = attempt%4 < 2;
+    g.graft = attempt%4 < 3;
 #undef MUTATE
 #undef SAMPLE
     return g;
@@ -517,6 +519,17 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
                         owner->adult.tails[tail->phenotypeIndex].archetype;
                 }
             }
+            /* Evitar transferir crines o melenas mamíferas sobre cuerpos no mamíferos
+             * (p. ej. crin de caballo sobre un halcón o lagarto). */
+            if (valid && (p->axial.archetype == AXIAL_ARCHETYPE_AVIAN ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_MEDUSA_RADIAL ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_ARTHROPOD ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_DISC_RAY)) {
+                if (oldHost && (oldHost->kind == CREATURE_MODULE_HEAD || oldHost->kind == CREATURE_MODULE_AXIAL))
+                    valid = false;
+            }
             for (size_t j=0; j<d->anchorCount; ++j) {
                 d->anchors[j] = MapNode(batch,plan,sources,parent,d->anchors[j]);
                 valid &= d->anchors[j] != 0;
@@ -539,6 +552,26 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
         Color color=Palette(RegionColor(&input[0],i),RegionColor(&input[1],i),weights[i],g);
         color.a=255;
         surface->regionalAlbedo[i]=color;
+    }
+    /* Suavizar la transición cromática cabeza-cuello-tronco para evitar
+     * un corte recto tipo collar entre un rostro oscuro y un torso claro. */
+    {
+        Color headC = surface->regionalAlbedo[SURFACE_REGION_HEAD];
+        Color trunkC = surface->regionalAlbedo[SURFACE_REGION_DORSAL_TRUNK];
+        float dr = ((float)headC.r - (float)trunkC.r) / 255.0f;
+        float dg = ((float)headC.g - (float)trunkC.g) / 255.0f;
+        float db = ((float)headC.b - (float)trunkC.b) / 255.0f;
+        float diff = sqrtf(dr * dr + dg * dg + db * db);
+        surface->regionalAlbedo[SURFACE_REGION_NECK] = Color_Lerp(headC, trunkC, 0.50f);
+        surface->regionalAlbedo[SURFACE_REGION_NECK].a = 255;
+        if (diff > 0.35f) {
+            float pull = Math_Clamp01((diff - 0.35f) * 0.65f) * 0.35f;
+            surface->regionalAlbedo[SURFACE_REGION_HEAD] = Color_Lerp(headC, trunkC, pull);
+            surface->regionalAlbedo[SURFACE_REGION_HEAD].a = 255;
+            surface->regionalAlbedo[SURFACE_REGION_NECK] = Color_Lerp(
+                surface->regionalAlbedo[SURFACE_REGION_HEAD], trunkC, 0.55f);
+            surface->regionalAlbedo[SURFACE_REGION_NECK].a = 255;
+        }
     }
     surface->transition.from.ventralColor=surface->transition.to.ventralColor=surface->pigment.ventralColor;
     const IntegumentPhenotype *ia = &input[0].integument, *ib = &input[1].integument;
@@ -601,6 +634,13 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
     p->unpigmentedVentralColor = Palette(a->unpigmentedVentralColor,b->unpigmentedVentralColor,r->ventral,g);
 }
 
+static bool AxialArchetypesCompatible(AxialArchetype a, AxialArchetype b)
+{
+    if (a == b) return true;
+    return (a == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD && b == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD) ||
+           (a == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD && b == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD);
+}
+
 static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const CreaturePhenotype *b,
     const OffspringGenome *g)
 {
@@ -608,16 +648,23 @@ static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const Creatu
     const AxialPhenotype *base = r->scaffoldParent ? &b->axial : &a->axial;
     const AxialPhenotype *other = r->scaffoldParent ? &a->axial : &b->axial;
     float w = r->scaffoldParent ? 1-r->body : r->body;
-    bool compatible = base->archetype == other->archetype;
-    float proportion = compatible ? w : .76f*w;
-    float ratio = base->trunkLength / other->trunkLength;
+    bool sameArch = base->archetype == other->archetype;
+    bool homologous = AxialArchetypesCompatible(base->archetype, other->archetype);
+    float proportion = sameArch ? w : homologous ? .76f*w : .32f*w;
+    float ratio = base->trunkLength / fmaxf(other->trunkLength, 1e-4f);
     p->axial = *base;
     p->axial.totalScale = expf(Math_Lerp(logf(a->axial.totalScale),logf(b->axial.totalScale),r->global))*r->size;
     float length = Math_Lerp(base->trunkLength,other->trunkLength,proportion);
+    if (!homologous)
+        length = Math_Clamp(length, base->trunkLength * 0.80f, base->trunkLength * 1.24f);
     p->axial.trunkLength = length;
-#define LOCAL(weight) ((r->scaffoldParent ? 1-(weight) : (weight))*(compatible ? 1 : .76f))
-#define PROPORTION(field, weight) p->axial.field = Math_Lerp(base->field,other->field*ratio, \
-    LOCAL(weight))*length/base->trunkLength
+#define LOCAL(weight) ((r->scaffoldParent ? 1-(weight) : (weight))*(sameArch ? 1 : homologous ? .76f : .28f))
+#define PROPORTION(field, weight) do { \
+    float _v = Math_Lerp(base->field,other->field*ratio,LOCAL(weight))*length/base->trunkLength; \
+    if (!homologous) _v = Math_Clamp(_v, base->field*0.78f*length/base->trunkLength, \
+        base->field*1.26f*length/base->trunkLength); \
+    p->axial.field = _v; \
+} while (0)
     PROPORTION(neckLength,r->neck); PROPORTION(neckWidth,r->neck);
     PROPORTION(shoulderWidth,r->shoulder); PROPORTION(thoraxWidth,r->thorax);
     PROPORTION(abdomenWidth,r->abdomen); PROPORTION(pelvicWidth,r->pelvis);
@@ -626,35 +673,44 @@ static void Axial(CreaturePhenotype *p, const CreaturePhenotype *a, const Creatu
     p->axial.abdomenWidth *= g->build;
     p->axial.pelvicWidth *= g->build;
     p->axial.shoulderWidth *= g->build;
-    if (compatible && base->archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD)
+    if (sameArch && base->archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD)
         p->axial.withersHeight = Math_Lerp(base->withersHeight,other->withersHeight,w);
-    if (!compatible) {
-        /* Conserva la cadena locomotora y ajusta en conjunto la altura
-         * de apoyo y la longitud del torso en el marco del plan elegido. */
-        float baseStance = base->withersHeight/base->trunkLength;
-        float peerStance = other->withersHeight/other->trunkLength;
-        float stance = Math_Lerp(baseStance,peerStance,.34f*w);
-        p->axial.withersHeight = Math_Clamp(stance*length,
-            base->withersHeight*.86f,base->withersHeight*1.14f);
+    if (!sameArch) {
+        if (homologous) {
+            /* Conserva la cadena locomotora y ajusta en conjunto la altura
+             * de apoyo y la longitud del torso en el marco del plan elegido. */
+            float baseStance = base->withersHeight/base->trunkLength;
+            float peerStance = other->withersHeight/other->trunkLength;
+            float stance = Math_Lerp(baseStance,peerStance,.34f*w);
+            p->axial.withersHeight = Math_Clamp(stance*length,
+                base->withersHeight*.86f,base->withersHeight*1.14f);
+        } else {
+            p->axial.withersHeight = base->withersHeight * Math_Clamp(length / base->trunkLength, 0.90f, 1.12f);
+        }
     }
     p->axial.withersHeight *= g->stance;
-    float heightRatio = base->withersHeight/other->withersHeight;
-    float newHeightRatio = p->axial.withersHeight/base->withersHeight;
+    float heightRatio = base->withersHeight/fmaxf(other->withersHeight, 1e-4f);
+    float newHeightRatio = p->axial.withersHeight/fmaxf(base->withersHeight, 1e-4f);
     /* Las alturas de sección se expresan respecto a la cruz del descendiente.
-     * Usar la del plan base puede enterrar las patas en un torso más bajo. */
-#define HEIGHT(field,weight) p->axial.field = Math_Lerp(base->field,other->field*heightRatio, \
-    LOCAL(weight))*newHeightRatio
+     * Entre planes incompatibles se acotan para evitar cortinas torácicas o jorobas. */
+#define HEIGHT(field,weight) do { \
+    float _h = Math_Lerp(base->field,other->field*heightRatio,LOCAL(weight))*newHeightRatio; \
+    if (!homologous) _h = Math_Clamp(_h, base->field*0.84f*newHeightRatio, base->field*1.16f*newHeightRatio); \
+    p->axial.field = _h; \
+} while (0)
     HEIGHT(thoraxHeight,r->thorax); HEIGHT(abdomenHeight,r->abdomen); HEIGHT(pelvicHeight,r->pelvis);
 #undef HEIGHT
-    const float stationWeights[] = {r->neck,r->shoulder,r->thorax,r->abdomen,r->abdomen,r->pelvis};
-    for (size_t i=0; i<6; ++i) {
-        float local = LOCAL(stationWeights[i]);
-        AxialStationMorph *station = &p->axial.profile[i];
-        const AxialStationMorph *peer = &other->profile[i];
-        station->widthScale = Math_Lerp(station->widthScale,peer->widthScale,local);
-        station->heightScale = Math_Lerp(station->heightScale,peer->heightScale,local);
-        station->verticalOffset = Math_Lerp(station->verticalOffset,peer->verticalOffset*ratio,local);
-        station->longitudinalOffset = Math_Lerp(station->longitudinalOffset,peer->longitudinalOffset*ratio,local);
+    if (homologous) {
+        const float stationWeights[] = {r->neck,r->shoulder,r->thorax,r->abdomen,r->abdomen,r->pelvis};
+        for (size_t i=0; i<6; ++i) {
+            float local = LOCAL(stationWeights[i]);
+            AxialStationMorph *station = &p->axial.profile[i];
+            const AxialStationMorph *peer = &other->profile[i];
+            station->widthScale = Math_Lerp(station->widthScale,peer->widthScale,local);
+            station->heightScale = Math_Lerp(station->heightScale,peer->heightScale,local);
+            station->verticalOffset = Math_Lerp(station->verticalOffset,peer->verticalOffset*ratio,local);
+            station->longitudinalOffset = Math_Lerp(station->longitudinalOffset,peer->longitudinalOffset*ratio,local);
+        }
     }
 #undef LOCAL
     p->development.pigmentation = Math_Lerp(a->development.pigmentation,b->development.pigmentation,r->surface);
@@ -688,8 +744,36 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
     genes.facialSeatStrength = Math_Clamp01((p->development.cephalic-.58f)/.42f);
     const HeadAnatomy *adultA = &batch->heads[0][CREATURE_STAGE_ADULT];
     const HeadAnatomy *adultB = &batch->heads[1][CREATURE_STAGE_ADULT];
-    if (adultA->surface.hasEars && adultB->surface.hasEars) genes.inheritEars = true;
-    else if (!adultA->surface.hasEars && adultB->surface.hasEars) genes.inheritEars = !genes.inheritEars;
+    /* Reglas simétricas de herencia auricular, independientes del orden de los padres. */
+    bool earsA = adultA->surface.hasEars;
+    bool earsB = adultB->surface.hasEars;
+    if (earsA && earsB) {
+        genes.inheritEars = true;
+    } else if (!earsA && !earsB) {
+        genes.inheritEars = false;
+    } else {
+        float earDonorWeight = earsA ? (1.0f - genes.ear) : genes.ear;
+        bool primaryHasEars = r->headParent ? earsB : earsA;
+        bool softNonMammalHead = (primary->head.archetype == HEAD_ARCHETYPE_CEPHALOPOD ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_BATOID ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_ARTHROPOD);
+        if (softNonMammalHead)
+            genes.inheritEars = (earDonorWeight >= 0.68f);
+        else
+            genes.inheritEars = primaryHasEars ? (earDonorWeight >= 0.25f) : (earDonorWeight >= 0.52f);
+    }
+    if (stage == CREATURE_STAGE_ADULT) {
+        r->headGenes.inheritEars = genes.inheritEars;
+        r->earDeliberatelyAbsent = (earsA || earsB) && !genes.inheritEars;
+    }
+    /* Coherencia del pico aviar: si se elige cabeza aviar, mantener el rostro
+     * en el lado aviar para preservar el pico 3D funcional. */
+    if (primary->head.archetype == HEAD_ARCHETYPE_AVIAN) {
+        if (first.surface.beakWeight > 0.5f && second.surface.beakWeight <= 0.5f)
+            genes.rostrum = fminf(genes.rostrum, 0.42f);
+        else if (second.surface.beakWeight > 0.5f && first.surface.beakWeight <= 0.5f)
+            genes.rostrum = fmaxf(genes.rostrum, 0.58f);
+    }
     p->headEnvelope = (HeadEnvelopePhenotype){1,1,1,1};
     p->headHybrid = (HeadHybridProfile){
         .active=true,.blend=r->headParent ? 1-genes.cranium : genes.cranium,
@@ -699,9 +783,25 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
     HeadAnatomy_BlendRegional(&first,&second,&genes,regional);
     regional->archetype = primary->head.archetype;
     const HeadAnatomy *structure = r->headParent ? &second : &first;
-    regional->surface.isBeak = structure->surface.isBeak;
-    regional->surface.isBill = structure->surface.isBill;
+    regional->surface.isBeak = regional->surface.beakWeight >= 0.5f;
+    regional->surface.isBill = structure->surface.isBill && regional->surface.beakWeight < 0.5f;
     regional->oralSystem.shape = structure->oralSystem.shape;
+    /* Acotar la envolvente cefálica respecto al cuello y tronco en cruces entre
+     * planes incompatibles: evita cabezas gigantes de caballo sobre halcón o
+     * cráneos diminutos hundidos en cuellos masivos de elefante. */
+    if (!AxialArchetypesCompatible(a->axial.archetype, b->axial.archetype)) {
+        float craniumW = fmaxf(regional->surface.craniumRadii.x, 1e-4f);
+        float headLen = fmaxf(regional->surface.faceTip.z - regional->surface.cranialCenters[5].z, 1e-4f);
+        float neckRadius = fmaxf(p->axial.neckWidth * 0.5f, 1e-4f);
+        float maxByNeck = (neckRadius * 1.85f) / craniumW;
+        float maxByTrunk = (p->axial.trunkLength * 0.68f) / headLen;
+        float minByNeck = (neckRadius * (regional->surface.hasEars ? 1.15f : 0.85f)) / craniumW;
+        float envScale = 1.0f;
+        float upper = fminf(maxByNeck, maxByTrunk);
+        if (upper < 1.0f) envScale = fmaxf(upper, 0.42f);
+        else if (minByNeck > 1.0f) envScale = fminf(minByNeck, 1.85f);
+        p->headEnvelope.scale = envScale;
+    }
     p->head.nasalColor = Palette(first.surface.nasalColor,second.surface.nasalColor,r->facial,g);
     regional->surface.nasalColor=p->head.nasalColor;
     regional->oralSystem.lipColor=Palette(first.oralSystem.lipColor,second.oralSystem.lipColor,r->facial,g);
@@ -851,20 +951,40 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
     }
     size_t tails = scaffold->adult.tailCount, ornaments = scaffold->adult.ornamentCount;
     size_t flexible = scaffold->adult.flexibleAppendageCount;
+    bool adaptedFlexibleUsed = false;
     for (size_t i=0; i<other->bodyPlan.moduleCount; ++i) {
         const CreatureModuleInstance *m = &other->bodyPlan.modules[i];
         if (batch->matches[donor][i] >= 0 || (m->kind != CREATURE_MODULE_TAIL &&
             m->kind != CREATURE_MODULE_ORNAMENT && m->kind != CREATURE_MODULE_FLEXIBLE_APPENDAGE))
             continue;
+        ++r->graftAttempts;
         uint32_t hostId = MapModule(batch,&out->bodyPlan,sources,donor,m->attachment.hostModuleInstanceId);
         AttachmentRef attachment = AttachmentRef_Create(hostId,InheritedSlot(m));
         size_t *count = m->kind == CREATURE_MODULE_TAIL ? &tails :
             m->kind == CREATURE_MODULE_ORNAMENT ? &ornaments : &flexible;
         size_t limit = m->kind == CREATURE_MODULE_TAIL ? CREATURE_MAX_TAILS :
             m->kind == CREATURE_MODULE_ORNAMENT ? CREATURE_MAX_ORNAMENTS : CREATURE_MAX_FLEXIBLE_APPENDAGES;
-        if (!SupportedGraft(other,m,FindModule(&out->bodyPlan,hostId),
+        bool nativeOk = SupportedGraft(other,m,FindModule(&out->bodyPlan,hostId),
                 scaffold->adult.axial.archetype,
-                parents[r->headParent]->adult.head.archetype,other->adult.head.archetype)) {
+                parents[r->headParent]->adult.head.archetype,other->adult.head.archetype);
+        bool adapted = false;
+        /* Adaptador genérico: un brazo muscular cefalópodo puede injertarse
+         * como apéndice flexible dorsal/caudal en un andamiaje vertebrado si
+         * existe ranura libre (el sifón sigue siendo incompatible sin manto). */
+        if (!nativeOk && !adaptedFlexibleUsed &&
+            m->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE &&
+            InheritedSlot(m) >= AXIAL_SLOT_RADIAL_BASE &&
+            InheritedSlot(m) < AXIAL_SLOT_ORAL_BASE &&
+            hostId == out->bodyPlan.root.moduleInstanceId &&
+            AxialSupportsSlot(scaffold->adult.axial.archetype, AXIAL_SLOT_DORSAL)) {
+            AttachmentRef dorsalRef = AttachmentRef_Create(hostId, AXIAL_SLOT_DORSAL);
+            if (!UsedSlot(&out->bodyPlan, CREATURE_MODULE_FLEXIBLE_APPENDAGE, dorsalRef)) {
+                attachment = dorsalRef;
+                nativeOk = true;
+                adapted = true;
+            }
+        }
+        if (!nativeOk) {
             ++r->unsupportedGrafts;
             ++r->omitted;
             continue;
@@ -890,6 +1010,7 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
         };
         sources[at] = (ModuleSource){donor,(unsigned)i,-1};
         ++r->grafts;
+        if (adapted) { ++r->adaptedGrafts; adaptedFlexibleUsed = true; }
     }
     out->id = UINT32_C(0x80000000) | (r->seed & UINT32_C(0x7fffffff));
     while (out->id == parents[0]->id || out->id == parents[1]->id)
@@ -1010,6 +1131,19 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                         f->length*=fmaxf(1-extension,.01f);
                         f->tipRadius*=Math_Lerp(.72f,1,1-terminal);
                     }
+                } else if (m->attachment.slotId == AXIAL_SLOT_DORSAL &&
+                           s.parent == donor &&
+                           source->axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD &&
+                           result->axial.archetype != AXIAL_ARCHETYPE_CEPHALOPOD) {
+                    /* Escalar un tentáculo adaptado a la anatomía dorsal receptora. */
+                    float scale = result->axial.trunkLength / fmaxf(source->axial.trunkLength, 1e-4f);
+                    f->length = Math_Clamp(f->length * scale * 0.65f,
+                        result->axial.trunkLength * 0.25f, result->axial.trunkLength * 0.78f);
+                    f->baseRadius = Math_Clamp(f->baseRadius * scale * 0.65f,
+                        f->length * 0.04f, fminf(f->length * 0.18f, result->axial.thoraxWidth * 0.24f));
+                    f->tipRadius = fminf(f->tipRadius * scale * 0.65f, f->baseRadius * 0.45f);
+                    f->initialPitch = -0.30f;
+                    f->restBend = 0.25f;
                 }
             }
         }
@@ -1031,6 +1165,16 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
             mp.moduleBInstanceId = mB;
             mp.moduleBEndInstanceId = mBE == mB ? 0 : mBE;
             result->membranes[result->membraneCount++] = mp;
+        }
+        /* Evitar que el patagio alar invada la cabeza u ojos en híbridos con alas membranosas. */
+        if (result->membraneCount > 0) {
+            for (size_t li = 0; li < result->limbCount; ++li) {
+                LimbPhenotype *wl = &result->limbs[li];
+                if (wl->archetype == LIMB_ARCHETYPE_WING) {
+                    if (wl->proximalSweep > 0.08f) wl->proximalSweep = 0.08f;
+                    if (wl->distalSweep > 0.12f) wl->distalSweep = 0.12f;
+                }
+            }
         }
         /* Herencia compatible de apéndices repetidos (p. ej. tentáculos radiales y brazos orales). */
         result->repeatedAppendageCount = 0;
@@ -1189,6 +1333,52 @@ static bool Score(const CreatureOffspringBatch *batch, Candidate *candidate)
     return true;
 }
 
+static void ComputeDonorContribution(const CreatureOffspringBatch *batch, Candidate *candidate)
+{
+    OffspringReport *r = &candidate->report;
+    unsigned scaf = r->scaffoldParent, donor = 1 - scaf;
+    /* Contribución estructural real: andamiaje, cabeza, extremidades, cola e injertos. */
+    float sA = 0.0f, sB = 0.0f;
+    float *scafS = scaf == 0 ? &sA : &sB;
+    float *donorS = donor == 0 ? &sA : &sB;
+    *scafS += 0.35f;
+    if (r->headParent == scaf) *scafS += 0.25f; else *donorS += 0.25f;
+    if (r->limbParent == scaf) *scafS += 0.20f; else *donorS += 0.20f;
+    if (r->tailParent == scaf) *scafS += 0.10f; else *donorS += 0.10f;
+    float graftBoost = fminf(0.20f, 0.08f * (float)r->grafts);
+    *donorS += graftBoost;
+    float totalS = fmaxf(sA + sB, 1e-4f);
+    r->structuralContributionA = sA / totalS;
+    r->structuralContributionB = sB / totalS;
+    float structuralDonor = donor == 0 ? r->structuralContributionA : r->structuralContributionB;
+
+    float shapeC = 0.0f, headC = 0.0f, surfC = 0.0f;
+    if (batch->hasParentDescriptors[0] && batch->hasParentDescriptors[1]) {
+        const OffspringDescriptor *cd = &candidate->descriptor;
+        const OffspringDescriptor *sd = &batch->parentDescriptors[scaf];
+        const OffspringDescriptor *dd = &batch->parentDescriptors[donor];
+        float dScaf = Distance(cd->shape, sd->shape, SHAPE_FEATURES);
+        float dDon = Distance(cd->shape, dd->shape, SHAPE_FEATURES);
+        shapeC = (dScaf + dDon > 1e-5f) ? dScaf / (dScaf + dDon) : 0.0f;
+        if (cd->hasHead && sd->hasHead && dd->hasHead) {
+            float hScaf = Distance(cd->headField, sd->headField, HEAD_SAMPLES);
+            float hDon = Distance(cd->headField, dd->headField, HEAD_SAMPLES);
+            headC = (hScaf + hDon > 1e-5f) ? hScaf / (hScaf + hDon) : 0.0f;
+        }
+        float aScaf = Distance(cd->appearance, sd->appearance, APPEARANCE_FEATURES);
+        float aDon = Distance(cd->appearance, dd->appearance, APPEARANCE_FEATURES);
+        surfC = (aScaf + aDon > 1e-5f) ? aScaf / (aScaf + aDon) : 0.0f;
+    }
+    float appC = fminf(1.0f, (r->limbParent == donor ? 0.50f : 0.0f) +
+        (r->tailParent == donor ? 0.25f : 0.0f) + 0.25f * fminf(1.0f, (float)r->grafts));
+    r->shapeContribution = shapeC;
+    r->headContribution = headC;
+    r->appendageContribution = appC;
+    r->surfaceContribution = surfC;
+    r->effectiveDonorContribution = 0.30f * structuralDonor + 0.25f * shapeC +
+        0.20f * headC + 0.15f * appC + 0.10f * surfC;
+}
+
 static float SelectionValue(const CreatureOffspringBatch *batch, const Candidate *candidate)
 {
     const OffspringReport *r=&candidate->report;
@@ -1199,8 +1389,10 @@ static float SelectionValue(const CreatureOffspringBatch *batch, const Candidate
         if (peer->report.scaffoldParent==r->scaffoldParent) ++same;
         else ++different;
     }
-    float balance=.036f*((float)different-(float)same)/(1+same+different);
-    return r->shapeDiversity + .20f*fminf(r->appearanceDiversity,r->shapeDiversity)+.12f*r->quality+balance;
+    float balance=.055f*((float)different-(float)same)/(1+same+different);
+    float donorBonus = 0.22f * fminf(r->effectiveDonorContribution, 0.50f);
+    return r->shapeDiversity + .20f*fminf(r->appearanceDiversity,r->shapeDiversity)
+        + .42f*r->quality + .14f*r->anatomicalCoherence + donorBonus + balance;
 }
 
 static bool Proposal(const CreatureOffspringBatch *batch, Candidate *candidate, size_t index,
@@ -1215,11 +1407,8 @@ static bool Proposal(const CreatureOffspringBatch *batch, Candidate *candidate, 
     report->hasMorphTarget=CreatureMorph_Interpolate(&batch->adults[0],&batch->adults[1],
         report->global,target);
     if (report->hasMorphTarget) {
-        if (recipe->adult.headHybrid.hasRegionalProfile) {
-            float scale=target->phenotype.axial.totalScale;
-            target->head.anatomy=recipe->adult.headHybrid.regional;
-            HeadAnatomy_ScaleProfile(&target->head.anatomy,Vec3_Create(scale,scale,scale));
-        }
+        /* No sobrescribir target->head.anatomy con el perfil del propio candidato:
+         * la evaluación de headError debe medirse contra una referencia inmutable. */
         OffspringMorph_Fit(recipe,target,batch->adults,report);
     }
     OffspringRepair_Integrate(recipe);
@@ -1243,8 +1432,15 @@ static bool Proposal(const CreatureOffspringBatch *batch, Candidate *candidate, 
             snprintf(detail,capacity,"Cannot sample head geometry");
             return false;
         }
-        report->quality=1/(1+2*report->headError+report->bodyError+.35f*report->limbError
-            +.035f*report->repairs+.12f*(1-report->anatomicalCoherence));
+        ComputeDonorContribution(batch, candidate);
+        bool distinctParents = batch->parents[0].recipe.id != batch->parents[1].recipe.id;
+        float clonePenalty = (distinctParents && report->effectiveDonorContribution < 0.16f) ?
+            (0.16f - report->effectiveDonorContribution) * 2.2f : 0.0f;
+        float headErrTerm = report->headErrorAvailable ? 1.5f * report->headError : 0.0f;
+        float bodyErrTerm = report->bodyErrorAvailable ? report->bodyError : 0.0f;
+        float limbErrTerm = report->limbErrorAvailable ? 0.35f * report->limbError : 0.0f;
+        report->quality=1/(1+headErrTerm+bodyErrTerm+limbErrTerm
+            +.035f*report->repairs+.25f*(1-report->anatomicalCoherence)+clonePenalty);
         candidate->revision=revision;
         candidate->index=index;
         candidate->owner=batch;
@@ -1441,6 +1637,12 @@ static CreatureOffspringBatch *AnalyzeParents(const CreatureRecipe *a, const Cre
     }
     Match(batch);
     BuildHeadFrame(batch);
+    for (unsigned p=0; p<2; ++p) {
+        Candidate tmp = {0};
+        tmp.report.signature = Creature_MorphologicalSignature(&batch->adults[p]);
+        batch->hasParentDescriptors[p] = Describe(&batch->adults[p], batch, &tmp);
+        batch->parentDescriptors[p] = tmp.descriptor;
+    }
     return batch;
 }
 

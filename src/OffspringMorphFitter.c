@@ -5,11 +5,19 @@
 #include <math.h>
 #include <stdlib.h>
 
+static bool AxialArchetypesCompatible(AxialArchetype a, AxialArchetype b)
+{
+    if (a == b) return true;
+    return (a == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD && b == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD) ||
+           (a == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD && b == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD);
+}
+
 float OffspringMorph_HeadError(const HeadAnatomy *a, float scale,
     const HeadAnatomy *b, float targetScale)
 {
     Vector3 neckA = a->landmarks.neckAttachment, neckB = b->landmarks.neckAttachment;
     float sum = 0, inverseA = 1/scale, inverseB = 1/targetScale;
+    unsigned terms = 18;
 #define SIZE(v) sum += Vec3_LengthSq(Vec3_Sub(Vec3_Scale(a->v,inverseA),Vec3_Scale(b->v,inverseB)))
 #define POINT(v) sum += Vec3_LengthSq(Vec3_Sub(Vec3_Scale(Vec3_Sub(a->v,neckA),inverseA), \
                                               Vec3_Scale(Vec3_Sub(b->v,neckB),inverseB)))
@@ -21,9 +29,16 @@ float OffspringMorph_HeadError(const HeadAnatomy *a, float scale,
     POINT(landmarks.leftJawHinge); POINT(landmarks.mandibularSymphysis);
     POINT(landmarks.leftOrbit); SIZE(surface.orbitRadii);
     POINT(landmarks.leftEarBase); SIZE(surface.earShape);
+    if (a->surface.beakWeight > 0.5f || b->surface.beakWeight > 0.5f) {
+        POINT(surface.beakBase); POINT(surface.beakTip);
+        Vector3 brA = Vec3_Create(a->surface.beakBaseRadii.x * inverseA, a->surface.beakBaseRadii.y * inverseA, 0);
+        Vector3 brB = Vec3_Create(b->surface.beakBaseRadii.x * inverseB, b->surface.beakBaseRadii.y * inverseB, 0);
+        sum += Vec3_LengthSq(Vec3_Sub(brA, brB));
+        terms += 3;
+    }
 #undef POINT
 #undef SIZE
-    return sqrtf(sum/18)/fmaxf(.001f,Vec3_Length(b->surface.craniumRadii)*inverseB);
+    return sqrtf(sum/(float)terms)/fmaxf(.001f,Vec3_Length(b->surface.craniumRadii)*inverseB);
 }
 
 static const AnatomyNode *AxialStation(const AnatomyGraph *graph, unsigned index)
@@ -69,6 +84,11 @@ static bool RegionalAxialSamples(const Monster parents[2], const OffspringReport
 static void FitAxial(CreatureRecipe *recipe, const Monster *target,
     const Monster parents[2], const OffspringReport *report)
 {
+    /* No mezclar estaciones 0..5 entre arquitecturas axiales incompatibles
+     * (p. ej. manto cefalópodo vs tórax tetrápodo o segmentos de artrópodo). */
+    if (!AxialArchetypesCompatible(parents[0].phenotype.axial.archetype,
+            parents[1].phenotype.axial.archetype))
+        return;
     Vector3 targetPoints[6], targetSections[6];
     if (!RegionalAxialSamples(parents,report,targetPoints,targetSections) &&
         !AxialSamples(&target->anatomyGraph,target->phenotype.axial.totalScale,targetPoints,targetSections))
@@ -212,14 +232,16 @@ static void FitLimbs(CreatureRecipe *recipe, const Monster parents[2], Offspring
 static void FitStance(CreatureRecipe *recipe,const Monster *target,const Monster parents[2])
 {
     if (recipe->adult.axial.archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD ||
-        parents[0].phenotype.axial.archetype == parents[1].phenotype.axial.archetype)
+        parents[0].phenotype.axial.archetype == parents[1].phenotype.axial.archetype ||
+        !AxialArchetypesCompatible(parents[0].phenotype.axial.archetype,
+            parents[1].phenotype.axial.archetype))
         return;
     const AnatomyNode *shoulder=AxialStation(&target->anatomyGraph,AXIAL_NODE_PECTORAL);
     if (!shoulder) return;
     float height=(shoulder->center.y+shoulder->heightRadius)/target->phenotype.axial.totalScale;
     /* Conserva apoyo erguido y parte de su alcance, pero acerca la altura
      * del torso a la referencia al cruzar una postura baja con una erguida. */
-    float gain=Math_Lerp(1,Math_Clamp(height/recipe->adult.axial.withersHeight,.58f,1.05f),.73f);
+    float gain=Math_Lerp(1,Math_Clamp(height/recipe->adult.axial.withersHeight,.65f,1.05f),.73f);
     CreaturePhenotype *stages[]={&recipe->seed,&recipe->larva,&recipe->juvenile,&recipe->adult};
     for (unsigned i=0; i<4; ++i) {
         CreaturePhenotype *p=stages[i];
@@ -289,33 +311,97 @@ static float AxialError(const Vector3 pa[6],const Vector3 pb[6],
     return sqrtf(sum/12)/fmaxf(.001f,Vec3_Length(Vec3_Sub(pb[0],pb[5])));
 }
 
+static float SemanticHeadPenalty(const Monster *candidate, const OffspringReport *report)
+{
+    if (!candidate->hasHead) return 0.0f;
+    const HeadAnatomy *h = &candidate->head.anatomy;
+    const HeadSurfaceRecipe *s = &h->surface;
+    float penalty = 0.0f;
+    float craniumR = fmaxf(0.001f, fmaxf(s->craniumRadii.x, s->craniumRadii.y));
+    /* Colapso o pérdida de pico aviar cuando el arquetipo/estructura lo requiere. */
+    if (h->archetype == HEAD_ARCHETYPE_AVIAN || s->isBeak) {
+        float culmen = s->beakTip.z - s->beakBase.z;
+        if (s->beakWeight < 0.5f) penalty += 0.65f;
+        else if (culmen < s->craniumRadii.z * 0.35f) penalty += 0.45f;
+        else if (culmen > s->craniumRadii.z * 2.40f) penalty += 0.35f;
+    }
+    /* Alargamiento cefálico extremo respecto a la bóveda. */
+    float faceLen = s->faceTip.z - s->craniumCenter.z;
+    if (faceLen > s->craniumRadii.z * 4.8f)
+        penalty += Math_Clamp01((faceLen / s->craniumRadii.z - 4.8f) * 0.25f) * 0.45f;
+    /* Ojos desproporcionados en cráneos no artrópodos. */
+    if (h->archetype != HEAD_ARCHETYPE_ARTHROPOD) {
+        float eyeRatio = fmaxf(h->eyeScale.x, h->eyeScale.y) / craniumR;
+        if (eyeRatio > 0.60f)
+            penalty += Math_Clamp01((eyeRatio - 0.60f) * 2.0f) * 0.40f;
+    }
+    /* Penetración o baja exposición auricular. */
+    if (s->hasEars && report && report->earExposedFraction < 0.75f)
+        penalty += (0.75f - report->earExposedFraction) * 0.90f;
+    return penalty;
+}
+
 void OffspringMorph_MeasureCandidate(const Monster *candidate, const Monster *reference,
     const Monster parents[2], OffspringReport *report)
 {
     OffspringMorph_Measure(candidate,reference,report);
-    Vector3 pa[6],pb[6],ra[6],rb[6];
-    if (AxialSamples(&candidate->anatomyGraph,candidate->phenotype.axial.totalScale,pa,ra) &&
-        RegionalAxialSamples(parents,report,pb,rb))
-        report->bodyError=AxialError(pa,pb,ra,rb);
-    MorphologicalSignature a=Creature_MorphologicalSignature(&parents[0]);
-    MorphologicalSignature b=Creature_MorphologicalSignature(&parents[1]);
-    MorphologicalSignature wanted={
-        .forelimbBodyRatio=Math_Lerp(a.forelimbBodyRatio,b.forelimbBodyRatio,report->limbs),
-        .hindlimbBodyRatio=Math_Lerp(a.hindlimbBodyRatio,b.hindlimbBodyRatio,report->limbs),
-        .footBodyRatio=Math_Lerp(a.footBodyRatio,b.footBodyRatio,report->foot),
-        .forelimbThicknessBodyRatio=Math_Lerp(a.forelimbThicknessBodyRatio,b.forelimbThicknessBodyRatio,report->limbMass)
-    };
-    report->limbError=SignatureError(report->signature,wanted);
+    if (AxialArchetypesCompatible(parents[0].phenotype.axial.archetype,
+            parents[1].phenotype.axial.archetype)) {
+        Vector3 pa[6],pb[6],ra[6],rb[6];
+        if (AxialSamples(&candidate->anatomyGraph,candidate->phenotype.axial.totalScale,pa,ra) &&
+            RegionalAxialSamples(parents,report,pb,rb)) {
+            report->bodyError=AxialError(pa,pb,ra,rb);
+            report->bodyErrorAvailable=true;
+        }
+    }
+    bool sameLimbs = parents[0].phenotype.limbCount > 0 && parents[1].phenotype.limbCount > 0 &&
+        candidate->phenotype.limbCount > 0;
+    if (sameLimbs) {
+        MorphologicalSignature a=Creature_MorphologicalSignature(&parents[0]);
+        MorphologicalSignature b=Creature_MorphologicalSignature(&parents[1]);
+        MorphologicalSignature wanted={
+            .forelimbBodyRatio=Math_Lerp(a.forelimbBodyRatio,b.forelimbBodyRatio,report->limbs),
+            .hindlimbBodyRatio=Math_Lerp(a.hindlimbBodyRatio,b.hindlimbBodyRatio,report->limbs),
+            .footBodyRatio=Math_Lerp(a.footBodyRatio,b.footBodyRatio,report->foot),
+            .forelimbThicknessBodyRatio=Math_Lerp(a.forelimbThicknessBodyRatio,b.forelimbThicknessBodyRatio,report->limbMass)
+        };
+        report->limbError=SignatureError(report->signature,wanted);
+        report->limbErrorAvailable=true;
+    } else {
+        report->limbError=0.0f;
+        report->limbErrorAvailable=false;
+    }
+    float headPenalty = SemanticHeadPenalty(candidate, report);
+    if (report->headErrorAvailable) {
+        report->headError += headPenalty;
+        report->headQuality = 1.0f / (1.0f + 2.0f * report->headError);
+    } else if (candidate->hasHead) {
+        report->headError = headPenalty;
+        report->headQuality = 1.0f / (1.0f + 2.0f * headPenalty);
+    } else {
+        report->headError = 0.0f;
+        report->headQuality = -1.0f;
+    }
+    report->bodyQuality = report->bodyErrorAvailable ? 1.0f / (1.0f + 1.5f * report->bodyError) : -1.0f;
+    report->limbQuality = report->limbErrorAvailable ? 1.0f / (1.0f + 1.2f * report->limbError) : -1.0f;
 }
 
 void OffspringMorph_Measure(const Monster *candidate, const Monster *target, OffspringReport *report)
 {
     float sa = candidate->phenotype.axial.totalScale, sb = target->phenotype.axial.totalScale;
-    if (candidate->hasHead && target->hasHead)
+    report->headErrorAvailable = candidate->hasHead && target->hasHead;
+    if (report->headErrorAvailable)
         report->headError = OffspringMorph_HeadError(&candidate->head.anatomy,sa,&target->head.anatomy,sb);
+    else
+        report->headError = 0.0f;
     Vector3 pa[6], pb[6], ra[6], rb[6];
-    if (AxialSamples(&candidate->anatomyGraph,sa,pa,ra) &&
-        AxialSamples(&target->anatomyGraph,sb,pb,rb))
+    report->bodyErrorAvailable = AxialSamples(&candidate->anatomyGraph,sa,pa,ra) &&
+        AxialSamples(&target->anatomyGraph,sb,pb,rb);
+    if (report->bodyErrorAvailable)
         report->bodyError=AxialError(pa,pb,ra,rb);
-    report->limbError = SignatureError(report->signature,Creature_MorphologicalSignature(target));
+    else
+        report->bodyError=0.0f;
+    report->limbErrorAvailable = candidate->phenotype.limbCount > 0 && target->phenotype.limbCount > 0;
+    report->limbError = report->limbErrorAvailable ?
+        SignatureError(report->signature,Creature_MorphologicalSignature(target)) : 0.0f;
 }

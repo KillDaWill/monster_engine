@@ -7,7 +7,18 @@
 #include "Creature.h"
 #include "CreatureRecipeIO.h"
 
-enum { CREATURE_OFFSPRING_MAX = 16, CREATURE_OFFSPRING_VERSION = 3 };
+enum { CREATURE_OFFSPRING_MAX = 16, CREATURE_OFFSPRING_VERSION = 4 };
+
+typedef struct {
+    bool active;
+    unsigned stage;
+    unsigned moduleIndex;
+    int moduleKind;
+    unsigned repairAttempt;
+    float expectedMin, expectedMax, actualValue;
+    char parameter[40];
+    char constraintType[24];
+} OffspringConstraintFailure;
 
 typedef struct {
     size_t count;
@@ -29,10 +40,19 @@ typedef struct {
     float global, body, head, limbs, tail, surface, size;
     unsigned scaffoldParent, headParent, limbParent, tailParent, surfaceParent;
     unsigned grafts, omitted, repairs, attempts;
+    unsigned graftAttempts, adaptedGrafts, repairedProportions;
     unsigned unsupportedGrafts, constrainedGrafts, unselectedGrafts, removedAnchors;
     float targetWeight, resolvedHeadWeight, headError, bodyError, limbError;
+    bool headErrorAvailable, bodyErrorAvailable, limbErrorAvailable;
+    float headQuality, bodyQuality, limbQuality;
+    float structuralContributionA, structuralContributionB;
+    float shapeContribution, headContribution, appendageContribution, surfaceContribution;
+    float effectiveDonorContribution;
+    float earExposedFraction, earMaxBodyPenetration;
+    bool earRepaired, earDeliberatelyAbsent;
     unsigned fitEvaluations;
     bool hasMorphTarget, simplifiedHeadBasis;
+    OffspringConstraintFailure lastFailure;
     MorphologicalSignature signature;
 } OffspringReport;
 
