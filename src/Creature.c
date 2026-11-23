@@ -12,6 +12,7 @@
 #include "Limb.h"
 #include "Tail.h"
 #include "Ornament.h"
+#include "Fin.h"
 #include "AttachmentPath.h"
 #include "CreatureModuleInternal.h"
 #include "CreatureRig.h"
@@ -85,6 +86,12 @@ bool Creature_ResolveAnatomy(const CreatureRecipe* recipe, const CreaturePhenoty
                 flexible.length=fmaxf(flexible.length,
                     FlexibleAppendage_MinNasalLength(&flexible,slot->hostRadii.y/slot->scale));
             if (!FlexibleAppendage_Resolve(&flexible,m->instanceId,slot,graph)) return false;
+            break;
+        }
+        case CREATURE_MODULE_FIN: {
+            FinPhenotype fin = p.fins[m->phenotypeIndex];
+            fin.development *= p.development.appendages;
+            if (!Fin_Resolve(&fin, m->instanceId, slot, graph)) return false;
             break;
         }
         default:
@@ -261,6 +268,21 @@ bool Creature_ConfigureAnimation(struct Monster* monster) {
     case CREATURE_GAIT_MEDUSA_PULSE:
         gait=GaitPreset_MedusaPulse(&rig);
         break;
+    case CREATURE_GAIT_THUNNIFORM_SWIM:
+        gait=GaitPreset_ThunniformSwim(&rig);
+        break;
+    case CREATURE_GAIT_CARANGIFORM_SHARK_SWIM:
+        gait=GaitPreset_CarangiformSharkSwim(&rig);
+        break;
+    case CREATURE_GAIT_SEAHORSE_SWIM:
+        gait=GaitPreset_SeahorseSwim(&rig);
+        break;
+    case CREATURE_GAIT_TURTLE_SWIM:
+        gait=GaitPreset_TurtleSwim(&rig);
+        break;
+    case CREATURE_GAIT_CETACEAN_SWIM:
+        gait=GaitPreset_CetaceanSwim(&rig);
+        break;
     default:
         return false;
     }
@@ -270,6 +292,16 @@ bool Creature_ConfigureAnimation(struct Monster* monster) {
             monster->animation->animator.finWaveAmplitude = 0.75f;
         else if (monster->recipe.gait == CREATURE_GAIT_MEDUSA_PULSE)
             monster->animation->animator.bellPulseAmplitude = 0.72f;
+        else if (monster->recipe.gait == CREATURE_GAIT_THUNNIFORM_SWIM)
+            monster->animation->animator.swimMode = AQUATIC_SWIM_THUNNIFORM;
+        else if (monster->recipe.gait == CREATURE_GAIT_CARANGIFORM_SHARK_SWIM)
+            monster->animation->animator.swimMode = AQUATIC_SWIM_CARANGIFORM;
+        else if (monster->recipe.gait == CREATURE_GAIT_SEAHORSE_SWIM)
+            monster->animation->animator.swimMode = AQUATIC_SWIM_SEAHORSE;
+        else if (monster->recipe.gait == CREATURE_GAIT_TURTLE_SWIM)
+            monster->animation->animator.swimMode = AQUATIC_SWIM_TURTLE;
+        else if (monster->recipe.gait == CREATURE_GAIT_CETACEAN_SWIM)
+            monster->animation->animator.swimMode = AQUATIC_SWIM_CETACEAN;
     }
     return true;
 }
@@ -360,7 +392,7 @@ unsigned Creature_ValidateGeometry(const Monster* m) {
         const AnatomyNode* b=AnatomyGraph_FindNode(&m->anatomyGraph,e->toId);
         if(a->moduleInstanceId==b->moduleInstanceId)continue;
         if(b->region==ANATOMY_REGION_TAIL && Vec3_Distance(a->center,b->center)>a->widthRadius+b->widthRadius)errors|=8;
-        if(b->role==ANATOMY_ROLE_JOINT && Vec3_Distance(a->center,b->center)>a->widthRadius+b->widthRadius)errors|=16;
+        if(b->role==ANATOMY_ROLE_JOINT && Vec3_Distance(a->center,b->center)>fmaxf(a->widthRadius,a->heightRadius)+fmaxf(b->widthRadius,b->heightRadius))errors|=16;
     }
     return errors;
 }

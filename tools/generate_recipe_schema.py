@@ -28,6 +28,7 @@ for header in HEADERS:
 COUNTS = {'modules': 'moduleCount', 'limbs': 'limbCount', 'tails': 'tailCount',
           'ornaments': 'ornamentCount', 'flexibleAppendages': 'flexibleAppendageCount',
           'membranes': 'membraneCount', 'repeatedAppendages': 'repeatedAppendageCount',
+          'fins': 'finCount',
           'layers': 'layerCount', 'tufts': 'tuftCount', 'longHair': 'longHairCount', 'anchors': 'anchorCount'}
 SCALARS = {'float': ('F_FLOAT', '0'), 'unsigned': ('F_UNSIGNED', 'UINT_MAX'),
            'size_t': ('F_SIZE', 'SIZE_MAX'), 'uint32_t': ('F_U32', 'UINT32_MAX'),
@@ -40,12 +41,14 @@ OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 
             'LimbPhenotype': {'hoofWallSlope', 'hoofToeRoundness', 'hoofHeelHeight', 'dewclawSize', 'clawScale', 'anatomyProfile', 'nailCount',
                               'webbingCoverage', 'webbingThickness', 'webbingEdgeCurve', 'webbingFold',
                               'featherCount', 'wingAspect', 'wingPointedness', 'finSweep', 'finCamber'},
-            'TailPhenotype': {'droop', 'tipLift'},
+            'TailPhenotype': {'droop', 'tipLift', 'caudalFinType', 'caudalSpan', 'caudalChord',
+                              'caudalUpperLobeRatio', 'caudalNotchDepth', 'caudalSweep',
+                              'caudalThickness', 'caudalColor'},
             'FlexibleAppendagePhenotype': {'profile', 'yawAngle', 'coilBias', 'suckerRows', 'suckerCount', 'suckerScale'},
             'PigmentLayer': {'regionMask', 'domain', 'patternRotation'}}
 OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality', 'inheritedBlend', 'regionalAlbedo', 'translucency', 'iridescence', 'subsurfaceGlow'}
 OPTIONAL['LongHairGroup'] = {'rootFullness', 'bend', 'wave', 'transparency', 'verticalBias'}
-OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount', 'membranes', 'membraneCount', 'repeatedAppendages', 'repeatedAppendageCount', 'headHybrid'}
+OPTIONAL['CreaturePhenotype'] = {'flexibleAppendages', 'flexibleAppendageCount', 'membranes', 'membraneCount', 'repeatedAppendages', 'repeatedAppendageCount', 'fins', 'finCount', 'shell', 'headHybrid'}
 OPTIONAL['CreatureRecipe'] = {'offspringSeed', 'offspringVersion'}
 OPTIONAL['HeadHybridProfile'] = {'hasRegionalProfile', 'regional', 'referenceControls'}
 OPTIONAL['HeadPhenotype'] = {'nasalColor'}

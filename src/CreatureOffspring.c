@@ -130,7 +130,7 @@ static unsigned LimbHomologyFamily(const LimbPhenotype *l)
     case LIMB_ARCHETYPE_WING:
         return 3u;
     case LIMB_ARCHETYPE_FLIPPER:
-        return 4u;
+        return (l->anatomyProfile == LIMB_PROFILE_MARINE_FLIPPER) ? 7u : 4u;
     case LIMB_ARCHETYPE_ARTHROPOD_LEG:
         return 5u;
     case LIMB_ARCHETYPE_INSECT_WING:
@@ -146,9 +146,20 @@ static bool AxialSupportsSlot(AxialArchetype arch, AttachmentSlotId slot)
     if (slot == AXIAL_SLOT_CERVICAL) return arch != AXIAL_ARCHETYPE_MEDUSA_RADIAL;
     if (slot == AXIAL_SLOT_CAUDAL)
         return arch != AXIAL_ARCHETYPE_CEPHALOPOD && arch != AXIAL_ARCHETYPE_MEDUSA_RADIAL;
-    if (slot >= AXIAL_SLOT_PECTORAL_LEFT && slot <= AXIAL_SLOT_PELVIC_RIGHT)
+    if (slot == AXIAL_SLOT_PECTORAL_LEFT || slot == AXIAL_SLOT_PECTORAL_RIGHT)
         return arch == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD || arch == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD ||
-               arch == AXIAL_ARCHETYPE_AVIAN || arch == AXIAL_ARCHETYPE_DISC_RAY;
+               arch == AXIAL_ARCHETYPE_AVIAN || arch == AXIAL_ARCHETYPE_DISC_RAY ||
+               arch == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM || arch == AXIAL_ARCHETYPE_CURVED_VERTICAL;
+    if (slot == AXIAL_SLOT_PELVIC_LEFT || slot == AXIAL_SLOT_PELVIC_RIGHT)
+        return arch == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD || arch == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD ||
+               arch == AXIAL_ARCHETYPE_AVIAN || arch == AXIAL_ARCHETYPE_DISC_RAY ||
+               arch == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM;
+    if (slot == AXIAL_SLOT_DORSAL_POSTERIOR)
+        return arch == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM;
+    if (slot == AXIAL_SLOT_ANAL)
+        return arch == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM || arch == AXIAL_ARCHETYPE_CURVED_VERTICAL;
+    if (slot == AXIAL_SLOT_SHELL)
+        return arch == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD || arch == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM;
     if (slot == AXIAL_SLOT_CEPHALIC_LEFT || slot == AXIAL_SLOT_CEPHALIC_RIGHT)
         return arch == AXIAL_ARCHETYPE_DISC_RAY;
     if (slot == AXIAL_SLOT_SIPHON)
@@ -526,7 +537,9 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
                           p->axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD ||
                           p->axial.archetype == AXIAL_ARCHETYPE_MEDUSA_RADIAL ||
                           p->axial.archetype == AXIAL_ARCHETYPE_ARTHROPOD ||
-                          p->axial.archetype == AXIAL_ARCHETYPE_DISC_RAY)) {
+                          p->axial.archetype == AXIAL_ARCHETYPE_DISC_RAY ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM ||
+                          p->axial.archetype == AXIAL_ARCHETYPE_CURVED_VERTICAL)) {
                 if (oldHost && (oldHost->kind == CREATURE_MODULE_HEAD || oldHost->kind == CREATURE_MODULE_AXIAL))
                     valid = false;
             }
@@ -756,7 +769,12 @@ static void HeadSystem(CreaturePhenotype *p, const CreaturePhenotype *a,
         bool primaryHasEars = r->headParent ? earsB : earsA;
         bool softNonMammalHead = (primary->head.archetype == HEAD_ARCHETYPE_CEPHALOPOD ||
                                   primary->head.archetype == HEAD_ARCHETYPE_BATOID ||
-                                  primary->head.archetype == HEAD_ARCHETYPE_ARTHROPOD);
+                                  primary->head.archetype == HEAD_ARCHETYPE_ARTHROPOD ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_TELEOST ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_ELASMOBRANCH ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_SYNGNATHID ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_TESTUDINE ||
+                                  primary->head.archetype == HEAD_ARCHETYPE_CETACEAN);
         if (softNonMammalHead)
             genes.inheritEars = (earDonorWeight >= 0.68f);
         else
@@ -892,6 +910,9 @@ static bool SupportedGraft(const CreatureRecipe *donor, const CreatureModuleInst
             return AxialSupportsSlot(scaffoldAxial, slot);
         return false;
     }
+    if (m->kind == CREATURE_MODULE_FIN) {
+        return host->kind == CREATURE_MODULE_AXIAL && AxialSupportsSlot(scaffoldAxial, slot);
+    }
     if (m->kind != CREATURE_MODULE_ORNAMENT) return false;
     OrnamentArchetype type = donor->adult.ornaments[m->phenotypeIndex].archetype;
     if (type == ORNAMENT_ARCHETYPE_MEMBRANE) return false;
@@ -951,19 +972,23 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
     }
     size_t tails = scaffold->adult.tailCount, ornaments = scaffold->adult.ornamentCount;
     size_t flexible = scaffold->adult.flexibleAppendageCount;
+    size_t fins = scaffold->adult.finCount;
     bool adaptedFlexibleUsed = false;
     for (size_t i=0; i<other->bodyPlan.moduleCount; ++i) {
         const CreatureModuleInstance *m = &other->bodyPlan.modules[i];
         if (batch->matches[donor][i] >= 0 || (m->kind != CREATURE_MODULE_TAIL &&
-            m->kind != CREATURE_MODULE_ORNAMENT && m->kind != CREATURE_MODULE_FLEXIBLE_APPENDAGE))
+            m->kind != CREATURE_MODULE_ORNAMENT && m->kind != CREATURE_MODULE_FLEXIBLE_APPENDAGE &&
+            m->kind != CREATURE_MODULE_FIN))
             continue;
         ++r->graftAttempts;
         uint32_t hostId = MapModule(batch,&out->bodyPlan,sources,donor,m->attachment.hostModuleInstanceId);
         AttachmentRef attachment = AttachmentRef_Create(hostId,InheritedSlot(m));
         size_t *count = m->kind == CREATURE_MODULE_TAIL ? &tails :
-            m->kind == CREATURE_MODULE_ORNAMENT ? &ornaments : &flexible;
+            m->kind == CREATURE_MODULE_ORNAMENT ? &ornaments :
+            m->kind == CREATURE_MODULE_FIN ? &fins : &flexible;
         size_t limit = m->kind == CREATURE_MODULE_TAIL ? CREATURE_MAX_TAILS :
-            m->kind == CREATURE_MODULE_ORNAMENT ? CREATURE_MAX_ORNAMENTS : CREATURE_MAX_FLEXIBLE_APPENDAGES;
+            m->kind == CREATURE_MODULE_ORNAMENT ? CREATURE_MAX_ORNAMENTS :
+            m->kind == CREATURE_MODULE_FIN ? CREATURE_MAX_FINS : CREATURE_MAX_FLEXIBLE_APPENDAGES;
         bool nativeOk = SupportedGraft(other,m,FindModule(&out->bodyPlan,hostId),
                 scaffold->adult.axial.archetype,
                 parents[r->headParent]->adult.head.archetype,other->adult.head.archetype);
@@ -1145,7 +1170,39 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                     f->initialPitch = -0.30f;
                     f->restBend = 0.25f;
                 }
+            } else if (m->kind == CREATURE_MODULE_FIN) {
+                FinPhenotype *fin = &result->fins[to];
+                *fin = source->fins[from];
+                if (s.parent == donor) {
+                    float scale = result->axial.trunkLength / fmaxf(source->axial.trunkLength, 1e-4f);
+                    scale = Math_Clamp(scale, 0.45f, 1.55f);
+                    fin->baseChord *= scale;
+                    fin->span *= scale;
+                    fin->thickness *= scale;
+                    fin->rootWidth *= scale;
+                    fin->seriesLength *= scale;
+                }
             }
+        }
+        result->finCount = fins;
+        /* Herencia funcional coherente de caparazón (espaldar + plastrón + puente)
+         * únicamente sobre troncos compatibles (tetrápodos o fusiformes). */
+        bool shellHostOk = (result->axial.archetype == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD ||
+                            result->axial.archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD ||
+                            result->axial.archetype == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM);
+        const ShellPhenotype *shBase = &p[base]->shell;
+        const ShellPhenotype *shOther = &p[donor]->shell;
+        if (shellHostOk && shBase->development <= 0.02f && shOther->development > 0.05f &&
+            g->graft && !conservative) {
+            result->shell = *shOther;
+            float lRatio = result->axial.trunkLength / fmaxf(p[donor]->axial.trunkLength, 1e-4f);
+            float wRatio = result->axial.thoraxWidth / fmaxf(p[donor]->axial.thoraxWidth, 1e-4f);
+            result->shell.length *= Math_Clamp(lRatio, 0.60f, 1.35f);
+            result->shell.width  *= Math_Clamp(wRatio, 0.65f, 1.35f);
+            result->shell.plastronLength *= Math_Clamp(lRatio, 0.60f, 1.35f);
+            result->shell.plastronWidth  *= Math_Clamp(wRatio, 0.65f, 1.35f);
+        } else if (!shellHostOk) {
+            memset(&result->shell, 0, sizeof(result->shell));
         }
         /* Remapeo seguro de membranas explícitas y patagios desde el progenitor de extremidades. */
         result->membraneCount = 0;

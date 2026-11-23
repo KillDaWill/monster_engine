@@ -39,7 +39,10 @@ typedef enum AttachmentRole {
     ATTACHMENT_THORACIC_LEG,    /**< Inserción ventral torácica de extremidad articulada. */
     ATTACHMENT_SIPHON,          /**< Inserción lateroventral de sifón o embudo propulsor. */
     ATTACHMENT_ORAL,            /**< Inserción central oral/subumbrelar. */
-    ATTACHMENT_CEPHALIC_LOBE    /**< Inserción frontal pareada de lóbulo cefálico. */
+    ATTACHMENT_CEPHALIC_LOBE,   /**< Inserción frontal pareada de lóbulo cefálico. */
+    ATTACHMENT_DORSAL_POSTERIOR,/**< Inserción dorsal posterior (segunda aleta dorsal, pínulas). */
+    ATTACHMENT_ANAL,            /**< Inserción ventral posterior (aleta anal). */
+    ATTACHMENT_SHELL            /**< Anclaje dorsal/ventral de caparazón rígido sobre el tronco. */
 } AttachmentRole;
 
 /** Referencia explícita a una ranura de un módulo anfitrión específico. */

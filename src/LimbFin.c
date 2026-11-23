@@ -26,6 +26,46 @@ bool LimbFin_Resolve(const LimbPhenotype* p, uint32_t module, const AttachmentSl
     float sweep = p->finSweep;
     float camber = p->finCamber;
 
+    /* Perfil tetrapodo marino (aletas de tortuga marina y aletas pectorales de cetáceos):
+     * extremidad propulsora hidrofoil independiente del disco batoideo. */
+    if (p->anatomyProfile == LIMB_PROFILE_MARINE_FLIPPER) {
+        bool fore = (p->role == LIMB_FORE || p->role == LIMB_WING);
+        float aspect = p->wingAspect > 0.5f ? p->wingAspect : (fore ? 3.2f : 2.1f);
+        float baseChord = fmaxf(0.03f * slot->scale, span / aspect);
+        float rootInset = -side * slot->hostRadii.x * 0.14f;
+        float droopAngle = fore ? (0.14f + 0.18f * (1.0f - p->sprawl)) : 0.10f;
+        float frac[4] = {0.0f, 0.30f, 0.66f, 1.0f};
+        float chordFactor[4] = {0.82f, 1.00f, 0.66f, 0.18f};
+        float thickFactor[4] = {1.00f, 0.68f, 0.38f, 0.15f};
+
+        for (unsigned i = 0; i < 4; ++i) {
+            float u = frac[i];
+            float x = rootInset + side * span * u * cosf(droopAngle);
+            float y = -span * u * sinf(droopAngle) + span * camber * sinf(u * 3.14159265f) * 0.22f;
+            float z = -span * sweep * (0.28f * u + 0.72f * u * u);
+            float wr = fmaxf(0.004f * slot->scale, baseChord * chordFactor[i] * 0.5f);
+            float hr = fmaxf(0.003f * slot->scale, thick * thickFactor[i]);
+            if (!Module_Node(g, module, (uint16_t)(i + 1), WorldFin(slot, Vec3_Create(x, y, z)),
+                             wr, hr, 2, ANATOMY_ROLE_JOINT,
+                             fore ? ANATOMY_REGION_FORELIMB : ANATOMY_REGION_HINDLIMB, aSide, p->development))
+                return false;
+            if (i > 0) {
+                /* Tramo proximal corto embebido en el hombro; lámina distal generada en SupplementaryMesh. */
+                BodyConnectionKind cKind = (i == 1) ? BODY_CONNECTION_LIMB_SEGMENT : BODY_CONNECTION_SUPPORT;
+                if (!Module_Edge(g, module, (uint16_t)i,
+                                 Anatomy_MakeId(module, (uint16_t)i),
+                                 Anatomy_MakeId(module, (uint16_t)(i + 1)),
+                                 cKind, p->development))
+                    return false;
+                BodyConnection* e = &g->connections[g->connectionCount - 1];
+                e->transverseAxis = slot->forward;
+                e->jointBlend = 0.85f;
+            }
+        }
+        return Module_Edge(g, module, 4, slot->hostNode, Anatomy_MakeId(module, 1),
+                           BODY_CONNECTION_SUPPORT, p->development);
+    }
+
     /* Cadena principal spanwise (4 estaciones desde raíz embebida en el disco hasta punta).
      * Las secciones son anchas en cuerda (Z) y aplanadas en espesor (Y), con unión muy suave
      * para fusionarse en una única silueta continua con el cuerpo central batoideo. */

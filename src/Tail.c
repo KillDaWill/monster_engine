@@ -183,7 +183,22 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
         if (p->archetype == TAIL_ARCHETYPE_CUSTOM)
             c.z += 0.22f * (1.0f - t) * p->baseWidth * s;
 
-        if (p->archetype == TAIL_ARCHETYPE_PREHENSILE ||
+        if (p->archetype == TAIL_ARCHETYPE_PREHENSILE && slot->forward.y < -0.5f) {
+            /* Cola prensil vertical (caballito de mar): desciende y se enrolla en el plano sagital hacia +Z. */
+            float fwdArc = 0.0f, upArc = 0.0f;
+            const unsigned steps = 96;
+            float curlStrength = fmaxf(0.25f, fabsf(p->curvature));
+            for (unsigned j = 0; j < steps; ++j) {
+                float u = t * ((float)j + 0.5f) / (float)steps;
+                float v = Math_Clamp01((u - 0.18f) / 0.82f);
+                float angle = curlStrength * 4.4f * v * v;
+                fwdArc += cosf(angle) * p->length * t / (float)steps;
+                upArc  += sinf(angle) * p->length * t / (float)steps;
+            }
+            c = Vec3_Add(slot->position,
+                Vec3_Add(Vec3_Scale(slot->forward, fwdArc * s * development),
+                         Vec3_Scale(slot->up, upArc * s * development)));
+        } else if (p->archetype == TAIL_ARCHETYPE_PREHENSILE ||
             (p->archetype == TAIL_ARCHETYPE_TAPERED && fabsf(p->curvature) > 1e-6f)) {
             /* Integración de tangentes: longitud de arco estable y curvatura distal. */
             float x = 0, z = 0;

@@ -7,7 +7,9 @@ bool Head_Supports(HeadArchetype a) {
     if (a == HEAD_ARCHETYPE_RHINOCEROTID || a == HEAD_ARCHETYPE_RODENT ||
         a == HEAD_ARCHETYPE_MONOTREME || a == HEAD_ARCHETYPE_PHOLIDOTE ||
         a == HEAD_ARCHETYPE_BATOID || a == HEAD_ARCHETYPE_CEPHALOPOD ||
-        a == HEAD_ARCHETYPE_ARTHROPOD) return true;
+        a == HEAD_ARCHETYPE_ARTHROPOD || a == HEAD_ARCHETYPE_TELEOST ||
+        a == HEAD_ARCHETYPE_ELASMOBRANCH || a == HEAD_ARCHETYPE_SYNGNATHID ||
+        a == HEAD_ARCHETYPE_TESTUDINE || a == HEAD_ARCHETYPE_CETACEAN) return true;
     return a == HEAD_ARCHETYPE_LIZARD || a == HEAD_ARCHETYPE_CANID || a == HEAD_ARCHETYPE_AVIAN || a == HEAD_ARCHETYPE_BOVID || a == HEAD_ARCHETYPE_EQUINE || a == HEAD_ARCHETYPE_SUID || a == HEAD_ARCHETYPE_PROBOSCIDEAN;
 }
 
@@ -229,6 +231,61 @@ static HeadPhenotype HeadPhenotype_ArthropodPreset(void) {
     p.earSize=0;p.orbitDepth=.16f;p.muzzleForm=HEAD_MUZZLE_WEDGE;p.eyeLayout=HEAD_EYES_FORWARD;
     return p;
 }
+static HeadPhenotype HeadPhenotype_TeleostPreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_TELEOST);
+    p.skullWidth=.54f;p.skullHeight=.78f;p.skullLength=.64f;
+    p.muzzleLength=.56f;p.muzzleWidth=.46f;p.muzzleTaper=.84f;
+    p.rostrumDepth=.54f;p.rostrumDorsalSlope=.48f;p.temporalWidth=.54f;p.temporalDepth=.72f;
+    p.eyeSize=.42f;p.eyeLaterality=.88f;p.eyeForwardness=.44f;p.eyeDorsality=.54f;
+    p.eyeExposure=.16f;p.eyelidCoverage=.06f;p.browProminence=.08f;p.snoutBluntness=.18f;
+    p.jawLength=.58f;p.jawDepth=.44f;p.jawStrength=.48f;p.noseScale=.02f;p.cheekMass=.20f;
+    p.earSize=0;p.orbitDepth=.22f;p.muzzleForm=HEAD_MUZZLE_WEDGE;p.eyeLayout=HEAD_EYES_LATERAL;
+    return p;
+}
+static HeadPhenotype HeadPhenotype_ElasmobranchPreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_ELASMOBRANCH);
+    p.skullWidth=.95f;p.skullHeight=.30f;p.skullLength=.52f;
+    p.muzzleLength=.44f;p.muzzleWidth=.96f;p.muzzleTaper=.14f;
+    p.rostrumDepth=.26f;p.rostrumDorsalSlope=.48f;p.temporalWidth=.95f;p.temporalDepth=.28f;
+    p.eyeSize=.34f;p.eyeLaterality=.98f;p.eyeForwardness=.56f;p.eyeDorsality=.50f;
+    p.eyeExposure=.20f;p.eyelidCoverage=.08f;p.browProminence=.06f;p.snoutBluntness=.88f;
+    p.jawLength=.46f;p.jawDepth=.26f;p.jawStrength=.44f;p.noseScale=.04f;p.cheekMass=.14f;
+    p.earSize=0;p.orbitDepth=.20f;p.muzzleForm=HEAD_MUZZLE_BLUNT;p.eyeLayout=HEAD_EYES_LATERAL;
+    return p;
+}
+static HeadPhenotype HeadPhenotype_SyngnathidPreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_SYNGNATHID);
+    p.skullWidth=.48f;p.skullHeight=.66f;p.skullLength=.52f;
+    p.muzzleLength=.92f;p.muzzleWidth=.18f;p.muzzleTaper=.78f;
+    p.rostrumDepth=.20f;p.rostrumDorsalSlope=.52f;p.temporalWidth=.46f;p.temporalDepth=.56f;
+    p.eyeSize=.54f;p.eyeLaterality=.86f;p.eyeForwardness=.52f;p.eyeDorsality=.66f;
+    p.eyeExposure=.32f;p.eyelidCoverage=.10f;p.browProminence=.42f;p.snoutBluntness=.24f;
+    p.jawLength=.18f;p.jawDepth=.16f;p.jawStrength=.18f;p.noseScale=.02f;p.cheekMass=.16f;
+    p.earSize=0;p.orbitDepth=.24f;p.muzzleForm=HEAD_MUZZLE_LONG;p.eyeLayout=HEAD_EYES_HIGH_LATERAL;
+    return p;
+}
+static HeadPhenotype HeadPhenotype_TestudinePreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_TESTUDINE);
+    p.skullWidth=.62f;p.skullHeight=.62f;p.skullLength=.56f;
+    p.muzzleLength=.34f;p.muzzleWidth=.56f;p.muzzleTaper=.56f;
+    p.rostrumDepth=.54f;p.rostrumDorsalSlope=.58f;p.temporalWidth=.60f;p.temporalDepth=.56f;
+    p.eyeSize=.46f;p.eyeLaterality=.82f;p.eyeForwardness=.54f;p.eyeDorsality=.58f;
+    p.eyeExposure=.20f;p.eyelidCoverage=.22f;p.browProminence=.24f;p.snoutBluntness=.66f;
+    p.jawLength=.46f;p.jawDepth=.40f;p.jawStrength=.52f;p.noseScale=.04f;p.cheekMass=.28f;
+    p.earSize=0;p.orbitDepth=.28f;p.muzzleForm=HEAD_MUZZLE_BLUNT;p.eyeLayout=HEAD_EYES_LATERAL;
+    return p;
+}
+static HeadPhenotype HeadPhenotype_CetaceanPreset(void) {
+    HeadPhenotype p=HeadPhenotype_Base(HEAD_ARCHETYPE_CETACEAN);
+    p.skullWidth=.66f;p.skullHeight=.78f;p.skullLength=.64f;
+    p.muzzleLength=.74f;p.muzzleWidth=.34f;p.muzzleTaper=.68f;
+    p.rostrumDepth=.32f;p.rostrumDorsalSlope=.64f;p.temporalWidth=.64f;p.temporalDepth=.68f;
+    p.eyeSize=.30f;p.eyeLaterality=.88f;p.eyeForwardness=.42f;p.eyeDorsality=.36f;
+    p.eyeExposure=.14f;p.eyelidCoverage=.24f;p.browProminence=.10f;p.snoutBluntness=.56f;
+    p.jawLength=.72f;p.jawDepth=.34f;p.jawStrength=.44f;p.noseScale=.02f;p.cheekMass=.26f;
+    p.earSize=0;p.orbitDepth=.20f;p.muzzleForm=HEAD_MUZZLE_LONG;p.eyeLayout=HEAD_EYES_LOW_LATERAL;
+    return p;
+}
 static HeadPhenotype HeadPreset(HeadArchetype archetype) {
     switch (archetype) {
     case HEAD_ARCHETYPE_AVIAN: return HeadPhenotype_AvianPreset();
@@ -244,6 +301,11 @@ static HeadPhenotype HeadPreset(HeadArchetype archetype) {
     case HEAD_ARCHETYPE_BATOID: return HeadPhenotype_BatoidPreset();
     case HEAD_ARCHETYPE_CEPHALOPOD: return HeadPhenotype_CephalopodPreset();
     case HEAD_ARCHETYPE_ARTHROPOD: return HeadPhenotype_ArthropodPreset();
+    case HEAD_ARCHETYPE_TELEOST: return HeadPhenotype_TeleostPreset();
+    case HEAD_ARCHETYPE_ELASMOBRANCH: return HeadPhenotype_ElasmobranchPreset();
+    case HEAD_ARCHETYPE_SYNGNATHID: return HeadPhenotype_SyngnathidPreset();
+    case HEAD_ARCHETYPE_TESTUDINE: return HeadPhenotype_TestudinePreset();
+    case HEAD_ARCHETYPE_CETACEAN: return HeadPhenotype_CetaceanPreset();
     default: return HeadPhenotype_LizardPreset();
     }
 }
@@ -356,6 +418,12 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     bool batoid=p.archetype==HEAD_ARCHETYPE_BATOID;
     bool cephalopod=p.archetype==HEAD_ARCHETYPE_CEPHALOPOD;
     bool arthropod=p.archetype==HEAD_ARCHETYPE_ARTHROPOD;
+    bool teleost=p.archetype==HEAD_ARCHETYPE_TELEOST;
+    bool elasmobranch=p.archetype==HEAD_ARCHETYPE_ELASMOBRANCH;
+    bool syngnathid=p.archetype==HEAD_ARCHETYPE_SYNGNATHID;
+    bool testudine=p.archetype==HEAD_ARCHETYPE_TESTUDINE;
+    bool cetacean=p.archetype==HEAD_ARCHETYPE_CETACEAN;
+    bool aquaticNew=teleost||elasmobranch||syngnathid||testudine||cetacean;
     bool wideGrazer=p.archetype==HEAD_ARCHETYPE_BOVID||rhinocerotid;
     bool equine=p.archetype==HEAD_ARCHETYPE_EQUINE;
     bool suid=p.archetype==HEAD_ARCHETYPE_SUID;
@@ -384,6 +452,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(batoid){skullR.x*=1.38f;skullR.y*=.46f;skullR.z*=.66f;}
     if(cephalopod){skullR.x*=.80f;skullR.y*=1.04f;skullR.z*=.68f;}
     if(arthropod){skullR.x*=.64f;skullR.y*=1.12f;skullR.z*=.78f;}
+    if(teleost){skullR.x*=.78f;skullR.y*=1.04f;skullR.z*=.92f;}
+    if(elasmobranch){skullR.x*=1.12f;skullR.y*=.54f;skullR.z*=.88f;}
+    if(syngnathid){skullR.x*=.74f;skullR.y*=.92f;skullR.z*=.82f;}
+    if(testudine){skullR.x*=.92f;skullR.y*=.86f;skullR.z*=.84f;}
+    if(cetacean){skullR.x*=.88f;skullR.y*=1.06f;skullR.z*=.96f;}
     Vector3 skull=Vec3_Create(0,0,-hz*.10f);float faceLength=(p.archetype==HEAD_ARCHETYPE_AVIAN?p.beakLength:p.muzzleLength)*hz*1.20f+hz*.30f;
     if(p.archetype==HEAD_ARCHETYPE_CANID)faceLength*=1.0f-brachy*.34f;
     if(wideGrazer)faceLength=hz*(.35f+1.25f*p.muzzleLength);
@@ -594,6 +667,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(batoid)sideFactor=.72f+.10f*p.eyeLaterality;
     if(cephalopod)sideFactor=.64f+.14f*p.eyeLaterality;
     if(arthropod)sideFactor=.42f+.14f*p.eyeLaterality;
+    if(teleost)sideFactor=.70f+.12f*p.eyeLaterality;
+    if(elasmobranch)sideFactor=.88f+.64f*p.muzzleWidth*p.eyeLaterality;
+    if(syngnathid)sideFactor=.70f+.12f*p.eyeLaterality;
+    if(testudine)sideFactor=.70f+.12f*p.eyeLaterality;
+    if(cetacean)sideFactor=.70f+.12f*p.eyeLaterality;
     float side=skullR.x*sideFactor;
     float eyeZ=skull.z+skullR.z*(p.archetype==HEAD_ARCHETYPE_LIZARD?
         (-.12f+.24f*(p.eyeForwardness + (p.eyeLayout == HEAD_EYES_FORWARD ? .28f : 0.0f))):
@@ -633,7 +711,27 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         eyeZ=skull.z+skullR.z*(.14f+.18f*p.eyeForwardness);
         eyeY=skull.y+skullR.y*(.10f+.22f*p.eyeDorsality);
     }
-    if (!batoid && !cephalopod && !arthropod) {
+    if(teleost) {
+        eyeZ=skull.z+skullR.z*(.24f+.22f*p.eyeForwardness);
+        eyeY=skull.y+skullR.y*(.08f+.20f*p.eyeDorsality);
+    }
+    if(elasmobranch) {
+        eyeZ=skull.z+skullR.z*(.38f+.34f*p.eyeForwardness);
+        eyeY=skull.y+skullR.y*(-.04f+.14f*p.eyeDorsality);
+    }
+    if(syngnathid) {
+        eyeZ=skull.z+skullR.z*(.22f+.18f*p.eyeForwardness);
+        eyeY=skull.y+skullR.y*(.22f+.22f*p.eyeDorsality);
+    }
+    if(testudine) {
+        eyeZ=skull.z+skullR.z*(.24f+.18f*p.eyeForwardness);
+        eyeY=skull.y+skullR.y*(.14f+.18f*p.eyeDorsality);
+    }
+    if(cetacean) {
+        eyeZ=skull.z+skullR.z*(.20f+.18f*p.eyeForwardness);
+        eyeY=skull.y-skullR.y*(.10f-.14f*p.eyeDorsality);
+    }
+    if (!batoid && !cephalopod && !arthropod && !aquaticNew) {
         if (p.eyeLayout == HEAD_EYES_HIGH_LATERAL) eyeY += skullR.y*.16f;
         else if (p.eyeLayout == HEAD_EYES_LOW_LATERAL) eyeY -= skullR.y*.14f;
     }
@@ -1616,12 +1714,185 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         a->oralSystem.maxJawAngle = 36.0f;
         Mouth_Normalize(&a->oralSystem);
     }
-    if(batoid||cephalopod||arthropod) {
+    if(batoid||cephalopod||arthropod||aquaticNew) {
         r->headBodySmoothness=Math_Min(skullR.y,skullR.z)*(arthropod?.12f:.34f);
         r->hasNasalPad=false;
         r->hasEars=false;
         r->hasTympana=false;
         r->nostrilRadii=Vec3_Zero();
+        if(teleost) {
+            /* Cráneo hidrodinámico de pez óseo (atún): transición lisa desde el tronco hasta hocico aguzado. */
+            r->hasCranialProfile = true;
+            float snoutLen = skullR.z * (0.95f + 0.90f * p.muzzleLength);
+            float z0 = skull.z + snoutLen;
+            float z5 = skull.z - skullR.z * 0.95f;
+            const float uPos[6] = {0.0f, 0.20f, 0.42f, 0.64f, 0.84f, 1.0f};
+            const float wMul[6] = {0.14f, 0.46f, 0.72f, 0.88f, 0.96f, 1.00f};
+            const float hMul[6] = {0.16f, 0.48f, 0.76f, 0.94f, 1.00f, 1.02f};
+            const float yOff[6] = {-0.06f, -0.02f, 0.02f, 0.03f, 0.02f, 0.0f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(z0, z5, uPos[i]);
+                r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
+                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.25f);
+            }
+            r->faceTip = r->cranialCenters[0];
+            r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
+            r->faceTipRadii = Vec3_Create(r->cranialRadii[0].x, r->cranialRadii[0].y, r->cranialRadii[0].y);
+            l->muzzleTip = r->cranialCenters[0];
+            l->noseTip = r->cranialCenters[0];
+            l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
+            l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
+            l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.25f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.25f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.25f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.20f);
+            r->neckCollarRadii = Vec3_Create(skullR.x * 1.02f, skullR.y * 1.02f, skullR.z * 0.35f);
+            r->neckCollarContinuity = 1.0f;
+            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.48f;
+        }
+        if(elasmobranch) {
+            /* Cráneo elasmobranquio con cefalofoil lateral continuo (tiburón martillo). */
+            r->hasCranialProfile = true;
+            float snoutLen = skullR.z * (0.82f + 0.50f * p.muzzleLength);
+            float z0 = skull.z + snoutLen;
+            float z5 = skull.z - skullR.z * 0.96f;
+            const float uPos[6] = {0.0f, 0.18f, 0.38f, 0.58f, 0.78f, 1.0f};
+            const float wMul[6] = {0.82f, 0.98f, 0.86f, 0.78f, 0.84f, 0.92f};
+            const float hMul[6] = {0.32f, 0.48f, 0.64f, 0.80f, 0.92f, 1.00f};
+            const float yOff[6] = {-0.06f, -0.02f, 0.0f, 0.02f, 0.02f, 0.0f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(z0, z5, uPos[i]);
+                r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
+                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.26f);
+            }
+            /* Alas laterales continuas del cefalofoil fundidas con smin en el SDF craneal. */
+            float hammerHalfSpan = side * 0.96f;
+            float wingZ = eyeZ - skullR.z * 0.06f;
+            float wingThickY = Math_Max(skullR.y * 0.40f, orbitRadius * 0.95f);
+            float wingChordZ = skullR.z * 0.40f;
+            r->leftMaxillaryCenter = Vec3_Create(hammerHalfSpan * 0.54f, eyeY, wingZ + skullR.z * 0.08f);
+            r->rightMaxillaryCenter = Vec3_Create(-hammerHalfSpan * 0.54f, eyeY, wingZ + skullR.z * 0.08f);
+            r->maxillaryRadii = Vec3_Create(hammerHalfSpan * 0.52f, wingThickY * 1.05f, wingChordZ * 1.02f);
+            r->leftTemporalCenter = Vec3_Create(hammerHalfSpan * 0.86f, eyeY, wingZ - skullR.z * 0.04f);
+            r->rightTemporalCenter = Vec3_Create(-hammerHalfSpan * 0.86f, eyeY, wingZ - skullR.z * 0.04f);
+            r->temporalRadii = Vec3_Create(hammerHalfSpan * 0.22f, wingThickY * 0.95f, wingChordZ * 0.78f);
+            r->leftCheekCenter = Vec3_Create(hammerHalfSpan * 0.26f, eyeY - wingThickY * 0.08f, wingZ + skullR.z * 0.12f);
+            r->rightCheekCenter = Vec3_Create(-hammerHalfSpan * 0.26f, eyeY - wingThickY * 0.08f, wingZ + skullR.z * 0.12f);
+            r->cheekRadii = Vec3_Create(hammerHalfSpan * 0.34f, wingThickY * 0.96f, wingChordZ * 0.92f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.12f);
+            r->unionSmoothness = Math_Max(r->unionSmoothness, wingThickY * 0.65f);
+            r->faceTip = r->cranialCenters[0];
+            r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
+            l->muzzleTip = r->cranialCenters[0];
+            l->noseTip = r->cranialCenters[0];
+            l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
+            l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
+            l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
+            /* Boca ventral en media luna bajo el cefalofoil. */
+            l->leftMouthCorner = Vec3_Create(skullR.x * 0.46f, -skullR.y * 0.52f, skull.z + skullR.z * 0.16f);
+            l->rightMouthCorner = Vec3_Create(-skullR.x * 0.46f, -skullR.y * 0.52f, skull.z + skullR.z * 0.16f);
+            if (l->leftJawHinge.y > l->leftMouthCorner.y - 0.01f) {
+                l->leftJawHinge.y = l->leftMouthCorner.y - 0.02f;
+                l->rightJawHinge.y = l->leftJawHinge.y;
+            }
+            if (l->leftJawHinge.z >= l->leftMouthCorner.z - 0.01f) {
+                l->leftJawHinge.z = l->leftMouthCorner.z - skullR.z * 0.20f;
+                l->rightJawHinge.z = l->leftJawHinge.z;
+            }
+            l->oralCavityCenter = Vec3_Create(0.0f, -skullR.y * 0.56f, skull.z + skullR.z * 0.24f);
+            l->mandibularSymphysis = Vec3_Create(0.0f, -skullR.y * 0.64f, skull.z + skullR.z * 0.34f);
+            r->neckCollarRadii = Vec3_Create(skullR.x * 0.92f, skullR.y * 1.00f, skullR.z * 0.35f);
+            r->neckCollarContinuity = 1.0f;
+            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.42f;
+        }
+        if(syngnathid) {
+            /* Cabeza de signátido (caballito de mar): cráneo compacto + hocico tubular largo. */
+            r->hasCranialProfile = true;
+            float tubeLen = skullR.z * (1.25f + 1.55f * p.muzzleLength);
+            float z0 = skull.z + tubeLen;
+            float z5 = skull.z - skullR.z * 0.82f;
+            const float uPos[6] = {0.0f, 0.24f, 0.50f, 0.68f, 0.84f, 1.0f};
+            const float wMul[6] = {0.22f, 0.24f, 0.28f, 0.62f, 0.88f, 0.80f};
+            const float hMul[6] = {0.24f, 0.24f, 0.28f, 0.72f, 0.96f, 0.82f};
+            const float yOff[6] = {-0.14f, -0.14f, -0.10f, 0.04f, 0.10f, -0.02f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(z0, z5, uPos[i]);
+                r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
+                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.20f);
+            }
+            r->faceTip = r->cranialCenters[0];
+            r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
+            r->faceTipRadii = Vec3_Create(r->cranialRadii[0].x, r->cranialRadii[0].y, r->cranialRadii[0].x);
+            l->muzzleTip = r->cranialCenters[0];
+            l->noseTip = r->cranialCenters[0];
+            l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
+            l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
+            l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.22f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.22f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.20f);
+            a->oralSystem.scale = Vec3_Scale(a->oralSystem.scale, 0.22f);
+            a->oralSystem.maxJawAngle = 14.0f;
+            Mouth_Normalize(&a->oralSystem);
+        }
+        if(testudine) {
+            /* Cráneo reptiliano compacto de tortuga marina con pico córneo romo sin dientes. */
+            r->hasCranialProfile = true;
+            float snoutLen = skullR.z * (0.85f + 0.55f * p.muzzleLength);
+            float z0 = skull.z + snoutLen;
+            float z5 = skull.z - skullR.z * 0.88f;
+            const float uPos[6] = {0.0f, 0.18f, 0.40f, 0.62f, 0.82f, 1.0f};
+            const float wMul[6] = {0.34f, 0.64f, 0.84f, 0.94f, 0.96f, 0.88f};
+            const float hMul[6] = {0.36f, 0.62f, 0.82f, 0.92f, 0.92f, 0.84f};
+            const float yOff[6] = {-0.14f, -0.06f, 0.02f, 0.05f, 0.03f, 0.0f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(z0, z5, uPos[i]);
+                r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
+                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.22f);
+            }
+            r->faceTip = r->cranialCenters[0];
+            r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
+            l->muzzleTip = r->cranialCenters[0];
+            l->noseTip = r->cranialCenters[0];
+            l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
+            l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
+            l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.35f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.35f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.30f);
+        }
+        if(cetacean) {
+            /* Cráneo cetáceo (delfín mular): melón frontal abombado + rostro grueso alargado. */
+            r->hasCranialProfile = true;
+            float rostrumLen = skullR.z * (1.20f + 1.05f * p.muzzleLength);
+            float z0 = skull.z + rostrumLen;
+            float z5 = skull.z - skullR.z * 0.92f;
+            const float uPos[6] = {0.0f, 0.20f, 0.38f, 0.56f, 0.78f, 1.0f};
+            const float wMul[6] = {0.26f, 0.42f, 0.54f, 0.86f, 0.98f, 1.00f};
+            const float hMul[6] = {0.22f, 0.34f, 0.46f, 0.96f, 1.06f, 1.00f};
+            const float yOff[6] = {-0.26f, -0.22f, -0.14f, 0.12f, 0.14f, 0.04f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(z0, z5, uPos[i]);
+                r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
+                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.24f);
+            }
+            r->faceTip = r->cranialCenters[0];
+            r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
+            r->faceTipRadii = Vec3_Create(r->cranialRadii[0].x, r->cranialRadii[0].y, r->cranialRadii[0].y);
+            l->muzzleTip = r->cranialCenters[0];
+            l->noseTip = r->cranialCenters[0];
+            l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
+            l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
+            l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.25f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.25f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.25f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.15f);
+            r->neckCollarRadii = Vec3_Create(skullR.x * 1.02f, skullR.y * 1.00f, skullR.z * 0.35f);
+            r->neckCollarContinuity = 1.0f;
+            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.48f;
+        }
         if(cephalopod||arthropod) {
             /* Cefalópodos (pico ventral oculto en la corona) e insectos (piezas ventrales):
              * sin hendidura bucal vertebrada frontal ni narinas craneales. */
@@ -1843,7 +2114,12 @@ uint32_t HeadAnatomy_Validate(const HeadAnatomy* a){
     float exposure=Vec3_Dot(Vec3_Sub(l->leftEyeCenter,l->leftOrbit),l->leftOrbitNormal);
     float globeDepth=Math_Max(a->eyeScale.x,Math_Max(a->eyeScale.y,a->eyeScale.z));
     float lateralFraction=fabsf(l->leftOrbit.x-r->craniumCenter.x)/Math_Max(r->craniumRadii.x,1e-4f);
-    if(!Head_InEllipsoid(l->leftOrbit,r->craniumCenter,r->craniumRadii,1.16f)||!Head_InEllipsoid(l->rightOrbit,r->craniumCenter,r->craniumRadii,1.16f)||!Head_InEllipsoid(l->leftEyeCenter,r->craniumCenter,r->craniumRadii,1.18f)||exposure<=0||exposure>globeDepth*.25f||lateralFraction>.88f||r->orbitRadii.y<a->eyeScale.y*.55f)e|=HEAD_INVALID_ORBITS;
+    if (a->archetype == HEAD_ARCHETYPE_ELASMOBRANCH) {
+        /* En elasmobranquios con cefalofoil, las órbitas residen en los extremos laterales del martillo. */
+        float foilMaxX = Math_Max(r->craniumRadii.x, r->leftTemporalCenter.x + r->temporalRadii.x) * 1.18f;
+        if (fabsf(l->leftOrbit.x) > foilMaxX || exposure <= 0 || exposure > globeDepth * .25f ||
+            r->orbitRadii.y < a->eyeScale.y * .55f) e |= HEAD_INVALID_ORBITS;
+    } else if(!Head_InEllipsoid(l->leftOrbit,r->craniumCenter,r->craniumRadii,1.16f)||!Head_InEllipsoid(l->rightOrbit,r->craniumCenter,r->craniumRadii,1.16f)||!Head_InEllipsoid(l->leftEyeCenter,r->craniumCenter,r->craniumRadii,1.18f)||exposure<=0||exposure>globeDepth*.25f||lateralFraction>.88f||r->orbitRadii.y<a->eyeScale.y*.55f)e|=HEAD_INVALID_ORBITS;
     float span=Math_Max(l->muzzleTip.z-l->muzzleRoot.z,1e-4f),nt=Math_Clamp01((l->leftNostril.z-l->muzzleRoot.z)/span);
     float nw=nt<=.52f?Math_Lerp(r->faceRootRadii.x,r->faceMidRadii.x,nt/.52f):Math_Lerp(r->faceMidRadii.x,r->faceTipRadii.x,(nt-.52f)/.48f);
     bool nasalPadNostril=r->hasNasalPad&&Head_InEllipsoid(l->leftNostril,r->noseCenter,r->noseRadii,1.02f)&&

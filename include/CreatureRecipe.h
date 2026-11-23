@@ -26,7 +26,8 @@ typedef enum CreatureModuleKind {
     CREATURE_MODULE_LIMB,
     CREATURE_MODULE_TAIL,
     CREATURE_MODULE_ORNAMENT,
-    CREATURE_MODULE_FLEXIBLE_APPENDAGE
+    CREATURE_MODULE_FLEXIBLE_APPENDAGE,
+    CREATURE_MODULE_FIN /**< Aleta hidrodinámica genérica (dorsal, anal, pectoral, pélvica o serie de pínulas). */
 } CreatureModuleKind;
 
 /** Referencia estable a una estación anatómica local de un módulo. */
@@ -72,7 +73,12 @@ typedef enum CreatureGait {
     CREATURE_GAIT_RAY_SWIM,         /**< Onda propagada sinusoidal a lo largo de aletas pectorales batoideas. */
     CREATURE_GAIT_OCTOPUS_CRAWL,    /**< Movimiento coordinado e independiente de brazos hidrostáticos y manto. */
     CREATURE_GAIT_INSECT_FLIGHT,    /**< Batido independiente de alas anteriores y posteriores con patas recogidas. */
-    CREATURE_GAIT_MEDUSA_PULSE      /**< Contracción y relajación rítmica de la campana con retardo en tentáculos. */
+    CREATURE_GAIT_MEDUSA_PULSE,     /**< Contracción y relajación rítmica de la campana con retardo en tentáculos. */
+    CREATURE_GAIT_THUNNIFORM_SWIM,  /**< Nado túnido: tronco anterior estable, propulsión caudal lateral de alta frecuencia. */
+    CREATURE_GAIT_CARANGIFORM_SHARK_SWIM, /**< Nado de escualo: ondulación lateral axial y cola heterocerca. */
+    CREATURE_GAIT_SEAHORSE_SWIM,    /**< Nado erguido de signátido: aleta dorsal ondulante, pectorales rápidas y cola estable. */
+    CREATURE_GAIT_TURTLE_SWIM,      /**< Nado de tortuga marina: batido coordinado de aletas anteriores con caparazón rígido. */
+    CREATURE_GAIT_CETACEAN_SWIM     /**< Nado cetáceo: ondulación axial dorsoventral y aleta caudal horizontal. */
 } CreatureGait;
 
 /**

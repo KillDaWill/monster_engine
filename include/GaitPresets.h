@@ -34,4 +34,14 @@ GaitProfile GaitPreset_OctopusCrawl(const Rig* rig);
 GaitProfile GaitPreset_InsectFlight(const Rig* rig);
 /** @brief Pulsación rítmica de contracción y relajación de campana medusoide. */
 GaitProfile GaitPreset_MedusaPulse(const Rig* rig);
+/** @brief Nado túnido: tronco anterior estable, propulsión caudal lateral de alta frecuencia. */
+GaitProfile GaitPreset_ThunniformSwim(const Rig* rig);
+/** @brief Nado de escualo: ondulación lateral axial progresiva con aletas pectorales estables. */
+GaitProfile GaitPreset_CarangiformSharkSwim(const Rig* rig);
+/** @brief Nado erguido de signátido: aleta dorsal rápida y postura vertical controlada. */
+GaitProfile GaitPreset_SeahorseSwim(const Rig* rig);
+/** @brief Nado de tortuga marina: batido coordinado de aletas anteriores con caparazón rígido. */
+GaitProfile GaitPreset_TurtleSwim(const Rig* rig);
+/** @brief Nado cetáceo: ondulación axial dorsoventral y propulsión por lóbulos horizontales. */
+GaitProfile GaitPreset_CetaceanSwim(const Rig* rig);
 #endif

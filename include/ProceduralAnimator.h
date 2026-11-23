@@ -5,9 +5,20 @@
 #define MONSTER_PROCEDURAL_ANIMATOR_H
 #include "Locomotion.h"
 #include "AnatomicalReach.h"
+typedef enum AquaticSwimMode {
+    AQUATIC_SWIM_NONE = 0,
+    AQUATIC_SWIM_THUNNIFORM,
+    AQUATIC_SWIM_CARANGIFORM,
+    AQUATIC_SWIM_SEAHORSE,
+    AQUATIC_SWIM_TURTLE,
+    AQUATIC_SWIM_CETACEAN
+} AquaticSwimMode;
+
 typedef struct ProceduralAnimator {
     Locomotion locomotion;
     GaitProfile gait;
+    AquaticSwimMode swimMode; /**< Modo de propulsión acuática generalizado; NONE conserva locomoción terrestre/aérea. */
+    float swimPhase; /**< Fase continua del ciclo de nado acuático. */
     Vector3 desiredVelocity,lookDirection;
     float angularVelocity,currentAngularVelocity;
     float mouthOpen;

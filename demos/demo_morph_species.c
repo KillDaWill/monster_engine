@@ -235,6 +235,11 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "octopus") || EqualsIgnoreCase(spec, "pulpo")) spec = "1018";
     else if (EqualsIgnoreCase(spec, "dragonfly") || EqualsIgnoreCase(spec, "libelula")) spec = "1019";
     else if (EqualsIgnoreCase(spec, "jellyfish") || EqualsIgnoreCase(spec, "medusa") || EqualsIgnoreCase(spec, "nettle")) spec = "1020";
+    else if (EqualsIgnoreCase(spec, "tuna") || EqualsIgnoreCase(spec, "bluefin") || EqualsIgnoreCase(spec, "atun")) spec = "1021";
+    else if (EqualsIgnoreCase(spec, "hammerhead") || EqualsIgnoreCase(spec, "shark") || EqualsIgnoreCase(spec, "tiburon") || EqualsIgnoreCase(spec, "martillo")) spec = "1022";
+    else if (EqualsIgnoreCase(spec, "seahorse") || EqualsIgnoreCase(spec, "caballito")) spec = "1023";
+    else if (EqualsIgnoreCase(spec, "turtle") || EqualsIgnoreCase(spec, "sea-turtle") || EqualsIgnoreCase(spec, "tortuga")) spec = "1024";
+    else if (EqualsIgnoreCase(spec, "dolphin") || EqualsIgnoreCase(spec, "bottlenose") || EqualsIgnoreCase(spec, "delfin")) spec = "1025";
 
     char* end = NULL;
     unsigned long num = strtoul(spec, &end, 10);

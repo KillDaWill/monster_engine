@@ -67,3 +67,5 @@ anterior y posterior.
 `canguro.creature.json` (ID 1014, Canguro Rojo) añade perfil macrópodo (`LIMB_PROFILE_MACROPOD`) con tibia larga y cuarto dedo dominante junto a marcha de salto bípedo sincronizado (`CREATURE_GAIT_BIPEDAL_HOP`).
 
 `murcielago.creature.json` (ID 1015, Murciélago Orejudo Pardo) implementa alas quiropteras (`LIMB_ARCHETYPE_WING`, `LimbBatWing`), patagios explícitos en `membranes[]` (plagiopatagio, propatagio, uropatagio) y dactilopatagios interdigitales II-V.
+
+`atun_rojo.creature.json` (ID 1021, Atún Rojo), `tiburon_martillo.creature.json` (ID 1022, Tiburón Martillo), `caballito_mar.creature.json` (ID 1023, Caballito de Mar), `tortuga_marina.creature.json` (ID 1024, Tortuga Marina) y `delfin_mular.creature.json` (ID 1025, Delfín Mular) amplían el vocabulario anatómico acuático reutilizable (`AXIAL_ARCHETYPE_AQUATIC_FUSIFORM`, `AXIAL_ARCHETYPE_CURVED_VERTICAL`, `CREATURE_MODULE_FIN`, `CaudalFinType`, `ShellPhenotype`, `LIMB_PROFILE_MARINE_FLIPPER`, cinco perfiles cefálicos acuáticos y cinco modos de nado). Se regeneran de forma determinista con `python3 tools/generate_five_aquatic.py`.

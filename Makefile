@@ -102,6 +102,9 @@ CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/AxialBodyCephalopod.c \
             $(SRC_DIR)/AxialBodyArthropod.c \
             $(SRC_DIR)/AxialBodyMedusa.c \
+            $(SRC_DIR)/AxialBodyAquaticFusiform.c \
+            $(SRC_DIR)/AxialBodyCurvedVertical.c \
+            $(SRC_DIR)/Fin.c \
             $(SRC_DIR)/HeadModule.c \
             $(SRC_DIR)/Limb.c \
             $(SRC_DIR)/LimbReptile.c \
@@ -156,6 +159,7 @@ TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_creature_recipe_io.c \
             $(TEST_DIR)/test_five_mammals.c \
             $(TEST_DIR)/test_five_non_mammals.c \
+            $(TEST_DIR)/test_aquatic_anatomy.c \
             $(TEST_DIR)/test_creature_offspring.c \
             $(TEST_DIR)/test_cloven_hoof.c \
             $(TEST_DIR)/test_bovine_editor.c \

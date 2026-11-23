@@ -23,6 +23,7 @@ extern "C" {
 #define CREATURE_MAX_TAILS 4
 #define CREATURE_MAX_FLEXIBLE_APPENDAGES 12
 #define CREATURE_MAX_REPEATED_APPENDAGES 4
+#define CREATURE_MAX_FINS 12
 #define CREATURE_MAX_DIGITS 8
 #define CREATURE_MAX_TAIL_STATIONS 16
 #define CREATURE_MAX_ORNAMENTS 64
@@ -36,7 +37,9 @@ typedef enum AxialArchetype {
     AXIAL_ARCHETYPE_DISC_RAY,
     AXIAL_ARCHETYPE_CEPHALOPOD,
     AXIAL_ARCHETYPE_ARTHROPOD,
-    AXIAL_ARCHETYPE_MEDUSA_RADIAL
+    AXIAL_ARCHETYPE_MEDUSA_RADIAL,
+    AXIAL_ARCHETYPE_AQUATIC_FUSIFORM, /**< Cuerpo hidrodinámico fusiforme continuo (peces, escualos, cetáceos). */
+    AXIAL_ARCHETYPE_CURVED_VERTICAL   /**< Cuerpo acuático vertical curvado (signátidos, caballitos de mar, dragones de mar). */
 } AxialArchetype;
 
 /** Deformación de estación semántica, antes de publicar anclajes. */
@@ -97,7 +100,8 @@ typedef enum LimbAnatomyProfile {
     LIMB_PROFILE_COMPACT_UNGULATE, /**< Miembro corto con mezcla muscular y transición al menudillo. */
     LIMB_PROFILE_COLUMNAR, /**< Extremidad columnar con apoyo acolchado. */
     LIMB_PROFILE_PLANTIGRADE, /**< Palma y planta continuas con dedos independientes. */
-    LIMB_PROFILE_MACROPOD /**< Extremidad posterior saltadora macrópoda con tibia larga, tarso-metatarso alargado y cuarto dedo dominante. */
+    LIMB_PROFILE_MACROPOD, /**< Extremidad posterior saltadora macrópoda con tibia larga, tarso-metatarso alargado y cuarto dedo dominante. */
+    LIMB_PROFILE_MARINE_FLIPPER /**< Aleta propulsora derivada de extremidad tetrápoda (tortugas marinas, cetáceos, pinnípedos). */
 } LimbAnatomyProfile;
 
 typedef struct LimbPhenotype {
@@ -147,6 +151,14 @@ typedef enum TailArchetype {
     TAIL_ARCHETYPE_FEATHER_FAN /**< Base caudal aviar con abanico superpuesto de rectrices. */
 } TailArchetype;
 
+typedef enum CaudalFinType {
+    CAUDAL_FIN_NONE = 0,
+    CAUDAL_FIN_HOMOCERCAL_LUNATE, /**< Aleta caudal vertical simétrica lunada (atún, peces pelágicos). */
+    CAUDAL_FIN_HETEROCERCAL,      /**< Aleta caudal vertical asimétrica con lóbulo superior mayor (escualos). */
+    CAUDAL_FIN_HORIZONTAL_FLUKES, /**< Dos lóbulos horizontales con escotadura central (cetáceos). */
+    CAUDAL_FIN_ROUNDED_VERTICAL   /**< Aleta caudal vertical pequeña y redondeada (juveniles/signátidos tempranos). */
+} CaudalFinType;
+
 typedef struct TailPhenotype {
     float droop; /**< Caída gravitatoria de la cola; cero conserva el eje anfitrión. */
     TailArchetype archetype;
@@ -155,7 +167,88 @@ typedef struct TailPhenotype {
     float rootMatchStrength;
     unsigned segmentCount;
     float tipLift; /**< Curvatura vertical distal en reposo, en unidades del cuerpo. */
+    CaudalFinType caudalFinType; /**< Opcional v1: propulsor caudal terminal. */
+    float caudalSpan; /**< Envergadura total entre puntas de los lóbulos caudales. */
+    float caudalChord; /**< Cuerda longitudinal raíz-borde posterior del propulsor caudal. */
+    float caudalUpperLobeRatio; /**< Proporción relativa del lóbulo superior/dorsal [0.5..2.0]. */
+    float caudalNotchDepth; /**< Profundidad de la horquilla o escotadura central [0..1]. */
+    float caudalSweep; /**< Flecha posterior de los lóbulos caudales [0..1.2]. */
+    float caudalThickness; /**< Espesor basal del propulsor caudal. */
+    Color caudalColor; /**< Color opcional del propulsor caudal (alfa 0 hereda del cuerpo). */
 } TailPhenotype;
+
+typedef enum FinFamily {
+    FIN_FAMILY_RAYED_PAIRED = 0, /**< Aleta pareada con soporte de radios óseos (teleósteos). */
+    FIN_FAMILY_MEDIAN_DORSAL,    /**< Aleta mediana dorsal (radiada o falcada). */
+    FIN_FAMILY_MEDIAN_ANAL,      /**< Aleta mediana ventral/anal. */
+    FIN_FAMILY_CARTILAGINOUS,    /**< Aleta cartilaginosa rígida y gruesa (escualos). */
+    FIN_FAMILY_FLEXIBLE_TISSUE,  /**< Aleta de tejido fibroso sin radios (aleta dorsal cetácea). */
+    FIN_FAMILY_CAUDAL_BILOBED    /**< Aleta caudal bilobulada independiente. */
+} FinFamily;
+
+typedef enum FinRole {
+    FIN_ROLE_PECTORAL = 0,
+    FIN_ROLE_PELVIC,
+    FIN_ROLE_DORSAL_FIRST,
+    FIN_ROLE_DORSAL_SECOND,
+    FIN_ROLE_ANAL,
+    FIN_ROLE_CAUDAL,
+    FIN_ROLE_FINLET_SERIES /**< Serie compacta repetida de pínulas dorsales o anales. */
+} FinRole;
+
+typedef enum FinSide {
+    FIN_SIDE_CENTER = 0,
+    FIN_SIDE_LEFT,
+    FIN_SIDE_RIGHT
+} FinSide;
+
+/** Descriptor semántico reutilizable para aletas y series de pínulas. */
+typedef struct FinPhenotype {
+    FinFamily family;
+    FinRole role;
+    FinSide side;
+    float baseChord;     /**< Longitud de inserción a lo largo del eje anfitrión. */
+    float span;          /**< Altura o envergadura libre desde la raíz hasta la punta. */
+    float thickness;     /**< Espesor máximo en la raíz hidrodinámica. */
+    float rootWidth;     /**< Ensanchamiento basal de transición con el tronco. */
+    float sweep;         /**< Barrido posterior de la punta respecto a la raíz [-0.4..1.4]. */
+    float leadingCurve;  /**< Curvatura del borde de ataque [-0.4..1.0]. */
+    float trailingCurve; /**< Concavidad/falcación del borde de salida [-0.5..1.0]. */
+    float tipShape;      /**< Forma de la punta [0=aguda, 1=redondeada]. */
+    float camber;        /**< Curvatura transversal del perfil [-0.3..0.3]. */
+    float dihedral;      /**< Inclinación vertical en radianes para aletas pareadas. */
+    float cant;          /**< Inclinación lateral/balanceo en radianes. */
+    unsigned rayCount;   /**< Número de radios visibles (0=lisa/cartilaginosa, 4..28=radiada). */
+    unsigned finletCount;/**< Cantidad de pínulas cuando role == FIN_ROLE_FINLET_SERIES (0..16). */
+    float seriesLength;  /**< Longitud axial ocupada por la serie de pínulas. */
+    float development;   /**< Desarrollo ontogenético [0..1]. */
+    Color baseColor;     /**< Color proximal de la aleta (alfa 0 hereda del cuerpo). */
+    Color tipColor;      /**< Color distal de la aleta (alfa 0 hereda de baseColor). */
+} FinPhenotype;
+
+/** Caparazón anatómico reutilizable (espaldar dorsal, plastrón ventral, puente lateral y escudos). */
+typedef struct ShellPhenotype {
+    float development;      /**< Desarrollo activo [0=ausente, 1=completo]. */
+    float length;           /**< Longitud total del espaldar en unidades del cuerpo. */
+    float width;            /**< Anchura máxima del espaldar en unidades del cuerpo. */
+    float height;           /**< Altura/abombamiento dorsal del espaldar. */
+    float dorsalConvexity;  /**< Convexidad de la cúpula dorsal [0.1..1.0]. */
+    float heartTaper;       /**< Estrechamiento posterior cordiforme [0..1]. */
+    float plastronWidth;    /**< Anchura relativa del plastrón ventral. */
+    float plastronLength;   /**< Longitud relativa del plastrón ventral. */
+    float plastronDepth;    /**< Descenso ventral del plastrón bajo el eje troncal. */
+    float bridgeWidth;      /**< Extensión longitudinal del puente lateral entre aberturas. */
+    float shellThickness;   /**< Espesor estructural del borde y pared del caparazón. */
+    unsigned costalScutePairs; /**< Pares de escudos costales laterales (p. ej. 4 en Chelonia mydas). */
+    unsigned vertebralScutes;  /**< Escudos vertebrales centrales (p. ej. 5). */
+    unsigned marginalScutes;   /**< Escudos marginales por lado (p. ej. 11). */
+    float scuteRelief;      /**< Relieve de suturas y abombamiento por escudo [0..1]. */
+    float cervicalNotch;    /**< Escotadura anterior para cuello y cabeza [0..0.4]. */
+    float limbClearance;    /**< Holgura lateral en aberturas de aletas/extremidades [0..0.5]. */
+    Color carapaceColor;    /**< Color principal del espaldar dorsal. */
+    Color scuteBorderColor; /**< Color de suturas y moteado de escudos. */
+    Color plastronColor;    /**< Color pálido del plastrón ventral. */
+} ShellPhenotype;
 
 typedef enum OrnamentArchetype {
     ORNAMENT_ARCHETYPE_HORN = 0,
@@ -307,6 +400,9 @@ typedef struct CreaturePhenotype {
     size_t membraneCount;
     RepeatedAppendageGroup repeatedAppendages[CREATURE_MAX_REPEATED_APPENDAGES];
     size_t repeatedAppendageCount;
+    FinPhenotype fins[CREATURE_MAX_FINS];
+    size_t finCount;
+    ShellPhenotype shell;
     SurfacePhenotype surface;
     CreatureDevelopment development;
     Color dorsalColor, ventralColor, unpigmentedVentralColor;

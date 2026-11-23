@@ -169,3 +169,58 @@ GaitProfile GaitPreset_MedusaPulse(const Rig* rig) {
         .supportCompression = 0.0f
     };
 }
+
+GaitProfile GaitPreset_ThunniformSwim(const Rig* rig) {
+    (void)rig;
+    return (GaitProfile){
+        .cycleDuration = 0.62f, .strideLength = 1.65f, .stepHeight = 0.0f,
+        .stanceRatio = 0.5f, .bodyBob = 0.005f, .bodySway = 0.012f,
+        .spineWave = 0.045f, .tailCounterSwing = 0.24f,
+        .spineTurn = 0.14f, .tailTurn = 0.32f, .bodyBank = 0.06f,
+        .supportCompression = 0.0f
+    };
+}
+
+GaitProfile GaitPreset_CarangiformSharkSwim(const Rig* rig) {
+    (void)rig;
+    return (GaitProfile){
+        .cycleDuration = 1.05f, .strideLength = 1.35f, .stepHeight = 0.0f,
+        .stanceRatio = 0.5f, .bodyBob = 0.008f, .bodySway = 0.028f,
+        .spineWave = 0.105f, .tailCounterSwing = 0.28f,
+        .spineTurn = 0.22f, .tailTurn = 0.36f, .bodyBank = 0.09f,
+        .supportCompression = 0.0f
+    };
+}
+
+GaitProfile GaitPreset_SeahorseSwim(const Rig* rig) {
+    (void)rig;
+    return (GaitProfile){
+        .cycleDuration = 0.38f, .strideLength = 0.22f, .stepHeight = 0.0f,
+        .stanceRatio = 0.5f, .bodyBob = 0.014f, .bodySway = 0.004f,
+        .spineWave = 0.006f, .tailCounterSwing = 0.01f,
+        .spineTurn = 0.05f, .tailTurn = 0.03f, .bodyBank = 0.02f,
+        .supportCompression = 0.0f
+    };
+}
+
+GaitProfile GaitPreset_TurtleSwim(const Rig* rig) {
+    (void)rig;
+    return (GaitProfile){
+        .cycleDuration = 1.55f, .strideLength = 1.15f, .stepHeight = 0.0f,
+        .stanceRatio = 0.5f, .bodyBob = 0.022f, .bodySway = 0.004f,
+        .spineWave = 0.0f, .tailCounterSwing = 0.02f,
+        .spineTurn = 0.06f, .tailTurn = 0.05f, .bodyBank = 0.08f,
+        .supportCompression = 0.0f
+    };
+}
+
+GaitProfile GaitPreset_CetaceanSwim(const Rig* rig) {
+    (void)rig;
+    return (GaitProfile){
+        .cycleDuration = 0.92f, .strideLength = 1.75f, .stepHeight = 0.0f,
+        .stanceRatio = 0.5f, .bodyBob = 0.026f, .bodySway = 0.003f,
+        .spineWave = 0.085f, .tailCounterSwing = 0.26f,
+        .spineTurn = 0.16f, .tailTurn = 0.22f, .bodyBank = 0.12f,
+        .supportCompression = 0.0f
+    };
+}

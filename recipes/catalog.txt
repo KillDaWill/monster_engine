@@ -17,3 +17,8 @@ mantarraya.creature.json
 pulpo_gigante.creature.json
 libelula_emperador.creature.json
 medusa_ortiga.creature.json
+atun_rojo.creature.json
+tiburon_martillo.creature.json
+caballito_mar.creature.json
+tortuga_marina.creature.json
+delfin_mular.creature.json

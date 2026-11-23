@@ -31,7 +31,8 @@ static unsigned ResolutionPriority(CreatureModuleKind kind) {
     case CREATURE_MODULE_LIMB: return 3;
     case CREATURE_MODULE_ORNAMENT: return 4;
     case CREATURE_MODULE_FLEXIBLE_APPENDAGE: return 5;
-    default: return 6;
+    case CREATURE_MODULE_FIN: return 6;
+    default: return 7;
     }
 }
 
@@ -142,7 +143,9 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
     bool tails[CREATURE_MAX_TAILS] = {0};
     bool ornaments[CREATURE_MAX_ORNAMENTS] = {0};
     bool flexible[CREATURE_MAX_FLEXIBLE_APPENDAGES] = {0};
+    bool fins[CREATURE_MAX_FINS] = {0};
     if (p->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES) return false;
+    if (p->finCount > CREATURE_MAX_FINS) return false;
     if (p->repeatedAppendageCount > CREATURE_MAX_REPEATED_APPENDAGES) return false;
     for (size_t i = 0; i < p->repeatedAppendageCount; ++i) {
         const RepeatedAppendageGroup* rg = &p->repeatedAppendages[i];
@@ -196,7 +199,7 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
                 (limb->clawScale > 0 && ((limb->archetype != LIMB_ARCHETYPE_MAMMAL && !wing && !newArch) ||
                   (!wing && !newArch && limb->anatomyProfile != LIMB_PROFILE_LEGACY && !plantigrade && !macropod) ||
                   (!newArch && !limb->digitCount)))) return false;
-            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_MACROPOD ||
+            if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_MARINE_FLIPPER ||
                 limb->nailCount > CREATURE_MAX_DIGITS) return false;
             if (!isfinite(limb->webbingCoverage) || limb->webbingCoverage < 0 || limb->webbingCoverage > 1 ||
                 !isfinite(limb->webbingFold) || limb->webbingFold < 0 || limb->webbingFold > 1 ||
@@ -237,6 +240,14 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             if (p->flexibleAppendages[m->phenotypeIndex].terminal > FLEXIBLE_TERMINAL_PAIRED_OPENINGS ||
                 p->flexibleAppendages[m->phenotypeIndex].terminal < FLEXIBLE_TERMINAL_ROUND) return false;
             flexible[m->phenotypeIndex] = true;
+            break;
+        case CREATURE_MODULE_FIN:
+            if (m->phenotypeIndex >= p->finCount || fins[m->phenotypeIndex]) return false;
+            if (p->fins[m->phenotypeIndex].family > FIN_FAMILY_CAUDAL_BILOBED ||
+                p->fins[m->phenotypeIndex].role > FIN_ROLE_FINLET_SERIES ||
+                p->fins[m->phenotypeIndex].side > FIN_SIDE_RIGHT ||
+                p->fins[m->phenotypeIndex].finletCount > 16) return false;
+            fins[m->phenotypeIndex] = true;
             break;
         default:
             return false;

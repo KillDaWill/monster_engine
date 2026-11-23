@@ -738,6 +738,11 @@ static void AnimateSlot(VisualSlot* slot,const EcosystemEntity* entity, float de
                  slot->monster.recipe.gait==CREATURE_GAIT_OCTOPUS_CRAWL?GaitPreset_OctopusCrawl(&body->rig):
                  slot->monster.recipe.gait==CREATURE_GAIT_INSECT_FLIGHT?GaitPreset_InsectFlight(&body->rig):
                  slot->monster.recipe.gait==CREATURE_GAIT_MEDUSA_PULSE?GaitPreset_MedusaPulse(&body->rig):
+                 slot->monster.recipe.gait==CREATURE_GAIT_THUNNIFORM_SWIM?GaitPreset_ThunniformSwim(&body->rig):
+                 slot->monster.recipe.gait==CREATURE_GAIT_CARANGIFORM_SHARK_SWIM?GaitPreset_CarangiformSharkSwim(&body->rig):
+                 slot->monster.recipe.gait==CREATURE_GAIT_SEAHORSE_SWIM?GaitPreset_SeahorseSwim(&body->rig):
+                 slot->monster.recipe.gait==CREATURE_GAIT_TURTLE_SWIM?GaitPreset_TurtleSwim(&body->rig):
+                 slot->monster.recipe.gait==CREATURE_GAIT_CETACEAN_SWIM?GaitPreset_CetaceanSwim(&body->rig):
                  GaitPreset_BovineWalk(&body->rig);
         }
         MonsterAnimation_Configure(&slot->monster,&body->rig,gait);

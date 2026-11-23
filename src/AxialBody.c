@@ -13,6 +13,8 @@
 #include "AxialBodyCephalopod.h"
 #include "AxialBodyArthropod.h"
 #include "AxialBodyMedusa.h"
+#include "AxialBodyAquaticFusiform.h"
+#include "AxialBodyCurvedVertical.h"
 
 bool AxialBody_Supports(AxialArchetype a) {
     return a == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD ||
@@ -21,7 +23,9 @@ bool AxialBody_Supports(AxialArchetype a) {
            a == AXIAL_ARCHETYPE_DISC_RAY ||
            a == AXIAL_ARCHETYPE_CEPHALOPOD ||
            a == AXIAL_ARCHETYPE_ARTHROPOD ||
-           a == AXIAL_ARCHETYPE_MEDUSA_RADIAL;
+           a == AXIAL_ARCHETYPE_MEDUSA_RADIAL ||
+           a == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM ||
+           a == AXIAL_ARCHETYPE_CURVED_VERTICAL;
 }
 
 bool AxialBody_Resolve(const AxialPhenotype* phenotype,
@@ -44,6 +48,10 @@ bool AxialBody_Resolve(const AxialPhenotype* phenotype,
         return AxialBodyArthropod_Resolve(phenotype, moduleInstanceId, graph, slots);
     case AXIAL_ARCHETYPE_MEDUSA_RADIAL:
         return AxialBodyMedusa_Resolve(phenotype, moduleInstanceId, graph, slots);
+    case AXIAL_ARCHETYPE_AQUATIC_FUSIFORM:
+        return AxialBodyAquaticFusiform_Resolve(phenotype, moduleInstanceId, graph, slots);
+    case AXIAL_ARCHETYPE_CURVED_VERTICAL:
+        return AxialBodyCurvedVertical_Resolve(phenotype, moduleInstanceId, graph, slots);
     default:
         return false;
     }

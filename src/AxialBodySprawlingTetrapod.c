@@ -136,5 +136,21 @@ bool AxialBodySprawlingTetrapod_Resolve(const AxialPhenotype* source,
     AttachmentPath_PublishSlots(&path, AXIAL_SPRAWLING_SLOT_DORSAL_ARRAY_COUNT,
                                 AXIAL_SPRAWLING_SLOT_DORSAL_ARRAY_BASE, module, slots);
 
+    const AnatomyNode* trunkMid = AnatomyGraph_FindModuleNode(graph, module, AXIAL_NODE_THORAX_POSTERIOR);
+    if (trunkMid && slots->count < ATTACHMENT_MAX_SLOTS) {
+        slots->slots[slots->count++] = (AttachmentSlot){
+            .id = AXIAL_SLOT_SHELL,
+            .role = ATTACHMENT_SHELL,
+            .hostModuleInstanceId = module,
+            .hostNode = trunkMid->id,
+            .position = trunkMid->center,
+            .forward = {0, 0, 1},
+            .up = {0, 1, 0},
+            .side = {1, 0, 0},
+            .hostRadii = {trunkMid->widthRadius, trunkMid->heightRadius, p.trunkLength * 0.5f * s},
+            .scale = s
+        };
+    }
+
     return true;
 }

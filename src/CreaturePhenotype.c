@@ -7,6 +7,7 @@
 
 #include "CreaturePhenotype.h"
 #include "FlexibleAppendage.h"
+#include "Fin.h"
 #include "MathUtils.h"
 #include <math.h>
 #include <string.h>
@@ -24,6 +25,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     if (p->membraneCount > CREATURE_MAX_MEMBRANES) p->membraneCount = CREATURE_MAX_MEMBRANES;
     if (p->repeatedAppendageCount > CREATURE_MAX_REPEATED_APPENDAGES)
         p->repeatedAppendageCount = CREATURE_MAX_REPEATED_APPENDAGES;
+    if (p->finCount > CREATURE_MAX_FINS) p->finCount = CREATURE_MAX_FINS;
 
 #define POS(name, value) p->axial.name = Positive(p->axial.name, value)
     POS(withersHeight, 4.0f); POS(totalScale, 1.0f); POS(neckLength, 1.0f); POS(neckWidth, 0.7f); POS(shoulderWidth, 1.5f);
@@ -140,6 +142,16 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         }
         if (t->segmentCount < 2) t->segmentCount = 2;
         if (t->segmentCount > CREATURE_MAX_TAIL_STATIONS) t->segmentCount = CREATURE_MAX_TAIL_STATIONS;
+        if (t->caudalFinType < CAUDAL_FIN_NONE || t->caudalFinType > CAUDAL_FIN_ROUNDED_VERTICAL)
+            t->caudalFinType = CAUDAL_FIN_NONE;
+        t->caudalSpan = isfinite(t->caudalSpan) && t->caudalSpan > 0.0f ? Math_Clamp(t->caudalSpan, 0.02f, 8.0f) : 0.0f;
+        t->caudalChord = isfinite(t->caudalChord) && t->caudalChord > 0.0f ? Math_Clamp(t->caudalChord, 0.02f, 6.0f) : 0.0f;
+        t->caudalUpperLobeRatio = isfinite(t->caudalUpperLobeRatio) && t->caudalUpperLobeRatio > 0.0f
+            ? Math_Clamp(t->caudalUpperLobeRatio, 0.5f, 2.2f) : 1.0f;
+        t->caudalNotchDepth = isfinite(t->caudalNotchDepth) ? Math_Clamp01(t->caudalNotchDepth) : 0.35f;
+        t->caudalSweep = isfinite(t->caudalSweep) ? Math_Clamp(t->caudalSweep, 0.0f, 1.4f) : 0.45f;
+        t->caudalThickness = isfinite(t->caudalThickness) && t->caudalThickness > 0.0f
+            ? Math_Clamp(t->caudalThickness, 0.004f, 0.6f) : 0.03f;
     }
 
     for (size_t i = 0; i < p->ornamentCount; ++i) {
@@ -207,6 +219,30 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         m->development = Unit(m->development, 1.0f);
     }
 
+    for (size_t i = 0; i < p->finCount; ++i) {
+        FinPhenotype_Normalize(&p->fins[i]);
+    }
+
+    p->shell.development = isfinite(p->shell.development) ? Math_Clamp01(p->shell.development) : 0.0f;
+    if (p->shell.development > 0.0f) {
+        p->shell.length = Math_Clamp(Positive(p->shell.length, p->axial.trunkLength * 1.15f), 0.1f, 12.0f);
+        p->shell.width = Math_Clamp(Positive(p->shell.width, p->axial.thoraxWidth * 1.35f), 0.1f, 10.0f);
+        p->shell.height = Math_Clamp(Positive(p->shell.height, p->axial.thoraxHeight * 0.95f), 0.05f, 6.0f);
+        p->shell.dorsalConvexity = Math_Clamp(Positive(p->shell.dorsalConvexity, 0.55f), 0.1f, 1.0f);
+        p->shell.heartTaper = Unit(p->shell.heartTaper, 0.25f);
+        p->shell.plastronWidth = Math_Clamp(Positive(p->shell.plastronWidth, p->shell.width * 0.72f), 0.05f, 9.0f);
+        p->shell.plastronLength = Math_Clamp(Positive(p->shell.plastronLength, p->shell.length * 0.78f), 0.05f, 11.0f);
+        p->shell.plastronDepth = Math_Clamp(Positive(p->shell.plastronDepth, p->shell.height * 0.42f), 0.02f, 4.0f);
+        p->shell.bridgeWidth = Math_Clamp(Positive(p->shell.bridgeWidth, p->shell.length * 0.38f), 0.05f, 8.0f);
+        p->shell.shellThickness = Math_Clamp(Positive(p->shell.shellThickness, 0.06f), 0.01f, 0.6f);
+        if (p->shell.costalScutePairs > 8) p->shell.costalScutePairs = 8;
+        if (p->shell.vertebralScutes > 10) p->shell.vertebralScutes = 10;
+        if (p->shell.marginalScutes > 18) p->shell.marginalScutes = 18;
+        p->shell.scuteRelief = Unit(p->shell.scuteRelief, 0.45f);
+        p->shell.cervicalNotch = Math_Clamp(Unit(p->shell.cervicalNotch, 0.12f), 0.0f, 0.45f);
+        p->shell.limbClearance = Math_Clamp(Unit(p->shell.limbClearance, 0.22f), 0.0f, 0.55f);
+    }
+
     p->eyes.size = isfinite(p->eyes.size) ? Math_Clamp(p->eyes.size, 0.0f, 4.0f) : 1.0f;
     p->eyes.protrusion = isfinite(p->eyes.protrusion) ? Math_Clamp(p->eyes.protrusion, 0.0f, 2.0f) : 1.0f;
     p->eyes.irisScale = Unit(p->eyes.irisScale, 0.72f);
@@ -237,6 +273,10 @@ bool CreaturePhenotype_TopologyCompatible(const CreaturePhenotype* a, const Crea
         a->membraneCount > CREATURE_MAX_MEMBRANES) return false;
     if (a->repeatedAppendageCount != b->repeatedAppendageCount ||
         a->repeatedAppendageCount > CREATURE_MAX_REPEATED_APPENDAGES) return false;
+    if (a->finCount != b->finCount || a->finCount > CREATURE_MAX_FINS) return false;
+    for (size_t i = 0; i < a->finCount; ++i) {
+        if (a->fins[i].role != b->fins[i].role || a->fins[i].side != b->fins[i].side) return false;
+    }
     for (size_t i = 0; i < a->repeatedAppendageCount; ++i) {
         if (a->repeatedAppendages[i].kind != b->repeatedAppendages[i].kind ||
             a->repeatedAppendages[i].count != b->repeatedAppendages[i].count) return false;
@@ -378,7 +418,22 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(tails[i].tipWidth); LERP_BODY(tails[i].tipHeight); LERP_BODY(tails[i].taperCurve); LERP_BODY(tails[i].droop);
         LERP_BODY(tails[i].curvature); LERP_BODY(tails[i].development); LERP_BODY(tails[i].tipLift);
         LERP_BODY(tails[i].rootMatchStrength);
+        LERP_BODY(tails[i].caudalSpan); LERP_BODY(tails[i].caudalChord);
+        LERP_BODY(tails[i].caudalUpperLobeRatio); LERP_BODY(tails[i].caudalNotchDepth);
+        LERP_BODY(tails[i].caudalSweep); LERP_BODY(tails[i].caudalThickness);
+        p.tails[i].caudalColor = Color_Lerp(a->tails[i].caudalColor, b->tails[i].caudalColor, t);
     }
+    for (size_t i = 0; i < p.finCount; ++i)
+        p.fins[i] = FinPhenotype_Interpolate(&a->fins[i], &b->fins[i], t);
+    LERP_BODY(shell.development);
+    LERP_BODY(shell.length); LERP_BODY(shell.width); LERP_BODY(shell.height);
+    LERP_BODY(shell.dorsalConvexity); LERP_BODY(shell.heartTaper);
+    LERP_BODY(shell.plastronWidth); LERP_BODY(shell.plastronLength); LERP_BODY(shell.plastronDepth);
+    LERP_BODY(shell.bridgeWidth); LERP_BODY(shell.shellThickness);
+    LERP_BODY(shell.scuteRelief); LERP_BODY(shell.cervicalNotch); LERP_BODY(shell.limbClearance);
+    p.shell.carapaceColor = Color_Lerp(a->shell.carapaceColor, b->shell.carapaceColor, t);
+    p.shell.scuteBorderColor = Color_Lerp(a->shell.scuteBorderColor, b->shell.scuteBorderColor, t);
+    p.shell.plastronColor = Color_Lerp(a->shell.plastronColor, b->shell.plastronColor, t);
     for (size_t i = 0; i < p.flexibleAppendageCount; ++i)
         p.flexibleAppendages[i]=FlexibleAppendage_Interpolate(
             &a->flexibleAppendages[i],&b->flexibleAppendages[i],t,t);

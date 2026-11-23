@@ -11,6 +11,7 @@
 #include "AxialBodyDiscRay.h"
 #include "AxialBodyCephalopod.h"
 #include "AxialBodyMedusa.h"
+#include "AxialBodyAquaticFusiform.h"
 #include "SDFPrimitives.h"
 #include "SDFInterval.h"
 #include "MathUtils.h"
@@ -635,7 +636,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             }
         } else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_AVIAN ||
                    monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_DISC_RAY ||
-                   monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD) {
+                   monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD ||
+                   monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM) {
             uint32_t axialModule = 1;
             for (size_t i = 0; i < g->nodeCount; ++i) {
                 if (g->nodes[i].role == ANATOMY_ROLE_AXIAL &&
@@ -653,12 +655,47 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
             else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_DISC_RAY)
                 okSweep = AxialBodyDiscRay_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
                     sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &builtCount);
-            else
+            else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_AQUATIC_FUSIFORM) {
+                okSweep = AxialBodyAquaticFusiform_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
+                    sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &builtCount);
+                if (okSweep && builtCount > 0) {
+                    /* Continuar el barrido fusiforme suavemente por el pedúnculo caudal si la cola es axial. */
+                    const AnatomyNode* pelNode = AnatomyGraph_FindModuleNode(g, axialModule, AXIAL_NODE_PELVIS);
+                    const AnatomyNode* tailCur = pelNode;
+                    for (size_t step = 0; tailCur && step < g->nodeCount && builtCount < MONSTER_SDF_MAX_AXIAL_STATIONS; ++step) {
+                        const AnatomyNode* nextCand = NULL;
+                        for (size_t j = 0; j < g->connectionCount; ++j) {
+                            if (g->connections[j].fromId == tailCur->id &&
+                                g->connections[j].kind == BODY_CONNECTION_AXIAL_LOFT) {
+                                const AnatomyNode* cand = AnatomyGraph_FindNode(g, g->connections[j].toId);
+                                if (cand && cand->region == ANATOMY_REGION_TAIL &&
+                                    !MonsterSDF_SeparateTail(monster, cand->moduleInstanceId)) {
+                                    nextCand = cand;
+                                    break;
+                                }
+                            }
+                        }
+                        tailCur = nextCand;
+                        if (tailCur && tailCur->center.z < sdf->axialStations[builtCount - 1].center.z - 1e-4f) {
+                            sdf->axialStations[builtCount++] = (SDFSweepStation){
+                                .center = tailCur->center,
+                                .width = tailCur->widthRadius,
+                                .height = tailCur->heightRadius
+                            };
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            } else
                 okSweep = AxialBodyCephalopod_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
                     sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &builtCount);
             if (okSweep && builtCount >= 2 && SDF_SweepResolveTangents(sdf->axialStations, builtCount)) {
                 sdf->axialStationCount = builtCount;
             }
+        } else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_CURVED_VERTICAL) {
+            /* La columna vertical curvada en S no es monótona en Z: usa conectores 3D AXIAL_LOFT. */
+            sdf->axialStationCount = 0;
         } else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_MEDUSA_RADIAL) {
             uint32_t axialModule = 1;
             for (size_t i = 0; i < g->nodeCount; ++i) {

@@ -6,6 +6,7 @@
 #include "AxialBody.h"
 #include "AxialBodyMedusa.h"
 #include "FlexibleAppendage.h"
+#include "Fin.h"
 #include "Limb.h"
 #include "MathUtils.h"
 #include "Surface.h"
@@ -1219,6 +1220,664 @@ static bool BuildRepeatedAppendages(const Monster* m, BuildTarget* opaque, Build
     return true;
 }
 
+/* ============================================================================
+ * 7. ALETAS GENÉRICAS Y SERIES DE PÍNULAS (CREATURE_MODULE_FIN)
+ * ============================================================================ */
+
+static bool EmitHydrofoilBlade(BuildTarget* t,
+                               Vector3 origin, Vector3 spanDir, Vector3 chordDir, Vector3 normalDir,
+                               float baseChord, float span, float thickness, float rootWidth,
+                               float sweep, float leadCurve, float trailCurve, float tipShape,
+                               float camber, unsigned rayCount,
+                               Color colBase, Color colTip, SurfaceRegion region,
+                               int jRoot, int jMid, int jTip) {
+    if (span <= 1e-5f || baseChord <= 1e-5f) return true;
+    const unsigned nu = 10, nv = 6;
+    MeshIndex topG[11][7], botG[11][7];
+
+    for (unsigned iu = 0; iu <= nu; ++iu) {
+        float u = (float)iu / (float)nu;
+        /* Perfil de contorno hidrodinámico: borde de ataque convexo y borde de salida falcado. */
+        float tipWidth = 0.06f + 0.28f * tipShape;
+        float leadArch = sinf(u * 3.14159265f) * leadCurve * baseChord * 0.35f;
+        float trailArch = sinf(u * 3.14159265f) * trailCurve * baseChord * 0.42f;
+        float zLead  =  baseChord * (0.50f * (1.0f - u) + 0.50f * tipWidth * u) - span * sweep * powf(u, 1.15f) + leadArch;
+        float zTrail = -baseChord * (0.50f * (1.0f - u) + 0.50f * tipWidth * u) - span * sweep * powf(u, 1.05f) + trailArch;
+        if (zTrail > zLead - baseChord * 0.04f) zTrail = zLead - baseChord * 0.04f;
+
+        float rootFlare = (1.0f - u) * (1.0f - u) * (1.0f - u);
+        float maxH = Math_Lerp(thickness, rootWidth, rootFlare) * (1.0f - 0.82f * powf(u, 1.1f));
+        float spanCoord = -rootWidth * 0.35f * (1.0f - u) + span * u;
+        Color colU = Color_Lerp(colBase, colTip, powf(u, 0.85f));
+        AnatomySkinBinding sk = (u < 0.5f)
+            ? MakeSkin2(jRoot, 1.0f - u * 2.0f, jMid, u * 2.0f)
+            : MakeSkin2(jMid, 2.0f - u * 2.0f, jTip, u * 2.0f - 1.0f);
+
+        for (unsigned iv = 0; iv <= nv; ++iv) {
+            float v = (float)iv / (float)nv; /* 0 = borde de ataque, 1 = borde de salida */
+            float chordZ = Math_Lerp(zLead, zTrail, v);
+            /* Espesor perfil NACA suave con ligera cresta de radios si rayCount > 0. */
+            float foil = sinf(powf(v, 0.72f) * 3.14159265f);
+            float rayRidge = (rayCount >= 4 && u > 0.12f)
+                ? (1.0f + 0.14f * sinf(v * (float)rayCount * 6.2831853f) * (0.3f + 0.7f * u))
+                : 1.0f;
+            float h = maxH * foil * rayRidge;
+            float cambOff = sinf(v * 3.14159265f) * camber * baseChord * (1.0f - 0.4f * u);
+            Vector3 baseP = Vec3_Add(origin,
+                Vec3_Add(Vec3_Scale(spanDir, spanCoord), Vec3_Scale(chordDir, chordZ)));
+            Vector3 pTop = Vec3_Add(baseP, Vec3_Scale(normalDir,  h + cambOff));
+            Vector3 pBot = Vec3_Add(baseP, Vec3_Scale(normalDir, -h + cambOff));
+
+            Vector3 nTop = Vec3_Normalize(Vec3_Add(normalDir, Vec3_Scale(chordDir, (v - 0.35f) * 0.32f)));
+            Vector3 nBot = Vec3_Normalize(Vec3_Add(Vec3_Scale(normalDir, -1.0f), Vec3_Scale(chordDir, (v - 0.35f) * 0.32f)));
+            if (!EmitVertex(t, pTop, nTop, colU, region, 0.0f, sk, &topG[iu][iv]) ||
+                !EmitVertex(t, pBot, nBot, colU, region, 0.4f, sk, &botG[iu][iv])) {
+                return false;
+            }
+        }
+    }
+    for (unsigned iu = 0; iu < nu; ++iu) {
+        for (unsigned iv = 0; iv < nv; ++iv) {
+            if (!EmitQuad(t, topG[iu][iv], topG[iu + 1][iv], topG[iu + 1][iv + 1], topG[iu][iv + 1]) ||
+                !EmitQuad(t, botG[iu][iv], botG[iu][iv + 1], botG[iu + 1][iv + 1], botG[iu + 1][iv])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool BuildGenericFins(const Monster* m, BuildTarget* opaque) {
+    const CreaturePhenotype* p = &m->phenotype;
+    const AnatomyGraph* g = &m->anatomyGraph;
+    float s = p->axial.totalScale;
+
+    for (size_t mi = 0; mi < m->recipe.bodyPlan.moduleCount; ++mi) {
+        const CreatureModuleInstance* mod = &m->recipe.bodyPlan.modules[mi];
+        if (mod->kind != CREATURE_MODULE_FIN || mod->phenotypeIndex >= p->finCount) continue;
+        const FinPhenotype* fin = &p->fins[mod->phenotypeIndex];
+        float dev = fin->development * p->development.appendages;
+        if (dev <= 0.04f) continue;
+
+        const AnatomyNode* nRoot = AnatomyGraph_FindModuleNode(g, mod->instanceId, FIN_NODE_ROOT);
+        const AnatomyNode* nMid  = AnatomyGraph_FindModuleNode(g, mod->instanceId, FIN_NODE_MID);
+        const AnatomyNode* nTip  = AnatomyGraph_FindModuleNode(g, mod->instanceId, FIN_NODE_TIP);
+        if (!nRoot || !nMid || !nTip) continue;
+
+        int jRoot = FindJointSafe(g, opaque->skeleton, nRoot->id);
+        int jMid  = FindJointSafe(g, opaque->skeleton, nMid->id);
+        int jTip  = FindJointSafe(g, opaque->skeleton, nTip->id);
+
+        Color cBase = fin->baseColor.a > 0 ? fin->baseColor : p->surface.pigment.baseColor;
+        Color cTip  = fin->tipColor.a  > 0 ? fin->tipColor  : Color_Lerp(cBase, p->surface.pigment.secondaryColor, 0.35f);
+        SurfaceRegion region = (fin->role == FIN_ROLE_PECTORAL) ? SURFACE_REGION_FORELIMB
+                             : (fin->role == FIN_ROLE_PELVIC)   ? SURFACE_REGION_HINDLIMB
+                                                                : SURFACE_REGION_ORNAMENT;
+
+        /* Recuperar el eje de cuerda almacenado en la conexión de soporte. */
+        Vector3 chordDir = Vec3_Create(0, 0, 1);
+        for (size_t ci = 0; ci < g->connectionCount; ++ci) {
+            if (g->connections[ci].moduleInstanceId == mod->instanceId &&
+                Vec3_LengthSq(g->connections[ci].transverseAxis) > 1e-4f) {
+                chordDir = Vec3_Normalize(g->connections[ci].transverseAxis);
+                break;
+            }
+        }
+
+        if (fin->role == FIN_ROLE_FINLET_SERIES) {
+            unsigned count = fin->finletCount ? fin->finletCount : 8u;
+            if (count > 16u) count = 16u;
+            Vector3 startP = nRoot->center;
+            Vector3 endP = nTip->center;
+            Vector3 spanDir = Vec3_Sub(nMid->center, Vec3_Lerp(startP, endP, 0.5f));
+            float sl = Vec3_Length(spanDir);
+            spanDir = sl > 1e-5f ? Vec3_Scale(spanDir, 1.0f / sl) : Vec3_Create(0, 1, 0);
+            Vector3 axisDir = Vec3_Normalize(Vec3_Sub(startP, endP));
+            Vector3 normalDir = Vec3_Normalize(Vec3_Cross(axisDir, spanDir));
+            if (Vec3_LengthSq(normalDir) < 1e-5f) normalDir = Vec3_Create(1, 0, 0);
+
+            float seriesDist = Vec3_Length(Vec3_Sub(endP, startP));
+            float singleChord = fmaxf(0.015f * s, (seriesDist / (float)count) * 0.72f);
+            float singleSpan  = fin->span * s * dev;
+            float singleThick = fmaxf(0.004f * s, fin->thickness * s * dev);
+            for (unsigned k = 0; k < count; ++k) {
+                float u = count > 1 ? (float)k / (float)(count - 1) : 0.5f;
+                float env = 0.55f + 0.55f * sinf(u * 3.14159265f);
+                Vector3 pos = Vec3_Lerp(startP, endP, u);
+                int jA = (u < 0.5f) ? jRoot : jMid;
+                int jB = (u < 0.5f) ? jMid : jTip;
+                if (!EmitHydrofoilBlade(opaque, pos, spanDir, axisDir, normalDir,
+                                        singleChord * (0.75f + 0.25f * env), singleSpan * env,
+                                        singleThick, singleThick * 1.2f,
+                                        0.78f, 0.20f, 0.35f, 0.12f, 0.0f, 0,
+                                        cBase, cTip, region, jA, jB, jB)) {
+                    return false;
+                }
+            }
+            continue;
+        }
+
+        Vector3 spanVec = Vec3_Sub(nTip->center, nRoot->center);
+        /* Quitar la componente de barrido a lo largo de chordDir para obtener el eje puro de envergadura. */
+        Vector3 spanOrtho = Vec3_Sub(spanVec, Vec3_Scale(chordDir, Vec3_Dot(spanVec, chordDir)));
+        float spanLen = Vec3_Length(spanOrtho);
+        if (spanLen <= 1e-5f) continue;
+        Vector3 spanDir = Vec3_Scale(spanOrtho, 1.0f / spanLen);
+        Vector3 normalDir = Vec3_Normalize(Vec3_Cross(chordDir, spanDir));
+        if (Vec3_LengthSq(normalDir) < 1e-5f) normalDir = Vec3_Create(1, 0, 0);
+
+        float rootW = fmaxf(0.006f * s, fin->rootWidth * s * dev);
+        Vector3 origin = Vec3_Add(nRoot->center, Vec3_Scale(spanDir, rootW * 0.45f));
+        if (!EmitHydrofoilBlade(opaque, origin, spanDir, chordDir, normalDir,
+                                fin->baseChord * s * dev, fin->span * s * dev,
+                                fin->thickness * s * dev, rootW,
+                                fin->sweep, fin->leadingCurve, fin->trailingCurve,
+                                fin->tipShape, fin->camber, fin->rayCount,
+                                cBase, cTip, region, jRoot, jMid, jTip)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* ============================================================================
+ * 8. PROPULSORES CAUDALES REUTILIZABLES (LUNADO, HETEROCERCO, FLUKES HORIZONTALES)
+ * ============================================================================ */
+
+static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
+    const CreaturePhenotype* p = &m->phenotype;
+    const AnatomyGraph* g = &m->anatomyGraph;
+    float s = p->axial.totalScale;
+
+    for (size_t mi = 0; mi < m->recipe.bodyPlan.moduleCount; ++mi) {
+        const CreatureModuleInstance* mod = &m->recipe.bodyPlan.modules[mi];
+        if (mod->kind != CREATURE_MODULE_TAIL || mod->phenotypeIndex >= p->tailCount) continue;
+        const TailPhenotype* tail = &p->tails[mod->phenotypeIndex];
+        if (tail->caudalFinType == CAUDAL_FIN_NONE) continue;
+        float dev = tail->development * p->development.appendages;
+        if (dev <= 0.05f || tail->caudalSpan <= 1e-4f) continue;
+
+        unsigned segN = tail->segmentCount >= 2 ? tail->segmentCount : 2;
+        const AnatomyNode* tipNode = AnatomyGraph_FindModuleNode(g, mod->instanceId, (uint16_t)segN);
+        const AnatomyNode* prevNode = AnatomyGraph_FindModuleNode(g, mod->instanceId, (uint16_t)(segN - 1));
+        if (!tipNode || !prevNode) continue;
+
+        Vector3 tailDir = Vec3_Sub(tipNode->center, prevNode->center);
+        float tLen = Vec3_Length(tailDir);
+        tailDir = tLen > 1e-5f ? Vec3_Scale(tailDir, 1.0f / tLen) : Vec3_Create(0, 0, -1);
+        Vector3 fwdDir = Vec3_Scale(tailDir, -1.0f); /* +Z hacia la cabeza */
+
+        Vector3 upRef = fabsf(fwdDir.y) < 0.9f ? Vec3_Create(0, 1, 0) : Vec3_Create(0, 0, 1);
+        Vector3 rightDir = Vec3_Normalize(Vec3_Cross(upRef, fwdDir));
+        Vector3 upDir = Vec3_Normalize(Vec3_Cross(fwdDir, rightDir));
+
+        int jPrev = FindJointSafe(g, opaque->skeleton, prevNode->id);
+        int jTip  = FindJointSafe(g, opaque->skeleton, tipNode->id);
+
+        Color colDorsal = tail->caudalColor.a > 0 ? tail->caudalColor : p->surface.pigment.baseColor;
+        Color colTip = Color_Lerp(colDorsal, p->surface.pigment.secondaryColor, 0.28f);
+
+        float totalSpan = tail->caudalSpan * s * dev;
+        float chord = fmaxf(0.04f * s, tail->caudalChord * s * dev);
+        float thick = fmaxf(0.008f * s, tail->caudalThickness * s * dev);
+        float notch = Math_Clamp01(tail->caudalNotchDepth);
+        float sweep = Math_Clamp(tail->caudalSweep, 0.0f, 1.4f);
+
+        Vector3 rootCenter = Vec3_Add(tipNode->center, Vec3_Scale(fwdDir, chord * 0.36f));
+
+        if (tail->caudalFinType == CAUDAL_FIN_HORIZONTAL_FLUKES) {
+            /* Dos lóbulos horizontales cetáceos con escotadura central y perfil suave. */
+            float halfSpan = totalSpan * 0.50f;
+            for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+                float sgn = sideIdx == 0 ? 1.0f : -1.0f;
+                Vector3 lobeSpan = Vec3_Scale(rightDir, sgn);
+                Vector3 lobeNorm = Vec3_Scale(upDir, sgn);
+                if (!EmitHydrofoilBlade(opaque, rootCenter, lobeSpan, fwdDir, lobeNorm,
+                                        chord, halfSpan, thick, thick * 1.6f,
+                                        sweep, 0.36f, 0.45f * notch, 0.16f, 0.0f, 0,
+                                        colDorsal, colTip, SURFACE_REGION_TAIL,
+                                        jPrev, jTip, jTip)) {
+                    return false;
+                }
+            }
+        } else if (tail->caudalFinType == CAUDAL_FIN_ROUNDED_VERTICAL) {
+            /* Aleta caudal vertical pequeña y redondeada (juveniles). */
+            float halfSpan = totalSpan * 0.50f;
+            for (int lobe = 0; lobe < 2; ++lobe) {
+                float sgn = lobe == 0 ? 1.0f : -1.0f;
+                Vector3 lobeSpan = Vec3_Scale(upDir, sgn);
+                Vector3 lobeNorm = Vec3_Scale(rightDir, sgn);
+                if (!EmitHydrofoilBlade(opaque, rootCenter, lobeSpan, fwdDir, lobeNorm,
+                                        chord, halfSpan, thick, thick * 1.3f,
+                                        0.18f, 0.35f, -0.25f, 0.85f, 0.0f, 8,
+                                        colDorsal, colTip, SURFACE_REGION_TAIL,
+                                        jPrev, jTip, jTip)) {
+                    return false;
+                }
+            }
+        } else {
+            /* HOMOCERCAL_LUNATE (simétrica) o HETEROCERCAL (lóbulo superior alargado de tiburón). */
+            bool hetero = (tail->caudalFinType == CAUDAL_FIN_HETEROCERCAL);
+            float ratio = hetero ? Math_Clamp(tail->caudalUpperLobeRatio, 1.15f, 2.2f) : 1.0f;
+            float lowerSpan = totalSpan / (1.0f + ratio);
+            float upperSpan = totalSpan - lowerSpan;
+
+            /* Lóbulo superior */
+            if (!EmitHydrofoilBlade(opaque, rootCenter, upDir, fwdDir, rightDir,
+                                    chord * (hetero ? 1.15f : 1.0f), upperSpan,
+                                    thick, thick * 1.55f,
+                                    sweep * (hetero ? 1.18f : 1.0f),
+                                    hetero ? 0.28f : 0.42f,
+                                    hetero ? 0.38f : (0.55f * notch + 0.15f),
+                                    hetero ? 0.18f : 0.10f, 0.0f, hetero ? 0 : 12,
+                                    colDorsal, colTip, SURFACE_REGION_TAIL,
+                                    jPrev, jTip, jTip)) {
+                return false;
+            }
+            /* Lóbulo inferior */
+            if (!EmitHydrofoilBlade(opaque, rootCenter, Vec3_Scale(upDir, -1.0f), fwdDir, Vec3_Scale(rightDir, -1.0f),
+                                    chord * (hetero ? 0.85f : 1.0f), lowerSpan,
+                                    thick * 0.92f, thick * 1.45f,
+                                    sweep * (hetero ? 0.82f : 1.0f),
+                                    hetero ? 0.24f : 0.42f,
+                                    hetero ? 0.32f : (0.55f * notch + 0.15f),
+                                    0.12f, 0.0f, hetero ? 0 : 12,
+                                    colDorsal, colTip, SURFACE_REGION_TAIL,
+                                    jPrev, jTip, jTip)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/* ============================================================================
+ * 9. ALETAS DE TETRÁPODO MARINO (TORTUGA MARINA Y DELFÍN)
+ * ============================================================================ */
+
+static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
+    const CreaturePhenotype* p = &m->phenotype;
+    const AnatomyGraph* g = &m->anatomyGraph;
+    float s = p->axial.totalScale;
+    Color dorsal = p->surface.pigment.baseColor;
+    Color ventral = p->surface.pigment.ventralColor;
+
+    for (size_t mi = 0; mi < m->recipe.bodyPlan.moduleCount; ++mi) {
+        const CreatureModuleInstance* mod = &m->recipe.bodyPlan.modules[mi];
+        if (mod->kind != CREATURE_MODULE_LIMB || mod->phenotypeIndex >= p->limbCount) continue;
+        const LimbPhenotype* limb = &p->limbs[mod->phenotypeIndex];
+        if (limb->archetype != LIMB_ARCHETYPE_FLIPPER || limb->anatomyProfile != LIMB_PROFILE_MARINE_FLIPPER)
+            continue;
+        float dev = limb->development * p->development.appendages;
+        if (dev <= 0.05f) continue;
+
+        const AnatomyNode* n[4];
+        for (unsigned k = 0; k < 4; ++k) {
+            n[k] = AnatomyGraph_FindModuleNode(g, mod->instanceId, (uint16_t)(k + 1));
+            if (!n[k]) break;
+        }
+        if (!n[0] || !n[1] || !n[2] || !n[3]) continue;
+
+        int jn[4];
+        for (unsigned k = 0; k < 4; ++k) jn[k] = FindJointSafe(g, opaque->skeleton, n[k]->id);
+
+        bool fore = (limb->role == LIMB_FORE || limb->role == LIMB_WING);
+        float side = (limb->side == LIMB_RIGHT) ? -1.0f : 1.0f;
+        float span = limb->length * s * dev;
+        float aspect = limb->wingAspect > 0.5f ? limb->wingAspect : (fore ? 3.2f : 2.1f);
+        float maxChord = fmaxf(0.035f * s, span / aspect);
+        float maxThick = fmaxf(0.008f * s, limb->thickness * s * dev);
+        SurfaceRegion region = fore ? SURFACE_REGION_FORELIMB : SURFACE_REGION_HINDLIMB;
+
+        const unsigned nu = 12, nv = 6;
+        MeshIndex topG[13][7], botG[13][7];
+        for (unsigned iu = 0; iu <= nu; ++iu) {
+            float u = (float)iu / (float)nu;
+            /* Interpolar centroide a lo largo de la cadena de 4 nodos */
+            float segF = u * 3.0f;
+            unsigned seg = segF >= 3.0f ? 2u : (unsigned)segF;
+            float lt = segF - (float)seg;
+            Vector3 c = Vec3_Lerp(n[seg]->center, n[seg + 1]->center, lt);
+            Vector3 tanDir = Vec3_Normalize(Vec3_Sub(n[seg + 1]->center, n[seg]->center));
+            Vector3 chordAxis = Vec3_Create(0, 0, 1);
+            Vector3 upAxis = Vec3_Normalize(Vec3_Cross(chordAxis, Vec3_Scale(tanDir, side)));
+            if (Vec3_LengthSq(upAxis) < 1e-5f) upAxis = Vec3_Create(0, 1, 0);
+
+            float env = sinf(powf(u, 0.62f) * 3.14159265f);
+            float chordU = maxChord * (0.36f * (1.0f - u) + 0.85f * env);
+            if (iu == nu) chordU = maxChord * 0.14f;
+            float thickU = maxThick * (1.0f - 0.78f * powf(u, 0.9f));
+            AnatomySkinBinding sk = MakeSkin2(jn[seg], 1.0f - lt, jn[seg + 1], lt);
+
+            for (unsigned iv = 0; iv <= nv; ++iv) {
+                float v = (float)iv / (float)nv;
+                float cz = chordU * (0.55f - v);
+                float foil = sinf(powf(v, 0.72f) * 3.14159265f);
+                float h = thickU * foil;
+                Vector3 bp = Vec3_Add(c, Vec3_Scale(chordAxis, cz));
+                Vector3 pT = Vec3_Add(bp, Vec3_Scale(upAxis,  h));
+                Vector3 pB = Vec3_Add(bp, Vec3_Scale(upAxis, -h));
+                Color cD = Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.18f * u);
+                Color cV = Color_Lerp(ventral, dorsal, 0.25f * u);
+                if (!EmitVertex(opaque, pT, upAxis, cD, region, 0.0f, sk, &topG[iu][iv]) ||
+                    !EmitVertex(opaque, pB, Vec3_Scale(upAxis, -1.0f), cV, region, 1.0f, sk, &botG[iu][iv])) {
+                    return false;
+                }
+            }
+        }
+        for (unsigned iu = 0; iu < nu; ++iu) {
+            for (unsigned iv = 0; iv < nv; ++iv) {
+                if (!EmitQuad(opaque, topG[iu][iv], topG[iu + 1][iv], topG[iu + 1][iv + 1], topG[iu][iv + 1]) ||
+                    !EmitQuad(opaque, botG[iu][iv], botG[iu][iv + 1], botG[iu + 1][iv + 1], botG[iu + 1][iv])) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+/* ============================================================================
+ * 10. CAPARAZÓN ANATÓMICO REUTILIZABLE (ESPALDAR + PUENTE LATERAL + PLASTRÓN)
+ * ============================================================================ */
+
+static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
+    const CreaturePhenotype* p = &m->phenotype;
+    const ShellPhenotype* sh = &p->shell;
+    if (sh->development <= 0.02f) return true;
+
+    const AnatomyGraph* g = &m->anatomyGraph;
+    float s = p->axial.totalScale;
+    float dev = Math_Clamp01(sh->development);
+
+    /* Anclar al centro del tronco (estaciones pectorales a pelvis). */
+    const AnatomyNode* pec = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PECTORAL);
+    const AnatomyNode* thx = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_THORAX_POSTERIOR);
+    const AnatomyNode* pel = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PELVIS);
+    if (!thx) thx = AnatomyGraph_FindFirstRegion(g, ANATOMY_REGION_TRUNK);
+    if (!thx) return true;
+
+    Vector3 center = (pec && pel) ? Vec3_Lerp(pec->center, pel->center, 0.48f) : thx->center;
+    int jTrunk = FindJointSafe(g, opaque->skeleton, thx->id);
+    AnatomySkinBinding rigidSkin = MakeSkin1(jTrunk);
+
+    float halfL = sh->length * 0.50f * s * dev;
+    float halfW = sh->width  * 0.50f * s * dev;
+    float domeH = sh->height * s * dev;
+    float plastD = sh->plastronDepth * s * dev;
+    float convex = Math_Clamp(sh->dorsalConvexity, 0.15f, 1.0f);
+    float heart = Math_Clamp01(sh->heartTaper);
+    float relief = Math_Clamp01(sh->scuteRelief);
+    unsigned costals = sh->costalScutePairs ? sh->costalScutePairs : 4u;
+    unsigned vertebrals = sh->vertebralScutes ? sh->vertebralScutes : 5u;
+
+    Color cCara = sh->carapaceColor.a > 0 ? sh->carapaceColor : p->dorsalColor;
+    Color cBord = sh->scuteBorderColor.a > 0 ? sh->scuteBorderColor : Color_FromRGB(38, 32, 22);
+    Color cPlas = sh->plastronColor.a > 0 ? sh->plastronColor : p->ventralColor;
+
+    /* 1. Espaldar dorsal (carapace) con forma cordiforme, borde marginal y relieve de escudos. */
+    const unsigned nZ = 22, nX = 18;
+    MeshIndex caraTop[23][19], caraRim[23][19];
+    for (unsigned iz = 0; iz <= nZ; ++iz) {
+        float u = (float)iz / (float)nZ; /* 0 = borde anterior (cuello), 1 = borde posterior (cola) */
+        float zNorm = 1.0f - 2.0f * u;   /* +1 anterior .. -1 posterior */
+        /* Perfil cordiforme: ancho delante/medio, estrechado suavemente hacia atrás. */
+        float oval = sqrtf(fmaxf(0.0f, 1.0f - zNorm * zNorm));
+        float heartMul = 1.0f - heart * 0.34f * Math_Clamp01((u - 0.35f) / 0.65f);
+        float notch = (u < 0.12f) ? (sh->cervicalNotch * 0.45f * (1.0f - u / 0.12f)) : 0.0f;
+        float rowW = halfW * oval * heartMul;
+        float zPos = center.z + (zNorm - notch) * halfL;
+
+        for (unsigned ix = 0; ix <= nX; ++ix) {
+            float v = (float)ix / (float)nX; /* 0 = izquierda (-1), 1 = derecha (+1) */
+            float xNorm = 2.0f * v - 1.0f;
+            float ax = fabsf(xNorm);
+            float xPos = center.x + xNorm * rowW;
+            float domeProfile = powf(fmaxf(0.0f, 1.0f - xNorm * xNorm), 0.58f * convex + 0.25f) *
+                                powf(fmaxf(0.0f, 1.0f - zNorm * zNorm), 0.48f);
+
+            /* Patrón de escudos: 5 vertebrales centrales (|x|<0.32), 4 pares costales (0.32..0.82), marginales (>0.82). */
+            float suture = 0.0f;
+            if (ax < 0.32f) {
+                float seamZ = fabsf(sinf(u * (float)vertebrals * 3.14159265f));
+                float seamX = Math_Clamp01((0.32f - ax) / 0.05f);
+                suture = fmaxf(1.0f - seamZ, 1.0f - seamX);
+            } else if (ax < 0.82f) {
+                float seamZ = fabsf(sinf((u * (float)costals + 0.15f) * 3.14159265f));
+                float seamX = fminf(Math_Clamp01((ax - 0.32f) / 0.05f), Math_Clamp01((0.82f - ax) / 0.05f));
+                suture = fmaxf(1.0f - seamZ, 1.0f - seamX);
+            } else {
+                float seamZ = fabsf(sinf(u * 11.0f * 3.14159265f));
+                suture = 1.0f - seamZ;
+            }
+            float scuteBump = relief * domeH * 0.055f * (1.0f - 1.6f * suture * suture);
+            float yTop = center.y + domeH * domeProfile + scuteBump;
+            float yBot = center.y - plastD * 0.28f * (1.0f - ax * 0.85f);
+
+            Vector3 nrm = Vec3_Normalize(Vec3_Create(xNorm * 0.65f, 1.0f, zNorm * 0.45f));
+            Color col = Color_Lerp(cCara, cBord, Math_Clamp01(suture * 0.72f + (ax > 0.82f ? 0.15f : 0.0f)));
+            if (!EmitVertex(opaque, Vec3_Create(xPos, yTop, zPos), nrm, col,
+                            SURFACE_REGION_DORSAL_TRUNK, 0.0f, rigidSkin, &caraTop[iz][ix]) ||
+                !EmitVertex(opaque, Vec3_Create(xPos, yBot, zPos), Vec3_Scale(nrm, -1.0f), cPlas,
+                            SURFACE_REGION_VENTRAL_TRUNK, 1.0f, rigidSkin, &caraRim[iz][ix])) {
+                return false;
+            }
+        }
+    }
+    for (unsigned iz = 0; iz < nZ; ++iz) {
+        for (unsigned ix = 0; ix < nX; ++ix) {
+            if (!EmitQuad(opaque, caraTop[iz][ix], caraTop[iz + 1][ix], caraTop[iz + 1][ix + 1], caraTop[iz][ix + 1]) ||
+                !EmitQuad(opaque, caraRim[iz][ix], caraRim[iz][ix + 1], caraRim[iz + 1][ix + 1], caraRim[iz + 1][ix])) {
+                return false;
+            }
+        }
+    }
+    /* 2. Plastrón ventral + puente lateral en el tercio central (dejando libres aberturas de cuello y aletas). */
+    float pHalfL = sh->plastronLength * 0.50f * s * dev;
+    float pHalfW = sh->plastronWidth  * 0.50f * s * dev;
+    const unsigned pnZ = 10, pnX = 10;
+    MeshIndex plasG[11][11];
+    for (unsigned iz = 0; iz <= pnZ; ++iz) {
+        float u = (float)iz / (float)pnZ;
+        float zn = 1.0f - 2.0f * u;
+        float oval = sqrtf(fmaxf(0.05f, 1.0f - zn * zn * 0.92f));
+        /* Ensanchamiento del puente lateral entre u=0.25 y u=0.72 */
+        float bridge = (u > 0.24f && u < 0.74f) ? sinf((u - 0.24f) / 0.50f * 3.14159265f) : 0.0f;
+        float rw = Math_Lerp(pHalfW * oval, halfW * 0.88f, bridge * 0.65f);
+        float zPos = center.z + zn * pHalfL;
+        for (unsigned ix = 0; ix <= pnX; ++ix) {
+            float v = (float)ix / (float)pnX;
+            float xn = 2.0f * v - 1.0f;
+            float ax = fabsf(xn);
+            float lift = bridge * powf(ax, 1.8f) * plastD * 0.72f + (1.0f - bridge) * powf(ax, 2.4f) * plastD * 0.42f;
+            float yPos = center.y - plastD * 0.62f * (1.0f - 0.16f * ax * ax) + lift;
+            Vector3 nrm = Vec3_Normalize(Vec3_Create(xn * 0.35f * bridge, -1.0f, zn * 0.15f));
+            if (!EmitVertex(opaque, Vec3_Create(center.x + xn * rw, yPos, zPos), nrm, cPlas,
+                            SURFACE_REGION_VENTRAL_TRUNK, 1.0f, rigidSkin, &plasG[iz][ix])) {
+                return false;
+            }
+        }
+    }
+    for (unsigned iz = 0; iz < pnZ; ++iz) {
+        for (unsigned ix = 0; ix < pnX; ++ix) {
+            if (!EmitQuad(opaque, plasG[iz][ix], plasG[iz][ix + 1], plasG[iz + 1][ix + 1], plasG[iz + 1][ix])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/* ============================================================================
+ * 11. DETALLES CEFÁLICOS ACUÁTICOS (BRANQUIAS, OPÉRCULO, ESPIRÁCULO, CORONETA Y ANILLOS ÓSEOS)
+ * ============================================================================ */
+
+static bool BuildAquaticHeadAndArmorDetails(const Monster* m, BuildTarget* opaque) {
+    const CreaturePhenotype* p = &m->phenotype;
+    const AnatomyGraph* g = &m->anatomyGraph;
+    float s = p->axial.totalScale;
+
+    const AnatomyNode* headNode = AnatomyGraph_FindFirstRegion(g, ANATOMY_REGION_HEAD);
+    if (headNode && m->hasHead) {
+        int jHead = FindJointSafe(g, opaque->skeleton, headNode->id);
+        AnatomySkinBinding skHead = MakeSkin1(jHead);
+        const HeadSurfaceRecipe* hr = &m->head.anatomy.surface;
+
+        if (p->head.archetype == HEAD_ARCHETYPE_ELASMOBRANCH) {
+            /* 5 hendiduras branquiales externas por lado detrás de la cabeza. */
+            const AnatomyNode* neck = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_NECK);
+            const AnatomyNode* pec  = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PECTORAL);
+            if (neck && pec) {
+                int jNeck = FindJointSafe(g, opaque->skeleton, neck->id);
+                AnatomySkinBinding skNeck = MakeSkin1(jNeck);
+                Color slitCol = Color_FromRGB(32, 34, 38);
+                for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+                    float sgn = sideIdx == 0 ? 1.0f : -1.0f;
+                    for (int gIdx = 0; gIdx < 5; ++gIdx) {
+                        float u = (float)gIdx / 4.0f;
+                        Vector3 baseC = Vec3_Lerp(neck->center, pec->center, 0.15f + 0.68f * u);
+                        float rx = Math_Lerp(neck->widthRadius, pec->widthRadius, 0.15f + 0.68f * u);
+                        float ry = Math_Lerp(neck->heightRadius, pec->heightRadius, 0.15f + 0.68f * u);
+                        float slitH = ry * 0.42f;
+                        float slitW = fmaxf(0.008f * s, rx * 0.06f);
+                        Vector3 c = Vec3_Create(sgn * (rx * 0.99f), baseC.y - ry * 0.08f, baseC.z);
+                        Vector3 nrm = Vec3_Create(sgn, 0.0f, 0.0f);
+                        MeshIndex a, b, d, e;
+                        if (!EmitVertex(opaque, Vec3_Create(c.x, c.y + slitH, c.z + slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &a) ||
+                            !EmitVertex(opaque, Vec3_Create(c.x, c.y + slitH, c.z - slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &b) ||
+                            !EmitVertex(opaque, Vec3_Create(c.x, c.y - slitH, c.z - slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &d) ||
+                            !EmitVertex(opaque, Vec3_Create(c.x, c.y - slitH, c.z + slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &e) ||
+                            !EmitQuad(opaque, a, b, d, e)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        } else if (p->head.archetype == HEAD_ARCHETYPE_TELEOST) {
+            /* Surco/borde opercular bilateral detrás del ojo en peces óseos. */
+            Color opCol = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(30, 42, 58), 0.55f);
+            Vector3 opBase = Vec3_Add(headNode->center, hr->cranialCenters[4]);
+            float rx = hr->cranialRadii[4].x * 1.01f;
+            float ry = hr->cranialRadii[4].y * 0.68f;
+            for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+                float sgn = sideIdx == 0 ? 1.0f : -1.0f;
+                MeshIndex prevA = 0, prevB = 0;
+                for (unsigned k = 0; k <= 6; ++k) {
+                    float aAng = -1.1f + 2.2f * ((float)k / 6.0f);
+                    float y = opBase.y + sinf(aAng) * ry;
+                    float z = opBase.z - cosf(aAng) * ry * 0.28f;
+                    float x = sgn * rx * sqrtf(fmaxf(0.15f, 1.0f - 0.55f * sinf(aAng) * sinf(aAng)));
+                    MeshIndex iA, iB;
+                    Vector3 nrm = Vec3_Create(sgn, 0.0f, -0.25f);
+                    if (!EmitVertex(opaque, Vec3_Create(x, y, z + 0.012f * s), nrm, opCol, SURFACE_REGION_HEAD, 0.2f, skHead, &iA) ||
+                        !EmitVertex(opaque, Vec3_Create(x, y, z - 0.012f * s), nrm, opCol, SURFACE_REGION_HEAD, 0.2f, skHead, &iB))
+                        return false;
+                    if (k > 0 && !EmitQuad(opaque, prevA, prevB, iB, iA)) return false;
+                    prevA = iA; prevB = iB;
+                }
+            }
+        } else if (p->head.archetype == HEAD_ARCHETYPE_CETACEAN) {
+            /* Espiráculo dorsal único en media luna detrás del melón. */
+            Color bhCol = Color_FromRGB(24, 28, 34);
+            Vector3 bh = Vec3_Add(headNode->center, hr->cranialCenters[4]);
+            bh.y += hr->cranialRadii[4].y * 1.01f;
+            float bw = hr->cranialRadii[4].x * 0.16f;
+            float bl = bw * 0.45f;
+            MeshIndex a, b, c, d;
+            Vector3 nrm = Vec3_Create(0, 1, 0);
+            if (!EmitVertex(opaque, Vec3_Create(-bw, bh.y, bh.z - bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &a) ||
+                !EmitVertex(opaque, Vec3_Create( bw, bh.y, bh.z - bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &b) ||
+                !EmitVertex(opaque, Vec3_Create( bw * 0.75f, bh.y, bh.z + bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &c) ||
+                !EmitVertex(opaque, Vec3_Create(-bw * 0.75f, bh.y, bh.z + bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &d) ||
+                !EmitQuad(opaque, a, b, c, d)) {
+                return false;
+            }
+        } else if (p->head.archetype == HEAD_ARCHETYPE_SYNGNATHID) {
+            /* Coroneta ósea dorsal orgánica sobre la bóveda posterior del caballito de mar. */
+            Color crCol = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.55f);
+            Vector3 crBase = Vec3_Add(headNode->center, hr->cranialCenters[4]);
+            crBase.y += hr->cranialRadii[4].y * 0.78f;
+            float crH = hr->cranialRadii[4].y * 0.40f;
+            float crR = hr->cranialRadii[4].x * 0.36f;
+            const unsigned segs = 6;
+            MeshIndex ringB[7], ringT[7];
+            for (unsigned k = 0; k <= segs; ++k) {
+                float ang = (float)k / (float)segs * 6.2831853f;
+                float spike = (k % 2 == 0) ? 1.25f : 0.85f;
+                Vector3 nrm = Vec3_Normalize(Vec3_Create(cosf(ang), 0.4f, sinf(ang)));
+                if (!EmitVertex(opaque, Vec3_Create(crBase.x + cosf(ang) * crR, crBase.y, crBase.z + sinf(ang) * crR),
+                                nrm, crCol, SURFACE_REGION_HEAD, 0.0f, skHead, &ringB[k]) ||
+                    !EmitVertex(opaque, Vec3_Create(crBase.x + cosf(ang) * crR * 0.72f, crBase.y + crH * spike,
+                                                    crBase.z + sinf(ang) * crR * 0.72f - crH * 0.25f),
+                                nrm, crCol, SURFACE_REGION_HEAD, 0.0f, skHead, &ringT[k])) {
+                    return false;
+                }
+            }
+            for (unsigned k = 0; k < segs; ++k) {
+                if (!EmitQuad(opaque, ringB[k], ringB[k + 1], ringT[k + 1], ringT[k])) return false;
+            }
+        }
+    }
+
+    /* Anillos óseos segmentados para cuerpos verticales curvados (caballito de mar: ~11 anillos troncales + caudales). */
+    if (p->axial.archetype == AXIAL_ARCHETYPE_CURVED_VERTICAL && p->axial.abdomenSegments > 0) {
+        Color ringCol = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.30f);
+        for (size_t ci = 0; ci < g->connectionCount; ++ci) {
+            const BodyConnection* edge = &g->connections[ci];
+            if (edge->kind != BODY_CONNECTION_AXIAL_LOFT || edge->development < 0.1f) continue;
+            const AnatomyNode* na = AnatomyGraph_FindNode(g, edge->fromId);
+            const AnatomyNode* nb = AnatomyGraph_FindNode(g, edge->toId);
+            if (!na || !nb) continue;
+            bool isTail = (nb->region == ANATOMY_REGION_TAIL);
+            unsigned ringsPerSeg = isTail ? 2u : 2u;
+            int jA = FindJointSafe(g, opaque->skeleton, na->id);
+            int jB = FindJointSafe(g, opaque->skeleton, nb->id);
+            Vector3 dir = Vec3_Normalize(Vec3_Sub(nb->center, na->center));
+            Vector3 sideA = Vec3_Create(1, 0, 0);
+            Vector3 upA = Vec3_Normalize(Vec3_Cross(sideA, dir));
+            if (Vec3_LengthSq(upA) < 1e-5f) upA = Vec3_Create(0, 0, 1);
+
+            for (unsigned rIdx = 0; rIdx < ringsPerSeg; ++rIdx) {
+                float u = ((float)rIdx + 0.5f) / (float)ringsPerSeg;
+                Vector3 c = Vec3_Lerp(na->center, nb->center, u);
+                float rx = Math_Lerp(na->widthRadius, nb->widthRadius, u);
+                float ry = Math_Lerp(na->heightRadius, nb->heightRadius, u);
+                float rMin = fminf(rx, ry);
+                /* Collarín óseo biselado ajustado al volumen real del segmento (sin discos salientes). */
+                float rSide = rx * 1.03f;
+                float rSag  = fminf(ry * 1.02f, rMin * 1.28f);
+                float bandH = fmaxf(0.008f * s, fminf(Vec3_Length(Vec3_Sub(nb->center, na->center)) * 0.24f, rMin * 0.38f));
+                AnatomySkinBinding sk = MakeSkin2(jA, 1.0f - u, jB, u);
+                const unsigned nPts = 8;
+                MeshIndex lo[9], mid[9], hi[9];
+                for (unsigned k = 0; k <= nPts; ++k) {
+                    float ang = (float)k / (float)nPts * 6.2831853f;
+                    float ridge = 1.0f + 0.06f * cosf(ang * 4.0f);
+                    Vector3 radIn = Vec3_Add(Vec3_Scale(sideA, cosf(ang) * rSide * 0.94f),
+                                             Vec3_Scale(upA,   sinf(ang) * rSag  * 0.94f));
+                    Vector3 radOut = Vec3_Add(Vec3_Scale(sideA, cosf(ang) * rSide * ridge),
+                                              Vec3_Scale(upA,   sinf(ang) * rSag  * ridge));
+                    Vector3 nrm = Vec3_Normalize(radOut);
+                    Vector3 pLo  = Vec3_Add(c, Vec3_Sub(radIn, Vec3_Scale(dir, bandH * 0.5f)));
+                    Vector3 pMid = Vec3_Add(c, radOut);
+                    Vector3 pHi  = Vec3_Add(c, Vec3_Add(radIn, Vec3_Scale(dir, bandH * 0.5f)));
+                    SurfaceRegion reg = isTail ? SURFACE_REGION_TAIL : SURFACE_REGION_DORSAL_TRUNK;
+                    if (!EmitVertex(opaque, pLo,  nrm, ringCol, reg, 0.15f, sk, &lo[k]) ||
+                        !EmitVertex(opaque, pMid, nrm, ringCol, reg, 0.10f, sk, &mid[k]) ||
+                        !EmitVertex(opaque, pHi,  nrm, ringCol, reg, 0.15f, sk, &hi[k])) {
+                        return false;
+                    }
+                }
+                for (unsigned k = 0; k < nPts; ++k) {
+                    if (!EmitQuad(opaque, lo[k], lo[k + 1], mid[k + 1], mid[k]) ||
+                        !EmitQuad(opaque, mid[k], mid[k + 1], hi[k + 1], hi[k])) return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 static bool RunBuild(const Monster* m, const Skeleton* skel,
                      Mesh* opaqueMesh, SkinBuffer* opaqueSkin,
                      Mesh* translucentMesh, SkinBuffer* translucentSkin) {
@@ -1231,6 +1890,11 @@ static bool RunBuild(const Monster* m, const Skeleton* skel,
     if (!BuildArmSuckers(m, &op)) return false;
     if (!BuildInsectWings(m, &op, &tr)) return false;
     if (!BuildRepeatedAppendages(m, &op, &tr)) return false;
+    if (!BuildGenericFins(m, &op)) return false;
+    if (!BuildCaudalPropulsors(m, &op)) return false;
+    if (!BuildMarineFlippers(m, &op)) return false;
+    if (!BuildAnatomicalShell(m, &op)) return false;
+    if (!BuildAquaticHeadAndArmorDetails(m, &op)) return false;
     return true;
 }
 

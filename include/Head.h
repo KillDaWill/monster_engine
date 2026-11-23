@@ -32,7 +32,12 @@ typedef enum HeadArchetype {
     HEAD_ARCHETYPE_PHOLIDOTE, /**< Cráneo y rostro cónico alargado sin salto nasal brusco. */
     HEAD_ARCHETYPE_BATOID, /**< Frente cefálico ancho y plano de batoideo con boca terminal y ojos laterales. */
     HEAD_ARCHETYPE_CEPHALOPOD, /**< Cabeza muscular corta de cefalópodo con ojos laterales prominentes sin hocico. */
-    HEAD_ARCHETYPE_ARTHROPOD /**< Cápsula cefálica de insecto dominada por dos grandes ojos compuestos. */
+    HEAD_ARCHETYPE_ARTHROPOD, /**< Cápsula cefálica de insecto dominada por dos grandes ojos compuestos. */
+    HEAD_ARCHETYPE_TELEOST, /**< Cráneo fusiforme de pez óseo con hocico aguzado, ojos laterales y opérculos. */
+    HEAD_ARCHETYPE_ELASMOBRANCH, /**< Cráneo cartilaginoso de elasmobranquio con cefalofoil lateral expandido y boca ventral. */
+    HEAD_ARCHETYPE_SYNGNATHID, /**< Cabeza angulada de signátido con hocico tubular largo, boca terminal y coroneta. */
+    HEAD_ARCHETYPE_TESTUDINE, /**< Cráneo reptiliano compacto de quelonio con pico córneo sin dientes. */
+    HEAD_ARCHETYPE_CETACEAN /**< Cráneo cetáceo con melón frontal redondeado, rostro grueso y espiráculo dorsal único. */
 } HeadArchetype;
 
 /** Familias de composición que cambian la silueta, no solo su escala. */

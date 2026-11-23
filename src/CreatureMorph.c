@@ -6,6 +6,8 @@
 #include "AxialBodyAvian.h"
 #include "AxialBodyDiscRay.h"
 #include "AxialBodyCephalopod.h"
+#include "AxialBodyAquaticFusiform.h"
+#include "Fin.h"
 #include "MathUtils.h"
 #include "Tail.h"
 #include "FlexibleAppendage.h"
@@ -504,7 +506,8 @@ static int Profile(const Monster* m,SDFSweepStation* stations) {
     int count=0;
     const AnatomyNode* n=start;
     if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_ARTHROPOD ||
-       m->phenotype.axial.archetype==AXIAL_ARCHETYPE_MEDUSA_RADIAL)return 0;
+       m->phenotype.axial.archetype==AXIAL_ARCHETYPE_MEDUSA_RADIAL ||
+       m->phenotype.axial.archetype==AXIAL_ARCHETYPE_CURVED_VERTICAL)return 0;
     if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD) {
         if(!AxialBodyUprightTetrapod_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
         n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
@@ -516,6 +519,9 @@ static int Profile(const Monster* m,SDFSweepStation* stations) {
         n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
     } else if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_CEPHALOPOD) {
         if(!AxialBodyCephalopod_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
+        n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
+    } else if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_AQUATIC_FUSIFORM) {
+        if(!AxialBodyAquaticFusiform_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
         n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
     } else stations[count++]=(SDFSweepStation){.center=n->center,.width=n->widthRadius,.height=n->heightRadius};
     for(size_t step=0;n && step<g->nodeCount;++step) {
@@ -658,6 +664,10 @@ static void Morph_AppendModule(CreatureRecipe* recipe,CreaturePhenotype* phen,
            phen->flexibleAppendageCount>=CREATURE_MAX_FLEXIBLE_APPENDAGES)return;
         dstMod.phenotypeIndex=(unsigned)phen->flexibleAppendageCount;
         phen->flexibleAppendages[phen->flexibleAppendageCount++]=srcPhen->flexibleAppendages[srcMod->phenotypeIndex];
+    } else if(srcMod->kind==CREATURE_MODULE_FIN) {
+        if(srcMod->phenotypeIndex>=srcPhen->finCount||phen->finCount>=CREATURE_MAX_FINS)return;
+        dstMod.phenotypeIndex=(unsigned)phen->finCount;
+        phen->fins[phen->finCount++]=srcPhen->fins[srcMod->phenotypeIndex];
     }
     recipe->bodyPlan.modules[recipe->bodyPlan.moduleCount++]=dstMod;
 }
@@ -669,6 +679,7 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
     out->phenotype.tailCount=0;
     out->phenotype.ornamentCount=0;
     out->phenotype.flexibleAppendageCount=0;
+    out->phenotype.finCount=0;
     for(size_t i=0;i<a->recipe.bodyPlan.moduleCount;++i) {
         const CreatureModuleInstance* ma=&a->recipe.bodyPlan.modules[i];
         if(ma->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,ma->instanceId))continue;
@@ -689,6 +700,15 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
                 out->phenotype.flexibleAppendages[at]=FlexibleAppendage_Interpolate(
                     &a->phenotype.flexibleAppendages[ma->phenotypeIndex],
                     &b->phenotype.flexibleAppendages[mb->phenotypeIndex],u,u);
+        } else if(shared && ma->kind==CREATURE_MODULE_FIN &&
+           ma->phenotypeIndex<a->phenotype.finCount && mb->phenotypeIndex<b->phenotype.finCount) {
+            size_t at=out->phenotype.finCount;
+            Morph_AppendModule(&out->recipe,&out->phenotype,t>=0.5f?mb:ma,
+                t>=0.5f?&b->phenotype:&a->phenotype,ma->instanceId);
+            if(at<out->phenotype.finCount)
+                out->phenotype.fins[at]=FinPhenotype_Interpolate(
+                    &a->phenotype.fins[ma->phenotypeIndex],
+                    &b->phenotype.fins[mb->phenotypeIndex],u);
         } else if(shared && ma->kind==CREATURE_MODULE_TAIL &&
            ma->phenotypeIndex<a->phenotype.tailCount && mb->phenotypeIndex<b->phenotype.tailCount) {
             Morph_AppendModule(&out->recipe,&out->phenotype,t>=0.5f?mb:ma,
@@ -699,11 +719,21 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
                 TailPhenotype* dt=&out->phenotype.tails[out->phenotype.tailCount-1];
                 dt->droop=Math_Lerp(ta->droop,tb->droop,u);
                 dt->rootMatchStrength=Math_Lerp(ta->rootMatchStrength,tb->rootMatchStrength,u);
+                dt->caudalSpan=Math_Lerp(ta->caudalSpan,tb->caudalSpan,u);
+                dt->caudalChord=Math_Lerp(ta->caudalChord,tb->caudalChord,u);
+                dt->caudalUpperLobeRatio=Math_Lerp(ta->caudalUpperLobeRatio,tb->caudalUpperLobeRatio,u);
+                dt->caudalNotchDepth=Math_Lerp(ta->caudalNotchDepth,tb->caudalNotchDepth,u);
+                dt->caudalSweep=Math_Lerp(ta->caudalSweep,tb->caudalSweep,u);
+                dt->caudalThickness=Math_Lerp(ta->caudalThickness,tb->caudalThickness,u);
+                dt->caudalColor=Color_Lerp(ta->caudalColor,tb->caudalColor,u);
             }
         } else if(shared && t>=0.5f) {
             Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,ma->instanceId);
         } else {
+            size_t finBefore=out->phenotype.finCount;
             Morph_AppendModule(&out->recipe,&out->phenotype,ma,&a->phenotype,ma->instanceId);
+            if(!shared && ma->kind==CREATURE_MODULE_FIN && out->phenotype.finCount>finBefore)
+                out->phenotype.fins[finBefore].development *= Math_Clamp01(1.0f - u * 1.4f);
         }
     }
     for(size_t i=0;i<b->recipe.bodyPlan.moduleCount;++i) {
@@ -711,7 +741,32 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
         uint32_t effId=Morph_RemapModule(mb->instanceId,oldModules,newModules,remapCount);
         if(Morph_FindBodyModule(&out->recipe.bodyPlan,effId))continue;
         if(mb->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,effId))continue;
+        size_t finBefore=out->phenotype.finCount;
         Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,effId);
+        if(mb->kind==CREATURE_MODULE_FIN && out->phenotype.finCount>finBefore)
+            out->phenotype.fins[finBefore].development *= Math_Clamp01((u - 0.28f) / 0.72f);
+    }
+    /* Sincronizar caparazón (emergencia/desaparición suave anclada al tronco sin superficies flotantes). */
+    {
+        const ShellPhenotype* sa=&a->phenotype.shell;
+        const ShellPhenotype* sb=&b->phenotype.shell;
+        if(sa->development>0.01f && sb->development>0.01f) {
+            out->phenotype.shell = (t < 0.5f) ? *sa : *sb;
+            out->phenotype.shell.development = Math_Lerp(sa->development, sb->development, u);
+            out->phenotype.shell.length = Math_Lerp(sa->length, sb->length, u);
+            out->phenotype.shell.width = Math_Lerp(sa->width, sb->width, u);
+            out->phenotype.shell.height = Math_Lerp(sa->height, sb->height, u);
+            out->phenotype.shell.carapaceColor = Color_Lerp(sa->carapaceColor, sb->carapaceColor, u);
+            out->phenotype.shell.plastronColor = Color_Lerp(sa->plastronColor, sb->plastronColor, u);
+        } else if(sa->development>0.01f) {
+            out->phenotype.shell = *sa;
+            out->phenotype.shell.development = sa->development * Math_Clamp01(1.0f - u * 1.6f);
+        } else if(sb->development>0.01f) {
+            out->phenotype.shell = *sb;
+            out->phenotype.shell.development = sb->development * Math_Clamp01((u - 0.35f) / 0.65f);
+        } else {
+            memset(&out->phenotype.shell, 0, sizeof(out->phenotype.shell));
+        }
     }
     /* Sincronizar grupos de apéndices repetidos (p. ej. tentáculos y brazos orales). */
     bool sameRepeated = a->phenotype.repeatedAppendageCount == b->phenotype.repeatedAppendageCount;

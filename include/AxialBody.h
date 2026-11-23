@@ -36,7 +36,10 @@ enum {
     AXIAL_SLOT_WING_FORE_LEFT = 18, AXIAL_SLOT_WING_FORE_RIGHT,
     AXIAL_SLOT_WING_HIND_LEFT, AXIAL_SLOT_WING_HIND_RIGHT,
     AXIAL_SLOT_RADIAL_BASE = 24,   /**< Hasta 16 ranuras radiales consecutivas (24..39). */
-    AXIAL_SLOT_ORAL_BASE = 40      /**< Hasta 8 ranuras orales/subumbrelares (40..47). */
+    AXIAL_SLOT_ORAL_BASE = 40,     /**< Hasta 8 ranuras orales/subumbrelares (40..47). */
+    AXIAL_SLOT_DORSAL_POSTERIOR = 48, /**< Segunda ranura dorsal (segunda aleta dorsal / pínulas). */
+    AXIAL_SLOT_ANAL = 49,          /**< Ranura ventral posterior (aleta anal / pínulas anales). */
+    AXIAL_SLOT_SHELL = 50          /**< Ranura troncal de caparazón (espaldar + plastrón). */
 };
 
 /** @brief Indica si el módulo implementa el arquetipo axial. */

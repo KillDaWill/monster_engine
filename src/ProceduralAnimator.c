@@ -314,13 +314,97 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
     float finAmp = fmaxf(0.0f, fminf(1.0f, a->finWaveAmplitude));
     float bellAmp = fmaxf(0.0f, fminf(1.0f, a->bellPulseAmplitude));
 
-    /* Avance de fases continuas para aletas batoideas, pulsación medusoide y brazos hidrostáticos. */
+    /* Avance de fases continuas para aletas batoideas, pulsación medusoide, brazos y nado acuático. */
     if (dt > 0.0f) {
         float cycle = fmaxf(0.15f, a->gait.cycleDuration);
         float dPhase = (6.28318530718f / cycle) * dt;
         a->finWavePhase += dPhase;
         a->bellPulsePhase += dPhase;
         a->armWavePhase += dPhase * 0.85f;
+        a->swimPhase += dPhase * (speed > 0.05f ? 1.0f : 0.45f);
+    }
+
+    /* Modos de propulsión acuática generalizados (túnido, escualo, signátido, tortuga marina y cetáceo). */
+    if (a->swimMode != AQUATIC_SWIM_NONE) {
+        float swimDrive = (speed > 0.05f) ? 1.0f : 0.35f;
+        float ph = a->swimPhase;
+        if (a->swimMode == AQUATIC_SWIM_THUNNIFORM || a->swimMode == AQUATIC_SWIM_CARANGIFORM) {
+            bool tuna = (a->swimMode == AQUATIC_SWIM_THUNNIFORM);
+            for (size_t i = 0; i < r->spineCount; ++i) {
+                int j = r->spine[i];
+                if (j < 0) continue;
+                float u = r->spineCount > 1 ? (float)i / (float)(r->spineCount - 1) : 0.0f;
+                /* Túnido: tronco anterior casi rígido; escualo: ondulación lateral progresiva. */
+                float env = tuna ? (u * u * 0.14f) : ((0.18f + 0.82f * u) * 0.20f);
+                float yaw = sinf(ph - u * 2.2f) * env * swimDrive;
+                RotateEuler(&r->skeleton, p, j, yaw, 0.0f, 0.0f);
+            }
+            for (size_t ti = 0; ti < r->tailCount; ++ti) {
+                const TailRig* tr = &r->tails[ti];
+                for (size_t i = 0; i < tr->jointCount; ++i) {
+                    int j = tr->joints[i];
+                    if (j < 0) continue;
+                    float u = tr->jointCount > 1 ? (float)i / (float)(tr->jointCount - 1) : 1.0f;
+                    float amp = (tuna ? 0.26f : 0.24f) * (0.45f + 0.55f * u) * swimDrive;
+                    float yaw = sinf(ph - 2.2f - u * 1.6f) * amp;
+                    RotateEuler(&r->skeleton, p, j, yaw, 0.0f, 0.0f);
+                }
+            }
+            SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+        } else if (a->swimMode == AQUATIC_SWIM_CETACEAN) {
+            /* Propulsión cetácea: ondulación DORSOVENTRAL (eje X / cabeceo), nunca lateral. */
+            for (size_t i = 0; i < r->spineCount; ++i) {
+                int j = r->spine[i];
+                if (j < 0) continue;
+                float u = r->spineCount > 1 ? (float)i / (float)(r->spineCount - 1) : 0.0f;
+                float pitch = sinf(ph - u * 2.0f) * (0.04f + 0.16f * u * u) * swimDrive;
+                RotateEuler(&r->skeleton, p, j, 0.0f, pitch, 0.0f);
+            }
+            for (size_t ti = 0; ti < r->tailCount; ++ti) {
+                const TailRig* tr = &r->tails[ti];
+                for (size_t i = 0; i < tr->jointCount; ++i) {
+                    int j = tr->joints[i];
+                    if (j < 0) continue;
+                    float u = tr->jointCount > 1 ? (float)i / (float)(tr->jointCount - 1) : 1.0f;
+                    float pitch = sinf(ph - 2.0f - u * 1.4f) * (0.18f + 0.16f * u) * swimDrive;
+                    RotateEuler(&r->skeleton, p, j, 0.0f, pitch, 0.0f);
+                }
+            }
+            SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+        } else if (a->swimMode == AQUATIC_SWIM_TURTLE) {
+            /* Tortuga marina: caparazón/columna rígidos; aletas anteriores baten en ocho, posteriores timonean. */
+            for (size_t i = 0; i < r->limbCount; ++i) {
+                const LimbRig* limb = &r->limbs[i];
+                if (limb->chain.jointCount < 2) continue;
+                float side = (limb->side == LIMB_RIGHT) ? -1.0f : 1.0f;
+                bool fore = (limb->role == LIMB_FORE || limb->role == LIMB_WING);
+                if (fore) {
+                    float flap = sinf(ph) * 0.52f * swimDrive;
+                    float sweep = cosf(ph) * 0.24f * swimDrive;
+                    float feather = cosf(ph) * 0.22f * swimDrive;
+                    RotateEuler(&r->skeleton, p, limb->chain.jointIndices[0],
+                                feather, side * sweep, side * flap);
+                    if (limb->chain.jointCount > 1)
+                        RotateEuler(&r->skeleton, p, limb->chain.jointIndices[1],
+                                    0.0f, 0.0f, side * flap * 0.28f);
+                } else {
+                    float steer = sinf(ph + 1.5707963f) * 0.14f * swimDrive;
+                    RotateEuler(&r->skeleton, p, limb->chain.jointIndices[0],
+                                steer * 0.5f, side * steer, 0.0f);
+                }
+            }
+            SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+        } else if (a->swimMode == AQUATIC_SWIM_SEAHORSE) {
+            /* Signátido erguido: tronco y cola estables, vibración rápida en aletas dorsales/pectorales. */
+            for (size_t j = 0; j < r->skeleton.jointCount; ++j) {
+                uint16_t localId = (uint16_t)(r->skeleton.joints[j].anatomyId & 0xffffu);
+                if ((localId == 2 || localId == 3) && r->skeleton.joints[j].parentIndex >= 0) {
+                    float flutter = sinf(ph * 2.5f - (float)localId * 1.1f) * 0.22f * swimDrive;
+                    RotateEuler(&r->skeleton, p, (int)j, 0.0f, flutter, 0.0f);
+                }
+            }
+            SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+        }
     }
 
     /* Aleteo automático en vuelo cuando hay velocidad deseada y las alas no están plegadas ni forzadas. */

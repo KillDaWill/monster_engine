@@ -349,6 +349,12 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
                     ++issues;
                 }
             }
+        } else if (m->kind == CREATURE_MODULE_FIN) {
+            FinPhenotype *fin = &p->fins[at];
+            issues += ClampDiag(&fin->span, trunk * 0.03f, trunk * 1.45f, repair,
+                report, stage, (unsigned)i, m->kind, "fin.span", repairAttempt);
+            issues += ClampDiag(&fin->baseChord, trunk * 0.03f, trunk * 1.10f, repair,
+                report, stage, (unsigned)i, m->kind, "fin.baseChord", repairAttempt);
         }
     }
     return issues;
