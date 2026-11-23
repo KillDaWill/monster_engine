@@ -41,7 +41,9 @@ enum {
     HEAD_SLOT_FITTED_MAXILLARY_LEFT,
     HEAD_SLOT_FITTED_MAXILLARY_RIGHT,
     HEAD_SLOT_FITTED_NASAL_ANTERIOR,
-    HEAD_SLOT_FITTED_NASAL_POSTERIOR
+    HEAD_SLOT_FITTED_NASAL_POSTERIOR,
+    HEAD_SLOT_CROWN_LEFT,
+    HEAD_SLOT_CROWN_RIGHT
 };
 
 /* Petición de la ranura nasal original, además del rango de ranuras ajustadas. */

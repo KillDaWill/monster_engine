@@ -77,6 +77,7 @@ int main(int argc,char** argv){
 #define ADD(mesh,isSkin) do {const Mesh* next=(mesh);if(next&&next->indexCount){meshes[count]=next;skin[count++]=(isSkin);}}while(0)
         ADD(&v->mesh,true);ADD(&v->headMesh,true);
         ADD(&v->membraneMesh,false);ADD(&v->armorMesh,false);
+        ADD(&v->detailMesh,false);ADD(&v->translucentMesh,false);
         for(size_t i=0;i<v->mouthCount;++i){ADD(&v->mouths[i].jaw,true);ADD(&v->mouths[i].hinge,true);}
         for(size_t i=0;i<v->eyeCount;++i){size_t before=count;ADD(&v->eyes[i].globe,false);if(count>before)eyes[before]=&v->eyes[i];}
         FILE* meta=tmpfile();if(!meta)ok=false;

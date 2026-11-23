@@ -43,6 +43,8 @@ typedef struct Mesh {
     uint64_t identity; /**< Identidad estable para cachés aunque el allocator reutilice una dirección. */
     SurfaceRecipe surfaceRecipe; /**< Apariencia separada de los buffers geométricos. */
     bool hasSurface;
+    bool translucent; /**< Activa mezclado alfa y ordenación por caras en el backend gráfico. */
+    bool doubleSided; /**< Desactiva backface culling en superficies finas/abiertas. */
     uint64_t geometryGeneration; /**< Revisión de posiciones, normales, color o índices. */
     uint64_t surfaceGeneration;  /**< Revisión del dominio superficial por vértice. */
     MeshVertex* vertices;  /**< Arreglo dinámico de vértices */

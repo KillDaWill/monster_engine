@@ -354,6 +354,31 @@ bool HeadModule_ResolveProfileWithSites(const HeadPhenotype* phenotype,
             if(slots->count>=ATTACHMENT_MAX_SLOTS)return false;
             slots->slots[slots->count++]=tip;
         }
+        /* Ranuras dorsales mediales sobre la corona parietal (osiconos y cuernos de bóveda). */
+        for (unsigned side = 0; side < 2; ++side) {
+            float sign = side ? -1.0f : 1.0f;
+            float crownW = surface->hasCranialProfile ? surface->cranialRadii[4].x : w;
+            float crownH = surface->hasCranialProfile ? surface->cranialRadii[4].y : h;
+            Vector3 crownCenter = surface->hasCranialProfile
+                ? Vec3_Add(c, Vec3_Lerp(surface->cranialCenters[3], surface->cranialCenters[4], 0.68f))
+                : skull;
+            AttachmentSlot crown = {
+                .id = side ? HEAD_SLOT_CROWN_RIGHT : HEAD_SLOT_CROWN_LEFT,
+                .role = ATTACHMENT_CRANIAL,
+                .hostModuleInstanceId = module,
+                .hostNode = headId,
+                .position = Vec3_Add(crownCenter,
+                    Vec3_Add(Vec3_Scale(slot->side, sign * crownW * 0.40f),
+                             Vec3_Scale(slot->up, crownH * 0.84f))),
+                .forward = slot->forward,
+                .up = slot->up,
+                .side = slot->side,
+                .hostRadii = Vec3_Create(crownW, crownH, depth),
+                .scale = s
+            };
+            if (slots->count >= ATTACHMENT_MAX_SLOTS) return false;
+            slots->slots[slots->count++] = crown;
+        }
         if (requestedSites && hybrid && hybrid->hasRegionalProfile) {
             SDFSweepStation stations[6];
             for (unsigned i=0; i<6; ++i) {

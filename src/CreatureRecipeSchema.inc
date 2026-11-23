@@ -43,7 +43,7 @@ static const Field AxialStationMorph_fields[] = {
     {0}
 };
 static const Field AxialPhenotype_fields[] = {
-    {"archetype",offsetof(AxialPhenotype,archetype),sizeof(AxialArchetype),1,F_ENUM,AXIAL_ARCHETYPE_CUSTOM,NULL,NO_COUNT,"AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD|AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD|AXIAL_ARCHETYPE_SERPENTINE|AXIAL_ARCHETYPE_AVIAN|AXIAL_ARCHETYPE_CUSTOM",false},
+    {"archetype",offsetof(AxialPhenotype,archetype),sizeof(AxialArchetype),1,F_ENUM,AXIAL_ARCHETYPE_MEDUSA_RADIAL,NULL,NO_COUNT,"AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD|AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD|AXIAL_ARCHETYPE_SERPENTINE|AXIAL_ARCHETYPE_AVIAN|AXIAL_ARCHETYPE_CUSTOM|AXIAL_ARCHETYPE_DISC_RAY|AXIAL_ARCHETYPE_CEPHALOPOD|AXIAL_ARCHETYPE_ARTHROPOD|AXIAL_ARCHETYPE_MEDUSA_RADIAL",false},
     {"totalScale",offsetof(AxialPhenotype,totalScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"neckLength",offsetof(AxialPhenotype,neckLength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"neckWidth",offsetof(AxialPhenotype,neckWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -70,6 +70,12 @@ static const Field AxialPhenotype_fields[] = {
     {"cervicalSegments",offsetof(AxialPhenotype,cervicalSegments),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
     {"cervicalPitch",offsetof(AxialPhenotype,cervicalPitch),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"spineFlexion",offsetof(AxialPhenotype,spineFlexion),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"radialSymmetryOrder",offsetof(AxialPhenotype,radialSymmetryOrder),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
+    {"bellConcavity",offsetof(AxialPhenotype,bellConcavity),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"bellScallopAmplitude",offsetof(AxialPhenotype,bellScallopAmplitude),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"abdomenSegments",offsetof(AxialPhenotype,abdomenSegments),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
+    {"discSweep",offsetof(AxialPhenotype,discSweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"mantleElongation",offsetof(AxialPhenotype,mantleElongation),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field Color_fields[] = {
@@ -80,7 +86,7 @@ static const Field Color_fields[] = {
     {0}
 };
 static const Field HeadPhenotype_fields[] = {
-    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_PHOLIDOTE,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID|HEAD_ARCHETYPE_PROBOSCIDEAN|HEAD_ARCHETYPE_RHINOCEROTID|HEAD_ARCHETYPE_RODENT|HEAD_ARCHETYPE_MONOTREME|HEAD_ARCHETYPE_PHOLIDOTE",false},
+    {"archetype",offsetof(HeadPhenotype,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_ARTHROPOD,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID|HEAD_ARCHETYPE_PROBOSCIDEAN|HEAD_ARCHETYPE_RHINOCEROTID|HEAD_ARCHETYPE_RODENT|HEAD_ARCHETYPE_MONOTREME|HEAD_ARCHETYPE_PHOLIDOTE|HEAD_ARCHETYPE_BATOID|HEAD_ARCHETYPE_CEPHALOPOD|HEAD_ARCHETYPE_ARTHROPOD",false},
     {"skullWidth",offsetof(HeadPhenotype,skullWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullHeight",offsetof(HeadPhenotype,skullHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"skullLength",offsetof(HeadPhenotype,skullLength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -308,7 +314,7 @@ static const Field Mouth_fields[] = {
     {0}
 };
 static const Field HeadAnatomy_fields[] = {
-    {"archetype",offsetof(HeadAnatomy,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_PHOLIDOTE,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID|HEAD_ARCHETYPE_PROBOSCIDEAN|HEAD_ARCHETYPE_RHINOCEROTID|HEAD_ARCHETYPE_RODENT|HEAD_ARCHETYPE_MONOTREME|HEAD_ARCHETYPE_PHOLIDOTE",false},
+    {"archetype",offsetof(HeadAnatomy,archetype),sizeof(HeadArchetype),1,F_ENUM,HEAD_ARCHETYPE_ARTHROPOD,NULL,NO_COUNT,"HEAD_ARCHETYPE_LIZARD|HEAD_ARCHETYPE_CANID|HEAD_ARCHETYPE_AVIAN|HEAD_ARCHETYPE_BOVID|HEAD_ARCHETYPE_EQUINE|HEAD_ARCHETYPE_SUID|HEAD_ARCHETYPE_PROBOSCIDEAN|HEAD_ARCHETYPE_RHINOCEROTID|HEAD_ARCHETYPE_RODENT|HEAD_ARCHETYPE_MONOTREME|HEAD_ARCHETYPE_PHOLIDOTE|HEAD_ARCHETYPE_BATOID|HEAD_ARCHETYPE_CEPHALOPOD|HEAD_ARCHETYPE_ARTHROPOD",false},
     {"attachmentBodyPartIndex",offsetof(HeadAnatomy,attachmentBodyPartIndex),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,false},
     {"landmarks",offsetof(HeadAnatomy,landmarks),sizeof(HeadLandmarks),1,F_OBJECT,0,HeadLandmarks_fields,NO_COUNT,NULL,false},
     {"surface",offsetof(HeadAnatomy,surface),sizeof(HeadSurfaceRecipe),1,F_OBJECT,0,HeadSurfaceRecipe_fields,NO_COUNT,NULL,false},
@@ -348,7 +354,7 @@ static const Field EyePhenotype_fields[] = {
     {0}
 };
 static const Field LimbPhenotype_fields[] = {
-    {"archetype",offsetof(LimbPhenotype,archetype),sizeof(LimbArchetype),1,F_ENUM,LIMB_ARCHETYPE_UNGULATE,NULL,NO_COUNT,"LIMB_ARCHETYPE_REPTILE|LIMB_ARCHETYPE_MAMMAL|LIMB_ARCHETYPE_AVIAN|LIMB_ARCHETYPE_WING|LIMB_ARCHETYPE_FLIPPER|LIMB_ARCHETYPE_CUSTOM|LIMB_ARCHETYPE_UNGULATE",false},
+    {"archetype",offsetof(LimbPhenotype,archetype),sizeof(LimbArchetype),1,F_ENUM,LIMB_ARCHETYPE_INSECT_WING,NULL,NO_COUNT,"LIMB_ARCHETYPE_REPTILE|LIMB_ARCHETYPE_MAMMAL|LIMB_ARCHETYPE_AVIAN|LIMB_ARCHETYPE_WING|LIMB_ARCHETYPE_FLIPPER|LIMB_ARCHETYPE_CUSTOM|LIMB_ARCHETYPE_UNGULATE|LIMB_ARCHETYPE_ARTHROPOD_LEG|LIMB_ARCHETYPE_INSECT_WING",false},
     {"role",offsetof(LimbPhenotype,role),sizeof(LimbRole),1,F_ENUM,LIMB_OTHER,NULL,NO_COUNT,"LIMB_FORE|LIMB_HIND|LIMB_ARM|LIMB_LEG|LIMB_WING|LIMB_OTHER",false},
     {"side",offsetof(LimbPhenotype,side),sizeof(LimbSide),1,F_ENUM,LIMB_CENTER,NULL,NO_COUNT,"LIMB_LEFT|LIMB_RIGHT|LIMB_CENTER",false},
     {"length",offsetof(LimbPhenotype,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -387,11 +393,16 @@ static const Field LimbPhenotype_fields[] = {
     {"webbingThickness",offsetof(LimbPhenotype,webbingThickness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"webbingEdgeCurve",offsetof(LimbPhenotype,webbingEdgeCurve),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"webbingFold",offsetof(LimbPhenotype,webbingFold),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"featherCount",offsetof(LimbPhenotype,featherCount),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
+    {"wingAspect",offsetof(LimbPhenotype,wingAspect),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"wingPointedness",offsetof(LimbPhenotype,wingPointedness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"finSweep",offsetof(LimbPhenotype,finSweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"finCamber",offsetof(LimbPhenotype,finCamber),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field TailPhenotype_fields[] = {
     {"droop",offsetof(TailPhenotype,droop),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
-    {"archetype",offsetof(TailPhenotype,archetype),sizeof(TailArchetype),1,F_ENUM,TAIL_ARCHETYPE_PADDLE,NULL,NO_COUNT,"TAIL_ARCHETYPE_TAPERED|TAIL_ARCHETYPE_WHIP|TAIL_ARCHETYPE_HEAVY|TAIL_ARCHETYPE_PREHENSILE|TAIL_ARCHETYPE_FINNED|TAIL_ARCHETYPE_CUSTOM|TAIL_ARCHETYPE_COILED|TAIL_ARCHETYPE_PADDLE",false},
+    {"archetype",offsetof(TailPhenotype,archetype),sizeof(TailArchetype),1,F_ENUM,TAIL_ARCHETYPE_FEATHER_FAN,NULL,NO_COUNT,"TAIL_ARCHETYPE_TAPERED|TAIL_ARCHETYPE_WHIP|TAIL_ARCHETYPE_HEAVY|TAIL_ARCHETYPE_PREHENSILE|TAIL_ARCHETYPE_FINNED|TAIL_ARCHETYPE_CUSTOM|TAIL_ARCHETYPE_COILED|TAIL_ARCHETYPE_PADDLE|TAIL_ARCHETYPE_FEATHER_FAN",false},
     {"length",offsetof(TailPhenotype,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"baseWidth",offsetof(TailPhenotype,baseWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"baseHeight",offsetof(TailPhenotype,baseHeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
@@ -425,6 +436,12 @@ static const Field FlexibleAppendagePhenotype_fields[] = {
     {"initialPitch",offsetof(FlexibleAppendagePhenotype,initialPitch),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"restBend",offsetof(FlexibleAppendagePhenotype,restBend),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"terminal",offsetof(FlexibleAppendagePhenotype,terminal),sizeof(FlexibleTerminal),1,F_ENUM,FLEXIBLE_TERMINAL_PAIRED_OPENINGS,NULL,NO_COUNT,"FLEXIBLE_TERMINAL_ROUND|FLEXIBLE_TERMINAL_PAIRED_OPENINGS",false},
+    {"profile",offsetof(FlexibleAppendagePhenotype,profile),sizeof(FlexibleAppendageProfile),1,F_ENUM,FLEXIBLE_PROFILE_SIPHON,NULL,NO_COUNT,"FLEXIBLE_PROFILE_PROBOSCIS|FLEXIBLE_PROFILE_MUSCULAR_ARM|FLEXIBLE_PROFILE_CEPHALIC_LOBE|FLEXIBLE_PROFILE_SIPHON",true},
+    {"yawAngle",offsetof(FlexibleAppendagePhenotype,yawAngle),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"coilBias",offsetof(FlexibleAppendagePhenotype,coilBias),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"suckerRows",offsetof(FlexibleAppendagePhenotype,suckerRows),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
+    {"suckerCount",offsetof(FlexibleAppendagePhenotype,suckerCount),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
+    {"suckerScale",offsetof(FlexibleAppendagePhenotype,suckerScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field AnatomicalMembraneProfile_fields[] = {
@@ -444,6 +461,34 @@ static const Field AnatomicalMembraneProfile_fields[] = {
     {"tension",offsetof(AnatomicalMembraneProfile,tension),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"development",offsetof(AnatomicalMembraneProfile,development),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"color",offsetof(AnatomicalMembraneProfile,color),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {0}
+};
+static const Field RepeatedAppendageGroup_fields[] = {
+    {"groupId",offsetof(RepeatedAppendageGroup,groupId),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
+    {"hostModuleInstanceId",offsetof(RepeatedAppendageGroup,hostModuleInstanceId),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
+    {"hostNodeId",offsetof(RepeatedAppendageGroup,hostNodeId),sizeof(uint16_t),1,F_U16,UINT16_MAX,NULL,NO_COUNT,NULL,false},
+    {"kind",offsetof(RepeatedAppendageGroup,kind),sizeof(RepeatedAppendageKind),1,F_ENUM,REPEATED_APPENDAGE_FRILLED_RIBBON,NULL,NO_COUNT,"REPEATED_APPENDAGE_NONE|REPEATED_APPENDAGE_FILAMENT|REPEATED_APPENDAGE_FRILLED_RIBBON",false},
+    {"count",offsetof(RepeatedAppendageGroup,count),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,false},
+    {"ringRadius",offsetof(RepeatedAppendageGroup,ringRadius),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"ringOffsetY",offsetof(RepeatedAppendageGroup,ringOffsetY),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"arcStart",offsetof(RepeatedAppendageGroup,arcStart),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"arcSpan",offsetof(RepeatedAppendageGroup,arcSpan),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"length",offsetof(RepeatedAppendageGroup,length),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"lengthVariation",offsetof(RepeatedAppendageGroup,lengthVariation),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"baseRadius",offsetof(RepeatedAppendageGroup,baseRadius),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"tipRadius",offsetof(RepeatedAppendageGroup,tipRadius),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"taper",offsetof(RepeatedAppendageGroup,taper),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"ribbonWidth",offsetof(RepeatedAppendageGroup,ribbonWidth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"ruffleAmplitude",offsetof(RepeatedAppendageGroup,ruffleAmplitude),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"ruffleFrequency",offsetof(RepeatedAppendageGroup,ruffleFrequency),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"curlAmplitude",offsetof(RepeatedAppendageGroup,curlAmplitude),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"waveFrequency",offsetof(RepeatedAppendageGroup,waveFrequency),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"phaseSpread",offsetof(RepeatedAppendageGroup,phaseSpread),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"development",offsetof(RepeatedAppendageGroup,development),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"baseColor",offsetof(RepeatedAppendageGroup,baseColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {"tipColor",offsetof(RepeatedAppendageGroup,tipColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {"opacity",offsetof(RepeatedAppendageGroup,opacity),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"seed",offsetof(RepeatedAppendageGroup,seed),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,false},
     {0}
 };
 static const Field PigmentDomain_fields[] = {
@@ -533,7 +578,7 @@ static const Field FurPhenotype_fields[] = {
     {0}
 };
 static const Field IntegumentPhenotype_fields[] = {
-    {"type",offsetof(IntegumentPhenotype,type),sizeof(IntegumentType),1,F_ENUM,INTEGUMENT_PLATES,NULL,NO_COUNT,"INTEGUMENT_SMOOTH_SKIN|INTEGUMENT_SCALES|INTEGUMENT_FUR|INTEGUMENT_FEATHERS|INTEGUMENT_PLATES",false},
+    {"type",offsetof(IntegumentPhenotype,type),sizeof(IntegumentType),1,F_ENUM,INTEGUMENT_GELATINOUS,NULL,NO_COUNT,"INTEGUMENT_SMOOTH_SKIN|INTEGUMENT_SCALES|INTEGUMENT_FUR|INTEGUMENT_FEATHERS|INTEGUMENT_PLATES|INTEGUMENT_CHITIN|INTEGUMENT_GELATINOUS",false},
     {"coverage",offsetof(IntegumentPhenotype,coverage),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"scales",offsetof(IntegumentPhenotype,scales),sizeof(ScalePhenotype),1,F_OBJECT,0,ScalePhenotype_fields,NO_COUNT,NULL,false},
     {"plates",offsetof(IntegumentPhenotype,plates),sizeof(PlatePhenotype),1,F_OBJECT,0,PlatePhenotype_fields,NO_COUNT,NULL,false},
@@ -640,6 +685,9 @@ static const Field SurfacePhenotype_fields[] = {
     {"longHairCount",offsetof(SurfacePhenotype,longHairCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
     {"transition",offsetof(SurfacePhenotype,transition),sizeof(((SurfacePhenotype*)0)->transition),1,F_OBJECT,0,SurfacePhenotype_transition_fields,NO_COUNT,NULL,false},
     {"inheritedBlend",offsetof(SurfacePhenotype,inheritedBlend),sizeof(bool),1,F_BOOL,1,NULL,NO_COUNT,NULL,true},
+    {"translucency",offsetof(SurfacePhenotype,translucency),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"iridescence",offsetof(SurfacePhenotype,iridescence),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"subsurfaceGlow",offsetof(SurfacePhenotype,subsurfaceGlow),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field CreatureDevelopment_fields[] = {
@@ -666,6 +714,8 @@ static const Field CreaturePhenotype_fields[] = {
     {"flexibleAppendageCount",offsetof(CreaturePhenotype,flexibleAppendageCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
     {"membranes",offsetof(CreaturePhenotype,membranes),sizeof(AnatomicalMembraneProfile),CREATURE_MAX_MEMBRANES,F_OBJECT,0,AnatomicalMembraneProfile_fields,offsetof(CreaturePhenotype,membraneCount),NULL,true},
     {"membraneCount",offsetof(CreaturePhenotype,membraneCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
+    {"repeatedAppendages",offsetof(CreaturePhenotype,repeatedAppendages),sizeof(RepeatedAppendageGroup),CREATURE_MAX_REPEATED_APPENDAGES,F_OBJECT,0,RepeatedAppendageGroup_fields,offsetof(CreaturePhenotype,repeatedAppendageCount),NULL,true},
+    {"repeatedAppendageCount",offsetof(CreaturePhenotype,repeatedAppendageCount),sizeof(size_t),1,F_SIZE,SIZE_MAX,NULL,NO_COUNT,NULL,true},
     {"surface",offsetof(CreaturePhenotype,surface),sizeof(SurfacePhenotype),1,F_OBJECT,0,SurfacePhenotype_fields,NO_COUNT,NULL,false},
     {"development",offsetof(CreaturePhenotype,development),sizeof(CreatureDevelopment),1,F_OBJECT,0,CreatureDevelopment_fields,NO_COUNT,NULL,false},
     {"dorsalColor",offsetof(CreaturePhenotype,dorsalColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
@@ -681,7 +731,7 @@ static const Field CreatureRecipe_fields[] = {
     {"larva",offsetof(CreatureRecipe,larva),sizeof(CreaturePhenotype),1,F_OBJECT,0,CreaturePhenotype_fields,NO_COUNT,NULL,false},
     {"juvenile",offsetof(CreatureRecipe,juvenile),sizeof(CreaturePhenotype),1,F_OBJECT,0,CreaturePhenotype_fields,NO_COUNT,NULL,false},
     {"adult",offsetof(CreatureRecipe,adult),sizeof(CreaturePhenotype),1,F_OBJECT,0,CreaturePhenotype_fields,NO_COUNT,NULL,false},
-    {"gait",offsetof(CreatureRecipe,gait),sizeof(CreatureGait),1,F_ENUM,CREATURE_GAIT_BIPEDAL_HOP,NULL,NO_COUNT,"CREATURE_GAIT_NONE|CREATURE_GAIT_SPRAWLING_QUADRUPED|CREATURE_GAIT_UPRIGHT_QUADRUPED|CREATURE_GAIT_FELINE_STALK|CREATURE_GAIT_BOVINE_WALK|CREATURE_GAIT_COLUMNAR_WALK|CREATURE_GAIT_BIPEDAL_HOP",false},
+    {"gait",offsetof(CreatureRecipe,gait),sizeof(CreatureGait),1,F_ENUM,CREATURE_GAIT_MEDUSA_PULSE,NULL,NO_COUNT,"CREATURE_GAIT_NONE|CREATURE_GAIT_SPRAWLING_QUADRUPED|CREATURE_GAIT_UPRIGHT_QUADRUPED|CREATURE_GAIT_FELINE_STALK|CREATURE_GAIT_BOVINE_WALK|CREATURE_GAIT_COLUMNAR_WALK|CREATURE_GAIT_BIPEDAL_HOP|CREATURE_GAIT_AVIAN_FLIGHT|CREATURE_GAIT_RAY_SWIM|CREATURE_GAIT_OCTOPUS_CRAWL|CREATURE_GAIT_INSECT_FLIGHT|CREATURE_GAIT_MEDUSA_PULSE",false},
     {"offspringSeed",offsetof(CreatureRecipe,offspringSeed),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,true},
     {"offspringVersion",offsetof(CreatureRecipe,offspringVersion),sizeof(unsigned),1,F_UNSIGNED,UINT_MAX,NULL,NO_COUNT,NULL,true},
     {0}

@@ -50,6 +50,25 @@ vec4 cutSemantic(inout SDFResult sem,vec4 a,float d,vec3 color,float k,uint mate
     sem.skinWeight*=1.0-h;if(h>=.5)sem.materialId=material;
     return cutField(a,d,color,k);
 }
+float EvalMedusaBellDistance(vec3 p) {
+    vec3 l=p-medusaBellA.xyz;
+    float radius=medusaBellA.w,height=medusaBellB.x,wall=medusaBellB.y,concavity=medusaBellB.z,scallopAmp=medusaBellB.w;
+    float lappetCount=medusaBellColor.w;
+    float theta=(abs(l.x)+abs(l.z)>1e-12)?atan(l.z,l.x):0.0;
+    float lappetWave=0.5+0.5*cos(lappetCount*theta);
+    float radialScallop=scallopAmp*radius*0.22*lappetWave;
+    float vertScallop=scallopAmp*height*0.16*(lappetWave-0.5);
+    float R=radius+radialScallop;
+    float dOuter=SDF_Ellipsoid(l,vec3(R,height,R));
+    float rIn=max(R-wall*0.62,R*0.68);
+    float hIn=max(height*concavity,height*0.45);
+    float dInner=SDF_Ellipsoid(vec3(l.x,l.y+wall*0.35,l.z),vec3(rIn,hIn,rIn));
+    float dShell=SDF_SmoothSubtract(dOuter,dInner,wall*0.25);
+    float dMargin=vertScallop-l.y;
+    float dBell=SDF_SmoothIntersection(dShell,dMargin,wall*0.28);
+    float dOral=SDF_Ellipsoid(l-vec3(0.0,height*0.30,0.0),vec3(radius*0.20,height*0.22,radius*0.20));
+    return SDF_SmoothUnion(dBell,dOral,wall*0.35);
+}
 vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
     semantic=SDFResult(1e6,0u,0u,1u,1.0);
     vec4 result=vec4(1,1,1,1e6);
@@ -58,6 +77,15 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         for(int i=0;i<connectorCount;++i){int c=connectorBase+i*C_STRIDE;
             if(C_kind(c)==0&&!C_isHeadNeck(c)&&p.z<=max(C_a(c).z,C_b(c).z)&&p.z>=min(C_a(c).z,C_b(c).z)){
                 semantic.moduleId=uint(C_moduleInstanceId(c));semantic.regionId=uint(C_region(c));break;}}}
+    if(hasMedusaBell!=0) {
+        float bellDist=EvalMedusaBellDistance(p);
+        if(axialCount>1)
+            result=joinSemantic(semantic,result,vec4(medusaBellColor.rgb,bellDist),bodySmoothness*0.35,1u,3u,1u,1.0);
+        else {
+            result=vec4(medusaBellColor.rgb,bellDist);
+            semantic=SDFResult(bellDist,1u,3u,1u,1.0);
+        }
+    }
     for(int i=0;i<partCount;++i) {
         int b=partBase+i*P_STRIDE;
         result=joinSemantic(semantic,result,vec4(P_color(b),SDF_Ellipsoid(p-P_center(b),P_radii(b))),bodySmoothness,0u,0u,tissueMaterial(P_material(b)),P_material(b)==0?1.0:0.0);
@@ -89,7 +117,7 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         if(!(rayHeadActive||rayMouthActive))continue;
         int m=mouthBase+i*M_STRIDE;
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
-        if(rayMouthActive) {
+        if(rayMouthActive&&!(M_anatomicalHead(m)&&M_entranceHalfExtents(m).y<0.00095)) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
             vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=MonsterSDF_OralShift(m,local.z);
             float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);
@@ -151,6 +179,10 @@ float surfacePoseMaterial(vec3 p,SDFResult semantic) {
 float sceneDistance(vec3 p) {
     float result=1e6;
     if(axialCount>1)result=SDF_EllipticalSweepZ(p,axialBase,axialCount);
+    if(hasMedusaBell!=0) {
+        float bellDist=EvalMedusaBellDistance(p);
+        result=axialCount>1?SDF_SmoothUnion(result,bellDist,bodySmoothness*0.35):bellDist;
+    }
     for(int i=0;i<partCount;++i) {
         int b=partBase+i*P_STRIDE;
         result=SDF_SmoothUnion(result,SDF_Ellipsoid(p-P_center(b),P_radii(b)),bodySmoothness);
@@ -178,7 +210,7 @@ float sceneDistance(vec3 p) {
         if(!(rayHeadActive||rayMouthActive))continue;
         int m=mouthBase+i*M_STRIDE;
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
-        if(rayMouthActive) {
+        if(rayMouthActive&&!(M_anatomicalHead(m)&&M_entranceHalfExtents(m).y<0.00095)) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
             vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=MonsterSDF_OralShift(m,local.z);
             float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);

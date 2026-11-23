@@ -151,9 +151,12 @@ void SurfacePhenotype_Normalize(SurfacePhenotype* p) {
         f->length=Limit(f->length,0,4,0);f->density=Limit(f->density,0,4,0);
         f->width=Limit(f->width,.0005f,.02f,.003f);f->minNormalDot=Limit(f->minNormalDot,-1,1,-1);
     }
-    if(p->integument.type<INTEGUMENT_SMOOTH_SKIN || p->integument.type>INTEGUMENT_PLATES)p->integument.type=INTEGUMENT_SMOOTH_SKIN;
+    if(p->integument.type<INTEGUMENT_SMOOTH_SKIN || p->integument.type>INTEGUMENT_GELATINOUS)p->integument.type=INTEGUMENT_SMOOTH_SKIN;
 #define CLAMP(path,lo,hi,def) p->path=Limit(p->path,lo,hi,def)
     CLAMP(integument.coverage,0,1,1);
+    CLAMP(translucency,0,1,0);
+    CLAMP(iridescence,0,1,0);
+    CLAMP(subsurfaceGlow,0,1,0);
     p->wrinkleRegionMask&=(UINT32_C(1)<<SURFACE_REGION_COUNT)-1;
     CLAMP(wrinkleStrength,0,1,0);
     CLAMP(wrinkleScale,0,4,0);
@@ -276,6 +279,7 @@ static SurfacePhenotype Interpolate(const SurfacePhenotype* a,const SurfacePheno
         p.wrinkleRegionMask=q.wrinkleRegionMask;
     }
     MIX(wrinkleStrength); MIX(wrinkleScale); MIX(wrinkleDirectionality);
+    MIX(translucency); MIX(iridescence); MIX(subsurfaceGlow);
     MIX(pigment.patternScale); MIX(pigment.bands); MIX(integument.coverage);
     MIX(integument.scales.size); MIX(integument.scales.aspectRatio); MIX(integument.scales.roundness);
     MIX(integument.scales.irregularity); MIX(integument.scales.relief); MIX(integument.scales.edgeDepth);
@@ -520,6 +524,10 @@ SurfaceRecipe SurfaceRecipe_Compile(const SurfacePhenotype* source) {
     for (unsigned bank=0; bank<3; ++bank)
         for (size_t i=0; i<banks[bank]->layerCount && i<SURFACE_MAX_PIGMENT_LAYERS; ++i)
             r.data[SURFACE_RECIPE_ROTATION_BASE+bank][i]=banks[bank]->layers[i].patternRotation;
+    r.data[SURFACE_RECIPE_OPTICAL_ROW][0]=p.translucency;
+    r.data[SURFACE_RECIPE_OPTICAL_ROW][1]=p.iridescence;
+    r.data[SURFACE_RECIPE_OPTICAL_ROW][2]=p.subsurfaceGlow;
+    r.data[SURFACE_RECIPE_OPTICAL_ROW][3]=0.0f;
     r.pigmentSeed=p.pigment.seed; r.scaleSeed=p.integument.scales.seed; r.furSeed=p.integument.fur.seed; return r;
 }
 

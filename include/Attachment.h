@@ -32,7 +32,14 @@ typedef enum AttachmentRole {
     ATTACHMENT_CAUDAL,
     ATTACHMENT_DORSAL,
     ATTACHMENT_VENTRAL,
-    ATTACHMENT_CRANIAL
+    ATTACHMENT_CRANIAL,
+    ATTACHMENT_RADIAL,          /**< Anclaje radial en anillo o corona (p. ej. brazos, tentáculos, margen). */
+    ATTACHMENT_WING_FORE,       /**< Inserción dorsal anterior de ala independiente. */
+    ATTACHMENT_WING_HIND,       /**< Inserción dorsal posterior de ala independiente. */
+    ATTACHMENT_THORACIC_LEG,    /**< Inserción ventral torácica de extremidad articulada. */
+    ATTACHMENT_SIPHON,          /**< Inserción lateroventral de sifón o embudo propulsor. */
+    ATTACHMENT_ORAL,            /**< Inserción central oral/subumbrelar. */
+    ATTACHMENT_CEPHALIC_LOBE    /**< Inserción frontal pareada de lóbulo cefálico. */
 } AttachmentRole;
 
 /** Referencia explícita a una ranura de un módulo anfitrión específico. */
@@ -64,7 +71,7 @@ typedef struct AttachmentSlot {
     float scale;                     /**< Factor de escala heredado del anfitrión. */
 } AttachmentSlot;
 
-#define ATTACHMENT_MAX_SLOTS 64
+#define ATTACHMENT_MAX_SLOTS 96
 
 /**
  * @struct AttachmentSlotSet
@@ -74,6 +81,40 @@ typedef struct AttachmentSlotSet {
     AttachmentSlot slots[ATTACHMENT_MAX_SLOTS];
     size_t count;
 } AttachmentSlotSet;
+
+/**
+ * @brief Publica un anillo repetible de ranuras radiales alrededor de un eje anfitrión.
+ * @param slots Conjunto destino.
+ * @param hostModule Módulo anfitrión.
+ * @param hostNode Estación anatómica anfitriona.
+ * @param center Centro del anillo en espacio de modelo.
+ * @param axis Eje de simetría (hacia el que apunta 'up' local).
+ * @param radialRef Dirección radial de ángulo cero (perpendicular a axis).
+ * @param radius Radio del anillo.
+ * @param count Cantidad de ranuras radiales a publicar.
+ * @param angleStart Ángulo inicial en radianes.
+ * @param angleSpan Arco angular total en radianes (2*PI para círculo completo).
+ * @param baseSlotId Identificador local inicial; cada ranura recibe baseSlotId + i.
+ * @param role Rol semántico compartido por el anillo.
+ * @param hostRadii Radios de sección de la estación anfitriona.
+ * @param scale Escala heredada del anfitrión.
+ * @return true si todas las ranuras cupieron y se publicaron con marcos ortonormales.
+ */
+bool AttachmentSlotSet_PublishRadialRing(
+    AttachmentSlotSet* slots,
+    uint32_t hostModule,
+    AnatomyId hostNode,
+    Vector3 center,
+    Vector3 axis,
+    Vector3 radialRef,
+    float radius,
+    unsigned count,
+    float angleStart,
+    float angleSpan,
+    AttachmentSlotId baseSlotId,
+    AttachmentRole role,
+    Vector3 hostRadii,
+    float scale);
 
 /** Busca una ranura por módulo anfitrión e ID local de slot. */
 const AttachmentSlot* AttachmentSlotSet_Find(const AttachmentSlotSet* slots, uint32_t hostModuleInstanceId, AttachmentSlotId slotId);

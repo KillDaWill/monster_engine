@@ -14,7 +14,10 @@
 
 static void Neutral(Mesh* mesh) {
     mesh->hasSurface=false;
-    for(size_t i=0;i<mesh->vertexCount;++i)mesh->vertices[i].color=Color_FromRGB(155,155,155);
+    for(size_t i=0;i<mesh->vertexCount;++i) {
+        uint8_t a = mesh->translucent ? mesh->vertices[i].color.a : 255;
+        mesh->vertices[i].color = (Color){155, 155, 155, a};
+    }
     Mesh_MarkGeometryChanged(mesh);
 }
 static float ViewHeight(AABB3D bounds, Vector3 direction) {
@@ -61,7 +64,7 @@ static bool Capture(Renderer3D* r,ICamera* camera,MonsterVisual* v,Vector3 targe
 static bool CaptureFlexible(Renderer3D* renderer, ICamera* camera, MonsterVisual* visual,
     Monster* monster, const AnimatedVisual* binding, uint32_t module, Vector3 center,
     float height, const char* directory) {
-    const char* names[]={"relaxed","curled","reaching","feeding"};
+    const char* names[]={"relaxed","curled","reaching","feeding","spreading","crawling"};
     MonsterAnimation* animation=monster->animation;
     const Skeleton* skeleton=&animation->rig.skeleton;
     int tip=Skeleton_FindJoint(skeleton,Anatomy_MakeId(module,FLEXIBLE_APPENDAGE_STATIONS));
@@ -125,6 +128,7 @@ int main(int argc,char** argv) {
         LongHairSet_Free(&v->longHair);
         if (getenv("MONSTER_CAPTURE_BARE")) Mesh_Free(&v->armorMesh);
         Neutral(&v->mesh);Neutral(&v->headMesh);Neutral(&v->membraneMesh);Neutral(&v->armorMesh);
+        Neutral(&v->detailMesh);Neutral(&v->translucentMesh);
         for(size_t i=0;i<v->mouthCount;++i) {
             Neutral(&v->mouths[i].jawBase);Neutral(&v->mouths[i].hingeBase);
             Neutral(&v->mouths[i].jaw);Neutral(&v->mouths[i].hinge);
@@ -138,12 +142,15 @@ int main(int argc,char** argv) {
     bool stageViews=getenv("MONSTER_CAPTURE_STAGE_VIEWS")!=NULL;
     AABB3D framing=v->sdf.bounds;
     AABB_Pad(&framing,-v->sdf.config.boundsPadding);
+    for(size_t i=0;i<v->detailMesh.vertexCount;++i) AABB_ExpandPoint(&framing,v->detailMesh.vertices[i].position);
+    for(size_t i=0;i<v->translucentMesh.vertexCount;++i) AABB_ExpandPoint(&framing,v->translucentMesh.vertices[i].position);
+    for(size_t i=0;i<v->membraneMesh.vertexCount;++i) AABB_ExpandPoint(&framing,v->membraneMesh.vertices[i].position);
     Vector3 center=Vec3_Scale(Vec3_Add(framing.start,framing.end),.5f);
     float height=ViewHeight(framing,Vec3_Create(1,0,0));
-    Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f},{0,1,0},{-1,0,0},{.8f,.24f,-.65f}};
-    const char* names[]={"side","front","rear","three-quarter","top","opposite-side","three-quarter-rear"};
+    Vector3 directions[]={{1,0,0},{0,0,1},{0,0,-1},{.8f,.24f,.65f},{0,1,0},{0,-1,0},{-1,0,0},{.8f,.24f,-.65f}};
+    const char* names[]={"side","front","rear","three-quarter","top","bottom","opposite-side","three-quarter-rear"};
     bool ok=true;
-    for(int i=0;i<7;++i) {
+    for(int i=0;i<8;++i) {
         if(stageViews && i!=0 && i!=3 && i!=4)continue;
         ok=Capture(&renderer,&camera,v,center,directions[i],ViewHeight(framing,directions[i]),argv[2],names[i])&&ok;
     }
@@ -228,15 +235,21 @@ int main(int argc,char** argv) {
         else {
             for(size_t i=0;i<doc->recipe.bodyPlan.moduleCount;++i) {
                 const CreatureModuleInstance* module=&doc->recipe.bodyPlan.modules[i];
-                if(module->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE)
+                if(module->kind==CREATURE_MODULE_FLEXIBLE_APPENDAGE) {
                     ok=CaptureFlexible(&renderer,&camera,v,m,&binding,module->instanceId,center,height,argv[2])&&ok;
+                    break;
+                }
             }
             m->animation->animator.desiredVelocity=Vec3_Create(0,0,.8f*s);
             m->animation->animator.mouthOpen=opening;
-            for(int frame=0;frame<30;++frame)ok=MonsterAnimation_Update(m,1.f/60)&&ok;
+            for(int frame=0;frame<22;++frame)ok=MonsterAnimation_Update(m,1.f/60)&&ok;
             ok=AnimatedVisual_Deform(&binding,v,m)&&ok;
-            ok=Capture(&renderer,&camera,v,center,directions[0],height,argv[2],"walk-side")&&ok;
-            ok=Capture(&renderer,&camera,v,center,directions[3],height,argv[2],"walk-three-quarter")&&ok;
+            ok=Capture(&renderer,&camera,v,center,directions[0],ViewHeight(framing,directions[0]),argv[2],"walk-side")&&ok;
+            ok=Capture(&renderer,&camera,v,center,directions[3],ViewHeight(framing,directions[3]),argv[2],"walk-three-quarter")&&ok;
+            ok=Capture(&renderer,&camera,v,center,directions[1],ViewHeight(framing,directions[1]),argv[2],"walk-front")&&ok;
+            for(int frame=0;frame<22;++frame)ok=MonsterAnimation_Update(m,1.f/60)&&ok;
+            ok=AnimatedVisual_Deform(&binding,v,m)&&ok;
+            ok=Capture(&renderer,&camera,v,center,directions[3],ViewHeight(framing,directions[3]),argv[2],"walk-phase2-tq")&&ok;
         }
         AnimatedVisual_Free(&binding);
     }

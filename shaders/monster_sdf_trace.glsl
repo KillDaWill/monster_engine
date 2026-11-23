@@ -177,7 +177,7 @@ void main() {
     vec3 p=vec3(0);vec4 sampleValue=vec4(0);bool hit=false;
     float traceTolerance=referenceTrace?hitTolerance*.01:hitTolerance;
     float previousT=t,previousDistance=0;bool previousValid=false,rejectedRoot=false;
-    int maxSteps=referenceTrace?referenceSteps:(earIntervalCount>0?512:256);
+    int maxSteps=referenceTrace?referenceSteps:((hasMedusaBell!=0||earIntervalCount>0)?512:256);
     for(int step=0;step<maxSteps;++step) {
         if(traceRegionCount>0) {
             bool inside=false;float next=1e30;
@@ -210,6 +210,7 @@ void main() {
         if(abs(sampleValue.w)>=traceTolerance)rejectedRoot=false;
         previousT=t;previousDistance=sampleValue.w;previousValid=true;
         float stepFactor=sampleValue.w>0.04?1.0:0.8;
+        if(!referenceTrace&&hasMedusaBell!=0)stepFactor=min(stepFactor,0.55);
         float maxStepT=1e30;
         if(!referenceTrace&&earIntervalCount>0) {
             stepFactor=min(stepFactor,earFallbackInvStep);

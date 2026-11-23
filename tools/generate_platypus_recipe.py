@@ -67,9 +67,9 @@ def build_platypus(base):
             dict(longitudinalOffset=0.0, verticalOffset=-0.06, widthScale=0.94, heightScale=0.94),
         ]
 
-        # Cabeza hidrodinámica con pico flexible ancho en espátula y sin pabellón auricular.
+        # Cabeza hidrodinámica con bóveda redondeada y pico ancho en espátula sin pabellón auricular.
         p["headEnvelope"].update(
-            scale=0.62 + 0.08 * (1.0 - maturity),
+            scale=0.63 + 0.08 * (1.0 - maturity),
             widthScale=1.02,
             heightScale=1.12,
             lengthScale=1.04,
@@ -77,22 +77,22 @@ def build_platypus(base):
         p["head"].update(
             archetype=9,  # HEAD_ARCHETYPE_MONOTREME
             skullWidth=0.62,
-            skullHeight=0.67,
+            skullHeight=0.68,
             skullLength=0.58,
             muzzleLength=0.49 * (0.70 + 0.30 * maturity),
             muzzleWidth=0.90,
             muzzleTaper=0.08,
-            rostrumDepth=0.47,
+            rostrumDepth=0.42,
             rostrumDorsalSlope=0.28,
             temporalWidth=0.52,
             temporalDepth=0.46,
-            eyeSize=0.24,
-            eyeLaterality=0.62,
+            eyeSize=0.22,
+            eyeLaterality=0.58,
             eyeForwardness=0.54,
             eyeDorsality=0.52,
-            eyelidCoverage=0.28,
+            eyelidCoverage=0.30,
             eyeCompression=0.18,
-            eyeExposure=0.42,
+            eyeExposure=0.26,
             browProminence=0.22,
             snoutBluntness=0.92,
             jawLength=0.80 * (0.70 + 0.30 * maturity),

@@ -10,6 +10,8 @@ typedef struct AnimatedVisual {
     AnatomyDeformer* body;
     AnatomyDeformer* membrane;
     AnatomyDeformer* armor;
+    AnatomyDeformer* detail;
+    AnatomyDeformer* translucent;
     Mesh headBase;
     MonsterVisualEye* eyeBases;
     size_t eyeCount;

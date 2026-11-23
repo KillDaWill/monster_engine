@@ -1,5 +1,5 @@
 #version 330 compatibility
-uniform vec4 surfaceRecipe[153];
+uniform vec4 surfaceRecipe[154];
 uniform uint pigmentSeed,scaleSeed,furSeed;
 uniform int surfaceDebug;
 uniform float shellFraction;
@@ -175,15 +175,55 @@ void main() {
         }
     }
 
-    // Ruta estándar para piel lisa y escamas (INTEGUMENT_SMOOTH_SKIN, INTEGUMENT_SCALES, INTEGUMENT_PLATES)
+    // Ruta estándar para piel lisa, escamas, placas, plumas, quitina y tejido gelatinoso
     SurfaceInput surfaceInput = SurfaceInput(mappedCoord, mappedNormal, viewPosition, n, vertexColor, mappedA, mappedB, mappedVentral, skinMask);
     ScaleSample s;
     vec3 pigment;
     SurfaceResponse response = Surface_Evaluate(surfaceInput, surfaceDebug == 6 || surfaceDebug == 7, s, pigment);
     response.roughness=mix(response.roughness,localMaterial.y,localMaterial.z);
+
+    vec3 viewDir = normalize(-viewPosition);
+    float ndv = abs(dot(n, viewDir));
+    float fresnel = pow(1.0 - clamp(ndv, 0.0, 1.0), 2.4);
+    float translucency = clamp(surfaceRecipe[153].x, 0.0, 1.0);
+    float iridescence = clamp(surfaceRecipe[153].y, 0.0, 1.0);
+    float subsurface = clamp(surfaceRecipe[153].z, 0.0, 1.0);
+
+    // Cobertura de plumas (INTEGUMENT_FEATHERS = 3): textura direccional de barbas y brillo sedoso
+    if (integumentType == 3 && skinMask > 0.01 && surfaceDebug == 0) {
+        float barbCoord = dot(mappedCoord, normalize(mappedRestFlow + vec3(0.0, 0.0, 1e-4))) * 34.0;
+        float crossCoord = length(cross(mappedCoord, normalize(mappedRestFlow + vec3(0.0, 0.0, 1e-4)))) * 20.0;
+        float barb = 0.5 + 0.5 * sin(barbCoord + PigmentNoise(mappedCoord * 14.0, pigmentSeed ^ 0x4645u) * 3.0);
+        float imbric = 0.5 + 0.5 * sin(crossCoord * 0.8 + barb * 1.4);
+        response.albedo *= mix(1.0, 0.91 + 0.14 * mix(barb, imbric, 0.45), skinMask * surfaceRecipe[7].x * 0.25);
+        response.roughness = mix(response.roughness, 0.48, skinMask * 0.6);
+        response.specular = max(response.specular, 0.24 * skinMask);
+    }
+    // Exoesqueleto quitinoso (INTEGUMENT_CHITIN = 5): respuesta cuticular dura y reflejo iridiscente
+    if (integumentType == 5 && skinMask > 0.01 && surfaceDebug == 0) {
+        response.roughness = mix(response.roughness, 0.24, skinMask * 0.85);
+        response.specular = max(response.specular, 0.52 * skinMask);
+        if (iridescence > 0.01) {
+            vec3 iriTint = mix(vec3(0.18, 0.82, 0.76), vec3(0.24, 0.46, 0.98), fresnel);
+            response.albedo = mix(response.albedo, response.albedo * 0.72 + iriTint * 0.35, fresnel * iridescence * skinMask);
+        }
+    }
+
     if (surfaceDebug == 10) { response.albedo = vec3(0.57); response.roughness = 0.65; response.specular = 0.12; }
     vec3 detailed = response.normal;
     vec3 color = SurfaceLighting(response, viewPosition);
+
+    // Tejido gelatinoso o semitransparente (INTEGUMENT_GELATINOUS = 6 o translucency > 0)
+    float outAlpha = vertexColor.a;
+    if ((integumentType == 6 || translucency > 0.01) && surfaceDebug == 0) {
+        float tAmt = integumentType == 6 ? max(translucency, 0.58) : translucency;
+        float glow = integumentType == 6 ? max(subsurface, 0.45) : subsurface;
+        vec3 warmGlow = response.albedo * vec3(1.18, 0.94, 0.72) * (0.28 + 0.55 * (1.0 - fresnel)) * glow;
+        vec3 rimTint = mix(response.albedo * 1.25, vec3(1.0, 0.86, 0.64), 0.32);
+        color = color * (0.72 + 0.28 * fresnel) + warmGlow + rimTint * fresnel * 0.38;
+        outAlpha *= clamp(mix(1.0 - tAmt * 0.72, 0.92, fresnel), 0.16, 0.96);
+    }
+
     if (surfaceDebug == 1) color = vec3(mappedA.x * 0.4, mappedA.y * 0.35, mappedVentral);
     if (surfaceDebug == 2) color = fract(mappedCoord);
     if (surfaceDebug == 3) color = vec3(s.variation);
@@ -193,5 +233,5 @@ void main() {
     if (surfaceDebug == 7) color = n * 0.5 + 0.5;
     if (surfaceDebug == 8) color = detailed * 0.5 + 0.5;
     if (surfaceDebug == 9) color = vec3(s.lod);
-    fragColor = vec4(color, vertexColor.a);
+    fragColor = vec4(color, outAlpha);
 }

@@ -129,27 +129,33 @@ bool AnatomyDeformer_Bind(AnatomyDeformer* morph,const Mesh* baseMesh,
         bool valid;
     } PrecomputedConn;
     PrecomputedConn conns[ANATOMY_MAX_CONNECTIONS];
-    for (size_t c = 0; c < refGraph->connectionCount; ++c) {
-        const BodyConnection* conn = &refGraph->connections[c];
-        const AnatomyNode* nodeA = AnatomyGraph_FindNode(refGraph, conn->fromId);
-        const AnatomyNode* nodeB = AnatomyGraph_FindNode(refGraph, conn->toId);
-        if (!nodeA || !nodeB || refGraph->dormantConnections[c] || (conn->kind==BODY_CONNECTION_SUPPORT && nodeA->region!=ANATOMY_REGION_ORNAMENT && nodeB->region!=ANATOMY_REGION_ORNAMENT)) {
-            conns[c].valid = false;
-            continue;
+    size_t validConnCount = 0;
+    for (int supportPass = 0; supportPass < 2 && validConnCount == 0; ++supportPass) {
+        for (size_t c = 0; c < refGraph->connectionCount; ++c) {
+            const BodyConnection* conn = &refGraph->connections[c];
+            const AnatomyNode* nodeA = AnatomyGraph_FindNode(refGraph, conn->fromId);
+            const AnatomyNode* nodeB = AnatomyGraph_FindNode(refGraph, conn->toId);
+            bool skipSupport = (supportPass == 0) && conn->kind == BODY_CONNECTION_SUPPORT &&
+                nodeA && nodeB && nodeA->region != ANATOMY_REGION_ORNAMENT && nodeB->region != ANATOMY_REGION_ORNAMENT;
+            if (!nodeA || !nodeB || refGraph->dormantConnections[c] || skipSupport) {
+                conns[c].valid = false;
+                continue;
+            }
+            conns[c].valid = true;
+            ++validConnCount;
+            conns[c].a = nodeA->center;
+            conns[c].ab = Vec3_Sub(nodeB->center, nodeA->center);
+            float abLenSq = Vec3_LengthSq(conns[c].ab);
+            conns[c].invAbLenSq = abLenSq > 1e-8f ? 1.0f / abLenSq : 0.0f;
+            conns[c].radA = (nodeA->widthRadius + nodeA->heightRadius) * 0.5f;
+            conns[c].radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
+            bool isLimbEdge = conn->kind == BODY_CONNECTION_LIMB_SEGMENT || conn->kind == BODY_CONNECTION_DIGIT_SEGMENT ||
+                conn->kind == BODY_CONNECTION_MUSCLE_UNION || conn->kind == BODY_CONNECTION_HOOF_CAPSULE ||
+                nodeB->region == ANATOMY_REGION_LIMB || nodeB->region == ANATOMY_REGION_FORELIMB ||
+                nodeB->region == ANATOMY_REGION_HINDLIMB || nodeB->region == ANATOMY_REGION_DIGIT;
+            AnatomySide side = nodeB->side != ANATOMY_SIDE_CENTER ? nodeB->side : nodeA->side;
+            conns[c].side = isLimbEdge ? side : ANATOMY_SIDE_CENTER;
         }
-        conns[c].valid = true;
-        conns[c].a = nodeA->center;
-        conns[c].ab = Vec3_Sub(nodeB->center, nodeA->center);
-        float abLenSq = Vec3_LengthSq(conns[c].ab);
-        conns[c].invAbLenSq = abLenSq > 1e-8f ? 1.0f / abLenSq : 0.0f;
-        conns[c].radA = (nodeA->widthRadius + nodeA->heightRadius) * 0.5f;
-        conns[c].radB = (nodeB->widthRadius + nodeB->heightRadius) * 0.5f;
-        bool isLimbEdge = conn->kind == BODY_CONNECTION_LIMB_SEGMENT || conn->kind == BODY_CONNECTION_DIGIT_SEGMENT ||
-            conn->kind == BODY_CONNECTION_MUSCLE_UNION || conn->kind == BODY_CONNECTION_HOOF_CAPSULE ||
-            nodeB->region == ANATOMY_REGION_LIMB || nodeB->region == ANATOMY_REGION_FORELIMB ||
-            nodeB->region == ANATOMY_REGION_HINDLIMB || nodeB->region == ANATOMY_REGION_DIGIT;
-        AnatomySide side = nodeB->side != ANATOMY_SIDE_CENTER ? nodeB->side : nodeA->side;
-        conns[c].side = isLimbEdge ? side : ANATOMY_SIDE_CENTER;
     }
 
     /* El vecino de corte tiene peso cero. Cambiar el conjunto de vecinos no

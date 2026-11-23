@@ -310,40 +310,131 @@ bool ProceduralAnimator_Update(ProceduralAnimator* a,const Rig* r,SkeletonPose* 
     }
     float wingFold = fmaxf(0.0f, fminf(1.0f, a->wingFold));
     float wingFlap = fmaxf(-1.0f, fminf(1.0f, a->wingFlap));
-    if (wingFold > 0.005f || fabsf(wingFlap) > 0.005f) {
+    float hindWingFlap = fmaxf(-1.0f, fminf(1.0f, a->hindWingFlap));
+    float finAmp = fmaxf(0.0f, fminf(1.0f, a->finWaveAmplitude));
+    float bellAmp = fmaxf(0.0f, fminf(1.0f, a->bellPulseAmplitude));
+
+    /* Avance de fases continuas para aletas batoideas, pulsación medusoide y brazos hidrostáticos. */
+    if (dt > 0.0f) {
+        float cycle = fmaxf(0.15f, a->gait.cycleDuration);
+        float dPhase = (6.28318530718f / cycle) * dt;
+        a->finWavePhase += dPhase;
+        a->bellPulsePhase += dPhase;
+        a->armWavePhase += dPhase * 0.85f;
+    }
+
+    /* Aleteo automático en vuelo cuando hay velocidad deseada y las alas no están plegadas ni forzadas. */
+    bool autoFlap = (speed > 0.05f && finAmp <= 0.005f && wingFold < 0.15f &&
+                     fabsf(wingFlap) <= 0.005f && fabsf(hindWingFlap) <= 0.005f);
+    float effWingFlap = autoFlap ? (sinf(a->finWavePhase) * 0.88f) : wingFlap;
+    float effHindWingFlap = autoFlap ? (sinf(a->finWavePhase + 1.5707963f) * 0.88f) : hindWingFlap;
+
+    /* Alas quiropteras, alas aviares emplumadas, alas de insecto (4 independientes) y aletas batoideas. */
+    bool anyWingAction = wingFold > 0.005f || fabsf(effWingFlap) > 0.005f ||
+                         fabsf(effHindWingFlap) > 0.005f || finAmp > 0.005f;
+    if (anyWingAction) {
+        unsigned wingPairIndex[2] = {0, 0}; /* Conteo por lado para distinguir ala anterior/posterior en insectos */
         for (size_t i = 0; i < r->limbCount; ++i) {
             const LimbRig* limb = &r->limbs[i];
             if (limb->role != LIMB_WING || limb->chain.jointCount < 4) continue;
+            int sideSlot = (limb->side == LIMB_RIGHT) ? 1 : 0;
+            unsigned pairIdx = wingPairIndex[sideSlot]++;
+            float side = (limb->side == LIMB_RIGHT) ? -1.0f : 1.0f;
+
             int childDigits[CREATURE_MAX_DIGITS];
             unsigned childCount = 0;
             for (size_t j = 0; j < r->skeleton.jointCount && childCount < CREATURE_MAX_DIGITS; ++j) {
                 if (r->skeleton.joints[j].parentIndex == limb->endEffectorJoint)
                     childDigits[childCount++] = (int)j;
             }
-            if (childCount < 4) continue;
-            float side = (limb->side == LIMB_RIGHT) ? -1.0f : 1.0f;
             int sh = limb->chain.jointIndices[0];
             int el = limb->chain.jointIndices[1];
+            int mid = limb->chain.jointIndices[2];
             int wr = limb->chain.jointIndices[3];
-            RotateEuler(&r->skeleton, p, sh, -side * .44f * wingFold, -0.18f * wingFold,
-                        side * (0.72f * wingFlap - .38f * wingFold));
-            RotateEuler(&r->skeleton, p, el, side * 1.24f * wingFold, 0.18f * wingFold,
-                        -side * 0.22f * wingFlap);
-            RotateEuler(&r->skeleton, p, wr, -side * .82f * wingFold, -0.26f * wingFold, 0.0f);
-            unsigned firstWingDigit = (childCount >= 5) ? 1u : 0u;
-            for (unsigned d = firstWingDigit; d < childCount; ++d) {
-                int root = childDigits[d];
-                RotateEuler(&r->skeleton, p, root, side * .70f * wingFold * (1.0f - 0.08f * (float)d),
-                            -0.38f * wingFold, -side * 0.14f * wingFlap);
-                /* Las falanges recogen la parte distal del ala en la misma
-                 * dirección; el pulgar queda libre. */
-                int parent = root;
-                for (size_t j = (size_t)root + 1; j < r->skeleton.jointCount; ++j) {
-                    if (r->skeleton.joints[j].parentIndex != parent) continue;
-                    RotateEuler(&r->skeleton, p, (int)j, side * .21f * wingFold, 0.0f, 0.0f);
-                    parent = (int)j;
+
+            if (finAmp > 0.005f && childCount <= 2) {
+                /* Onda sinusoidal propagada para aletas pectorales batoideas (manta ray). */
+                for (size_t k = 0; k < limb->chain.jointCount; ++k) {
+                    float w = sinf(a->finWavePhase - (float)k * 0.78f);
+                    float amp = (0.28f + 0.10f * (float)k) * finAmp;
+                    RotateEuler(&r->skeleton, p, limb->chain.jointIndices[k], 0.0f, 0.0f, side * w * amp);
+                }
+            } else if (childCount >= 4) {
+                /* Ala quiroptera con 4-5 dedos largos sosteniendo patagios. */
+                RotateEuler(&r->skeleton, p, sh, -side * .44f * wingFold, -0.18f * wingFold,
+                            side * (0.72f * effWingFlap - .38f * wingFold));
+                RotateEuler(&r->skeleton, p, el, side * 1.24f * wingFold, 0.18f * wingFold,
+                            -side * 0.22f * effWingFlap);
+                RotateEuler(&r->skeleton, p, wr, -side * .82f * wingFold, -0.26f * wingFold, 0.0f);
+                unsigned firstWingDigit = (childCount >= 5) ? 1u : 0u;
+                for (unsigned d = firstWingDigit; d < childCount; ++d) {
+                    int root = childDigits[d];
+                    RotateEuler(&r->skeleton, p, root, side * .70f * wingFold * (1.0f - 0.08f * (float)d),
+                                -0.38f * wingFold, -side * 0.14f * effWingFlap);
+                    int parent = root;
+                    for (size_t j = (size_t)root + 1; j < r->skeleton.jointCount; ++j) {
+                        if (r->skeleton.joints[j].parentIndex != parent) continue;
+                        RotateEuler(&r->skeleton, p, (int)j, side * .21f * wingFold, 0.0f, 0.0f);
+                        parent = (int)j;
+                    }
+                }
+            } else if (childCount >= 1) {
+                /* Ala aviar emplumada (hombro -> codo -> ulna -> carpo -> mano distal reducida). */
+                RotateEuler(&r->skeleton, p, sh, -side * 0.36f * wingFold, -0.12f * wingFold,
+                            side * (0.68f * effWingFlap - 0.34f * wingFold));
+                RotateEuler(&r->skeleton, p, el, side * 1.05f * wingFold, 0.14f * wingFold,
+                            -side * 0.18f * effWingFlap);
+                RotateEuler(&r->skeleton, p, mid, 0.0f, 0.0f, side * 0.12f * effWingFlap);
+                RotateEuler(&r->skeleton, p, wr, -side * 0.92f * wingFold, -0.18f * wingFold,
+                            side * 0.18f * effWingFlap);
+            } else {
+                /* Ala fina de insecto: batido independiente para ala anterior (pairIdx=0) y posterior (pairIdx=1). */
+                float flap = (pairIdx == 0) ? effWingFlap : (fabsf(effHindWingFlap) > 0.005f ? effHindWingFlap : -effWingFlap * 0.85f);
+                float pitchTwist = 0.24f * flap;
+                RotateEuler(&r->skeleton, p, sh, 0.0f, pitchTwist, side * 0.56f * flap);
+                RotateEuler(&r->skeleton, p, el, 0.0f, 0.06f * flap, side * 0.10f * flap);
+            }
+        }
+        SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+    }
+
+    /* Pulsación radial de campana medusoide: contracción/relajación de los nodos marginales (localId >= 20). */
+    if (bellAmp > 0.005f) {
+        float pulse = sinf(a->bellPulsePhase);
+        float contract = 0.38f * bellAmp * pulse;
+        for (size_t j = 0; j < r->skeleton.jointCount; ++j) {
+            uint16_t localId = (uint16_t)(r->skeleton.joints[j].anatomyId & 0xffffu);
+            if (localId >= 20 && localId < 36 && r->skeleton.joints[j].parentIndex >= 0) {
+                Vector3 rp = r->skeleton.joints[j].restPosition;
+                float rHoriz = sqrtf(rp.x * rp.x + rp.z * rp.z);
+                if (rHoriz > 1e-5f) {
+                    /* Eje tangencial al anillo: inclinar cada radio hacia adentro/abajo al contraer. */
+                    Vector3 tang = Vec3_Normalize(Vec3_Create(-rp.z, 0.0f, rp.x));
+                    Rotate(&r->skeleton, p, (int)j, tang, contract);
+                    p->joints[j].localPosition = Vec3_Create(
+                        rp.x * (1.0f - 0.26f * bellAmp * pulse),
+                        rp.y - 0.12f * rHoriz * bellAmp * pulse,
+                        rp.z * (1.0f - 0.26f * bellAmp * pulse));
                 }
             }
+        }
+        SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
+    }
+
+    /* Ondulación / rastreo de brazos hidrostáticos independientes (cuando hay 4+ cadenas flexibles). */
+    if (fabsf(a->armSpread) > 0.005f || (a->gait.cycleDuration > 2.3f && a->gait.cycleDuration < 2.5f && speed > 0.01f)) {
+        for (size_t j = 0; j < r->skeleton.jointCount; ++j) {
+            uint32_t modId = r->skeleton.joints[j].anatomyId >> 16;
+            uint16_t localId = (uint16_t)(r->skeleton.joints[j].anatomyId & 0xffffu);
+            if (modId < 10 || localId < 2 || localId > 20) continue;
+            if (r->skeleton.joints[j].constraint.type != JOINT_BALL) continue;
+            float u = (float)(localId - 1) / 11.0f;
+            float armPhase = a->armWavePhase + (float)(modId % 8u) * 0.78539816f;
+            float wave = 0.22f * sinf(armPhase - u * 4.4f) * (0.35f + 0.65f * u) * (speed > 0.01f ? 1.0f : 0.45f);
+            float spread = 0.10f * a->armSpread;
+            Vector3 axis = r->skeleton.joints[j].constraint.hingeAxis;
+            if (Vec3_LengthSq(axis) < 1e-5f) axis = Vec3_Create(1, 0, 0);
+            Rotate(&r->skeleton, p, (int)j, axis, wave + spread);
         }
         SkeletonPose_UpdateWorldTransforms(p, &r->skeleton);
     }

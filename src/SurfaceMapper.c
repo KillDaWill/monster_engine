@@ -370,32 +370,34 @@ bool SurfaceMapper_BuildMorphDomain(SurfaceMorphDomain* domain,const AnatomyGrap
         refIndex=&referenceIndex;
     }
     MapSegment segments[ANATOMY_MAX_CONNECTIONS];
-    for(size_t i=0;i<current->connectionCount;++i) {
-        const BodyConnection* e=&current->connections[i];
-        if(current->dormantConnections[i]||e->kind==BODY_CONNECTION_SUPPORT)continue;
-        int ai=AnatomyGraphIndex_Find(&currentIndex,e->fromId),bi=AnatomyGraphIndex_Find(&currentIndex,e->toId);
-        int rai=AnatomyGraphIndex_Find(refIndex,e->fromId),rbi=AnatomyGraphIndex_Find(refIndex,e->toId);
-        if(ai<0||bi<0||rai<0||rbi<0)return false;
-        const AnatomyNode* a=&current->nodes[ai];const AnatomyNode* b=&current->nodes[bi];
-        const AnatomyNode* ra=&reference->nodes[rai];const AnatomyNode* rb=&reference->nodes[rbi];
-        Quaternion q=Quat_FromTo(Vec3_Sub(b->center,a->center),Vec3_Sub(rb->center,ra->center));
-        Vector3 rp[2]={Vec3_Scale(Vec3_Sub(ra->center,mapping->origin),1/mapping->unitScale),
-            Vec3_Scale(Vec3_Sub(rb->center,mapping->origin),1/mapping->unitScale)};
-        size_t index=domain->count++;
-        segments[index]=(MapSegment){a->center,Vec3_Sub(b->center,a->center),0,
-            (a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,0,0};
-        float (*data)[4]=domain->data[index];
-        Vector3 points[4]={a->center,b->center,rp[0],rp[1]};
-        float radii[4]={(a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,
-            (ra->widthRadius+ra->heightRadius)*.5f/mapping->unitScale,
-            (rb->widthRadius+rb->heightRadius)*.5f/mapping->unitScale};
-        for(int j=0;j<4;++j) {
-            data[j][0]=points[j].x;data[j][1]=points[j].y;data[j][2]=points[j].z;data[j][3]=radii[j];
+    for(int pass=0;pass<2&&!domain->count;++pass) {
+        for(size_t i=0;i<current->connectionCount;++i) {
+            const BodyConnection* e=&current->connections[i];
+            if(current->dormantConnections[i]||(pass==0&&e->kind==BODY_CONNECTION_SUPPORT))continue;
+            int ai=AnatomyGraphIndex_Find(&currentIndex,e->fromId),bi=AnatomyGraphIndex_Find(&currentIndex,e->toId);
+            int rai=AnatomyGraphIndex_Find(refIndex,e->fromId),rbi=AnatomyGraphIndex_Find(refIndex,e->toId);
+            if(ai<0||bi<0||rai<0||rbi<0)return false;
+            const AnatomyNode* a=&current->nodes[ai];const AnatomyNode* b=&current->nodes[bi];
+            const AnatomyNode* ra=&reference->nodes[rai];const AnatomyNode* rb=&reference->nodes[rbi];
+            Quaternion q=Quat_FromTo(Vec3_Sub(b->center,a->center),Vec3_Sub(rb->center,ra->center));
+            Vector3 rp[2]={Vec3_Scale(Vec3_Sub(ra->center,mapping->origin),1/mapping->unitScale),
+                Vec3_Scale(Vec3_Sub(rb->center,mapping->origin),1/mapping->unitScale)};
+            size_t index=domain->count++;
+            segments[index]=(MapSegment){a->center,Vec3_Sub(b->center,a->center),0,
+                (a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,0,0};
+            float (*data)[4]=domain->data[index];
+            Vector3 points[4]={a->center,b->center,rp[0],rp[1]};
+            float radii[4]={(a->widthRadius+a->heightRadius)*.5f,(b->widthRadius+b->heightRadius)*.5f,
+                (ra->widthRadius+ra->heightRadius)*.5f/mapping->unitScale,
+                (rb->widthRadius+rb->heightRadius)*.5f/mapping->unitScale};
+            for(int j=0;j<4;++j) {
+                data[j][0]=points[j].x;data[j][1]=points[j].y;data[j][2]=points[j].z;data[j][3]=radii[j];
+            }
+            data[4][0]=q.x;data[4][1]=q.y;data[4][2]=q.z;data[4][3]=q.w;
+            data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:SurfaceMapping_NodeRegion(mapping,ra->id));
+            data[5][1]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:SurfaceMapping_NodeRegion(mapping,rb->id));
+            data[5][2]=data[5][3]=0;
         }
-        data[4][0]=q.x;data[4][1]=q.y;data[4][2]=q.z;data[4][3]=q.w;
-        data[5][0]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:SurfaceMapping_NodeRegion(mapping,ra->id));
-        data[5][1]=(float)(e->kind==BODY_CONNECTION_DIGIT_SEGMENT?SURFACE_REGION_DIGIT:SurfaceMapping_NodeRegion(mapping,rb->id));
-        data[5][2]=data[5][3]=0;
     }
     if(!domain->count)return false;
     MapAcceleration accel;BuildAcceleration(&accel,segments,domain->count);

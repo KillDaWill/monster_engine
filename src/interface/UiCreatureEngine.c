@@ -242,7 +242,7 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
     }
     Renderer3D *r = &engine->renderer;
     const Monster *monster = UiCreatureScene_Monster(scene);
-    const Mesh *extras[] = {&scene->membranes, &scene->armor};
+    const Mesh *extras[] = {&scene->membranes, &scene->armor, &scene->detail};
     float aspect = (float)width/height;
     ICamera camera = UiCreatureOrbit_Camera(&engine->orbit,scene->framing,aspect);
     float age = scene->ager ? scene->ager->perc : 0.0f;
@@ -270,6 +270,7 @@ static const char *Draw(UiCreatureEngine *engine, UiCreatureScene *scene, int wi
         if (geometryChanged && !Hair(scene,monster)) error = "ERROR: Cannot prepare creature hair";
         const LongHairSet *hair = LongHairAsync_GetDisplay(scene->hair);
         if (hair && hair->count) r->renderLongHair(r,hair);
+        if (scene->translucent.indexCount) r->renderMesh(r,&scene->translucent);
     } else {
         error = "ERROR: Creature SDF shader or composition failed (see console)";
     }

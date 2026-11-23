@@ -11,7 +11,8 @@
 
 typedef enum IntegumentType {
     INTEGUMENT_SMOOTH_SKIN, INTEGUMENT_SCALES,
-    INTEGUMENT_FUR, INTEGUMENT_FEATHERS, INTEGUMENT_PLATES
+    INTEGUMENT_FUR, INTEGUMENT_FEATHERS, INTEGUMENT_PLATES,
+    INTEGUMENT_CHITIN, INTEGUMENT_GELATINOUS
 } IntegumentType;
 typedef enum SurfaceRegion {
     SURFACE_REGION_UNKNOWN, SURFACE_REGION_HEAD, SURFACE_REGION_NECK,
@@ -101,6 +102,9 @@ typedef struct SurfacePhenotype {
         bool active;
     } transition;
     bool inheritedBlend; /**< Los dos bancos se conservan al evaluar el desarrollo. */
+    float translucency; /**< Translucidez tisular [0=opaco, 1=gelatinoso/semitransparente]. */
+    float iridescence; /**< Brillo especular iridiscente cuticular/alar [0..1]. */
+    float subsurfaceGlow; /**< Dispersión interna cálida para tejido translúcido [0..1]. */
 } SurfacePhenotype;
 /** @brief Coordenadas de reposo; nunca se recalculan al aplicar una pose. */
 typedef struct SurfaceCoordinate {
@@ -135,7 +139,8 @@ Vector3 Surface_EvaluatePigmentAlbedo(const SurfacePhenotype*,const SurfaceCoord
 #define SURFACE_RECIPE_DOMAIN_ROWS (3 * SURFACE_MAX_PIGMENT_LAYERS)
 #define SURFACE_RECIPE_ALBEDO_BASE (SURFACE_RECIPE_DOMAIN_BASE + 3 * SURFACE_RECIPE_DOMAIN_ROWS)
 #define SURFACE_RECIPE_ROTATION_BASE (SURFACE_RECIPE_ALBEDO_BASE + SURFACE_REGION_COUNT)
-#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_ROTATION_BASE + 3)
+#define SURFACE_RECIPE_OPTICAL_ROW (SURFACE_RECIPE_ROTATION_BASE + 3)
+#define SURFACE_RECIPE_ROWS (SURFACE_RECIPE_OPTICAL_ROW + 1)
 typedef struct SurfaceRecipe {
     float data[SURFACE_RECIPE_ROWS][4];
     uint32_t pigmentSeed, scaleSeed, furSeed;

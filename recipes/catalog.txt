@@ -12,3 +12,8 @@ ornitorrinco.creature.json
 pangolin.creature.json
 canguro.creature.json
 murcielago.creature.json
+halcon_peregrino.creature.json
+mantarraya.creature.json
+pulpo_gigante.creature.json
+libelula_emperador.creature.json
+medusa_ortiga.creature.json

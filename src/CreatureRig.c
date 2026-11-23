@@ -257,8 +257,26 @@ bool CreatureRig_Build(const Monster* m, Rig* r) {
             continue;
         int joint=Skeleton_FindJoint(s,edge->toId);
         if(joint<0)continue;
-        s->joints[joint].constraint=(JointConstraint){.type=JOINT_HINGE,
-            .hingeAxis=edge->transverseAxis,.minAngle=-.85f,.maxAngle=.85f};
+        bool muscularArm = false;
+        for (size_t k = 0; k < m->recipe.bodyPlan.moduleCount; ++k) {
+            const CreatureModuleInstance* mod = &m->recipe.bodyPlan.modules[k];
+            if (mod->instanceId == edge->moduleInstanceId &&
+                mod->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE &&
+                mod->phenotypeIndex < m->phenotype.flexibleAppendageCount &&
+                m->phenotype.flexibleAppendages[mod->phenotypeIndex].profile == FLEXIBLE_PROFILE_MUSCULAR_ARM) {
+                muscularArm = true;
+                break;
+            }
+        }
+        if (muscularArm) {
+            s->joints[joint].constraint = (JointConstraint){
+                .type = JOINT_BALL, .hingeAxis = edge->transverseAxis,
+                .maxSwingAngle = 0.85f, .maxTwistAngle = 0.35f
+            };
+        } else {
+            s->joints[joint].constraint=(JointConstraint){.type=JOINT_HINGE,
+                .hingeAxis=edge->transverseAxis,.minAngle=-.85f,.maxAngle=.85f};
+        }
     }
 
     /* Articulación mandibular opcional si existe cabeza y cavidad oral */

@@ -4,6 +4,7 @@
 #include "CreatureMorph.h"
 #include "OffspringMorphFitter.h"
 #include "HeadModule.h"
+#include "AxialBody.h"
 #include "FlexibleAppendage.h"
 #include "MathUtils.h"
 #include "MonsterSDF.h"
@@ -116,6 +117,49 @@ static const AnatomyNode *HostLandmark(const CreatureModuleInstance *module, con
     return NULL;
 }
 
+/* Familias de homología explícitas: alas aviares, quiropteras, de insecto y aletas
+ * batoideas no son anatómicamente homólogas por el mero hecho de extenderse lateralmente. */
+static unsigned LimbHomologyFamily(const LimbPhenotype *l)
+{
+    if (!l) return 0;
+    switch (l->archetype) {
+    case LIMB_ARCHETYPE_AVIAN:
+        return (l->role == LIMB_WING || l->role == LIMB_FORE) ? 2u : 1u;
+    case LIMB_ARCHETYPE_WING:
+        return 3u;
+    case LIMB_ARCHETYPE_FLIPPER:
+        return 4u;
+    case LIMB_ARCHETYPE_ARTHROPOD_LEG:
+        return 5u;
+    case LIMB_ARCHETYPE_INSECT_WING:
+        return 6u;
+    default:
+        return 1u; /* Extremidad locomotora tetrápoda */
+    }
+}
+
+static bool AxialSupportsSlot(AxialArchetype arch, AttachmentSlotId slot)
+{
+    if (slot == AXIAL_SLOT_DORSAL || slot == AXIAL_SLOT_VENTRAL) return true;
+    if (slot == AXIAL_SLOT_CERVICAL) return arch != AXIAL_ARCHETYPE_MEDUSA_RADIAL;
+    if (slot == AXIAL_SLOT_CAUDAL)
+        return arch != AXIAL_ARCHETYPE_CEPHALOPOD && arch != AXIAL_ARCHETYPE_MEDUSA_RADIAL;
+    if (slot >= AXIAL_SLOT_PECTORAL_LEFT && slot <= AXIAL_SLOT_PELVIC_RIGHT)
+        return arch == AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD || arch == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD ||
+               arch == AXIAL_ARCHETYPE_AVIAN || arch == AXIAL_ARCHETYPE_DISC_RAY;
+    if (slot == AXIAL_SLOT_CEPHALIC_LEFT || slot == AXIAL_SLOT_CEPHALIC_RIGHT)
+        return arch == AXIAL_ARCHETYPE_DISC_RAY;
+    if (slot == AXIAL_SLOT_SIPHON)
+        return arch == AXIAL_ARCHETYPE_CEPHALOPOD;
+    if (slot >= AXIAL_SLOT_THORACIC_LEG_1_LEFT && slot <= AXIAL_SLOT_WING_HIND_RIGHT)
+        return arch == AXIAL_ARCHETYPE_ARTHROPOD;
+    if (slot >= AXIAL_SLOT_RADIAL_BASE && slot < AXIAL_SLOT_ORAL_BASE)
+        return arch == AXIAL_ARCHETYPE_CEPHALOPOD || arch == AXIAL_ARCHETYPE_MEDUSA_RADIAL;
+    if (slot >= AXIAL_SLOT_ORAL_BASE && slot < AXIAL_SLOT_ORAL_BASE + 8)
+        return arch == AXIAL_ARCHETYPE_MEDUSA_RADIAL;
+    return false;
+}
+
 /* Las ranuras son landmarks locales publicados por cada familia de anfitrión. */
 static bool Equivalent(const CreatureRecipe *a, size_t i, const AnatomyNode *landmarkA,
     const CreatureRecipe *b, size_t j, const AnatomyNode *landmarkB)
@@ -135,7 +179,8 @@ static bool Equivalent(const CreatureRecipe *a, size_t i, const AnatomyNode *lan
         return false;
     if (m->kind != CREATURE_MODULE_LIMB) return true;
     const LimbPhenotype *l = &a->adult.limbs[m->phenotypeIndex], *r = &b->adult.limbs[n->phenotypeIndex];
-    return l->role == r->role && l->side == r->side;
+    return l->role == r->role && l->side == r->side &&
+           LimbHomologyFamily(l) == LimbHomologyFamily(r);
 }
 
 static void Match(CreatureOffspringBatch *batch)
@@ -548,6 +593,9 @@ static void Surface(CreaturePhenotype *p, const CreaturePhenotype *a, const Crea
         surface->regions[i].relief *= 1+.45f*(w-r->relief);
     }
     InheritHair(surface,input,g);
+    surface->translucency = Math_Clamp01(Math_Lerp(a->surface.translucency, b->surface.translucency, r->surface));
+    surface->iridescence = Math_Clamp01(Math_Lerp(a->surface.iridescence, b->surface.iridescence, r->surface));
+    surface->subsurfaceGlow = Math_Clamp01(Math_Lerp(a->surface.subsurfaceGlow, b->surface.subsurfaceGlow, r->surface));
     p->dorsalColor = Palette(a->dorsalColor,b->dorsalColor,r->dorsal,g);
     p->ventralColor = Palette(a->ventralColor,b->ventralColor,r->ventral,g);
     p->unpigmentedVentralColor = Palette(a->unpigmentedVentralColor,b->unpigmentedVentralColor,r->ventral,g);
@@ -695,6 +743,12 @@ static void BlendLimb(LimbPhenotype *l, const LimbPhenotype *base, const LimbPhe
         SHAPE(attachmentInset,r->upperLimb); SHAPE(rootThicknessScale,r->limbMass);
         SHAPE(proximalThicknessScale,r->limbMass); SHAPE(middleThicknessScale,r->limbMass);
         SHAPE(distalThicknessScale,r->limbMass); SHAPE(flexionScale,r->lowerLimb);
+        if (compatible) {
+            SHAPE(wingAspect,r->limbs);
+            SHAPE(wingPointedness,r->limbs);
+            SHAPE(finSweep,r->upperLimb);
+            SHAPE(finCamber,r->lowerLimb);
+        }
 #undef SHAPE
         if (SameFoot(base,other)) {
             weight = FROM(r->foot);
@@ -724,21 +778,28 @@ static bool UsedSlot(const BodyPlan *plan, CreatureModuleKind kind, AttachmentRe
 }
 
 static bool SupportedGraft(const CreatureRecipe *donor, const CreatureModuleInstance *m,
-    const CreatureModuleInstance *host, HeadArchetype head, HeadArchetype donorHead)
+    const CreatureModuleInstance *host, AxialArchetype scaffoldAxial,
+    HeadArchetype head, HeadArchetype donorHead)
 {
     if (!host || m->pathAttached || m->membranePrevious) return false;
-    if (m->kind == CREATURE_MODULE_TAIL) return host->kind == CREATURE_MODULE_AXIAL;
-    if (m->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE)
-        return host->kind == CREATURE_MODULE_HEAD &&
-            (HeadModule_IsNasalExtension(InheritedSlot(m)) || head == donorHead);
+    AttachmentSlotId slot = InheritedSlot(m);
+    if (m->kind == CREATURE_MODULE_TAIL)
+        return host->kind == CREATURE_MODULE_AXIAL && AxialSupportsSlot(scaffoldAxial, slot);
+    if (m->kind == CREATURE_MODULE_FLEXIBLE_APPENDAGE) {
+        if (host->kind == CREATURE_MODULE_HEAD)
+            return HeadModule_IsNasalExtension(slot) || head == donorHead;
+        if (host->kind == CREATURE_MODULE_AXIAL)
+            return AxialSupportsSlot(scaffoldAxial, slot);
+        return false;
+    }
     if (m->kind != CREATURE_MODULE_ORNAMENT) return false;
     OrnamentArchetype type = donor->adult.ornaments[m->phenotypeIndex].archetype;
     if (type == ORNAMENT_ARCHETYPE_MEMBRANE) return false;
-    if (host->kind == CREATURE_MODULE_AXIAL) return true;
+    if (host->kind == CREATURE_MODULE_AXIAL) return AxialSupportsSlot(scaffoldAxial, slot);
     return host->kind == CREATURE_MODULE_HEAD &&
         (head == donorHead || (type == ORNAMENT_ARCHETYPE_HORN &&
-            (InheritedSlot(m) == HEAD_SLOT_NASAL_ANTERIOR ||
-             InheritedSlot(m) == HEAD_SLOT_NASAL_POSTERIOR)));
+            (slot == HEAD_SLOT_NASAL_ANTERIOR ||
+             slot == HEAD_SLOT_NASAL_POSTERIOR)));
 }
 
 static int NameBytes(const char *name)
@@ -802,6 +863,7 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
         size_t limit = m->kind == CREATURE_MODULE_TAIL ? CREATURE_MAX_TAILS :
             m->kind == CREATURE_MODULE_ORNAMENT ? CREATURE_MAX_ORNAMENTS : CREATURE_MAX_FLEXIBLE_APPENDAGES;
         if (!SupportedGraft(other,m,FindModule(&out->bodyPlan,hostId),
+                scaffold->adult.axial.archetype,
                 parents[r->headParent]->adult.head.archetype,other->adult.head.archetype)) {
             ++r->unsupportedGrafts;
             ++r->omitted;
@@ -916,7 +978,9 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
                 *o = source->ornaments[from];
                 const CreatureModuleInstance *host = FindModule(&out->bodyPlan,m->attachment.hostModuleInstanceId);
                 if (host && host->kind == CREATURE_MODULE_HEAD && !m->pathAttached &&
-                    InheritedSlot(m) < HEAD_SLOT_PROBOSCIS &&
+                    (InheritedSlot(m) < HEAD_SLOT_PROBOSCIS ||
+                     InheritedSlot(m) == HEAD_SLOT_CROWN_LEFT ||
+                     InheritedSlot(m) == HEAD_SLOT_CROWN_RIGHT) &&
                     source->head.archetype != result->head.archetype) {
                     float fromEnvelope = source->headEnvelope.scale *
                         sqrtf(source->headEnvelope.widthScale*source->headEnvelope.heightScale);
@@ -967,6 +1031,41 @@ static void Build(const CreatureOffspringBatch *batch, OffspringGenome *g, Candi
             mp.moduleBInstanceId = mB;
             mp.moduleBEndInstanceId = mBE == mB ? 0 : mBE;
             result->membranes[result->membraneCount++] = mp;
+        }
+        /* Herencia compatible de apéndices repetidos (p. ej. tentáculos radiales y brazos orales). */
+        result->repeatedAppendageCount = 0;
+        const CreaturePhenotype *repBase = p[base];
+        const CreaturePhenotype *repOther = p[donor];
+        for (size_t ri = 0; ri < repBase->repeatedAppendageCount && result->repeatedAppendageCount < CREATURE_MAX_REPEATED_APPENDAGES; ++ri) {
+            RepeatedAppendageGroup rg = repBase->repeatedAppendages[ri];
+            if (ri < repOther->repeatedAppendageCount && repOther->repeatedAppendages[ri].kind == rg.kind) {
+                const RepeatedAppendageGroup *peer = &repOther->repeatedAppendages[ri];
+                float rw = base ? 1.0f - r->body : r->body;
+                rg.length = Math_Lerp(rg.length, peer->length, rw);
+                rg.ribbonWidth = Math_Lerp(rg.ribbonWidth, peer->ribbonWidth, rw);
+                rg.ruffleAmplitude = Math_Lerp(rg.ruffleAmplitude, peer->ruffleAmplitude, rw);
+                rg.curlAmplitude = Math_Lerp(rg.curlAmplitude, peer->curlAmplitude, rw);
+                rg.baseColor = Palette(rg.baseColor, peer->baseColor, r->dorsal, g);
+                rg.tipColor = Palette(rg.tipColor, peer->tipColor, r->ventral, g);
+            }
+            result->repeatedAppendages[result->repeatedAppendageCount++] = rg;
+        }
+        if (repBase->repeatedAppendageCount == 0 && repOther->repeatedAppendageCount > 0) {
+            bool radialHost = (result->axial.archetype == AXIAL_ARCHETYPE_MEDUSA_RADIAL ||
+                               result->axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD);
+            if (radialHost && g->graft && !conservative) {
+                for (size_t ri = 0; ri < repOther->repeatedAppendageCount && result->repeatedAppendageCount < CREATURE_MAX_REPEATED_APPENDAGES; ++ri) {
+                    RepeatedAppendageGroup rg = repOther->repeatedAppendages[ri];
+                    rg.hostModuleInstanceId = out->bodyPlan.root.moduleInstanceId;
+                    rg.hostNodeId = out->bodyPlan.root.localNodeId;
+                    rg.ringRadius = fminf(rg.ringRadius, result->axial.thoraxWidth * 0.45f);
+                    result->repeatedAppendages[result->repeatedAppendageCount++] = rg;
+                    if (stage == CREATURE_STAGE_ADULT) ++r->grafts;
+                }
+            } else if (stage == CREATURE_STAGE_ADULT) {
+                r->unsupportedGrafts += (unsigned)repOther->repeatedAppendageCount;
+                r->omitted += (unsigned)repOther->repeatedAppendageCount;
+            }
         }
     }
     candidate->report = *r;

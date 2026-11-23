@@ -22,6 +22,8 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         p->flexibleAppendageCount = CREATURE_MAX_FLEXIBLE_APPENDAGES;
     if (p->ornamentCount > CREATURE_MAX_ORNAMENTS) p->ornamentCount = CREATURE_MAX_ORNAMENTS;
     if (p->membraneCount > CREATURE_MAX_MEMBRANES) p->membraneCount = CREATURE_MAX_MEMBRANES;
+    if (p->repeatedAppendageCount > CREATURE_MAX_REPEATED_APPENDAGES)
+        p->repeatedAppendageCount = CREATURE_MAX_REPEATED_APPENDAGES;
 
 #define POS(name, value) p->axial.name = Positive(p->axial.name, value)
     POS(withersHeight, 4.0f); POS(totalScale, 1.0f); POS(neckLength, 1.0f); POS(neckWidth, 0.7f); POS(shoulderWidth, 1.5f);
@@ -53,6 +55,12 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
     if (p->axial.cervicalSegments > 8) p->axial.cervicalSegments = 8;
     p->axial.cervicalPitch = isfinite(p->axial.cervicalPitch) ? Math_Clamp(p->axial.cervicalPitch, 0.0f, 1.45f) : 0.0f;
     p->axial.spineFlexion = isfinite(p->axial.spineFlexion) ? Math_Clamp(p->axial.spineFlexion, 0.0f, 0.65f) : 0.0f;
+    if (p->axial.radialSymmetryOrder > 16) p->axial.radialSymmetryOrder = 16;
+    p->axial.bellConcavity = Unit(p->axial.bellConcavity, 0.0f);
+    p->axial.bellScallopAmplitude = Unit(p->axial.bellScallopAmplitude, 0.0f);
+    if (p->axial.abdomenSegments > 12) p->axial.abdomenSegments = 12;
+    p->axial.discSweep = Unit(p->axial.discSweep, 0.0f);
+    p->axial.mantleElongation = isfinite(p->axial.mantleElongation) ? Math_Clamp(p->axial.mantleElongation, 0.0f, 2.5f) : 0.0f;
     p->development.appendages = Unit(p->development.appendages, 1.0f);
     p->development.cephalic = Unit(p->development.cephalic, 1.0f);
     p->development.pigmentation = Unit(p->development.pigmentation, 1.0f);
@@ -76,6 +84,11 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         l->webbingThickness=Math_Clamp(isfinite(l->webbingThickness)&&l->webbingThickness>0?l->webbingThickness:0.22f,0.06f,0.55f);
         l->webbingEdgeCurve=Math_Clamp(isfinite(l->webbingEdgeCurve)?l->webbingEdgeCurve:0.18f,-0.30f,0.55f);
         l->webbingFold=Unit(l->webbingFold,0);
+        if (l->featherCount > 32) l->featherCount = 32;
+        l->wingAspect = isfinite(l->wingAspect) ? Math_Clamp(l->wingAspect, 0.0f, 3.5f) : 0.0f;
+        l->wingPointedness = Unit(l->wingPointedness, 0.0f);
+        l->finSweep = isfinite(l->finSweep) ? Math_Clamp(l->finSweep, -0.6f, 1.0f) : 0.0f;
+        l->finCamber = isfinite(l->finCamber) ? Math_Clamp(l->finCamber, 0.0f, 0.45f) : 0.0f;
         l->dewclawSize=Unit(l->dewclawSize,0);
         l->proximalScale = Positive(l->proximalScale, 1);
         l->middleScale = Positive(l->middleScale, 1);
@@ -150,6 +163,38 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         f->taper = Math_Clamp(Positive(f->taper, 1), .5f, 4);
         f->initialPitch = isfinite(f->initialPitch) ? Math_Clamp(f->initialPitch, -1.57f, 1.57f) : 0;
         f->restBend = isfinite(f->restBend) ? Math_Clamp(f->restBend, -1.57f, 1.57f) : 0;
+        if (f->profile < FLEXIBLE_PROFILE_PROBOSCIS || f->profile > FLEXIBLE_PROFILE_SIPHON)
+            f->profile = FLEXIBLE_PROFILE_PROBOSCIS;
+        f->yawAngle = isfinite(f->yawAngle) ? Math_Clamp(f->yawAngle, -3.14159265f, 3.14159265f) : 0.0f;
+        f->coilBias = isfinite(f->coilBias) ? Math_Clamp(f->coilBias, -2.5f, 2.5f) : 0.0f;
+        if (f->suckerRows > 2) f->suckerRows = 2;
+        if (f->suckerCount > 40) f->suckerCount = 40;
+        f->suckerScale = isfinite(f->suckerScale) ? Math_Clamp(f->suckerScale, 0.0f, 1.2f) : 0.0f;
+    }
+
+    for (size_t i = 0; i < p->repeatedAppendageCount; ++i) {
+        RepeatedAppendageGroup* r = &p->repeatedAppendages[i];
+        if (!r->groupId) r->groupId = (uint32_t)(i + 1u);
+        if (r->kind < REPEATED_APPENDAGE_NONE || r->kind > REPEATED_APPENDAGE_FRILLED_RIBBON)
+            r->kind = REPEATED_APPENDAGE_FILAMENT;
+        if (r->count > 64) r->count = 64;
+        r->ringRadius = isfinite(r->ringRadius) && r->ringRadius >= 0.0f ? Math_Clamp(r->ringRadius, 0.0f, 10.0f) : 0.5f;
+        r->ringOffsetY = isfinite(r->ringOffsetY) ? Math_Clamp(r->ringOffsetY, -10.0f, 10.0f) : 0.0f;
+        r->arcStart = isfinite(r->arcStart) ? r->arcStart : 0.0f;
+        r->arcSpan = isfinite(r->arcSpan) ? Math_Clamp(r->arcSpan, 0.0f, 6.28318530718f) : 6.28318530718f;
+        r->length = Positive(r->length, 1.0f);
+        r->lengthVariation = isfinite(r->lengthVariation) ? Math_Clamp(r->lengthVariation, 0.0f, 0.65f) : 0.0f;
+        r->baseRadius = Positive(r->baseRadius, 0.02f);
+        r->tipRadius = Math_Min(r->baseRadius, Positive(r->tipRadius, 0.005f));
+        r->taper = Math_Clamp(Positive(r->taper, 1.1f), 0.35f, 3.5f);
+        r->ribbonWidth = isfinite(r->ribbonWidth) && r->ribbonWidth >= 0.0f ? Math_Clamp(r->ribbonWidth, 0.0f, 3.0f) : 0.0f;
+        r->ruffleAmplitude = isfinite(r->ruffleAmplitude) ? Math_Clamp(r->ruffleAmplitude, 0.0f, 2.0f) : 0.0f;
+        r->ruffleFrequency = isfinite(r->ruffleFrequency) ? Math_Clamp(r->ruffleFrequency, 0.0f, 32.0f) : 4.0f;
+        r->curlAmplitude = isfinite(r->curlAmplitude) ? Math_Clamp(r->curlAmplitude, 0.0f, 3.0f) : 0.0f;
+        r->waveFrequency = isfinite(r->waveFrequency) ? Math_Clamp(r->waveFrequency, 0.0f, 16.0f) : 2.0f;
+        r->phaseSpread = isfinite(r->phaseSpread) ? r->phaseSpread : 0.0f;
+        r->development = Unit(r->development, 1.0f);
+        r->opacity = isfinite(r->opacity) && r->opacity > 0.0f ? Math_Clamp(r->opacity, 0.08f, 1.0f) : 0.85f;
     }
 
     for (size_t i = 0; i < p->membraneCount; ++i) {
@@ -184,10 +229,18 @@ bool CreaturePhenotype_TopologyCompatible(const CreaturePhenotype* a, const Crea
     unsigned cervA = a->axial.cervicalSegments > 1 ? a->axial.cervicalSegments : 1;
     unsigned cervB = b->axial.cervicalSegments > 1 ? b->axial.cervicalSegments : 1;
     if (cervA != cervB) return false;
+    if (a->axial.abdomenSegments != b->axial.abdomenSegments ||
+        a->axial.radialSymmetryOrder != b->axial.radialSymmetryOrder) return false;
     if (a->flexibleAppendageCount != b->flexibleAppendageCount ||
         a->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES) return false;
     if (a->membraneCount != b->membraneCount ||
         a->membraneCount > CREATURE_MAX_MEMBRANES) return false;
+    if (a->repeatedAppendageCount != b->repeatedAppendageCount ||
+        a->repeatedAppendageCount > CREATURE_MAX_REPEATED_APPENDAGES) return false;
+    for (size_t i = 0; i < a->repeatedAppendageCount; ++i) {
+        if (a->repeatedAppendages[i].kind != b->repeatedAppendages[i].kind ||
+            a->repeatedAppendages[i].count != b->repeatedAppendages[i].count) return false;
+    }
     for (size_t i = 0; i < a->flexibleAppendageCount; ++i)
         if (a->flexibleAppendages[i].terminal != b->flexibleAppendages[i].terminal) return false;
     for (size_t i = 0; i < a->limbCount; ++i) {
@@ -282,6 +335,8 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     LERP_BODY(axial.withersRoundness);
     LERP_BODY(axial.dewlapDepth); LERP_BODY(axial.brisketDepth);
     LERP_BODY(axial.cervicalPitch); LERP_BODY(axial.spineFlexion);
+    LERP_BODY(axial.bellConcavity); LERP_BODY(axial.bellScallopAmplitude);
+    LERP_BODY(axial.discSweep); LERP_BODY(axial.mantleElongation);
     LERP_BODY(development.colorMaturity); LERP_BODY(development.pigmentation);
     LERP_BODY(development.appendages); LERP_BODY(development.cephalic); LERP_BODY(development.integument);
     LERP_BODY(eyes.size); LERP_BODY(eyes.protrusion); LERP_BODY(eyes.irisScale);
@@ -310,6 +365,10 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(limbs[i].webbingThickness);
         LERP_BODY(limbs[i].webbingEdgeCurve);
         LERP_BODY(limbs[i].webbingFold);
+        LERP_BODY(limbs[i].wingAspect);
+        LERP_BODY(limbs[i].wingPointedness);
+        LERP_BODY(limbs[i].finSweep);
+        LERP_BODY(limbs[i].finCamber);
         for (unsigned j = 0; j < p.limbs[i].digitCount; ++j) {
             LERP_BODY(limbs[i].digitLengths[j]); LERP_BODY(limbs[i].digitAngles[j]);
         }
@@ -337,6 +396,27 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(membranes[i].tension);
         LERP_BODY(membranes[i].development);
         p.membranes[i].color = Color_Lerp(a->membranes[i].color, b->membranes[i].color, t);
+    }
+    for (size_t i = 0; i < p.repeatedAppendageCount; ++i) {
+        LERP_BODY(repeatedAppendages[i].ringRadius);
+        LERP_BODY(repeatedAppendages[i].ringOffsetY);
+        LERP_BODY(repeatedAppendages[i].arcStart);
+        LERP_BODY(repeatedAppendages[i].arcSpan);
+        LERP_BODY(repeatedAppendages[i].length);
+        LERP_BODY(repeatedAppendages[i].lengthVariation);
+        LERP_BODY(repeatedAppendages[i].baseRadius);
+        LERP_BODY(repeatedAppendages[i].tipRadius);
+        LERP_BODY(repeatedAppendages[i].taper);
+        LERP_BODY(repeatedAppendages[i].ribbonWidth);
+        LERP_BODY(repeatedAppendages[i].ruffleAmplitude);
+        LERP_BODY(repeatedAppendages[i].ruffleFrequency);
+        LERP_BODY(repeatedAppendages[i].curlAmplitude);
+        LERP_BODY(repeatedAppendages[i].waveFrequency);
+        LERP_BODY(repeatedAppendages[i].phaseSpread);
+        LERP_BODY(repeatedAppendages[i].development);
+        LERP_BODY(repeatedAppendages[i].opacity);
+        p.repeatedAppendages[i].baseColor = Color_Lerp(a->repeatedAppendages[i].baseColor, b->repeatedAppendages[i].baseColor, t);
+        p.repeatedAppendages[i].tipColor = Color_Lerp(a->repeatedAppendages[i].tipColor, b->repeatedAppendages[i].tipColor, t);
     }
 #undef LERP_BODY
 

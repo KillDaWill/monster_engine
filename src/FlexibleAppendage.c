@@ -15,6 +15,9 @@ FlexibleAppendagePhenotype FlexibleAppendage_Interpolate(const FlexibleAppendage
     result.taper=Math_Lerp(a->taper,b->taper,profileWeight);
     result.initialPitch=Math_Lerp(a->initialPitch,b->initialPitch,profileWeight);
     result.restBend=Math_Lerp(a->restBend,b->restBend,profileWeight);
+    result.yawAngle=Math_Lerp(a->yawAngle,b->yawAngle,profileWeight);
+    result.coilBias=Math_Lerp(a->coilBias,b->coilBias,profileWeight);
+    result.suckerScale=Math_Lerp(a->suckerScale,b->suckerScale,tipWeight);
     return result;
 }
 
@@ -45,6 +48,58 @@ bool FlexibleAppendage_Resolve(const FlexibleAppendagePhenotype* p, uint32_t mod
     Vector3 position = slot->position;
     AnatomyId parent = slot->hostNode;
     bool nasal = HeadModule_IsNasalExtension(slot->id);
+    if (p->profile == FLEXIBLE_PROFILE_MUSCULAR_ARM ||
+        p->profile == FLEXIBLE_PROFILE_CEPHALIC_LOBE ||
+        p->profile == FLEXIBLE_PROFILE_SIPHON) {
+        /* Perfiles genéricos de apéndice hidrostático / lóbulo / sifón:
+         * parten en dirección forward del anclaje (con giro acimutal yawAngle),
+         * conservan raíz muscular bien integrada al anfitrión y curvatura orgánica sin quiebros. */
+        float cY = cosf(p->yawAngle), sY = sinf(p->yawAngle);
+        Vector3 fwd = Vec3_Normalize(Vec3_Add(Vec3_Scale(slot->forward, cY), Vec3_Scale(slot->side, sY)));
+        Vector3 lat = Vec3_Normalize(Vec3_Cross(slot->up, fwd));
+        if (Vec3_LengthSq(lat) < 1e-6f) lat = slot->side;
+        Vector3 up = Vec3_Normalize(Vec3_Cross(fwd, lat));
+
+        float rootW = p->baseRadius * slot->scale;
+        float rootH = rootW * p->aspect;
+        float tipW = p->tipRadius * slot->scale;
+        float tipH = tipW * p->aspect;
+        /* Inserción proximal dentro de la corona anfitriona para evitar cilindros desconectados. */
+        Vector3 pos = Vec3_Sub(slot->position, Vec3_Scale(fwd, rootW * (p->profile == FLEXIBLE_PROFILE_SIPHON ? 0.35f : 0.65f)));
+        float totalLen = p->length * slot->scale;
+        float ds = totalLen / (float)(last - 1);
+
+        for (unsigned id = 1; id <= last; ++id) {
+            float t = (float)(id - 1) / (float)(last - 1);
+            float taper = powf(fmaxf(0.0f, 1.0f - t), p->taper);
+            float w = Math_Lerp(tipW, rootW, taper);
+            float h = Math_Lerp(tipH, rootH, taper);
+            if (p->profile == FLEXIBLE_PROFILE_CEPHALIC_LOBE) {
+                /* Lóbulo cefálico aplanado y ligeramente enrollable hacia el centro oral. */
+                float blade = 0.65f + 0.45f * sinf(t * 3.14159265f);
+                w *= blade;
+                h *= 0.42f;
+            }
+            if (id > 1) {
+                float u = t - 0.5f / (float)(last - 1);
+                /* Curvatura continua: initialPitch dirige la salida, restBend arquea en vertical
+                 * y coilBias introduce un enrollamiento lateral-distal suave en el tercio final. */
+                float pitch = p->initialPitch * (1.0f - 0.55f * u) + p->restBend * u * u;
+                float swirl = p->coilBias * u * u * 1.45f;
+                Vector3 dir = Vec3_Normalize(Vec3_Add(
+                    Vec3_Scale(fwd, cosf(pitch) * cosf(swirl)),
+                    Vec3_Add(Vec3_Scale(up, sinf(pitch)),
+                             Vec3_Scale(lat, cosf(pitch) * sinf(swirl)))));
+                pos = Vec3_Add(pos, Vec3_Scale(dir, ds));
+            }
+            BodyConnectionKind kind = (id == 1) ? BODY_CONNECTION_SUPPORT : BODY_CONNECTION_FLEXIBLE_SEGMENT;
+            if (!Section(graph, module, id, pos, w, h, parent, kind, lat)) return false;
+            graph->connections[graph->connectionCount - 1].jointBlend =
+                (p->profile == FLEXIBLE_PROFILE_MUSCULAR_ARM) ? 0.62f : 0.34f;
+            parent = Anatomy_MakeId(module, id);
+        }
+        return true;
+    }
     float length=p->length*slot->scale;
     float extent=nasal?Math_Clamp01(length/Math_Max(slot->hostRadii.y*2,.001f)):1;
     float rootWidth=nasal?Math_Lerp(slot->hostRadii.x*.68f,p->baseRadius*slot->scale,extent):p->baseRadius*slot->scale;
@@ -139,6 +194,16 @@ bool FlexibleAppendage_ApplyPose(uint32_t module, FlexibleAppendagePose gesture,
             float span=sinf(t*3.14159265f);
             bend=-4.98f*lift*lift*(3-2*lift);
             steer=.65f*span*span*tanhf((.61f-t)*10);
+            break;
+        }
+        case FLEXIBLE_POSE_SPREADING: {
+            bend = 0.42f * t * (1.4f - 0.5f * t);
+            steer = 0.25f * sinf(t * 3.14159265f);
+            break;
+        }
+        case FLEXIBLE_POSE_CRAWLING: {
+            bend = -1.25f * sinf(t * 3.14159265f) + 0.55f * t;
+            steer = 0.58f * sinf(t * 6.2831853f * 0.75f);
             break;
         }
         default: break;

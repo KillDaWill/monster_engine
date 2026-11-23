@@ -97,7 +97,35 @@ vec3 SDFSurfaceColorWithDomain(vec3 p,vec3 n,vec3 rd,vec3 displayPosition,vec3 d
             response.normal=normalize(response.normal+displayNormal-n);
             response.normal=normalize(vec3(dot(response.normal,cameraRight),
                 dot(response.normal,cameraUp),-dot(response.normal,cameraForward)));
+            vec3 viewDir=normalize(-viewP);
+            float ndv=abs(dot(response.normal,viewDir));
+            float fresnel=pow(1.0-clamp(ndv,0.0,1.0),2.4);
+            float translucency=clamp(surfaceRecipe[153].x,0.0,1.0);
+            float iridescence=clamp(surfaceRecipe[153].y,0.0,1.0);
+            float subsurface=clamp(surfaceRecipe[153].z,0.0,1.0);
+            if(integument==3&&skinMask>.01&&sdfSurfaceDebug==0) {
+                vec3 fdir=normalize(flow+vec3(0.0,0.0,1e-4));
+                float barb=0.5+0.5*sin(dot(materialCoord,fdir)*34.0+PigmentNoise(materialCoord*14.0,pigmentSeed^0x4645u)*3.0);
+                float imbric=0.5+0.5*sin(length(cross(materialCoord,fdir))*16.0+barb*1.4);
+                response.albedo*=mix(1.0,0.91+0.14*mix(barb,imbric,0.45),skinMask*0.75);
+                response.roughness=mix(response.roughness,0.48,skinMask*0.6);
+                response.specular=max(response.specular,0.24*skinMask);
+            }
+            if(integument==5&&skinMask>.01&&sdfSurfaceDebug==0) {
+                response.roughness=mix(response.roughness,0.24,skinMask*0.85);
+                response.specular=max(response.specular,0.52*skinMask);
+                if(iridescence>.01) {
+                    vec3 iriTint=mix(vec3(0.18,0.82,0.76),vec3(0.24,0.46,0.98),fresnel);
+                    response.albedo=mix(response.albedo,response.albedo*0.72+iriTint*0.35,fresnel*iridescence*skinMask);
+                }
+            }
             color=SurfaceLighting(response,viewP);
+            if((integument==6||translucency>.01)&&sdfSurfaceDebug==0) {
+                float glow=integument==6?max(subsurface,0.45):subsurface;
+                vec3 warmGlow=response.albedo*vec3(1.18,0.94,0.72)*(0.28+0.55*(1.0-fresnel))*glow;
+                vec3 rimTint=mix(response.albedo*1.25,vec3(1.0,0.86,0.64),0.32);
+                color=color*(0.72+0.28*fresnel)+warmGlow+rimTint*fresnel*0.38;
+            }
         }
     }
     if(sdfSurfaceDebug==27)return sampleValue.xyz;

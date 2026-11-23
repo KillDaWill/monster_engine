@@ -76,6 +76,7 @@ static void OpenGL_RenderEyeCallback(Renderer3D*,const struct MonsterVisualEye*)
 typedef struct SDFUniformLocations {
         GLint validationMode,validationPointBase,sceneData;
         GLint partBase,partCount,connectorBase,connectorCount,mouthBase,mouthCount,axialBase,axialCount;
+        GLint hasMedusaBell,medusaBellA,medusaBellB,medusaBellColor;
         GLint bodySmoothness,tileDataBase,tileColumns,cameraPosition,cameraForward,cameraRight,cameraUp;
         GLint boundsMin,boundsMax,viewportSize,tanHalfFov,orthoHalfHeight,aspectRatio,hitTolerance,viewProjection;
         GLint surfaceRecipe,pigmentSeed,scaleSeed,furSeed,sdfHasSurface,sdfFurEnabled;
@@ -91,6 +92,7 @@ typedef struct OpenGLRendererData {
         float (*cachedScene)[4];size_t cachedSceneCapacity,cachedSceneCount;
         GpuSDFSurfaceGrid cachedGrid;
         size_t cachedParts,cachedConnectors,cachedMouths;int cachedAxial;
+        bool cachedHasMedusaBell;MedusaBellGeometry cachedMedusaBell;Color cachedMedusaColor;
         float cachedSmoothness;bool denseValid;
         float extractionVoxel;
         GpuSDFSurfaceStats stats;
@@ -517,28 +519,51 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
     glNormalPointer(GL_FLOAT, sizeof(MeshVertex), base + offsetof(MeshVertex, normal));
     glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(MeshVertex), base + offsetof(MeshVertex, color));
 
+    GLboolean prevBlend = glIsEnabled(GL_BLEND), prevCull = glIsEnabled(GL_CULL_FACE), prevDepth = GL_TRUE;
+    GLint prevSrcRGB = GL_SRC_ALPHA, prevDstRGB = GL_ONE_MINUS_SRC_ALPHA, prevSrcA = GL_SRC_ALPHA, prevDstA = GL_ONE_MINUS_SRC_ALPHA;
+    GLint prevCullMode = GL_BACK;
+    if (mesh->translucent || mesh->doubleSided) {
+        glGetIntegerv(GL_BLEND_SRC_RGB, &prevSrcRGB);
+        glGetIntegerv(GL_BLEND_DST_RGB, &prevDstRGB);
+        glGetIntegerv(GL_BLEND_SRC_ALPHA, &prevSrcA);
+        glGetIntegerv(GL_BLEND_DST_ALPHA, &prevDstA);
+        glGetIntegerv(GL_CULL_FACE_MODE, &prevCullMode);
+        glGetBooleanv(GL_DEPTH_WRITEMASK, &prevDepth);
+    }
+
     const size_t MAX_CHUNK_INDICES = (size_t)INT32_MAX - ((size_t)INT32_MAX % 3);
-    size_t indexOffset = 0;
-
-    while (indexOffset < mesh->indexCount) {
-        size_t count = mesh->indexCount - indexOffset;
-        if (count > MAX_CHUNK_INDICES) {
-            count = MAX_CHUNK_INDICES;
+    int passes = (mesh->translucent && !mesh->doubleSided) ? 2 : 1;
+    if (mesh->translucent) {
+        glEnable(GL_BLEND);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
+    }
+    if (mesh->doubleSided) glDisable(GL_CULL_FACE);
+    for (int pass = 0; pass < passes; ++pass) {
+        if (passes == 2) {
+            glEnable(GL_CULL_FACE);
+            glCullFace(pass == 0 ? GL_FRONT : GL_BACK);
         }
-
-        glDrawElements(
-            GL_TRIANGLES,
-            (GLsizei)count,
-            GL_UNSIGNED_INT,
-            &mesh->indices[indexOffset]
-        );
-
-        indexOffset += count;
+        size_t indexOffset = 0;
+        while (indexOffset < mesh->indexCount) {
+            size_t count = mesh->indexCount - indexOffset;
+            if (count > MAX_CHUNK_INDICES) count = MAX_CHUNK_INDICES;
+            glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_INT, &mesh->indices[indexOffset]);
+            indexOffset += count;
+        }
     }
 
     glDisableClientState(GL_COLOR_ARRAY);
     glDisableClientState(GL_NORMAL_ARRAY);
     glDisableClientState(GL_VERTEX_ARRAY);
+
+    if (mesh->translucent || mesh->doubleSided) {
+        glDepthMask(prevDepth);
+        glCullFace((GLenum)prevCullMode);
+        if (prevCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+        glBlendFuncSeparate((GLenum)prevSrcRGB, (GLenum)prevDstRGB, (GLenum)prevSrcA, (GLenum)prevDstA);
+        if (prevBlend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
+    }
 }
 
 static bool RenderSurfaceMesh(OpenGLRendererData* data,const Mesh* mesh);
@@ -908,6 +933,10 @@ static SDFUniformLocations SDFLocations(GLuint p) {
     u.mouthCount=glGetUniformLocation(p,"mouthCount");
     u.axialBase=glGetUniformLocation(p,"axialBase");
     u.axialCount=glGetUniformLocation(p,"axialCount");
+    u.hasMedusaBell=glGetUniformLocation(p,"hasMedusaBell");
+    u.medusaBellA=glGetUniformLocation(p,"medusaBellA");
+    u.medusaBellB=glGetUniformLocation(p,"medusaBellB");
+    u.medusaBellColor=glGetUniformLocation(p,"medusaBellColor");
     u.bodySmoothness=glGetUniformLocation(p,"bodySmoothness");
     u.tileDataBase=glGetUniformLocation(p,"tileDataBase");
     u.tileColumns=glGetUniformLocation(p,"tileColumns");
@@ -1083,7 +1112,8 @@ static bool UploadSDFScene(OpenGLRendererData* d,const MonsterSDF* sdf,
     size_t tileSlots=tiles;
     for(size_t tile=0;tile<tiles;++tile)tileSlots+=(size_t)(d->tileIndices[tile*stride]+3)/4;
     size_t count=tileSlots+sdf->bodyPartCount*P_STRIDE+sdf->connectorCount*C_STRIDE+sdf->mouthCount*M_STRIDE+(size_t)sdf->axialStationCount*2;
-    if(count==0)return true;
+    if(count==0&&!sdf->hasMedusaBell)return true;
+    if(count==0)count=1;
     if(count>d->sdfCapacity){float (*data)[4]=realloc(d->sdfData,count*sizeof(*data));if(!data)return false;d->sdfData=data;d->sdfCapacity=count;}
     // El empaquetado escalar deja componentes libres: inicializarlas también
     // permite comparar escenas sin depender de bytes indeterminados.
@@ -1192,6 +1222,15 @@ static void BindSceneProgram(OpenGLRendererData* d,GLuint p,const MonsterSDF* sd
     INT(connectorBase,d->scene.connectorBase);INT(connectorCount,sdf->connectorCount);
     INT(mouthBase,d->scene.mouthBase);INT(mouthCount,sdf->mouthCount);
     INT(axialBase,d->scene.axialBase);INT(axialCount,sdf->axialStationCount);
+    INT(hasMedusaBell,sdf->hasMedusaBell);
+    if(sdf->hasMedusaBell) {
+        glUniform4f(glGetUniformLocation(p,"medusaBellA"),
+            sdf->medusaBell.center.x,sdf->medusaBell.center.y,sdf->medusaBell.center.z,sdf->medusaBell.radius);
+        glUniform4f(glGetUniformLocation(p,"medusaBellB"),
+            sdf->medusaBell.height,sdf->medusaBell.wallThickness,sdf->medusaBell.concavity,sdf->medusaBell.scallopAmp);
+        glUniform4f(glGetUniformLocation(p,"medusaBellColor"),
+            sdf->medusaBellColor.r/255.0f,sdf->medusaBellColor.g/255.0f,sdf->medusaBellColor.b/255.0f,(float)sdf->medusaBell.lappetCount);
+    }
     glUniform1f(glGetUniformLocation(p,"bodySmoothness"),sdf->config.bodySmoothness);
     INT(sdfHasSurface,sdf->hasSurface);INT(sdfFurEnabled,!d->disableShells||!d->disableGuards);
     INT(sweepBinarySearch,d->sweepSorted&&getenv("MONSTER_SDF_LINEAR_SWEEP")==NULL);
@@ -1305,6 +1344,9 @@ bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
     bool reuse=d->compute.denseValid&&d->compute.cachedSceneCount==d->sdfCount&&
         d->compute.cachedParts==sdf->bodyPartCount&&d->compute.cachedConnectors==sdf->connectorCount&&
         d->compute.cachedMouths==sdf->mouthCount&&d->compute.cachedAxial==sdf->axialStationCount&&
+        d->compute.cachedHasMedusaBell==sdf->hasMedusaBell&&
+        (!sdf->hasMedusaBell||(memcmp(&d->compute.cachedMedusaBell,&sdf->medusaBell,sizeof(sdf->medusaBell))==0&&
+            memcmp(&d->compute.cachedMedusaColor,&sdf->medusaBellColor,sizeof(sdf->medusaBellColor))==0))&&
         d->compute.cachedSmoothness==sdf->config.bodySmoothness&&
         memcmp(&d->compute.cachedGrid,grid,sizeof(*grid))==0&&
         memcmp(d->compute.cachedScene,d->sdfData,d->sdfCount*sizeof(*d->sdfData))==0;
@@ -1397,6 +1439,9 @@ bool OpenGLRenderer_RenderGpuSDFSurface(Renderer3D* r,const MonsterSDF* sdf,
         d->compute.cachedSceneCount=d->sdfCount;d->compute.cachedGrid=*grid;
         d->compute.cachedParts=sdf->bodyPartCount;d->compute.cachedConnectors=sdf->connectorCount;
         d->compute.cachedMouths=sdf->mouthCount;d->compute.cachedAxial=sdf->axialStationCount;
+        d->compute.cachedHasMedusaBell=sdf->hasMedusaBell;
+        d->compute.cachedMedusaBell=sdf->medusaBell;
+        d->compute.cachedMedusaColor=sdf->medusaBellColor;
         d->compute.cachedSmoothness=sdf->config.bodySmoothness;d->compute.denseValid=true;
     }
     return true;
@@ -2295,6 +2340,15 @@ bool OpenGLRenderer_RenderSDFRegion(Renderer3D* renderer,const MonsterSDF* sdf,c
     }
     UI(sceneData,0);UI(partBase,partBase);UI(partCount,sdf->bodyPartCount);UI(connectorBase,connectorBase);UI(connectorCount,sdf->connectorCount);
     UI(mouthBase,mouthBase);UI(mouthCount,sdf->mouthCount);UI(axialBase,axialBase);UI(axialCount,sdf->axialStationCount);
+    UI(hasMedusaBell,sdf->hasMedusaBell);
+    if(sdf->hasMedusaBell) {
+        glUniform4f(d->uniforms.medusaBellA,
+            sdf->medusaBell.center.x,sdf->medusaBell.center.y,sdf->medusaBell.center.z,sdf->medusaBell.radius);
+        glUniform4f(d->uniforms.medusaBellB,
+            sdf->medusaBell.height,sdf->medusaBell.wallThickness,sdf->medusaBell.concavity,sdf->medusaBell.scallopAmp);
+        glUniform4f(d->uniforms.medusaBellColor,
+            sdf->medusaBellColor.r/255.0f,sdf->medusaBellColor.g/255.0f,sdf->medusaBellColor.b/255.0f,(float)sdf->medusaBell.lappetCount);
+    }
     UF(bodySmoothness,sdf->config.bodySmoothness);
     UI(tileDataBase,tileDataBase);UI(tileColumns,columns);
     UniformVector(d->uniforms.cameraPosition,camera->position);UniformVector(d->uniforms.cameraForward,forward);UniformVector(d->uniforms.cameraRight,right);UniformVector(d->uniforms.cameraUp,up);
@@ -3035,7 +3089,7 @@ void OpenGLRenderer_DrawHUD(int width, int height, float fps, float frameTimeMs)
 }
 
 #include "MonsterSurfaceShader.generated.h"
-_Static_assert(SURFACE_RECIPE_ROWS==153 && SURFACE_RECIPE_ALBEDO_BASE==139 && SURFACE_RECIPE_ROTATION_BASE==150,"Actualizar contrato GLSL de superficie al cambiar regiones o bancos de pigmento");
+_Static_assert(SURFACE_RECIPE_ROWS==154 && SURFACE_RECIPE_ALBEDO_BASE==139 && SURFACE_RECIPE_ROTATION_BASE==150 && SURFACE_RECIPE_OPTICAL_ROW==153,"Actualizar contrato GLSL de superficie al cambiar regiones o bancos de pigmento");
 _Static_assert(sizeof(GeometryGpuVertex)==32&&sizeof(AnatomySkinBinding)==64&&sizeof(int)==4,
     "Conservar el contrato std430 del skinning y las texturas de pelaje");
 bool OpenGLRenderer_ValidatePigmentDomains(const SurfacePhenotype* surface,const SurfaceCoordinate* points,size_t count,float* maxError) {
@@ -3538,12 +3592,44 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     if(d->shellFractionLocation>=0)glUniform1f(d->shellFractionLocation,0.0f);
     if(d->shellCountLocation>=0)glUniform1i(d->shellCountLocation,0);
 
-    // 1. Dibujar pase base de superficie
-    size_t offset=0;
-    while(offset<mesh->indexCount) {
-        size_t count=mesh->indexCount-offset,max=(size_t)INT32_MAX-((size_t)INT32_MAX%3);
-        if(count>max)count=max;
-        glDrawElements(GL_TRIANGLES,(GLsizei)count,GL_UNSIGNED_INT,(const void*)(offset*sizeof(MeshIndex))); offset+=count;
+    // 1. Dibujar pase base de superficie (con soporte de transparencia y superficies de doble cara)
+    bool isTranslucent = mesh->translucent || integumentType == 6 || recipe->data[SURFACE_RECIPE_OPTICAL_ROW][0] > 0.01f;
+    bool isDoubleSided = mesh->doubleSided;
+    GLboolean baseBlend = glIsEnabled(GL_BLEND), baseCull = glIsEnabled(GL_CULL_FACE), baseDepth = GL_TRUE;
+    GLint baseSrcRGB = GL_SRC_ALPHA, baseDstRGB = GL_ONE_MINUS_SRC_ALPHA, baseSrcA = GL_SRC_ALPHA, baseDstA = GL_ONE_MINUS_SRC_ALPHA, baseCullMode = GL_BACK;
+    if (isTranslucent || isDoubleSided) {
+        glGetIntegerv(GL_BLEND_SRC_RGB, &baseSrcRGB);
+        glGetIntegerv(GL_BLEND_DST_RGB, &baseDstRGB);
+        glGetIntegerv(GL_BLEND_SRC_ALPHA, &baseSrcA);
+        glGetIntegerv(GL_BLEND_DST_ALPHA, &baseDstA);
+        glGetIntegerv(GL_CULL_FACE_MODE, &baseCullMode);
+        glGetBooleanv(GL_DEPTH_WRITEMASK, &baseDepth);
+    }
+    int drawPasses = (isTranslucent && !isDoubleSided) ? 2 : 1;
+    if (isTranslucent) {
+        glEnable(GL_BLEND);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
+    }
+    if (isDoubleSided) glDisable(GL_CULL_FACE);
+    for (int pass = 0; pass < drawPasses; ++pass) {
+        if (drawPasses == 2) {
+            glEnable(GL_CULL_FACE);
+            glCullFace(pass == 0 ? GL_FRONT : GL_BACK);
+        }
+        size_t offset=0;
+        while(offset<mesh->indexCount) {
+            size_t count=mesh->indexCount-offset,max=(size_t)INT32_MAX-((size_t)INT32_MAX%3);
+            if(count>max)count=max;
+            glDrawElements(GL_TRIANGLES,(GLsizei)count,GL_UNSIGNED_INT,(const void*)(offset*sizeof(MeshIndex))); offset+=count;
+        }
+    }
+    if (isTranslucent || isDoubleSided) {
+        glDepthMask(baseDepth);
+        glCullFace((GLenum)baseCullMode);
+        if (baseCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+        glBlendFuncSeparate((GLenum)baseSrcRGB, (GLenum)baseDstRGB, (GLenum)baseSrcA, (GLenum)baseDstA);
+        if (baseBlend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
     }
 
     // Resolución proyectada, con conjuntos anidados y peso óptico conservado.

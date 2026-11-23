@@ -164,13 +164,17 @@ static float Sole(const AnatomyGraph *graph, uint32_t id)
     return sole;
 }
 
-static float ReferenceFloor(const BodyPlan *plan, const AnatomyGraph *original)
+static float ReferenceFloor(const BodyPlan *plan, const CreaturePhenotype *ref, const AnatomyGraph *original)
 {
     float sum = 0;
     unsigned count = 0;
     for (size_t i=0; i<plan->moduleCount; ++i) {
         const CreatureModuleInstance *m = &plan->modules[i];
-        if (m->kind != CREATURE_MODULE_LIMB) continue;
+        if (m->kind != CREATURE_MODULE_LIMB || m->phenotypeIndex >= ref->limbCount) continue;
+        const LimbPhenotype *lp = &ref->limbs[m->phenotypeIndex];
+        if (lp->role == LIMB_WING || lp->archetype == LIMB_ARCHETYPE_WING ||
+            lp->archetype == LIMB_ARCHETYPE_INSECT_WING || lp->archetype == LIMB_ARCHETYPE_FLIPPER ||
+            lp->archetype == LIMB_ARCHETYPE_ARTHROPOD_LEG) continue;
         float sole = Sole(original,m->instanceId);
         if (!isfinite(sole)) continue;
         sum += sole;
@@ -187,7 +191,7 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
     float body = p->axial.totalScale*p->axial.withersHeight;
     float originalBody = ref->axial.totalScale*ref->axial.withersHeight;
     bool upright = p->axial.archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD;
-    float referenceFloor = upright ? 0 : ReferenceFloor(plan,original)*body/originalBody;
+    float referenceFloor = upright ? 0 : ReferenceFloor(plan,ref,original)*body/originalBody;
     bool weightBearing = false;
     bool hasMacropodHind = false;
     for (size_t i=0; i<p->limbCount; ++i) {
@@ -215,7 +219,11 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
             }
             /* La referencia conserva postura y fase. Se aproxima la suela
              * mediante estaciones de apoyo, con tolerancia al espesor SDF. */
-            if (!m->pathAttached && limb->archetype != LIMB_ARCHETYPE_WING &&
+            if (!m->pathAttached && limb->role != LIMB_WING &&
+                limb->archetype != LIMB_ARCHETYPE_WING &&
+                limb->archetype != LIMB_ARCHETYPE_INSECT_WING &&
+                limb->archetype != LIMB_ARCHETYPE_FLIPPER &&
+                limb->archetype != LIMB_ARCHETYPE_ARTHROPOD_LEG &&
                 !(hasMacropodHind && limb->role == LIMB_FORE) &&
                 limb->development*p->development.appendages >= .65f) {
                 float now = Sole(graph,m->instanceId);
@@ -460,7 +468,9 @@ static float ProfilePenalty(const Monster *m)
             const CreatureModuleInstance *module = &plan->modules[i];
             if (module->kind != CREATURE_MODULE_LIMB || module->phenotypeIndex >= m->phenotype.limbCount) continue;
             const LimbPhenotype *lp = &m->phenotype.limbs[module->phenotypeIndex];
-            if (lp->archetype == LIMB_ARCHETYPE_WING ||
+            if (lp->role == LIMB_WING || lp->archetype == LIMB_ARCHETYPE_WING ||
+                lp->archetype == LIMB_ARCHETYPE_INSECT_WING || lp->archetype == LIMB_ARCHETYPE_FLIPPER ||
+                lp->archetype == LIMB_ARCHETYPE_ARTHROPOD_LEG ||
                 (m->recipe.gait == CREATURE_GAIT_BIPEDAL_HOP && lp->role == LIMB_FORE)) continue;
             float sole = Sole(&m->anatomyGraph,module->instanceId);
             if (!isfinite(sole)) continue;

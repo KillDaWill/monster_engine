@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "CreatureOffspring.h"
+#include "SurfaceMapper.h"
 #include "../src/interface/UiCreatureScene.h"
 #include "../src/interface/UiCreatureOrbit.h"
 #include "interface/UiRecipeCatalog.h"
@@ -21,9 +22,11 @@ static const UiVfsNode *Find(const UiVfs *fs, UiVfsId folder, const char *name)
 static void CheckField(const UiCreatureScene *scene)
 {
     const Monster *monster = UiCreatureScene_Monster(scene);
-    assert(monster->hasAnatomyGraph && monster->anatomyGraph.nodeCount && monster->eyeCount);
+    assert(monster->hasAnatomyGraph && monster->anatomyGraph.nodeCount &&
+           (monster->eyeCount || scene->sdf.hasMedusaBell));
     assert(scene->sdf.hasSurface);
-    assert(scene->sdf.bodyPartCount || scene->sdf.connectorCount || scene->sdf.axialStationCount);
+    assert(scene->sdf.bodyPartCount || scene->sdf.connectorCount ||
+           scene->sdf.axialStationCount || scene->sdf.hasMedusaBell);
     AABB3D bounds = scene->sdf.bounds;
     assert(isfinite(bounds.start.x) && isfinite(bounds.end.x) && bounds.start.x < bounds.end.x);
     assert(isfinite(bounds.start.y) && isfinite(bounds.end.y) && bounds.start.y < bounds.end.y);
@@ -183,6 +186,56 @@ static void SpeciesPairs(const UiVfs *fs, UiVfsId folder)
     }
 }
 
+static void FiveNonMammals(const UiVfs *fs, UiVfsId folder)
+{
+    const struct {
+        const char *file;
+        bool expectBell;
+        bool expectDetail;
+        bool expectTranslucent;
+    } cases[] = {
+        {"halcon_peregrino.creature.json", false, true, false},
+        {"mantarraya.creature.json", false, true, false},
+        {"pulpo_gigante.creature.json", false, true, false},
+        {"libelula_emperador.creature.json", false, true, true},
+        {"medusa_ortiga.creature.json", true, true, true},
+    };
+    char error[256];
+    SurfaceMorphDomain *domain = malloc(sizeof(*domain));
+    assert(domain);
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        const UiVfsNode *node = Find(fs, folder, cases[i].file);
+        UiCreatureScene *scene = UiCreatureScene_Create("demos", node, NULL, error, sizeof(error));
+        if (!scene) fprintf(stderr, "%s: %s\n", cases[i].file, error);
+        assert(scene);
+        CheckField(scene);
+        assert(scene->sdf.hasMedusaBell == cases[i].expectBell);
+        assert((scene->detail.indexCount > 0) == cases[i].expectDetail);
+        assert((scene->translucent.indexCount > 0) == cases[i].expectTranslucent);
+        const Monster *m = UiCreatureScene_Monster(scene);
+        assert(SurfaceMapper_BuildMorphDomain(domain, &m->anatomyGraph, &m->anatomyGraph, &m->surfaceMapping));
+        assert(domain->count > 0);
+        UiCreatureScene_Destroy(scene);
+
+        UiCreatureScene *aging = UiCreatureScene_Create("demos", node, node, error, sizeof(error));
+        if (!aging) fprintf(stderr, "%s aging: %s\n", cases[i].file, error);
+        assert(aging);
+        const float ages[] = {0.0f, 0.5f, 1.0f};
+        for (size_t k = 0; k < sizeof(ages) / sizeof(ages[0]); ++k) {
+            assert(UiCreatureScene_SetAge(aging, ages[k]));
+            CheckField(aging);
+            assert(aging->sdf.hasMedusaBell == cases[i].expectBell);
+            assert((aging->detail.indexCount > 0) == cases[i].expectDetail);
+            assert((aging->translucent.indexCount > 0) == cases[i].expectTranslucent);
+            const Monster *cur = UiCreatureScene_Monster(aging);
+            assert(SurfaceMapper_BuildMorphDomain(domain, &cur->anatomyGraph, &aging->reference.anatomyGraph, &cur->surfaceMapping));
+            assert(domain->count > 0);
+        }
+        UiCreatureScene_Destroy(aging);
+    }
+    free(domain);
+}
+
 int main(void)
 {
     UiVfs *fs = UiVfs_Create();
@@ -256,6 +309,7 @@ int main(void)
     CheckField(scene);
     UiCreatureScene_Destroy(scene);
     SpeciesPairs(fs,folder);
+    FiveNonMammals(fs,folder);
     UiVfs_Destroy(fs);
     Orbit();
     OrbitFraming();

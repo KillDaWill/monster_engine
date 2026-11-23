@@ -67,7 +67,12 @@ typedef enum CreatureGait {
     CREATURE_GAIT_FELINE_STALK,     /**< Merodeo felino: ciclo largo, zancada corta y cuerpo agachado. */
     CREATURE_GAIT_BOVINE_WALK,      /**< Transferencia lenta de peso para ungulados robustos. */
     CREATURE_GAIT_COLUMNAR_WALK,    /**< Paso lento con elevación y oscilación reducidas. */
-    CREATURE_GAIT_BIPEDAL_HOP       /**< Salto bípedo sincronizado con fase de impulso, vuelo parabólico y contrapeso caudal. */
+    CREATURE_GAIT_BIPEDAL_HOP,      /**< Salto bípedo sincronizado con fase de impulso, vuelo parabólico y contrapeso caudal. */
+    CREATURE_GAIT_AVIAN_FLIGHT,     /**< Aleteo aviar con empuje escapular, plegado distal y postura posada estable. */
+    CREATURE_GAIT_RAY_SWIM,         /**< Onda propagada sinusoidal a lo largo de aletas pectorales batoideas. */
+    CREATURE_GAIT_OCTOPUS_CRAWL,    /**< Movimiento coordinado e independiente de brazos hidrostáticos y manto. */
+    CREATURE_GAIT_INSECT_FLIGHT,    /**< Batido independiente de alas anteriores y posteriores con patas recogidas. */
+    CREATURE_GAIT_MEDUSA_PULSE      /**< Contracción y relajación rítmica de la campana con retardo en tentáculos. */
 } CreatureGait;
 
 /**

@@ -81,7 +81,10 @@ bool AnatomicalReach_Compile(AnatomicalReachProfile *p,const Rig *r,ReachPreset 
     while(j>=0&&count<REACH_MAX_JOINTS) {
         reverse[count++]=j;if(j==base)break;j=r->skeleton.joints[j].parentIndex;
     }
-    if(!count||reverse[count-1]!=base)return false;
+    if(!count||reverse[count-1]!=base) {
+        /* En planes sin cuello clásico entre raíz y cabeza (p. ej. cefalópodo), usar headJoint como base. */
+        count=1; reverse[0]=r->headJoint; base=r->headJoint;
+    }
     int parent=r->skeleton.joints[base].parentIndex;
     while(parent>=0&&count<REACH_MAX_JOINTS&&p->torsoCount<preset.torsoJoints) {
         bool torso=false;

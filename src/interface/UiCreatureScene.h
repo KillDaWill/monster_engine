@@ -14,7 +14,7 @@ typedef struct {
     Monster adult, reference;
     MonsterAger *ager;
     MonsterSDF sdf;
-    Mesh membranes, armor;
+    Mesh membranes, armor, detail, translucent;
     AABB3D framing;
     bool fieldValid;
     unsigned fieldBuilds;

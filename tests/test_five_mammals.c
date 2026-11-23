@@ -54,7 +54,7 @@ static void TestFacialFrames(void) {
         TEST_ASSERT(surface->faceTipRadii.y > 0 && surface->faceTip.z > surface->faceRoot.z,
                     "Volumen facial y estaciones en orden");
         if (archetype == HEAD_ARCHETYPE_MONOTREME || archetype == HEAD_ARCHETYPE_PHOLIDOTE) {
-            float scale = archetype == HEAD_ARCHETYPE_MONOTREME ? .78f * .94f : .84f;
+            float scale = archetype == HEAD_ARCHETYPE_MONOTREME ? .88f : .84f;
             const float cranialHeight[] = {1, 1.14f, 1.18f, .96f, .90f};
             HeadPhenotype_Normalize(&phenotype);
             float expected = envelope.y * (.55f + .48f * phenotype.skullHeight)
@@ -219,6 +219,11 @@ static void TestGiraffeCapabilities(void) {
         const AnatomyNode* tip = AnatomyGraph_FindModuleNode(&m->anatomyGraph, module, ORNAMENT_NODE_TIP);
         TEST_ASSERT(base && tip && tip->center.y - base->center.y > fabsf(tip->center.z - base->center.z) * 2,
                     "Osicono corto crece desde la bóveda craneal");
+        const AnatomyNode* headNode = AnatomyGraph_FindFirstRegion(&m->anatomyGraph, ANATOMY_REGION_HEAD);
+        TEST_ASSERT(headNode != NULL, "Estación cefálica de jirafa");
+        Vector3 earBase = Vec3_Add(headNode->center, m->head.anatomy.landmarks.leftEarBase);
+        TEST_ASSERT(fabsf(base->center.x) < fabsf(earBase.x) && base->center.y > earBase.y,
+                    "Osiconos mediales y superiores respecto a las orejas laterales");
     }
     const Rig* rig = &m->animation->rig;
     float previousWidth = INFINITY;
@@ -258,8 +263,10 @@ static void TestPlatypusCapabilities(void) {
                 "Cola plana tipo remo activa");
     const HeadSurfaceRecipe* head = &m->head.anatomy.surface;
     TEST_ASSERT(head->cranialRadii[1].x > head->cranialRadii[1].y * 3.0f &&
-                head->cranialRadii[4].y > head->cranialRadii[1].y * 2.0f,
-                "Pico ancho con espesor independiente de la bóveda");
+                head->cranialRadii[4].y > head->cranialRadii[1].y * 2.5f &&
+                head->cranialRadii[3].y > head->cranialRadii[1].y &&
+                head->cranialRadii[3].y < head->cranialRadii[4].y,
+                "Pico ancho y plano con bóveda craneal convexa y transición frontal progresiva");
     const AnatomyNode* paddle = AnatomyGraph_FindModuleNode(&m->anatomyGraph, tailTip->moduleInstanceId, 8);
     const AnatomyNode* paddleEnd = AnatomyGraph_FindModuleNode(&m->anatomyGraph, tailTip->moduleInstanceId, 12);
     TEST_ASSERT(paddle && paddleEnd && paddle->widthRadius > paddle->heightRadius * 3.0f &&
@@ -395,14 +402,19 @@ static void TestKangarooCapabilities(void) {
         TEST_ASSERT(root, "Raíz de miembro resuelta");
         AssertSolidSegment(&sdf, (i < 2 ? chest : pelvis)->center, root->center);
         if (i < 2) {
+            const AnatomyNode* wrist = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, LIMB_NODE_DISTAL);
+            const AnatomyNode* autopod = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, LIMB_NODE_AUTOPOD);
             const AnatomyNode* palm = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, LIMB_NODE_PALM_BALL);
-            TEST_ASSERT(palm, "La palma distal soporta los dedos");
+            TEST_ASSERT(wrist && autopod && palm && autopod->center.z > wrist->center.z,
+                        "La mano continúa hacia delante desde la muñeca y soporta los dedos");
             for (unsigned d = 0; d < 5; ++d) {
                 const AnatomyNode* base = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, Limb_DigitLocalId(d,0));
                 TEST_ASSERT(base, "Cinco dedos con raíces presentes");
                 AssertSolidSegment(&sdf, palm->center, base->center);
             }
         } else {
+            const AnatomyNode* midFoot = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, 212);
+            TEST_ASSERT(midFoot != NULL, "Estación intermedia del metatarso macrópodo");
             const AnatomyNode* medial = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, Limb_DigitLocalId(0,1));
             const AnatomyNode* main = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, Limb_DigitLocalId(1,1));
             const AnatomyNode* lateral = AnatomyGraph_FindModuleNode(&m->anatomyGraph, root->moduleInstanceId, Limb_DigitLocalId(2,1));

@@ -162,6 +162,13 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
             monster->eyes[i].pupilScale = p.eyes.pupilScale;
             monster->eyes[i].pupilShape = p.eyes.pupilShape;
             monster->eyes[i].pupilAspect = (p.eyes.pupilShape == PUPIL_ROUND) ? 1.0f : p.eyes.pupilAspect;
+            if (p.head.archetype == HEAD_ARCHETYPE_ARTHROPOD) {
+                /* Ojo compuesto de artrópodo: sin aro limbal ni pupila vertebrada contrastada. */
+                monster->eyes[i].limbalRingStrength = 0.0f;
+                monster->eyes[i].irisRadialNoise = 0.15f;
+                monster->eyes[i].irisColorVariation = 0.22f;
+                monster->eyes[i].scleraPigmentation = 0.0f;
+            }
             Eye* eye = &monster->eyes[i];
             const HeadAnatomy* anatomy = &monster->head.anatomy;
             Vector3 center = i == 0 ? anatomy->landmarks.leftEyeCenter : anatomy->landmarks.rightEyeCenter;
@@ -169,9 +176,10 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
                 Math_Lerp(p.head.eyeSize,p.headHybrid.secondary.eyeSize,p.headHybrid.blend) : p.head.eyeSize;
             float eyeFactor = nominalEye > 1e-4f ? p.eyes.size / nominalEye : 1.0f;
             /* El globo debe caber entre techo/base del cráneo y región temporal.
-             * El tamaño solicitado está limitado por ese espacio orbital físico. */
-            float orbitalLimit = Math_Min(anatomy->surface.craniumRadii.y * .55f,
-                                          anatomy->surface.craniumRadii.z * .40f);
+             * En artrópodos los ojos compuestos envuelven la cápsula cefálica. */
+            float orbitalLimit = p.head.archetype == HEAD_ARCHETYPE_ARTHROPOD
+                ? Math_Min(anatomy->surface.craniumRadii.y * 0.94f, anatomy->surface.craniumRadii.z * 0.88f)
+                : Math_Min(anatomy->surface.craniumRadii.y * .55f, anatomy->surface.craniumRadii.z * .40f);
             float baseRadius = anatomy->eyeScale.x / .92f;
             float requestedRadius = baseRadius * eyeFactor;
             float resolvedRadius = Math_Min(requestedRadius, orbitalLimit);
@@ -236,10 +244,32 @@ bool Creature_ConfigureAnimation(struct Monster* monster) {
     case CREATURE_GAIT_BIPEDAL_HOP:
         gait=GaitPreset_BipedalHop(&rig);
         break;
+    case CREATURE_GAIT_AVIAN_FLIGHT:
+        gait=GaitPreset_AvianFlight(&rig);
+        break;
+    case CREATURE_GAIT_RAY_SWIM:
+        gait=GaitPreset_RaySwim(&rig);
+        break;
+    case CREATURE_GAIT_OCTOPUS_CRAWL:
+        gait=GaitPreset_OctopusCrawl(&rig);
+        break;
+    case CREATURE_GAIT_INSECT_FLIGHT:
+        gait=GaitPreset_InsectFlight(&rig);
+        break;
+    case CREATURE_GAIT_MEDUSA_PULSE:
+        gait=GaitPreset_MedusaPulse(&rig);
+        break;
     default:
         return false;
     }
-    return MonsterAnimation_Configure(monster, &rig, gait);
+    if (!MonsterAnimation_Configure(monster, &rig, gait)) return false;
+    if (monster->animation) {
+        if (monster->recipe.gait == CREATURE_GAIT_RAY_SWIM)
+            monster->animation->animator.finWaveAmplitude = 0.75f;
+        else if (monster->recipe.gait == CREATURE_GAIT_MEDUSA_PULSE)
+            monster->animation->animator.bellPulseAmplitude = 0.72f;
+    }
+    return true;
 }
 
 bool Creature_BuildMonster(struct Monster* monster,const CreatureRecipe* recipe,const CreaturePhenotype* source) {

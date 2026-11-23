@@ -16,6 +16,7 @@
 #include "GpuSDFSurfaceCache.h"
 #include "ArmorScales.h"
 #include "Membrane.h"
+#include "SupplementaryMesh.h"
 #include "MathUtils.h"
 #include "MonsterAger.h"
 #include "MonsterSDF.h"
@@ -122,7 +123,7 @@ typedef struct MorphRuntime {
     GpuSDFSurfaceCache* gpuCache;
     bool gpuGridValid;
     MonsterSDF frameSdf;
-    Mesh membranes, armor;
+    Mesh membranes, armor, detail, translucent;
     float fieldAge;
     bool fieldValid;
     bool materialValid;
@@ -229,6 +230,11 @@ static const SpeciesCatalogEntry* FindCatalogEntry(const SpeciesCatalogEntry* ca
     else if (EqualsIgnoreCase(spec, "pangolin")) spec = "1013";
     else if (EqualsIgnoreCase(spec, "kangaroo") || EqualsIgnoreCase(spec, "canguro")) spec = "1014";
     else if (EqualsIgnoreCase(spec, "bat") || EqualsIgnoreCase(spec, "murcielago")) spec = "1015";
+    else if (EqualsIgnoreCase(spec, "falcon") || EqualsIgnoreCase(spec, "halcon") || EqualsIgnoreCase(spec, "peregrine")) spec = "1016";
+    else if (EqualsIgnoreCase(spec, "manta") || EqualsIgnoreCase(spec, "mantarraya") || EqualsIgnoreCase(spec, "ray")) spec = "1017";
+    else if (EqualsIgnoreCase(spec, "octopus") || EqualsIgnoreCase(spec, "pulpo")) spec = "1018";
+    else if (EqualsIgnoreCase(spec, "dragonfly") || EqualsIgnoreCase(spec, "libelula")) spec = "1019";
+    else if (EqualsIgnoreCase(spec, "jellyfish") || EqualsIgnoreCase(spec, "medusa") || EqualsIgnoreCase(spec, "nettle")) spec = "1020";
 
     char* end = NULL;
     unsigned long num = strtoul(spec, &end, 10);
@@ -435,6 +441,8 @@ static bool InitMorphRuntime(MorphRuntime* rt, const Monster* initialSource, con
     rt->frameSdf = MonsterSDF_Create();
     rt->membranes = Mesh_Create();
     rt->armor = Mesh_Create();
+    rt->detail = Mesh_Create();
+    rt->translucent = Mesh_Create();
     return true;
 }
 
@@ -475,6 +483,10 @@ static const MonsterSDF* PrepareFrameField(MorphRuntime* rt, const DemoOptions* 
         if (rt->fieldValid) {
             if (!Membrane_BuildMesh(current, &rt->membranes)) Mesh_Clear(&rt->membranes);
             if (!ArmorScales_BuildMesh(current, &rt->frameSdf, &rt->armor)) Mesh_Clear(&rt->armor);
+            if (!SupplementaryMesh_Build(current, &rt->detail, &rt->translucent)) {
+                Mesh_Clear(&rt->detail);
+                Mesh_Clear(&rt->translucent);
+            }
         }
         rt->fieldAge = rt->ager.perc;
         rt->materialValid = rt->rayFrameValid = false;
@@ -495,6 +507,8 @@ static void DestroyMorphRuntime(MorphRuntime* rt) {
     MonsterSDF_Free(&rt->frameSdf);
     Mesh_Free(&rt->membranes);
     Mesh_Free(&rt->armor);
+    Mesh_Free(&rt->detail);
+    Mesh_Free(&rt->translucent);
     for (size_t i = 0; i < rt->eyeCapacity; ++i) Mesh_Free(&rt->eyes[i].globe);
     free(rt->eyes);
     LongHairAsync_Destroy(rt->longHairAsync);
@@ -879,6 +893,8 @@ static void RenderCurrentFrame(MorphRuntime* rt, Renderer3D* renderer, ICamera* 
         OpenGLRenderer_SetMeshSurfaceOverride(renderer,NULL);
         if (rt->membranes.indexCount) renderer->renderMesh(renderer,&rt->membranes);
         if (rt->armor.indexCount) renderer->renderMesh(renderer,&rt->armor);
+        if (rt->detail.indexCount) renderer->renderMesh(renderer,&rt->detail);
+        if (rt->translucent.indexCount) renderer->renderMesh(renderer,&rt->translucent);
     }
     if (opt->profile) phase = OpenGLDemoWindow_Time();
     if (!drewAsyncVisual) RenderCurrentEyes(rt, renderer, current);

@@ -98,6 +98,16 @@ static TailProfileSample EvaluateTailProfile(TailArchetype archetype, float t, f
         s.localOffset.z = 0.0f;
         break;
     }
+    case TAIL_ARCHETYPE_FEATHER_FAN: {
+        /* Base caudal corta y compacta (uropigio); el abanico de rectrices se genera como geometría suplementaria. */
+        float taper = powf(fmaxf(0.0f, 1.0f - t), fmaxf(0.9f, taperCurve));
+        s.widthFactor = fmaxf(taper * 0.92f, 0.14f);
+        s.heightFactor = fmaxf(taper * 0.62f, 0.10f);
+        s.localOffset.x = 0.0f;
+        s.localOffset.y = -0.04f * t;
+        s.localOffset.z = 0.0f;
+        break;
+    }
     case TAIL_ARCHETYPE_TAPERED:
     default: {
         float taper = powf(fmaxf(0.0f, 1.0f - t), taperCurve);

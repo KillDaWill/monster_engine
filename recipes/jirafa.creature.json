@@ -154,7 +154,7 @@
           "kind": 4,
           "attachment": {
             "hostModuleInstanceId": 2,
-            "slotId": 2
+            "slotId": 22
           },
           "phenotypeIndex": 0,
           "pathAttached": false,
@@ -174,7 +174,7 @@
           "kind": 4,
           "attachment": {
             "hostModuleInstanceId": 2,
-            "slotId": 3
+            "slotId": 23
           },
           "phenotypeIndex": 1,
           "pathAttached": false,
@@ -284,19 +284,19 @@
         "jawDepth": 0.720000029,
         "jawStrength": 0.75999999,
         "noseScale": 0.600000024,
-        "earSize": 0.519999981,
-        "earBaseWidth": 0.699999988,
-        "earWidthRatio": 1.14999998,
-        "earHeightRatio": 0.920000017,
+        "earSize": 0.449999988,
+        "earBaseWidth": 0.680000007,
+        "earWidthRatio": 1.08000004,
+        "earHeightRatio": 0.819999993,
         "earThickness": 0.219999999,
         "earConcavity": 0.680000007,
-        "earOutward": 0.579999983,
-        "earForward": 0.140000001,
+        "earOutward": 0.779999971,
+        "earForward": 0.0799999982,
         "earLongitudinalCurve": 0.620000005,
         "earRootRoll": 0.550000012,
-        "earTipRoundness": 0.479999989,
+        "earTipRoundness": 0.5,
         "earFold": 0.5,
-        "earPointiness": 0.579999983,
+        "earPointiness": 0.519999981,
         "cheekMass": 0.639999986,
         "maxillaryWidth": 0.379999995,
         "mouthWidth": 0.560000002,
@@ -731,31 +731,31 @@
       "ornaments": [
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 0.460000008,
           "growthDirection": {
-            "x": 0.0799999982,
+            "x": 0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": 0.0299999993
+          "lateralSweep": 0.0199999996
         },
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 0.460000008,
           "growthDirection": {
-            "x": -0.0799999982,
+            "x": -0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": -0.0299999993
+          "lateralSweep": -0.0199999996
         }
       ],
       "ornamentCount": 2,
@@ -1545,19 +1545,19 @@
         "jawDepth": 0.720000029,
         "jawStrength": 0.75999999,
         "noseScale": 0.600000024,
-        "earSize": 0.519999981,
-        "earBaseWidth": 0.699999988,
-        "earWidthRatio": 1.14999998,
-        "earHeightRatio": 0.920000017,
+        "earSize": 0.449999988,
+        "earBaseWidth": 0.680000007,
+        "earWidthRatio": 1.08000004,
+        "earHeightRatio": 0.819999993,
         "earThickness": 0.219999999,
         "earConcavity": 0.680000007,
-        "earOutward": 0.579999983,
-        "earForward": 0.140000001,
+        "earOutward": 0.779999971,
+        "earForward": 0.0799999982,
         "earLongitudinalCurve": 0.620000005,
         "earRootRoll": 0.550000012,
-        "earTipRoundness": 0.479999989,
+        "earTipRoundness": 0.5,
         "earFold": 0.5,
-        "earPointiness": 0.579999983,
+        "earPointiness": 0.519999981,
         "cheekMass": 0.639999986,
         "maxillaryWidth": 0.379999995,
         "mouthWidth": 0.560000002,
@@ -1992,31 +1992,31 @@
       "ornaments": [
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 0.639999986,
           "growthDirection": {
-            "x": 0.0799999982,
+            "x": 0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": 0.0299999993
+          "lateralSweep": 0.0199999996
         },
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 0.639999986,
           "growthDirection": {
-            "x": -0.0799999982,
+            "x": -0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": -0.0299999993
+          "lateralSweep": -0.0199999996
         }
       ],
       "ornamentCount": 2,
@@ -2806,19 +2806,19 @@
         "jawDepth": 0.720000029,
         "jawStrength": 0.75999999,
         "noseScale": 0.600000024,
-        "earSize": 0.519999981,
-        "earBaseWidth": 0.699999988,
-        "earWidthRatio": 1.14999998,
-        "earHeightRatio": 0.920000017,
+        "earSize": 0.449999988,
+        "earBaseWidth": 0.680000007,
+        "earWidthRatio": 1.08000004,
+        "earHeightRatio": 0.819999993,
         "earThickness": 0.219999999,
         "earConcavity": 0.680000007,
-        "earOutward": 0.579999983,
-        "earForward": 0.140000001,
+        "earOutward": 0.779999971,
+        "earForward": 0.0799999982,
         "earLongitudinalCurve": 0.620000005,
         "earRootRoll": 0.550000012,
-        "earTipRoundness": 0.479999989,
+        "earTipRoundness": 0.5,
         "earFold": 0.5,
-        "earPointiness": 0.579999983,
+        "earPointiness": 0.519999981,
         "cheekMass": 0.639999986,
         "maxillaryWidth": 0.379999995,
         "mouthWidth": 0.560000002,
@@ -3253,31 +3253,31 @@
       "ornaments": [
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 0.850000024,
           "growthDirection": {
-            "x": 0.0799999982,
+            "x": 0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": 0.0299999993
+          "lateralSweep": 0.0199999996
         },
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 0.850000024,
           "growthDirection": {
-            "x": -0.0799999982,
+            "x": -0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": -0.0299999993
+          "lateralSweep": -0.0199999996
         }
       ],
       "ornamentCount": 2,
@@ -4067,19 +4067,19 @@
         "jawDepth": 0.720000029,
         "jawStrength": 0.75999999,
         "noseScale": 0.600000024,
-        "earSize": 0.519999981,
-        "earBaseWidth": 0.699999988,
-        "earWidthRatio": 1.14999998,
-        "earHeightRatio": 0.920000017,
+        "earSize": 0.449999988,
+        "earBaseWidth": 0.680000007,
+        "earWidthRatio": 1.08000004,
+        "earHeightRatio": 0.819999993,
         "earThickness": 0.219999999,
         "earConcavity": 0.680000007,
-        "earOutward": 0.579999983,
-        "earForward": 0.140000001,
+        "earOutward": 0.779999971,
+        "earForward": 0.0799999982,
         "earLongitudinalCurve": 0.620000005,
         "earRootRoll": 0.550000012,
-        "earTipRoundness": 0.479999989,
+        "earTipRoundness": 0.5,
         "earFold": 0.5,
-        "earPointiness": 0.579999983,
+        "earPointiness": 0.519999981,
         "cheekMass": 0.639999986,
         "maxillaryWidth": 0.379999995,
         "mouthWidth": 0.560000002,
@@ -4514,31 +4514,31 @@
       "ornaments": [
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 1,
           "growthDirection": {
-            "x": 0.0799999982,
+            "x": 0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": 0.0299999993
+          "lateralSweep": 0.0199999996
         },
         {
           "archetype": 7,
-          "length": 0.239999995,
-          "baseRadius": 0.0759999976,
-          "tipRadius": 0.0610000007,
-          "curvature": 0.0199999996,
+          "length": 0.270000011,
+          "baseRadius": 0.0560000017,
+          "tipRadius": 0.0419999994,
+          "curvature": 0.00999999978,
           "development": 1,
           "growthDirection": {
-            "x": -0.0799999982,
+            "x": -0.0500000007,
             "y": 0.99000001,
-            "z": -0.0399999991
+            "z": -0.0599999987
           },
-          "lateralSweep": -0.0299999993
+          "lateralSweep": -0.0199999996
         }
       ],
       "ornamentCount": 2,

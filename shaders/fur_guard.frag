@@ -1,5 +1,5 @@
 #version 330 compatibility
-uniform vec4 surfaceRecipe[153];
+uniform vec4 surfaceRecipe[154];
 uniform uint pigmentSeed,furSeed;
 uniform int surfaceDebug;
 uniform bool guardCoverage;

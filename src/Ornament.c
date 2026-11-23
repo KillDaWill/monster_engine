@@ -49,10 +49,10 @@ bool Ornament_Resolve(const OrnamentPhenotype* phenotype,
             Vec3_Add(Vec3_Scale(cranialUp,v.y),Vec3_Scale(slot->forward,v.z)))):cranialUp;
         const uint16_t ids[]={ORNAMENT_NODE_BASE,4,ORNAMENT_NODE_MID,5,ORNAMENT_NODE_TIP};
         float knobR=fmaxf(phenotype->tipRadius*s*dev,baseR*0.42f);
-        const float radiusFactors[]={1.12f,0.72f,0.68f,knobR/baseR,knobR*0.86f/baseR};
+        const float radiusFactors[]={0.94f,0.76f,0.68f,knobR/baseR,knobR*0.86f/baseR};
         for(unsigned i=0;i<5;++i){
             float t=(float)i/4.0f,curve=t*t;
-            Vector3 center=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length*t-baseR*.75f*(1-t)),
+            Vector3 center=Vec3_Add(slot->position,Vec3_Add(Vec3_Scale(axis,length*t-baseR*.95f*(1-t)),
                 Vec3_Add(Vec3_Scale(cranialSide,length*phenotype->lateralSweep*curve),
                          Vec3_Scale(cranialUp,length*phenotype->curvature*curve))));
             float radius=fmaxf(baseR*radiusFactors[i],1e-5f);

@@ -14,6 +14,13 @@ typedef struct ProceduralAnimator {
     float defensiveCurl; /**< Flexión defensiva progresiva [0..1] para enrollamiento axial-caudal. */
     float wingFold; /**< Plegado alar [0..1] para recogida articular de húmero, codo, carpo y radios digitales. */
     float wingFlap; /**< Oscilación de batida alar [-1..1] sobre el eje escapular. */
+    float hindWingFlap; /**< Oscilación independiente de alas posteriores [-1..1] (p. ej. odonatos). */
+    float finWavePhase; /**< Fase continua de onda hidrodinámica para aletas pectorales batoideas. */
+    float finWaveAmplitude; /**< Amplitud de batido ondulatorio en aletas [0..1]. */
+    float bellPulsePhase; /**< Fase de contracción/relajación de campana radial medusoide. */
+    float bellPulseAmplitude; /**< Amplitud de pulsación radial [0..1]. */
+    float armWavePhase; /**< Fase de ondulación/rastreo de brazos hidrostáticos independientes. */
+    float armSpread; /**< Apertura radial o extensión de brazos hidrostáticos [-1..1]. */
     double crouchRemainder;
     float reachCrouch, reachCrouchVelocity, oralReachTime;
     bool oralReachActive; /**< Solicitud corporal de alcanzar un punto con la boca. */

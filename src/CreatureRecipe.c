@@ -143,6 +143,12 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
     bool ornaments[CREATURE_MAX_ORNAMENTS] = {0};
     bool flexible[CREATURE_MAX_FLEXIBLE_APPENDAGES] = {0};
     if (p->flexibleAppendageCount > CREATURE_MAX_FLEXIBLE_APPENDAGES) return false;
+    if (p->repeatedAppendageCount > CREATURE_MAX_REPEATED_APPENDAGES) return false;
+    for (size_t i = 0; i < p->repeatedAppendageCount; ++i) {
+        const RepeatedAppendageGroup* rg = &p->repeatedAppendages[i];
+        if (!rg->groupId || rg->kind < REPEATED_APPENDAGE_NONE || rg->kind > REPEATED_APPENDAGE_FRILLED_RIBBON ||
+            rg->count > 64 || !isfinite(rg->length) || rg->length <= 0.0f) return false;
+    }
 
     for (size_t i = 0; i < r->bodyPlan.moduleCount; ++i) {
         const CreatureModuleInstance* m = &r->bodyPlan.modules[i];
@@ -164,7 +170,10 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
                 (p->axial.contourProfile == AXIAL_CONTOUR_CURSORIAL && p->axial.archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD)) return false;
             if (p->axial.cervicalSegments > 8 ||
                 !isfinite(p->axial.cervicalPitch) || p->axial.cervicalPitch < 0.0f || p->axial.cervicalPitch > 1.45f ||
-                !isfinite(p->axial.spineFlexion) || p->axial.spineFlexion < 0.0f || p->axial.spineFlexion > 0.65f) return false;
+                !isfinite(p->axial.spineFlexion) || p->axial.spineFlexion < 0.0f || p->axial.spineFlexion > 0.65f ||
+                p->axial.radialSymmetryOrder > 16 || p->axial.abdomenSegments > 12 ||
+                !isfinite(p->axial.bellConcavity) || p->axial.bellConcavity < 0.0f || p->axial.bellConcavity > 1.0f ||
+                !isfinite(p->axial.bellScallopAmplitude) || p->axial.bellScallopAmplitude < 0.0f || p->axial.bellScallopAmplitude > 1.0f) return false;
             ++axial;
             break;
         case CREATURE_MODULE_HEAD:
@@ -178,10 +187,15 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             bool plantigrade = limb->anatomyProfile == LIMB_PROFILE_PLANTIGRADE;
             bool macropod = limb->anatomyProfile == LIMB_PROFILE_MACROPOD;
             bool wing = limb->archetype == LIMB_ARCHETYPE_WING;
+            bool newArch = limb->archetype == LIMB_ARCHETYPE_AVIAN ||
+                           limb->archetype == LIMB_ARCHETYPE_FLIPPER ||
+                           limb->archetype == LIMB_ARCHETYPE_ARTHROPOD_LEG ||
+                           limb->archetype == LIMB_ARCHETYPE_INSECT_WING;
             if (limb->digitCount > CREATURE_MAX_DIGITS || !isfinite(limb->clawScale) ||
                 limb->clawScale < 0 || limb->clawScale > 3 ||
-                (limb->clawScale > 0 && ((limb->archetype != LIMB_ARCHETYPE_MAMMAL && !wing) ||
-                  (!wing && limb->anatomyProfile != LIMB_PROFILE_LEGACY && !plantigrade && !macropod) || !limb->digitCount))) return false;
+                (limb->clawScale > 0 && ((limb->archetype != LIMB_ARCHETYPE_MAMMAL && !wing && !newArch) ||
+                  (!wing && !newArch && limb->anatomyProfile != LIMB_PROFILE_LEGACY && !plantigrade && !macropod) ||
+                  (!newArch && !limb->digitCount)))) return false;
             if (limb->anatomyProfile < LIMB_PROFILE_LEGACY || limb->anatomyProfile > LIMB_PROFILE_MACROPOD ||
                 limb->nailCount > CREATURE_MAX_DIGITS) return false;
             if (!isfinite(limb->webbingCoverage) || limb->webbingCoverage < 0 || limb->webbingCoverage > 1 ||
@@ -192,6 +206,8 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
                 if (limb->digitCount < 2 || limb->nailCount) return false;
                 for (unsigned d = 0; d < limb->digitCount; ++d)
                     if (!limb->digitPhalanges[d] || limb->digitPhalanges[d] > 5) return false;
+            } else if (newArch) {
+                if (limb->nailCount) return false;
             } else if (limb->anatomyProfile == LIMB_PROFILE_COLUMNAR) {
                 if (limb->archetype != LIMB_ARCHETYPE_MAMMAL) return false;
             } else if (plantigrade || macropod) {
@@ -206,7 +222,7 @@ bool CreatureRecipe_Validate(const CreatureRecipe* r, const CreaturePhenotype* p
             break;
         case CREATURE_MODULE_TAIL:
             if (m->phenotypeIndex >= p->tailCount || tails[m->phenotypeIndex]) return false;
-            if (p->tails[m->phenotypeIndex].archetype > TAIL_ARCHETYPE_PADDLE ||
+            if (p->tails[m->phenotypeIndex].archetype > TAIL_ARCHETYPE_FEATHER_FAN ||
                 !isfinite(p->tails[m->phenotypeIndex].tipLift) ||
                 fabsf(p->tails[m->phenotypeIndex].tipLift)>1) return false;
             tails[m->phenotypeIndex] = true;

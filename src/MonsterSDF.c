@@ -7,6 +7,10 @@
 #include "Monster.h"
 #include "Ornament.h"
 #include "AxialBodyUprightTetrapod.h"
+#include "AxialBodyAvian.h"
+#include "AxialBodyDiscRay.h"
+#include "AxialBodyCephalopod.h"
+#include "AxialBodyMedusa.h"
 #include "SDFPrimitives.h"
 #include "SDFInterval.h"
 #include "MathUtils.h"
@@ -222,6 +226,39 @@ void MonsterSDF_Free(MonsterSDF* sdf) {
     sdf->axialStationCount=0;
     sdf->hasSurface=false;
     sdf->hasSubtractionBounds=false;
+    sdf->hasMedusaBell=false;
+    sdf->medusaBellBounds=AABB_Empty();
+}
+
+/* Cáscara cóncava analítica de campana medusoide: cúpula exumbrelar convexa,
+ * cavidad subumbrelar cóncava, borde marginal festoneado y manubrio oral interno. */
+static float MonsterSDF_EvalMedusaBellDistance(const MedusaBellGeometry* b, Vector3 point) {
+    float lx = point.x - b->center.x;
+    float ly = point.y - b->center.y;
+    float lz = point.z - b->center.z;
+    float theta = atan2f(lz, lx);
+    float lappetWave = 0.5f + 0.5f * cosf((float)b->lappetCount * theta);
+    float radialScallop = b->scallopAmp * b->radius * 0.22f * lappetWave;
+    float vertScallop = b->scallopAmp * b->height * 0.16f * (lappetWave - 0.5f);
+
+    float R = b->radius + radialScallop;
+    float H = b->height;
+    /* Cúpula exterior ligeramente acampanada */
+    float dOuter = SDF_Ellipsoid(Vec3_Create(lx, ly, lz), Vec3_Create(R, H, R));
+    /* Cavidad subumbrelar cóncava (espacio hueco interior que adelgaza hacia el margen) */
+    float wall = b->wallThickness;
+    float rIn = fmaxf(R - wall * 0.62f, R * 0.68f);
+    float hIn = fmaxf(H * b->concavity, H * 0.45f);
+    float dInner = SDF_Ellipsoid(Vec3_Create(lx, ly + wall * 0.35f, lz), Vec3_Create(rIn, hIn, rIn));
+    float dShell = SDF_SmoothSubtract(dOuter, dInner, wall * 0.25f);
+    /* Corte inferior con borde marginal festoneado suave */
+    float dMargin = vertScallop - ly;
+    float dBell = SDF_SmoothIntersection(dShell, dMargin, wall * 0.28f);
+    /* Manubrio / región oral central gelatinosa dentro de la subumbrella */
+    Vector3 manubriumCenter = Vec3_Create(0.0f, H * 0.30f, 0.0f);
+    Vector3 manubriumRadii = Vec3_Create(b->radius * 0.20f, H * 0.22f, b->radius * 0.20f);
+    float dOral = SDF_Ellipsoid(Vec3_Sub(Vec3_Create(lx, ly, lz), manubriumCenter), manubriumRadii);
+    return SDF_SmoothUnion(dBell, dOral, wall * 0.35f);
 }
 
 static bool MonsterSDF_EnsureCapacity(void** buffer, size_t elementSize, size_t* capacity, size_t needed) {
@@ -461,6 +498,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
         if(found)sdf->appendageDevelopment=development;
     }
     sdf->axialStationCount=0;
+    sdf->hasMedusaBell=false;
+    sdf->medusaBellBounds=AABB_Empty();
     sdf->bodyPartCount = 0; sdf->connectorCount = 0; sdf->mouthCount = 0;
     sdf->connectorNodeCount=0;
     sdf->axialStationCount=0;
@@ -593,6 +632,52 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 } else if (caudalTransition || (axialTail && axialTail->archetype == TAIL_ARCHETYPE_PADDLE)) {
                     MatchSweepCapTangent(&sdf->axialStations[sdf->axialStationCount-1],1.0f);
                 }
+            }
+        } else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_AVIAN ||
+                   monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_DISC_RAY ||
+                   monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_CEPHALOPOD) {
+            uint32_t axialModule = 1;
+            for (size_t i = 0; i < g->nodeCount; ++i) {
+                if (g->nodes[i].role == ANATOMY_ROLE_AXIAL &&
+                    g->nodes[i].region != ANATOMY_REGION_HEAD &&
+                    g->nodes[i].region != ANATOMY_REGION_TAIL) {
+                    axialModule = g->nodes[i].moduleInstanceId;
+                    break;
+                }
+            }
+            int builtCount = 0;
+            bool okSweep = false;
+            if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_AVIAN)
+                okSweep = AxialBodyAvian_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
+                    sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &builtCount);
+            else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_DISC_RAY)
+                okSweep = AxialBodyDiscRay_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
+                    sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &builtCount);
+            else
+                okSweep = AxialBodyCephalopod_BuildSweepStations(&monster->phenotype.axial, g, axialModule,
+                    sdf->axialStations, MONSTER_SDF_MAX_AXIAL_STATIONS, &builtCount);
+            if (okSweep && builtCount >= 2 && SDF_SweepResolveTangents(sdf->axialStations, builtCount)) {
+                sdf->axialStationCount = builtCount;
+            }
+        } else if (monster->phenotype.axial.archetype == AXIAL_ARCHETYPE_MEDUSA_RADIAL) {
+            uint32_t axialModule = 1;
+            for (size_t i = 0; i < g->nodeCount; ++i) {
+                if (g->nodes[i].role == ANATOMY_ROLE_AXIAL) {
+                    axialModule = g->nodes[i].moduleInstanceId;
+                    break;
+                }
+            }
+            if (AxialBodyMedusa_GetBellGeometry(&monster->phenotype.axial, g, axialModule, &sdf->medusaBell)) {
+                sdf->hasMedusaBell = true;
+                sdf->medusaBellColor = monster->phenotype.dorsalColor;
+                float padR = sdf->medusaBell.radius * (1.0f + sdf->medusaBell.scallopAmp * 0.25f) + sdf->medusaBell.wallThickness;
+                float padY = sdf->medusaBell.height + sdf->medusaBell.wallThickness;
+                float lowY = sdf->medusaBell.wallThickness + sdf->medusaBell.scallopAmp * sdf->medusaBell.height * 0.20f;
+                sdf->medusaBellBounds = AABB_FromMinMax(
+                    Vec3_Create(sdf->medusaBell.center.x - padR, sdf->medusaBell.center.y - lowY, sdf->medusaBell.center.z - padR),
+                    Vec3_Create(sdf->medusaBell.center.x + padR, sdf->medusaBell.center.y + padY, sdf->medusaBell.center.z + padR));
+                AABB_ExpandPoint(&sdf->bounds, sdf->medusaBellBounds.start);
+                AABB_ExpandPoint(&sdf->bounds, sdf->medusaBellBounds.end);
             }
         } else if (linear && start && count >= 2 && count <= MONSTER_SDF_MAX_AXIAL_STATIONS) {
             const AnatomyNode* n = start;
@@ -1575,6 +1660,7 @@ static inline float MonsterSDF_EvalMouthDistance(const MonsterSDFMouth* mouth, V
     Vector3 translated = Vec3_Sub(point, mouth->center);
     Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, translated);
     if (outLocalP) *outLocalP = localP;
+    if (mouth->anatomicalHead && mouth->entranceHalfExtents.y < 0.00095f) return 1e6f;
     Vector3 pEntrance = Vec3_Sub(localP, mouth->entranceCenterLocal);
     pEntrance.y-=MonsterSDF_OralShift(mouth,localP.z);
     float entranceDist = SDF_RoundedSlotExtruded(pEntrance, mouth->entranceHalfExtents.x, mouth->entranceHalfExtents.y, mouth->entranceHalfExtents.z);
@@ -1599,7 +1685,7 @@ static float MonsterSDF_EvalShallowCutter(Vector3 p,Vector3 center,Vector3 radii
     return Math_Max(ellipsoid,rearPlane);
 }
 static float MonsterSDF_EvalOrbitCavities(const MonsterSDFMouth* mouth,Vector3 p) {
-    if(!mouth->anatomicalHead)return 1e6f;
+    if(!mouth->anatomicalHead||mouth->orbitSocketDepth<=1e-5f)return 1e6f;
     /* El cutter se adelanta hacia el exterior para que la órbita sea una
      * cavidad abierta. Centrarlo en el landmark podía cerrar una piel fina
      * delante del globo y producir islotes al polygonizarla. */
@@ -2068,11 +2154,16 @@ static float MonsterSDF_EvalUpperHeadDistanceCached(const MonsterSDFMouth* mouth
 
 SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
     if (!sdf || (sdf->bodyPartCount == 0 && sdf->connectorCount == 0 &&
-        sdf->mouthCount == 0 && sdf->axialStationCount < 2))
+        sdf->mouthCount == 0 && sdf->axialStationCount < 2 && !sdf->hasMedusaBell))
         return SDFSample_Create(1e6f, COLOR_WHITE, SDF_MATERIAL_UNKNOWN);
     SDFSample accumulated = SDFSample_Create(1e6f, COLOR_WHITE, SDF_MATERIAL_SKIN);
     bool hasInitialSample = sdf->axialStationCount>1;
     if(hasInitialSample) accumulated=SDFSample_Create(SDF_EllipticalSweepZ(point,sdf->axialStations,sdf->axialStationCount),(sdf->connectorCount?sdf->connectors[0].color:COLOR_WHITE),SDF_MATERIAL_SKIN);
+    if(sdf->hasMedusaBell) {
+        SDFSample bellSample = SDFSample_Create(MonsterSDF_EvalMedusaBellDistance(&sdf->medusaBell, point), sdf->medusaBellColor, SDF_MATERIAL_SKIN);
+        if (!hasInitialSample) { accumulated = bellSample; hasInitialSample = true; }
+        else accumulated = SDFSample_SmoothUnion(accumulated, bellSample, sdf->config.bodySmoothness * 0.35f);
+    }
     for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
         const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
         float dist = MonsterSDF_EvalBodyPartDistance(part, point);
@@ -2140,6 +2231,11 @@ static float MonsterSDF_EvaluateDistanceInternal(const MonsterSDF* sdf,Vector3 p
     if (!sdf) return 1e6f;
     float accumulated = sdf->axialStationCount>1?SDF_EllipticalSweepZ(point,sdf->axialStations,sdf->axialStationCount):1e6f;
     bool hasInitial = sdf->axialStationCount>1;
+    if (sdf->hasMedusaBell) {
+        float bellDist = MonsterSDF_EvalMedusaBellDistance(&sdf->medusaBell, point);
+        if (!hasInitial) { accumulated = bellDist; hasInitial = true; }
+        else accumulated = SDF_SmoothUnion(accumulated, bellDist, sdf->config.bodySmoothness * 0.35f);
+    }
     for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
         const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
         float dist = MonsterSDF_EvalBodyPartDistance(part, point);
@@ -2268,6 +2364,11 @@ static SDFSample MonsterSDF_EvaluateBodyPartition(const MonsterSDF* sdf,Vector3 
     if(!sdf->hasPartitionedHead)return MonsterSDF_Evaluate(sdf,point);
     SDFSample accumulated=SDFSample_Create(1e6f,COLOR_WHITE,SDF_MATERIAL_SKIN);bool has=sdf->axialStationCount>1;
     if(has) accumulated=SDFSample_Create(SDF_EllipticalSweepZ(point,sdf->axialStations,sdf->axialStationCount),(sdf->connectorCount?sdf->connectors[0].color:COLOR_WHITE),SDF_MATERIAL_SKIN);
+    if(sdf->hasMedusaBell) {
+        SDFSample bellSample = SDFSample_Create(MonsterSDF_EvalMedusaBellDistance(&sdf->medusaBell, point), sdf->medusaBellColor, SDF_MATERIAL_SKIN);
+        if (!has) { accumulated = bellSample; has = true; }
+        else accumulated = SDFSample_SmoothUnion(accumulated, bellSample, sdf->config.bodySmoothness * 0.35f);
+    }
     for(size_t i=0;i<sdf->bodyPartCount;++i) {
         const MonsterSDFBodyPart* part=&sdf->bodyParts[i];
         SDFSample sample=SDFSample_Create(MonsterSDF_EvalBodyPartDistance(part,point),part->color,part->material);
@@ -2300,6 +2401,11 @@ static float MonsterSDF_EvaluateBodyPartitionDistance(const MonsterSDF* sdf,Vect
     if(!sdf->hasPartitionedHead)return MonsterSDF_EvaluateDistance(sdf,point);
     float accumulated=sdf->axialStationCount>1?SDF_EllipticalSweepZ(point,sdf->axialStations,sdf->axialStationCount):1e6f;
     bool has=sdf->axialStationCount>1;
+    if (sdf->hasMedusaBell) {
+        float bellDist = MonsterSDF_EvalMedusaBellDistance(&sdf->medusaBell, point);
+        if (!has) { accumulated = bellDist; has = true; }
+        else accumulated = SDF_SmoothUnion(accumulated, bellDist, sdf->config.bodySmoothness * 0.35f);
+    }
     for(size_t i=0;i<sdf->bodyPartCount;++i) {
         float d=MonsterSDF_EvalBodyPartDistance(&sdf->bodyParts[i],point);
         if(!has){accumulated=d;has=true;}else accumulated=SDF_SmoothUnion(accumulated,d,sdf->config.bodySmoothness);
@@ -3128,16 +3234,60 @@ static bool MonsterSDF_FarFromPositiveHeads(const MonsterSDF* sdf,AABB3D box) {
     return true;
 }
 
+static MonsterSDFRange MonsterSDF_IntersectRange(MonsterSDFRange a,MonsterSDFRange b,double k) {
+    return (MonsterSDFRange){-MonsterSDF_RangeSmoothMin(-a.lo,-b.lo,k),-MonsterSDF_RangeSmoothMin(-a.hi,-b.hi,k)};
+}
+
+static MonsterSDFRange MonsterSDF_MedusaBellRange(const MedusaBellGeometry* b, Vector3 center, Vector3 half) {
+    Vector3 rel = Vec3_Sub(center, b->center);
+    float rMin = b->radius;
+    float rMax = b->radius + b->scallopAmp * b->radius * 0.22f;
+    float H = b->height;
+    float wall = b->wallThickness;
+    float rInMin = fmaxf(rMin - wall * 0.62f, rMin * 0.68f);
+    float rInMax = fmaxf(rMax - wall * 0.62f, rMax * 0.68f);
+    float hIn = fmaxf(H * b->concavity, H * 0.45f);
+
+    /* Envolvente conservadora del elipsoide exterior e interior acotando lappetWave en [0, 1]. */
+    MonsterSDFRange outerMax = MonsterSDF_EllipsoidRange(rel, half, Vec3_Create(rMax, H, rMax));
+    MonsterSDFRange outerMin = MonsterSDF_EllipsoidRange(rel, half, Vec3_Create(rMin, H, rMin));
+    MonsterSDFRange dOuter = { Range_Min(outerMax.lo, outerMin.lo), Range_Max(outerMax.hi, outerMin.hi) };
+
+    Vector3 relIn = Vec3_Create(rel.x, rel.y + wall * 0.35f, rel.z);
+    MonsterSDFRange innerMax = MonsterSDF_EllipsoidRange(relIn, half, Vec3_Create(rInMax, hIn, rInMax));
+    MonsterSDFRange innerMin = MonsterSDF_EllipsoidRange(relIn, half, Vec3_Create(rInMin, hIn, rInMin));
+    MonsterSDFRange dInner = { Range_Min(innerMax.lo, innerMin.lo), Range_Max(innerMax.hi, innerMin.hi) };
+
+    MonsterSDFRange dShell = MonsterSDF_SubtractRange(dOuter, dInner, wall * 0.25);
+
+    double vertHalf = (double)b->scallopAmp * (double)H * 0.08;
+    MonsterSDFRange dMargin = {
+        -vertHalf - ((double)rel.y + (double)half.y),
+         vertHalf - ((double)rel.y - (double)half.y)
+    };
+    MonsterSDFRange dBell = MonsterSDF_IntersectRange(dShell, dMargin, wall * 0.28);
+
+    Vector3 manubriumRel = Vec3_Sub(rel, Vec3_Create(0.0f, H * 0.30f, 0.0f));
+    Vector3 manubriumRadii = Vec3_Create(b->radius * 0.20f, H * 0.22f, b->radius * 0.20f);
+    MonsterSDFRange dOral = MonsterSDF_EllipsoidRange(manubriumRel, half, manubriumRadii);
+    return MonsterSDF_UnionRange(dBell, dOral, wall * 0.35);
+}
+
 static bool MonsterSDF_GetCellRangeWrapper(const void* context,AABB3D box,float* minimum,float* maximum) {
     const MonsterSDF* sdf=(const MonsterSDF*)context;
-    if(!sdf || sdf->bodyPartCount || (!sdf->connectorCount && sdf->axialStationCount<2))return false;
+    if(!sdf || sdf->bodyPartCount || (!sdf->connectorCount && sdf->axialStationCount<2 && !sdf->hasMedusaBell))return false;
     if(sdf->connectorCount && !sdf->connectorNodeCount)return false;
     for(size_t i=0;i<sdf->mouthCount;++i)
         if(!sdf->mouths[i].anatomicalHead)return false;
     Vector3 center=Vec3_Scale(Vec3_Add(box.start,box.end),.5f),half=Vec3_Scale(AABB_Size(box),.5f);
     bool hasInitial=sdf->axialStationCount>1;
-    bool hierarchyCompatible=hasInitial==sdf->connectorNodesUseAxial;
+    bool hierarchyCompatible=hasInitial==sdf->connectorNodesUseAxial && !sdf->hasMedusaBell;
     MonsterSDFRange accumulated=hasInitial?MonsterSDF_StationsRange(sdf->axialStations,sdf->axialStationCount,box):(MonsterSDFRange){1e6,1e6};
+    if(sdf->hasMedusaBell) {
+        MonsterSDFRange bellRange = MonsterSDF_MedusaBellRange(&sdf->medusaBell, center, half);
+        if(!hasInitial) { accumulated = bellRange; hasInitial = true; }
+        else accumulated = MonsterSDF_UnionRange(accumulated, bellRange, sdf->config.bodySmoothness * 0.35);
+    }
     bool farHeads=MonsterSDF_FarFromPositiveHeads(sdf,box);
     double axialMargin=1e-5*Range_Max(1,Range_Max(fabs(accumulated.lo),fabs(accumulated.hi)));
     if(hierarchyCompatible&&(!hasInitial||accumulated.lo>.0003+axialMargin)&&farHeads&&
@@ -3923,6 +4073,11 @@ float MonsterSDFDistanceGrid_EvaluateDistance(const MonsterSDFDistanceGrid* grid
         ? SDF_EllipticalSweepZ(point, sdf->axialStations, sdf->axialStationCount)
         : 1e6f;
     bool hasInitial = sdf->axialStationCount > 1;
+    if (sdf->hasMedusaBell) {
+        float bellDist = MonsterSDF_EvalMedusaBellDistance(&sdf->medusaBell, point);
+        if (!hasInitial) { accumulated = bellDist; hasInitial = true; }
+        else accumulated = SDF_SmoothUnion(accumulated, bellDist, sdf->config.bodySmoothness * 0.35f);
+    }
     for (size_t i = 0; i < sdf->bodyPartCount; ++i) {
         const MonsterSDFBodyPart* part = &sdf->bodyParts[i];
         float dist = MonsterSDF_EvalBodyPartDistance(part, point);

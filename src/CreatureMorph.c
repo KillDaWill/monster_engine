@@ -3,6 +3,9 @@
  */
 #include "CreatureMorph.h"
 #include "AxialBodyUprightTetrapod.h"
+#include "AxialBodyAvian.h"
+#include "AxialBodyDiscRay.h"
+#include "AxialBodyCephalopod.h"
 #include "MathUtils.h"
 #include "Tail.h"
 #include "FlexibleAppendage.h"
@@ -224,6 +227,26 @@ static bool Morph_RemapConflictingModules(const AnatomyGraph* a,const AnatomyGra
         if(whole)continue;
         if(!Morph_ShiftConflictingDigits(a,b,remapped,digitShiftModules[i]))
             oldModules[count++]=digitShiftModules[i];
+    }
+    /* Si un módulo anfitrión (p. ej. axial) se reasigna, cualquier módulo hijo cuya
+     * arista de anclaje comparta ID con A cambiaría de fromId/toId; propagar el remapeo. */
+    bool propagated=true;
+    while(propagated) {
+        propagated=false;
+        for(size_t i=0;i<b->connectionCount;++i) {
+            const BodyConnection* e=&b->connections[i];
+            if(!e->moduleInstanceId)continue;
+            bool selfMapped=false,endMapped=false;
+            uint32_t fromMod=e->fromId>>16,toMod=e->toId>>16;
+            for(size_t j=0;j<count;++j) {
+                if(oldModules[j]==e->moduleInstanceId)selfMapped=true;
+                if(oldModules[j]==fromMod||oldModules[j]==toMod)endMapped=true;
+            }
+            if(!selfMapped&&endMapped) {
+                oldModules[count++]=e->moduleInstanceId;
+                propagated=true;
+            }
+        }
     }
     for(size_t i=0;i<count;++i) {
         uint32_t candidate=1;
@@ -480,8 +503,19 @@ static int Profile(const Monster* m,SDFSweepStation* stations) {
     if(!start)return 0;
     int count=0;
     const AnatomyNode* n=start;
+    if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_ARTHROPOD ||
+       m->phenotype.axial.archetype==AXIAL_ARCHETYPE_MEDUSA_RADIAL)return 0;
     if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD) {
         if(!AxialBodyUprightTetrapod_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
+        n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
+    } else if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_AVIAN) {
+        if(!AxialBodyAvian_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
+        n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
+    } else if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_DISC_RAY) {
+        if(!AxialBodyDiscRay_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
+        n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
+    } else if(m->phenotype.axial.archetype==AXIAL_ARCHETYPE_CEPHALOPOD) {
+        if(!AxialBodyCephalopod_BuildSweepStations(&m->phenotype.axial,g,start->moduleInstanceId,stations,ANATOMY_MAX_SWEEP_STATIONS,&count))return 0;
         n=AnatomyGraph_FindModuleNode(g,start->moduleInstanceId,AXIAL_NODE_PELVIS);
     } else stations[count++]=(SDFSweepStation){.center=n->center,.width=n->widthRadius,.height=n->heightRadius};
     for(size_t step=0;n && step<g->nodeCount;++step) {
@@ -679,6 +713,44 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
         if(mb->kind>CREATURE_MODULE_HEAD && !Morph_GraphUsesModule(&out->anatomyGraph,effId))continue;
         Morph_AppendModule(&out->recipe,&out->phenotype,mb,&b->phenotype,effId);
     }
+    /* Sincronizar grupos de apéndices repetidos (p. ej. tentáculos y brazos orales). */
+    bool sameRepeated = a->phenotype.repeatedAppendageCount == b->phenotype.repeatedAppendageCount;
+    for(size_t i=0; i<a->phenotype.repeatedAppendageCount && sameRepeated; ++i) {
+        const RepeatedAppendageGroup* ra = &a->phenotype.repeatedAppendages[i];
+        const RepeatedAppendageGroup* rb = &b->phenotype.repeatedAppendages[i];
+        sameRepeated = ra->kind == rb->kind && ra->count == rb->count && ra->groupId == rb->groupId;
+    }
+    if(sameRepeated) {
+        out->phenotype.repeatedAppendageCount = a->phenotype.repeatedAppendageCount;
+        for(size_t i=0; i<out->phenotype.repeatedAppendageCount; ++i) {
+            const RepeatedAppendageGroup* ra = &a->phenotype.repeatedAppendages[i];
+            const RepeatedAppendageGroup* rb = &b->phenotype.repeatedAppendages[i];
+            RepeatedAppendageGroup* dst = &out->phenotype.repeatedAppendages[i];
+            *dst = (t < 0.5f) ? *ra : *rb;
+            dst->ringRadius = Math_Lerp(ra->ringRadius, rb->ringRadius, u);
+            dst->ringOffsetY = Math_Lerp(ra->ringOffsetY, rb->ringOffsetY, u);
+            dst->length = Math_Lerp(ra->length, rb->length, u);
+            dst->baseRadius = Math_Lerp(ra->baseRadius, rb->baseRadius, u);
+            dst->tipRadius = Math_Lerp(ra->tipRadius, rb->tipRadius, u);
+            dst->ribbonWidth = Math_Lerp(ra->ribbonWidth, rb->ribbonWidth, u);
+            dst->ruffleAmplitude = Math_Lerp(ra->ruffleAmplitude, rb->ruffleAmplitude, u);
+            dst->curlAmplitude = Math_Lerp(ra->curlAmplitude, rb->curlAmplitude, u);
+            dst->development = Math_Lerp(ra->development, rb->development, u);
+            dst->opacity = Math_Lerp(ra->opacity, rb->opacity, u);
+            dst->baseColor = Color_Lerp(ra->baseColor, rb->baseColor, u);
+            dst->tipColor = Color_Lerp(ra->tipColor, rb->tipColor, u);
+        }
+    } else {
+        /* Cambio entre planes corporales incompatibles: retirada continua antes del punto medio
+         * e introducción progresiva después, evitando saltos bruscos de geometría repetida. */
+        const CreaturePhenotype* src = (t < 0.5f) ? &a->phenotype : &b->phenotype;
+        float fade = (t < 0.5f) ? Math_Clamp01(1.0f - t * 2.0f) : Math_Clamp01((t - 0.5f) * 2.0f);
+        out->phenotype.repeatedAppendageCount = src->repeatedAppendageCount;
+        for(size_t i=0; i<src->repeatedAppendageCount && i<CREATURE_MAX_REPEATED_APPENDAGES; ++i) {
+            out->phenotype.repeatedAppendages[i] = src->repeatedAppendages[i];
+            out->phenotype.repeatedAppendages[i].development *= fade;
+        }
+    }
 }
 
 /* El grafo unión conserva los IDs para rig y seguimiento de superficie.
@@ -794,6 +866,12 @@ bool CreatureMorph_Interpolate(const Monster* a,const Monster* b,float age,Monst
             host->length=host->lengthRender=2*n->envelopeRadii.z;
         }
         if(out->mouthCount)out->mouths[0]=out->head.anatomy.oralSystem;
+    } else if(out->hasHead) {
+        /* Transición entre cuerpo cefalizado y cuerpo radial sin cabeza:
+         * escalar desarrollo cefálico y ojos hacia cero en el punto de cesión. */
+        float headFade = (t < 0.5f) ? Math_Clamp01(1.0f - t * 2.0f) : Math_Clamp01((t - 0.5f) * 2.0f);
+        out->head.development *= headFade;
+        for(size_t i=0;i<out->eyeCount;++i) out->eyes[i].scale=Vec3_Scale(out->eyes[i].scale,headFade);
     }
     if(!Morph_ResolveNasalExtension(out,u))return false;
     out->surfaceMapping=SurfaceMapping_FromAnatomy(&out->anatomyGraph,out->phenotype.axial.totalScale);

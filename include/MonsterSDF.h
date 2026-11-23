@@ -15,6 +15,7 @@
 #include "SDFOperations.h"
 #include "SDFSampling.h"
 #include "Anatomy.h"
+#include "AxialBodyMedusa.h"
 #include "SDFPrimitives.h"
 #include "Surface.h"
 #include <stddef.h>
@@ -342,6 +343,10 @@ struct MonsterSDF {
     double subtractionLevel, subtractionBudget, subtractionRoundoff;
     bool hasSubtractionBounds; /**< Certificación interior compilada para este snapshot. */
     bool connectorNodesUseAxial; /**< Selección axial usada al compilar la jerarquía. */
+    bool hasMedusaBell; /**< Campana cóncava analítica con margen festoneado para cnidarios radiales. */
+    MedusaBellGeometry medusaBell;
+    Color medusaBellColor;
+    AABB3D medusaBellBounds;
 };
 
 /**
