@@ -160,11 +160,11 @@
         "neckWidth": 0.38,
         "shoulderWidth": 1.32,
         "thoraxWidth": 1.56,
-        "thoraxHeight": 0.56,
-        "abdomenWidth": 1.48,
-        "abdomenHeight": 0.52,
-        "pelvicWidth": 1.02,
-        "pelvicHeight": 0.4,
+        "thoraxHeight": 0.5,
+        "abdomenWidth": 1.44,
+        "abdomenHeight": 0.4,
+        "pelvicWidth": 0.96,
+        "pelvicHeight": 0.3,
         "trunkLength": 2.65,
         "bodyFlattening": 0.65,
         "limbAttachmentLateral": 0.96,
@@ -227,23 +227,23 @@
       },
       "head": {
         "archetype": 17,
-        "skullWidth": 0.62,
-        "skullHeight": 0.6,
-        "skullLength": 0.56,
-        "muzzleLength": 0.34,
-        "muzzleWidth": 0.56,
-        "muzzleTaper": 0.56,
-        "rostrumDepth": 0.54,
+        "skullWidth": 0.56,
+        "skullHeight": 0.64,
+        "skullLength": 0.58,
+        "muzzleLength": 0.32,
+        "muzzleWidth": 0.52,
+        "muzzleTaper": 0.58,
+        "rostrumDepth": 0.56,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.5,
-        "eyeLaterality": 0.82,
-        "eyeForwardness": 0.54,
-        "eyeDorsality": 0.58,
+        "eyeSize": 0.4,
+        "eyeLaterality": 0.8,
+        "eyeForwardness": 0.52,
+        "eyeDorsality": 0.56,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.22,
+        "eyeExposure": 0.14,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.620000005,
@@ -291,10 +291,10 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.64,
-        "widthScale": 0.86,
-        "heightScale": 0.86,
-        "lengthScale": 0.9
+        "scale": 0.66,
+        "widthScale": 0.84,
+        "heightScale": 0.92,
+        "lengthScale": 0.92
       },
       "headHybrid": {
         "active": false,
@@ -377,7 +377,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.5,
+        "size": 0.4,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -465,7 +465,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -538,7 +538,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -611,7 +611,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -684,7 +684,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -719,6 +719,7 @@
           "caudalNotchDepth": 0.4,
           "caudalSweep": 0.45,
           "caudalThickness": 0.03,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 0,
             "g": 0,
@@ -737,25 +738,25 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 108,
-            "g": 114,
-            "b": 84,
+            "r": 54,
+            "g": 58,
+            "b": 38,
             "a": 255
           },
           "secondaryColor": {
-            "r": 66,
-            "g": 62,
-            "b": 42,
+            "r": 26,
+            "g": 20,
+            "b": 12,
             "a": 255
           },
           "ventralColor": {
-            "r": 218,
-            "g": 206,
-            "b": 162,
+            "r": 182,
+            "g": 168,
+            "b": 124,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
+          "ventralLightening": 0.76,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
@@ -765,17 +766,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.85,
+          "coverage": 0.65,
           "scales": {
-            "size": 0.055,
+            "size": 0.022,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.18,
+            "relief": 0.04,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.38,
+            "roughness": 0.36,
             "microColorVariation": 0,
             "seed": 1024
           },
@@ -1187,7 +1188,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.15,
+        "iridescence": 0.14,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -1198,21 +1199,21 @@
         "colorMaturity": 0.78
       },
       "dorsalColor": {
-        "r": 108,
-        "g": 114,
-        "b": 84,
+        "r": 54,
+        "g": 58,
+        "b": 38,
         "a": 255
       },
       "ventralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -1234,25 +1235,25 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.58,
+        "scuteRelief": 0.48,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 88,
-          "g": 98,
-          "b": 66,
+          "r": 68,
+          "g": 56,
+          "b": 34,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 66,
-          "g": 62,
-          "b": 42,
+          "r": 26,
+          "g": 20,
+          "b": 12,
           "a": 255
         },
         "plastronColor": {
-          "r": 218,
-          "g": 206,
-          "b": 162,
+          "r": 182,
+          "g": 168,
+          "b": 124,
           "a": 255
         }
       }
@@ -1265,11 +1266,11 @@
         "neckWidth": 0.38,
         "shoulderWidth": 1.32,
         "thoraxWidth": 1.56,
-        "thoraxHeight": 0.56,
-        "abdomenWidth": 1.48,
-        "abdomenHeight": 0.52,
-        "pelvicWidth": 1.02,
-        "pelvicHeight": 0.4,
+        "thoraxHeight": 0.5,
+        "abdomenWidth": 1.44,
+        "abdomenHeight": 0.4,
+        "pelvicWidth": 0.96,
+        "pelvicHeight": 0.3,
         "trunkLength": 2.65,
         "bodyFlattening": 0.65,
         "limbAttachmentLateral": 0.96,
@@ -1332,23 +1333,23 @@
       },
       "head": {
         "archetype": 17,
-        "skullWidth": 0.62,
-        "skullHeight": 0.6,
-        "skullLength": 0.56,
-        "muzzleLength": 0.34,
-        "muzzleWidth": 0.56,
-        "muzzleTaper": 0.56,
-        "rostrumDepth": 0.54,
+        "skullWidth": 0.56,
+        "skullHeight": 0.64,
+        "skullLength": 0.58,
+        "muzzleLength": 0.32,
+        "muzzleWidth": 0.52,
+        "muzzleTaper": 0.58,
+        "rostrumDepth": 0.56,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.5,
-        "eyeLaterality": 0.82,
-        "eyeForwardness": 0.54,
-        "eyeDorsality": 0.58,
+        "eyeSize": 0.4,
+        "eyeLaterality": 0.8,
+        "eyeForwardness": 0.52,
+        "eyeDorsality": 0.56,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.22,
+        "eyeExposure": 0.14,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.680000007,
@@ -1396,10 +1397,10 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.64,
-        "widthScale": 0.86,
-        "heightScale": 0.86,
-        "lengthScale": 0.9
+        "scale": 0.66,
+        "widthScale": 0.84,
+        "heightScale": 0.92,
+        "lengthScale": 0.92
       },
       "headHybrid": {
         "active": false,
@@ -1482,7 +1483,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.5,
+        "size": 0.4,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -1570,7 +1571,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -1643,7 +1644,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -1716,7 +1717,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -1789,7 +1790,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -1824,6 +1825,7 @@
           "caudalNotchDepth": 0.4,
           "caudalSweep": 0.45,
           "caudalThickness": 0.03,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 0,
             "g": 0,
@@ -1842,25 +1844,25 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 108,
-            "g": 114,
-            "b": 84,
+            "r": 54,
+            "g": 58,
+            "b": 38,
             "a": 255
           },
           "secondaryColor": {
-            "r": 66,
-            "g": 62,
-            "b": 42,
+            "r": 26,
+            "g": 20,
+            "b": 12,
             "a": 255
           },
           "ventralColor": {
-            "r": 218,
-            "g": 206,
-            "b": 162,
+            "r": 182,
+            "g": 168,
+            "b": 124,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
+          "ventralLightening": 0.76,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
@@ -1870,17 +1872,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.85,
+          "coverage": 0.65,
           "scales": {
-            "size": 0.055,
+            "size": 0.022,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.18,
+            "relief": 0.04,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.38,
+            "roughness": 0.36,
             "microColorVariation": 0,
             "seed": 1024
           },
@@ -2292,7 +2294,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.15,
+        "iridescence": 0.14,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -2303,21 +2305,21 @@
         "colorMaturity": 0.86
       },
       "dorsalColor": {
-        "r": 108,
-        "g": 114,
-        "b": 84,
+        "r": 54,
+        "g": 58,
+        "b": 38,
         "a": 255
       },
       "ventralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -2339,25 +2341,25 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.58,
+        "scuteRelief": 0.48,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 88,
-          "g": 98,
-          "b": 66,
+          "r": 68,
+          "g": 56,
+          "b": 34,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 66,
-          "g": 62,
-          "b": 42,
+          "r": 26,
+          "g": 20,
+          "b": 12,
           "a": 255
         },
         "plastronColor": {
-          "r": 218,
-          "g": 206,
-          "b": 162,
+          "r": 182,
+          "g": 168,
+          "b": 124,
           "a": 255
         }
       }
@@ -2370,11 +2372,11 @@
         "neckWidth": 0.38,
         "shoulderWidth": 1.32,
         "thoraxWidth": 1.56,
-        "thoraxHeight": 0.56,
-        "abdomenWidth": 1.48,
-        "abdomenHeight": 0.52,
-        "pelvicWidth": 1.02,
-        "pelvicHeight": 0.4,
+        "thoraxHeight": 0.5,
+        "abdomenWidth": 1.44,
+        "abdomenHeight": 0.4,
+        "pelvicWidth": 0.96,
+        "pelvicHeight": 0.3,
         "trunkLength": 2.65,
         "bodyFlattening": 0.65,
         "limbAttachmentLateral": 0.96,
@@ -2437,23 +2439,23 @@
       },
       "head": {
         "archetype": 17,
-        "skullWidth": 0.62,
-        "skullHeight": 0.6,
-        "skullLength": 0.56,
-        "muzzleLength": 0.34,
-        "muzzleWidth": 0.56,
-        "muzzleTaper": 0.56,
-        "rostrumDepth": 0.54,
+        "skullWidth": 0.56,
+        "skullHeight": 0.64,
+        "skullLength": 0.58,
+        "muzzleLength": 0.32,
+        "muzzleWidth": 0.52,
+        "muzzleTaper": 0.58,
+        "rostrumDepth": 0.56,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.42,
-        "eyeLaterality": 0.82,
-        "eyeForwardness": 0.54,
-        "eyeDorsality": 0.58,
+        "eyeSize": 0.34,
+        "eyeLaterality": 0.8,
+        "eyeForwardness": 0.52,
+        "eyeDorsality": 0.56,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.22,
+        "eyeExposure": 0.14,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.747200012,
@@ -2501,10 +2503,10 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.64,
-        "widthScale": 0.86,
-        "heightScale": 0.86,
-        "lengthScale": 0.9
+        "scale": 0.66,
+        "widthScale": 0.84,
+        "heightScale": 0.92,
+        "lengthScale": 0.92
       },
       "headHybrid": {
         "active": false,
@@ -2587,7 +2589,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.42,
+        "size": 0.34,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -2675,7 +2677,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -2748,7 +2750,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -2821,7 +2823,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -2894,7 +2896,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -2929,6 +2931,7 @@
           "caudalNotchDepth": 0.4,
           "caudalSweep": 0.45,
           "caudalThickness": 0.03,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 0,
             "g": 0,
@@ -2947,25 +2950,25 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 108,
-            "g": 114,
-            "b": 84,
+            "r": 54,
+            "g": 58,
+            "b": 38,
             "a": 255
           },
           "secondaryColor": {
-            "r": 66,
-            "g": 62,
-            "b": 42,
+            "r": 26,
+            "g": 20,
+            "b": 12,
             "a": 255
           },
           "ventralColor": {
-            "r": 218,
-            "g": 206,
-            "b": 162,
+            "r": 182,
+            "g": 168,
+            "b": 124,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
+          "ventralLightening": 0.76,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
@@ -2975,17 +2978,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.85,
+          "coverage": 0.65,
           "scales": {
-            "size": 0.055,
+            "size": 0.022,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.18,
+            "relief": 0.04,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.38,
+            "roughness": 0.36,
             "microColorVariation": 0,
             "seed": 1024
           },
@@ -3397,7 +3400,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.15,
+        "iridescence": 0.14,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -3408,21 +3411,21 @@
         "colorMaturity": 0.95
       },
       "dorsalColor": {
-        "r": 108,
-        "g": 114,
-        "b": 84,
+        "r": 54,
+        "g": 58,
+        "b": 38,
         "a": 255
       },
       "ventralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -3444,25 +3447,25 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.58,
+        "scuteRelief": 0.48,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 88,
-          "g": 98,
-          "b": 66,
+          "r": 68,
+          "g": 56,
+          "b": 34,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 66,
-          "g": 62,
-          "b": 42,
+          "r": 26,
+          "g": 20,
+          "b": 12,
           "a": 255
         },
         "plastronColor": {
-          "r": 218,
-          "g": 206,
-          "b": 162,
+          "r": 182,
+          "g": 168,
+          "b": 124,
           "a": 255
         }
       }
@@ -3475,11 +3478,11 @@
         "neckWidth": 0.38,
         "shoulderWidth": 1.32,
         "thoraxWidth": 1.56,
-        "thoraxHeight": 0.56,
-        "abdomenWidth": 1.48,
-        "abdomenHeight": 0.52,
-        "pelvicWidth": 1.02,
-        "pelvicHeight": 0.4,
+        "thoraxHeight": 0.5,
+        "abdomenWidth": 1.44,
+        "abdomenHeight": 0.4,
+        "pelvicWidth": 0.96,
+        "pelvicHeight": 0.3,
         "trunkLength": 2.65,
         "bodyFlattening": 0.65,
         "limbAttachmentLateral": 0.96,
@@ -3542,23 +3545,23 @@
       },
       "head": {
         "archetype": 17,
-        "skullWidth": 0.62,
-        "skullHeight": 0.6,
-        "skullLength": 0.56,
-        "muzzleLength": 0.34,
-        "muzzleWidth": 0.56,
-        "muzzleTaper": 0.56,
-        "rostrumDepth": 0.54,
+        "skullWidth": 0.56,
+        "skullHeight": 0.64,
+        "skullLength": 0.58,
+        "muzzleLength": 0.32,
+        "muzzleWidth": 0.52,
+        "muzzleTaper": 0.58,
+        "rostrumDepth": 0.56,
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.42,
-        "eyeLaterality": 0.82,
-        "eyeForwardness": 0.54,
-        "eyeDorsality": 0.58,
+        "eyeSize": 0.34,
+        "eyeLaterality": 0.8,
+        "eyeForwardness": 0.52,
+        "eyeDorsality": 0.56,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.22,
+        "eyeExposure": 0.14,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.800000012,
@@ -3606,10 +3609,10 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.64,
-        "widthScale": 0.86,
-        "heightScale": 0.86,
-        "lengthScale": 0.9
+        "scale": 0.66,
+        "widthScale": 0.84,
+        "heightScale": 0.92,
+        "lengthScale": 0.92
       },
       "headHybrid": {
         "active": false,
@@ -3692,7 +3695,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.42,
+        "size": 0.34,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -3780,7 +3783,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -3853,7 +3856,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.85,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -3926,7 +3929,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -3999,7 +4002,7 @@
           "dewclawSize": 0.0,
           "nailCount": 0,
           "anatomyProfile": 6,
-          "clawScale": 0.0,
+          "clawScale": 0.55,
           "webbingCoverage": 0.0,
           "webbingThickness": 0.16,
           "webbingEdgeCurve": 0.15,
@@ -4034,6 +4037,7 @@
           "caudalNotchDepth": 0.4,
           "caudalSweep": 0.45,
           "caudalThickness": 0.03,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 0,
             "g": 0,
@@ -4052,25 +4056,25 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 108,
-            "g": 114,
-            "b": 84,
+            "r": 54,
+            "g": 58,
+            "b": 38,
             "a": 255
           },
           "secondaryColor": {
-            "r": 66,
-            "g": 62,
-            "b": 42,
+            "r": 26,
+            "g": 20,
+            "b": 12,
             "a": 255
           },
           "ventralColor": {
-            "r": 218,
-            "g": 206,
-            "b": 162,
+            "r": 182,
+            "g": 168,
+            "b": 124,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
+          "ventralLightening": 0.76,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
@@ -4080,17 +4084,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.85,
+          "coverage": 0.65,
           "scales": {
-            "size": 0.055,
+            "size": 0.022,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.18,
+            "relief": 0.04,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.38,
+            "roughness": 0.36,
             "microColorVariation": 0,
             "seed": 1024
           },
@@ -4502,7 +4506,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.15,
+        "iridescence": 0.14,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -4513,21 +4517,21 @@
         "colorMaturity": 1.0
       },
       "dorsalColor": {
-        "r": 108,
-        "g": 114,
-        "b": 84,
+        "r": 54,
+        "g": 58,
+        "b": 38,
         "a": 255
       },
       "ventralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 218,
-        "g": 206,
-        "b": 162,
+        "r": 182,
+        "g": 168,
+        "b": 124,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -4549,25 +4553,25 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.58,
+        "scuteRelief": 0.48,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 88,
-          "g": 98,
-          "b": 66,
+          "r": 68,
+          "g": 56,
+          "b": 34,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 66,
-          "g": 62,
-          "b": 42,
+          "r": 26,
+          "g": 20,
+          "b": 12,
           "a": 255
         },
         "plastronColor": {
-          "r": 218,
-          "g": 206,
-          "b": 162,
+          "r": 182,
+          "g": 168,
+          "b": 124,
           "a": 255
         }
       }

@@ -337,13 +337,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.44,
-        "eyeLaterality": 0.9,
+        "eyeSize": 0.36,
+        "eyeLaterality": 0.88,
         "eyeForwardness": 0.46,
         "eyeDorsality": 0.54,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.16,
+        "eyeExposure": 0.11,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.620000005,
@@ -477,7 +477,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.44,
+        "size": 0.36,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -511,8 +511,8 @@
           "length": 0.68,
           "baseWidth": 0.14,
           "baseHeight": 0.14,
-          "tipWidth": 0.045,
-          "tipHeight": 0.045,
+          "tipWidth": 0.022,
+          "tipHeight": 0.022,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -526,10 +526,11 @@
           "caudalNotchDepth": 0.84,
           "caudalSweep": 0.56,
           "caudalThickness": 0.042,
+          "caudalKeelStrength": 0.92,
           "caudalColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -544,26 +545,26 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 26,
-            "g": 48,
-            "b": 86,
+            "r": 22,
+            "g": 42,
+            "b": 78,
             "a": 255
           },
           "secondaryColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 64,
+            "g": 96,
+            "b": 138,
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
-          "dorsalDarkening": 0.42,
-          "ventralLightening": 0.68,
-          "patternStrength": 0.3,
+          "dorsalDarkening": 0.44,
+          "ventralLightening": 0.94,
+          "patternStrength": 0.18,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1021,
@@ -572,17 +573,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.82,
+          "coverage": 0.32,
           "scales": {
-            "size": 0.028,
+            "size": 0.008,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.08,
+            "relief": 0.012,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.16,
+            "roughness": 0.14,
             "microColorVariation": 0,
             "seed": 1021
           },
@@ -994,7 +995,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.42,
+        "iridescence": 0.48,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -1005,21 +1006,21 @@
         "colorMaturity": 0.78
       },
       "dorsalColor": {
-        "r": 26,
-        "g": 48,
-        "b": 86,
+        "r": 22,
+        "g": 42,
+        "b": 78,
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -1036,6 +1037,7 @@
           "sweep": 0.42,
           "leadingCurve": 0.18,
           "trailingCurve": 0.28,
+          "freeRearTip": 0.0,
           "tipShape": 0.18,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -1045,9 +1047,9 @@
           "seriesLength": 0.78,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           },
           "tipColor": {
@@ -1068,6 +1070,7 @@
           "sweep": 0.58,
           "leadingCurve": 0.3,
           "trailingCurve": 0.52,
+          "freeRearTip": 0.0,
           "tipShape": 0.12,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -1083,9 +1086,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1100,6 +1103,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -1115,9 +1119,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1125,31 +1129,32 @@
           "family": 0,
           "role": 0,
           "side": 1,
-          "baseChord": 0.36,
-          "span": 0.7488,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.5184,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1157,31 +1162,32 @@
           "family": 0,
           "role": 0,
           "side": 2,
-          "baseChord": 0.36,
-          "span": 0.7488,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.5184,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1190,12 +1196,13 @@
           "role": 1,
           "side": 1,
           "baseChord": 0.22,
-          "span": 0.24480000000000002,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.216,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -1205,15 +1212,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1222,12 +1229,13 @@
           "role": 1,
           "side": 2,
           "baseChord": 0.22,
-          "span": 0.24480000000000002,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.216,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -1237,15 +1245,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1260,6 +1268,7 @@
           "sweep": 0.6,
           "leadingCurve": 0.28,
           "trailingCurve": 0.5,
+          "freeRearTip": 0.0,
           "tipShape": 0.14,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -1275,9 +1284,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -1292,6 +1301,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -1307,9 +1317,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -1438,13 +1448,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.44,
-        "eyeLaterality": 0.9,
+        "eyeSize": 0.36,
+        "eyeLaterality": 0.88,
         "eyeForwardness": 0.46,
         "eyeDorsality": 0.54,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.16,
+        "eyeExposure": 0.11,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.680000007,
@@ -1578,7 +1588,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.44,
+        "size": 0.36,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -1612,8 +1622,8 @@
           "length": 0.68,
           "baseWidth": 0.14,
           "baseHeight": 0.14,
-          "tipWidth": 0.045,
-          "tipHeight": 0.045,
+          "tipWidth": 0.022,
+          "tipHeight": 0.022,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -1627,10 +1637,11 @@
           "caudalNotchDepth": 0.84,
           "caudalSweep": 0.56,
           "caudalThickness": 0.042,
+          "caudalKeelStrength": 0.92,
           "caudalColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -1645,26 +1656,26 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 26,
-            "g": 48,
-            "b": 86,
+            "r": 22,
+            "g": 42,
+            "b": 78,
             "a": 255
           },
           "secondaryColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 64,
+            "g": 96,
+            "b": 138,
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
-          "dorsalDarkening": 0.42,
-          "ventralLightening": 0.68,
-          "patternStrength": 0.3,
+          "dorsalDarkening": 0.44,
+          "ventralLightening": 0.94,
+          "patternStrength": 0.18,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1021,
@@ -1673,17 +1684,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.82,
+          "coverage": 0.32,
           "scales": {
-            "size": 0.028,
+            "size": 0.008,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.08,
+            "relief": 0.012,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.16,
+            "roughness": 0.14,
             "microColorVariation": 0,
             "seed": 1021
           },
@@ -2095,7 +2106,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.42,
+        "iridescence": 0.48,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -2106,21 +2117,21 @@
         "colorMaturity": 0.88
       },
       "dorsalColor": {
-        "r": 26,
-        "g": 48,
-        "b": 86,
+        "r": 22,
+        "g": 42,
+        "b": 78,
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -2137,6 +2148,7 @@
           "sweep": 0.42,
           "leadingCurve": 0.18,
           "trailingCurve": 0.28,
+          "freeRearTip": 0.0,
           "tipShape": 0.18,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -2146,9 +2158,9 @@
           "seriesLength": 0.78,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           },
           "tipColor": {
@@ -2169,6 +2181,7 @@
           "sweep": 0.58,
           "leadingCurve": 0.3,
           "trailingCurve": 0.52,
+          "freeRearTip": 0.0,
           "tipShape": 0.12,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -2184,9 +2197,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2201,6 +2214,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -2216,9 +2230,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2226,31 +2240,32 @@
           "family": 0,
           "role": 0,
           "side": 1,
-          "baseChord": 0.36,
-          "span": 0.8736,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.6048,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2258,31 +2273,32 @@
           "family": 0,
           "role": 0,
           "side": 2,
-          "baseChord": 0.36,
-          "span": 0.8736,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.6048,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2291,12 +2307,13 @@
           "role": 1,
           "side": 1,
           "baseChord": 0.22,
-          "span": 0.2856,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.252,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -2306,15 +2323,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2323,12 +2340,13 @@
           "role": 1,
           "side": 2,
           "baseChord": 0.22,
-          "span": 0.2856,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.252,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -2338,15 +2356,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2361,6 +2379,7 @@
           "sweep": 0.6,
           "leadingCurve": 0.28,
           "trailingCurve": 0.5,
+          "freeRearTip": 0.0,
           "tipShape": 0.14,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -2376,9 +2395,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -2393,6 +2412,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -2408,9 +2428,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -2539,13 +2559,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.34,
-        "eyeLaterality": 0.9,
+        "eyeSize": 0.28,
+        "eyeLaterality": 0.88,
         "eyeForwardness": 0.46,
         "eyeDorsality": 0.54,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.16,
+        "eyeExposure": 0.11,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.747200012,
@@ -2679,7 +2699,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.34,
+        "size": 0.28,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -2713,8 +2733,8 @@
           "length": 0.68,
           "baseWidth": 0.14,
           "baseHeight": 0.14,
-          "tipWidth": 0.045,
-          "tipHeight": 0.045,
+          "tipWidth": 0.022,
+          "tipHeight": 0.022,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -2728,10 +2748,11 @@
           "caudalNotchDepth": 0.84,
           "caudalSweep": 0.56,
           "caudalThickness": 0.042,
+          "caudalKeelStrength": 0.92,
           "caudalColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -2746,26 +2767,26 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 26,
-            "g": 48,
-            "b": 86,
+            "r": 22,
+            "g": 42,
+            "b": 78,
             "a": 255
           },
           "secondaryColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 64,
+            "g": 96,
+            "b": 138,
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
-          "dorsalDarkening": 0.42,
-          "ventralLightening": 0.68,
-          "patternStrength": 0.3,
+          "dorsalDarkening": 0.44,
+          "ventralLightening": 0.94,
+          "patternStrength": 0.18,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1021,
@@ -2774,17 +2795,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.82,
+          "coverage": 0.32,
           "scales": {
-            "size": 0.028,
+            "size": 0.008,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.08,
+            "relief": 0.012,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.16,
+            "roughness": 0.14,
             "microColorVariation": 0,
             "seed": 1021
           },
@@ -3196,7 +3217,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.42,
+        "iridescence": 0.48,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -3207,21 +3228,21 @@
         "colorMaturity": 0.95
       },
       "dorsalColor": {
-        "r": 26,
-        "g": 48,
-        "b": 86,
+        "r": 22,
+        "g": 42,
+        "b": 78,
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -3238,6 +3259,7 @@
           "sweep": 0.42,
           "leadingCurve": 0.18,
           "trailingCurve": 0.28,
+          "freeRearTip": 0.0,
           "tipShape": 0.18,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -3247,9 +3269,9 @@
           "seriesLength": 0.78,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           },
           "tipColor": {
@@ -3270,6 +3292,7 @@
           "sweep": 0.58,
           "leadingCurve": 0.3,
           "trailingCurve": 0.52,
+          "freeRearTip": 0.0,
           "tipShape": 0.12,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -3285,9 +3308,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3302,6 +3325,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -3317,9 +3341,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3327,31 +3351,32 @@
           "family": 0,
           "role": 0,
           "side": 1,
-          "baseChord": 0.36,
-          "span": 0.9776,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.6768,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3359,31 +3384,32 @@
           "family": 0,
           "role": 0,
           "side": 2,
-          "baseChord": 0.36,
-          "span": 0.9776,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.6768,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3392,12 +3418,13 @@
           "role": 1,
           "side": 1,
           "baseChord": 0.22,
-          "span": 0.3196,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.282,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -3407,15 +3434,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3424,12 +3451,13 @@
           "role": 1,
           "side": 2,
           "baseChord": 0.22,
-          "span": 0.3196,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.282,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -3439,15 +3467,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3462,6 +3490,7 @@
           "sweep": 0.6,
           "leadingCurve": 0.28,
           "trailingCurve": 0.5,
+          "freeRearTip": 0.0,
           "tipShape": 0.14,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -3477,9 +3506,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -3494,6 +3523,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -3509,9 +3539,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -3640,13 +3670,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.34,
-        "eyeLaterality": 0.9,
+        "eyeSize": 0.28,
+        "eyeLaterality": 0.88,
         "eyeForwardness": 0.46,
         "eyeDorsality": 0.54,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.16,
+        "eyeExposure": 0.11,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.800000012,
@@ -3780,7 +3810,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.34,
+        "size": 0.28,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -3814,8 +3844,8 @@
           "length": 0.68,
           "baseWidth": 0.14,
           "baseHeight": 0.14,
-          "tipWidth": 0.045,
-          "tipHeight": 0.045,
+          "tipWidth": 0.022,
+          "tipHeight": 0.022,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -3829,10 +3859,11 @@
           "caudalNotchDepth": 0.84,
           "caudalSweep": 0.56,
           "caudalThickness": 0.042,
+          "caudalKeelStrength": 0.92,
           "caudalColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }
@@ -3847,26 +3878,26 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 26,
-            "g": 48,
-            "b": 86,
+            "r": 22,
+            "g": 42,
+            "b": 78,
             "a": 255
           },
           "secondaryColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 64,
+            "g": 96,
+            "b": 138,
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
-          "dorsalDarkening": 0.42,
-          "ventralLightening": 0.68,
-          "patternStrength": 0.3,
+          "dorsalDarkening": 0.44,
+          "ventralLightening": 0.94,
+          "patternStrength": 0.18,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1021,
@@ -3875,17 +3906,17 @@
         },
         "integument": {
           "type": 1,
-          "coverage": 0.82,
+          "coverage": 0.32,
           "scales": {
-            "size": 0.028,
+            "size": 0.008,
             "aspectRatio": 1,
             "roundness": 0.649999976,
             "irregularity": 0.300000012,
-            "relief": 0.08,
+            "relief": 0.012,
             "edgeDepth": 0.150000006,
             "edgeWidth": 0.075000003,
             "keelStrength": 0,
-            "roughness": 0.16,
+            "roughness": 0.14,
             "microColorVariation": 0,
             "seed": 1021
           },
@@ -4297,7 +4328,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.42,
+        "iridescence": 0.48,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -4308,21 +4339,21 @@
         "colorMaturity": 1.0
       },
       "dorsalColor": {
-        "r": 26,
-        "g": 48,
-        "b": 86,
+        "r": 22,
+        "g": 42,
+        "b": 78,
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 224,
-        "b": 234,
+        "r": 236,
+        "g": 242,
+        "b": 248,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -4339,6 +4370,7 @@
           "sweep": 0.42,
           "leadingCurve": 0.18,
           "trailingCurve": 0.28,
+          "freeRearTip": 0.0,
           "tipShape": 0.18,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -4348,9 +4380,9 @@
           "seriesLength": 0.78,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           },
           "tipColor": {
@@ -4371,6 +4403,7 @@
           "sweep": 0.58,
           "leadingCurve": 0.3,
           "trailingCurve": 0.52,
+          "freeRearTip": 0.0,
           "tipShape": 0.12,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -4386,9 +4419,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4403,6 +4436,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -4418,9 +4452,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4428,31 +4462,32 @@
           "family": 0,
           "role": 0,
           "side": 1,
-          "baseChord": 0.36,
-          "span": 1.04,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.72,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4460,31 +4495,32 @@
           "family": 0,
           "role": 0,
           "side": 2,
-          "baseChord": 0.36,
-          "span": 1.04,
-          "thickness": 0.028,
-          "rootWidth": 0.048,
-          "sweep": 0.66,
-          "leadingCurve": 0.22,
-          "trailingCurve": 0.3,
-          "tipShape": 0.14,
+          "baseChord": 0.32,
+          "span": 0.72,
+          "thickness": 0.024,
+          "rootWidth": 0.04,
+          "sweep": 0.74,
+          "leadingCurve": 0.2,
+          "trailingCurve": 0.32,
+          "freeRearTip": 0.0,
+          "tipShape": 0.12,
           "camber": 0.0,
-          "dihedral": -0.24,
+          "dihedral": -0.26,
           "cant": 0.0,
           "rayCount": 16,
           "finletCount": 0,
-          "seriesLength": 0.36,
+          "seriesLength": 0.32,
           "development": 1.0,
           "baseColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 28,
+            "g": 40,
+            "b": 58,
             "a": 255
           },
           "tipColor": {
-            "r": 68,
-            "g": 102,
-            "b": 146,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4493,12 +4529,13 @@
           "role": 1,
           "side": 1,
           "baseChord": 0.22,
-          "span": 0.34,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.3,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -4508,15 +4545,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4525,12 +4562,13 @@
           "role": 1,
           "side": 2,
           "baseChord": 0.22,
-          "span": 0.34,
-          "thickness": 0.018,
-          "rootWidth": 0.028,
+          "span": 0.3,
+          "thickness": 0.016,
+          "rootWidth": 0.026,
           "sweep": 0.62,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": -0.72,
@@ -4540,15 +4578,15 @@
           "seriesLength": 0.22,
           "development": 1.0,
           "baseColor": {
-            "r": 214,
-            "g": 224,
-            "b": 234,
+            "r": 236,
+            "g": 242,
+            "b": 248,
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4563,6 +4601,7 @@
           "sweep": 0.6,
           "leadingCurve": 0.28,
           "trailingCurve": 0.5,
+          "freeRearTip": 0.0,
           "tipShape": 0.14,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -4578,9 +4617,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         },
@@ -4595,6 +4634,7 @@
           "sweep": 0.75,
           "leadingCurve": 0.25,
           "trailingCurve": 0.25,
+          "freeRearTip": 0.0,
           "tipShape": 0.25,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -4610,9 +4650,9 @@
             "a": 255
           },
           "tipColor": {
-            "r": 46,
-            "g": 62,
-            "b": 84,
+            "r": 34,
+            "g": 48,
+            "b": 68,
             "a": 255
           }
         }

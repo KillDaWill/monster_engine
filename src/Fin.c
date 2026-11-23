@@ -28,6 +28,7 @@ void FinPhenotype_Normalize(FinPhenotype* f) {
     f->sweep = isfinite(f->sweep) ? Math_Clamp(f->sweep, -0.5f, 1.5f) : 0.35f;
     f->leadingCurve = isfinite(f->leadingCurve) ? Math_Clamp(f->leadingCurve, -0.5f, 1.0f) : 0.25f;
     f->trailingCurve = isfinite(f->trailingCurve) ? Math_Clamp(f->trailingCurve, -0.5f, 1.0f) : 0.25f;
+    f->freeRearTip = isfinite(f->freeRearTip) ? Math_Clamp(f->freeRearTip, 0.0f, 1.5f) : 0.0f;
     f->tipShape = isfinite(f->tipShape) ? Math_Clamp01(f->tipShape) : 0.25f;
     f->camber = isfinite(f->camber) ? Math_Clamp(f->camber, -0.35f, 0.35f) : 0.0f;
     f->dihedral = isfinite(f->dihedral) ? Math_Clamp(f->dihedral, -1.25f, 1.25f) : 0.0f;
@@ -56,6 +57,7 @@ FinPhenotype FinPhenotype_Interpolate(const FinPhenotype* a, const FinPhenotype*
     out.sweep = Math_Lerp(a->sweep, b->sweep, t);
     out.leadingCurve = Math_Lerp(a->leadingCurve, b->leadingCurve, t);
     out.trailingCurve = Math_Lerp(a->trailingCurve, b->trailingCurve, t);
+    out.freeRearTip = Math_Lerp(a->freeRearTip, b->freeRearTip, t);
     out.tipShape = Math_Lerp(a->tipShape, b->tipShape, t);
     out.camber = Math_Lerp(a->camber, b->camber, t);
     out.dihedral = Math_Lerp(a->dihedral, b->dihedral, t);

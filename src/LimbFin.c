@@ -50,12 +50,12 @@ bool LimbFin_Resolve(const LimbPhenotype* p, uint32_t module, const AttachmentSl
                              fore ? ANATOMY_REGION_FORELIMB : ANATOMY_REGION_HINDLIMB, aSide, p->development))
                 return false;
             if (i > 0) {
-                /* Tramo proximal corto embebido en el hombro; lámina distal generada en SupplementaryMesh. */
-                BodyConnectionKind cKind = (i == 1) ? BODY_CONNECTION_LIMB_SEGMENT : BODY_CONNECTION_SUPPORT;
+                /* Toda la aleta marina usa soporte esquelético limpio y delega la transición
+                 * orgánica hombro-aleta a SupplementaryMesh (evita barras oscuras sobre el plastrón). */
                 if (!Module_Edge(g, module, (uint16_t)i,
                                  Anatomy_MakeId(module, (uint16_t)i),
                                  Anatomy_MakeId(module, (uint16_t)(i + 1)),
-                                 cKind, p->development))
+                                 BODY_CONNECTION_SUPPORT, p->development))
                     return false;
                 BodyConnection* e = &g->connections[g->connectionCount - 1];
                 e->transverseAxis = slot->forward;

@@ -430,6 +430,7 @@ static const Field TailPhenotype_fields[] = {
     {"caudalNotchDepth",offsetof(TailPhenotype,caudalNotchDepth),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"caudalSweep",offsetof(TailPhenotype,caudalSweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"caudalThickness",offsetof(TailPhenotype,caudalThickness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"caudalKeelStrength",offsetof(TailPhenotype,caudalKeelStrength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"caudalColor",offsetof(TailPhenotype,caudalColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,true},
     {0}
 };
@@ -519,6 +520,7 @@ static const Field FinPhenotype_fields[] = {
     {"sweep",offsetof(FinPhenotype,sweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"leadingCurve",offsetof(FinPhenotype,leadingCurve),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"trailingCurve",offsetof(FinPhenotype,trailingCurve),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
+    {"freeRearTip",offsetof(FinPhenotype,freeRearTip),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"tipShape",offsetof(FinPhenotype,tipShape),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"camber",offsetof(FinPhenotype,camber),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"dihedral",offsetof(FinPhenotype,dihedral),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},

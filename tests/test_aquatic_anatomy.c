@@ -372,11 +372,140 @@ static void test_aquatic_offspring_v4_matrix(void) {
            totalGenerated, tOff);
 }
 
+static void test_aquatic_v3_anatomical_repairs(void) {
+    /* 1. Verificar ausencia de muñón caudal terminal y claridad de escotadura (atún, martillo, delfín). */
+    const char* caudalSpecies[] = {
+        "recipes/atun_rojo.creature.json",
+        "recipes/tiburon_martillo.creature.json",
+        "recipes/delfin_mular.creature.json"
+    };
+    for (size_t i = 0; i < 3; ++i) {
+        CreatureRecipeDocument* doc = calloc(1, sizeof(*doc));
+        Monster* m = calloc(1, sizeof(*m));
+        MonsterSDF* sdf = calloc(1, sizeof(*sdf));
+        CHECK(doc && m && sdf && LoadDoc(caudalSpecies[i], doc));
+        *m = Monster_Create();
+        CHECK(Creature_BuildMonster(m, &doc->recipe, &doc->recipe.adult));
+        *sdf = MonsterSDF_Create();
+        CHECK(MonsterSDF_Build(sdf, m, MonsterSDF_DefaultConfig()));
+        CHECK(sdf->axialStationCount >= 6);
+        const TailPhenotype* tail = &m->phenotype.tails[0];
+        float finT = fmaxf(0.004f, tail->caudalThickness * m->phenotype.axial.totalScale);
+        const SDFSweepStation* last = &sdf->axialStations[sdf->axialStationCount - 1];
+        CHECK(last->width <= finT * 0.65f + 1e-4f);
+        CHECK(last->height <= finT * 0.65f + 1e-4f);
+
+        /* 2. Verificar perfil oral hidrodinámico (mandíbula propia y apertura válida). */
+        CHECK(m->hasHead && m->head.anatomy.surface.hasMandibularProfile);
+        CHECK(HeadAnatomy_Validate(&m->head.anatomy) == 0);
+        Monster_SetHeadOpenFactor(m, 0.45f);
+        MonsterSDF sdfOpen = MonsterSDF_Create();
+        CHECK(MonsterSDF_Build(&sdfOpen, m, MonsterSDF_DefaultConfig()));
+        MonsterSDF_Free(&sdfOpen);
+
+        /* 3. Verificar contracoloración ventral en CPU (ventral=1.0 -> luminancia > 0.72). */
+        SurfaceCoordinate sc = {0};
+        sc.ventral = 1.0f;
+        sc.region = SURFACE_REGION_VENTRAL_TRUNK;
+        Vector3 vRgb = Surface_EvaluatePigmentAlbedo(&m->phenotype.surface, &sc);
+        float vLum = 0.2126f * vRgb.x + 0.7152f * vRgb.y + 0.0722f * vRgb.z;
+        CHECK(vLum > 0.72f);
+
+        MonsterSDF_Free(sdf);
+        Monster_Free(m);
+        free(sdf); free(m); free(doc);
+    }
+
+    /* 4. Verificar quillas caudales y opérculo expuesto del atún rojo. */
+    {
+        CreatureRecipeDocument* doc = calloc(1, sizeof(*doc));
+        Monster* m = calloc(1, sizeof(*m));
+        CHECK(doc && m && LoadDoc("recipes/atun_rojo.creature.json", doc));
+        *m = Monster_Create();
+        CHECK(Creature_BuildMonster(m, &doc->recipe, &doc->recipe.adult));
+        CHECK(m->phenotype.tails[0].caudalKeelStrength > 0.5f);
+        CHECK(m->phenotype.surface.integument.scales.relief <= 0.03f);
+        Mesh op = Mesh_Create(), tr = Mesh_Create();
+        CHECK(SupplementaryMesh_Build(m, &op, &tr));
+        CheckMeshValid(&op);
+        CHECK(op.vertexCount > 400);
+        Mesh_Free(&op); Mesh_Free(&tr);
+        Monster_Free(m); free(m); free(doc);
+    }
+
+    /* 5. Verificar cefalofoil festoneado, simetría y 2.ª dorsal con punta posterior libre del tiburón martillo. */
+    {
+        CreatureRecipeDocument* doc = calloc(1, sizeof(*doc));
+        Monster* m = calloc(1, sizeof(*m));
+        CHECK(doc && m && LoadDoc("recipes/tiburon_martillo.creature.json", doc));
+        *m = Monster_Create();
+        CHECK(Creature_BuildMonster(m, &doc->recipe, &doc->recipe.adult));
+        const HeadSurfaceRecipe* hr = &m->head.anatomy.surface;
+        CHECK(fabsf(hr->leftCheekCenter.x + hr->rightCheekCenter.x) < 1e-4f);
+        CHECK(fabsf(hr->leftMaxillaryCenter.x + hr->rightMaxillaryCenter.x) < 1e-4f);
+        CHECK(fabsf(hr->leftTemporalCenter.x + hr->rightTemporalCenter.x) < 1e-4f);
+        /* Muesca central: la estación craneal anterior está retraída respecto al frente de los lóbulos mediales. */
+        CHECK(hr->cranialCenters[0].z < hr->leftCheekCenter.z + hr->cheekRadii.z * 0.5f);
+        /* 2.ª dorsal con punta posterior libre larga. */
+        CHECK(m->phenotype.finCount >= 2 && m->phenotype.fins[1].freeRearTip > 0.8f);
+        Monster_Free(m); free(m); free(doc);
+    }
+
+    /* 6. Verificar caballito de mar: 11 anillos troncales + cola prensil + moteado + pérdida de caudal juvenil. */
+    {
+        CreatureRecipeDocument* doc = calloc(1, sizeof(*doc));
+        Monster* mAdult = calloc(1, sizeof(*mAdult));
+        Monster* mSeed = calloc(1, sizeof(*mSeed));
+        CHECK(doc && mAdult && mSeed && LoadDoc("recipes/caballito_mar.creature.json", doc));
+        *mAdult = Monster_Create(); *mSeed = Monster_Create();
+        CHECK(Creature_BuildMonster(mAdult, &doc->recipe, &doc->recipe.adult));
+        CHECK(Creature_BuildMonster(mSeed, &doc->recipe, &doc->recipe.seed));
+        CHECK(mAdult->phenotype.axial.abdomenSegments == 11);
+        CHECK(mAdult->phenotype.surface.pigment.layerCount >= 2);
+        CHECK(mSeed->phenotype.tails[0].caudalFinType == CAUDAL_FIN_ROUNDED_VERTICAL);
+        CHECK(mAdult->phenotype.tails[0].caudalFinType == CAUDAL_FIN_NONE);
+        Mesh op = Mesh_Create(), tr = Mesh_Create();
+        CHECK(SupplementaryMesh_Build(mAdult, &op, &tr));
+        CheckMeshValid(&op);
+        CHECK(op.vertexCount > 1500); /* 11 trunk + 35 caudal rings + coronet + fins */
+        Mesh_Free(&op); Mesh_Free(&tr);
+        Monster_Free(mAdult); Monster_Free(mSeed);
+        free(mAdult); free(mSeed); free(doc);
+    }
+
+    /* 7. Verificar tortuga marina: garras en aletas, placas cefálicas, caparazón cerrado y sin garras en delfín. */
+    {
+        CreatureRecipeDocument *dTur = calloc(1, sizeof(*dTur)), *dDol = calloc(1, sizeof(*dDol));
+        Monster *mTur = calloc(1, sizeof(*mTur)), *mDol = calloc(1, sizeof(*mDol));
+        CHECK(dTur && dDol && mTur && mDol);
+        CHECK(LoadDoc("recipes/tortuga_marina.creature.json", dTur));
+        CHECK(LoadDoc("recipes/delfin_mular.creature.json", dDol));
+        *mTur = Monster_Create(); *mDol = Monster_Create();
+        CHECK(Creature_BuildMonster(mTur, &dTur->recipe, &dTur->recipe.adult));
+        CHECK(Creature_BuildMonster(mDol, &dDol->recipe, &dDol->recipe.adult));
+        CHECK(mTur->phenotype.limbCount == 4 && mTur->phenotype.limbs[0].clawScale > 0.5f);
+        CHECK(mDol->phenotype.limbCount == 2 && mDol->phenotype.limbs[0].clawScale == 0.0f);
+        CHECK(mTur->phenotype.shell.costalScutePairs == 4 && mTur->phenotype.shell.vertebralScutes == 5);
+        Mesh opT = Mesh_Create(), trT = Mesh_Create();
+        Mesh opD = Mesh_Create(), trD = Mesh_Create();
+        CHECK(SupplementaryMesh_Build(mTur, &opT, &trT));
+        CHECK(SupplementaryMesh_Build(mDol, &opD, &trD));
+        CheckMeshValid(&opT); CheckMeshValid(&opD);
+        Mesh_Free(&opT); Mesh_Free(&trT);
+        Mesh_Free(&opD); Mesh_Free(&trD);
+        Monster_Free(mTur); Monster_Free(mDol);
+        free(mTur); free(mDol); free(dTur); free(dDol);
+    }
+
+    printf("[PASS] test_aquatic_anatomy: reparaciones anatómicas V3 (cola, boca, SDF, cefalofoil, anillos, garras, pigmento)\n");
+}
+
 void run_aquatic_anatomy_tests(void) {
     printf("\n--- Suite: Expansión Anatómica Acuática (1021..1025) ---\n");
     test_aquatic_recipes_and_roundtrip();
     test_aquatic_anatomy_and_geometry();
     test_aquatic_swimming_animation();
+    test_aquatic_v3_anatomical_repairs();
     test_aquatic_morph_matrix();
     test_aquatic_offspring_v4_matrix();
     printf("[PASS] run_aquatic_anatomy_tests: TODAS LAS PRUEBAS PASARON\n");

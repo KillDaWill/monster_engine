@@ -45,7 +45,7 @@ def mod_path(instance_id, kind, node_a, node_b, path_u, normal_vec, phen_idx=0, 
 
 
 def make_fin(family, role, side, base_chord, span, thickness, root_width,
-             sweep=0.35, leading=0.25, trailing=0.25, tip_shape=0.25, camber=0.0,
+             sweep=0.35, leading=0.25, trailing=0.25, free_rear_tip=0.0, tip_shape=0.25, camber=0.0,
              dihedral=0.0, cant=0.0, ray_count=0, finlet_count=0, series_len=0.0,
              dev=1.0, base_col=None, tip_col=None):
     return {
@@ -59,6 +59,7 @@ def make_fin(family, role, side, base_chord, span, thickness, root_width,
         "sweep": float(sweep),
         "leadingCurve": float(leading),
         "trailingCurve": float(trailing),
+        "freeRearTip": float(free_rear_tip),
         "tipShape": float(tip_shape),
         "camber": float(camber),
         "dihedral": float(dihedral),
@@ -97,7 +98,7 @@ def blank_shell():
     }
 
 
-def blank_marine_flipper(template, role, side, length, thickness, aspect, sweep, camber=0.08, sprawl=0.85, dev=1.0):
+def blank_marine_flipper(template, role, side, length, thickness, aspect, sweep, camber=0.08, sprawl=0.85, dev=1.0, claw_scale=0.0):
     l = copy.deepcopy(template)
     l["archetype"] = 4   # LIMB_ARCHETYPE_FLIPPER
     l["anatomyProfile"] = 6  # LIMB_PROFILE_MARINE_FLIPPER
@@ -133,7 +134,7 @@ def blank_marine_flipper(template, role, side, length, thickness, aspect, sweep,
     l["hoofHeelHeight"] = 0.75
     l["dewclawSize"] = 0.0
     l["nailCount"] = 0
-    l["clawScale"] = 0.0
+    l["clawScale"] = float(claw_scale)
     l["webbingCoverage"] = 0.0
     l["webbingThickness"] = 0.16
     l["webbingEdgeCurve"] = 0.15
@@ -150,7 +151,7 @@ def make_tail(arch, length, base_w, base_h, tip_w, tip_h, segs, taper=1.25,
               curv=0.0, droop=0.0, root_match=0.92, dev=1.0,
               caudal_type=0, caudal_span=0.0, caudal_chord=0.0,
               caudal_ratio=1.0, caudal_notch=0.4, caudal_sweep=0.45,
-              caudal_thick=0.03, caudal_col=None):
+              caudal_thick=0.03, caudal_keel=0.0, caudal_col=None):
     return {
         "droop": float(droop),
         "archetype": int(arch),
@@ -172,7 +173,23 @@ def make_tail(arch, length, base_w, base_h, tip_w, tip_h, segs, taper=1.25,
         "caudalNotchDepth": float(caudal_notch),
         "caudalSweep": float(caudal_sweep),
         "caudalThickness": float(caudal_thick),
+        "caudalKeelStrength": float(caudal_keel),
         "caudalColor": caudal_col if caudal_col else rgba(0, 0, 0, 0),
+    }
+
+
+def make_pigment_layer(pattern, color, scale=2.0, sharpness=0.5, strength=0.5,
+                       direction=(0.0, -1.0, 0.0), seed=1, region_mask=0):
+    return {
+        "pattern": int(pattern),
+        "color": color,
+        "scale": float(scale),
+        "sharpness": float(sharpness),
+        "strength": float(strength),
+        "direction": {"x": float(direction[0]), "y": float(direction[1]), "z": float(direction[2])},
+        "seed": int(seed),
+        "regionMask": int(region_mask),
+        "patternRotation": 0.0,
     }
 
 
@@ -293,10 +310,11 @@ def build_tuna(base):
         ("juvenile", 0.74, 0.92, 0.94, 0.95),
         ("adult",    1.00, 1.00, 1.00, 1.00),
     ]
-    navy = rgba(26, 48, 86)
-    steel = rgba(68, 102, 146)
-    silver = rgba(214, 224, 234)
-    fin_dark = rgba(46, 62, 84)
+    navy = rgba(22, 42, 78)
+    steel = rgba(64, 96, 138)
+    silver = rgba(236, 242, 248)
+    fin_dark = rgba(34, 48, 68)
+    pec_dark = rgba(28, 40, 58)
     fin_amber = rgba(164, 134, 62)
     finlet_yel = rgba(224, 190, 56)
 
@@ -330,11 +348,11 @@ def build_tuna(base):
         hp["muzzleWidth"] = 0.46
         hp["muzzleTaper"] = 0.86
         hp["rostrumDepth"] = 0.54
-        hp["eyeSize"] = 0.44 if sname in ("seed", "larva") else 0.34
-        hp["eyeLaterality"] = 0.90
+        hp["eyeSize"] = 0.36 if sname in ("seed", "larva") else 0.28
+        hp["eyeLaterality"] = 0.88
         hp["eyeForwardness"] = 0.46
         hp["eyeDorsality"] = 0.54
-        hp["eyeExposure"] = 0.16
+        hp["eyeExposure"] = 0.11
         hp["earSize"] = 0.0
         hp["noseScale"] = 0.02
         st["headEnvelope"] = {"scale": 0.90, "widthScale": 0.86, "heightScale": 0.96, "lengthScale": 0.94}
@@ -346,12 +364,12 @@ def build_tuna(base):
         st["eyes"]["pupilShape"] = 0
 
         st["tails"] = [make_tail(
-            arch=0, length=0.68, base_w=0.14, base_h=0.14, tip_w=0.045, tip_h=0.045,
+            arch=0, length=0.68, base_w=0.14, base_h=0.14, tip_w=0.022, tip_h=0.022,
             segs=4, taper=1.35, root_match=0.95,
             caudal_type=1,  # CAUDAL_FIN_HOMOCERCAL_LUNATE
             caudal_span=1.84 * fin_m, caudal_chord=0.46 * fin_m,
             caudal_ratio=1.0, caudal_notch=0.84, caudal_sweep=0.56,
-            caudal_thick=0.042, caudal_col=fin_dark
+            caudal_thick=0.042, caudal_keel=0.92, caudal_col=fin_dark
         )]
         st["tailCount"] = 1
 
@@ -365,15 +383,15 @@ def build_tuna(base):
             # 2: dorsal finlet series (9 finlets)
             make_fin(1, 6, 0, 0.14, 0.12 * fin_m, 0.012, 0.016, sweep=0.75, finlet_count=9,
                      series_len=1.08, base_col=finlet_yel, tip_col=fin_dark),
-            # 3-4: pectoral fins
-            make_fin(0, 0, 1, 0.36, 1.04 * fin_m, 0.028, 0.048, sweep=0.66, leading=0.22, trailing=0.30,
-                     tip_shape=0.14, dihedral=-0.24, ray_count=16, base_col=fin_dark, tip_col=steel),
-            make_fin(0, 0, 2, 0.36, 1.04 * fin_m, 0.028, 0.048, sweep=0.66, leading=0.22, trailing=0.30,
-                     tip_shape=0.14, dihedral=-0.24, ray_count=16, base_col=fin_dark, tip_col=steel),
+            # 3-4: short dark swept pectoral fins (Thunnus thynnus: <80% head length)
+            make_fin(0, 0, 1, 0.32, 0.72 * fin_m, 0.024, 0.040, sweep=0.74, leading=0.20, trailing=0.32,
+                     tip_shape=0.12, dihedral=-0.26, ray_count=16, base_col=pec_dark, tip_col=fin_dark),
+            make_fin(0, 0, 2, 0.32, 0.72 * fin_m, 0.024, 0.040, sweep=0.74, leading=0.20, trailing=0.32,
+                     tip_shape=0.12, dihedral=-0.26, ray_count=16, base_col=pec_dark, tip_col=fin_dark),
             # 5-6: small pelvic fins
-            make_fin(0, 1, 1, 0.22, 0.34 * fin_m, 0.018, 0.028, sweep=0.62, dihedral=-0.72,
+            make_fin(0, 1, 1, 0.22, 0.30 * fin_m, 0.016, 0.026, sweep=0.62, dihedral=-0.72,
                      ray_count=8, base_col=silver, tip_col=fin_dark),
-            make_fin(0, 1, 2, 0.22, 0.34 * fin_m, 0.018, 0.028, sweep=0.62, dihedral=-0.72,
+            make_fin(0, 1, 2, 0.22, 0.30 * fin_m, 0.016, 0.026, sweep=0.62, dihedral=-0.72,
                      ray_count=8, base_col=silver, tip_col=fin_dark),
             # 7: anal fin (falcate)
             make_fin(2, 4, 0, 0.32, 0.52 * fin_m, 0.026, 0.042, sweep=0.60, leading=0.28, trailing=0.50,
@@ -392,9 +410,10 @@ def build_tuna(base):
             "integument": 1.0, "colorMaturity": col_m,
         }
         clean_surface(st["surface"], 1, navy, steel, silver, seed=1021,
-                      coverage=0.82, roughness=0.16, sheen=0.42, scale_size=0.028, scale_relief=0.08)
-        st["surface"]["pigment"]["ventralLightening"] = 0.68
-        st["surface"]["pigment"]["dorsalDarkening"] = 0.42
+                      coverage=0.32, roughness=0.14, sheen=0.48, scale_size=0.008, scale_relief=0.012)
+        st["surface"]["pigment"]["ventralLightening"] = 0.94
+        st["surface"]["pigment"]["dorsalDarkening"] = 0.44
+        st["surface"]["pigment"]["patternStrength"] = 0.18
     return doc
 
 
@@ -433,10 +452,11 @@ def build_hammerhead(base):
         ("juvenile", 0.76, 0.96, 0.94, 0.95),
         ("adult",    1.00, 1.00, 1.00, 1.00),
     ]
-    bronze = rgba(108, 112, 100)
-    slate = rgba(76, 80, 74)
-    belly = rgba(224, 224, 218)
+    bronze = rgba(104, 108, 98)
+    slate = rgba(74, 78, 72)
+    belly = rgba(238, 236, 228)
     fin_tip = rgba(58, 62, 60)
+    pelvic_tip = rgba(134, 138, 128)
 
     for sname, scale, hammer_m, fin_m, col_m in stage_cfg:
         st = r[sname]
@@ -486,7 +506,7 @@ def build_hammerhead(base):
         st["eyes"]["pupilShape"] = 0
 
         st["tails"] = [make_tail(
-            arch=0, length=1.12, base_w=0.15, base_h=0.17, tip_w=0.05, tip_h=0.06,
+            arch=0, length=1.12, base_w=0.15, base_h=0.17, tip_w=0.024, tip_h=0.028,
             segs=5, taper=1.35, root_match=0.94,
             caudal_type=2,  # CAUDAL_FIN_HETEROCERCAL
             caudal_span=2.05 * fin_m, caudal_chord=0.52 * fin_m,
@@ -499,22 +519,22 @@ def build_hammerhead(base):
             # 0: 1st dorsal (tall, prominent, slightly falcate)
             make_fin(3, 2, 0, 0.72, 1.08 * fin_m, 0.048, 0.085, sweep=0.52, leading=0.26, trailing=0.46,
                      tip_shape=0.18, ray_count=0, base_col=bronze, tip_col=fin_tip),
-            # 1: 2nd dorsal (small)
-            make_fin(3, 3, 0, 0.32, 0.26 * fin_m, 0.022, 0.036, sweep=0.68, leading=0.18, trailing=0.38,
-                     tip_shape=0.20, ray_count=0, base_col=bronze, tip_col=fin_tip),
+            # 1: 2nd dorsal (low with long free rear tip — diagnostic of Sphyrna lewini)
+            make_fin(3, 3, 0, 0.28, 0.17 * fin_m, 0.018, 0.032, sweep=0.82, leading=0.18, trailing=0.44,
+                     free_rear_tip=1.10, tip_shape=0.14, ray_count=0, base_col=bronze, tip_col=fin_tip),
             # 2-3: broad swept pectoral fins
             make_fin(3, 0, 1, 0.74, 1.56 * fin_m, 0.048, 0.082, sweep=0.56, leading=0.24, trailing=0.36,
                      tip_shape=0.18, dihedral=-0.22, ray_count=0, base_col=bronze, tip_col=fin_tip),
             make_fin(3, 0, 2, 0.74, 1.56 * fin_m, 0.048, 0.082, sweep=0.56, leading=0.24, trailing=0.36,
                      tip_shape=0.18, dihedral=-0.22, ray_count=0, base_col=bronze, tip_col=fin_tip),
-            # 4-5: pelvic fins
-            make_fin(3, 1, 1, 0.34, 0.42 * fin_m, 0.024, 0.038, sweep=0.58, dihedral=-0.45,
-                     ray_count=0, base_col=bronze, tip_col=belly),
-            make_fin(3, 1, 2, 0.34, 0.42 * fin_m, 0.024, 0.038, sweep=0.58, dihedral=-0.45,
-                     ray_count=0, base_col=bronze, tip_col=belly),
-            # 6: anal fin
-            make_fin(3, 4, 0, 0.32, 0.28 * fin_m, 0.022, 0.034, sweep=0.66, leading=0.20, trailing=0.40,
-                     tip_shape=0.18, ray_count=0, base_col=bronze, tip_col=fin_tip),
+            # 4-5: pelvic fins (gradual natural coloration, no artificial white tips)
+            make_fin(3, 1, 1, 0.34, 0.38 * fin_m, 0.022, 0.036, sweep=0.58, dihedral=-0.32,
+                     ray_count=0, base_col=bronze, tip_col=pelvic_tip),
+            make_fin(3, 1, 2, 0.34, 0.38 * fin_m, 0.022, 0.036, sweep=0.58, dihedral=-0.32,
+                     ray_count=0, base_col=bronze, tip_col=pelvic_tip),
+            # 6: anal fin (slightly larger than 2nd dorsal with moderate free rear tip)
+            make_fin(3, 4, 0, 0.32, 0.24 * fin_m, 0.020, 0.034, sweep=0.68, leading=0.20, trailing=0.46,
+                     free_rear_tip=0.62, tip_shape=0.16, ray_count=0, base_col=bronze, tip_col=fin_tip),
         ]
         st["finCount"] = len(st["fins"])
 
@@ -527,6 +547,9 @@ def build_hammerhead(base):
         }
         clean_surface(st["surface"], 0, bronze, slate, belly, seed=1022,
                       coverage=0.80, roughness=0.34, sheen=0.14, scale_size=0.015, scale_relief=0.04)
+        st["surface"]["pigment"]["ventralLightening"] = 0.92
+        st["surface"]["pigment"]["dorsalDarkening"] = 0.34
+        st["surface"]["pigment"]["patternStrength"] = 0.16
     return doc
 
 
@@ -592,21 +615,21 @@ def build_seahorse(base):
 
         hp = st["head"]
         hp["archetype"] = 16  # HEAD_ARCHETYPE_SYNGNATHID
-        hp["skullWidth"] = 0.48
-        hp["skullHeight"] = 0.66
+        hp["skullWidth"] = 0.44
+        hp["skullHeight"] = 0.64
         hp["skullLength"] = 0.52
         hp["muzzleLength"] = 0.72 if sname == "seed" else (0.84 if sname == "larva" else 0.94)
         hp["muzzleWidth"] = 0.16
         hp["muzzleTaper"] = 0.82
         hp["rostrumDepth"] = 0.18
-        hp["eyeSize"] = 0.58 if sname in ("seed", "larva") else 0.50
-        hp["eyeLaterality"] = 0.88
+        hp["eyeSize"] = 0.44 if sname in ("seed", "larva") else 0.38
+        hp["eyeLaterality"] = 0.86
         hp["eyeForwardness"] = 0.52
-        hp["eyeDorsality"] = 0.68
-        hp["eyeExposure"] = 0.32
+        hp["eyeDorsality"] = 0.66
+        hp["eyeExposure"] = 0.18
         hp["earSize"] = 0.0
         hp["noseScale"] = 0.02
-        st["headEnvelope"] = {"scale": 0.96, "widthScale": 0.82, "heightScale": 0.96, "lengthScale": 1.15}
+        st["headEnvelope"] = {"scale": 0.94, "widthScale": 0.76, "heightScale": 0.94, "lengthScale": 1.15}
 
         st["eyes"]["size"] = hp["eyeSize"]
         st["eyes"]["irisColor"] = rgba(212, 168, 68)
@@ -619,19 +642,19 @@ def build_seahorse(base):
             length=2.55, base_w=0.14, base_h=0.15, tip_w=0.025, tip_h=0.025,
             segs=12, taper=1.18, curv=0.92 * curl_m, root_match=0.92,
             caudal_type=c_type, caudal_span=juv_caudal, caudal_chord=juv_caudal * 0.85,
-            caudal_thick=0.012, caudal_col=fin_tr
+            caudal_thick=0.010, caudal_col=fin_tr
         )]
         st["tailCount"] = 1
 
         st["fins"] = [
-            # 0: Dorsal fan fin on back
-            make_fin(1, 2, 0, 0.46, 0.34, 0.014, 0.022, sweep=0.06, leading=0.35, trailing=-0.18,
-                     tip_shape=0.88, ray_count=16, base_col=fin_tr, tip_col=gold),
-            # 1-2: Small cheek/pectoral fins
-            make_fin(0, 0, 1, 0.18, 0.22, 0.010, 0.016, sweep=0.22, leading=0.28, trailing=-0.12,
-                     tip_shape=0.85, dihedral=0.08, ray_count=12, base_col=fin_tr, tip_col=cream),
-            make_fin(0, 0, 2, 0.18, 0.22, 0.010, 0.016, sweep=0.22, leading=0.28, trailing=-0.12,
-                     tip_shape=0.85, dihedral=0.08, ray_count=12, base_col=fin_tr, tip_col=cream),
+            # 0: Delicate rayed dorsal fan fin on back (17 rays)
+            make_fin(1, 2, 0, 0.42, 0.30, 0.006, 0.011, sweep=0.04, leading=0.32, trailing=-0.16,
+                     tip_shape=0.88, ray_count=17, base_col=amber, tip_col=fin_tr),
+            # 1-2: Small delicate cheek/pectoral fins
+            make_fin(0, 0, 1, 0.14, 0.18, 0.005, 0.009, sweep=0.18, leading=0.26, trailing=-0.10,
+                     tip_shape=0.85, dihedral=-0.16, ray_count=14, base_col=amber, tip_col=fin_tr),
+            make_fin(0, 0, 2, 0.14, 0.18, 0.005, 0.009, sweep=0.18, leading=0.26, trailing=-0.10,
+                     tip_shape=0.85, dihedral=-0.16, ray_count=14, base_col=amber, tip_col=fin_tr),
         ]
         st["finCount"] = len(st["fins"])
 
@@ -642,8 +665,15 @@ def build_seahorse(base):
             "appendages": 1.0, "cephalic": 1.0, "pigmentation": col_m,
             "integument": 1.0, "colorMaturity": col_m,
         }
-        clean_surface(st["surface"], 1, gold, amber, cream, seed=1023,
-                      coverage=0.88, roughness=0.42, sheen=0.18, scale_size=0.065, scale_relief=0.26)
+        sh_layers = [
+            make_pigment_layer(2, rgba(96, 52, 16), scale=7.6, sharpness=0.74, strength=0.60 * col_m, seed=10231),
+            make_pigment_layer(2, rgba(244, 232, 198), scale=13.5, sharpness=0.86, strength=0.45 * col_m, seed=10237),
+        ]
+        clean_surface(st["surface"], 0, gold, amber, cream, seed=1023,
+                      coverage=0.85, roughness=0.38, sheen=0.14, scale_size=0.015, scale_relief=0.0,
+                      layers=sh_layers)
+        st["surface"]["pigment"]["ventralLightening"] = 0.35
+        st["surface"]["pigment"]["dorsalDarkening"] = 0.24
     return doc
 
 
@@ -681,10 +711,12 @@ def build_sea_turtle(base):
         ("juvenile", 0.74, 1.04, 0.96, 0.95),
         ("adult",    1.00, 1.00, 1.00, 1.00),
     ]
-    olive = rgba(88, 98, 66)
-    brown = rgba(66, 62, 42)
-    cream = rgba(218, 206, 162)
-    skin_ol = rgba(108, 114, 84)
+    # Paleta real de Chelonia mydas (NOAA/USFWS): espaldar pardo-oliva/castaño oscuro con
+    # estrías ámbar, aletas pardo-oliva oscuras con suturas claras y plastrón crema-amarillento cálido.
+    olive = rgba(68, 56, 34)
+    brown = rgba(26, 20, 12)
+    cream = rgba(182, 168, 124)
+    skin_ol = rgba(54, 58, 38)
 
     for sname, scale, flip_m, shell_m, col_m in stage_cfg:
         st = r[sname]
@@ -699,31 +731,31 @@ def build_sea_turtle(base):
         ax["neckWidth"] = 0.38
         ax["shoulderWidth"] = 1.32
         ax["thoraxWidth"] = 1.56
-        ax["thoraxHeight"] = 0.56
-        ax["abdomenWidth"] = 1.48
-        ax["abdomenHeight"] = 0.52
-        ax["pelvicWidth"] = 1.02
-        ax["pelvicHeight"] = 0.40
+        ax["thoraxHeight"] = 0.50
+        ax["abdomenWidth"] = 1.44
+        ax["abdomenHeight"] = 0.40
+        ax["pelvicWidth"] = 0.96
+        ax["pelvicHeight"] = 0.30
         ax["bodyFlattening"] = 0.65
         ax["limbAttachmentLateral"] = 0.96
 
         hp = st["head"]
         hp["archetype"] = 17  # HEAD_ARCHETYPE_TESTUDINE
-        hp["skullWidth"] = 0.62
-        hp["skullHeight"] = 0.60
-        hp["skullLength"] = 0.56
-        hp["muzzleLength"] = 0.34
-        hp["muzzleWidth"] = 0.56
-        hp["muzzleTaper"] = 0.56
-        hp["rostrumDepth"] = 0.54
-        hp["eyeSize"] = 0.50 if sname in ("seed", "larva") else 0.42
-        hp["eyeLaterality"] = 0.82
-        hp["eyeForwardness"] = 0.54
-        hp["eyeDorsality"] = 0.58
-        hp["eyeExposure"] = 0.22
+        hp["skullWidth"] = 0.56
+        hp["skullHeight"] = 0.64
+        hp["skullLength"] = 0.58
+        hp["muzzleLength"] = 0.32
+        hp["muzzleWidth"] = 0.52
+        hp["muzzleTaper"] = 0.58
+        hp["rostrumDepth"] = 0.56
+        hp["eyeSize"] = 0.40 if sname in ("seed", "larva") else 0.34
+        hp["eyeLaterality"] = 0.80
+        hp["eyeForwardness"] = 0.52
+        hp["eyeDorsality"] = 0.56
+        hp["eyeExposure"] = 0.14
         hp["earSize"] = 0.0
         hp["noseScale"] = 0.04
-        st["headEnvelope"] = {"scale": 0.64, "widthScale": 0.86, "heightScale": 0.86, "lengthScale": 0.90}
+        st["headEnvelope"] = {"scale": 0.66, "widthScale": 0.84, "heightScale": 0.92, "lengthScale": 0.92}
 
         st["eyes"]["size"] = hp["eyeSize"]
         st["eyes"]["irisColor"] = rgba(76, 62, 42)
@@ -732,10 +764,10 @@ def build_sea_turtle(base):
         st["eyes"]["pupilShape"] = 0
 
         st["limbs"] = [
-            blank_marine_flipper(tmpl_limb, 0, 0, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88),
-            blank_marine_flipper(tmpl_limb, 0, 1, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88),
-            blank_marine_flipper(tmpl_limb, 1, 0, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85),
-            blank_marine_flipper(tmpl_limb, 1, 1, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85),
+            blank_marine_flipper(tmpl_limb, 0, 0, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88, claw_scale=0.85),
+            blank_marine_flipper(tmpl_limb, 0, 1, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88, claw_scale=0.85),
+            blank_marine_flipper(tmpl_limb, 1, 0, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85, claw_scale=0.55),
+            blank_marine_flipper(tmpl_limb, 1, 1, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85, claw_scale=0.55),
         ]
         st["limbCount"] = 4
 
@@ -760,7 +792,7 @@ def build_sea_turtle(base):
             "costalScutePairs": 4,  # Chelonia mydas: exactamente 4 pares de escudos costales
             "vertebralScutes": 5,
             "marginalScutes": 11,
-            "scuteRelief": 0.58,
+            "scuteRelief": 0.48,
             "cervicalNotch": 0.14,
             "limbClearance": 0.28,
             "carapaceColor": olive,
@@ -776,7 +808,8 @@ def build_sea_turtle(base):
             "integument": 1.0, "colorMaturity": col_m,
         }
         clean_surface(st["surface"], 1, skin_ol, brown, cream, seed=1024,
-                      coverage=0.85, roughness=0.38, sheen=0.15, scale_size=0.055, scale_relief=0.18)
+                      coverage=0.65, roughness=0.36, sheen=0.14, scale_size=0.022, scale_relief=0.04)
+        st["surface"]["pigment"]["ventralLightening"] = 0.76
     return doc
 
 
@@ -816,7 +849,7 @@ def build_dolphin(base):
     ]
     gray_d = rgba(102, 114, 126)
     gray_m = rgba(144, 154, 164)
-    belly = rgba(214, 220, 226)
+    belly = rgba(234, 228, 228)
     fin_col = rgba(86, 98, 110)
 
     for sname, scale, rost_m, fin_m, col_m in stage_cfg:
@@ -828,11 +861,11 @@ def build_dolphin(base):
         ax["totalScale"] = scale
         ax["withersHeight"] = 1.65
         ax["trunkLength"] = 4.25
-        ax["neckLength"] = 0.38
-        ax["neckWidth"] = 0.90
-        ax["shoulderWidth"] = 1.06
-        ax["thoraxWidth"] = 1.10
-        ax["thoraxHeight"] = 1.20
+        ax["neckLength"] = 0.34
+        ax["neckWidth"] = 1.14
+        ax["shoulderWidth"] = 1.16
+        ax["thoraxWidth"] = 1.16
+        ax["thoraxHeight"] = 1.24
         ax["abdomenWidth"] = 0.86
         ax["abdomenHeight"] = 0.96
         ax["pelvicWidth"] = 0.24
@@ -849,14 +882,14 @@ def build_dolphin(base):
         hp["muzzleWidth"] = 0.36
         hp["muzzleTaper"] = 0.64
         hp["rostrumDepth"] = 0.38
-        hp["eyeSize"] = 0.34 if sname in ("seed", "larva") else 0.28
-        hp["eyeLaterality"] = 0.88
+        hp["eyeSize"] = 0.28 if sname in ("seed", "larva") else 0.23
+        hp["eyeLaterality"] = 0.86
         hp["eyeForwardness"] = 0.42
         hp["eyeDorsality"] = 0.34
-        hp["eyeExposure"] = 0.14
+        hp["eyeExposure"] = 0.10
         hp["earSize"] = 0.0
         hp["noseScale"] = 0.02
-        st["headEnvelope"] = {"scale": 0.78, "widthScale": 0.88, "heightScale": 0.86, "lengthScale": 0.96}
+        st["headEnvelope"] = {"scale": 0.80, "widthScale": 0.84, "heightScale": 0.88, "lengthScale": 0.96}
 
         st["eyes"]["size"] = hp["eyeSize"]
         st["eyes"]["irisColor"] = rgba(46, 38, 32)
@@ -865,8 +898,8 @@ def build_dolphin(base):
         st["eyes"]["pupilShape"] = 0
 
         st["limbs"] = [
-            blank_marine_flipper(tmpl_limb, 0, 0, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72),
-            blank_marine_flipper(tmpl_limb, 0, 1, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72),
+            blank_marine_flipper(tmpl_limb, 0, 0, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72, claw_scale=0.0),
+            blank_marine_flipper(tmpl_limb, 0, 1, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72, claw_scale=0.0),
         ]
         st["limbCount"] = 2
 
@@ -878,7 +911,7 @@ def build_dolphin(base):
         st["finCount"] = 1
 
         st["tails"] = [make_tail(
-            arch=0, length=1.12, base_w=0.16, base_h=0.22, tip_w=0.055, tip_h=0.075,
+            arch=0, length=1.12, base_w=0.16, base_h=0.22, tip_w=0.024, tip_h=0.028,
             segs=5, taper=1.35, root_match=0.95,
             caudal_type=3,  # CAUDAL_FIN_HORIZONTAL_FLUKES
             caudal_span=1.78 * fin_m, caudal_chord=0.58 * fin_m,
@@ -896,6 +929,9 @@ def build_dolphin(base):
         }
         clean_surface(st["surface"], 0, gray_d, gray_m, belly, seed=1025,
                       coverage=0.78, roughness=0.16, sheen=0.36, scale_size=0.02, scale_relief=0.0)
+        st["surface"]["pigment"]["ventralLightening"] = 0.92
+        st["surface"]["pigment"]["dorsalDarkening"] = 0.34
+        st["surface"]["pigment"]["patternStrength"] = 0.14
     return doc
 
 

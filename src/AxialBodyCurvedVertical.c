@@ -28,35 +28,36 @@ bool AxialBodyCurvedVertical_Resolve(const AxialPhenotype* p,
      * 4: ABDOMEN (estrechamiento ventral inferior)
      * 5: PELVIS (base del tronco erguido que da paso a la cola prensil descendente) */
     float yRel[6] = {
-        L * 0.56f,
-        L * 0.36f,
-        L * 0.14f,
+        L * 0.54f,
+        L * 0.34f,
+        L * 0.12f,
        -L * 0.10f,
        -L * 0.32f,
        -L * 0.50f
     };
     float zRel[6] = {
-        L * (0.14f + 0.14f * curv),
-        L * (0.02f - 0.04f * curv),
-        L * (0.06f + 0.06f * curv),
-        L * (0.10f + 0.08f * curv),
-        L * (0.02f),
+        L * (0.12f + 0.12f * curv),
+        L * (0.04f - 0.01f * curv),
+        L * (0.06f + 0.05f * curv),
+        L * (0.08f + 0.07f * curv),
+        L * (0.02f + 0.01f * curv),
        -L * (0.04f)
     };
+    /* Transición longitudinal suave en anchura y profundidad (sin hombros angulosos ni saltos). */
     float widths[6] = {
-        p->neckWidth * 0.42f * flat,
-        p->shoulderWidth * 0.44f * flat,
-        p->thoraxWidth * 0.50f * flat,
-        p->abdomenWidth * 0.48f * flat,
-        p->abdomenWidth * 0.34f * flat,
-        p->pelvicWidth * 0.26f * flat
+        p->neckWidth * 0.34f * flat,
+        p->shoulderWidth * 0.36f * flat,
+        p->thoraxWidth * 0.42f * flat,
+        p->abdomenWidth * 0.40f * flat,
+        p->abdomenWidth * 0.30f * flat,
+        p->pelvicWidth * 0.24f * flat
     };
     float depths[6] = {
-        p->neckWidth * 0.52f,
-        p->thoraxHeight * 0.46f,
-        p->thoraxHeight * 0.64f,
-        p->abdomenHeight * 0.68f,
-        p->abdomenHeight * 0.44f,
+        p->neckWidth * 0.46f,
+        p->thoraxHeight * 0.48f,
+        p->thoraxHeight * 0.62f,
+        p->abdomenHeight * 0.66f,
+        p->abdomenHeight * 0.46f,
         p->pelvicHeight * 0.30f
     };
 

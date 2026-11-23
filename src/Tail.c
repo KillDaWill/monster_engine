@@ -162,6 +162,18 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
         float wr = fmaxf(1e-5f, Math_Lerp(p->tipWidth, p->baseWidth, sProfile.widthFactor) * s * development);
         float hr = fmaxf(1e-5f, Math_Lerp(p->tipHeight, p->baseHeight, sProfile.heightFactor) * s * development);
 
+        /* Perfil de transición terminal para colas con propulsor caudal: conserva el pedúnculo
+         * muscular y ahúsa suavemente la raíz distal dentro de la aleta sin dejar muñón expuesto. */
+        if (p->caudalFinType != CAUDAL_FIN_NONE && p->caudalSpan > 1e-4f && t > 0.58f) {
+            float uEnd = Math_Clamp01((t - 0.58f) / 0.42f);
+            float blend = uEnd * uEnd * (3.0f - 2.0f * uEnd);
+            float finT = fmaxf(0.004f * s, p->caudalThickness * s * development);
+            float targetW = (p->caudalFinType == CAUDAL_FIN_HORIZONTAL_FLUKES) ? (finT * 0.52f) : (finT * 0.34f);
+            float targetH = (p->caudalFinType == CAUDAL_FIN_HORIZONTAL_FLUKES) ? (finT * 0.36f) : (finT * 0.52f);
+            wr = Math_Lerp(wr, fminf(wr, targetW), blend);
+            hr = Math_Lerp(hr, fminf(hr, targetH), blend);
+        }
+
         /* Acoplamiento anatómico opcional con la sección transversal pélvica anfitriona */
         if (p->rootMatchStrength > 0.0f && slot->hostRadii.x > 0.0f && slot->hostRadii.y > 0.0f) {
             float hostWeight = Math_Clamp01(p->rootMatchStrength) * powf(fmaxf(0.0f, 1.0f - t), 3.0f);

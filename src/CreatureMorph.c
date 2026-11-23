@@ -725,6 +725,7 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
                 dt->caudalNotchDepth=Math_Lerp(ta->caudalNotchDepth,tb->caudalNotchDepth,u);
                 dt->caudalSweep=Math_Lerp(ta->caudalSweep,tb->caudalSweep,u);
                 dt->caudalThickness=Math_Lerp(ta->caudalThickness,tb->caudalThickness,u);
+                dt->caudalKeelStrength=Math_Lerp(ta->caudalKeelStrength,tb->caudalKeelStrength,u);
                 dt->caudalColor=Color_Lerp(ta->caudalColor,tb->caudalColor,u);
             }
         } else if(shared && t>=0.5f) {

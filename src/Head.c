@@ -453,10 +453,10 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(cephalopod){skullR.x*=.80f;skullR.y*=1.04f;skullR.z*=.68f;}
     if(arthropod){skullR.x*=.64f;skullR.y*=1.12f;skullR.z*=.78f;}
     if(teleost){skullR.x*=.78f;skullR.y*=1.04f;skullR.z*=.92f;}
-    if(elasmobranch){skullR.x*=1.12f;skullR.y*=.54f;skullR.z*=.88f;}
-    if(syngnathid){skullR.x*=.74f;skullR.y*=.92f;skullR.z*=.82f;}
-    if(testudine){skullR.x*=.92f;skullR.y*=.86f;skullR.z*=.84f;}
-    if(cetacean){skullR.x*=.88f;skullR.y*=1.06f;skullR.z*=.96f;}
+    if(elasmobranch){skullR.x*=1.10f;skullR.y*=.54f;skullR.z*=.90f;}
+    if(syngnathid){skullR.x*=.54f;skullR.y*=.84f;skullR.z*=.80f;}
+    if(testudine){skullR.x*=.68f;skullR.y*=1.00f;skullR.z*=.92f;}
+    if(cetacean){skullR.x*=.92f;skullR.y*=1.06f;skullR.z*=.96f;}
     Vector3 skull=Vec3_Create(0,0,-hz*.10f);float faceLength=(p.archetype==HEAD_ARCHETYPE_AVIAN?p.beakLength:p.muzzleLength)*hz*1.20f+hz*.30f;
     if(p.archetype==HEAD_ARCHETYPE_CANID)faceLength*=1.0f-brachy*.34f;
     if(wideGrazer)faceLength=hz*(.35f+1.25f*p.muzzleLength);
@@ -648,6 +648,10 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(monotreme)orbitRadius*=.56f;
     if(pholidote)orbitRadius*=.58f;
     if(proboscidean)orbitRadius*=.37f;
+    if(teleost)orbitRadius*=.82f;
+    if(syngnathid)orbitRadius*=.70f;
+    if(testudine)orbitRadius*=.76f;
+    if(cetacean)orbitRadius*=.78f;
     float sideFactor=p.archetype==HEAD_ARCHETYPE_LIZARD?(.72f+.08f*p.eyeLaterality):(.70f+.18f*p.eyeLaterality);
     if (p.eyeLayout == HEAD_EYES_FORWARD) sideFactor *= .82f;
     else if (p.eyeLayout == HEAD_EYES_HIGH_LATERAL) sideFactor *= 1.04f;
@@ -667,11 +671,11 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
     if(batoid)sideFactor=.72f+.10f*p.eyeLaterality;
     if(cephalopod)sideFactor=.64f+.14f*p.eyeLaterality;
     if(arthropod)sideFactor=.42f+.14f*p.eyeLaterality;
-    if(teleost)sideFactor=.70f+.12f*p.eyeLaterality;
+    if(teleost)sideFactor=.62f+.10f*p.eyeLaterality;
     if(elasmobranch)sideFactor=.88f+.64f*p.muzzleWidth*p.eyeLaterality;
-    if(syngnathid)sideFactor=.70f+.12f*p.eyeLaterality;
-    if(testudine)sideFactor=.70f+.12f*p.eyeLaterality;
-    if(cetacean)sideFactor=.70f+.12f*p.eyeLaterality;
+    if(syngnathid)sideFactor=.64f+.10f*p.eyeLaterality;
+    if(testudine)sideFactor=.66f+.10f*p.eyeLaterality;
+    if(cetacean)sideFactor=.64f+.10f*p.eyeLaterality;
     float side=skullR.x*sideFactor;
     float eyeZ=skull.z+skullR.z*(p.archetype==HEAD_ARCHETYPE_LIZARD?
         (-.12f+.24f*(p.eyeForwardness + (p.eyeLayout == HEAD_EYES_FORWARD ? .28f : 0.0f))):
@@ -1721,15 +1725,16 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
         r->hasTympana=false;
         r->nostrilRadii=Vec3_Zero();
         if(teleost) {
-            /* Cráneo hidrodinámico de pez óseo (atún): transición lisa desde el tronco hasta hocico aguzado. */
+            /* Cráneo hidrodinámico de pez óseo (atún): transición lisa desde el tronco hasta hocico aguzado
+             * y boca terminal cónica sin rebabas laterales. */
             r->hasCranialProfile = true;
             float snoutLen = skullR.z * (0.95f + 0.90f * p.muzzleLength);
             float z0 = skull.z + snoutLen;
             float z5 = skull.z - skullR.z * 0.95f;
             const float uPos[6] = {0.0f, 0.20f, 0.42f, 0.64f, 0.84f, 1.0f};
-            const float wMul[6] = {0.14f, 0.46f, 0.72f, 0.88f, 0.96f, 1.00f};
-            const float hMul[6] = {0.16f, 0.48f, 0.76f, 0.94f, 1.00f, 1.02f};
-            const float yOff[6] = {-0.06f, -0.02f, 0.02f, 0.03f, 0.02f, 0.0f};
+            const float wMul[6] = {0.14f, 0.44f, 0.70f, 0.88f, 0.96f, 1.02f};
+            const float hMul[6] = {0.16f, 0.46f, 0.76f, 0.94f, 1.00f, 1.04f};
+            const float yOff[6] = {-0.04f, -0.01f, 0.02f, 0.03f, 0.02f, 0.0f};
             for (int i = 0; i < 6; ++i) {
                 float zi = Math_Lerp(z0, z5, uPos[i]);
                 r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
@@ -1743,79 +1748,162 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
             l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
             l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
             l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
-            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.25f);
-            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.25f);
-            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.25f);
-            r->browRadii = Vec3_Scale(r->browRadii, 0.20f);
-            r->neckCollarRadii = Vec3_Create(skullR.x * 1.02f, skullR.y * 1.02f, skullR.z * 0.35f);
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.22f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.22f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.20f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.16f);
+            r->neckCollarRadii = Vec3_Create(skullR.x * 1.04f, skullR.y * 1.04f, skullR.z * 0.35f);
             r->neckCollarContinuity = 1.0f;
-            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.48f;
+            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.52f;
+
+            /* Perfil oral teleósteo: comisura estrecha bajo el ojo y mandíbula alineada al cono facial. */
+            float tCornerZ = Math_Lerp(r->cranialCenters[2].z, r->cranialCenters[1].z, 0.18f);
+            float tCornerY = r->cranialCenters[2].y - r->cranialRadii[2].y * 0.30f;
+            float tCornerX = r->cranialRadii[1].x * 0.82f;
+            float tTipY = r->cranialCenters[0].y - r->cranialRadii[0].y * 0.18f;
+            float tSlope = (tTipY - tCornerY) / Math_Max(z0 - tCornerZ, 0.02f);
+            r->oralSlope = tSlope;
+            l->leftMouthCorner = Vec3_Create(tCornerX, tCornerY, tCornerZ);
+            l->rightMouthCorner = Vec3_Create(-tCornerX, tCornerY, tCornerZ);
+            float tHingeZ = tCornerZ - skullR.z * 0.24f;
+            float tHingeY = tCornerY + tSlope * (tHingeZ - tCornerZ) - skullR.y * 0.08f;
+            l->leftJawHinge = Vec3_Create(r->cranialRadii[3].x * 0.62f, tHingeY, tHingeZ);
+            l->rightJawHinge = Vec3_Create(-r->cranialRadii[3].x * 0.62f, tHingeY, tHingeZ);
+            l->mandibularSymphysis = Vec3_Create(0.0f, tTipY - r->cranialRadii[0].y * 0.35f, z0 - skullR.z * 0.02f);
+            l->oralContactPoint = Vec3_Create(0.0f, tTipY, z0);
+            l->oralCavityCenter = Vec3_Create(0.0f, Math_Lerp(tCornerY, tTipY, 0.45f), Math_Lerp(tCornerZ, z0, 0.45f));
+
+            a->oralSystem.openFactor = 0.0f;
+            a->oralSystem.jawPivot = Vec3_Create(0.0f, tHingeY, tHingeZ);
+            a->oralSystem.jawLength = Math_Max(z0 - tHingeZ, skullR.z * 0.45f);
+            a->oralSystem.jawWidth = tCornerX * 1.85f;
+            a->oralSystem.jawThickness = skullR.y * 0.22f;
+            a->oralSystem.slitThickness = skullR.y * 0.010f;
+            a->oralSystem.scale = Vec3_Create(tCornerX * 1.88f, skullR.y * 0.34f, Math_Max(z0 - tCornerZ, skullR.z * 0.35f));
+            a->oralSystem.maxJawAngle = 24.0f;
+            Mouth_Normalize(&a->oralSystem);
+
+            r->hasMandibularProfile = true;
+            const float mPos[6] = {0.98f, 0.78f, 0.56f, 0.34f, 0.14f, 0.0f};
+            const float mW[6] = {0.12f, 0.33f, 0.52f, 0.68f, 0.74f, 0.64f};
+            const float mH[6] = {0.07f, 0.14f, 0.21f, 0.27f, 0.29f, 0.23f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(tHingeZ, z0, mPos[i]);
+                float topY = tCornerY + tSlope * (zi - tCornerZ);
+                float mh = skullR.y * mH[i];
+                r->mandibularCenters[i] = Vec3_Create(0.0f, topY - mh * 0.85f, zi);
+                r->mandibularRadii[i] = Vec3_Create(skullR.x * mW[i], mh, 0.0f);
+            }
         }
         if(elasmobranch) {
-            /* Cráneo elasmobranquio con cefalofoil lateral continuo (tiburón martillo). */
+            /* Cráneo elasmobranquio con cefalofoil festoneado continuo (Sphyrna lewini):
+             * margen anterior arqueado con muesca central prominente, muescas laterales
+             * suaves y lóbulos oculares distales, con cuello esbelto sin lóbulos posteriores. */
             r->hasCranialProfile = true;
-            float snoutLen = skullR.z * (0.82f + 0.50f * p.muzzleLength);
+            float snoutLen = skullR.z * (0.76f + 0.44f * p.muzzleLength);
             float z0 = skull.z + snoutLen;
-            float z5 = skull.z - skullR.z * 0.96f;
-            const float uPos[6] = {0.0f, 0.18f, 0.38f, 0.58f, 0.78f, 1.0f};
-            const float wMul[6] = {0.82f, 0.98f, 0.86f, 0.78f, 0.84f, 0.92f};
-            const float hMul[6] = {0.32f, 0.48f, 0.64f, 0.80f, 0.92f, 1.00f};
-            const float yOff[6] = {-0.06f, -0.02f, 0.0f, 0.02f, 0.02f, 0.0f};
+            float z5 = skull.z - skullR.z * 0.98f;
+            /* Tronco craneal central esbelto que transiciona suavemente al cuello del tiburón. */
+            const float uPos[6] = {0.0f, 0.18f, 0.38f, 0.58f, 0.80f, 1.0f};
+            const float wMul[6] = {0.22f, 0.36f, 0.42f, 0.44f, 0.44f, 0.42f};
+            const float hMul[6] = {0.24f, 0.42f, 0.64f, 0.80f, 0.92f, 0.98f};
+            const float yOff[6] = {-0.04f, -0.02f, 0.0f, 0.02f, 0.02f, 0.0f};
+            /* Retraer la estación anterior central (z0) para formar la muesca central (median notch). */
+            float notchRecess = skullR.z * 0.14f;
             for (int i = 0; i < 6; ++i) {
-                float zi = Math_Lerp(z0, z5, uPos[i]);
+                float zi = Math_Lerp(z0 - notchRecess, z5, uPos[i]);
                 r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
-                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.26f);
+                r->cranialRadii[i] = Vec3_Create(skullR.x * wMul[i], skullR.y * hMul[i], skullR.z * 0.24f);
             }
-            /* Alas laterales continuas del cefalofoil fundidas con smin en el SDF craneal. */
+            /* Cefalofoil continuo y suavemente arqueado (3 pares solapados con smin generoso):
+             * forma un ala hidrodinámica continua con hendidura central y festoneado lateral natural. */
             float hammerHalfSpan = side * 0.96f;
-            float wingZ = eyeZ - skullR.z * 0.06f;
-            float wingThickY = Math_Max(skullR.y * 0.40f, orbitRadius * 0.95f);
-            float wingChordZ = skullR.z * 0.40f;
-            r->leftMaxillaryCenter = Vec3_Create(hammerHalfSpan * 0.54f, eyeY, wingZ + skullR.z * 0.08f);
-            r->rightMaxillaryCenter = Vec3_Create(-hammerHalfSpan * 0.54f, eyeY, wingZ + skullR.z * 0.08f);
-            r->maxillaryRadii = Vec3_Create(hammerHalfSpan * 0.52f, wingThickY * 1.05f, wingChordZ * 1.02f);
-            r->leftTemporalCenter = Vec3_Create(hammerHalfSpan * 0.86f, eyeY, wingZ - skullR.z * 0.04f);
-            r->rightTemporalCenter = Vec3_Create(-hammerHalfSpan * 0.86f, eyeY, wingZ - skullR.z * 0.04f);
-            r->temporalRadii = Vec3_Create(hammerHalfSpan * 0.22f, wingThickY * 0.95f, wingChordZ * 0.78f);
-            r->leftCheekCenter = Vec3_Create(hammerHalfSpan * 0.26f, eyeY - wingThickY * 0.08f, wingZ + skullR.z * 0.12f);
-            r->rightCheekCenter = Vec3_Create(-hammerHalfSpan * 0.26f, eyeY - wingThickY * 0.08f, wingZ + skullR.z * 0.12f);
-            r->cheekRadii = Vec3_Create(hammerHalfSpan * 0.34f, wingThickY * 0.96f, wingChordZ * 0.92f);
-            r->browRadii = Vec3_Scale(r->browRadii, 0.12f);
-            r->unionSmoothness = Math_Max(r->unionSmoothness, wingThickY * 0.65f);
-            r->faceTip = r->cranialCenters[0];
+            float wingFrontZ = z0 + skullR.z * 0.04f;
+            float wingThickY = Math_Max(skullR.y * 0.38f, orbitRadius * 0.94f);
+            float wingChordZ = skullR.z * 0.42f;
+            /* Lóbulo medial anterior (arco convexo + muesca central en la línea media) */
+            r->leftCheekCenter = Vec3_Create(hammerHalfSpan * 0.25f, eyeY, wingFrontZ - wingChordZ * 0.12f);
+            r->rightCheekCenter = Vec3_Create(-hammerHalfSpan * 0.25f, eyeY, wingFrontZ - wingChordZ * 0.12f);
+            r->cheekRadii = Vec3_Create(hammerHalfSpan * 0.33f, wingThickY * 0.98f, wingChordZ * 0.96f);
+            /* Lóbulo intermedio (solapamiento continuo con sutil festoneado lateral) */
+            r->leftMaxillaryCenter = Vec3_Create(hammerHalfSpan * 0.54f, eyeY, wingFrontZ - wingChordZ * 0.28f);
+            r->rightMaxillaryCenter = Vec3_Create(-hammerHalfSpan * 0.54f, eyeY, wingFrontZ - wingChordZ * 0.28f);
+            r->maxillaryRadii = Vec3_Create(hammerHalfSpan * 0.36f, wingThickY * 0.94f, wingChordZ * 0.92f);
+            /* Lóbulo ocular distal (extremo redondeado que aloja el ojo) */
+            float tipZ = wingFrontZ - wingChordZ * 0.50f;
+            r->leftTemporalCenter = Vec3_Create(hammerHalfSpan * 0.84f, eyeY, tipZ);
+            r->rightTemporalCenter = Vec3_Create(-hammerHalfSpan * 0.84f, eyeY, tipZ);
+            r->temporalRadii = Vec3_Create(hammerHalfSpan * 0.26f, wingThickY * 0.90f, wingChordZ * 0.78f);
+
+            /* Alinear las órbitas exactamente con el borde distal del lóbulo ocular del cefalofoil. */
+            l->leftOrbit = Vec3_Create(hammerHalfSpan * 0.97f, eyeY, tipZ + wingChordZ * 0.10f);
+            l->rightOrbit = Vec3_Create(-hammerHalfSpan * 0.97f, eyeY, tipZ + wingChordZ * 0.10f);
+            l->leftEyeCenter = Vec3_Add(l->leftOrbit, Vec3_Scale(ln, eyeOffset));
+            l->rightEyeCenter = Vec3_Add(l->rightOrbit, Vec3_Scale(rn, eyeOffset));
+            r->leftOrbitCenter = l->leftOrbit;
+            r->rightOrbitCenter = l->rightOrbit;
+            r->leftOrbitRimCenter = Vec3_Sub(l->leftOrbit, Vec3_Scale(ln, orbitRadius * rimInset));
+            r->rightOrbitRimCenter = Vec3_Sub(l->rightOrbit, Vec3_Scale(rn, orbitRadius * rimInset));
+
+            r->browRadii = Vec3_Scale(r->browRadii, 0.10f);
+            r->unionSmoothness = Math_Clamp(wingThickY * 0.76f, 0.04f, wingChordZ * 0.58f);
+            r->faceTip = Vec3_Create(0.0f, r->cranialCenters[0].y, wingFrontZ);
             r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
-            l->muzzleTip = r->cranialCenters[0];
-            l->noseTip = r->cranialCenters[0];
+            l->muzzleTip = r->faceTip;
+            l->noseTip = r->faceTip;
             l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
             l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
             l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
-            /* Boca ventral en media luna bajo el cefalofoil. */
-            l->leftMouthCorner = Vec3_Create(skullR.x * 0.46f, -skullR.y * 0.52f, skull.z + skullR.z * 0.16f);
-            l->rightMouthCorner = Vec3_Create(-skullR.x * 0.46f, -skullR.y * 0.52f, skull.z + skullR.z * 0.16f);
-            if (l->leftJawHinge.y > l->leftMouthCorner.y - 0.01f) {
-                l->leftJawHinge.y = l->leftMouthCorner.y - 0.02f;
-                l->rightJawHinge.y = l->leftJawHinge.y;
+
+            /* Boca ventral en media luna bajo el cefalofoil con mandíbula estrecha (sin protuberancias laterales). */
+            float shCornerX = skullR.x * 0.30f;
+            float shCornerY = -skullR.y * 0.48f;
+            float shCornerZ = skull.z + skullR.z * 0.08f;
+            l->leftMouthCorner = Vec3_Create(shCornerX, shCornerY, shCornerZ);
+            l->rightMouthCorner = Vec3_Create(-shCornerX, shCornerY, shCornerZ);
+            float shHingeZ = shCornerZ - skullR.z * 0.24f;
+            float shHingeY = shCornerY - skullR.y * 0.08f;
+            l->leftJawHinge = Vec3_Create(shCornerX * 0.88f, shHingeY, shHingeZ);
+            l->rightJawHinge = Vec3_Create(-shCornerX * 0.88f, shHingeY, shHingeZ);
+            l->oralCavityCenter = Vec3_Create(0.0f, -skullR.y * 0.52f, shCornerZ + skullR.z * 0.14f);
+            l->mandibularSymphysis = Vec3_Create(0.0f, -skullR.y * 0.58f, shCornerZ + skullR.z * 0.28f);
+            l->oralContactPoint = l->mandibularSymphysis;
+            r->oralSlope = 0.0f;
+
+            a->oralSystem.openFactor = 0.0f;
+            a->oralSystem.jawPivot = Vec3_Create(0.0f, shHingeY, shHingeZ);
+            a->oralSystem.jawLength = Math_Max(l->mandibularSymphysis.z - shHingeZ, skullR.z * 0.32f);
+            a->oralSystem.jawWidth = shCornerX * 1.70f;
+            a->oralSystem.jawThickness = skullR.y * 0.20f;
+            a->oralSystem.slitThickness = skullR.y * 0.012f;
+            a->oralSystem.scale = Vec3_Create(shCornerX * 1.75f, skullR.y * 0.28f, skullR.z * 0.34f);
+            a->oralSystem.maxJawAngle = 28.0f;
+            Mouth_Normalize(&a->oralSystem);
+
+            r->hasMandibularProfile = true;
+            for (int i = 0; i < 6; ++i) {
+                float u = (float)i / 5.0f;
+                float zi = Math_Lerp(l->mandibularSymphysis.z, shHingeZ, u);
+                float mw = Math_Lerp(shCornerX * 0.60f, shCornerX * 0.90f, sinf(u * 3.14159265f * 0.75f));
+                float mh = skullR.y * Math_Lerp(0.14f, 0.20f, u);
+                r->mandibularCenters[i] = Vec3_Create(0.0f, shCornerY - mh * 0.90f, zi);
+                r->mandibularRadii[i] = Vec3_Create(mw, mh, 0.0f);
             }
-            if (l->leftJawHinge.z >= l->leftMouthCorner.z - 0.01f) {
-                l->leftJawHinge.z = l->leftMouthCorner.z - skullR.z * 0.20f;
-                l->rightJawHinge.z = l->leftJawHinge.z;
-            }
-            l->oralCavityCenter = Vec3_Create(0.0f, -skullR.y * 0.56f, skull.z + skullR.z * 0.24f);
-            l->mandibularSymphysis = Vec3_Create(0.0f, -skullR.y * 0.64f, skull.z + skullR.z * 0.34f);
-            r->neckCollarRadii = Vec3_Create(skullR.x * 0.92f, skullR.y * 1.00f, skullR.z * 0.35f);
+
+            r->neckCollarRadii = Vec3_Create(skullR.x * 0.42f, skullR.y * 0.94f, skullR.z * 0.35f);
             r->neckCollarContinuity = 1.0f;
-            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.42f;
+            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.48f;
         }
         if(syngnathid) {
-            /* Cabeza de signátido (caballito de mar): cráneo compacto + hocico tubular largo. */
+            /* Cabeza compacta de signátido (caballito de mar): cráneo comprimido + hocico tubular largo. */
             r->hasCranialProfile = true;
-            float tubeLen = skullR.z * (1.25f + 1.55f * p.muzzleLength);
+            float tubeLen = skullR.z * (1.28f + 1.52f * p.muzzleLength);
             float z0 = skull.z + tubeLen;
-            float z5 = skull.z - skullR.z * 0.82f;
+            float z5 = skull.z - skullR.z * 0.80f;
             const float uPos[6] = {0.0f, 0.24f, 0.50f, 0.68f, 0.84f, 1.0f};
-            const float wMul[6] = {0.22f, 0.24f, 0.28f, 0.62f, 0.88f, 0.80f};
-            const float hMul[6] = {0.24f, 0.24f, 0.28f, 0.72f, 0.96f, 0.82f};
-            const float yOff[6] = {-0.14f, -0.14f, -0.10f, 0.04f, 0.10f, -0.02f};
+            const float wMul[6] = {0.22f, 0.24f, 0.28f, 0.62f, 0.82f, 0.76f};
+            const float hMul[6] = {0.24f, 0.25f, 0.29f, 0.72f, 0.90f, 0.78f};
+            const float yOff[6] = {-0.12f, -0.12f, -0.09f, 0.04f, 0.08f, -0.02f};
             for (int i = 0; i < 6; ++i) {
                 float zi = Math_Lerp(z0, z5, uPos[i]);
                 r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
@@ -1829,23 +1917,57 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
             l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
             l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
             l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
-            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.22f);
-            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.22f);
-            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.20f);
-            a->oralSystem.scale = Vec3_Scale(a->oralSystem.scale, 0.22f);
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.16f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.16f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.16f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.18f);
+
+            /* Boca tubular diminuta en el extremo del hocico (sin rebaba lateral). */
+            float sCornerX = r->cranialRadii[0].x * 0.72f;
+            float sCornerY = r->cranialCenters[0].y - r->cranialRadii[0].y * 0.10f;
+            float sCornerZ = z0 - tubeLen * 0.14f;
+            float sHingeZ = sCornerZ - tubeLen * 0.12f;
+            float sHingeY = sCornerY - r->cranialRadii[0].y * 0.25f;
+            r->oralSlope = 0.0f;
+            l->leftMouthCorner = Vec3_Create(sCornerX, sCornerY, sCornerZ);
+            l->rightMouthCorner = Vec3_Create(-sCornerX, sCornerY, sCornerZ);
+            l->leftJawHinge = Vec3_Create(sCornerX * 0.90f, sHingeY, sHingeZ);
+            l->rightJawHinge = Vec3_Create(-sCornerX * 0.90f, sHingeY, sHingeZ);
+            l->mandibularSymphysis = Vec3_Create(0.0f, sCornerY - r->cranialRadii[0].y * 0.22f, z0);
+            l->oralContactPoint = Vec3_Create(0.0f, sCornerY, z0);
+            l->oralCavityCenter = Vec3_Create(0.0f, sCornerY, Math_Lerp(sCornerZ, z0, 0.5f));
+
+            a->oralSystem.openFactor = 0.0f;
+            a->oralSystem.jawPivot = Vec3_Create(0.0f, sHingeY, sHingeZ);
+            a->oralSystem.jawLength = Math_Max(z0 - sHingeZ, r->cranialRadii[0].x * 1.2f);
+            a->oralSystem.jawWidth = sCornerX * 1.65f;
+            a->oralSystem.jawThickness = r->cranialRadii[0].y * 0.55f;
+            a->oralSystem.slitThickness = r->cranialRadii[0].y * 0.04f;
+            a->oralSystem.scale = Vec3_Create(sCornerX * 1.70f, r->cranialRadii[0].y * 0.60f, Math_Max(z0 - sCornerZ, r->cranialRadii[0].x));
             a->oralSystem.maxJawAngle = 14.0f;
             Mouth_Normalize(&a->oralSystem);
+
+            r->hasMandibularProfile = true;
+            for (int i = 0; i < 6; ++i) {
+                float u = (float)i / 5.0f;
+                float zi = Math_Lerp(z0, sHingeZ, u);
+                float mw = r->cranialRadii[0].x * Math_Lerp(0.75f, 0.92f, u);
+                float mh = r->cranialRadii[0].y * Math_Lerp(0.32f, 0.44f, u);
+                r->mandibularCenters[i] = Vec3_Create(0.0f, sCornerY - mh * 0.85f, zi);
+                r->mandibularRadii[i] = Vec3_Create(mw, mh, 0.0f);
+            }
         }
         if(testudine) {
-            /* Cráneo reptiliano compacto de tortuga marina con pico córneo romo sin dientes. */
+            /* Cráneo reptiliano compacto de tortuga marina (Chelonia mydas): bóveda dorsal convexa,
+             * hocico corto y pico córneo romo sin rebaba labial. */
             r->hasCranialProfile = true;
-            float snoutLen = skullR.z * (0.85f + 0.55f * p.muzzleLength);
+            float snoutLen = skullR.z * (0.78f + 0.46f * p.muzzleLength);
             float z0 = skull.z + snoutLen;
             float z5 = skull.z - skullR.z * 0.88f;
             const float uPos[6] = {0.0f, 0.18f, 0.40f, 0.62f, 0.82f, 1.0f};
-            const float wMul[6] = {0.34f, 0.64f, 0.84f, 0.94f, 0.96f, 0.88f};
-            const float hMul[6] = {0.36f, 0.62f, 0.82f, 0.92f, 0.92f, 0.84f};
-            const float yOff[6] = {-0.14f, -0.06f, 0.02f, 0.05f, 0.03f, 0.0f};
+            const float wMul[6] = {0.36f, 0.64f, 0.82f, 0.92f, 0.94f, 0.86f};
+            const float hMul[6] = {0.42f, 0.68f, 0.86f, 0.96f, 0.96f, 0.86f};
+            const float yOff[6] = {-0.10f, -0.02f, 0.04f, 0.06f, 0.04f, 0.0f};
             for (int i = 0; i < 6; ++i) {
                 float zi = Math_Lerp(z0, z5, uPos[i]);
                 r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
@@ -1853,25 +1975,67 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
             }
             r->faceTip = r->cranialCenters[0];
             r->faceMid = Vec3_Lerp(r->faceRoot, r->faceTip, 0.52f);
+            r->faceTipRadii = Vec3_Create(r->cranialRadii[0].x, r->cranialRadii[0].y, r->cranialRadii[0].y);
             l->muzzleTip = r->cranialCenters[0];
             l->noseTip = r->cranialCenters[0];
             l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
             l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
             l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
-            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.35f);
-            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.35f);
-            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.30f);
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.24f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.24f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.22f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.22f);
+
+            /* Pico queratinizado sin dientes con mandíbula recogida bajo el borde maxilar. */
+            float tuCornerZ = Math_Lerp(r->cranialCenters[2].z, r->cranialCenters[3].z, 0.35f);
+            float tuCornerY = r->cranialCenters[2].y - r->cranialRadii[2].y * 0.34f;
+            float tuCornerX = r->cranialRadii[2].x * 0.72f;
+            float tuTipY = r->cranialCenters[0].y - r->cranialRadii[0].y * 0.24f;
+            float tuSlope = (tuTipY - tuCornerY) / Math_Max(z0 - tuCornerZ, 0.02f);
+            float tuHingeZ = tuCornerZ - skullR.z * 0.22f;
+            float tuHingeY = tuCornerY + tuSlope * (tuHingeZ - tuCornerZ) - skullR.y * 0.08f;
+            r->oralSlope = tuSlope;
+            l->leftMouthCorner = Vec3_Create(tuCornerX, tuCornerY, tuCornerZ);
+            l->rightMouthCorner = Vec3_Create(-tuCornerX, tuCornerY, tuCornerZ);
+            l->leftJawHinge = Vec3_Create(r->cranialRadii[3].x * 0.64f, tuHingeY, tuHingeZ);
+            l->rightJawHinge = Vec3_Create(-r->cranialRadii[3].x * 0.64f, tuHingeY, tuHingeZ);
+            l->mandibularSymphysis = Vec3_Create(0.0f, tuTipY - r->cranialRadii[0].y * 0.32f, z0 - skullR.z * 0.03f);
+            l->oralContactPoint = Vec3_Create(0.0f, tuTipY, z0);
+            l->oralCavityCenter = Vec3_Create(0.0f, Math_Lerp(tuCornerY, tuTipY, 0.45f), Math_Lerp(tuCornerZ, z0, 0.45f));
+
+            a->oralSystem.openFactor = 0.0f;
+            a->oralSystem.jawPivot = Vec3_Create(0.0f, tuHingeY, tuHingeZ);
+            a->oralSystem.jawLength = Math_Max(z0 - tuHingeZ, skullR.z * 0.40f);
+            a->oralSystem.jawWidth = tuCornerX * 1.78f;
+            a->oralSystem.jawThickness = skullR.y * 0.28f;
+            a->oralSystem.slitThickness = skullR.y * 0.012f;
+            a->oralSystem.scale = Vec3_Create(tuCornerX * 1.82f, skullR.y * 0.34f, Math_Max(z0 - tuCornerZ, skullR.z * 0.35f));
+            a->oralSystem.maxJawAngle = 22.0f;
+            Mouth_Normalize(&a->oralSystem);
+
+            r->hasMandibularProfile = true;
+            const float tmPos[6] = {0.96f, 0.78f, 0.56f, 0.34f, 0.14f, 0.0f};
+            const float tmW[6] = {0.28f, 0.52f, 0.68f, 0.76f, 0.78f, 0.66f};
+            const float tmH[6] = {0.16f, 0.24f, 0.30f, 0.34f, 0.34f, 0.26f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(tuHingeZ, z0, tmPos[i]);
+                float topY = tuCornerY + tuSlope * (zi - tuCornerZ);
+                float mh = skullR.y * tmH[i];
+                r->mandibularCenters[i] = Vec3_Create(0.0f, topY - mh * 0.82f, zi);
+                r->mandibularRadii[i] = Vec3_Create(skullR.x * tmW[i], mh, 0.0f);
+            }
         }
         if(cetacean) {
-            /* Cráneo cetáceo (delfín mular): melón frontal abombado + rostro grueso alargado. */
+            /* Cráneo cetáceo (delfín mular): melón frontal abombado, rostro grueso continuo,
+             * comisura curva suave sin rebabas laterales y transición cervical sin cintura. */
             r->hasCranialProfile = true;
-            float rostrumLen = skullR.z * (1.20f + 1.05f * p.muzzleLength);
+            float rostrumLen = skullR.z * (1.16f + 0.98f * p.muzzleLength);
             float z0 = skull.z + rostrumLen;
-            float z5 = skull.z - skullR.z * 0.92f;
+            float z5 = skull.z - skullR.z * 0.96f;
             const float uPos[6] = {0.0f, 0.20f, 0.38f, 0.56f, 0.78f, 1.0f};
-            const float wMul[6] = {0.26f, 0.42f, 0.54f, 0.86f, 0.98f, 1.00f};
-            const float hMul[6] = {0.22f, 0.34f, 0.46f, 0.96f, 1.06f, 1.00f};
-            const float yOff[6] = {-0.26f, -0.22f, -0.14f, 0.12f, 0.14f, 0.04f};
+            const float wMul[6] = {0.24f, 0.38f, 0.52f, 0.86f, 1.00f, 1.06f};
+            const float hMul[6] = {0.22f, 0.34f, 0.48f, 0.96f, 1.06f, 1.04f};
+            const float yOff[6] = {-0.26f, -0.22f, -0.14f, 0.12f, 0.12f, 0.04f};
             for (int i = 0; i < 6; ++i) {
                 float zi = Math_Lerp(z0, z5, uPos[i]);
                 r->cranialCenters[i] = Vec3_Create(0.0f, skull.y + skullR.y * yOff[i], zi);
@@ -1885,13 +2049,57 @@ bool HeadAnatomy_Resolve(const HeadPhenotype* source,size_t attachment,Vector3 h
             l->leftNostril.z = Math_Lerp(l->muzzleRoot.z, l->muzzleTip.z, 0.55f);
             l->leftNostril.x = Math_Min(l->leftNostril.x, r->faceMidRadii.x * 0.65f);
             l->rightNostril = l->leftNostril; l->rightNostril.x *= -1.0f;
-            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.25f);
-            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.25f);
-            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.25f);
-            r->browRadii = Vec3_Scale(r->browRadii, 0.15f);
-            r->neckCollarRadii = Vec3_Create(skullR.x * 1.02f, skullR.y * 1.00f, skullR.z * 0.35f);
+            r->cheekRadii = Vec3_Scale(r->cheekRadii, 0.20f);
+            r->temporalRadii = Vec3_Scale(r->temporalRadii, 0.20f);
+            r->maxillaryRadii = Vec3_Scale(r->maxillaryRadii, 0.20f);
+            r->browRadii = Vec3_Scale(r->browRadii, 0.14f);
+            r->neckCollarPenetration = 0.52f;
+            r->neckCollarRoot = Vec3_Add(skull, Vec3_Create(0.0f, -skullR.y * 0.02f, -skullR.z * 0.36f));
+            r->neckCollarRadii = Vec3_Create(Math_Max(skullR.x * 1.06f, hx * 1.02f),
+                                             Math_Max(skullR.y * 1.04f, hy * 1.02f),
+                                             skullR.z * 0.42f);
             r->neckCollarContinuity = 1.0f;
-            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.48f;
+            r->headBodySmoothness = Math_Min(skullR.x, skullR.y) * 0.62f;
+
+            /* Perfil oral cetáceo: hendidura fina curvada suavemente hacia el ojo y mandíbula ajustada al rostro. */
+            float cCornerZ = Math_Lerp(r->cranialCenters[2].z, r->cranialCenters[3].z, 0.28f);
+            float cCornerY = r->cranialCenters[2].y - r->cranialRadii[2].y * 0.22f;
+            float cCornerX = r->cranialRadii[2].x * 0.74f;
+            float cTipY = r->cranialCenters[0].y - r->cranialRadii[0].y * 0.14f;
+            float cSlope = (cTipY - cCornerY) / Math_Max(z0 - cCornerZ, 0.02f);
+            float cHingeZ = cCornerZ - skullR.z * 0.26f;
+            float cHingeY = cCornerY + cSlope * (cHingeZ - cCornerZ) - skullR.y * 0.06f;
+            r->oralSlope = cSlope;
+            r->oralArch = -skullR.y * 0.032f;
+            l->leftMouthCorner = Vec3_Create(cCornerX, cCornerY, cCornerZ);
+            l->rightMouthCorner = Vec3_Create(-cCornerX, cCornerY, cCornerZ);
+            l->leftJawHinge = Vec3_Create(r->cranialRadii[3].x * 0.58f, cHingeY, cHingeZ);
+            l->rightJawHinge = Vec3_Create(-r->cranialRadii[3].x * 0.58f, cHingeY, cHingeZ);
+            l->mandibularSymphysis = Vec3_Create(0.0f, cTipY - r->cranialRadii[0].y * 0.34f, z0 - skullR.z * 0.02f);
+            l->oralContactPoint = Vec3_Create(0.0f, cTipY, z0);
+            l->oralCavityCenter = Vec3_Create(0.0f, Math_Lerp(cCornerY, cTipY, 0.45f), Math_Lerp(cCornerZ, z0, 0.45f));
+
+            a->oralSystem.openFactor = 0.0f;
+            a->oralSystem.jawPivot = Vec3_Create(0.0f, cHingeY, cHingeZ);
+            a->oralSystem.jawLength = Math_Max(z0 - cHingeZ, skullR.z * 0.50f);
+            a->oralSystem.jawWidth = cCornerX * 1.80f;
+            a->oralSystem.jawThickness = skullR.y * 0.20f;
+            a->oralSystem.slitThickness = skullR.y * 0.008f;
+            a->oralSystem.scale = Vec3_Create(cCornerX * 1.84f, skullR.y * 0.28f, Math_Max(z0 - cCornerZ, skullR.z * 0.42f));
+            a->oralSystem.maxJawAngle = 22.0f;
+            Mouth_Normalize(&a->oralSystem);
+
+            r->hasMandibularProfile = true;
+            const float cmPos[6] = {0.98f, 0.78f, 0.56f, 0.34f, 0.14f, 0.0f};
+            const float cmW[6] = {0.18f, 0.28f, 0.38f, 0.58f, 0.70f, 0.60f};
+            const float cmH[6] = {0.09f, 0.14f, 0.20f, 0.27f, 0.31f, 0.24f};
+            for (int i = 0; i < 6; ++i) {
+                float zi = Math_Lerp(cHingeZ, z0, cmPos[i]);
+                float topY = cCornerY + cSlope * (zi - cCornerZ) + Head_OralBend(zi, cCornerZ, z0, r->oralArch);
+                float mh = skullR.y * cmH[i];
+                r->mandibularCenters[i] = Vec3_Create(0.0f, topY - mh * 0.85f, zi);
+                r->mandibularRadii[i] = Vec3_Create(skullR.x * cmW[i], mh, 0.0f);
+            }
         }
         if(cephalopod||arthropod) {
             /* Cefalópodos (pico ventral oculto en la corona) e insectos (piezas ventrales):

@@ -136,11 +136,11 @@
       "axial": {
         "archetype": 9,
         "totalScale": 0.38,
-        "neckLength": 0.38,
-        "neckWidth": 0.9,
-        "shoulderWidth": 1.06,
-        "thoraxWidth": 1.1,
-        "thoraxHeight": 1.2,
+        "neckLength": 0.34,
+        "neckWidth": 1.14,
+        "shoulderWidth": 1.16,
+        "thoraxWidth": 1.16,
+        "thoraxHeight": 1.24,
         "abdomenWidth": 0.86,
         "abdomenHeight": 0.96,
         "pelvicWidth": 0.24,
@@ -217,13 +217,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.34,
-        "eyeLaterality": 0.88,
+        "eyeSize": 0.28,
+        "eyeLaterality": 0.86,
         "eyeForwardness": 0.42,
         "eyeDorsality": 0.34,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.14,
+        "eyeExposure": 0.1,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.620000005,
@@ -271,9 +271,9 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.78,
-        "widthScale": 0.88,
-        "heightScale": 0.86,
+        "scale": 0.8,
+        "widthScale": 0.84,
+        "heightScale": 0.88,
         "lengthScale": 0.96
       },
       "headHybrid": {
@@ -357,7 +357,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.34,
+        "size": 0.28,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -538,8 +538,8 @@
           "length": 1.12,
           "baseWidth": 0.16,
           "baseHeight": 0.22,
-          "tipWidth": 0.055,
-          "tipHeight": 0.075,
+          "tipWidth": 0.024,
+          "tipHeight": 0.028,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -553,6 +553,7 @@
           "caudalNotchDepth": 0.68,
           "caudalSweep": 0.46,
           "caudalThickness": 0.044,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 86,
             "g": 98,
@@ -583,14 +584,14 @@
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 220,
-            "b": 226,
+            "r": 234,
+            "g": 228,
+            "b": 228,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
-          "patternStrength": 0.3,
+          "ventralLightening": 0.92,
+          "patternStrength": 0.14,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1025,
@@ -1038,15 +1039,15 @@
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -1063,6 +1064,7 @@
           "sweep": 0.72,
           "leadingCurve": 0.34,
           "trailingCurve": 0.56,
+          "freeRearTip": 0.0,
           "tipShape": 0.26,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -1128,11 +1130,11 @@
       "axial": {
         "archetype": 9,
         "totalScale": 0.56,
-        "neckLength": 0.38,
-        "neckWidth": 0.9,
-        "shoulderWidth": 1.06,
-        "thoraxWidth": 1.1,
-        "thoraxHeight": 1.2,
+        "neckLength": 0.34,
+        "neckWidth": 1.14,
+        "shoulderWidth": 1.16,
+        "thoraxWidth": 1.16,
+        "thoraxHeight": 1.24,
         "abdomenWidth": 0.86,
         "abdomenHeight": 0.96,
         "pelvicWidth": 0.24,
@@ -1209,13 +1211,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.34,
-        "eyeLaterality": 0.88,
+        "eyeSize": 0.28,
+        "eyeLaterality": 0.86,
         "eyeForwardness": 0.42,
         "eyeDorsality": 0.34,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.14,
+        "eyeExposure": 0.1,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.680000007,
@@ -1263,9 +1265,9 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.78,
-        "widthScale": 0.88,
-        "heightScale": 0.86,
+        "scale": 0.8,
+        "widthScale": 0.84,
+        "heightScale": 0.88,
         "lengthScale": 0.96
       },
       "headHybrid": {
@@ -1349,7 +1351,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.34,
+        "size": 0.28,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -1530,8 +1532,8 @@
           "length": 1.12,
           "baseWidth": 0.16,
           "baseHeight": 0.22,
-          "tipWidth": 0.055,
-          "tipHeight": 0.075,
+          "tipWidth": 0.024,
+          "tipHeight": 0.028,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -1545,6 +1547,7 @@
           "caudalNotchDepth": 0.68,
           "caudalSweep": 0.46,
           "caudalThickness": 0.044,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 86,
             "g": 98,
@@ -1575,14 +1578,14 @@
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 220,
-            "b": 226,
+            "r": 234,
+            "g": 228,
+            "b": 228,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
-          "patternStrength": 0.3,
+          "ventralLightening": 0.92,
+          "patternStrength": 0.14,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1025,
@@ -2030,15 +2033,15 @@
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -2055,6 +2058,7 @@
           "sweep": 0.72,
           "leadingCurve": 0.34,
           "trailingCurve": 0.56,
+          "freeRearTip": 0.0,
           "tipShape": 0.26,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -2120,11 +2124,11 @@
       "axial": {
         "archetype": 9,
         "totalScale": 0.78,
-        "neckLength": 0.38,
-        "neckWidth": 0.9,
-        "shoulderWidth": 1.06,
-        "thoraxWidth": 1.1,
-        "thoraxHeight": 1.2,
+        "neckLength": 0.34,
+        "neckWidth": 1.14,
+        "shoulderWidth": 1.16,
+        "thoraxWidth": 1.16,
+        "thoraxHeight": 1.24,
         "abdomenWidth": 0.86,
         "abdomenHeight": 0.96,
         "pelvicWidth": 0.24,
@@ -2201,13 +2205,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.28,
-        "eyeLaterality": 0.88,
+        "eyeSize": 0.23,
+        "eyeLaterality": 0.86,
         "eyeForwardness": 0.42,
         "eyeDorsality": 0.34,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.14,
+        "eyeExposure": 0.1,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.747200012,
@@ -2255,9 +2259,9 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.78,
-        "widthScale": 0.88,
-        "heightScale": 0.86,
+        "scale": 0.8,
+        "widthScale": 0.84,
+        "heightScale": 0.88,
         "lengthScale": 0.96
       },
       "headHybrid": {
@@ -2341,7 +2345,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.28,
+        "size": 0.23,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -2522,8 +2526,8 @@
           "length": 1.12,
           "baseWidth": 0.16,
           "baseHeight": 0.22,
-          "tipWidth": 0.055,
-          "tipHeight": 0.075,
+          "tipWidth": 0.024,
+          "tipHeight": 0.028,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -2537,6 +2541,7 @@
           "caudalNotchDepth": 0.68,
           "caudalSweep": 0.46,
           "caudalThickness": 0.044,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 86,
             "g": 98,
@@ -2567,14 +2572,14 @@
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 220,
-            "b": 226,
+            "r": 234,
+            "g": 228,
+            "b": 228,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
-          "patternStrength": 0.3,
+          "ventralLightening": 0.92,
+          "patternStrength": 0.14,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1025,
@@ -3022,15 +3027,15 @@
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -3047,6 +3052,7 @@
           "sweep": 0.72,
           "leadingCurve": 0.34,
           "trailingCurve": 0.56,
+          "freeRearTip": 0.0,
           "tipShape": 0.26,
           "camber": 0.0,
           "dihedral": 0.0,
@@ -3112,11 +3118,11 @@
       "axial": {
         "archetype": 9,
         "totalScale": 1.0,
-        "neckLength": 0.38,
-        "neckWidth": 0.9,
-        "shoulderWidth": 1.06,
-        "thoraxWidth": 1.1,
-        "thoraxHeight": 1.2,
+        "neckLength": 0.34,
+        "neckWidth": 1.14,
+        "shoulderWidth": 1.16,
+        "thoraxWidth": 1.16,
+        "thoraxHeight": 1.24,
         "abdomenWidth": 0.86,
         "abdomenHeight": 0.96,
         "pelvicWidth": 0.24,
@@ -3193,13 +3199,13 @@
         "rostrumDorsalSlope": 0.280000001,
         "temporalWidth": 0.519999981,
         "temporalDepth": 0.460000008,
-        "eyeSize": 0.28,
-        "eyeLaterality": 0.88,
+        "eyeSize": 0.23,
+        "eyeLaterality": 0.86,
         "eyeForwardness": 0.42,
         "eyeDorsality": 0.34,
         "eyelidCoverage": 0.300000012,
         "eyeCompression": 0.180000007,
-        "eyeExposure": 0.14,
+        "eyeExposure": 0.1,
         "browProminence": 0.219999999,
         "snoutBluntness": 0.920000017,
         "jawLength": 0.800000012,
@@ -3247,9 +3253,9 @@
         }
       },
       "headEnvelope": {
-        "scale": 0.78,
-        "widthScale": 0.88,
-        "heightScale": 0.86,
+        "scale": 0.8,
+        "widthScale": 0.84,
+        "heightScale": 0.88,
         "lengthScale": 0.96
       },
       "headHybrid": {
@@ -3333,7 +3339,7 @@
         "hasRegionalProfile": false
       },
       "eyes": {
-        "size": 0.28,
+        "size": 0.23,
         "protrusion": 0.129999995,
         "irisScale": 0.800000012,
         "pupilScale": 0.540000021,
@@ -3514,8 +3520,8 @@
           "length": 1.12,
           "baseWidth": 0.16,
           "baseHeight": 0.22,
-          "tipWidth": 0.055,
-          "tipHeight": 0.075,
+          "tipWidth": 0.024,
+          "tipHeight": 0.028,
           "taperCurve": 1.35,
           "curvature": 0.0,
           "development": 1.0,
@@ -3529,6 +3535,7 @@
           "caudalNotchDepth": 0.68,
           "caudalSweep": 0.46,
           "caudalThickness": 0.044,
+          "caudalKeelStrength": 0.0,
           "caudalColor": {
             "r": 86,
             "g": 98,
@@ -3559,14 +3566,14 @@
             "a": 255
           },
           "ventralColor": {
-            "r": 214,
-            "g": 220,
-            "b": 226,
+            "r": 234,
+            "g": 228,
+            "b": 228,
             "a": 255
           },
           "dorsalDarkening": 0.34,
-          "ventralLightening": 0.42,
-          "patternStrength": 0.3,
+          "ventralLightening": 0.92,
+          "patternStrength": 0.14,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1025,
@@ -4014,15 +4021,15 @@
         "a": 255
       },
       "ventralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 214,
-        "g": 220,
-        "b": 226,
+        "r": 234,
+        "g": 228,
+        "b": 228,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -4039,6 +4046,7 @@
           "sweep": 0.72,
           "leadingCurve": 0.34,
           "trailingCurve": 0.56,
+          "freeRearTip": 0.0,
           "tipShape": 0.26,
           "camber": 0.0,
           "dihedral": 0.0,

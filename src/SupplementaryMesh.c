@@ -9,6 +9,7 @@
 #include "Fin.h"
 #include "Limb.h"
 #include "MathUtils.h"
+#include "MonsterSDF.h"
 #include "Surface.h"
 #include <math.h>
 #include <stdlib.h>
@@ -26,6 +27,101 @@ typedef struct BuildTarget {
     const Skeleton* skeleton;
     const AnatomyGraph* graph;
 } BuildTarget;
+
+typedef struct SurfaceProjection {
+    Vector3 point;
+    Vector3 normal;
+    bool hit;
+} SurfaceProjection;
+
+/* Proyección reutilizable sobre la superficie SDF resuelta mediante sphere-tracing + bisección
+ * (opérculo, espiráculo, branquias, placas cefálicas y anillos óseos). */
+static SurfaceProjection ProjectOntoSDFSurface(const MonsterSDF* sdf,
+                                               Vector3 anchor,
+                                               Vector3 dir,
+                                               float maxDist,
+                                               float surfaceOffset) {
+    SurfaceProjection res = {anchor, Vec3_Create(0.0f, 1.0f, 0.0f), false};
+    if (!sdf || maxDist <= 1e-5f) return res;
+    float dl = Vec3_Length(dir);
+    if (dl <= 1e-6f) return res;
+    Vector3 d = Vec3_Scale(dir, 1.0f / dl);
+    res.normal = d;
+
+    float minStep = fmaxf(0.002f, maxDist * 0.035f);
+    float prevT = 0.0f;
+    float prevVal = MonsterSDF_EvaluateDistance(sdf, anchor);
+    float t = 0.0f;
+    float tLo = 0.0f, tHi = 0.0f;
+    bool bracketed = false;
+
+    for (unsigned i = 0; i < 18 && t < maxDist; ++i) {
+        float step = (prevVal < 0.0f) ? fmaxf(minStep, fabsf(prevVal) * 0.85f) : minStep;
+        t = fminf(maxDist, t + step);
+        float val = MonsterSDF_EvaluateDistance(sdf, Vec3_Add(anchor, Vec3_Scale(d, t)));
+        if (prevVal <= 0.0f && val > 0.0f) {
+            tLo = prevT;
+            tHi = t;
+            bracketed = true;
+            break;
+        }
+        prevT = t;
+        prevVal = val;
+    }
+    if (!bracketed) {
+        float bestT = 0.0f;
+        float bestAbs = fabsf(MonsterSDF_EvaluateDistance(sdf, anchor));
+        for (unsigned i = 1; i <= 10; ++i) {
+            float ti = maxDist * ((float)i / 10.0f);
+            float val = MonsterSDF_EvaluateDistance(sdf, Vec3_Add(anchor, Vec3_Scale(d, ti)));
+            if (fabsf(val) < bestAbs) {
+                bestAbs = fabsf(val);
+                bestT = ti;
+            }
+        }
+        if (bestAbs > maxDist * 0.25f) return res;
+        tLo = tHi = bestT;
+    } else {
+        for (unsigned iter = 0; iter < 6; ++iter) {
+            float mid = 0.5f * (tLo + tHi);
+            float val = MonsterSDF_EvaluateDistance(sdf, Vec3_Add(anchor, Vec3_Scale(d, mid)));
+            if (val <= 0.0f) tLo = mid;
+            else tHi = mid;
+        }
+    }
+
+    float hitT = 0.5f * (tLo + tHi);
+    Vector3 hitP = Vec3_Add(anchor, Vec3_Scale(d, hitT));
+    float eps = fmaxf(0.002f, maxDist * 0.004f);
+    float gx = MonsterSDF_EvaluateDistance(sdf, Vec3_Create(hitP.x + eps, hitP.y, hitP.z)) -
+               MonsterSDF_EvaluateDistance(sdf, Vec3_Create(hitP.x - eps, hitP.y, hitP.z));
+    float gy = MonsterSDF_EvaluateDistance(sdf, Vec3_Create(hitP.x, hitP.y + eps, hitP.z)) -
+               MonsterSDF_EvaluateDistance(sdf, Vec3_Create(hitP.x, hitP.y - eps, hitP.z));
+    float gz = MonsterSDF_EvaluateDistance(sdf, Vec3_Create(hitP.x, hitP.y, hitP.z + eps)) -
+               MonsterSDF_EvaluateDistance(sdf, Vec3_Create(hitP.x, hitP.y, hitP.z - eps));
+    Vector3 grad = Vec3_Create(gx, gy, gz);
+    float gl = Vec3_Length(grad);
+    res.normal = (gl > 1e-6f) ? Vec3_Scale(grad, 1.0f / gl) : d;
+    res.point = Vec3_Add(hitP, Vec3_Scale(res.normal, surfaceOffset));
+    res.hit = true;
+    return res;
+}
+
+static bool NeedsAquaticSDFProjection(const Monster* m) {
+    if (!m || !m->hasCreaturePhenotype) return false;
+    const CreaturePhenotype* p = &m->phenotype;
+    if (p->axial.archetype == AXIAL_ARCHETYPE_CURVED_VERTICAL && p->axial.abdomenSegments > 0)
+        return true;
+    if (m->hasHead) {
+        HeadArchetype ha = p->head.archetype;
+        if (ha == HEAD_ARCHETYPE_TELEOST || ha == HEAD_ARCHETYPE_ELASMOBRANCH ||
+            ha == HEAD_ARCHETYPE_SYNGNATHID || ha == HEAD_ARCHETYPE_TESTUDINE ||
+            ha == HEAD_ARCHETYPE_CETACEAN) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static bool SkinBuffer_Push(SkinBuffer* buf, AnatomySkinBinding b) {
     if (!buf) return true;
@@ -1224,25 +1320,60 @@ static bool BuildRepeatedAppendages(const Monster* m, BuildTarget* opaque, Build
  * 7. ALETAS GENÉRICAS Y SERIES DE PÍNULAS (CREATURE_MODULE_FIN)
  * ============================================================================ */
 
+static float SuppHash2D(int x, int y, uint32_t seed) {
+    uint32_t h = (uint32_t)x * 374761393u + (uint32_t)y * 668265263u + seed * 1442695041u;
+    h = (h ^ (h >> 13)) * 1274126177u;
+    return (float)(h ^ (h >> 16)) * (1.0f / 4294967295.0f);
+}
+
+static float SuppNoise2D(float x, float y, uint32_t seed) {
+    int ix = (int)floorf(x), iy = (int)floorf(y);
+    float fx = x - (float)ix, fy = y - (float)iy;
+    float ux = fx * fx * (3.0f - 2.0f * fx);
+    float uy = fy * fy * (3.0f - 2.0f * fy);
+    float a = SuppHash2D(ix, iy, seed);
+    float b = SuppHash2D(ix + 1, iy, seed);
+    float c = SuppHash2D(ix, iy + 1, seed);
+    float d = SuppHash2D(ix + 1, iy + 1, seed);
+    return Math_Lerp(Math_Lerp(a, b, ux), Math_Lerp(c, d, ux), uy);
+}
+
+static float ShellSmoothstep(float e0, float e1, float x) {
+    float t = Math_Clamp01((x - e0) / (e1 - e0));
+    return t * t * (3.0f - 2.0f * t);
+}
+
+static Color ShadeColor(Color c, float factor) {
+    float r = Math_Clamp((float)c.r * factor, 0.0f, 255.0f);
+    float g = Math_Clamp((float)c.g * factor, 0.0f, 255.0f);
+    float b = Math_Clamp((float)c.b * factor, 0.0f, 255.0f);
+    return (Color){(uint8_t)r, (uint8_t)g, (uint8_t)b, c.a};
+}
+
 static bool EmitHydrofoilBlade(BuildTarget* t,
                                Vector3 origin, Vector3 spanDir, Vector3 chordDir, Vector3 normalDir,
                                float baseChord, float span, float thickness, float rootWidth,
-                               float sweep, float leadCurve, float trailCurve, float tipShape,
-                               float camber, unsigned rayCount,
+                               float sweep, float leadCurve, float trailCurve, float freeRearTip,
+                               float tipShape, float camber, unsigned rayCount,
                                Color colBase, Color colTip, SurfaceRegion region,
                                int jRoot, int jMid, int jTip) {
     if (span <= 1e-5f || baseChord <= 1e-5f) return true;
-    const unsigned nu = 10, nv = 6;
-    MeshIndex topG[11][7], botG[11][7];
+    const unsigned nu = 14, nv = 10;
+    MeshIndex topG[15][11], botG[15][11];
 
     for (unsigned iu = 0; iu <= nu; ++iu) {
         float u = (float)iu / (float)nu;
-        /* Perfil de contorno hidrodinámico: borde de ataque convexo y borde de salida falcado. */
+        /* Perfil de contorno hidrodinámico: borde de ataque convexo, salida falcada y punta libre posterior opcional. */
         float tipWidth = 0.06f + 0.28f * tipShape;
         float leadArch = sinf(u * 3.14159265f) * leadCurve * baseChord * 0.35f;
         float trailArch = sinf(u * 3.14159265f) * trailCurve * baseChord * 0.42f;
+        float rearTipExt = 0.0f;
+        if (freeRearTip > 0.001f) {
+            float tipBand = expf(-powf((u - 0.16f) / 0.16f, 2.0f));
+            rearTipExt = freeRearTip * baseChord * tipBand;
+        }
         float zLead  =  baseChord * (0.50f * (1.0f - u) + 0.50f * tipWidth * u) - span * sweep * powf(u, 1.15f) + leadArch;
-        float zTrail = -baseChord * (0.50f * (1.0f - u) + 0.50f * tipWidth * u) - span * sweep * powf(u, 1.05f) + trailArch;
+        float zTrail = -baseChord * (0.50f * (1.0f - u) + 0.50f * tipWidth * u) - span * sweep * powf(u, 1.05f) + trailArch - rearTipExt;
         if (zTrail > zLead - baseChord * 0.04f) zTrail = zLead - baseChord * 0.04f;
 
         float rootFlare = (1.0f - u) * (1.0f - u) * (1.0f - u);
@@ -1256,10 +1387,10 @@ static bool EmitHydrofoilBlade(BuildTarget* t,
         for (unsigned iv = 0; iv <= nv; ++iv) {
             float v = (float)iv / (float)nv; /* 0 = borde de ataque, 1 = borde de salida */
             float chordZ = Math_Lerp(zLead, zTrail, v);
-            /* Espesor perfil NACA suave con ligera cresta de radios si rayCount > 0. */
             float foil = sinf(powf(v, 0.72f) * 3.14159265f);
-            float rayRidge = (rayCount >= 4 && u > 0.12f)
-                ? (1.0f + 0.14f * sinf(v * (float)rayCount * 6.2831853f) * (0.3f + 0.7f * u))
+            float rayWave = (rayCount >= 4) ? sinf(v * (float)rayCount * 6.2831853f) : 0.0f;
+            float rayRidge = (rayCount >= 4 && u > 0.08f)
+                ? (1.0f + 0.24f * rayWave * (0.3f + 0.7f * u))
                 : 1.0f;
             float h = maxH * foil * rayRidge;
             float cambOff = sinf(v * 3.14159265f) * camber * baseChord * (1.0f - 0.4f * u);
@@ -1268,10 +1399,20 @@ static bool EmitHydrofoilBlade(BuildTarget* t,
             Vector3 pTop = Vec3_Add(baseP, Vec3_Scale(normalDir,  h + cambOff));
             Vector3 pBot = Vec3_Add(baseP, Vec3_Scale(normalDir, -h + cambOff));
 
-            Vector3 nTop = Vec3_Normalize(Vec3_Add(normalDir, Vec3_Scale(chordDir, (v - 0.35f) * 0.32f)));
-            Vector3 nBot = Vec3_Normalize(Vec3_Add(Vec3_Scale(normalDir, -1.0f), Vec3_Scale(chordDir, (v - 0.35f) * 0.32f)));
-            if (!EmitVertex(t, pTop, nTop, colU, region, 0.0f, sk, &topG[iu][iv]) ||
-                !EmitVertex(t, pBot, nBot, colU, region, 0.4f, sk, &botG[iu][iv])) {
+            /* Textura procedural de radios/membrana o micrograno dérmico en aletas. */
+            float grain = SuppNoise2D(u * 14.0f, v * 10.0f, 307u + rayCount);
+            float leadDark = 1.0f - 0.14f * expf(-v * 6.0f);
+            float rayTint = (rayCount >= 4)
+                ? (1.0f + 0.11f * rayWave * (0.25f + 0.75f * u) + (grain - 0.5f) * 0.08f)
+                : (1.0f + (grain - 0.5f) * 0.10f);
+            Color cTopV = ShadeColor(colU, leadDark * rayTint);
+            Color cBotV = ShadeColor(colU, leadDark * rayTint * 0.94f);
+
+            float nTilt = (v - 0.35f) * 0.32f + ((rayCount >= 4) ? rayWave * 0.14f : (grain - 0.5f) * 0.06f);
+            Vector3 nTop = Vec3_Normalize(Vec3_Add(normalDir, Vec3_Scale(chordDir, nTilt)));
+            Vector3 nBot = Vec3_Normalize(Vec3_Add(Vec3_Scale(normalDir, -1.0f), Vec3_Scale(chordDir, nTilt)));
+            if (!EmitVertex(t, pTop, nTop, cTopV, region, 0.0f, sk, &topG[iu][iv]) ||
+                !EmitVertex(t, pBot, nBot, cBotV, region, 0.4f, sk, &botG[iu][iv])) {
                 return false;
             }
         }
@@ -1287,7 +1428,7 @@ static bool EmitHydrofoilBlade(BuildTarget* t,
     return true;
 }
 
-static bool BuildGenericFins(const Monster* m, BuildTarget* opaque) {
+static bool BuildGenericFins(const Monster* m, const MonsterSDF* sdf, BuildTarget* opaque) {
     const CreaturePhenotype* p = &m->phenotype;
     const AnatomyGraph* g = &m->anatomyGraph;
     float s = p->axial.totalScale;
@@ -1336,6 +1477,10 @@ static bool BuildGenericFins(const Monster* m, BuildTarget* opaque) {
             Vector3 normalDir = Vec3_Normalize(Vec3_Cross(axisDir, spanDir));
             if (Vec3_LengthSq(normalDir) < 1e-5f) normalDir = Vec3_Create(1, 0, 0);
 
+            /* Centro de la columna posterior para proyectar cada pínula sobre la curva real del tronco/pedúnculo. */
+            const AnatomyNode* pelNode = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PELVIS);
+            float spineY = pelNode ? pelNode->center.y : p->axial.withersHeight * s;
+
             float seriesDist = Vec3_Length(Vec3_Sub(endP, startP));
             float singleChord = fmaxf(0.015f * s, (seriesDist / (float)count) * 0.72f);
             float singleSpan  = fin->span * s * dev;
@@ -1344,12 +1489,21 @@ static bool BuildGenericFins(const Monster* m, BuildTarget* opaque) {
                 float u = count > 1 ? (float)k / (float)(count - 1) : 0.5f;
                 float env = 0.55f + 0.55f * sinf(u * 3.14159265f);
                 Vector3 pos = Vec3_Lerp(startP, endP, u);
+                if (sdf) {
+                    /* Proyectar desde el eje espinal hacia spanDir sobre el SDF real para que ninguna pínula flote. */
+                    Vector3 spineAnchor = Vec3_Create(0.0f, spineY, pos.z);
+                    float maxR = fmaxf(0.25f * s, p->axial.abdomenHeight * 0.75f * s);
+                    SurfaceProjection sp = ProjectOntoSDFSurface(sdf, spineAnchor, spanDir, maxR, -0.014f * s);
+                    if (sp.hit) {
+                        pos = sp.point;
+                    }
+                }
                 int jA = (u < 0.5f) ? jRoot : jMid;
                 int jB = (u < 0.5f) ? jMid : jTip;
                 if (!EmitHydrofoilBlade(opaque, pos, spanDir, axisDir, normalDir,
                                         singleChord * (0.75f + 0.25f * env), singleSpan * env,
                                         singleThick, singleThick * 1.2f,
-                                        0.78f, 0.20f, 0.35f, 0.12f, 0.0f, 0,
+                                        0.78f, 0.20f, 0.35f, 0.0f, 0.12f, 0.0f, 0,
                                         cBase, cTip, region, jA, jB, jB)) {
                     return false;
                 }
@@ -1372,7 +1526,7 @@ static bool BuildGenericFins(const Monster* m, BuildTarget* opaque) {
                                 fin->baseChord * s * dev, fin->span * s * dev,
                                 fin->thickness * s * dev, rootW,
                                 fin->sweep, fin->leadingCurve, fin->trailingCurve,
-                                fin->tipShape, fin->camber, fin->rayCount,
+                                fin->freeRearTip, fin->tipShape, fin->camber, fin->rayCount,
                                 cBase, cTip, region, jRoot, jMid, jTip)) {
             return false;
         }
@@ -1381,8 +1535,113 @@ static bool BuildGenericFins(const Monster* m, BuildTarget* opaque) {
 }
 
 /* ============================================================================
- * 8. PROPULSORES CAUDALES REUTILIZABLES (LUNADO, HETEROCERCO, FLUKES HORIZONTALES)
+ * 8. PROPULSORES CAUDALES REUTILIZABLES (LUNADO, HETEROCERCO, FLUKES HORIZONTALES + QUILLAS)
  * ============================================================================ */
+
+static bool EmitPeduncleKeelRidge(BuildTarget* opaque,
+                                  Vector3 pStart, Vector3 pEnd,
+                                  Vector3 outDir, Vector3 upDir,
+                                  float maxWidth, float maxThick,
+                                  Color col, int jStart, int jEnd) {
+    const unsigned nu = 8;
+    MeshIndex topRow[9], tipRow[9], botRow[9];
+    Vector3 fwd = Vec3_Normalize(Vec3_Sub(pStart, pEnd));
+    for (unsigned iu = 0; iu <= nu; ++iu) {
+        float u = (float)iu / (float)nu;
+        Vector3 c = Vec3_Lerp(pStart, pEnd, u);
+        float env = sinf(u * 3.14159265f);
+        float w = maxWidth * env;
+        float th = maxThick * (0.25f + 0.75f * env);
+        AnatomySkinBinding sk = MakeSkin2(jStart, 1.0f - u, jEnd, u);
+        Vector3 pTop = Vec3_Add(c, Vec3_Scale(upDir,  th));
+        Vector3 pBot = Vec3_Add(c, Vec3_Scale(upDir, -th));
+        Vector3 pTip = Vec3_Add(c, Vec3_Scale(outDir, w));
+        Vector3 nTop = Vec3_Normalize(Vec3_Add(upDir, Vec3_Scale(outDir, 0.55f)));
+        Vector3 nBot = Vec3_Normalize(Vec3_Add(Vec3_Scale(upDir, -1.0f), Vec3_Scale(outDir, 0.55f)));
+        Vector3 nTip = Vec3_Normalize(Vec3_Add(outDir, Vec3_Scale(fwd, 0.08f)));
+        if (!EmitVertex(opaque, pTop, nTop, col, SURFACE_REGION_TAIL, 0.25f, sk, &topRow[iu]) ||
+            !EmitVertex(opaque, pTip, nTip, col, SURFACE_REGION_TAIL, 0.35f, sk, &tipRow[iu]) ||
+            !EmitVertex(opaque, pBot, nBot, col, SURFACE_REGION_TAIL, 0.55f, sk, &botRow[iu])) {
+            return false;
+        }
+    }
+    for (unsigned iu = 0; iu < nu; ++iu) {
+        if (!EmitQuad(opaque, topRow[iu], tipRow[iu], tipRow[iu + 1], topRow[iu + 1]) ||
+            !EmitQuad(opaque, tipRow[iu], botRow[iu], botRow[iu + 1], tipRow[iu + 1])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool EmitCetaceanFlukes(BuildTarget* opaque,
+                               Vector3 rootCenter, Vector3 rightDir, Vector3 fwdDir, Vector3 upDir,
+                               float totalSpan, float chord, float thick, float notch, float sweep,
+                               Color colDorsal, Color colVentral, Color colTip,
+                               int jPrev, int jTip) {
+    /* Geometría dedicada para flukes cetáceos horizontales: puente continuo en el pedúnculo,
+     * dos lóbulos curvos y una escotadura mediana abierta sin muñón sobresaliente. */
+    float halfSpan = totalSpan * 0.50f;
+    const unsigned nu = 12, nv = 6;
+    for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+        float sgn = (sideIdx == 0) ? 1.0f : -1.0f;
+        Vector3 spanDir = Vec3_Scale(rightDir, sgn);
+        MeshIndex topG[13][7], botG[13][7];
+
+        for (unsigned iu = 0; iu <= nu; ++iu) {
+            float u = (float)iu / (float)nu;
+            /* En u=0 el borde de ataque abraza el pedúnculo (+0.48*chord) y el borde de salida
+             * forma una escotadura mediana genuinamente abierta (zTrail > -0.18*chord). */
+            float notchPinch = expf(-powf(u / 0.14f, 2.0f));
+            float zLead = chord * (0.48f * (1.0f - u) + 0.08f * u) - halfSpan * sweep * powf(u, 1.25f)
+                        + sinf(u * 3.14159265f) * chord * 0.18f;
+            float zTrailBase = -chord * (0.44f * (1.0f - u) + 0.04f * u) - halfSpan * sweep * powf(u, 1.08f)
+                             + sinf(u * 3.14159265f) * chord * 0.24f * notch;
+            float zTrail = zTrailBase + notchPinch * chord * (0.28f + 0.14f * notch);
+            if (zTrail > zLead - chord * 0.04f) zTrail = zLead - chord * 0.04f;
+
+            float spanCoord = halfSpan * u;
+            float maxH = thick * (1.30f * (1.0f - u) * (1.0f - u) + 0.55f * (1.0f - u)) * (1.0f - 0.85f * powf(u, 1.1f));
+            maxH = fmaxf(maxH, thick * 0.08f);
+            Color cTop = Color_Lerp(colDorsal, colTip, powf(u, 0.85f));
+            Color cBot = Color_Lerp(colVentral, colTip, powf(u, 0.75f));
+            AnatomySkinBinding sk = (u < 0.22f)
+                ? MakeSkin2(jPrev, (0.22f - u) / 0.22f * 0.45f, jTip, 1.0f - (0.22f - u) / 0.22f * 0.45f)
+                : MakeSkin1(jTip);
+
+            for (unsigned iv = 0; iv <= nv; ++iv) {
+                float v = (float)iv / (float)nv;
+                float chordZ = Math_Lerp(zLead, zTrail, v);
+                float foil = sinf(powf(v, 0.70f) * 3.14159265f);
+                float h = maxH * foil;
+                Vector3 bp = Vec3_Add(rootCenter,
+                    Vec3_Add(Vec3_Scale(spanDir, spanCoord), Vec3_Scale(fwdDir, chordZ)));
+                Vector3 pT = Vec3_Add(bp, Vec3_Scale(upDir,  h));
+                Vector3 pB = Vec3_Add(bp, Vec3_Scale(upDir, -h));
+                Vector3 nT = Vec3_Normalize(Vec3_Add(upDir, Vec3_Scale(fwdDir, (v - 0.35f) * 0.24f)));
+                Vector3 nB = Vec3_Normalize(Vec3_Add(Vec3_Scale(upDir, -1.0f), Vec3_Scale(fwdDir, (v - 0.35f) * 0.24f)));
+                if (!EmitVertex(opaque, pT, nT, cTop, SURFACE_REGION_TAIL, 0.05f, sk, &topG[iu][iv]) ||
+                    !EmitVertex(opaque, pB, nB, cBot, SURFACE_REGION_TAIL, 0.85f, sk, &botG[iu][iv])) {
+                    return false;
+                }
+            }
+        }
+        for (unsigned iu = 0; iu < nu; ++iu) {
+            for (unsigned iv = 0; iv < nv; ++iv) {
+                if (sideIdx == 0) {
+                    if (!EmitQuad(opaque, topG[iu][iv], topG[iu + 1][iv], topG[iu + 1][iv + 1], topG[iu][iv + 1]) ||
+                        !EmitQuad(opaque, botG[iu][iv], botG[iu][iv + 1], botG[iu + 1][iv + 1], botG[iu + 1][iv]))
+                        return false;
+                } else {
+                    if (!EmitQuad(opaque, topG[iu][iv], topG[iu][iv + 1], topG[iu + 1][iv + 1], topG[iu + 1][iv]) ||
+                        !EmitQuad(opaque, botG[iu][iv], botG[iu + 1][iv], botG[iu + 1][iv + 1], botG[iu][iv + 1]))
+                        return false;
+                }
+            }
+        }
+    }
+    return true;
+}
 
 static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
     const CreaturePhenotype* p = &m->phenotype;
@@ -1416,6 +1675,7 @@ static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
 
         Color colDorsal = tail->caudalColor.a > 0 ? tail->caudalColor : p->surface.pigment.baseColor;
         Color colTip = Color_Lerp(colDorsal, p->surface.pigment.secondaryColor, 0.28f);
+        Color colVentral = Color_Lerp(p->surface.pigment.ventralColor, colDorsal, 0.35f);
 
         float totalSpan = tail->caudalSpan * s * dev;
         float chord = fmaxf(0.04f * s, tail->caudalChord * s * dev);
@@ -1423,22 +1683,15 @@ static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
         float notch = Math_Clamp01(tail->caudalNotchDepth);
         float sweep = Math_Clamp(tail->caudalSweep, 0.0f, 1.4f);
 
-        Vector3 rootCenter = Vec3_Add(tipNode->center, Vec3_Scale(fwdDir, chord * 0.36f));
+        /* Anclar el propulsor caudal justo sobre la raíz terminal ahusada para que el pedúnculo
+         * entre en el borde de ataque y la escotadura posterior quede completamente libre. */
+        Vector3 rootCenter = Vec3_Add(tipNode->center, Vec3_Scale(tailDir, chord * 0.14f));
 
         if (tail->caudalFinType == CAUDAL_FIN_HORIZONTAL_FLUKES) {
-            /* Dos lóbulos horizontales cetáceos con escotadura central y perfil suave. */
-            float halfSpan = totalSpan * 0.50f;
-            for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
-                float sgn = sideIdx == 0 ? 1.0f : -1.0f;
-                Vector3 lobeSpan = Vec3_Scale(rightDir, sgn);
-                Vector3 lobeNorm = Vec3_Scale(upDir, sgn);
-                if (!EmitHydrofoilBlade(opaque, rootCenter, lobeSpan, fwdDir, lobeNorm,
-                                        chord, halfSpan, thick, thick * 1.6f,
-                                        sweep, 0.36f, 0.45f * notch, 0.16f, 0.0f, 0,
-                                        colDorsal, colTip, SURFACE_REGION_TAIL,
-                                        jPrev, jTip, jTip)) {
-                    return false;
-                }
+            if (!EmitCetaceanFlukes(opaque, rootCenter, rightDir, fwdDir, upDir,
+                                    totalSpan, chord, thick, notch, sweep,
+                                    colDorsal, colVentral, colTip, jPrev, jTip)) {
+                return false;
             }
         } else if (tail->caudalFinType == CAUDAL_FIN_ROUNDED_VERTICAL) {
             /* Aleta caudal vertical pequeña y redondeada (juveniles). */
@@ -1448,8 +1701,8 @@ static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
                 Vector3 lobeSpan = Vec3_Scale(upDir, sgn);
                 Vector3 lobeNorm = Vec3_Scale(rightDir, sgn);
                 if (!EmitHydrofoilBlade(opaque, rootCenter, lobeSpan, fwdDir, lobeNorm,
-                                        chord, halfSpan, thick, thick * 1.3f,
-                                        0.18f, 0.35f, -0.25f, 0.85f, 0.0f, 8,
+                                        chord, halfSpan, thick, thick * 1.2f,
+                                        0.18f, 0.35f, -0.25f, 0.0f, 0.85f, 0.0f, 8,
                                         colDorsal, colTip, SURFACE_REGION_TAIL,
                                         jPrev, jTip, jTip)) {
                     return false;
@@ -1464,27 +1717,68 @@ static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
 
             /* Lóbulo superior */
             if (!EmitHydrofoilBlade(opaque, rootCenter, upDir, fwdDir, rightDir,
-                                    chord * (hetero ? 1.15f : 1.0f), upperSpan,
-                                    thick, thick * 1.55f,
-                                    sweep * (hetero ? 1.18f : 1.0f),
+                                    chord * (hetero ? 1.12f : 0.96f), upperSpan,
+                                    thick, thick * 1.45f,
+                                    sweep * (hetero ? 1.16f : 1.0f),
                                     hetero ? 0.28f : 0.42f,
-                                    hetero ? 0.38f : (0.55f * notch + 0.15f),
-                                    hetero ? 0.18f : 0.10f, 0.0f, hetero ? 0 : 12,
+                                    hetero ? 0.42f : (0.58f * notch + 0.16f),
+                                    0.0f, hetero ? 0.16f : 0.10f, 0.0f, hetero ? 0 : 12,
                                     colDorsal, colTip, SURFACE_REGION_TAIL,
                                     jPrev, jTip, jTip)) {
                 return false;
             }
             /* Lóbulo inferior */
             if (!EmitHydrofoilBlade(opaque, rootCenter, Vec3_Scale(upDir, -1.0f), fwdDir, Vec3_Scale(rightDir, -1.0f),
-                                    chord * (hetero ? 0.85f : 1.0f), lowerSpan,
-                                    thick * 0.92f, thick * 1.45f,
+                                    chord * (hetero ? 0.84f : 0.96f), lowerSpan,
+                                    thick * 0.92f, thick * 1.38f,
                                     sweep * (hetero ? 0.82f : 1.0f),
                                     hetero ? 0.24f : 0.42f,
-                                    hetero ? 0.32f : (0.55f * notch + 0.15f),
-                                    0.12f, 0.0f, hetero ? 0 : 12,
+                                    hetero ? 0.36f : (0.58f * notch + 0.16f),
+                                    0.0f, 0.12f, 0.0f, hetero ? 0 : 12,
                                     colDorsal, colTip, SURFACE_REGION_TAIL,
                                     jPrev, jTip, jTip)) {
                 return false;
+            }
+        }
+
+        /* Quillas laterales del pedúnculo caudal (túnidos / escómbridos): quilla central prominente
+         * a cada lado + dos quillas accesorias oblicuas junto a las bases de los lóbulos caudales. */
+        if (tail->caudalKeelStrength > 0.02f && segN >= 2) {
+            const AnatomyNode* midNode = segN >= 3
+                ? AnatomyGraph_FindModuleNode(g, mod->instanceId, (uint16_t)(segN - 2))
+                : prevNode;
+            if (!midNode) midNode = prevNode;
+            int jMid = FindJointSafe(g, opaque->skeleton, midNode->id);
+            float ks = Math_Clamp01(tail->caudalKeelStrength) * dev;
+            Color keelCol = Color_Lerp(p->surface.pigment.baseColor, colDorsal, 0.50f);
+            float pedW = fmaxf(prevNode->widthRadius, 0.02f * s);
+            float pedH = fmaxf(prevNode->heightRadius, 0.02f * s);
+            Vector3 kStart = Vec3_Lerp(midNode->center, prevNode->center, 0.35f);
+            Vector3 kEnd   = Vec3_Lerp(prevNode->center, tipNode->center, 0.92f);
+            for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+                float sgn = (sideIdx == 0) ? 1.0f : -1.0f;
+                Vector3 outDir = Vec3_Scale(rightDir, sgn);
+                Vector3 pS = Vec3_Add(kStart, Vec3_Scale(outDir, pedW * 0.72f));
+                Vector3 pE = Vec3_Add(kEnd,   Vec3_Scale(outDir, tipNode->widthRadius * 0.65f));
+                if (!EmitPeduncleKeelRidge(opaque, pS, pE, outDir, upDir,
+                                           pedW * 0.85f * ks, pedH * 0.22f * ks,
+                                           keelCol, jMid, jTip)) {
+                    return false;
+                }
+                /* Quillas accesorias pequeñas superior e inferior en la base de los lóbulos caudales. */
+                for (int acc = -1; acc <= 1; acc += 2) {
+                    Vector3 aS = Vec3_Add(Vec3_Lerp(prevNode->center, tipNode->center, 0.72f),
+                                          Vec3_Add(Vec3_Scale(outDir, tipNode->widthRadius * 0.60f),
+                                                   Vec3_Scale(upDir, (float)acc * pedH * 0.42f)));
+                    Vector3 aE = Vec3_Add(Vec3_Add(tipNode->center, Vec3_Scale(tailDir, chord * 0.16f)),
+                                          Vec3_Add(Vec3_Scale(outDir, thick * 0.40f),
+                                                   Vec3_Scale(upDir, (float)acc * pedH * 0.95f)));
+                    if (!EmitPeduncleKeelRidge(opaque, aS, aE, outDir, upDir,
+                                               pedW * 0.36f * ks, pedH * 0.11f * ks,
+                                               keelCol, jPrev, jTip)) {
+                        return false;
+                    }
+                }
             }
         }
     }
@@ -1492,7 +1786,7 @@ static bool BuildCaudalPropulsors(const Monster* m, BuildTarget* opaque) {
 }
 
 /* ============================================================================
- * 9. ALETAS DE TETRÁPODO MARINO (TORTUGA MARINA Y DELFÍN)
+ * 9. ALETAS DE TETRÁPODO MARINO (TORTUGA MARINA Y DELFÍN) + UÑA ANTERIOR OPCIONAL
  * ============================================================================ */
 
 static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
@@ -1529,11 +1823,19 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
         float maxThick = fmaxf(0.008f * s, limb->thickness * s * dev);
         SurfaceRegion region = fore ? SURFACE_REGION_FORELIMB : SURFACE_REGION_HINDLIMB;
 
-        const unsigned nu = 12, nv = 6;
-        MeshIndex topG[13][7], botG[13][7];
+        const unsigned nu = 20, nv = 12;
+        MeshIndex topG[21][13], botG[21][13];
+        bool scaledFlipper = (p->surface.integument.type == INTEGUMENT_SCALES);
+        Color scaleSeamCol = Color_Lerp(p->surface.pigment.ventralColor, Color_FromRGB(168, 160, 126), 0.40f);
+        Color scaleDarkCol = Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.55f);
+        Vector3 clawAnchor = n[1]->center;
+        Vector3 clawFwd = Vec3_Create(0, 0, 1);
+        Vector3 clawOut = Vec3_Create(side, 0, 0);
+        Vector3 clawUp = Vec3_Create(0, 1, 0);
+        int clawJointA = jn[1], clawJointB = jn[2];
+
         for (unsigned iu = 0; iu <= nu; ++iu) {
             float u = (float)iu / (float)nu;
-            /* Interpolar centroide a lo largo de la cadena de 4 nodos */
             float segF = u * 3.0f;
             unsigned seg = segF >= 3.0f ? 2u : (unsigned)segF;
             float lt = segF - (float)seg;
@@ -1543,11 +1845,21 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
             Vector3 upAxis = Vec3_Normalize(Vec3_Cross(chordAxis, Vec3_Scale(tanDir, side)));
             if (Vec3_LengthSq(upAxis) < 1e-5f) upAxis = Vec3_Create(0, 1, 0);
 
+            /* Raíz proximal ligeramente redondeada e integrada al hombro sin barra sobresaliente. */
             float env = sinf(powf(u, 0.62f) * 3.14159265f);
-            float chordU = maxChord * (0.36f * (1.0f - u) + 0.85f * env);
+            float chordU = maxChord * (0.44f * (1.0f - u) + 0.82f * env);
             if (iu == nu) chordU = maxChord * 0.14f;
-            float thickU = maxThick * (1.0f - 0.78f * powf(u, 0.9f));
+            float thickU = maxThick * (1.15f * (1.0f - u) * (1.0f - u) + 0.85f * (1.0f - 0.76f * powf(u, 0.9f)));
             AnatomySkinBinding sk = MakeSkin2(jn[seg], 1.0f - lt, jn[seg + 1], lt);
+
+            if (iu == 8) {
+                clawAnchor = Vec3_Add(c, Vec3_Scale(chordAxis, chordU * 0.52f));
+                clawFwd = chordAxis;
+                clawOut = tanDir;
+                clawUp = upAxis;
+                clawJointA = jn[seg];
+                clawJointB = jn[seg + 1];
+            }
 
             for (unsigned iv = 0; iv <= nv; ++iv) {
                 float v = (float)iv / (float)nv;
@@ -1555,12 +1867,40 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
                 float foil = sinf(powf(v, 0.72f) * 3.14159265f);
                 float h = thickU * foil;
                 Vector3 bp = Vec3_Add(c, Vec3_Scale(chordAxis, cz));
+
+                Color cD, cV;
+                Vector3 nT = upAxis, nB = Vec3_Scale(upAxis, -1.0f);
+                if (scaledFlipper) {
+                    /* Escamas reptilianas poligonales oscuras de Chelonia mydas con suturas crema-ocre. */
+                    float su = u * (fore ? 13.0f : 8.0f);
+                    float sv = v * (fore ? 7.0f : 5.5f) + 0.5f * ((int)floorf(su) & 1);
+                    float fu = su - floorf(su) - 0.5f;
+                    float fv = sv - floorf(sv) - 0.5f;
+                    float cellDist = fmaxf(fabsf(fu), fabsf(fv));
+                    float scaleMask = 1.0f - ShellSmoothstep(0.30f, 0.46f, cellDist);
+                    float var = SuppNoise2D(su * 0.9f, sv * 0.9f, 521u);
+                    float bump = thickU * 0.14f * scaleMask * foil;
+                    h += bump;
+                    Color darkScale = Color_Lerp(scaleDarkCol, Color_FromRGB(34, 34, 22), 0.38f);
+                    Color plateCol = Color_Lerp(darkScale, dorsal, 0.30f + 0.50f * var);
+                    Color seamCol = Color_Lerp(scaleSeamCol, Color_FromRGB(142, 132, 96), 0.55f);
+                    cD = Color_Lerp(seamCol, plateCol, scaleMask * 0.94f);
+                    Color vWarm = Color_Lerp(ventral, Color_FromRGB(168, 154, 112), 0.35f);
+                    Color vPlate = Color_Lerp(vWarm, seamCol, 0.30f + 0.35f * var);
+                    cV = Color_Lerp(Color_Lerp(vWarm, dorsal, 0.24f), vPlate, scaleMask * 0.88f);
+                    nT = Vec3_Normalize(Vec3_Add(upAxis, Vec3_Add(Vec3_Scale(tanDir, fu * 0.42f), Vec3_Scale(chordAxis, fv * 0.42f))));
+                    nB = Vec3_Normalize(Vec3_Add(Vec3_Scale(upAxis, -1.0f), Vec3_Add(Vec3_Scale(tanDir, fu * 0.28f), Vec3_Scale(chordAxis, fv * 0.28f))));
+                } else {
+                    /* Piel hidrodinámica suave con contracoloración natural (cetáceos). */
+                    float grain = SuppNoise2D(u * 12.0f, v * 8.0f, 809u);
+                    cD = ShadeColor(Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.20f * u), 0.96f + 0.08f * grain);
+                    cV = ShadeColor(Color_Lerp(ventral, dorsal, 0.32f * (0.35f + 0.65f * u)), 0.95f + 0.08f * grain);
+                }
+
                 Vector3 pT = Vec3_Add(bp, Vec3_Scale(upAxis,  h));
                 Vector3 pB = Vec3_Add(bp, Vec3_Scale(upAxis, -h));
-                Color cD = Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.18f * u);
-                Color cV = Color_Lerp(ventral, dorsal, 0.25f * u);
-                if (!EmitVertex(opaque, pT, upAxis, cD, region, 0.0f, sk, &topG[iu][iv]) ||
-                    !EmitVertex(opaque, pB, Vec3_Scale(upAxis, -1.0f), cV, region, 1.0f, sk, &botG[iu][iv])) {
+                if (!EmitVertex(opaque, pT, nT, cD, region, 0.0f, sk, &topG[iu][iv]) ||
+                    !EmitVertex(opaque, pB, nB, cV, region, 1.0f, sk, &botG[iu][iv])) {
                     return false;
                 }
             }
@@ -1573,12 +1913,43 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
                 }
             }
         }
+
+        /* Uña única queratinizada en el borde de ataque de la aleta (Chelonia mydas: clawScale > 0). */
+        if (limb->clawScale > 0.02f) {
+            float clLen = fmaxf(0.022f * s, maxChord * 0.24f * limb->clawScale);
+            float clRad = fmaxf(0.008f * s, maxThick * 0.52f * limb->clawScale);
+            Vector3 cDir = Vec3_Normalize(Vec3_Add(Vec3_Scale(clawFwd, 0.72f), Vec3_Scale(clawOut, 0.68f)));
+            Vector3 cSide = Vec3_Normalize(Vec3_Cross(clawUp, cDir));
+            if (Vec3_LengthSq(cSide) < 1e-5f) cSide = clawOut;
+            Color clawCol = Color_FromRGB(46, 40, 30);
+            AnatomySkinBinding skClaw = MakeSkin2(clawJointA, 0.55f, clawJointB, 0.45f);
+            const unsigned nRing = 6;
+            MeshIndex baseR[7], midR[7], tipIdx = 0;
+            Vector3 baseC = Vec3_Sub(clawAnchor, Vec3_Scale(cDir, clLen * 0.22f));
+            Vector3 midC  = Vec3_Add(clawAnchor, Vec3_Add(Vec3_Scale(cDir, clLen * 0.45f), Vec3_Scale(clawUp, -clLen * 0.08f)));
+            Vector3 tipP  = Vec3_Add(clawAnchor, Vec3_Add(Vec3_Scale(cDir, clLen), Vec3_Scale(clawUp, -clLen * 0.22f)));
+            if (!EmitVertex(opaque, tipP, cDir, clawCol, region, 0.2f, skClaw, &tipIdx)) return false;
+            for (unsigned k = 0; k <= nRing; ++k) {
+                float ang = (float)k / (float)nRing * 6.2831853f;
+                Vector3 rad = Vec3_Add(Vec3_Scale(cSide, cosf(ang)), Vec3_Scale(clawUp, sinf(ang)));
+                Vector3 p0 = Vec3_Add(baseC, Vec3_Scale(rad, clRad));
+                Vector3 p1 = Vec3_Add(midC,  Vec3_Scale(rad, clRad * 0.58f));
+                if (!EmitVertex(opaque, p0, rad, clawCol, region, 0.2f, skClaw, &baseR[k]) ||
+                    !EmitVertex(opaque, p1, rad, clawCol, region, 0.2f, skClaw, &midR[k]))
+                    return false;
+            }
+            for (unsigned k = 0; k < nRing; ++k) {
+                if (!EmitQuad(opaque, baseR[k], baseR[k + 1], midR[k + 1], midR[k]) ||
+                    !EmitTri(opaque, midR[k], midR[k + 1], tipIdx))
+                    return false;
+            }
+        }
     }
     return true;
 }
 
 /* ============================================================================
- * 10. CAPARAZÓN ANATÓMICO REUTILIZABLE (ESPALDAR + PUENTE LATERAL + PLASTRÓN)
+ * 10. CAPARAZÓN ANATÓMICO REUTILIZABLE (ESPALDAR LISO + PUENTE CURVO + PLASTRÓN CON SUTURAS)
  * ============================================================================ */
 
 static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
@@ -1590,7 +1961,6 @@ static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
     float s = p->axial.totalScale;
     float dev = Math_Clamp01(sh->development);
 
-    /* Anclar al centro del tronco (estaciones pectorales a pelvis). */
     const AnatomyNode* pec = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PECTORAL);
     const AnatomyNode* thx = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_THORAX_POSTERIOR);
     const AnatomyNode* pel = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PELVIS);
@@ -1612,50 +1982,82 @@ static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
     unsigned vertebrals = sh->vertebralScutes ? sh->vertebralScutes : 5u;
 
     Color cCara = sh->carapaceColor.a > 0 ? sh->carapaceColor : p->dorsalColor;
-    Color cBord = sh->scuteBorderColor.a > 0 ? sh->scuteBorderColor : Color_FromRGB(38, 32, 22);
-    Color cPlas = sh->plastronColor.a > 0 ? sh->plastronColor : p->ventralColor;
+    Color cBord = sh->scuteBorderColor.a > 0 ? sh->scuteBorderColor : Color_FromRGB(26, 20, 12);
+    Color cPlasRaw = sh->plastronColor.a > 0 ? sh->plastronColor : p->ventralColor;
+    /* Plastrón crema-amarillento cálido natural sin sobreexposición. */
+    Color cPlas = Color_Lerp(cPlasRaw, Color_FromRGB(168, 152, 108), 0.36f);
+    Color cPlasSeam = Color_Lerp(cPlas, cBord, 0.55f);
 
-    /* 1. Espaldar dorsal (carapace) con forma cordiforme, borde marginal y relieve de escudos. */
-    const unsigned nZ = 22, nX = 18;
-    MeshIndex caraTop[23][19], caraRim[23][19];
+    /* 1. Espaldar dorsal (carapace): caparazón queratinoso rígido con perímetro liso,
+     * surcos incisivos nítidos, biseles de escudo y patrón radial castaño/ámbar/oliva (Chelonia mydas). */
+    const unsigned nZ = 36, nX = 28;
+    MeshIndex caraTop[37][29], caraRim[37][29];
+    Color cAmber = Color_FromRGB(138, 104, 52);
+    Color cOliveDark = Color_FromRGB(46, 50, 30);
     for (unsigned iz = 0; iz <= nZ; ++iz) {
-        float u = (float)iz / (float)nZ; /* 0 = borde anterior (cuello), 1 = borde posterior (cola) */
-        float zNorm = 1.0f - 2.0f * u;   /* +1 anterior .. -1 posterior */
-        /* Perfil cordiforme: ancho delante/medio, estrechado suavemente hacia atrás. */
+        float u = (float)iz / (float)nZ;
+        float zNorm = 1.0f - 2.0f * u;
         float oval = sqrtf(fmaxf(0.0f, 1.0f - zNorm * zNorm));
         float heartMul = 1.0f - heart * 0.34f * Math_Clamp01((u - 0.35f) / 0.65f);
-        float notch = (u < 0.12f) ? (sh->cervicalNotch * 0.45f * (1.0f - u / 0.12f)) : 0.0f;
+        float notch = (u < 0.12f) ? (sh->cervicalNotch * 0.42f * (1.0f - u / 0.12f)) : 0.0f;
         float rowW = halfW * oval * heartMul;
         float zPos = center.z + (zNorm - notch) * halfL;
 
         for (unsigned ix = 0; ix <= nX; ++ix) {
-            float v = (float)ix / (float)nX; /* 0 = izquierda (-1), 1 = derecha (+1) */
+            float v = (float)ix / (float)nX;
             float xNorm = 2.0f * v - 1.0f;
             float ax = fabsf(xNorm);
             float xPos = center.x + xNorm * rowW;
-            float domeProfile = powf(fmaxf(0.0f, 1.0f - xNorm * xNorm), 0.58f * convex + 0.25f) *
+            float domeProfile = powf(fmaxf(0.0f, 1.0f - xNorm * xNorm), 0.56f * convex + 0.26f) *
                                 powf(fmaxf(0.0f, 1.0f - zNorm * zNorm), 0.48f);
 
-            /* Patrón de escudos: 5 vertebrales centrales (|x|<0.32), 4 pares costales (0.32..0.82), marginales (>0.82). */
+            /* Patrón de escudos (5 vertebrales, 4 pares costales, 11 marginales) con surcos nítidos y bisel duro. */
             float suture = 0.0f;
-            if (ax < 0.32f) {
-                float seamZ = fabsf(sinf(u * (float)vertebrals * 3.14159265f));
-                float seamX = Math_Clamp01((0.32f - ax) / 0.05f);
-                suture = fmaxf(1.0f - seamZ, 1.0f - seamX);
-            } else if (ax < 0.82f) {
-                float seamZ = fabsf(sinf((u * (float)costals + 0.15f) * 3.14159265f));
-                float seamX = fminf(Math_Clamp01((ax - 0.32f) / 0.05f), Math_Clamp01((0.82f - ax) / 0.05f));
-                suture = fmaxf(1.0f - seamZ, 1.0f - seamX);
+            float localU = 0.0f, localV = 0.0f;
+            if (ax < 0.30f) {
+                float uz = u * (float)vertebrals;
+                float seamZ = fabsf(sinf(uz * 3.14159265f));
+                float seamX = Math_Clamp01((0.30f - ax) / 0.025f);
+                suture = fmaxf(1.0f - ShellSmoothstep(0.0f, 0.09f, seamZ), 1.0f - seamX);
+                localU = uz - floorf(uz) - 0.5f;
+                localV = xNorm / 0.30f * 0.5f;
+            } else if (ax < 0.80f) {
+                float uz = u * (float)costals + 0.14f;
+                float seamZ = fabsf(sinf(uz * 3.14159265f));
+                float seamX = fminf(Math_Clamp01((ax - 0.30f) / 0.025f), Math_Clamp01((0.80f - ax) / 0.025f));
+                suture = fmaxf(1.0f - ShellSmoothstep(0.0f, 0.09f, seamZ), 1.0f - seamX);
+                localU = uz - floorf(uz) - 0.5f;
+                localV = (ax - 0.55f) / 0.25f * 0.5f;
             } else {
-                float seamZ = fabsf(sinf(u * 11.0f * 3.14159265f));
-                suture = 1.0f - seamZ;
+                float uz = u * 11.0f;
+                float seamZ = fabsf(sinf(uz * 3.14159265f));
+                suture = (1.0f - ShellSmoothstep(0.0f, 0.08f, seamZ)) * 0.78f;
+                localU = uz - floorf(uz) - 0.5f;
+                localV = (ax - 0.90f) / 0.10f * 0.5f;
             }
-            float scuteBump = relief * domeH * 0.055f * (1.0f - 1.6f * suture * suture);
-            float yTop = center.y + domeH * domeProfile + scuteBump;
-            float yBot = center.y - plastD * 0.28f * (1.0f - ax * 0.85f);
+            /* Estrías radiales queratinosas de alto contraste + anillos de crecimiento rígidos por escudo. */
+            float radAng = atan2f(localV, localU);
+            float radDist = sqrtf(localU * localU + localV * localV);
+            float rays = 0.5f + 0.5f * sinf(radAng * 13.0f + SuppNoise2D(u * 16.0f, v * 16.0f, 911u) * 2.8f);
+            float rings = 0.5f + 0.5f * sinf(radDist * 28.0f);
+            float mottle = SuppNoise2D(u * 20.0f, v * 15.0f, 947u);
 
-            Vector3 nrm = Vec3_Normalize(Vec3_Create(xNorm * 0.65f, 1.0f, zNorm * 0.45f));
-            Color col = Color_Lerp(cCara, cBord, Math_Clamp01(suture * 0.72f + (ax > 0.82f ? 0.15f : 0.0f)));
+            float edgeFade = ShellSmoothstep(0.96f, 0.76f, ax) * ShellSmoothstep(0.96f, 0.78f, fabsf(zNorm));
+            /* Placas córneas ligeramente convexas separadas por surcos incisivos (sensación de coraza rígida). */
+            float scuteCrown = (1.0f - Math_Clamp01(radDist * 1.45f)) * 0.45f;
+            float scuteBump = relief * domeH * 0.032f * edgeFade * (scuteCrown - suture * 1.15f + 0.08f * rings);
+            float yTop = center.y + domeH * domeProfile + scuteBump;
+            float yBot = center.y - plastD * 0.24f * (1.0f - ax * 0.88f);
+
+            /* Normales biseladas por escudo para que la luz especular marque las placas duras de queratina. */
+            float bevelX = localV * 0.38f * edgeFade + (rays - 0.5f) * 0.12f * edgeFade;
+            float bevelZ = -localU * 0.38f * edgeFade + (rings - 0.5f) * 0.10f * edgeFade;
+            Vector3 nrm = Vec3_Normalize(Vec3_Create(xNorm * 0.65f + bevelX, 1.0f, zNorm * 0.45f + bevelZ));
+
+            Color scuteTint = Color_Lerp(cCara, cAmber, 0.48f * rays * (0.45f + 0.55f * mottle));
+            scuteTint = Color_Lerp(scuteTint, cOliveDark, 0.42f * (1.0f - rays));
+            scuteTint = Color_Lerp(scuteTint, cBord, 0.35f * mottle * (1.0f - rays));
+            Color col = Color_Lerp(scuteTint, cBord, Math_Clamp01(suture * 0.88f + (ax > 0.82f ? 0.16f : 0.0f)));
             if (!EmitVertex(opaque, Vec3_Create(xPos, yTop, zPos), nrm, col,
                             SURFACE_REGION_DORSAL_TRUNK, 0.0f, rigidSkin, &caraTop[iz][ix]) ||
                 !EmitVertex(opaque, Vec3_Create(xPos, yBot, zPos), Vec3_Scale(nrm, -1.0f), cPlas,
@@ -1672,27 +2074,40 @@ static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
             }
         }
     }
-    /* 2. Plastrón ventral + puente lateral en el tercio central (dejando libres aberturas de cuello y aletas). */
+    /* 2. Plastrón ventral contorneado + puente lateral inframarginal con suturas y textura ósea/queratinosa. */
     float pHalfL = sh->plastronLength * 0.50f * s * dev;
     float pHalfW = sh->plastronWidth  * 0.50f * s * dev;
-    const unsigned pnZ = 10, pnX = 10;
-    MeshIndex plasG[11][11];
+    const unsigned pnZ = 24, pnX = 20;
+    MeshIndex plasG[25][21];
     for (unsigned iz = 0; iz <= pnZ; ++iz) {
         float u = (float)iz / (float)pnZ;
         float zn = 1.0f - 2.0f * u;
-        float oval = sqrtf(fmaxf(0.05f, 1.0f - zn * zn * 0.92f));
-        /* Ensanchamiento del puente lateral entre u=0.25 y u=0.72 */
+        float oval = sqrtf(fmaxf(0.04f, 1.0f - zn * zn * 0.96f));
         float bridge = (u > 0.24f && u < 0.74f) ? sinf((u - 0.24f) / 0.50f * 3.14159265f) : 0.0f;
-        float rw = Math_Lerp(pHalfW * oval, halfW * 0.88f, bridge * 0.65f);
+        float rw = Math_Lerp(pHalfW * oval, halfW * 0.86f, bridge * 0.62f);
         float zPos = center.z + zn * pHalfL;
+        float endLift = powf(fabsf(zn), 2.8f) * plastD * 0.22f;
         for (unsigned ix = 0; ix <= pnX; ++ix) {
             float v = (float)ix / (float)pnX;
             float xn = 2.0f * v - 1.0f;
             float ax = fabsf(xn);
-            float lift = bridge * powf(ax, 1.8f) * plastD * 0.72f + (1.0f - bridge) * powf(ax, 2.4f) * plastD * 0.42f;
-            float yPos = center.y - plastD * 0.62f * (1.0f - 0.16f * ax * ax) + lift;
-            Vector3 nrm = Vec3_Normalize(Vec3_Create(xn * 0.35f * bridge, -1.0f, zn * 0.15f));
-            if (!EmitVertex(opaque, Vec3_Create(center.x + xn * rw, yPos, zPos), nrm, cPlas,
+            float sideLift = bridge * powf(ax, 1.8f) * plastD * 0.62f + (1.0f - bridge) * powf(ax, 2.2f) * plastD * 0.34f;
+            float yPos = center.y - plastD * 0.72f * (1.0f - 0.12f * ax * ax) + sideLift + endLift;
+
+            float midSeam = 1.0f - ShellSmoothstep(0.0f, 0.055f, ax);
+            float transWave = fabsf(sinf(u * 6.0f * 3.14159265f));
+            float transSeam = (1.0f - ShellSmoothstep(0.0f, 0.11f, transWave)) * ShellSmoothstep(0.95f, 0.78f, ax);
+            float bridgeSeam = bridge * (1.0f - ShellSmoothstep(0.0f, 0.055f, fabsf(ax - 0.72f)));
+            float pSuture = fmaxf(midSeam * 0.78f, fmaxf(transSeam * 0.85f, bridgeSeam * 0.68f));
+            float pGrain = SuppNoise2D(u * 18.0f, v * 14.0f, 1013u);
+            yPos += pSuture * plastD * 0.015f;
+
+            Vector3 nrm = Vec3_Normalize(Vec3_Create(xn * (0.28f + 0.35f * bridge) + (pGrain - 0.5f) * 0.06f,
+                                                     -1.0f,
+                                                     zn * 0.25f));
+            Color pcBase = ShadeColor(cPlas, 0.92f + 0.14f * pGrain);
+            Color pc = Color_Lerp(pcBase, cPlasSeam, Math_Clamp01(pSuture));
+            if (!EmitVertex(opaque, Vec3_Create(center.x + xn * rw, yPos, zPos), nrm, pc,
                             SURFACE_REGION_VENTRAL_TRUNK, 1.0f, rigidSkin, &plasG[iz][ix])) {
                 return false;
             }
@@ -1709,10 +2124,49 @@ static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
 }
 
 /* ============================================================================
- * 11. DETALLES CEFÁLICOS ACUÁTICOS (BRANQUIAS, OPÉRCULO, ESPIRÁCULO, CORONETA Y ANILLOS ÓSEOS)
+ * 11. DETALLES CEFÁLICOS ACUÁTICOS PROYECTADOS AL SDF + CORONETA + ANILLOS ÓSEOS
  * ============================================================================ */
 
-static bool BuildAquaticHeadAndArmorDetails(const Monster* m, BuildTarget* opaque) {
+static bool EmitProjectedQuadPatch(BuildTarget* opaque, const MonsterSDF* sdf,
+                                   Vector3 anchor, Vector3 dir, Vector3 tanU, Vector3 tanV,
+                                   float halfU, float halfV, float maxDist, float offset,
+                                   Color cCenter, Color cEdge, SurfaceRegion region,
+                                   AnatomySkinBinding sk) {
+    /* Emite una placa orgánica proyectada punto por punto sobre el SDF resuelto. */
+    const unsigned nu = 4, nv = 4;
+    MeshIndex grid[5][5];
+    for (unsigned iu = 0; iu <= nu; ++iu) {
+        float fu = 2.0f * ((float)iu / (float)nu) - 1.0f;
+        for (unsigned iv = 0; iv <= nv; ++iv) {
+            float fv = 2.0f * ((float)iv / (float)nv) - 1.0f;
+            /* Recorte elíptico suave de esquinas para placas cefálicas orgánicas. */
+            float r = sqrtf(fu * fu + fv * fv);
+            float scale = r > 1.0f ? (1.0f / r) : 1.0f;
+            float eu = fu * Math_Lerp(1.0f, scale, 0.42f);
+            float ev = fv * Math_Lerp(1.0f, scale, 0.42f);
+            Vector3 pA = Vec3_Add(anchor, Vec3_Add(Vec3_Scale(tanU, eu * halfU), Vec3_Scale(tanV, ev * halfV)));
+            float edge = fmaxf(fabsf(fu), fabsf(fv));
+            float bump = offset * (1.0f - 0.55f * edge * edge);
+            SurfaceProjection sp = ProjectOntoSDFSurface(sdf, pA, dir, maxDist, bump);
+            if (!sp.hit) {
+                sp.point = Vec3_Add(pA, Vec3_Scale(dir, maxDist * 0.5f + bump));
+                sp.normal = dir;
+            }
+            Color col = Color_Lerp(cCenter, cEdge, edge * edge);
+            if (!EmitVertex(opaque, sp.point, sp.normal, col, region, 0.08f, sk, &grid[iu][iv]))
+                return false;
+        }
+    }
+    for (unsigned iu = 0; iu < nu; ++iu) {
+        for (unsigned iv = 0; iv < nv; ++iv) {
+            if (!EmitQuad(opaque, grid[iu][iv], grid[iu + 1][iv], grid[iu + 1][iv + 1], grid[iu][iv + 1]))
+                return false;
+        }
+    }
+    return true;
+}
+
+static bool BuildAquaticHeadAndArmorDetails(const Monster* m, const MonsterSDF* sdf, BuildTarget* opaque) {
     const CreaturePhenotype* p = &m->phenotype;
     const AnatomyGraph* g = &m->anatomyGraph;
     float s = p->axial.totalScale;
@@ -1722,15 +2176,16 @@ static bool BuildAquaticHeadAndArmorDetails(const Monster* m, BuildTarget* opaqu
         int jHead = FindJointSafe(g, opaque->skeleton, headNode->id);
         AnatomySkinBinding skHead = MakeSkin1(jHead);
         const HeadSurfaceRecipe* hr = &m->head.anatomy.surface;
+        float maxProbe = fmaxf(hr->craniumRadii.x, fmaxf(hr->craniumRadii.y, hr->craniumRadii.z)) * 2.2f;
 
         if (p->head.archetype == HEAD_ARCHETYPE_ELASMOBRANCH) {
-            /* 5 hendiduras branquiales externas por lado detrás de la cabeza. */
+            /* 5 hendiduras branquiales subdivididas y proyectadas punto por punto sobre el SDF del cuello. */
             const AnatomyNode* neck = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_NECK);
             const AnatomyNode* pec  = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PECTORAL);
             if (neck && pec) {
                 int jNeck = FindJointSafe(g, opaque->skeleton, neck->id);
                 AnatomySkinBinding skNeck = MakeSkin1(jNeck);
-                Color slitCol = Color_FromRGB(32, 34, 38);
+                Color slitCol = Color_FromRGB(24, 26, 30);
                 for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
                     float sgn = sideIdx == 0 ? 1.0f : -1.0f;
                     for (int gIdx = 0; gIdx < 5; ++gIdx) {
@@ -1738,140 +2193,336 @@ static bool BuildAquaticHeadAndArmorDetails(const Monster* m, BuildTarget* opaqu
                         Vector3 baseC = Vec3_Lerp(neck->center, pec->center, 0.15f + 0.68f * u);
                         float rx = Math_Lerp(neck->widthRadius, pec->widthRadius, 0.15f + 0.68f * u);
                         float ry = Math_Lerp(neck->heightRadius, pec->heightRadius, 0.15f + 0.68f * u);
-                        float slitH = ry * 0.42f;
-                        float slitW = fmaxf(0.008f * s, rx * 0.06f);
-                        Vector3 c = Vec3_Create(sgn * (rx * 0.99f), baseC.y - ry * 0.08f, baseC.z);
-                        Vector3 nrm = Vec3_Create(sgn, 0.0f, 0.0f);
-                        MeshIndex a, b, d, e;
-                        if (!EmitVertex(opaque, Vec3_Create(c.x, c.y + slitH, c.z + slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &a) ||
-                            !EmitVertex(opaque, Vec3_Create(c.x, c.y + slitH, c.z - slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &b) ||
-                            !EmitVertex(opaque, Vec3_Create(c.x, c.y - slitH, c.z - slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &d) ||
-                            !EmitVertex(opaque, Vec3_Create(c.x, c.y - slitH, c.z + slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &e) ||
-                            !EmitQuad(opaque, a, b, d, e)) {
-                            return false;
+                        float slitH = ry * 0.44f;
+                        float slitW = fmaxf(0.006f * s, rx * 0.055f);
+                        float off = fmaxf(0.005f * s, rx * 0.016f);
+                        const unsigned nSub = 5;
+                        MeshIndex prevF = 0, prevB = 0;
+                        for (unsigned k = 0; k <= nSub; ++k) {
+                            float f = 2.0f * ((float)k / (float)nSub) - 1.0f;
+                            Vector3 anchor = Vec3_Create(baseC.x, baseC.y - ry * 0.06f + f * slitH, baseC.z);
+                            Vector3 dir = Vec3_Normalize(Vec3_Create(sgn, f * 0.20f, 0.0f));
+                            SurfaceProjection sp = ProjectOntoSDFSurface(sdf, anchor, dir, rx * 2.4f, off);
+                            Vector3 pt = sp.hit ? sp.point : Vec3_Create(sgn * rx, anchor.y, anchor.z);
+                            Vector3 nrm = sp.hit ? sp.normal : dir;
+                            MeshIndex iF, iB;
+                            if (!EmitVertex(opaque, Vec3_Create(pt.x, pt.y, pt.z + slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &iF) ||
+                                !EmitVertex(opaque, Vec3_Create(pt.x, pt.y, pt.z - slitW), nrm, slitCol, SURFACE_REGION_NECK, 0.2f, skNeck, &iB))
+                                return false;
+                            if (k > 0) {
+                                if (sideIdx == 0) {
+                                    if (!EmitQuad(opaque, prevF, prevB, iB, iF)) return false;
+                                } else {
+                                    if (!EmitQuad(opaque, prevF, iF, iB, prevB)) return false;
+                                }
+                            }
+                            prevF = iF; prevB = iB;
                         }
                     }
                 }
             }
         } else if (p->head.archetype == HEAD_ARCHETYPE_TELEOST) {
-            /* Surco/borde opercular bilateral detrás del ojo en peces óseos. */
-            Color opCol = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(30, 42, 58), 0.55f);
-            Vector3 opBase = Vec3_Add(headNode->center, hr->cranialCenters[4]);
-            float rx = hr->cranialRadii[4].x * 1.01f;
-            float ry = hr->cranialRadii[4].y * 0.68f;
+            /* Margen opercular curvo sutil proyectado directamente sobre el SDF craneal detrás del ojo (T02). */
+            Color opDark = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(12, 18, 28), 0.78f);
+            Color opEdge = Color_Lerp(p->surface.pigment.baseColor, p->surface.pigment.secondaryColor, 0.35f);
+            Vector3 opBase = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[3], hr->cranialCenters[4], 0.55f));
+            float ry = hr->cranialRadii[4].y * 0.72f;
+            float off = fmaxf(0.004f * s, hr->cranialRadii[4].x * 0.012f);
+            float stripW = fmaxf(0.008f * s, hr->cranialRadii[4].y * 0.030f);
             for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
                 float sgn = sideIdx == 0 ? 1.0f : -1.0f;
-                MeshIndex prevA = 0, prevB = 0;
-                for (unsigned k = 0; k <= 6; ++k) {
-                    float aAng = -1.1f + 2.2f * ((float)k / 6.0f);
+                MeshIndex prevA = 0, prevB = 0, prevC = 0;
+                const unsigned nSeg = 10;
+                for (unsigned k = 0; k <= nSeg; ++k) {
+                    float f = (float)k / (float)nSeg;
+                    float aAng = -1.18f + 2.36f * f;
                     float y = opBase.y + sinf(aAng) * ry;
-                    float z = opBase.z - cosf(aAng) * ry * 0.28f;
-                    float x = sgn * rx * sqrtf(fmaxf(0.15f, 1.0f - 0.55f * sinf(aAng) * sinf(aAng)));
-                    MeshIndex iA, iB;
-                    Vector3 nrm = Vec3_Create(sgn, 0.0f, -0.25f);
-                    if (!EmitVertex(opaque, Vec3_Create(x, y, z + 0.012f * s), nrm, opCol, SURFACE_REGION_HEAD, 0.2f, skHead, &iA) ||
-                        !EmitVertex(opaque, Vec3_Create(x, y, z - 0.012f * s), nrm, opCol, SURFACE_REGION_HEAD, 0.2f, skHead, &iB))
+                    float z = opBase.z - cosf(aAng) * ry * 0.34f;
+                    Vector3 anchor = Vec3_Create(opBase.x, y, z);
+                    Vector3 dir = Vec3_Normalize(Vec3_Create(sgn, sinf(aAng) * 0.22f, -0.10f));
+                    SurfaceProjection sp = ProjectOntoSDFSurface(sdf, anchor, dir, maxProbe, off);
+                    if (!sp.hit) continue;
+                    Vector3 pFront = Vec3_Add(sp.point, Vec3_Create(0.0f, 0.0f,  stripW * 0.75f));
+                    Vector3 pMid   = Vec3_Add(sp.point, Vec3_Scale(sp.normal, off * 0.35f));
+                    Vector3 pRear  = Vec3_Add(sp.point, Vec3_Create(0.0f, 0.0f, -stripW * 0.75f));
+                    MeshIndex iA, iB, iC;
+                    if (!EmitVertex(opaque, pFront, sp.normal, opEdge, SURFACE_REGION_HEAD, 0.25f, skHead, &iA) ||
+                        !EmitVertex(opaque, pMid,   sp.normal, opDark, SURFACE_REGION_HEAD, 0.20f, skHead, &iB) ||
+                        !EmitVertex(opaque, pRear,  sp.normal, opEdge, SURFACE_REGION_HEAD, 0.25f, skHead, &iC))
                         return false;
-                    if (k > 0 && !EmitQuad(opaque, prevA, prevB, iB, iA)) return false;
-                    prevA = iA; prevB = iB;
+                    if (k > 0) {
+                        if (sideIdx == 0) {
+                            if (!EmitQuad(opaque, prevA, prevB, iB, iA) ||
+                                !EmitQuad(opaque, prevB, prevC, iC, iB)) return false;
+                        } else {
+                            if (!EmitQuad(opaque, prevA, iA, iB, prevB) ||
+                                !EmitQuad(opaque, prevB, iB, iC, prevC)) return false;
+                        }
+                    }
+                    prevA = iA; prevB = iB; prevC = iC;
                 }
             }
         } else if (p->head.archetype == HEAD_ARCHETYPE_CETACEAN) {
-            /* Espiráculo dorsal único en media luna detrás del melón. */
-            Color bhCol = Color_FromRGB(24, 28, 34);
-            Vector3 bh = Vec3_Add(headNode->center, hr->cranialCenters[4]);
-            bh.y += hr->cranialRadii[4].y * 1.01f;
-            float bw = hr->cranialRadii[4].x * 0.16f;
-            float bl = bw * 0.45f;
-            MeshIndex a, b, c, d;
-            Vector3 nrm = Vec3_Create(0, 1, 0);
-            if (!EmitVertex(opaque, Vec3_Create(-bw, bh.y, bh.z - bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &a) ||
-                !EmitVertex(opaque, Vec3_Create( bw, bh.y, bh.z - bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &b) ||
-                !EmitVertex(opaque, Vec3_Create( bw * 0.75f, bh.y, bh.z + bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &c) ||
-                !EmitVertex(opaque, Vec3_Create(-bw * 0.75f, bh.y, bh.z + bl), nrm, bhCol, SURFACE_REGION_HEAD, 0.0f, skHead, &d) ||
-                !EmitQuad(opaque, a, b, c, d)) {
+            /* Espiráculo dorsal único en media luna detrás del melón, proyectado al SDF real (D02). */
+            Color bhRim  = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(74, 84, 94), 0.35f);
+            Color bhSlit = Color_FromRGB(18, 22, 26);
+            Vector3 bhAnchor = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[3], hr->cranialCenters[4], 0.45f));
+            float bw = fmaxf(0.022f * s, hr->cranialRadii[4].x * 0.15f);
+            float bl = bw * 0.44f;
+            float off = fmaxf(0.004f * s, hr->cranialRadii[4].y * 0.012f);
+            const unsigned nArc = 12;
+            MeshIndex innerG[13], outerG[13];
+            SurfaceProjection spCenter = ProjectOntoSDFSurface(sdf, bhAnchor, Vec3_Create(0, 1, 0), maxProbe, off * 0.8f);
+            Vector3 cPt = spCenter.hit ? spCenter.point : Vec3_Add(bhAnchor, Vec3_Create(0, hr->cranialRadii[4].y, 0));
+            Vector3 cNrm = spCenter.hit ? spCenter.normal : Vec3_Create(0, 1, 0);
+            MeshIndex centerIdx = 0;
+            if (!EmitVertex(opaque, cPt, cNrm, bhSlit, SURFACE_REGION_HEAD, 0.0f, skHead, &centerIdx)) return false;
+            for (unsigned k = 0; k <= nArc; ++k) {
+                float ang = (float)k / (float)nArc * 6.2831853f;
+                float cx = cosf(ang);
+                float sz = sinf(ang);
+                float crescentZ = sz * bl - (1.0f - cx * cx) * bl * 0.48f;
+                Vector3 qIn  = Vec3_Add(bhAnchor, Vec3_Create(cx * bw * 0.72f, 0.0f, crescentZ * 0.72f));
+                Vector3 qOut = Vec3_Add(bhAnchor, Vec3_Create(cx * bw * 1.25f, 0.0f, crescentZ * 1.25f));
+                SurfaceProjection spIn  = ProjectOntoSDFSurface(sdf, qIn,  Vec3_Create(0, 1, 0), maxProbe, off * 1.10f);
+                SurfaceProjection spOut = ProjectOntoSDFSurface(sdf, qOut, Vec3_Create(0, 1, 0), maxProbe, off * 0.50f);
+                Vector3 pIn  = spIn.hit  ? spIn.point  : Vec3_Add(cPt, Vec3_Create(cx * bw * 0.72f, 0.0f, crescentZ * 0.72f));
+                Vector3 pOut = spOut.hit ? spOut.point : Vec3_Add(cPt, Vec3_Create(cx * bw * 1.25f, 0.0f, crescentZ * 1.25f));
+                if (!EmitVertex(opaque, pIn,  spIn.hit  ? spIn.normal  : cNrm, bhSlit, SURFACE_REGION_HEAD, 0.0f, skHead, &innerG[k]) ||
+                    !EmitVertex(opaque, pOut, spOut.hit ? spOut.normal : cNrm, bhRim,  SURFACE_REGION_HEAD, 0.0f, skHead, &outerG[k]))
+                    return false;
+            }
+            for (unsigned k = 0; k < nArc; ++k) {
+                if (!EmitTri(opaque, centerIdx, innerG[k + 1], innerG[k]) ||
+                    !EmitQuad(opaque, innerG[k], innerG[k + 1], outerG[k + 1], outerG[k]))
+                    return false;
+            }
+        } else if (p->head.archetype == HEAD_ARCHETYPE_TESTUDINE) {
+            /* Placas cefálicas grandes y planas de Chelonia mydas ajustadas al cráneo (C02):
+             * 1 PAR de escamas prefrontales diagnósticas entre los ojos, placa frontal,
+             * placas supraoculares y parietales/postorbitales con suturas oscuras estrechas. */
+            Color plateCenter = Color_Lerp(p->dorsalColor, Color_FromRGB(84, 88, 60), 0.45f);
+            Color plateEdge   = Color_FromRGB(30, 30, 20);
+            float off = fmaxf(0.009f * s, hr->craniumRadii.y * 0.032f);
+            Vector3 cMid = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[1], hr->cranialCenters[2], 0.55f));
+            Vector3 cRear = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[3], hr->cranialCenters[4], 0.42f));
+            float rx = hr->craniumRadii.x;
+            float rz = hr->craniumRadii.z;
+
+            /* 1) Par único de escamas prefrontales alargadas entre los ojos (rasgo diagnóstico de C. mydas). */
+            for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+                float sgn = sideIdx == 0 ? 1.0f : -1.0f;
+                Vector3 pfAnchor = Vec3_Add(cMid, Vec3_Create(sgn * rx * 0.23f, 0.0f, rz * 0.16f));
+                Vector3 pfDir = Vec3_Normalize(Vec3_Create(sgn * 0.22f, 0.96f, 0.14f));
+                if (!EmitProjectedQuadPatch(opaque, sdf, pfAnchor, pfDir,
+                                            Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
+                                            rx * 0.24f, rz * 0.34f, maxProbe, off,
+                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                    return false;
+            }
+            /* 2) Placa frontal central detrás de las prefrontales. */
+            if (!EmitProjectedQuadPatch(opaque, sdf, Vec3_Add(cRear, Vec3_Create(0.0f, 0.0f, rz * 0.20f)),
+                                        Vec3_Create(0, 1, 0), Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
+                                        rx * 0.34f, rz * 0.28f, maxProbe, off,
+                                        plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
                 return false;
+            /* 3) Placas supraoculares, parietales y postorbitales bilaterales ajustadas. */
+            for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+                float sgn = sideIdx == 0 ? 1.0f : -1.0f;
+                Vector3 supAnchor = Vec3_Add(cMid, Vec3_Create(sgn * rx * 0.56f, 0.0f, -rz * 0.04f));
+                Vector3 supDir = Vec3_Normalize(Vec3_Create(sgn * 0.54f, 0.84f, 0.06f));
+                if (!EmitProjectedQuadPatch(opaque, sdf, supAnchor, supDir,
+                                            Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
+                                            rx * 0.22f, rz * 0.28f, maxProbe, off,
+                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                    return false;
+                Vector3 parAnchor = Vec3_Add(cRear, Vec3_Create(sgn * rx * 0.44f, 0.0f, -rz * 0.20f));
+                Vector3 parDir = Vec3_Normalize(Vec3_Create(sgn * 0.40f, 0.91f, -0.06f));
+                if (!EmitProjectedQuadPatch(opaque, sdf, parAnchor, parDir,
+                                            Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
+                                            rx * 0.32f, rz * 0.30f, maxProbe, off,
+                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                    return false;
+                Vector3 poAnchor = Vec3_Add(cRear, Vec3_Create(sgn * rx * 0.68f, -hr->craniumRadii.y * 0.04f, -rz * 0.04f));
+                Vector3 poDir = Vec3_Normalize(Vec3_Create(sgn * 0.94f, 0.20f, 0.0f));
+                if (!EmitProjectedQuadPatch(opaque, sdf, poAnchor, poDir,
+                                            Vec3_Create(0, 1, 0), Vec3_Create(0, 0, 1),
+                                            hr->craniumRadii.y * 0.34f, rz * 0.28f, maxProbe, off,
+                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                    return false;
             }
         } else if (p->head.archetype == HEAD_ARCHETYPE_SYNGNATHID) {
-            /* Coroneta ósea dorsal orgánica sobre la bóveda posterior del caballito de mar. */
-            Color crCol = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.55f);
-            Vector3 crBase = Vec3_Add(headNode->center, hr->cranialCenters[4]);
-            crBase.y += hr->cranialRadii[4].y * 0.78f;
-            float crH = hr->cranialRadii[4].y * 0.40f;
-            float crR = hr->cranialRadii[4].x * 0.36f;
-            const unsigned segs = 6;
-            MeshIndex ringB[7], ringT[7];
+            /* Coroneta ósea orgánica y continua sobre la bóveda craneal posterior (S04). */
+            Color crBaseCol = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.48f);
+            Color crTopCol  = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.22f);
+            Vector3 crAnchor = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[3], hr->cranialCenters[4], 0.55f));
+            SurfaceProjection spCr = ProjectOntoSDFSurface(sdf, crAnchor, Vec3_Create(0, 1, -0.18f), maxProbe, 0.0f);
+            Vector3 crBase = spCr.hit ? Vec3_Sub(spCr.point, Vec3_Create(0, hr->cranialRadii[4].y * 0.16f, 0))
+                                      : Vec3_Add(crAnchor, Vec3_Create(0, hr->cranialRadii[4].y * 0.72f, 0));
+            float crH = hr->cranialRadii[4].y * 0.34f;
+            float crR = hr->cranialRadii[4].x * 0.44f;
+            const unsigned segs = 16;
+            MeshIndex ringB[17], ringM[17], ringT[17];
+            MeshIndex capCenter = 0;
+            Vector3 capP = Vec3_Add(crBase, Vec3_Create(0.0f, crH * 0.88f, -crH * 0.24f));
+            if (!EmitVertex(opaque, capP, Vec3_Create(0, 1, -0.2f), crTopCol, SURFACE_REGION_HEAD, 0.0f, skHead, &capCenter))
+                return false;
             for (unsigned k = 0; k <= segs; ++k) {
                 float ang = (float)k / (float)segs * 6.2831853f;
-                float spike = (k % 2 == 0) ? 1.25f : 0.85f;
-                Vector3 nrm = Vec3_Normalize(Vec3_Create(cosf(ang), 0.4f, sinf(ang)));
-                if (!EmitVertex(opaque, Vec3_Create(crBase.x + cosf(ang) * crR, crBase.y, crBase.z + sinf(ang) * crR),
-                                nrm, crCol, SURFACE_REGION_HEAD, 0.0f, skHead, &ringB[k]) ||
-                    !EmitVertex(opaque, Vec3_Create(crBase.x + cosf(ang) * crR * 0.72f, crBase.y + crH * spike,
-                                                    crBase.z + sinf(ang) * crR * 0.72f - crH * 0.25f),
-                                nrm, crCol, SURFACE_REGION_HEAD, 0.0f, skHead, &ringT[k])) {
+                /* 5 lóbulos óseos bajos y suavemente redondeados (sin puntas rígidas). */
+                float lobe = 0.94f + 0.07f * cosf(ang * 5.0f);
+                float ca = cosf(ang), sa = sinf(ang);
+                Vector3 nrm = Vec3_Normalize(Vec3_Create(ca, 0.45f, sa));
+                Vector3 pB = Vec3_Create(crBase.x + ca * crR * 1.05f, crBase.y, crBase.z + sa * crR * 1.15f);
+                Vector3 pM = Vec3_Create(crBase.x + ca * crR * 0.78f * lobe, crBase.y + crH * 0.56f,
+                                         crBase.z + sa * crR * 0.84f * lobe - crH * 0.14f);
+                Vector3 pT = Vec3_Create(crBase.x + ca * crR * 0.54f * lobe, crBase.y + crH * lobe,
+                                         crBase.z + sa * crR * 0.58f * lobe - crH * 0.26f);
+                if (!EmitVertex(opaque, pB, nrm, crBaseCol, SURFACE_REGION_HEAD, 0.0f, skHead, &ringB[k]) ||
+                    !EmitVertex(opaque, pM, nrm, crBaseCol, SURFACE_REGION_HEAD, 0.0f, skHead, &ringM[k]) ||
+                    !EmitVertex(opaque, pT, Vec3_Normalize(Vec3_Add(nrm, Vec3_Create(0, 0.7f, 0))), crTopCol,
+                                SURFACE_REGION_HEAD, 0.0f, skHead, &ringT[k]))
                     return false;
-                }
             }
             for (unsigned k = 0; k < segs; ++k) {
-                if (!EmitQuad(opaque, ringB[k], ringB[k + 1], ringT[k + 1], ringT[k])) return false;
+                if (!EmitQuad(opaque, ringB[k], ringB[k + 1], ringM[k + 1], ringM[k]) ||
+                    !EmitQuad(opaque, ringM[k], ringM[k + 1], ringT[k + 1], ringT[k]) ||
+                    !EmitTri(opaque, ringT[k], ringT[k + 1], capCenter))
+                    return false;
             }
         }
     }
 
-    /* Anillos óseos segmentados para cuerpos verticales curvados (caballito de mar: ~11 anillos troncales + caudales). */
+    /* Armadura ósea segmentada parametrizada por longitud de arco (caballito de mar, S02):
+     * 11 anillos troncales + ~35 anillos caudales con crestas longitudinales continuas
+     * proyectados punto por punto (borde inferior, cresta y borde superior) sobre el SDF real. */
     if (p->axial.archetype == AXIAL_ARCHETYPE_CURVED_VERTICAL && p->axial.abdomenSegments > 0) {
-        Color ringCol = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.30f);
-        for (size_t ci = 0; ci < g->connectionCount; ++ci) {
-            const BodyConnection* edge = &g->connections[ci];
-            if (edge->kind != BODY_CONNECTION_AXIAL_LOFT || edge->development < 0.1f) continue;
-            const AnatomyNode* na = AnatomyGraph_FindNode(g, edge->fromId);
-            const AnatomyNode* nb = AnatomyGraph_FindNode(g, edge->toId);
-            if (!na || !nb) continue;
-            bool isTail = (nb->region == ANATOMY_REGION_TAIL);
-            unsigned ringsPerSeg = isTail ? 2u : 2u;
-            int jA = FindJointSafe(g, opaque->skeleton, na->id);
-            int jB = FindJointSafe(g, opaque->skeleton, nb->id);
-            Vector3 dir = Vec3_Normalize(Vec3_Sub(nb->center, na->center));
-            Vector3 sideA = Vec3_Create(1, 0, 0);
-            Vector3 upA = Vec3_Normalize(Vec3_Cross(sideA, dir));
-            if (Vec3_LengthSq(upA) < 1e-5f) upA = Vec3_Create(0, 0, 1);
+        typedef struct SpineSample {
+            Vector3 center;
+            float rx, ry;
+            int jIdx;
+            bool isTail;
+        } SpineSample;
+        SpineSample spine[32];
+        unsigned spineCount = 0;
 
-            for (unsigned rIdx = 0; rIdx < ringsPerSeg; ++rIdx) {
-                float u = ((float)rIdx + 0.5f) / (float)ringsPerSeg;
-                Vector3 c = Vec3_Lerp(na->center, nb->center, u);
-                float rx = Math_Lerp(na->widthRadius, nb->widthRadius, u);
-                float ry = Math_Lerp(na->heightRadius, nb->heightRadius, u);
-                float rMin = fminf(rx, ry);
-                /* Collarín óseo biselado ajustado al volumen real del segmento (sin discos salientes). */
-                float rSide = rx * 1.03f;
-                float rSag  = fminf(ry * 1.02f, rMin * 1.28f);
-                float bandH = fmaxf(0.008f * s, fminf(Vec3_Length(Vec3_Sub(nb->center, na->center)) * 0.24f, rMin * 0.38f));
-                AnatomySkinBinding sk = MakeSkin2(jA, 1.0f - u, jB, u);
-                const unsigned nPts = 8;
-                MeshIndex lo[9], mid[9], hi[9];
+        for (unsigned i = 1; i <= 6 && spineCount < 32; ++i) {
+            const AnatomyNode* n = AnatomyGraph_FindModuleNode(g, 1, (uint16_t)i);
+            if (!n) continue;
+            spine[spineCount++] = (SpineSample){n->center, n->widthRadius, n->heightRadius,
+                                                FindJointSafe(g, opaque->skeleton, n->id), false};
+        }
+        unsigned trunkEndIdx = spineCount > 0 ? spineCount - 1 : 0;
+        for (size_t mi = 0; mi < m->recipe.bodyPlan.moduleCount; ++mi) {
+            const CreatureModuleInstance* mod = &m->recipe.bodyPlan.modules[mi];
+            if (mod->kind != CREATURE_MODULE_TAIL || mod->phenotypeIndex >= p->tailCount) continue;
+            unsigned segN = p->tails[mod->phenotypeIndex].segmentCount;
+            for (unsigned ti = 1; ti <= segN && spineCount < 32; ++ti) {
+                const AnatomyNode* tn = AnatomyGraph_FindModuleNode(g, mod->instanceId, (uint16_t)ti);
+                if (!tn) continue;
+                spine[spineCount++] = (SpineSample){tn->center, tn->widthRadius, tn->heightRadius,
+                                                    FindJointSafe(g, opaque->skeleton, tn->id), true};
+            }
+            break;
+        }
+
+        if (spineCount >= 3) {
+            float cumLen[32];
+            cumLen[0] = 0.0f;
+            for (unsigned i = 1; i < spineCount; ++i) {
+                cumLen[i] = cumLen[i - 1] + Vec3_Length(Vec3_Sub(spine[i].center, spine[i - 1].center));
+            }
+            float trunkArc = cumLen[trunkEndIdx];
+            float totalArc = cumLen[spineCount - 1];
+            float tailArc = fmaxf(0.0f, totalArc - trunkArc);
+            unsigned trunkRings = p->axial.abdomenSegments;
+            if (trunkRings > 16) trunkRings = 16;
+            unsigned tailRings = (tailArc > 0.05f * s) ? 35u : 0u;
+            unsigned totalRings = trunkRings + tailRings;
+            if (totalRings > 54) totalRings = 54;
+
+            Color plateCol = Color_Lerp(p->dorsalColor, p->surface.pigment.secondaryColor, 0.25f);
+            Color crestCol = Color_Lerp(p->dorsalColor, p->ventralColor, 0.26f);
+            Color grooveCol = Color_Lerp(p->surface.pigment.secondaryColor, Color_FromRGB(62, 34, 12), 0.42f);
+
+            const unsigned nPts = 16;
+            MeshIndex prevRing[17] = {0};
+            bool hasPrev = false;
+
+            for (unsigned rIdx = 0; rIdx < totalRings; ++rIdx) {
+                bool isTailRing = (rIdx >= trunkRings);
+                float targetArc;
+                if (!isTailRing) {
+                    float u = ((float)rIdx + 0.5f) / (float)trunkRings;
+                    targetArc = trunkArc * (0.04f + 0.94f * u);
+                } else {
+                    float u = ((float)(rIdx - trunkRings) + 0.5f) / (float)tailRings;
+                    targetArc = trunkArc + tailArc * (0.02f + 0.95f * u);
+                }
+
+                unsigned seg = 0;
+                while (seg + 1 < spineCount - 1 && cumLen[seg + 1] < targetArc) ++seg;
+                float segL = fmaxf(cumLen[seg + 1] - cumLen[seg], 1e-5f);
+                float lt = Math_Clamp01((targetArc - cumLen[seg]) / segL);
+                Vector3 c = Vec3_Lerp(spine[seg].center, spine[seg + 1].center, lt);
+                float rx = Math_Lerp(spine[seg].rx, spine[seg + 1].rx, lt);
+                float ry = Math_Lerp(spine[seg].ry, spine[seg + 1].ry, lt);
+                Vector3 tangent = Vec3_Normalize(Vec3_Sub(spine[seg + 1].center, spine[seg].center));
+                Vector3 sideA = Vec3_Create(1.0f, 0.0f, 0.0f);
+                Vector3 sagA = Vec3_Normalize(Vec3_Cross(sideA, tangent));
+                if (Vec3_LengthSq(sagA) < 1e-5f) sagA = Vec3_Create(0.0f, 0.0f, 1.0f);
+
+                float ringSpacing = isTailRing ? (tailArc / (float)tailRings) : (trunkArc / (float)trunkRings);
+                float halfBand = fminf(ringSpacing * 0.44f, fmaxf(rx, ry) * 0.48f);
+                float probeMax = fmaxf(rx, ry) * 2.4f;
+                float baseOff = isTailRing
+                    ? fmaxf(0.005f * s, fminf(rx, ry) * 0.075f)
+                    : fmaxf(0.011f * s, fminf(rx, ry) * 0.12f);
+                float ridgeAmp = fmaxf(0.0045f * s, fminf(rx, ry) * (isTailRing ? 0.12f : 0.095f));
+                float crestHarmonic = isTailRing ? 4.0f : 6.0f;
+                AnatomySkinBinding sk = MakeSkin2(spine[seg].jIdx, 1.0f - lt, spine[seg + 1].jIdx, lt);
+                SurfaceRegion reg = isTailRing ? SURFACE_REGION_TAIL : SURFACE_REGION_DORSAL_TRUNK;
+
+                Vector3 cLo = Vec3_Sub(c, Vec3_Scale(tangent, halfBand));
+                Vector3 cHi = Vec3_Add(c, Vec3_Scale(tangent, halfBand));
+                MeshIndex lo[17], mid[17], hi[17];
                 for (unsigned k = 0; k <= nPts; ++k) {
                     float ang = (float)k / (float)nPts * 6.2831853f;
-                    float ridge = 1.0f + 0.06f * cosf(ang * 4.0f);
-                    Vector3 radIn = Vec3_Add(Vec3_Scale(sideA, cosf(ang) * rSide * 0.94f),
-                                             Vec3_Scale(upA,   sinf(ang) * rSag  * 0.94f));
-                    Vector3 radOut = Vec3_Add(Vec3_Scale(sideA, cosf(ang) * rSide * ridge),
-                                              Vec3_Scale(upA,   sinf(ang) * rSag  * ridge));
-                    Vector3 nrm = Vec3_Normalize(radOut);
-                    Vector3 pLo  = Vec3_Add(c, Vec3_Sub(radIn, Vec3_Scale(dir, bandH * 0.5f)));
-                    Vector3 pMid = Vec3_Add(c, radOut);
-                    Vector3 pHi  = Vec3_Add(c, Vec3_Add(radIn, Vec3_Scale(dir, bandH * 0.5f)));
-                    SurfaceRegion reg = isTail ? SURFACE_REGION_TAIL : SURFACE_REGION_DORSAL_TRUNK;
-                    if (!EmitVertex(opaque, pLo,  nrm, ringCol, reg, 0.15f, sk, &lo[k]) ||
-                        !EmitVertex(opaque, pMid, nrm, ringCol, reg, 0.10f, sk, &mid[k]) ||
-                        !EmitVertex(opaque, pHi,  nrm, ringCol, reg, 0.15f, sk, &hi[k])) {
+                    float ca = cosf(ang), sa = sinf(ang);
+                    Vector3 outDir = Vec3_Normalize(Vec3_Add(Vec3_Scale(sideA, ca), Vec3_Scale(sagA, sa)));
+                    float crest = 0.5f + 0.5f * cosf(ang * crestHarmonic + 0.785398f);
+                    float crestPeak = powf(crest, 2.0f);
+                    float outOffMid = baseOff + ridgeAmp * (0.45f + 0.85f * crestPeak);
+                    float outOffEdge = baseOff * 0.85f + ridgeAmp * 0.30f * crestPeak;
+
+                    SurfaceProjection spM = ProjectOntoSDFSurface(sdf, c,   outDir, probeMax, outOffMid);
+                    SurfaceProjection spL = ProjectOntoSDFSurface(sdf, cLo, outDir, probeMax, outOffEdge);
+                    SurfaceProjection spH = ProjectOntoSDFSurface(sdf, cHi, outDir, probeMax, outOffEdge);
+                    Vector3 fallbackRad = Vec3_Add(Vec3_Scale(sideA, ca * rx), Vec3_Scale(sagA, sa * ry));
+                    Vector3 pMid = spM.hit ? spM.point : Vec3_Add(c,   Vec3_Add(fallbackRad, Vec3_Scale(outDir, outOffMid)));
+                    Vector3 pLo  = spL.hit ? spL.point : Vec3_Add(cLo, Vec3_Add(fallbackRad, Vec3_Scale(outDir, outOffEdge)));
+                    Vector3 pHi  = spH.hit ? spH.point : Vec3_Add(cHi, Vec3_Add(fallbackRad, Vec3_Scale(outDir, outOffEdge)));
+                    Vector3 nMid = spM.hit ? spM.normal : outDir;
+                    Vector3 nLo  = spL.hit ? spL.normal : outDir;
+                    Vector3 nHi  = spH.hit ? spH.normal : outDir;
+
+                    Color cMid = Color_Lerp(plateCol, crestCol, crestPeak * 0.70f);
+                    Color cEdge = Color_Lerp(grooveCol, plateCol, crestPeak * 0.45f);
+                    if (!EmitVertex(opaque, pLo,  nLo,  cEdge, reg, 0.18f, sk, &lo[k]) ||
+                        !EmitVertex(opaque, pMid, nMid, cMid,  reg, 0.10f, sk, &mid[k]) ||
+                        !EmitVertex(opaque, pHi,  nHi,  cEdge, reg, 0.18f, sk, &hi[k])) {
                         return false;
                     }
                 }
                 for (unsigned k = 0; k < nPts; ++k) {
                     if (!EmitQuad(opaque, lo[k], lo[k + 1], mid[k + 1], mid[k]) ||
-                        !EmitQuad(opaque, mid[k], mid[k + 1], hi[k + 1], hi[k])) return false;
+                        !EmitQuad(opaque, mid[k], mid[k + 1], hi[k + 1], hi[k]))
+                        return false;
+                    if (hasPrev && !EmitQuad(opaque, prevRing[k], prevRing[k + 1], lo[k + 1], lo[k]))
+                        return false;
                 }
+                for (unsigned k = 0; k <= nPts; ++k) prevRing[k] = hi[k];
+                hasPrev = true;
             }
         }
     }
@@ -1890,11 +2541,18 @@ static bool RunBuild(const Monster* m, const Skeleton* skel,
     if (!BuildArmSuckers(m, &op)) return false;
     if (!BuildInsectWings(m, &op, &tr)) return false;
     if (!BuildRepeatedAppendages(m, &op, &tr)) return false;
-    if (!BuildGenericFins(m, &op)) return false;
-    if (!BuildCaudalPropulsors(m, &op)) return false;
-    if (!BuildMarineFlippers(m, &op)) return false;
-    if (!BuildAnatomicalShell(m, &op)) return false;
-    if (!BuildAquaticHeadAndArmorDetails(m, &op)) return false;
+    MonsterSDF tempSdf = MonsterSDF_Create();
+    const MonsterSDF* sdfPtr = NULL;
+    if (NeedsAquaticSDFProjection(m) && MonsterSDF_Build(&tempSdf, m, MonsterSDF_DefaultConfig())) {
+        sdfPtr = &tempSdf;
+    }
+    bool ok = BuildGenericFins(m, sdfPtr, &op) &&
+              BuildCaudalPropulsors(m, &op) &&
+              BuildMarineFlippers(m, &op) &&
+              BuildAnatomicalShell(m, &op) &&
+              BuildAquaticHeadAndArmorDetails(m, sdfPtr, &op);
+    MonsterSDF_Free(&tempSdf);
+    if (!ok) return false;
     return true;
 }
 

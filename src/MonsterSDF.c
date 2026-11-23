@@ -662,6 +662,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                     /* Continuar el barrido fusiforme suavemente por el pedúnculo caudal si la cola es axial. */
                     const AnatomyNode* pelNode = AnatomyGraph_FindModuleNode(g, axialModule, AXIAL_NODE_PELVIS);
                     const AnatomyNode* tailCur = pelNode;
+                    const TailPhenotype* axialTail = NULL;
                     for (size_t step = 0; tailCur && step < g->nodeCount && builtCount < MONSTER_SDF_MAX_AXIAL_STATIONS; ++step) {
                         const AnatomyNode* nextCand = NULL;
                         for (size_t j = 0; j < g->connectionCount; ++j) {
@@ -677,6 +678,7 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                         }
                         tailCur = nextCand;
                         if (tailCur && tailCur->center.z < sdf->axialStations[builtCount - 1].center.z - 1e-4f) {
+                            axialTail = MonsterSDF_TailPhenotype(monster, tailCur->moduleInstanceId);
                             sdf->axialStations[builtCount++] = (SDFSweepStation){
                                 .center = tailCur->center,
                                 .width = tailCur->widthRadius,
@@ -685,6 +687,20 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                         } else {
                             break;
                         }
+                    }
+                    /* Si la cola termina en propulsor caudal, retraer la tapa redondeada del barrido SDF
+                     * dentro de la raíz anterior de la aleta para mantener limpia la escotadura central. */
+                    if (axialTail && axialTail->caudalFinType != CAUDAL_FIN_NONE &&
+                        axialTail->caudalSpan > 1e-4f && builtCount >= 2) {
+                        SDFSweepStation* last = &sdf->axialStations[builtCount - 1];
+                        const SDFSweepStation* prev = &sdf->axialStations[builtCount - 2];
+                        float sScale = monster->phenotype.axial.totalScale;
+                        float finT = fmaxf(0.004f * sScale, axialTail->caudalThickness * sScale * axialTail->development);
+                        float segDz = prev->center.z - last->center.z;
+                        float pull = fminf(fmaxf(last->width, last->height) * 1.35f + finT * 0.45f, segDz * 0.42f);
+                        last->center.z += pull;
+                        last->width = fminf(last->width, finT * 0.36f);
+                        last->height = fminf(last->height, finT * 0.36f);
                     }
                 }
             } else
@@ -1522,8 +1538,14 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 .center=Vec3_Add(origin,profile->mandibularCenters[j]),
                 .width=profile->mandibularRadii[j].x,.height=profile->mandibularRadii[j].y};
             if(!SDF_SweepResolveTangents(m->jawStations,6)){MonsterSDF_Free(sdf);return false;}
-            if(equineMouth) {
-                /* La rama equina conserva el ángulo gonial pleno en vez de morderse bajo la estación 4. */
+            bool aquaticHead = monster->hasHead &&
+                (monster->head.anatomy.archetype == HEAD_ARCHETYPE_TELEOST ||
+                 monster->head.anatomy.archetype == HEAD_ARCHETYPE_ELASMOBRANCH ||
+                 monster->head.anatomy.archetype == HEAD_ARCHETYPE_SYNGNATHID ||
+                 monster->head.anatomy.archetype == HEAD_ARCHETYPE_TESTUDINE ||
+                 monster->head.anatomy.archetype == HEAD_ARCHETYPE_CETACEAN);
+            if(equineMouth || aquaticHead) {
+                /* La rama equina y las cabezas acuáticas conservan el suelo mandibular continuo sin muesca gonial mamífera. */
                 m->jawNotchCenter=Vec3_Zero();
                 m->jawNotchRadii=Vec3_Zero();
             } else {

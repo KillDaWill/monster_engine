@@ -43,7 +43,8 @@ OPTIONAL = {'AxialPhenotype': {'dewlapDepth', 'brisketDepth', 'contourProfile', 
                               'featherCount', 'wingAspect', 'wingPointedness', 'finSweep', 'finCamber'},
             'TailPhenotype': {'droop', 'tipLift', 'caudalFinType', 'caudalSpan', 'caudalChord',
                               'caudalUpperLobeRatio', 'caudalNotchDepth', 'caudalSweep',
-                              'caudalThickness', 'caudalColor'},
+                              'caudalThickness', 'caudalKeelStrength', 'caudalColor'},
+            'FinPhenotype': {'freeRearTip'},
             'FlexibleAppendagePhenotype': {'profile', 'yawAngle', 'coilBias', 'suckerRows', 'suckerCount', 'suckerScale'},
             'PigmentLayer': {'regionMask', 'domain', 'patternRotation'}}
 OPTIONAL['SurfacePhenotype'] = {'tufts', 'tuftCount', 'longHair', 'longHairCount', 'wrinkleRegionMask', 'wrinkleStrength', 'wrinkleScale', 'wrinkleDirectionality', 'inheritedBlend', 'regionalAlbedo', 'translucency', 'iridescence', 'subsurfaceGlow'}

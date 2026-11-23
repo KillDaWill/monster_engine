@@ -174,6 +174,7 @@ typedef struct TailPhenotype {
     float caudalNotchDepth; /**< Profundidad de la horquilla o escotadura central [0..1]. */
     float caudalSweep; /**< Flecha posterior de los lóbulos caudales [0..1.2]. */
     float caudalThickness; /**< Espesor basal del propulsor caudal. */
+    float caudalKeelStrength; /**< Quillas laterales del pedúnculo caudal [0..1] (túnidos/escómbridos). */
     Color caudalColor; /**< Color opcional del propulsor caudal (alfa 0 hereda del cuerpo). */
 } TailPhenotype;
 
@@ -214,6 +215,7 @@ typedef struct FinPhenotype {
     float sweep;         /**< Barrido posterior de la punta respecto a la raíz [-0.4..1.4]. */
     float leadingCurve;  /**< Curvatura del borde de ataque [-0.4..1.0]. */
     float trailingCurve; /**< Concavidad/falcación del borde de salida [-0.5..1.0]. */
+    float freeRearTip;   /**< Punta posterior libre extendida tras la base [0..1.5] (2.ª dorsal/anal de escualos). */
     float tipShape;      /**< Forma de la punta [0=aguda, 1=redondeada]. */
     float camber;        /**< Curvatura transversal del perfil [-0.3..0.3]. */
     float dihedral;      /**< Inclinación vertical en radianes para aletas pareadas. */

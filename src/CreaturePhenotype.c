@@ -152,6 +152,7 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         t->caudalSweep = isfinite(t->caudalSweep) ? Math_Clamp(t->caudalSweep, 0.0f, 1.4f) : 0.45f;
         t->caudalThickness = isfinite(t->caudalThickness) && t->caudalThickness > 0.0f
             ? Math_Clamp(t->caudalThickness, 0.004f, 0.6f) : 0.03f;
+        t->caudalKeelStrength = isfinite(t->caudalKeelStrength) ? Math_Clamp01(t->caudalKeelStrength) : 0.0f;
     }
 
     for (size_t i = 0; i < p->ornamentCount; ++i) {
@@ -421,6 +422,7 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(tails[i].caudalSpan); LERP_BODY(tails[i].caudalChord);
         LERP_BODY(tails[i].caudalUpperLobeRatio); LERP_BODY(tails[i].caudalNotchDepth);
         LERP_BODY(tails[i].caudalSweep); LERP_BODY(tails[i].caudalThickness);
+        LERP_BODY(tails[i].caudalKeelStrength);
         p.tails[i].caudalColor = Color_Lerp(a->tails[i].caudalColor, b->tails[i].caudalColor, t);
     }
     for (size_t i = 0; i < p.finCount; ++i)
