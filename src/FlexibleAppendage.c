@@ -68,6 +68,10 @@ bool FlexibleAppendage_Resolve(const FlexibleAppendagePhenotype* p, uint32_t mod
         Vector3 pos = Vec3_Sub(slot->position, Vec3_Scale(fwd, rootW * (p->profile == FLEXIBLE_PROFILE_SIPHON ? 0.35f : 0.65f)));
         float totalLen = p->length * slot->scale;
         float ds = totalLen / (float)(last - 1);
+        float siphonNozzleLen = (p->profile == FLEXIBLE_PROFILE_SIPHON)
+            ? fmaxf(ds, fminf(totalLen * 0.55f, tipW * 1.40f)) : ds;
+        float siphonBodyStep = (p->profile == FLEXIBLE_PROFILE_SIPHON && last > 2)
+            ? (totalLen - siphonNozzleLen) / (float)(last - 2) : ds;
 
         for (unsigned id = 1; id <= last; ++id) {
             float t = (float)(id - 1) / (float)(last - 1);
@@ -90,9 +94,13 @@ bool FlexibleAppendage_Resolve(const FlexibleAppendagePhenotype* p, uint32_t mod
                     Vec3_Scale(fwd, cosf(pitch) * cosf(swirl)),
                     Vec3_Add(Vec3_Scale(up, sinf(pitch)),
                              Vec3_Scale(lat, cosf(pitch) * sinf(swirl)))));
-                pos = Vec3_Add(pos, Vec3_Scale(dir, ds));
+                float segStep = (p->profile == FLEXIBLE_PROFILE_SIPHON)
+                    ? ((id == last) ? siphonNozzleLen : siphonBodyStep) : ds;
+                pos = Vec3_Add(pos, Vec3_Scale(dir, segStep));
             }
             BodyConnectionKind kind = (id == 1) ? BODY_CONNECTION_SUPPORT : BODY_CONNECTION_FLEXIBLE_SEGMENT;
+            if (id == last && p->profile == FLEXIBLE_PROFILE_SIPHON)
+                kind = BODY_CONNECTION_FUNNEL_OPENING;
             if (!Section(graph, module, id, pos, w, h, parent, kind, lat)) return false;
             graph->connections[graph->connectionCount - 1].jointBlend =
                 (p->profile == FLEXIBLE_PROFILE_MUSCULAR_ARM) ? 0.62f : 0.34f;

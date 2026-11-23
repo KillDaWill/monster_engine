@@ -150,7 +150,8 @@ def blank_stage(base_stage):
 
 
 def pigment_layer(pattern, color, strength, scale, sharpness, seed, region_mask=0,
-                  direction=(0, 1, 0), center=(0, 0, 0), radii=(0, 0, 0), softness=0.25):
+                  direction=(0, 1, 0), center=(0, 0, 0), radii=(0, 0, 0), softness=0.25,
+                  anchor_node=0, irregularity=0.12):
     return {
         "pattern": pattern,
         "color": color,
@@ -162,11 +163,11 @@ def pigment_layer(pattern, color, strength, scale, sharpness, seed, region_mask=
         "regionMask": region_mask,
         "patternRotation": 0.0,
         "domain": {
-            "anchorNode": 0,
+            "anchorNode": anchor_node,
             "center": {"x": center[0], "y": center[1], "z": center[2]},
             "radii": {"x": radii[0], "y": radii[1], "z": radii[2]},
             "softness": softness,
-            "irregularity": 0.12,
+            "irregularity": irregularity,
             "materialStrength": 0.0,
             "furCoverage": 0.0,
             "roughness": 0.5,
@@ -187,83 +188,85 @@ def build_falcon(base):
         ax["archetype"] = 3  # AXIAL_ARCHETYPE_AVIAN
         ax["totalScale"] = scale
         ax["withersHeight"] = 0.72
-        ax["trunkLength"] = 0.64
-        ax["neckLength"] = 0.13
-        ax["neckWidth"] = 0.28
-        ax["shoulderWidth"] = 0.38
-        ax["thoraxWidth"] = 0.44
-        ax["thoraxHeight"] = 0.44
-        ax["abdomenWidth"] = 0.30
-        ax["abdomenHeight"] = 0.32
-        ax["pelvicWidth"] = 0.22
-        ax["pelvicHeight"] = 0.22
-        ax["brisketDepth"] = 0.22
-        ax["limbAttachmentLateral"] = 0.86
+        ax["trunkLength"] = 0.66
+        ax["neckLength"] = 0.12
+        ax["neckWidth"] = 0.25
+        ax["shoulderWidth"] = 0.40
+        ax["thoraxWidth"] = 0.45
+        ax["thoraxHeight"] = 0.45
+        ax["abdomenWidth"] = 0.28
+        ax["abdomenHeight"] = 0.30
+        ax["pelvicWidth"] = 0.20
+        ax["pelvicHeight"] = 0.20
+        ax["brisketDepth"] = 0.24
+        ax["limbAttachmentLateral"] = 0.80
         ax["bodyFlattening"] = 0.90
 
-        # Cabeza de halcón: cráneo compacto redondeado, pico corto ganchudo y grandes ojos oscuros
+        # Cabeza de halcón peregrino: cráneo compacto, frente continua hacia la cera,
+        # pico rapaz ganchudo 3D con diente tomial y ojos oscuros integrados en órbita.
         hp = s["head"]
         hp["archetype"] = 2  # HEAD_ARCHETYPE_AVIAN
-        hp["skullWidth"] = 0.58
-        hp["skullHeight"] = 0.72
-        hp["skullLength"] = 0.52
-        hp["beakLength"] = 0.32 + 0.08 * maturity
-        hp["beakDepth"] = 0.56
-        hp["beakTaper"] = 0.92
-        hp["beakCurvature"] = 0.95
-        hp["eyeSize"] = 0.74
-        hp["eyeLaterality"] = 0.52
-        hp["eyeForwardness"] = 0.56
+        hp["skullWidth"] = 0.48
+        hp["skullHeight"] = 0.62
+        hp["skullLength"] = 0.50
+        hp["muzzleWidth"] = 0.36
+        hp["beakLength"] = 0.34 + 0.06 * maturity
+        hp["beakDepth"] = 0.68
+        hp["beakTaper"] = 0.88
+        hp["beakCurvature"] = 0.92
+        hp["eyeSize"] = 0.54
+        hp["eyeLaterality"] = 0.56
+        hp["eyeForwardness"] = 0.62
         hp["eyeDorsality"] = 0.52
-        hp["eyeExposure"] = 0.22
-        hp["eyelidCoverage"] = 0.20
-        hp["browProminence"] = 0.44
+        hp["eyeExposure"] = 0.14
+        hp["eyelidCoverage"] = 0.24
+        hp["browProminence"] = 0.38
         hp["earSize"] = 0.0
-        hp["noseScale"] = 0.12
-        hp["nostrilPosition"] = 0.36
-        hp["jawLength"] = 0.48
-        hp["jawDepth"] = 0.24
+        hp["noseScale"] = 0.28
+        hp["nostrilPosition"] = 0.24
+        hp["jawLength"] = 0.44
+        hp["jawDepth"] = 0.26
         hp["jawStrength"] = 0.46
         hp["cranialForm"] = 0
         hp["muzzleForm"] = 0
         hp["eyeLayout"] = 0
-        hp["nasalColor"] = rgba(226, 184, 48)  # Cera amarilla de halcón
+        hp["nasalColor"] = rgba(232, 188, 38) if maturity > 0.5 else rgba(154, 166, 152)  # Cera amarilla adulta / gris-verdosa juvenil
 
         s["headEnvelope"] = {
-            "scale": 0.25 + 0.05 * (1.0 - dev_ceph),
-            "widthScale": 0.96,
-            "heightScale": 1.02,
-            "lengthScale": 0.90,
+            "scale": 0.21 + 0.04 * (1.0 - dev_ceph),
+            "widthScale": 0.92,
+            "heightScale": 1.00,
+            "lengthScale": 0.92,
         }
         s["eyes"] = {
-            "size": 0.74,
-            "protrusion": 0.66,
-            "irisScale": 0.88,
-            "pupilScale": 0.60,
+            "size": 0.54,
+            "protrusion": 0.52,
+            "irisScale": 0.90,
+            "pupilScale": 0.58,
             "pupilAspect": 1.0,
             "pupilShape": 0,
-            "scleraColor": rgba(42, 34, 24),    # Oscuro rapaz con leve anillo orbital
-            "irisColor": rgba(26, 18, 12),      # Ojos oscuros profundos de halcón
-            "pupilColor": rgba(8, 8, 10),
+            "scleraColor": rgba(32, 26, 20),    # Oscuro rapaz sin blanco caricaturesco
+            "irisColor": rgba(24, 16, 10),      # Iris marrón muy oscuro de Falco peregrinus
+            "pupilColor": rgba(6, 6, 8),
         }
 
-        # Alas aviares largas y puntiagudas (primarias, secundarias y coberteras)
+        # Alas aviares falcadas aerodinámicas (perfil emplumado continuo + rémiges y coberteras)
         for side_idx in (0, 1):
             w = blank_limb(limb_tpl, 2, 4, side_idx)  # LIMB_ARCHETYPE_AVIAN, LIMB_WING
             w["length"] = 1.28 * (0.45 + 0.55 * dev_app)
-            w["thickness"] = 0.044
-            w["sprawl"] = 0.08  # Extendidas en planeo/vuelo para mostrar rémiges y silueta falcada
+            w["thickness"] = 0.042
+            w["sprawl"] = 0.06  # Extendidas en vuelo para validar perfil aerodinámico falcado
             w["development"] = 0.35 + 0.65 * dev_app
-            w["proximalScale"] = 0.96
-            w["middleScale"] = 1.05
-            w["distalScale"] = 1.12
-            w["attachmentInset"] = 0.22
+            w["proximalScale"] = 0.94
+            w["middleScale"] = 1.04
+            w["distalScale"] = 1.14
+            w["attachmentInset"] = 0.28
             w["featherCount"] = 10
             w["wingAspect"] = 2.45
             w["wingPointedness"] = 0.88
             s["limbs"].append(w)
 
-        # Patas prensiles rapaces con 3 dedos delanteros + 1 hallux trasero y garras curvas
+        # Patas prensiles rapaces con muslo emplumado, tarsometatarso delgado amarillo y garras oscuras
         for side_idx in (0, 1):
             leg = blank_limb(limb_tpl, 2, 1, side_idx)  # LIMB_ARCHETYPE_AVIAN, LIMB_HIND
             leg["length"] = 0.44
@@ -278,16 +281,16 @@ def build_falcon(base):
             s["limbs"].append(leg)
         s["limbCount"] = 4
 
-        # Cola en abanico de rectrices superpuestas (pigostilo óseo corto + largas plumas rectrices)
+        # Cola en abanico de 12 rectrices sobre uropigio corto y compacto
         tail = copy.deepcopy(tail_tpl)
         tail["archetype"] = 8  # TAIL_ARCHETYPE_FEATHER_FAN
-        tail["length"] = 0.26 * (0.45 + 0.55 * dev_app)
-        tail["baseWidth"] = 0.085
-        tail["baseHeight"] = 0.052
-        tail["tipWidth"] = 0.032
-        tail["tipHeight"] = 0.020
-        tail["taperCurve"] = 1.25
-        tail["curvature"] = 0.30
+        tail["length"] = 0.24 * (0.45 + 0.55 * dev_app)
+        tail["baseWidth"] = 0.072
+        tail["baseHeight"] = 0.046
+        tail["tipWidth"] = 0.026
+        tail["tipHeight"] = 0.018
+        tail["taperCurve"] = 1.35
+        tail["curvature"] = 0.24
         tail["droop"] = 0.04
         tail["tipLift"] = 0.0
         tail["rootMatchStrength"] = 0.62
@@ -296,36 +299,50 @@ def build_falcon(base):
         s["tails"] = [tail]
         s["tailCount"] = 1
 
-        # Plumaje: dorso gris azulado pizarra, pecho barrado pálido, cabeza/bigotera oscura, patas amarillas
-        dorsal = rgba(90, 108, 128) if maturity > 0.5 else rgba(126, 108, 92)
-        ventral = rgba(236, 228, 212)
+        # Plumaje de Falco peregrinus: dorso gris pizarra azulado, casco y bigoteras negras,
+        # garganta blanca/crema, pecho barrado pálido, cera y patas amarillas.
+        dorsal = rgba(84, 102, 122) if maturity > 0.5 else rgba(124, 104, 86)
+        ventral = rgba(242, 236, 222)
         s["dorsalColor"] = dorsal
         s["ventralColor"] = ventral
         s["unpigmentedVentralColor"] = ventral
 
         surf = s["surface"]
         surf["integument"]["type"] = 3  # INTEGUMENT_FEATHERS
-        surf["integument"]["coverage"] = 0.95
+        surf["integument"]["coverage"] = 0.96
         surf["pigment"]["baseColor"] = dorsal
-        surf["pigment"]["secondaryColor"] = rgba(52, 62, 76)
+        surf["pigment"]["secondaryColor"] = rgba(46, 56, 70)
         surf["pigment"]["ventralColor"] = ventral
         surf["pigment"]["dorsalDarkening"] = 0.16
-        surf["pigment"]["ventralLightening"] = 0.92
-        surf["pigment"]["patternStrength"] = 0.32
+        surf["pigment"]["ventralLightening"] = 0.94
+        surf["pigment"]["patternStrength"] = 0.28
         surf["pigment"]["patternScale"] = 6.5
         surf["pigment"]["bands"] = 0.85
         surf["pigment"]["seed"] = 1016
-        # Capa 0: barrado transversal oscuro en pecho/vientre; Capa 1: capirote/bigotera oscura en cabeza
+        # Ancla cefálica: Anatomy_MakeId(mod=2, local=1) = (2 << 16) | 1 = 131073
+        head_anchor = (2 << 16) | 1
+        helmet_col = rgba(24, 28, 36) if maturity > 0.5 else rgba(68, 56, 46)
         surf["pigment"]["layers"] = [
-            pigment_layer(2, rgba(56, 52, 48), 0.58 * maturity, 11.0, 0.72, 10161,
+            # 0: Barrado transversal oscuro en pecho/vientre pálido
+            pigment_layer(2, rgba(38, 34, 32), 0.86 * maturity, 13.5, 0.86, 10161,
                           region_mask=(1 << 4), direction=(0, 1, 0)),
-            pigment_layer(0, rgba(32, 36, 44), 0.78 * maturity, 2.0, 0.85, 10162,
-                          region_mask=(1 << 1), direction=(0, 1, 0)),
+            # 1: Casco / capirote y nuca gris-negro pizarra (nítidamente detrás de la cera amarilla)
+            pigment_layer(0, helmet_col, 0.96, 1.0, 0.94, 10162,
+                          region_mask=0, center=(0.0, 0.46, -0.35), radii=(1.12, 0.72, 0.84),
+                          softness=0.10, anchor_node=head_anchor),
+            # 2: Bigotera / banda malar oscura izquierda bajo el ojo (nítida sobre mejilla pálida)
+            pigment_layer(0, helmet_col, 0.98 * (0.55 + 0.45 * maturity), 1.0, 0.94, 10163,
+                          region_mask=0, center=(0.44, -0.30, 0.14), radii=(0.34, 0.74, 0.22),
+                          softness=0.09, anchor_node=head_anchor),
+            # 3: Bigotera / banda malar oscura derecha bajo el ojo (nítida sobre mejilla pálida)
+            pigment_layer(0, helmet_col, 0.98 * (0.55 + 0.45 * maturity), 1.0, 0.94, 10164,
+                          region_mask=0, center=(-0.44, -0.30, 0.14), radii=(0.34, 0.74, 0.22),
+                          softness=0.09, anchor_node=head_anchor),
         ]
-        surf["pigment"]["layerCount"] = 2
-        # Patas y dedos amarillos de halcón peregrino
-        surf["regionalAlbedo"][6] = rgba(226, 184, 48, 230)  # SURFACE_REGION_HINDLIMB
-        surf["regionalAlbedo"][8] = rgba(228, 186, 46, 240)  # SURFACE_REGION_DIGIT
+        surf["pigment"]["layerCount"] = 4
+        # Tarsos y dedos amarillos de halcón peregrino
+        surf["regionalAlbedo"][6] = rgba(226, 184, 46, 220)  # SURFACE_REGION_HINDLIMB
+        surf["regionalAlbedo"][8] = rgba(232, 188, 42, 245)  # SURFACE_REGION_DIGIT
 
         s["development"] = {
             "appendages": dev_app,
@@ -554,69 +571,69 @@ def build_octopus(base):
         ax["archetype"] = 6  # AXIAL_ARCHETYPE_CEPHALOPOD
         ax["totalScale"] = scale
         ax["withersHeight"] = 0.56
-        ax["trunkLength"] = 1.05
-        ax["neckLength"] = 0.16
-        ax["neckWidth"] = 0.44
-        ax["shoulderWidth"] = 0.46
+        ax["trunkLength"] = 1.02
+        ax["neckLength"] = 0.14
+        ax["neckWidth"] = 0.46
+        ax["shoulderWidth"] = 0.48
         ax["thoraxWidth"] = 0.68
         ax["thoraxHeight"] = 0.64
-        ax["abdomenWidth"] = 0.76
+        ax["abdomenWidth"] = 0.78
         ax["abdomenHeight"] = 0.70
-        ax["pelvicWidth"] = 0.52
-        ax["pelvicHeight"] = 0.48
+        ax["pelvicWidth"] = 0.58
+        ax["pelvicHeight"] = 0.54
         ax["radialSymmetryOrder"] = 8
-        ax["mantleElongation"] = 1.08
+        ax["mantleElongation"] = 1.04
 
-        # Cabeza muscular corta con dos ojos laterales prominentes (pupila horizontal) sin hocico
+        # Cabeza muscular corta con dos ojos dorsolaterales prominentes (pupila horizontal) sin hocico
         hp = s["head"]
         hp["archetype"] = 12  # HEAD_ARCHETYPE_CEPHALOPOD
-        hp["skullWidth"] = 0.72
-        hp["skullHeight"] = 0.64
-        hp["skullLength"] = 0.56
-        hp["muzzleLength"] = 0.10
-        hp["muzzleWidth"] = 0.62
-        hp["eyeSize"] = 0.66
-        hp["eyeLaterality"] = 0.82
-        hp["eyeForwardness"] = 0.44
-        hp["eyeDorsality"] = 0.74
-        hp["eyeExposure"] = 0.22
-        hp["browProminence"] = 0.42
+        hp["skullWidth"] = 0.68
+        hp["skullHeight"] = 0.62
+        hp["skullLength"] = 0.50
+        hp["muzzleLength"] = 0.08
+        hp["muzzleWidth"] = 0.54
+        hp["eyeSize"] = 0.64
+        hp["eyeLaterality"] = 0.80
+        hp["eyeForwardness"] = 0.36
+        hp["eyeDorsality"] = 0.72
+        hp["eyeExposure"] = 0.20
+        hp["browProminence"] = 0.52
         hp["earSize"] = 0.0
         hp["muzzleForm"] = 1
         hp["eyeLayout"] = 2
 
-        s["headEnvelope"] = {"scale": 0.30, "widthScale": 1.02, "heightScale": 0.90, "lengthScale": 0.82}
+        s["headEnvelope"] = {"scale": 0.28, "widthScale": 0.98, "heightScale": 0.96, "lengthScale": 0.72}
         s["eyes"] = {
-            "size": 0.66, "protrusion": 0.76, "irisScale": 0.82, "pupilScale": 0.42,
-            "pupilAspect": 0.42, "pupilShape": 1,  # PUPIL_HORIZONTAL (típica de pulpo)
-            "scleraColor": rgba(196, 118, 76), "irisColor": rgba(218, 174, 108), "pupilColor": rgba(14, 10, 10),
+            "size": 0.78, "protrusion": 0.85, "irisScale": 0.86, "pupilScale": 0.48,
+            "pupilAspect": 0.34, "pupilShape": 2,  # PUPIL_HORIZONTAL (típica de pulpo)
+            "scleraColor": rgba(196, 118, 76), "irisColor": rgba(232, 188, 104), "pupilColor": rgba(12, 8, 8),
         }
 
         # Ocho brazos hidrostáticos independientes alrededor de la corona circumoral (slots 24..31)
-        # + 1 sifón tubular lateroventral (slot 11)
+        # + 1 sifón propulsor tubular lateroventral con embudo abierto (slot 11)
         arm_specs = [
-            # (len_factor, pitch, rest_bend, yaw, coil)
-            (1.06, -0.34, 0.38, -0.06,  0.65),  # L1 anterior-dorsal
-            (1.02, -0.38, 0.44,  0.04,  0.82),  # L2 lateral-anterior
-            (0.96, -0.40, 0.48,  0.08,  0.96),  # L3 lateral-posterior
-            (0.90, -0.36, 0.42,  0.10, -0.78),  # L4 posterior-izquierdo
-            (0.90, -0.36, 0.42, -0.10,  0.78),  # R4 posterior-derecho
-            (0.96, -0.40, 0.48, -0.08, -0.96),  # R3 lateral-posterior
-            (1.02, -0.38, 0.44, -0.04, -0.82),  # R2 lateral-anterior
-            (1.06, -0.34, 0.38,  0.06, -0.65),  # R1 anterior-dorsal
+            # (len_factor, pitch, rest_bend, yaw, coil) — pose orgánica fluida sin rigidez radial mecánica
+            (1.06, -0.32, 0.34, -0.10,  0.58),  # L1 anterior-dorsal
+            (1.02, -0.38, 0.46,  0.06,  0.94),  # L2 lateral-anterior
+            (0.96, -0.42, 0.52,  0.12,  1.12),  # L3 lateral-posterior
+            (0.90, -0.36, 0.40,  0.14, -0.84),  # L4 posterior-izquierdo
+            (0.90, -0.38, 0.44, -0.12,  0.92),  # R4 posterior-derecho
+            (0.96, -0.40, 0.48, -0.10, -1.04),  # R3 lateral-posterior
+            (1.02, -0.36, 0.42, -0.04, -0.78),  # R2 lateral-anterior
+            (1.06, -0.34, 0.38,  0.08, -0.72),  # R1 anterior-dorsal
         ]
         for lf, pitch, bend, yaw, coil in arm_specs:
-            arm_len = 1.78 * lf * (0.42 + 0.58 * dev_app)
+            arm_len = 1.82 * lf * (0.42 + 0.58 * dev_app)
             s["flexibleAppendages"].append(blank_flexible(
-                length=arm_len, base_r=0.118, tip_r=0.015, profile=1,  # FLEXIBLE_PROFILE_MUSCULAR_ARM
+                length=arm_len, base_r=0.124, tip_r=0.014, profile=1,  # FLEXIBLE_PROFILE_MUSCULAR_ARM
                 pitch=pitch, bend=bend, yaw=yaw, coil=coil * (0.45 + 0.55 * dev_app),
-                sucker_rows=2, sucker_count=18, sucker_scale=0.72, aspect=0.92, taper=1.12,
+                sucker_rows=2, sucker_count=18, sucker_scale=0.74, aspect=0.92, taper=1.14,
             ))
-        # Sifón direccional bien visible bajo el collar manto-cabeza
+        # Sifón / embudo propulsor compacto y visible bajo el collar manto-cabeza con abertura circular
         s["flexibleAppendages"].append(blank_flexible(
-            length=0.36, base_r=0.076, tip_r=0.044, profile=3,  # FLEXIBLE_PROFILE_SIPHON
-            pitch=0.06, bend=0.06, yaw=0.0, coil=0.0,
-            sucker_rows=0, sucker_count=0, sucker_scale=0.0, aspect=0.96, taper=0.85,
+            length=0.27, base_r=0.068, tip_r=0.052, profile=3,  # FLEXIBLE_PROFILE_SIPHON
+            pitch=0.04, bend=0.04, yaw=0.0, coil=0.0,
+            sucker_rows=0, sucker_count=0, sucker_scale=0.0, aspect=0.96, taper=0.72,
         ))
         s["flexibleAppendageCount"] = 9
 
@@ -697,7 +714,7 @@ def build_dragonfly(base):
         ax["totalScale"] = scale
         ax["withersHeight"] = 0.55
         ax["trunkLength"] = 1.95 * abd_len_scale
-        ax["neckLength"] = 0.08
+        ax["neckLength"] = 0.055
         ax["neckWidth"] = 0.14
         ax["shoulderWidth"] = 0.28
         ax["thoraxWidth"] = 0.34
@@ -708,38 +725,40 @@ def build_dragonfly(base):
         ax["pelvicHeight"] = 0.090
         ax["abdomenSegments"] = 10
 
-        # Cabeza ancha de insecto con grandes ojos compuestos verdosos y piezas bucales compactas
+        # Cabeza compacta de odonato dominada por grandes ojos compuestos holópticos verdoso-azulados
         hp = s["head"]
         hp["archetype"] = 13  # HEAD_ARCHETYPE_ARTHROPOD
-        hp["skullWidth"] = 0.84
+        hp["skullWidth"] = 0.72
         hp["skullHeight"] = 0.76
-        hp["skullLength"] = 0.48
-        hp["muzzleLength"] = 0.12
-        hp["muzzleWidth"] = 0.36
+        hp["skullLength"] = 0.56
+        hp["muzzleLength"] = 0.08
+        hp["muzzleWidth"] = 0.28
         hp["eyeSize"] = 0.96
-        hp["eyeLaterality"] = 0.74
-        hp["eyeForwardness"] = 0.58
-        hp["eyeDorsality"] = 0.62
-        hp["eyeExposure"] = 0.24
+        hp["eyeLaterality"] = 0.48
+        hp["eyeForwardness"] = 0.52
+        hp["eyeDorsality"] = 0.68
+        hp["eyeExposure"] = 0.16
         hp["earSize"] = 0.0
         hp["muzzleForm"] = 3
         hp["eyeLayout"] = 1
 
-        s["headEnvelope"] = {"scale": 0.22, "widthScale": 1.12, "heightScale": 1.00, "lengthScale": 0.74}
+        s["headEnvelope"] = {"scale": 0.21, "widthScale": 0.96, "heightScale": 1.00, "lengthScale": 0.90}
         s["eyes"] = {
-            "size": 1.0, "protrusion": 0.90, "irisScale": 0.94, "pupilScale": 0.06,
-            "pupilAspect": 1.0, "pupilShape": 0,
-            "scleraColor": rgba(48, 152, 118), "irisColor": rgba(66, 184, 134), "pupilColor": rgba(42, 134, 102),
+            "size": 1.0, "protrusion": 0.65, "irisScale": 0.94, "pupilScale": 0.18,
+            "pupilAspect": 1.0, "pupilShape": 4,  # PUPIL_COMPOUND (omatidios hexagonales de libélula)
+            "scleraColor": rgba(128, 188, 96),  # Zona ventral verde-amarillenta del ojo compuesto
+            "irisColor": rgba(42, 162, 168),    # Zona dorsal verde-esmeralda/turquesa de Anax imperator
+            "pupilColor": rgba(18, 66, 62),     # Pseudopupila óptica sutil
         }
 
-        # 6 patas torácicas articuladas (coxa, trocánter, fémur, tibia, tarso, uñas)
-        leg_sweeps = [(0.55, 0.35, 0.44), (0.05, 0.10, 0.52), (-0.52, -0.30, 0.62)]
+        # 6 patas torácicas en cesta depredadora (pro-, meso- y metatórax, estrictamente detrás de la cabeza)
+        leg_sweeps = [(0.42, 0.34, 0.38), (0.12, 0.18, 0.48), (-0.42, -0.22, 0.58)]
         for pair_idx, (p_sw, d_sw, l_len) in enumerate(leg_sweeps):
             for side_idx in (0, 1):
                 leg = blank_limb(limb_tpl, 7, 3, side_idx)  # LIMB_ARCHETYPE_ARTHROPOD_LEG, LIMB_LEG
                 leg["length"] = l_len * (0.72 + 0.28 * dev_app)
-                leg["thickness"] = 0.017
-                leg["sprawl"] = 0.56 + 0.08 * pair_idx
+                leg["thickness"] = 0.014
+                leg["sprawl"] = 0.44 + 0.08 * pair_idx
                 leg["proximalSweep"] = p_sw
                 leg["distalSweep"] = d_sw
                 leg["development"] = 0.78 + 0.22 * dev_app
@@ -760,22 +779,22 @@ def build_dragonfly(base):
                 s["limbs"].append(w)
         s["limbCount"] = 10
 
-        # Antenas cortas craneales + cercos anales al final del somito 10
+        # Antenas cortas y finas de odonato + cercos anales al final del somito 10
         s["ornaments"] = [
-            {"archetype": 1, "length": 0.09, "baseRadius": 0.008, "tipRadius": 0.003,
-             "curvature": 0.18, "development": 0.8, "growthDirection": {"x": 0.35, "y": 0.45, "z": 0.85}, "lateralSweep": 0.15},
-            {"archetype": 1, "length": 0.09, "baseRadius": 0.008, "tipRadius": 0.003,
-             "curvature": 0.18, "development": 0.8, "growthDirection": {"x": -0.35, "y": 0.45, "z": 0.85}, "lateralSweep": -0.15},
-            {"archetype": 1, "length": 0.11, "baseRadius": 0.014, "tipRadius": 0.004,
+            {"archetype": 1, "length": 0.036, "baseRadius": 0.0045, "tipRadius": 0.0018,
+             "curvature": 0.12, "development": 0.75, "growthDirection": {"x": 0.28, "y": 0.40, "z": 0.92}, "lateralSweep": 0.12},
+            {"archetype": 1, "length": 0.036, "baseRadius": 0.0045, "tipRadius": 0.0018,
+             "curvature": 0.12, "development": 0.75, "growthDirection": {"x": -0.28, "y": 0.40, "z": 0.92}, "lateralSweep": -0.12},
+            {"archetype": 1, "length": 0.11, "baseRadius": 0.013, "tipRadius": 0.004,
              "curvature": -0.05, "development": 0.5 + 0.5 * maturity,
              "growthDirection": {"x": 0.16, "y": 0.04, "z": 1.0}, "lateralSweep": 0.08},
         ]
         s["ornamentCount"] = 3
 
-        # Macho adulto Anax imperator: tórax verde vivo, abdomen azul brillante con banda dorsal negra
+        # Macho adulto Anax imperator: tórax verde manzana vivo, abdomen azul celeste con banda dorsal negra
         # Ninfa acuática temprana: pardo-verdoso críptico
-        thorax_green = rgba(84, 178, 66) if maturity > 0.55 else rgba(102, 118, 76)
-        abd_blue = rgba(52, 152, 226) if maturity > 0.55 else rgba(110, 122, 82)
+        thorax_green = rgba(88, 182, 62) if maturity > 0.55 else rgba(102, 118, 76)
+        abd_blue = rgba(48, 152, 232) if maturity > 0.55 else rgba(110, 122, 82)
         ventral = rgba(76, 134, 96) if maturity > 0.55 else rgba(132, 134, 98)
         s["dorsalColor"] = abd_blue
         s["ventralColor"] = ventral
@@ -784,9 +803,9 @@ def build_dragonfly(base):
         surf = s["surface"]
         surf["integument"]["type"] = 5  # INTEGUMENT_CHITIN
         surf["integument"]["coverage"] = 1.0
-        surf["iridescence"] = 0.52 * maturity
+        surf["iridescence"] = 0.36 * maturity
         surf["pigment"]["baseColor"] = abd_blue
-        surf["pigment"]["secondaryColor"] = rgba(24, 30, 38)
+        surf["pigment"]["secondaryColor"] = rgba(22, 28, 36)
         surf["pigment"]["ventralColor"] = ventral
         surf["pigment"]["dorsalDarkening"] = 0.12
         surf["pigment"]["ventralLightening"] = 0.25
@@ -794,17 +813,20 @@ def build_dragonfly(base):
         surf["pigment"]["patternScale"] = 4.0
         surf["pigment"]["bands"] = 0.20
         surf["pigment"]["seed"] = 1019
-        # Tórax verde (zona anterior z > -0.35) + banda dorsal oscura longitudinal + patas oscuras
+        # Tórax verde anclado al sintórax + banda dorsal oscura longitudinal en abdomen + patas oscuras
+        synthorax_anchor = (1 << 16) | 3
         surf["pigment"]["layers"] = [
-            pigment_layer(0, thorax_green, 0.96, 1.0, 0.90, 10191, region_mask=0,
-                          center=(0.0, 0.55, 0.12), radii=(0.55, 0.55, 0.58), softness=0.14),
-            pigment_layer(2, rgba(22, 28, 36), 0.72 * maturity, 10.5, 0.78, 10192,
+            pigment_layer(0, thorax_green, 0.97, 1.0, 0.92, 10191, region_mask=0,
+                          center=(0.0, 0.05, 0.12), radii=(1.8, 1.8, 2.0), softness=0.14,
+                          anchor_node=synthorax_anchor),
+            pigment_layer(2, rgba(20, 26, 34), 0.78 * maturity, 10.5, 0.80, 10192,
                           region_mask=(1 << 3), direction=(0, 0, 1)),
         ]
         surf["pigment"]["layerCount"] = 2
-        surf["regionalAlbedo"][1] = rgba(88, 176, 86, 220)   # HEAD verde
-        surf["regionalAlbedo"][5] = rgba(36, 40, 38, 240)    # FORELIMB / patas oscuras
-        surf["regionalAlbedo"][6] = rgba(36, 40, 38, 240)    # HINDLIMB / patas oscuras
+        surf["regionalAlbedo"][1] = rgba(108, 186, 78, 225)   # HEAD verde-amarillo (frons)
+        surf["regionalAlbedo"][2] = rgba(88, 178, 66, 235)    # NECK / protórax verde
+        surf["regionalAlbedo"][5] = rgba(30, 34, 32, 245)     # FORELIMB / patas oscuras
+        surf["regionalAlbedo"][6] = rgba(30, 34, 32, 245)     # HINDLIMB / patas oscuras
 
         s["development"] = {
             "appendages": 1.0, "cephalic": 0.85 + 0.15 * maturity,

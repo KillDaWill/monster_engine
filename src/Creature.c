@@ -163,11 +163,13 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
             monster->eyes[i].pupilShape = p.eyes.pupilShape;
             monster->eyes[i].pupilAspect = (p.eyes.pupilShape == PUPIL_ROUND) ? 1.0f : p.eyes.pupilAspect;
             if (p.head.archetype == HEAD_ARCHETYPE_ARTHROPOD) {
-                /* Ojo compuesto de artrópodo: sin aro limbal ni pupila vertebrada contrastada. */
+                /* Ojo compuesto de artrópodo: sin aro limbal ni pupila vertebrada contrastada,
+                 * con brillo cuticular moderado (sin reflejo corneal húmedo vertebrado). */
                 monster->eyes[i].limbalRingStrength = 0.0f;
                 monster->eyes[i].irisRadialNoise = 0.15f;
                 monster->eyes[i].irisColorVariation = 0.22f;
                 monster->eyes[i].scleraPigmentation = 0.0f;
+                monster->eyes[i].cornealGloss = 0.34f;
             }
             Eye* eye = &monster->eyes[i];
             const HeadAnatomy* anatomy = &monster->head.anatomy;
@@ -178,7 +180,7 @@ bool Creature_ResolveAppearance(struct Monster* monster, const CreatureRecipe* r
             /* El globo debe caber entre techo/base del cráneo y región temporal.
              * En artrópodos los ojos compuestos envuelven la cápsula cefálica. */
             float orbitalLimit = p.head.archetype == HEAD_ARCHETYPE_ARTHROPOD
-                ? Math_Min(anatomy->surface.craniumRadii.y * 0.94f, anatomy->surface.craniumRadii.z * 0.88f)
+                ? Math_Min(anatomy->surface.craniumRadii.y * 0.98f, anatomy->surface.craniumRadii.z * 0.96f)
                 : Math_Min(anatomy->surface.craniumRadii.y * .55f, anatomy->surface.craniumRadii.z * .40f);
             float baseRadius = anatomy->eyeScale.x / .92f;
             float requestedRadius = baseRadius * eyeFactor;

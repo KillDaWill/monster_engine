@@ -147,11 +147,11 @@ static bool EmitFeatherBlade(BuildTarget* t, Vector3 root, Vector3 dir, Vector3 
 
     for (unsigned i = 0; i <= segs; ++i) {
         float u = (float)i / (float)segs;
-        /* Perfil asimétrico aerodinámico: borde anterior más estrecho, punta afilada. */
-        float env = sinf(powf(u, 0.72f) * 3.14159265f);
-        float wLead = halfWidth * (0.28f + 0.56f * env) * (1.0f - 0.18f * u);
-        float wTrail = halfWidth * (0.34f + 0.78f * env) * (1.0f - 0.10f * u);
-        if (i == segs) { wLead = halfWidth * 0.06f; wTrail = halfWidth * 0.08f; }
+        /* Perfil asimétrico aerodinámico con punta redondeada continua (evita borde posterior en sierra). */
+        float env = sinf(powf(u, 0.56f) * 3.14159265f);
+        float wLead = halfWidth * (0.34f + 0.56f * env) * (1.0f - 0.14f * u);
+        float wTrail = halfWidth * (0.42f + 0.80f * env) * (1.0f - 0.06f * u);
+        if (i == segs) { wLead = halfWidth * 0.16f; wTrail = halfWidth * 0.22f; }
         float arch = sinf(u * 3.14159265f) * camber * length - u * u * camber * length * 0.45f;
         float h = thick * (1.0f - 0.65f * u);
 
@@ -237,10 +237,123 @@ static bool BuildAvianWingFeathers(const Monster* m, BuildTarget* opaque) {
         int jH2 = FindJointSafe(g, opaque->skeleton, h2->id);
 
         Vector3 wingUp = Vec3_Create(0, 1, 0);
-        Vector3 wingBack = Vec3_Normalize(Vec3_Create(-side * 0.08f, -0.04f, -1.0f));
+        Vector3 wingBack = Vec3_Normalize(Vec3_Create(-side * 0.06f, -0.04f, -1.0f));
         Vector3 handDir = Vec3_Normalize(Vec3_Sub(h2->center, wr->center));
+        float ext = 1.0f - fold;
 
-        /* A. Rémiges primarias (10 plumas largas, rígidas y apuntadas desde mano distal). */
+        /* 0. Perfil alar emplumado continuo (propatagio + cubierta dorsal/ventral + raíz escapular):
+         * envuelve completamente el esqueleto proximal (húmero/ulna/carpo) formando un borde de ataque
+         * aerodinámico continuo desde el hombro hasta la punta, sin varillas óseas desnudas ni huecos. */
+        {
+            const unsigned nu = 18, nv = 6;
+            MeshIndex topGrid[19][7], botGrid[19][7];
+            Vector3 rootIn = Vec3_Add(sh->center, Vec3_Create(-side * sh->widthRadius * 0.95f, sh->heightRadius * 0.12f, sh->widthRadius * 0.25f));
+            Vector3 wristLead = Vec3_Add(wr->center, Vec3_Create(0.0f, wr->heightRadius * 0.22f, wr->widthRadius * 0.85f * ext));
+            Vector3 shLead = Vec3_Add(rootIn, Vec3_Create(0.0f, sh->heightRadius * 0.28f, baseChord * 0.18f * ext));
+
+            for (unsigned iu = 0; iu <= nu; ++iu) {
+                float u = (float)iu / (float)nu; /* 0 = raíz torso, 0.56 = carpo, 1.0 = punta mano */
+                Vector3 leadPt, bonePt;
+                float localThick;
+                AnatomySkinBinding sk;
+                if (u < 0.28f) {
+                    float a = u / 0.28f;
+                    bonePt = Vec3_Lerp(rootIn, el->center, a);
+                    /* Propatagio continuo: borde anterior recto/suave de raíz escapular hacia muñeca. */
+                    leadPt = Vec3_Lerp(shLead, wristLead, u / 0.56f);
+                    localThick = Math_Lerp(sh->heightRadius * 1.15f, el->heightRadius * 1.18f, a);
+                    sk = MakeSkin2(jSh, 1.0f - a * 0.85f, jEl, a * 0.85f);
+                } else if (u < 0.56f) {
+                    float a = (u - 0.28f) / 0.28f;
+                    bonePt = Vec3_Lerp(el->center, wr->center, a);
+                    leadPt = Vec3_Lerp(shLead, wristLead, u / 0.56f);
+                    /* Leve arqueamiento convexo del borde de ataque en el antebrazo. */
+                    leadPt.z += sinf(u / 0.56f * 3.14159265f) * baseChord * 0.05f * ext;
+                    localThick = Math_Lerp(el->heightRadius * 1.18f, wr->heightRadius * 1.25f, a);
+                    sk = (a < 0.5f) ? MakeSkin2(jEl, 1.0f - a * 2.0f, jUl, a * 2.0f)
+                                    : MakeSkin2(jUl, 1.0f - (a - 0.5f) * 2.0f, jWr, (a - 0.5f) * 2.0f);
+                } else {
+                    float a = (u - 0.56f) / 0.44f;
+                    if (a < 0.34f) {
+                        float b = a / 0.34f;
+                        bonePt = Vec3_Lerp(wr->center, h0->center, b);
+                        sk = MakeSkin2(jWr, 1.0f - b, jH0, b);
+                    } else if (a < 0.68f) {
+                        float b = (a - 0.34f) / 0.34f;
+                        bonePt = Vec3_Lerp(h0->center, h1->center, b);
+                        sk = MakeSkin2(jH0, 1.0f - b, jH1, b);
+                    } else {
+                        float b = (a - 0.68f) / 0.32f;
+                        bonePt = Vec3_Lerp(h1->center, h2->center, b);
+                        sk = MakeSkin2(jH1, 1.0f - b, jH2, b);
+                    }
+                    leadPt = Vec3_Lerp(wristLead, h2->center, a);
+                    localThick = wr->heightRadius * (1.22f * (1.0f - 0.72f * a));
+                }
+                /* En postura plegada, la sección envuelve pegada al flanco sin sobresalir lateralmente. */
+                Vector3 chordDir = Vec3_Normalize(Vec3_Lerp(
+                    wingBack,
+                    Vec3_Create(-side * 0.14f, -0.18f, -1.0f),
+                    fold));
+                if (u > 0.56f) {
+                    float a = (u - 0.56f) / 0.44f;
+                    chordDir = Vec3_Normalize(Vec3_Lerp(chordDir, handDir, a * 0.25f * ext));
+                }
+                float coverChord = baseChord * (u < 0.56f
+                    ? Math_Lerp(0.70f, 0.58f, u / 0.56f)
+                    : Math_Lerp(0.58f, 0.10f, (u - 0.56f) / 0.44f));
+                coverChord *= Math_Lerp(0.54f, 1.0f, ext);
+                Vector3 leadUse = Vec3_Lerp(bonePt, leadPt, ext);
+                Vector3 trailPt = Vec3_Add(leadUse, Vec3_Scale(chordDir, coverChord));
+                /* Asegurar que la envoltura cubra el hueso del codo por detrás. */
+                float thickScale = Math_Lerp(0.75f, 1.0f, ext);
+                Vector3 surfUp = Vec3_Normalize(Vec3_Lerp(
+                    Vec3_Create(0.0f, 1.0f, 0.0f),
+                    Vec3_Create(side * 0.78f, 0.62f, 0.0f),
+                    fold * 0.85f));
+
+                for (unsigned iv = 0; iv <= nv; ++iv) {
+                    float v = (float)iv / (float)nv; /* 0 = borde de ataque, 1 = borde de coberteras */
+                    Vector3 pt = Vec3_Lerp(leadUse, trailPt, v);
+                    /* Perfil NACA aviar: borde anterior lleno redondeado, dorso convexo, afinado atrás. */
+                    float foil = sinf(powf(v, 0.58f) * 3.14159265f);
+                    float hTop = localThick * (0.28f + 1.05f * foil) * (1.0f - 0.65f * v * v) * thickScale;
+                    float hBot = localThick * (0.22f + 0.52f * foil) * (1.0f - 0.75f * v * v) * thickScale;
+                    if (iv == 0) { hTop = localThick * 0.18f * thickScale; hBot = hTop; }
+                    if (iv == nv) { hTop = localThick * 0.05f * thickScale; hBot = hTop * 0.5f; }
+
+                    Vector3 pTop = Vec3_Add(pt, Vec3_Scale(surfUp, hTop));
+                    Vector3 pBot = Vec3_Sub(pt, Vec3_Scale(surfUp, hBot));
+                    Color cTop = Color_Lerp(covertCol, dorsal, Math_Clamp01(v * 0.75f + u * 0.25f));
+                    if (u > 0.72f) cTop = Color_Lerp(cTop, tipDark, (u - 0.72f) / 0.28f * 0.65f);
+                    Color cBot = Color_Lerp(ventral, covertCol, Math_Clamp01(0.18f + 0.14f * (1.0f - v)));
+                    Vector3 nTop = Vec3_Normalize(Vec3_Add(surfUp, Vec3_Scale(chordDir, (v - 0.25f) * 0.35f)));
+                    Vector3 nBot = Vec3_Scale(surfUp, -1.0f);
+                    if (!EmitVertex(opaque, pTop, nTop, cTop, SURFACE_REGION_FORELIMB, 0.0f, sk, &topGrid[iu][iv]) ||
+                        !EmitVertex(opaque, pBot, nBot, cBot, SURFACE_REGION_FORELIMB, 1.0f, sk, &botGrid[iu][iv])) {
+                        return false;
+                    }
+                }
+            }
+            for (unsigned iu = 0; iu < nu; ++iu) {
+                for (unsigned iv = 0; iv < nv; ++iv) {
+                    if (side > 0.0f) {
+                        if (!EmitQuad(opaque, topGrid[iu][iv], topGrid[iu + 1][iv], topGrid[iu + 1][iv + 1], topGrid[iu][iv + 1]) ||
+                            !EmitQuad(opaque, botGrid[iu][iv], botGrid[iu][iv + 1], botGrid[iu + 1][iv + 1], botGrid[iu + 1][iv]))
+                            return false;
+                    } else {
+                        if (!EmitQuad(opaque, topGrid[iu][iv], topGrid[iu][iv + 1], topGrid[iu + 1][iv + 1], topGrid[iu + 1][iv]) ||
+                            !EmitQuad(opaque, botGrid[iu][iv], botGrid[iu + 1][iv], botGrid[iu + 1][iv + 1], botGrid[iu][iv + 1]))
+                            return false;
+                    }
+                }
+            }
+        }
+
+        Vector3 featherUp = Vec3_Normalize(Vec3_Lerp(
+            wingUp, Vec3_Create(side * 0.82f, 0.56f, 0.0f), fold * 0.85f));
+
+        /* A. Rémiges primarias (10 plumas anchas imbricadas formando punta falcada continua). */
         unsigned nPrim = (limb->featherCount >= 6 && limb->featherCount <= 16) ? limb->featherCount : 10u;
         for (unsigned i = 0; i < nPrim; ++i) {
             float u = (float)i / (float)(nPrim - 1u);
@@ -262,27 +375,27 @@ static bool BuildAvianWingFeathers(const Monster* m, BuildTarget* opaque) {
                 skR = MakeSkin2(jH1, 1.0f - a, jH2, a);
                 skT = MakeSkin1(jH2);
             }
-            /* Abanico progresivo: P1 apunta atrás-afuera, P9-P10 forman la punta falcada del halcón. */
-            float fanT = powf(u, 0.85f);
-            Vector3 fDir = Vec3_Normalize(Vec3_Lerp(wingBack, handDir, Math_Lerp(0.18f, 0.94f, fanT)));
-            if (fold > 0.3f) {
-                fDir = Vec3_Normalize(Vec3_Lerp(fDir, Vec3_Create(-side * 0.10f, -0.22f, -1.0f), fold * 0.75f));
+            /* Abanico progresivo continuo: P1 enlaza sin escalón con secundarias, P8-P10 forman punta falcada. */
+            float fanT = powf(u, 0.86f);
+            Vector3 fDir = Vec3_Normalize(Vec3_Lerp(wingBack, handDir, Math_Lerp(0.10f, 0.90f, fanT)));
+            if (fold > 0.2f) {
+                /* Al plegar, todas las primarias se apilan ordenadamente hacia atrás a lo largo del flanco. */
+                Vector3 foldedDir = Vec3_Normalize(Vec3_Create(-side * (0.18f + 0.07f * u), -0.22f - 0.04f * u, -1.0f));
+                fDir = Vec3_Normalize(Vec3_Lerp(fDir, foldedDir, Math_Clamp01((fold - 0.2f) / 0.65f)));
             }
-            /* Longitud máxima en P8-P9 para alas puntiagudas (halcón), más uniforme en alas anchas. */
-            float peak = Math_Lerp(0.55f, 0.84f, pointed);
+            float peak = Math_Lerp(0.55f, 0.80f, pointed);
             float distPeak = fabsf(u - peak);
-            float lenFactor = 1.0f - distPeak * Math_Lerp(0.55f, 0.92f, pointed);
-            float fLen = baseChord * (0.95f + 0.68f * pointed) * fmaxf(0.45f, lenFactor) * Math_Lerp(1.0f, 0.82f, fold);
-            float fHalfW = baseChord * (0.145f - 0.045f * u);
-            /* Imbricación vertical escalonada para solapamiento limpio sin Z-fighting. */
-            anchor.y -= (float)i * fHalfW * 0.035f;
-            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(wingUp, fDir));
-            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, wingUp, fLen, fHalfW, 0.06f,
+            float lenFactor = 1.0f - distPeak * Math_Lerp(0.32f, 0.52f, pointed);
+            float fLen = baseChord * (0.98f + 0.46f * pointed) * fmaxf(0.72f, lenFactor) * Math_Lerp(1.0f, 0.74f, fold);
+            float fHalfW = baseChord * (0.230f - 0.060f * u) * Math_Lerp(1.0f, 0.72f, fold);
+            anchor = Vec3_Sub(anchor, Vec3_Scale(featherUp, (float)i * fHalfW * 0.020f));
+            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(featherUp, fDir));
+            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, featherUp, fLen, fHalfW, 0.055f,
                                   dorsal, tipDark, ventral, SURFACE_REGION_FORELIMB, skR, skT))
                 return false;
         }
 
-        /* B. Rémiges secundarias (12 plumas alineadas a lo largo de la ulna entre codo y carpo). */
+        /* B. Rémiges secundarias (12 plumas anchas superpuestas formando borde posterior suave). */
         unsigned nSec = 12u;
         for (unsigned i = 0; i < nSec; ++i) {
             float u = (float)i / (float)(nSec - 1u);
@@ -299,33 +412,34 @@ static bool BuildAvianWingFeathers(const Monster* m, BuildTarget* opaque) {
                 skR = MakeSkin2(jUl, 1.0f - a, jWr, a);
                 skT = skR;
             }
-            Vector3 fDir = Vec3_Normalize(Vec3_Add(wingBack, Vec3_Create(side * (0.04f + 0.16f * u) * (1.0f - fold), -0.05f - 0.14f * fold, 0.0f)));
-            float fLen = baseChord * (0.82f + 0.22f * sinf(u * 3.14159265f)) * Math_Lerp(1.0f, 0.72f, fold);
-            float fHalfW = baseChord * 0.14f;
-            anchor.y -= (float)i * fHalfW * 0.025f;
-            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(wingUp, fDir));
-            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, wingUp, fLen, fHalfW, 0.07f,
+            Vector3 fDir = Vec3_Normalize(Vec3_Add(wingBack, Vec3_Create(side * (0.02f + 0.09f * u) * ext - side * 0.16f * fold, -0.05f - 0.18f * fold, 0.0f)));
+            float fLen = baseChord * (0.94f + 0.14f * sinf(u * 3.14159265f) + 0.06f * u) * Math_Lerp(1.0f, 0.62f, fold);
+            float fHalfW = baseChord * 0.210f * Math_Lerp(1.0f, 0.72f, fold);
+            anchor = Vec3_Sub(anchor, Vec3_Scale(featherUp, (float)i * fHalfW * 0.018f));
+            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(featherUp, fDir));
+            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, featherUp, fLen, fHalfW, 0.06f,
                                   dorsal, tipDark, ventral, SURFACE_REGION_FORELIMB, skR, skT))
                 return false;
         }
 
-        /* B2. Terciarias y escapulares (6 plumas anchas que cierran la transición húmero-torso sin huecos). */
-        const unsigned nTert = 6u;
+        /* B2. Terciarias y escapulares (7 plumas anchas que integran el nacimiento del ala al dorso/flanco). */
+        const unsigned nTert = 7u;
         for (unsigned i = 0; i < nTert; ++i) {
             float u = (float)i / (float)(nTert - 1u);
-            Vector3 anchor = Vec3_Lerp(sh->center, el->center, u);
-            AnatomySkinBinding sk = MakeSkin2(jSh, 1.0f - u, jEl, u);
-            Vector3 fDir = Vec3_Normalize(Vec3_Add(wingBack, Vec3_Create(-side * 0.14f * (1.0f - u), -0.04f, 0.0f)));
-            float fLen = baseChord * (0.78f + 0.16f * u) * Math_Lerp(1.0f, 0.72f, fold);
-            float fHalfW = baseChord * 0.19f;
-            anchor.y += 0.008f * wingSpan * 0.25f - (float)i * fHalfW * 0.02f;
-            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(wingUp, fDir));
-            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, wingUp, fLen, fHalfW, 0.08f,
+            Vector3 rootStart = Vec3_Add(sh->center, Vec3_Create(-side * sh->widthRadius * 0.65f, sh->heightRadius * 0.15f, 0.0f));
+            Vector3 anchor = Vec3_Lerp(rootStart, el->center, u);
+            AnatomySkinBinding sk = MakeSkin2(jSh, 1.0f - u * 0.85f, jEl, u * 0.85f);
+            Vector3 fDir = Vec3_Normalize(Vec3_Add(wingBack, Vec3_Create(-side * (0.16f * (1.0f - u) + 0.08f * fold), -0.06f - 0.12f * fold, 0.0f)));
+            float fLen = baseChord * (0.82f + 0.14f * u) * Math_Lerp(1.0f, 0.60f, fold);
+            float fHalfW = baseChord * 0.22f * Math_Lerp(1.0f, 0.75f, fold);
+            anchor = Vec3_Add(anchor, Vec3_Scale(featherUp, 0.010f * wingSpan * 0.25f - (float)i * fHalfW * 0.016f));
+            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(featherUp, fDir));
+            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, featherUp, fLen, fHalfW, 0.07f,
                                   covertCol, dorsal, ventral, SURFACE_REGION_FORELIMB, sk, sk))
                 return false;
         }
 
-        /* C. Coberteras mayores y medianas (dos hileras dorsales que sellan el borde de ataque). */
+        /* C. Coberteras mayores y medianas imbricadas sobre el perfil alar (relieve emplumado real). */
         for (int row = 0; row < 2; ++row) {
             unsigned nCov = row == 0 ? 12u : 10u;
             for (unsigned i = 0; i < nCov; ++i) {
@@ -345,12 +459,15 @@ static bool BuildAvianWingFeathers(const Monster* m, BuildTarget* opaque) {
                     anchor = Vec3_Lerp(wr->center, h1->center, a);
                     sk = MakeSkin2(jWr, 1.0f - a, jH1, a);
                 }
-                anchor.y += (row == 0 ? 0.016f : 0.026f) * wingSpan * 0.25f;
-                Vector3 fDir = Vec3_Normalize(Vec3_Lerp(wingBack, handDir, u * 0.45f));
-                float fLen = baseChord * (row == 0 ? 0.56f : 0.36f) * (1.0f - 0.28f * u);
-                float fHalfW = baseChord * (row == 0 ? 0.145f : 0.135f);
-                Vector3 wAxis = Vec3_Normalize(Vec3_Cross(wingUp, fDir));
-                if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, wingUp, fLen, fHalfW, 0.09f,
+                anchor = Vec3_Add(anchor, Vec3_Scale(featherUp, (row == 0 ? 0.022f : 0.032f) * wingSpan * 0.22f));
+                Vector3 fDir = Vec3_Normalize(Vec3_Lerp(wingBack, handDir, u * 0.42f * ext));
+                if (fold > 0.2f) {
+                    fDir = Vec3_Normalize(Vec3_Lerp(fDir, Vec3_Create(-side * 0.12f, -0.18f, -1.0f), Math_Clamp01((fold - 0.2f) / 0.65f)));
+                }
+                float fLen = baseChord * (row == 0 ? 0.60f : 0.40f) * (1.0f - 0.26f * u) * Math_Lerp(1.0f, 0.65f, fold);
+                float fHalfW = baseChord * (row == 0 ? 0.175f : 0.165f) * Math_Lerp(1.0f, 0.75f, fold);
+                Vector3 wAxis = Vec3_Normalize(Vec3_Cross(featherUp, fDir));
+                if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, featherUp, fLen, fHalfW, 0.08f,
                                       covertCol, dorsal, ventral, SURFACE_REGION_FORELIMB, sk, sk))
                     return false;
             }
@@ -387,24 +504,41 @@ static bool BuildAvianTailFan(const Monster* m, BuildTarget* opaque) {
         Vector3 up = Vec3_Normalize(Vec3_Cross(side, axis));
         side = Vec3_Normalize(Vec3_Cross(axis, up));
 
-        /* 12 rectrices superpuestas en abanico ajustable (curvature controla apertura). */
+        /* 12 rectrices superpuestas desde la base corta del uropigio (sin tallo largo desnudo). */
         const unsigned nRect = 12u;
-        float fanHalf = Math_Clamp(0.20f + fabsf(tail->curvature) * 0.45f, 0.14f, 0.72f);
-        float rectLen = fmaxf(tail->length * s * dev * 2.15f, Vec3_Distance(base->center, tip->center) * 2.65f);
-        float rectHalfW = fmaxf(tail->baseWidth * s * 0.34f, rectLen * 0.085f);
+        float fanHalf = Math_Clamp(0.08f + fabsf(tail->curvature) * 0.42f, 0.06f, 0.65f);
+        float rectLen = fmaxf(tail->length * s * dev * 2.48f, Vec3_Distance(base->center, tip->center) * 2.60f);
+        float rectHalfW = fmaxf(tail->baseWidth * s * 0.46f, rectLen * 0.100f);
+        Vector3 rootOrigin = Vec3_Sub(base->center, Vec3_Scale(axis, base->widthRadius * 0.55f));
 
         for (unsigned i = 0; i < nRect; ++i) {
             float u = ((float)i / (float)(nRect - 1u)) * 2.0f - 1.0f; /* -1..+1 */
             float angle = u * fanHalf;
             Vector3 fDir = Vec3_Normalize(Vec3_Add(Vec3_Scale(axis, cosf(angle)), Vec3_Scale(side, sinf(angle))));
-            Vector3 anchor = Vec3_Add(Vec3_Lerp(base->center, tip->center, 0.25f),
-                                      Vec3_Add(Vec3_Scale(side, u * base->widthRadius * 0.55f),
-                                               Vec3_Scale(up, -fabsf(u) * rectHalfW * 0.08f)));
-            float len = rectLen * (1.0f - 0.10f * u * u);
+            Vector3 anchor = Vec3_Add(rootOrigin,
+                                      Vec3_Add(Vec3_Scale(side, u * base->widthRadius * 0.52f),
+                                               Vec3_Scale(up, -fabsf(u) * rectHalfW * 0.06f)));
+            float len = rectLen * (1.0f - 0.08f * u * u);
             Vector3 wAxis = Vec3_Normalize(Vec3_Cross(up, fDir));
-            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, up, len, rectHalfW, 0.03f,
+            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, up, len, rectHalfW, 0.025f,
                                   dorsal, tipBand, ventral, SURFACE_REGION_TAIL,
-                                  MakeSkin2(jBase, 0.4f, jTip, 0.6f), MakeSkin1(jTip)))
+                                  MakeSkin2(jBase, 0.55f, jTip, 0.45f), MakeSkin1(jTip)))
+                return false;
+        }
+        /* Supracoberteras e infracoberteras caudales (6 plumas que funden la rabadilla con el abanico). */
+        const unsigned nCov = 6u;
+        Color rumpCol = Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.25f);
+        for (unsigned i = 0; i < nCov; ++i) {
+            float u = ((float)i / (float)(nCov - 1u)) * 2.0f - 1.0f;
+            float angle = u * fanHalf * 0.55f;
+            Vector3 fDir = Vec3_Normalize(Vec3_Add(Vec3_Scale(axis, cosf(angle)), Vec3_Scale(side, sinf(angle))));
+            Vector3 anchor = Vec3_Add(Vec3_Sub(rootOrigin, Vec3_Scale(axis, base->widthRadius * 0.28f)),
+                                      Vec3_Add(Vec3_Scale(side, u * base->widthRadius * 0.58f),
+                                               Vec3_Scale(up, base->heightRadius * 0.36f - fabsf(u) * rectHalfW * 0.05f)));
+            Vector3 wAxis = Vec3_Normalize(Vec3_Cross(up, fDir));
+            if (!EmitFeatherBlade(opaque, anchor, fDir, wAxis, up, rectLen * 0.42f, rectHalfW * 1.05f, 0.05f,
+                                  rumpCol, dorsal, ventral, SURFACE_REGION_TAIL,
+                                  MakeSkin1(jBase), MakeSkin2(jBase, 0.7f, jTip, 0.3f)))
                 return false;
         }
     }
@@ -712,8 +846,9 @@ static bool BuildArmSuckers(const Monster* m, BuildTarget* opaque) {
             unsigned a = order[k], b = order[(k + 1) % armCount];
             Vector3 rA = armRoot[a]->center, rB = armRoot[b]->center;
             Vector3 mA = armMid[a]->center, mB = armMid[b]->center;
-            float thick = 0.5f * (armMid[a]->heightRadius + armMid[b]->heightRadius) * 0.24f;
-            Vector3 midEdge = Vec3_Lerp(Vec3_Lerp(mA, mB, 0.5f), Vec3_Lerp(rA, rB, 0.5f), 0.28f);
+            float thick = 0.5f * (armMid[a]->heightRadius + armMid[b]->heightRadius) * 0.36f;
+            Vector3 midEdge = Vec3_Lerp(Vec3_Lerp(mA, mB, 0.5f), Vec3_Lerp(rA, rB, 0.5f), 0.20f);
+            midEdge.y -= thick * 0.45f;
             AnatomySkinBinding skA0 = MakeSkin1(armJ0[a]), skB0 = MakeSkin1(armJ0[b]);
             AnatomySkinBinding skA2 = MakeSkin1(armJ2[a]), skB2 = MakeSkin1(armJ2[b]);
             AnatomySkinBinding skM = MakeSkin2(armJ2[a], 0.5f, armJ2[b], 0.5f);
@@ -804,10 +939,10 @@ static bool BuildInsectWings(const Monster* m, BuildTarget* opaque, BuildTarget*
         Vector3 backDir = Vec3_Normalize(Vec3_Create(-side * 0.06f, -0.02f, -1.0f));
         float veinR = fmaxf(0.0010f * s, maxChord * 0.015f);
 
-        const unsigned nu = 12, nv = 4;
-        MeshIndex memGrid[13][5];
-        Vector3 posGrid[13][5];
-        AnatomySkinBinding skGrid[13];
+        const unsigned nu = 16, nv = 4;
+        MeshIndex memGrid[17][5];
+        Vector3 posGrid[17][5];
+        AnatomySkinBinding skGrid[17];
 
         for (unsigned iu = 0; iu <= nu; ++iu) {
             float u = (float)iu / (float)nu;

@@ -255,6 +255,15 @@ typedef struct HeadSurfaceRecipe {
     Vector3 equineCrestStart; /**< Origen cigomático de la cresta facial bajo la órbita. */
     Vector3 equineCrestEnd; /**< Terminación rostral (tuberosidad facial) en el maxilar. */
     Vector3 equineCrestRadii; /**< Semiejes (lateral, vertical) de cresta e intensidad de surco. */
+    float beakWeight; /**< Peso continuo [0,1] del perfil 3D especializado de pico aviar. */
+    Vector3 beakBase; /**< Unión proximal del pico superior en frente/cera. */
+    Vector3 beakMid; /**< Control dorsal del culmen (longitud y convexidad). */
+    Vector3 beakTip; /**< Punta distal del pico superior (gancho descendente). */
+    Vector3 beakBaseRadii; /**< (semiancho basal, semialtura dorsal basal, fracción de cera). */
+    Vector3 beakShape; /**< (exponente de ahusamiento, curvatura/gancho, diente tomial opcional). */
+    Vector3 beakTipShape; /**< (semiancho punta, semialtura punta, quilla dorsal del culmen). */
+    Vector3 beakLowerTip; /**< Punta distal de la mandíbula inferior (bajo el gancho al cerrar). */
+    Vector3 beakLowerRadii; /**< (semiancho basal inferior, semialtura basal inferior, semiancho punta inferior). */
 } HeadSurfaceRecipe;
 
 /** Anatomía resuelta y validada, incluyendo el subsistema oral. */

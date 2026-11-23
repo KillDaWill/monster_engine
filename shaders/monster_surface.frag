@@ -8,7 +8,7 @@ uniform int shellCount;
 
 in vec3 restCoord,restNormal,viewPosition,viewNormal;
 in vec4 vertexColor,profileA,profileB;
-in vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
+in vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo,regionalPigmentOut;
 in float ventral,skinMask,wrinkleCoverageOut;
 flat in int tissueMaterial;
 in vec3 posedFlowOut,restFlowOut;
@@ -33,6 +33,7 @@ out vec4 fragColor;
 
 void main() {
     wrinkleCoverage=wrinkleCoverageOut;
+    regionalPigment=regionalPigmentOut;
     pigmentCoverage[0]=clamp(pigmentMaskLegacy,0.0,1.0);
     pigmentCoverage[1]=clamp(pigmentMaskFrom,0.0,1.0);pigmentCoverage[2]=clamp(pigmentMaskTo,0.0,1.0);
     vec3 mappedCoord=restCoord,mappedNormal=restNormal;

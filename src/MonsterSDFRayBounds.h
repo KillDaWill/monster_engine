@@ -35,7 +35,7 @@ static AABB3D RayBounds_World(const MonsterSDFMouth* m,AABB3D local) {
  * no converjan. Las restas mandibulares no amplían el sólido.
  */
 static AABB3D RayBounds_PosedJaw(const MonsterSDFMouth* m,float tolerance) {
-    if(!m->sweptSkull||m->visualJawScale<.0001f) {
+    if(!m->sweptSkull||m->beakWeight>.001f||m->visualJawScale<.0001f) {
         AABB3D box=AABB_Empty();float r=m->visualJawBoundRadius+8*tolerance;
         AABB_ExpandRadius(&box,m->visualJawPivot,Vec3_Create(r,r,r));
         return RayBounds_World(m,box);
@@ -149,6 +149,13 @@ static MonsterSDFMouth RayBounds_PackedMouth(const MonsterSDFMouth* source,float
                 fmaxf(m.headStations[j].width*1.30f,m.headStations[j].height)+level);
             AABB_ExpandRadius(&head,m.headStations[j].center,cb);
         }
+    }
+    if(m.beakWeight>0.0f){
+        float bPad=fmaxf(m.beakBaseRadii.x,m.beakBaseRadii.y)*1.65f+level*1.6f;
+        Vector3 bExt=Vec3_Create(bPad,bPad,bPad);
+        AABB_ExpandRadius(&head,m.beakBaseLocal,bExt);
+        AABB_ExpandRadius(&head,m.beakMidLocal,bExt);
+        AABB_ExpandRadius(&head,m.beakTipLocal,bExt);
     }
     if(m.hasNasalPad){E(noseCenterLocal,noseRadii);}
     if(m.hasEars){

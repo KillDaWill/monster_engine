@@ -22,7 +22,8 @@ typedef enum PupilShape {
     PUPIL_ROUND = 0,
     PUPIL_VERTICAL,
     PUPIL_HORIZONTAL,
-    PUPIL_DIAMOND
+    PUPIL_DIAMOND,
+    PUPIL_COMPOUND
 } PupilShape;
 
 /**

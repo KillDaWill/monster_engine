@@ -224,10 +224,12 @@ bool Tail_Resolve(const TailPhenotype* p, uint32_t module, const AttachmentSlot*
         }
 
         AnatomyId id = Anatomy_MakeId(module, (uint16_t)(i + 1));
+        BodyConnectionKind edgeKind = (p->archetype == TAIL_ARCHETYPE_FEATHER_FAN && i >= 1)
+            ? BODY_CONNECTION_SUPPORT : BODY_CONNECTION_AXIAL_LOFT;
         if (!Module_Node(g, module, (uint16_t)(i + 1), c, wr, hr, i < 2 ? 2 : 1,
                          ANATOMY_ROLE_AXIAL, ANATOMY_REGION_TAIL, ANATOMY_SIDE_CENTER, p->development) ||
             !Module_Edge(g, module, (uint16_t)(i + 1), previous, id,
-                         BODY_CONNECTION_AXIAL_LOFT, p->development)) {
+                         edgeKind, p->development)) {
             return false;
         }
         g->dormantConnections[g->connectionCount - 1] = (p->development <= 0.0f);

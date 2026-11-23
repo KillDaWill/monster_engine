@@ -16,6 +16,7 @@
 #include "CreatureRecipeRegistry.h"
 #include "CreatureRecipes.h"
 #include "CreatureRig.h"
+#include "EyeTexture.h"
 #include "FlexibleAppendage.h"
 #include "Head.h"
 #include "Limb.h"
@@ -406,6 +407,220 @@ static void TestOffspringHomologyAndHybrids(const CreatureRecipe* recipes[5]) {
     printf("[PASS] test_five_non_mammals: CreatureOffspring (homología, determinismo e híbridos válidos)\n");
 }
 
+static void TestFalconAnatomicalInvariants(const CreatureRecipe* falcon) {
+    /* 1. Verificar que el sistema genérico de pico aviar soporta múltiples perfiles de ave. */
+    const float curvatures[4] = {0.92f, 0.12f, 0.05f, 0.84f}; /* rapaz, cónico corto, recto largo, loro */
+    const float lengths[4]    = {0.38f, 0.26f, 0.88f, 0.42f};
+    const float depths[4]     = {0.68f, 0.58f, 0.30f, 0.86f};
+    for (int k = 0; k < 4; ++k) {
+        HeadPhenotype hp = falcon->adult.head;
+        hp.beakCurvature = curvatures[k];
+        hp.beakLength = lengths[k];
+        hp.beakDepth = depths[k];
+        HeadAnatomy ha = {0};
+        TEST_ASSERT(HeadAnatomy_Resolve(&hp, 0, Vec3_Create(0.20f, 0.18f, 0.22f), &ha),
+                    "HeadAnatomy_Resolve aviar genérico debe resolver los 4 perfiles de pico");
+        TEST_ASSERT(ha.surface.isBeak && ha.surface.beakWeight > 0.5f, "Pico 3D activo en perfil aviar");
+        TEST_ASSERT(ha.surface.beakTip.z > ha.surface.beakBase.z, "Pico se proyecta hacia delante");
+    }
+
+    /* 2. Invariantes anatómicos específicos del Halcón Peregrino (ID 1016). */
+    Monster* m = malloc(sizeof(*m));
+    MonsterSDF* sdfClosed = malloc(sizeof(*sdfClosed));
+    MonsterSDF* sdfOpen = malloc(sizeof(*sdfOpen));
+    TEST_ASSERT(m && sdfClosed && sdfOpen, "alloc falcon invariants");
+
+    *m = Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(m, falcon, &falcon->adult), "Build halcón adulto");
+    const HeadSurfaceRecipe* hs = &m->head.anatomy.surface;
+    const HeadLandmarks* hl = &m->head.anatomy.landmarks;
+    TEST_ASSERT(hs->isBeak && hs->beakWeight > 0.9f, "Halcón usa sistema especializado de pico 3D");
+    TEST_ASSERT(hs->beakTip.z > hs->beakBase.z + hs->craniumRadii.z * 0.25f,
+                "Culmen superior sobresale claramente de la cera");
+    TEST_ASSERT(hs->beakMid.y > hs->beakTip.y && hs->beakTip.y < hs->beakBase.y,
+                "Perfil de pico rapaz ganchudo hacia abajo");
+    TEST_ASSERT(hs->beakLowerTip.z < hs->beakTip.z,
+                "Mandíbula inferior recogida detrás del gancho superior");
+    TEST_ASSERT(hl->leftNostril.z >= hs->beakBase.z - 0.01f && hl->leftNostril.z < hs->beakTip.z,
+                "Narinas posicionadas sobre la cera del pico");
+    TEST_ASSERT(hs->neckCollarContinuity > 0.8f, "Continuidad suave cabeza-cuello aviar");
+
+    /* Proporciones compactas cráneo/tórax y ojo/cráneo */
+    const AnatomyNode* thorax = AnatomyGraph_FindModuleNode(&m->anatomyGraph, 1, AXIAL_NODE_THORAX_ANTERIOR);
+    TEST_ASSERT(thorax != NULL, "Nodo torácico de halcón");
+    float headThoraxRatio = hs->craniumRadii.x / fmaxf(thorax->widthRadius, 1e-4f);
+    TEST_ASSERT(headThoraxRatio > 0.30f && headThoraxRatio < 0.72f,
+                "Cabeza compacta en proporción al tórax del halcón");
+    float eyeSkullRatio = m->head.anatomy.eyeScale.y / fmaxf(hs->craniumRadii.y, 1e-4f);
+    TEST_ASSERT(eyeSkullRatio > 0.14f && eyeSkullRatio < 0.45f,
+                "Ojos integrados sin tamaño caricaturesco");
+
+    /* Base caudal corta: solo el primer tramo del uropigio es volumen sólido AXIAL_LOFT */
+    unsigned solidTailEdges = 0, supportTailEdges = 0;
+    for (size_t i = 0; i < m->anatomyGraph.connectionCount; ++i) {
+        const BodyConnection* c = &m->anatomyGraph.connections[i];
+        if ((c->toId >> 16) == 20u) {
+            if (c->kind == BODY_CONNECTION_AXIAL_LOFT) ++solidTailEdges;
+            else if (c->kind == BODY_CONNECTION_SUPPORT) ++supportTailEdges;
+        }
+    }
+    TEST_ASSERT(solidTailEdges == 1u && supportTailEdges >= 2u,
+                "Cola aviar con uropigio corto sólido y soporte sin tallo rígido desnudo");
+
+    /* Pico cerrado vs pico abierto: el gancho superior permanece íntegro al abrir la boca */
+    *sdfClosed = MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(sdfClosed, m, MonsterSDF_DefaultConfig()), "SDF halcón cerrado");
+    const MonsterSDFMouth* mc = &sdfClosed->mouths[0];
+    Vector3 tipLocalProbe = Vec3_Lerp(mc->beakMidLocal, mc->beakTipLocal, 0.78f);
+    Vector3 tipWorld = Vec3_Add(mc->center, tipLocalProbe);
+    float dTipClosed = MonsterSDF_EvaluateDistance(sdfClosed, tipWorld);
+    TEST_ASSERT(dTipClosed < 0.0f, "El gancho del pico superior es un volumen 3D sólido cerrado");
+
+    Monster_SetHeadOpenFactor(m, 0.55f);
+    *sdfOpen = MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(sdfOpen, m, MonsterSDF_DefaultConfig()), "SDF halcón abierto");
+    float dTipOpen = MonsterSDF_EvaluateDistance(sdfOpen, tipWorld);
+    TEST_ASSERT(dTipOpen < 0.0f, "Al abrir el pico, el gancho superior permanece íntegro y sin recortar");
+
+    /* Comparación ala extendida vs ala plegada (incluyendo plumaje suplementario completo) */
+    Mesh extDet = Mesh_Create(), extTrn = Mesh_Create();
+    TEST_ASSERT(SupplementaryMesh_Build(m, &extDet, &extTrn) && CheckMeshFinite(&extDet) && extDet.vertexCount > 500,
+                "Plumaje suplementario válido en vuelo extendido");
+    float extMinX = 1e9f, extMaxX = -1e9f;
+    for (size_t vi = 0; vi < extDet.vertexCount; ++vi) {
+        float x = extDet.vertices[vi].position.x;
+        if (x < extMinX) extMinX = x;
+        if (x > extMaxX) extMaxX = x;
+    }
+    float extSpan = extMaxX - extMinX;
+    Mesh_Free(&extDet); Mesh_Free(&extTrn);
+
+    CreaturePhenotype foldedPheno = falcon->adult;
+    foldedPheno.limbs[0].sprawl = 0.95f;
+    foldedPheno.limbs[1].sprawl = 0.95f;
+    Monster* mf = malloc(sizeof(*mf));
+    MonsterSDF* sdfFolded = malloc(sizeof(*sdfFolded));
+    TEST_ASSERT(mf && sdfFolded, "alloc folded falcon");
+    *mf = Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(mf, falcon, &foldedPheno), "Build halcón plegado");
+    *sdfFolded = MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(sdfFolded, mf, MonsterSDF_DefaultConfig()), "SDF halcón plegado");
+    Mesh foldDet = Mesh_Create(), foldTrn = Mesh_Create();
+    TEST_ASSERT(SupplementaryMesh_Build(mf, &foldDet, &foldTrn) && CheckMeshFinite(&foldDet) && foldDet.vertexCount > 500,
+                "Plumaje suplementario válido y finito en configuración plegada");
+    float foldMinX = 1e9f, foldMaxX = -1e9f;
+    for (size_t vi = 0; vi < foldDet.vertexCount; ++vi) {
+        float x = foldDet.vertices[vi].position.x;
+        if (x < foldMinX) foldMinX = x;
+        if (x > foldMaxX) foldMaxX = x;
+    }
+    float foldSpan = foldMaxX - foldMinX;
+    TEST_ASSERT(foldSpan < extSpan * 0.45f, "Alas plegadas se recogen cerca del torso respecto al vuelo");
+    Mesh_Free(&foldDet); Mesh_Free(&foldTrn);
+
+    MonsterSDF_Free(sdfFolded); Monster_Free(mf); free(sdfFolded); free(mf);
+    MonsterSDF_Free(sdfClosed); MonsterSDF_Free(sdfOpen); Monster_Free(m);
+    free(sdfClosed); free(sdfOpen); free(m);
+    printf("[PASS] test_five_non_mammals: invariantes anatómicos de Halcón Peregrino (1016)\n");
+}
+
+static void TestDragonflyAnatomicalInvariants(const CreatureRecipe* dragonfly) {
+    Monster* m = malloc(sizeof(*m));
+    MonsterSDF* sdf = malloc(sizeof(*sdf));
+    TEST_ASSERT(m && sdf, "alloc dragonfly invariants");
+    *m = Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(m, dragonfly, &dragonfly->adult), "Build libélula adulta");
+    *sdf = MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(sdf, m, MonsterSDF_DefaultConfig()), "SDF libélula adulta");
+
+    /* Conteo de 6 patas torácicas y 4 alas */
+    unsigned legCount = 0, wingCount = 0;
+    for (size_t i = 0; i < m->phenotype.limbCount; ++i) {
+        if (m->phenotype.limbs[i].archetype == LIMB_ARCHETYPE_ARTHROPOD_LEG) ++legCount;
+        else if (m->phenotype.limbs[i].archetype == LIMB_ARCHETYPE_INSECT_WING) ++wingCount;
+    }
+    TEST_ASSERT(legCount == 6u && wingCount == 4u, "Libélula con 6 patas torácicas y 4 alas");
+
+    /* Separación estricta cabeza vs primer par de patas: NINGUNA raíz de pata dentro de la cabeza */
+    TEST_ASSERT(sdf->mouthCount >= 1u, "Libélula tiene cápsula cefálica SDF");
+    float headMinZ = sdf->mouths[0].center.z + sdf->mouths[0].headBounds.start.z;
+    for (uint32_t legMod = 10u; legMod <= 15u; ++legMod) {
+        const AnatomyNode* root = AnatomyGraph_FindModuleNode(&m->anatomyGraph, legMod, LIMB_NODE_ROOT);
+        TEST_ASSERT(root != NULL, "Raíz de pata de insecto presente");
+        TEST_ASSERT(root->center.z < headMinZ - 0.01f,
+                    "Ninguna pata de libélula puede originarse dentro o delante de la cápsula cefálica");
+    }
+
+    /* Proporción cabeza/tórax compacta (sin cabeza plana tipo rana) y ojos compuestos holópticos */
+    const AnatomyNode* syn = AnatomyGraph_FindModuleNode(&m->anatomyGraph, 1, AXIAL_NODE_THORAX_ANTERIOR);
+    TEST_ASSERT(syn != NULL, "Sintórax de libélula presente");
+    float headRatio = m->head.anatomy.surface.craniumRadii.x / fmaxf(syn->widthRadius, 1e-4f);
+    TEST_ASSERT(headRatio > 0.55f && headRatio < 1.35f,
+                "Cabeza de libélula proporcionada respecto al sintórax (sin deformación ancha tipo rana)");
+    TEST_ASSERT(m->eyeCount == 2u, "Libélula tiene dos ojos compuestos simétricos");
+    TEST_ASSERT(m->eyes[0].pupilShape == PUPIL_COMPOUND && m->eyes[0].cornealGloss < 0.50f,
+                "Ojos compuestos facetados sin brillo corneal húmedo vertebrado");
+    unsigned char texBuf[32 * 32 * 4];
+    TEST_ASSERT(EyeTexture_Generate(&m->eyes[0], 32, texBuf, sizeof(texBuf)),
+                "Textura procedural hexagonal PUPIL_COMPOUND generada correctamente");
+
+    MonsterSDF_Free(sdf); Monster_Free(m);
+    free(sdf); free(m);
+    printf("[PASS] test_five_non_mammals: invariantes anatómicos de Libélula Emperador (1019)\n");
+}
+
+static void TestOctopusAnatomicalInvariants(const CreatureRecipe* octopus) {
+    Monster* m = malloc(sizeof(*m));
+    MonsterSDF* sdf = malloc(sizeof(*sdf));
+    TEST_ASSERT(m && sdf, "alloc octopus invariants");
+    *m = Monster_Create();
+    TEST_ASSERT(Creature_BuildMonster(m, octopus, &octopus->adult), "Build pulpo adulto");
+    *sdf = MonsterSDF_Create();
+    TEST_ASSERT(MonsterSDF_Build(sdf, m, MonsterSDF_DefaultConfig()), "SDF pulpo adulto");
+
+    /* 8 brazos musculares + 1 sifón con abertura terminal en embudo */
+    unsigned arms = 0, siphons = 0;
+    for (size_t i = 0; i < m->phenotype.flexibleAppendageCount; ++i) {
+        if (m->phenotype.flexibleAppendages[i].profile == FLEXIBLE_PROFILE_MUSCULAR_ARM) ++arms;
+        else if (m->phenotype.flexibleAppendages[i].profile == FLEXIBLE_PROFILE_SIPHON) ++siphons;
+    }
+    TEST_ASSERT(arms == 8u && siphons == 1u, "Pulpo con 8 brazos musculares y 1 sifón");
+
+    bool foundFunnel = false;
+    for (size_t i = 0; i < sdf->connectorCount; ++i) {
+        const MonsterSDFConnector* c = &sdf->connectors[i];
+        if (c->kind == BODY_CONNECTION_FUNNEL_OPENING) {
+            foundFunnel = true;
+            /* La boca central del embudo debe estar hueca (>0) mientras el borde muscular es sólido (<0) */
+            Vector3 mouthCenter = Vec3_Add(c->b, Vec3_Scale(c->forward, c->r2 * 0.10f));
+            Vector3 wallProbe = Vec3_Add(c->b, Vec3_Scale(c->side, c->widthB * 0.78f));
+            float dMouth = MonsterSDF_EvaluateDistance(sdf, mouthCenter);
+            float dWall = MonsterSDF_EvaluateDistance(sdf, wallProbe);
+            TEST_ASSERT(dMouth > 0.0f && dWall < 0.0f,
+                        "El sifón tiene un lumen circular abierto rodeado de pared muscular");
+        }
+    }
+    TEST_ASSERT(foundFunnel, "Sifón de pulpo compila abertura terminal BODY_CONNECTION_FUNNEL_OPENING");
+
+    /* Manto posterior ovoide suave sin mamelón ni pico agudo */
+    TEST_ASSERT(sdf->axialStationCount == 7u, "Manto cefalópodo sin estación extra de mamelón trasero");
+    const AnatomyNode* mMid = AnatomyGraph_FindModuleNode(&m->anatomyGraph, 1, AXIAL_NODE_ABDOMEN);
+    const AnatomyNode* mRear = AnatomyGraph_FindModuleNode(&m->anatomyGraph, 1, AXIAL_NODE_PELVIS);
+    TEST_ASSERT(mMid && mRear && mRear->widthRadius < mMid->widthRadius &&
+                mRear->widthRadius > mMid->widthRadius * 0.50f,
+                "Cúpula posterior del manto redondeada y continua sin estrangulamiento");
+
+    /* Pupila horizontal típica de pulpo y cabeza compacta sin hocico */
+    TEST_ASSERT(m->eyeCount == 2u && m->eyes[0].pupilShape == PUPIL_HORIZONTAL,
+                "Pulpo con dos ojos laterales de pupila horizontal");
+    TEST_ASSERT(m->head.anatomy.surface.hasCranialProfile && m->head.anatomy.surface.neckCollarContinuity > 0.8f,
+                "Cabeza cefalópoda compacta e integrada al collar del manto");
+
+    MonsterSDF_Free(sdf); Monster_Free(m);
+    free(sdf); free(m);
+    printf("[PASS] test_five_non_mammals: invariantes anatómicos de Pulpo Gigante (1018)\n");
+}
+
 void run_five_non_mammals_tests(void) {
     printf("\n--- Suite: Cinco Especies No-Mamíferas (1016..1020) y Arquitectura Reutilizable ---\n");
     TestRadialCoordinateFrame();
@@ -417,6 +632,9 @@ void run_five_non_mammals_tests(void) {
     const CreatureRecipe* recipes[5] = {0};
     TestCatalogLoadAndJsonRoundTrip(recipes);
     TestStagesSdfSupplementaryAndAger(recipes);
+    TestFalconAnatomicalInvariants(recipes[0]);
+    TestDragonflyAnatomicalInvariants(recipes[3]);
+    TestOctopusAnatomicalInvariants(recipes[2]);
     TestAnimationWithoutSdfRebuild(recipes);
     TestCrossBodyPlanMorph(recipes);
     TestOffspringHomologyAndHybrids(recipes);

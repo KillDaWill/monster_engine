@@ -17,42 +17,46 @@ bool AxialBodyCephalopod_Resolve(const AxialPhenotype* p, uint32_t module,
 
     /* Disposición cefalópoda (de anterior +Z hacia manto posterior-dorsal -Z):
      * 1: Base oral / corona cefálica anterior (raíz de brazos circumorales)
-     * 2: Cabeza muscular corta (soporte ocular lateral)
-     * 3: Collar muscular / constricción manto-cabeza
-     * 4: Manto anterior abombado
-     * 5: Cúpula máxima del manto
-     * 6: Ápice posterior del manto */
+     * 2: Cabeza muscular compacta (deja sobresalir las órbitas dorsolaterales)
+     * 3: Collar muscular suave cabeza-manto
+     * 4-6: Manto ovoide continuo sobre sección elipsoidal real (sin picos ni mamelón) */
+    float mantleRx = p->abdomenWidth * 0.56f;
+    float mantleRy = p->abdomenHeight * 0.52f;
+    float mantleCenterY = refY + mantleRy * 0.38f;
+    float mantleCenterZ = -L * 0.48f * elong;
+    float mantleRz = L * 0.42f * elong;
+
     float widths[6] = {
         p->neckWidth * 0.52f,
-        p->shoulderWidth * 0.46f,
-        p->neckWidth * 0.40f,
-        p->thoraxWidth * 0.56f,
-        p->abdomenWidth * 0.62f,
-        p->pelvicWidth * 0.36f
+        p->shoulderWidth * 0.36f,
+        p->neckWidth * 0.44f,
+        mantleRx * 0.88f,
+        mantleRx * 1.00f,
+        mantleRx * 0.64f
     };
     float heights[6] = {
-        p->neckWidth * 0.42f,
-        p->thoraxHeight * 0.42f,
-        p->thoraxHeight * 0.36f,
-        p->thoraxHeight * 0.58f,
-        p->abdomenHeight * 0.64f,
-        p->pelvicHeight * 0.36f
+        p->neckWidth * 0.40f,
+        p->thoraxHeight * 0.34f,
+        p->thoraxHeight * 0.38f,
+        mantleRy * 0.88f,
+        mantleRy * 1.00f,
+        mantleRy * 0.64f
     };
     float z[6] = {
-        L * 0.34f,
-        L * 0.18f,
-        0.0f,
-        -L * 0.24f * elong,
-        -L * 0.54f * elong,
-        -L * 0.80f * elong
+        L * 0.28f,
+        L * 0.14f,
+        -L * 0.02f,
+        mantleCenterZ + mantleRz * 0.48f,
+        mantleCenterZ - mantleRz * 0.04f,
+        mantleCenterZ - mantleRz * 0.72f
     };
-    float yOff[6] = {
-        -heights[0] * 0.22f,
-        heights[1] * 0.16f,
-        heights[2] * 0.12f,
-        heights[3] * 0.34f,
-        heights[4] * 0.44f,
-        heights[5] * 0.36f
+    float yAbs[6] = {
+        refY - heights[0] * 0.26f,
+        refY + heights[1] * 0.04f,
+        refY + heights[2] * 0.16f,
+        mantleCenterY - mantleRy * 0.04f,
+        mantleCenterY + mantleRy * 0.04f,
+        mantleCenterY - mantleRy * 0.02f
     };
 
     for (unsigned i = 0; i < 6; ++i) {
@@ -61,7 +65,7 @@ bool AxialBodyCephalopod_Resolve(const AxialPhenotype* p, uint32_t module,
         float h = heights[i] * (morph->heightScale > 0.0f ? morph->heightScale : 1.0f);
         Vector3 c = {
             0.0f,
-            (refY + yOff[i] + morph->verticalOffset) * s,
+            (yAbs[i] + morph->verticalOffset) * s,
             (z[i] + morph->longitudinalOffset) * s
         };
         AnatomyRegion region = (i == 5) ? ANATOMY_REGION_PELVIS : ANATOMY_REGION_TRUNK;
@@ -83,11 +87,11 @@ bool AxialBodyCephalopod_Resolve(const AxialPhenotype* p, uint32_t module,
     const AnatomyNode* mantle = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_ABDOMEN);
     if (!crown || !headBase || !collar || !mantle) return false;
 
-    /* 1. Ranura cefálica (cabeza corta con ojos laterales prominentes). */
+    /* 1. Ranura cefálica (cabeza corta con ojos dorsolaterales claramente visibles sobre la corona). */
     AttachmentSlot cervical = {
         .id = AXIAL_SLOT_CERVICAL, .role = ATTACHMENT_CERVICAL,
         .hostModuleInstanceId = module, .hostNode = headBase->id,
-        .position = {0.0f, headBase->center.y + headBase->heightRadius * 0.15f, headBase->center.z},
+        .position = {0.0f, headBase->center.y + headBase->heightRadius * 0.34f, headBase->center.z},
         .forward = {0.0f, 0.0f, 1.0f}, .up = {0.0f, 1.0f, 0.0f}, .side = {1.0f, 0.0f, 0.0f},
         .hostRadii = {headBase->widthRadius, headBase->heightRadius, headBase->widthRadius}, .scale = s
     };
@@ -118,20 +122,20 @@ bool AxialBodyCephalopod_Resolve(const AxialPhenotype* p, uint32_t module,
         return false;
     }
 
-    /* 3. Sifón / embudo propulsor lateroventral bajo el collar manto-cabeza. */
-    Vector3 siphonFwd = Vec3_Normalize(Vec3_Create(-0.82f, -0.28f, -0.50f));
-    Vector3 siphonUp = Vec3_Normalize(Vec3_Create(0.0f, 0.92f, -0.39f));
+    /* 3. Sifón / embudo propulsor lateroventral bajo el collar manto-cabeza con boca visible. */
+    Vector3 siphonFwd = Vec3_Normalize(Vec3_Create(-0.76f, -0.16f, -0.62f));
+    Vector3 siphonUp = Vec3_Normalize(Vec3_Create(0.0f, 0.98f, -0.20f));
     Vector3 siphonSide = Vec3_Normalize(Vec3_Cross(siphonUp, siphonFwd));
     AttachmentSlot siphon = {
         .id = AXIAL_SLOT_SIPHON, .role = ATTACHMENT_SIPHON,
         .hostModuleInstanceId = module, .hostNode = collar->id,
         .position = {
-            -collar->widthRadius * 0.72f,
-            collar->center.y - collar->heightRadius * 0.42f,
-            collar->center.z - collar->widthRadius * 0.12f
+            -collar->widthRadius * 0.68f,
+            collar->center.y - collar->heightRadius * 0.34f,
+            collar->center.z - collar->widthRadius * 0.04f
         },
         .forward = siphonFwd, .up = siphonUp, .side = siphonSide,
-        .hostRadii = {collar->widthRadius * 0.35f, collar->heightRadius * 0.35f, collar->widthRadius * 0.35f},
+        .hostRadii = {collar->widthRadius * 0.34f, collar->heightRadius * 0.34f, collar->widthRadius * 0.34f},
         .scale = s
     };
     if (slots->count >= ATTACHMENT_MAX_SLOTS) return false;
@@ -185,15 +189,8 @@ bool AxialBodyCephalopod_BuildSweepStations(const AxialPhenotype* p, const Anato
             .height = nodes[i]->heightRadius
         };
     }
-    /* Cúpula posterior redondeada y suave del manto (sin pico pellizcado). */
-    Vector3 apex = nodes[5]->center;
-    apex.z -= nodes[5]->widthRadius * 0.32f;
-    apex.y -= nodes[5]->heightRadius * 0.04f;
-    outStations[c++] = (SDFSweepStation){
-        .center = apex,
-        .width = nodes[5]->widthRadius * 0.68f,
-        .height = nodes[5]->heightRadius * 0.66f
-    };
+    /* Sin estación terminal estrecha adicional: el remate posterior usa la cúpula amplia de nodes[5]
+     * con MatchSweepCapTangent en MonsterSDF para un cierre ovoide hemisférico continuo sin mamelón. */
     *outCount = c;
     return true;
 }

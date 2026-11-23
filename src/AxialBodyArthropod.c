@@ -32,22 +32,22 @@ bool AxialBodyArthropod_Resolve(const AxialPhenotype* p, uint32_t module,
     float pw = p->pelvicWidth * 0.50f;
     float ph = p->pelvicHeight * 0.50f;
 
-    Vector3 proPos = {0.0f, (refY + th * 0.08f) * s, (thoraxLen * 0.62f + p->neckLength * 0.35f) * s};
-    Vector3 mesoPos = {0.0f, (refY + th * 0.16f) * s, (thoraxLen * 0.30f) * s};
-    Vector3 synPos = {0.0f, (refY + th * 0.22f) * s, 0.0f};
-    Vector3 metaPos = {0.0f, (refY + th * 0.06f) * s, (-thoraxLen * 0.36f) * s};
+    Vector3 proPos = {0.0f, (refY + th * 0.04f) * s, (thoraxLen * 0.56f) * s};
+    Vector3 mesoPos = {0.0f, (refY + th * 0.14f) * s, (thoraxLen * 0.24f) * s};
+    Vector3 synPos = {0.0f, (refY + th * 0.26f) * s, (-thoraxLen * 0.04f) * s};
+    Vector3 metaPos = {0.0f, (refY + th * 0.08f) * s, (-thoraxLen * 0.38f) * s};
 
     if (!Module_Node(g, module, AXIAL_NODE_NECK, proPos,
-                     p->neckWidth * 0.46f * s, p->neckWidth * 0.42f * s, 2,
+                     p->neckWidth * 0.48f * s, p->neckWidth * 0.44f * s, 2,
                      ANATOMY_ROLE_AXIAL, ANATOMY_REGION_NECK, ANATOMY_SIDE_CENTER, 1.0f)) return false;
     if (!Module_Node(g, module, AXIAL_NODE_PECTORAL, mesoPos,
-                     p->shoulderWidth * 0.48f * s, th * 0.92f * s, 2,
+                     p->shoulderWidth * 0.48f * s, th * 0.94f * s, 2,
                      ANATOMY_ROLE_AXIAL, ANATOMY_REGION_TRUNK, ANATOMY_SIDE_CENTER, 1.0f)) return false;
     if (!Module_Node(g, module, AXIAL_NODE_THORAX_ANTERIOR, synPos,
-                     tw * s, th * s, 2,
+                     tw * s, th * 1.06f * s, 2,
                      ANATOMY_ROLE_AXIAL, ANATOMY_REGION_TRUNK, ANATOMY_SIDE_CENTER, 1.0f)) return false;
     if (!Module_Node(g, module, AXIAL_NODE_THORAX_POSTERIOR, metaPos,
-                     tw * 0.84f * s, th * 0.80f * s, 2,
+                     tw * 0.84f * s, th * 0.82f * s, 2,
                      ANATOMY_ROLE_AXIAL, ANATOMY_REGION_TRUNK, ANATOMY_SIDE_CENTER, 1.0f)) return false;
 
     /* Conexiones torácicas con mezcla mínima para conservar placas cuticulares nítidas. */
@@ -101,20 +101,29 @@ bool AxialBodyArthropod_Resolve(const AxialPhenotype* p, uint32_t module,
     const AnatomyNode* tip = AnatomyGraph_FindModuleNode(g, module, AXIAL_NODE_PELVIS);
     if (!pro || !meso || !syn || !meta || !tip) return false;
 
-    /* 1. Ranura cervical para cabeza de insecto con grandes ojos compuestos. */
+    /* 1. Ranura cervical adelantada delante del protórax (cuello corto pero separado del tórax):
+     * garantiza que la cápsula cefálica nunca invada las inserciones del primer par de patas. */
+    float cervixForward = pro->widthRadius * 0.62f + p->neckLength * 0.34f * s;
     AttachmentSlot cervical = {
         .id = AXIAL_SLOT_CERVICAL, .role = ATTACHMENT_CERVICAL,
         .hostModuleInstanceId = module, .hostNode = pro->id,
-        .position = pro->center,
+        .position = {0.0f, pro->center.y + pro->heightRadius * 0.24f, pro->center.z + cervixForward},
         .forward = {0.0f, 0.0f, 1.0f}, .up = {0.0f, 1.0f, 0.0f}, .side = {1.0f, 0.0f, 0.0f},
         .hostRadii = {pro->widthRadius, pro->heightRadius, pro->widthRadius}, .scale = s
     };
     if (slots->count >= ATTACHMENT_MAX_SLOTS) return false;
     slots->slots[slots->count++] = cervical;
 
-    /* 2-7. Seis ranuras ventrales torácicas para tres pares de patas de insecto (nunca en el abdomen). */
+    /* 2-7. Seis ranuras ventrolaterales estrictamente torácicas (protórax, mesotórax, metatórax):
+     * el par 1 nace en la cara ventral del protórax, claramente detrás de la cabeza. */
     const AnatomyNode* legHosts[3] = {pro, meso, meta};
-    const float legZShift[3] = {0.0f, 0.06f * thoraxLen * s, 0.04f * thoraxLen * s};
+    const float legZPos[3] = {
+        pro->center.z - pro->widthRadius * 0.25f,
+        meso->center.z - meso->widthRadius * 0.10f,
+        Math_Lerp(syn->center.z, meta->center.z, 0.42f)
+    };
+    const float legYDrop[3] = {0.86f, 0.82f, 0.82f};
+    const float legXFrac[3] = {0.58f, 0.54f, 0.56f};
     const AttachmentSlotId legIds[3][2] = {
         {AXIAL_SLOT_THORACIC_LEG_1_LEFT, AXIAL_SLOT_THORACIC_LEG_1_RIGHT},
         {AXIAL_SLOT_THORACIC_LEG_2_LEFT, AXIAL_SLOT_THORACIC_LEG_2_RIGHT},
@@ -129,9 +138,9 @@ bool AxialBodyArthropod_Resolve(const AxialPhenotype* p, uint32_t module,
                 .role = ATTACHMENT_THORACIC_LEG,
                 .hostModuleInstanceId = module, .hostNode = hNode->id,
                 .position = {
-                    sign * hNode->widthRadius * 0.52f,
-                    hNode->center.y - hNode->heightRadius * 0.64f,
-                    hNode->center.z + legZShift[pair] * 0.45f
+                    sign * hNode->widthRadius * legXFrac[pair],
+                    hNode->center.y - hNode->heightRadius * legYDrop[pair],
+                    legZPos[pair]
                 },
                 .forward = {0.0f, 0.0f, 1.0f}, .up = {0.0f, 1.0f, 0.0f}, .side = {1.0f, 0.0f, 0.0f},
                 .hostRadii = {hNode->widthRadius, hNode->heightRadius, hNode->widthRadius}, .scale = s

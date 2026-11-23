@@ -284,6 +284,15 @@ static const Field HeadSurfaceRecipe_fields[] = {
     {"equineCrestStart",offsetof(HeadSurfaceRecipe,equineCrestStart),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
     {"equineCrestEnd",offsetof(HeadSurfaceRecipe,equineCrestEnd),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
     {"equineCrestRadii",offsetof(HeadSurfaceRecipe,equineCrestRadii),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,false},
+    {"beakWeight",offsetof(HeadSurfaceRecipe,beakWeight),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"beakBase",offsetof(HeadSurfaceRecipe,beakBase),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakMid",offsetof(HeadSurfaceRecipe,beakMid),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakTip",offsetof(HeadSurfaceRecipe,beakTip),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakBaseRadii",offsetof(HeadSurfaceRecipe,beakBaseRadii),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakShape",offsetof(HeadSurfaceRecipe,beakShape),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakTipShape",offsetof(HeadSurfaceRecipe,beakTipShape),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakLowerTip",offsetof(HeadSurfaceRecipe,beakLowerTip),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
+    {"beakLowerRadii",offsetof(HeadSurfaceRecipe,beakLowerRadii),sizeof(Vector3),1,F_OBJECT,0,Vector3_fields,NO_COUNT,NULL,true},
     {0}
 };
 static const Field Mouth_fields[] = {
@@ -347,7 +356,7 @@ static const Field EyePhenotype_fields[] = {
     {"irisScale",offsetof(EyePhenotype,irisScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"pupilScale",offsetof(EyePhenotype,pupilScale),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
     {"pupilAspect",offsetof(EyePhenotype,pupilAspect),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,false},
-    {"pupilShape",offsetof(EyePhenotype,pupilShape),sizeof(PupilShape),1,F_ENUM,PUPIL_DIAMOND,NULL,NO_COUNT,"PUPIL_ROUND|PUPIL_VERTICAL|PUPIL_HORIZONTAL|PUPIL_DIAMOND",false},
+    {"pupilShape",offsetof(EyePhenotype,pupilShape),sizeof(PupilShape),1,F_ENUM,PUPIL_COMPOUND,NULL,NO_COUNT,"PUPIL_ROUND|PUPIL_VERTICAL|PUPIL_HORIZONTAL|PUPIL_DIAMOND|PUPIL_COMPOUND",false},
     {"scleraColor",offsetof(EyePhenotype,scleraColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {"irisColor",offsetof(EyePhenotype,irisColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {"pupilColor",offsetof(EyePhenotype,pupilColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},

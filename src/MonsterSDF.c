@@ -884,7 +884,8 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
               AnatomyGraph_FindNode(&monster->anatomyGraph, c->fromId)->region == ANATOMY_REGION_NECK) ? 0.28f : 0.0f) :
             c->kind == BODY_CONNECTION_LIMB_SEGMENT ? Math_Lerp(.18f,.65f,c->jointBlend) : 0.08f;
         c->localSmoothness = Math_Min(config.connectionSmoothness, minR * factor);
-        if(c->kind==BODY_CONNECTION_FLEXIBLE_SEGMENT||c->kind==BODY_CONNECTION_PAIRED_OPENINGS) {
+        if(c->kind==BODY_CONNECTION_FLEXIBLE_SEGMENT||c->kind==BODY_CONNECTION_PAIRED_OPENINGS||
+           c->kind==BODY_CONNECTION_FUNNEL_OPENING) {
             /* Los tramos de la misma trompa ya comparten la sección de cada
              * junta. Una segunda unión ancha acumula volumen en cada estación. */
             float blend=MonsterSDF_IsNasalModule(monster,c->moduleInstanceId)?.012f:.055f;
@@ -1190,6 +1191,15 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 sdf->mouths[m].equineCrestStartLocal=HEAD_LOCAL(recipe->equineCrestStart);
                 sdf->mouths[m].equineCrestEndLocal=HEAD_LOCAL(recipe->equineCrestEnd);
                 sdf->mouths[m].equineCrestRadii=recipe->equineCrestRadii;
+                sdf->mouths[m].beakWeight=recipe->beakWeight;
+                sdf->mouths[m].beakBaseLocal=HEAD_LOCAL(recipe->beakBase);
+                sdf->mouths[m].beakMidLocal=HEAD_LOCAL(recipe->beakMid);
+                sdf->mouths[m].beakTipLocal=HEAD_LOCAL(recipe->beakTip);
+                sdf->mouths[m].beakBaseRadii=recipe->beakBaseRadii;
+                sdf->mouths[m].beakShape=recipe->beakShape;
+                sdf->mouths[m].beakTipShape=recipe->beakTipShape;
+                sdf->mouths[m].beakLowerTipLocal=HEAD_LOCAL(recipe->beakLowerTip);
+                sdf->mouths[m].beakLowerRadii=recipe->beakLowerRadii;
                 sdf->hasPartitionedHead=true;
 #undef HEAD_LOCAL
             }
@@ -1352,6 +1362,14 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                     INCLUDE_ELLIPSOID(sdf->mouths[m].leftEarCenterLocal,sdf->mouths[m].earRadii);
                     INCLUDE_ELLIPSOID(sdf->mouths[m].rightEarCenterLocal,sdf->mouths[m].earRadii);
                 }
+                if(sdf->mouths[m].beakWeight>0.0f) {
+                    float br=Math_Max(sdf->mouths[m].beakBaseRadii.x,sdf->mouths[m].beakBaseRadii.y)*1.5f;
+                    Vector3 bExt=Vec3_Create(br,br,br);
+                    INCLUDE_ELLIPSOID(sdf->mouths[m].beakBaseLocal,bExt);
+                    INCLUDE_ELLIPSOID(sdf->mouths[m].beakMidLocal,bExt);
+                    INCLUDE_ELLIPSOID(sdf->mouths[m].beakTipLocal,bExt);
+                    INCLUDE_ELLIPSOID(sdf->mouths[m].beakLowerTipLocal,bExt);
+                }
 #undef INCLUDE_ELLIPSOID
 
                 AABB3D localHead=AABB_Empty();
@@ -1386,6 +1404,14 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
                 EXPAND_HEAD(sdf->mouths[m].neckCollarTipLocal,Vec3_Create(collarTipBound,collarTipBound,collarTipBound));
                 if(sdf->mouths[m].hasNasalPad)EXPAND_HEAD(sdf->mouths[m].noseCenterLocal,sdf->mouths[m].noseRadii);
                 if(sdf->mouths[m].hasEars){EXPAND_HEAD(sdf->mouths[m].leftEarCenterLocal,sdf->mouths[m].earRadii);EXPAND_HEAD(sdf->mouths[m].rightEarCenterLocal,sdf->mouths[m].earRadii);}
+                if(sdf->mouths[m].beakWeight>0.0f) {
+                    float br=Math_Max(sdf->mouths[m].beakBaseRadii.x,sdf->mouths[m].beakBaseRadii.y)*1.5f;
+                    Vector3 bExt=Vec3_Create(br,br,br);
+                    EXPAND_HEAD(sdf->mouths[m].beakBaseLocal,bExt);
+                    EXPAND_HEAD(sdf->mouths[m].beakMidLocal,bExt);
+                    EXPAND_HEAD(sdf->mouths[m].beakTipLocal,bExt);
+                    EXPAND_HEAD(sdf->mouths[m].beakLowerTipLocal,bExt);
+                }
 #undef EXPAND_HEAD
                 AABB_Pad(&localHead,Math_Max(sdf->mouths[m].headUnionSmoothness*.8f,.025f));
                 Vector3 lc=Vec3_Scale(Vec3_Add(localHead.start,localHead.end),.5f);
@@ -1598,6 +1624,14 @@ static inline float MonsterSDF_PairedConnectorCavity(const MonsterSDFConnector* 
     return -SDF_Ellipsoid(cutter,radii);
 }
 
+/* Cavidad circular centrada de un embudo o sifón propulsor terminal. */
+static inline float MonsterSDF_FunnelConnectorCavity(const MonsterSDFConnector* conn,Vector3 relative) {
+    float end=Vec3_Dot(relative,conn->forward)-conn->length-conn->r2*.22f;
+    Vector3 cutter=Vec3_Create(Vec3_Dot(relative,conn->side),Vec3_Dot(relative,conn->up),end);
+    Vector3 radii=Vec3_Create(conn->widthB*.58f,conn->heightB*.58f,conn->r2*1.15f);
+    return -SDF_Ellipsoid(cutter,radii);
+}
+
 static inline float MonsterSDF_EvalConnectorDistance(const MonsterSDFConnector* conn, Vector3 point) {
     if(conn->length<1e-6f) return SDF_Ellipsoid(Vec3_Sub(point,conn->a),
         Vec3_Create(conn->widthA,conn->heightA,conn->widthA));
@@ -1619,6 +1653,11 @@ static inline float MonsterSDF_EvalConnectorDistance(const MonsterSDFConnector* 
         distance=Math_Max(distance,end);
         if(!conn->nasalTerminal)distance=Math_Max(distance,MonsterSDF_PairedConnectorCavity(conn,p));
     }
+    if(conn->kind==BODY_CONNECTION_FUNNEL_OPENING) {
+        float end=along-conn->length-conn->r2*.22f;
+        distance=Math_Max(distance,end);
+        distance=Math_Max(distance,MonsterSDF_FunnelConnectorCavity(conn,p));
+    }
     return distance;
 }
 
@@ -1627,6 +1666,9 @@ static inline SDFSample MonsterSDF_SampleConnector(const MonsterSDFConnector* co
     if(connector->kind==BODY_CONNECTION_PAIRED_OPENINGS && !connector->nasalTerminal && connector->length>=1e-6f &&
        MonsterSDF_PairedConnectorCavity(connector,Vec3_Sub(point,connector->a))>=distance-1e-6f)
         return SDFSample_Create(distance,Color_FromRGB(52,43,37),SDF_MATERIAL_NOSTRIL);
+    if(connector->kind==BODY_CONNECTION_FUNNEL_OPENING && connector->length>=1e-6f &&
+       MonsterSDF_FunnelConnectorCavity(connector,Vec3_Sub(point,connector->a))>=distance-1e-6f)
+        return SDFSample_Create(distance,Color_FromRGB(46,24,22),SDF_MATERIAL_NOSTRIL);
     return SDFSample_Create(distance,connector->color,connector->material);
 }
 
@@ -1660,7 +1702,7 @@ static inline float MonsterSDF_EvalMouthDistance(const MonsterSDFMouth* mouth, V
     Vector3 translated = Vec3_Sub(point, mouth->center);
     Vector3 localP = Transform3D_ApplyRotationBasis(mouth->inverseRotation, translated);
     if (outLocalP) *outLocalP = localP;
-    if (mouth->anatomicalHead && mouth->entranceHalfExtents.y < 0.00095f) return 1e6f;
+    if (mouth->anatomicalHead && (mouth->entranceHalfExtents.y < 0.00095f || mouth->beakWeight > 0.5f)) return 1e6f;
     Vector3 pEntrance = Vec3_Sub(localP, mouth->entranceCenterLocal);
     pEntrance.y-=MonsterSDF_OralShift(mouth,localP.z);
     float entranceDist = SDF_RoundedSlotExtruded(pEntrance, mouth->entranceHalfExtents.x, mouth->entranceHalfExtents.y, mouth->entranceHalfExtents.z);
@@ -1760,7 +1802,113 @@ static float MonsterSDF_NasalPadOffset(const MonsterSDFMouth* mouth) {
         Math_Min(mouth->noseRadii.y,mouth->noseRadii.z));
 }
 
+static float MonsterSDF_EvalBeakArcSegment(Vector3 p, Vector3 a, Vector3 b,
+    float wA, float hTopA, float hBotA, float wB, float hTopB, float hBotB, float ridgeSharp) {
+    Vector3 ba = Vec3_Sub(b, a);
+    float len = Vec3_Length(ba);
+    if (len < 1e-5f) {
+        return SDF_Ellipsoid(Vec3_Sub(p, a), Vec3_Create(Math_Max(wA, 0.002f), Math_Max(0.5f * (hTopA + hBotA), 0.002f), Math_Max(wA, 0.002f)));
+    }
+    Vector3 tang = Vec3_Scale(ba, 1.0f / len);
+    Vector3 side = Vec3_Create(1.0f, 0.0f, 0.0f);
+    Vector3 up = Vec3_Normalize(Vec3_Cross(tang, side));
+    Vector3 rel = Vec3_Sub(p, a);
+    float along = Vec3_Dot(rel, tang);
+    float t = Math_Clamp01(along / len);
+    float w = Math_Max(Math_Lerp(wA, wB, t), 0.0018f);
+    float hTop = Math_Max(Math_Lerp(hTopA, hTopB, t), 0.0018f);
+    float hBot = Math_Max(Math_Lerp(hBotA, hBotB, t), 0.0012f);
+    float y = Vec3_Dot(rel, up);
+    float z = along < 0.0f ? along : (along > len ? along - len : 0.0f);
+    float hEff = y >= 0.0f ? hTop : hBot;
+    float yNorm = y / hEff;
+    float dorsal = Math_Clamp01(yNorm);
+    float wEff = Math_Max(w * (1.0f - 0.46f * ridgeSharp * dorsal * dorsal), 0.0015f);
+    float rMin = Math_Min(wEff, hEff);
+    float capR = Math_Max(Math_Min(w, Math_Min(hTop, hBot)), 0.0015f);
+    Vector3 q = Vec3_Create(rel.x / wEff, yNorm, z / capR);
+    return (Vec3_Length(q) - 1.0f) * rMin * 0.72f;
+}
+
+static float MonsterSDF_EvalAvianUpperBeakDistance(const MonsterSDFMouth* mouth, Vector3 localP) {
+    Vector3 p0 = mouth->beakBaseLocal;
+    Vector3 p1 = mouth->beakMidLocal;
+    Vector3 p2 = mouth->beakTipLocal;
+    float baseW = Math_Max(mouth->beakBaseRadii.x, 0.004f);
+    float baseH = Math_Max(mouth->beakBaseRadii.y, 0.004f);
+    float cereFrac = Math_Clamp01(mouth->beakBaseRadii.z);
+    float taperPow = Math_Max(mouth->beakShape.x, 0.35f);
+    float tomialTooth = Math_Clamp01(mouth->beakShape.z);
+    float tipW = Math_Max(mouth->beakTipShape.x, 0.0018f);
+    float tipH = Math_Max(mouth->beakTipShape.y, 0.0018f);
+    float ridge = Math_Clamp01(mouth->beakTipShape.z);
+
+    /* Curva Bézier cuadrática del culmen muestreada en 5 estaciones (4 segmentos). */
+    Vector3 q0 = p0;
+    Vector3 q1 = Vec3_Add(Vec3_Add(Vec3_Scale(p0, 0.5625f), Vec3_Scale(p1, 0.3750f)), Vec3_Scale(p2, 0.0625f));
+    Vector3 q2 = Vec3_Add(Vec3_Add(Vec3_Scale(p0, 0.2304f), Vec3_Scale(p1, 0.4992f)), Vec3_Scale(p2, 0.2704f));
+    Vector3 q3 = Vec3_Add(Vec3_Add(Vec3_Scale(p0, 0.0484f), Vec3_Scale(p1, 0.3432f)), Vec3_Scale(p2, 0.6084f));
+    Vector3 q4 = p2;
+
+    float cereBoost = cereFrac > 0.05f ? 1.08f : 1.0f;
+    float w0 = baseW * cereBoost;
+    float w1 = Math_Lerp(tipW, baseW, powf(0.75f, taperPow)) * (cereFrac > 0.22f ? 1.03f : 1.0f);
+    float w2 = Math_Lerp(tipW, baseW, powf(0.48f, taperPow));
+    float w3 = Math_Lerp(tipW, baseW, powf(0.22f, taperPow));
+    float w4 = tipW;
+
+    float h0 = baseH * cereBoost;
+    float h1 = Math_Lerp(tipH, baseH, powf(0.75f, taperPow * 0.85f));
+    float h2 = Math_Lerp(tipH, baseH, powf(0.48f, taperPow * 0.85f));
+    float h3 = Math_Lerp(tipH, baseH, powf(0.22f, taperPow * 0.85f));
+    float h4 = tipH;
+
+    float kSeg = Math_Max(baseW * 0.14f, 0.002f);
+    float d0 = MonsterSDF_EvalBeakArcSegment(localP, q0, q1, w0, h0, h0 * 0.24f, w1, h1, h1 * 0.25f, ridge * 0.65f);
+    float d1 = MonsterSDF_EvalBeakArcSegment(localP, q1, q2, w1, h1, h1 * 0.25f, w2, h2, h2 * 0.28f, ridge);
+    float d2 = MonsterSDF_EvalBeakArcSegment(localP, q2, q3, w2, h2, h2 * 0.28f, w3, h3, h3 * 0.32f, ridge);
+    float d3 = MonsterSDF_EvalBeakArcSegment(localP, q3, q4, w3, h3, h3 * 0.32f, w4, h4, h4 * 0.55f, ridge * 0.70f);
+    float d = SDF_SmoothUnion(SDF_SmoothUnion(d0, d1, kSeg), SDF_SmoothUnion(d2, d3, kSeg), kSeg);
+    if (tomialTooth > 0.05f) {
+        Vector3 toothBase = Vec3_Lerp(q2, q3, 0.28f);
+        float tX = Math_Lerp(w2, w3, 0.28f) * 0.72f;
+        float tR = Math_Max(baseW * 0.12f, 0.0022f);
+        float tDrop = baseH * 0.22f * tomialTooth;
+        Vector3 tAL = Vec3_Create(tX, toothBase.y - h2 * 0.14f, toothBase.z);
+        Vector3 tBL = Vec3_Create(tX * 0.82f, toothBase.y - h2 * 0.14f - tDrop, toothBase.z + tR * 0.35f);
+        Vector3 tAR = Vec3_Create(-tAL.x, tAL.y, tAL.z);
+        Vector3 tBR = Vec3_Create(-tBL.x, tBL.y, tBL.z);
+        float dTL = SDF_Capsule(localP, tAL, tBL, tR);
+        float dTR = SDF_Capsule(localP, tAR, tBR, tR);
+        d = SDF_SmoothUnion(d, Math_Min(dTL, dTR), Math_Max(tR * 0.55f, 0.0015f));
+    }
+    return d;
+}
+
+static float MonsterSDF_EvalAvianLowerBeakDistance(const MonsterSDFMouth* mouth, Vector3 localP) {
+    Vector3 base = Vec3_Create(0.0f, mouth->beakBaseLocal.y - mouth->beakBaseRadii.y * 0.24f,
+                               mouth->beakBaseLocal.z - mouth->beakBaseRadii.x * 0.30f);
+    Vector3 tip = mouth->beakLowerTipLocal;
+    Vector3 mid = Vec3_Lerp(base, tip, 0.52f);
+    mid.y += mouth->beakLowerRadii.y * 0.22f;
+    Vector3 rear = Vec3_Create(0.0f, mouth->hingeCenterLocal.y, mouth->hingeCenterLocal.z);
+    float bW = Math_Max(mouth->beakLowerRadii.x, 0.003f);
+    float bH = Math_Max(mouth->beakLowerRadii.y, 0.003f);
+    float tW = Math_Max(mouth->beakLowerRadii.z, 0.002f);
+    float mW = Math_Lerp(bW, tW, 0.44f);
+    float mH = bH * 0.84f;
+    float tH = Math_Max(bH * 0.42f, 0.0025f);
+    float kSeg = Math_Max(bW * 0.16f, 0.0025f);
+    float dRear = MonsterSDF_EvalBeakArcSegment(localP, rear, base, bW * 0.92f, bH * 0.44f, bH * 0.68f, bW, bH * 0.42f, bH * 0.78f, 0.0f);
+    float d0 = MonsterSDF_EvalBeakArcSegment(localP, base, mid, bW, bH * 0.42f, bH * 0.78f, mW, mH * 0.40f, mH * 0.78f, 0.0f);
+    float d1 = MonsterSDF_EvalBeakArcSegment(localP, mid, tip, mW, mH * 0.40f, mH * 0.78f, tW, tH * 0.42f, tH * 0.68f, 0.0f);
+    return SDF_SmoothUnion(dRear, SDF_SmoothUnion(d0, d1, kSeg), kSeg);
+}
+
 static float MonsterSDF_EvalJawBase(const MonsterSDFMouth* mouth, Vector3 localP) {
+    if (mouth->beakWeight > 0.5f && mouth->lowerBeak) {
+        return MonsterSDF_EvalAvianLowerBeakDistance(mouth, localP);
+    }
     if (mouth->sweptSkull) {
         /* Perfil propio con el espesor anatómico: conserva la anchura facial
          * y no depende del tamaño de vóxel ni de la forma del cráneo superior. */
@@ -2082,11 +2230,17 @@ static float MonsterSDF_EvalUpperHeadDistance(const MonsterSDFMouth* mouth, Vect
             d = SDF_SmoothUnion(d, SDF_CurvedPinna(Vec3_Sub(localP, mouth->leftEarCenterLocal), mouth->earShape, mouth->earDirection,mouth->leftEarSide,mouth->leftEarNormal, mouth->earTipFraction, mouth->earConcavity,mouth->earLongitudinalCurve,mouth->earRootRoll,mouth->earTipRoundness,mouth->earFold,mouth->earRootFlare,mouth->earMarginBow,mouth->earMarginAsymmetry), k * .42f * dev);
             d = SDF_SmoothUnion(d, SDF_CurvedPinna(Vec3_Sub(localP, mouth->rightEarCenterLocal), mouth->earShape, mouth->rightEarDirection,mouth->rightEarSide,mouth->rightEarNormal, mouth->earTipFraction, mouth->earConcavity,mouth->earLongitudinalCurve,mouth->earRootRoll,mouth->earTipRoundness,mouth->earFold,mouth->earRootFlare,-mouth->earMarginBow,1.0f-mouth->earMarginAsymmetry), k * .42f * dev);
         }
-        if (mouth->sweptSkull) {
+        if (mouth->sweptSkull && mouth->beakWeight < 0.5f && mouth->entranceHalfExtents.y >= 0.00095f) {
             float oralPlane = mouth->entranceCenterLocal.y + mouth->entranceHalfExtents.y - localP.y + MonsterSDF_OralShift(mouth,localP.z);
             float rearPlane = localP.z - (mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z);
             float sidePlane = mouth->entranceHalfExtents.x + mouth->rimBevel - fabsf(localP.x);
             d = Math_Max(d, Math_Min(oralPlane, Math_Min(rearPlane, sidePlane)));
+        }
+        if (mouth->beakWeight > 0.001f) {
+            float kBeak = Math_Max(mouth->beakBaseRadii.x * 0.14f, 0.003f);
+            float beakDist = MonsterSDF_EvalAvianUpperBeakDistance(mouth, localP)
+                + (1.0f - Math_Clamp01(mouth->beakWeight)) * Math_Max(mouth->beakBaseRadii.x, 0.05f) * 3.0f;
+            d = SDF_SmoothUnion(d, beakDist, kBeak);
         }
         return d;
     }
@@ -2137,11 +2291,17 @@ static float MonsterSDF_EvalUpperHeadDistanceCached(const MonsterSDFMouth* mouth
             d = SDF_SmoothUnion(d, SDF_CurvedPinna(Vec3_Sub(localP, mouth->leftEarCenterLocal), mouth->earShape, mouth->earDirection,mouth->leftEarSide,mouth->leftEarNormal, mouth->earTipFraction, mouth->earConcavity,mouth->earLongitudinalCurve,mouth->earRootRoll,mouth->earTipRoundness,mouth->earFold,mouth->earRootFlare,mouth->earMarginBow,mouth->earMarginAsymmetry), k * .42f * dev);
             d = SDF_SmoothUnion(d, SDF_CurvedPinna(Vec3_Sub(localP, mouth->rightEarCenterLocal), mouth->earShape, mouth->rightEarDirection,mouth->rightEarSide,mouth->rightEarNormal, mouth->earTipFraction, mouth->earConcavity,mouth->earLongitudinalCurve,mouth->earRootRoll,mouth->earTipRoundness,mouth->earFold,mouth->earRootFlare,-mouth->earMarginBow,1.0f-mouth->earMarginAsymmetry), k * .42f * dev);
         }
-        if (mouth->sweptSkull) {
+        if (mouth->sweptSkull && mouth->beakWeight < 0.5f && mouth->entranceHalfExtents.y >= 0.00095f) {
             float oralPlane = mouth->entranceCenterLocal.y + mouth->entranceHalfExtents.y - localP.y + MonsterSDF_OralShift(mouth,localP.z);
             float rearPlane = localP.z - (mouth->entranceCenterLocal.z-mouth->entranceHalfExtents.z);
             float sidePlane = mouth->entranceHalfExtents.x + mouth->rimBevel - fabsf(localP.x);
             d = Math_Max(d, Math_Min(oralPlane, Math_Min(rearPlane, sidePlane)));
+        }
+        if (mouth->beakWeight > 0.001f) {
+            float kBeak = Math_Max(mouth->beakBaseRadii.x * 0.14f, 0.003f);
+            float beakDist = MonsterSDF_EvalAvianUpperBeakDistance(mouth, localP)
+                + (1.0f - Math_Clamp01(mouth->beakWeight)) * Math_Max(mouth->beakBaseRadii.x, 0.05f) * 3.0f;
+            d = SDF_SmoothUnion(d, beakDist, kBeak);
         }
         return d;
     }
@@ -2201,8 +2361,22 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
         float upperHeadDist = MonsterSDF_EvalUpperHeadDistanceCached(mouth, localP);
         bool nasal=(mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(localP,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) ||
             (mouth->isBill && localP.z >= mouth->noseCenterLocal.z);
+        Color headCol = nasal ? mouth->nasalColor : mouth->skinColor;
+        SDFMaterial headMat = nasal ? SDF_MATERIAL_NASAL_PAD : SDF_MATERIAL_SKIN;
+        if (mouth->beakWeight > 0.5f && localP.z >= mouth->beakBaseLocal.z - mouth->beakBaseRadii.x * 0.06f) {
+            float bSpan = Math_Max(mouth->beakTipLocal.z - mouth->beakBaseLocal.z, 0.005f);
+            float uB = Math_Clamp01((localP.z - mouth->beakBaseLocal.z) / bSpan);
+            if (uB <= mouth->beakBaseRadii.z && localP.y >= mouth->beakBaseLocal.y - mouth->beakBaseRadii.y * 0.28f) {
+                headCol = mouth->nasalColor;
+                headMat = SDF_MATERIAL_NASAL_PAD;
+            } else {
+                float tipShade = Math_Clamp01((uB - mouth->beakBaseRadii.z) / Math_Max(1.0f - mouth->beakBaseRadii.z, 0.1f));
+                headCol = Color_Lerp(Color_FromRGB(108, 118, 130), Color_FromRGB(24, 26, 32), tipShade);
+                headMat = SDF_MATERIAL_HORN;
+            }
+        }
         accumulated = SDFSample_SmoothUnion(accumulated, SDFSample_Create(upperHeadDist,
-            nasal?mouth->nasalColor:mouth->skinColor,nasal?SDF_MATERIAL_NASAL_PAD:SDF_MATERIAL_SKIN), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
+            headCol, headMat), mouth->anatomicalHead?mouth->headBodySmoothness:mouth->muzzleSmoothness);
     }
     for (size_t m = 0; m < sdf->mouthCount; ++m) {
         const MonsterSDFMouth* mouth = &sdf->mouths[m];
@@ -2215,8 +2389,9 @@ SDFSample MonsterSDF_Evaluate(const MonsterSDF* sdf, Vector3 point) {
             bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
             float eqOrbitK=mouth->headUnionSmoothness*(eqRim?.18f:.06f);
             float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.12f:.04f);
+            Color orbCol = mouth->beakWeight > 0.5f ? mouth->nasalColor : (eqRim ? Color_FromRGB(74,48,34) : Color_FromRGB(24,28,19));
             accumulated=SDFSample_Subtract(accumulated,SDFSample_Create(
-                MonsterSDF_EvalOrbitCavities(mouth,localP),eqRim?Color_FromRGB(74,48,34):Color_FromRGB(24,28,19),SDF_MATERIAL_EYE_SOCKET),eqOrbitK);
+                MonsterSDF_EvalOrbitCavities(mouth,localP),orbCol,SDF_MATERIAL_EYE_SOCKET),eqOrbitK);
             accumulated=SDFSample_Subtract(accumulated,SDFSample_Create(
                 MonsterSDF_EvalNostrilCavities(mouth,localP),eqRim?Color_FromRGB(56,36,30):Color_FromRGB(18,20,14),SDF_MATERIAL_NOSTRIL),eqNostrilK);
             if(mouth->hasTympana) accumulated=SDFSample_Subtract(accumulated,SDFSample_Create(
@@ -2438,12 +2613,23 @@ static SDFSample MonsterSDF_EvaluateHeadAtWorld(const MonsterSDFMouth* mouth,Vec
     if ((mouth->hasNasalPad && SDF_Ellipsoid(Vec3_Sub(local,mouth->noseCenterLocal),mouth->noseRadii)<mouth->headUnionSmoothness*.5f) ||
         (mouth->isBill && local.z >= mouth->noseCenterLocal.z)) {
         sample.color=mouth->nasalColor; sample.material=SDF_MATERIAL_NASAL_PAD;
+    } else if (mouth->beakWeight > 0.5f && local.z >= mouth->beakBaseLocal.z - mouth->beakBaseRadii.x * 0.06f) {
+        float bSpan = Math_Max(mouth->beakTipLocal.z - mouth->beakBaseLocal.z, 0.005f);
+        float uB = Math_Clamp01((local.z - mouth->beakBaseLocal.z) / bSpan);
+        if (uB <= mouth->beakBaseRadii.z && local.y >= mouth->beakBaseLocal.y - mouth->beakBaseRadii.y * 0.28f) {
+            sample.color = mouth->nasalColor; sample.material = SDF_MATERIAL_NASAL_PAD;
+        } else {
+            float tipShade = Math_Clamp01((uB - mouth->beakBaseRadii.z) / Math_Max(1.0f - mouth->beakBaseRadii.z, 0.1f));
+            sample.color = Color_Lerp(Color_FromRGB(108, 118, 130), Color_FromRGB(24, 26, 32), tipShade);
+            sample.material = SDF_MATERIAL_HORN;
+        }
     }
     sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalMouthDistance(mouth,point,NULL),mouth->insideColor,SDF_MATERIAL_MOUTH),mouth->rimBevel);
     bool eqRim=!mouth->hasNasalPad&&mouth->nostrilCurve>.70f;
     float eqOrbitK=eqRim?mouth->headUnionSmoothness*.18f:0.0f;
     float eqNostrilK=mouth->headUnionSmoothness*(eqRim?.12f:.04f);
-    sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalOrbitCavities(mouth,local),eqRim?Color_FromRGB(74,48,34):Color_FromRGB(24,28,19),SDF_MATERIAL_EYE_SOCKET),eqOrbitK);
+    Color orbCol = mouth->beakWeight > 0.5f ? mouth->nasalColor : (eqRim ? Color_FromRGB(74,48,34) : Color_FromRGB(24,28,19));
+    sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalOrbitCavities(mouth,local),orbCol,SDF_MATERIAL_EYE_SOCKET),eqOrbitK);
     sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalNostrilCavities(mouth,local),eqRim?Color_FromRGB(56,36,30):Color_FromRGB(18,20,14),SDF_MATERIAL_NOSTRIL),eqNostrilK);
     if(mouth->hasTympana)sample=SDFSample_Subtract(sample,SDFSample_Create(MonsterSDF_EvalTympanumCavities(mouth,local),Color_FromRGB(25,24,16),SDF_MATERIAL_TYMPANUM),mouth->headUnionSmoothness*.04f);
     return sample;
@@ -2529,8 +2715,10 @@ static SDFSample MonsterSDF_EvaluateJawWrapper(const void* context, Vector3 poin
     MonsterSDF_GetBasinParams(mouth, &basinCenter, &basinRadii, &k);
     float oral = SDF_Ellipsoid(Vec3_Sub(point, basinCenter), basinRadii);
     bool billJaw = mouth->isBill && point.z >= mouth->noseCenterLocal.z;
-    return SDFSample_Subtract(SDFSample_Create(body, billJaw ? mouth->nasalColor : mouth->skinColor,
-        billJaw ? SDF_MATERIAL_NASAL_PAD : SDF_MATERIAL_SKIN), SDFSample_Create(oral, mouth->insideColor, SDF_MATERIAL_MOUTH), k);
+    bool beakJaw = mouth->beakWeight > 0.5f && point.z >= mouth->beakBaseLocal.z - mouth->beakBaseRadii.x * 0.15f;
+    Color jawCol = billJaw ? mouth->nasalColor : (beakJaw ? Color_FromRGB(74, 82, 92) : mouth->skinColor);
+    SDFMaterial jawMat = billJaw ? SDF_MATERIAL_NASAL_PAD : (beakJaw ? SDF_MATERIAL_HORN : SDF_MATERIAL_SKIN);
+    return SDFSample_Subtract(SDFSample_Create(body, jawCol, jawMat), SDFSample_Create(oral, mouth->insideColor, SDF_MATERIAL_MOUTH), k);
 }
 static float MonsterSDF_EvaluateJawDistanceWrapper(const void* context, Vector3 point) {
     const MonsterSDFJawField* field=(const MonsterSDFJawField*)context;
@@ -2852,6 +3040,16 @@ static MonsterSDFRange MonsterSDF_ConnectorRange(const MonsterSDFConnector* conn
         range=(MonsterSDFRange){Range_Max(Range_Max(range.lo,end.lo),-hole.hi),
             Range_Max(Range_Max(range.hi,end.hi),-hole.lo)};
     }
+    if(connector->kind==BODY_CONNECTION_FUNNEL_OPENING) {
+        float cap=connector->length+connector->r2*.22f;
+        MonsterSDFRange end={along.lo-cap,along.hi-cap};
+        Vector3 mid=Vec3_Create((x.lo+x.hi)*.5,(y.lo+y.hi)*.5,(end.lo+end.hi)*.5);
+        Vector3 extent=Vec3_Create((x.hi-x.lo)*.5,(y.hi-y.lo)*.5,(end.hi-end.lo)*.5);
+        MonsterSDFRange hole=MonsterSDF_EllipsoidRange(mid,extent,
+            Vec3_Create(connector->widthB*.58f,connector->heightB*.58f,connector->r2*1.15f));
+        range=(MonsterSDFRange){Range_Max(Range_Max(range.lo,end.lo),-hole.hi),
+            Range_Max(Range_Max(range.hi,end.hi),-hole.lo)};
+    }
     return range;
 }
 /* Los cuatro controles de Bézier del tramo restringido contienen la cúbica,
@@ -3064,7 +3262,7 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
         d=MonsterSDF_UnionRange(d,(MonsterSDFRange){left-radius,left+radius},k*.28*m->cephalicDevelopment);
         d=MonsterSDF_UnionRange(d,(MonsterSDFRange){right-radius,right+radius},k*.28*m->cephalicDevelopment);
     }
-    if (m->sweptSkull) {
+    if (m->sweptSkull && m->beakWeight < 0.5f && m->entranceHalfExtents.y >= 0.00095f) {
         double oral=m->entranceCenterLocal.y+m->entranceHalfExtents.y-center.y+MonsterSDF_OralShift(m,center.z);
         double oralLipschitz=fabs(m->oralSlope)+4*fabs(m->oralArch)/fmax(.001,2*m->entranceHalfExtents.z);
         double oralRadius=half.y+oralLipschitz*half.z;
@@ -3075,6 +3273,13 @@ static MonsterSDFRange MonsterSDF_UpperHeadRange(const MonsterSDFMouth* m,Vector
         d.lo=Range_Max(d.lo,Range_Min(oral-oralRadius,Range_Min(rear-half.z,sideMin)));
         d.hi=Range_Max(d.hi,Range_Min(oral+oralRadius,Range_Min(rear+half.z,sideMax)));
     }
+    if (m->beakWeight > 0.001f) {
+        double kBeak = Range_Max(m->beakBaseRadii.x * 0.14, 0.003);
+        double bCenter = MonsterSDF_EvalAvianUpperBeakDistance(m, center)
+            + (1.0 - MonsterSDF_ClampDouble(m->beakWeight, 0.0, 1.0)) * Range_Max(m->beakBaseRadii.x, 0.05) * 3.0;
+        double bRad = Vec3_Length(half) * 1.25;
+        d = MonsterSDF_UnionRange(d, (MonsterSDFRange){bCenter - bRad, bCenter + bRad}, kBeak);
+    }
     return d;
 }
 static MonsterSDFRange MonsterSDF_ShallowRange(Vector3 center,Vector3 half,Vector3 origin,Vector3 radii,Vector3 normal,float depth) {
@@ -3083,25 +3288,30 @@ static MonsterSDFRange MonsterSDF_ShallowRange(Vector3 center,Vector3 half,Vecto
     return (MonsterSDFRange){Range_Max(d.lo,-plane.hi-Range_Max(depth,.001)),Range_Max(d.hi,-plane.lo-Range_Max(depth,.001))};
 }
 static MonsterSDFRange MonsterSDF_HeadCuttersRange(const MonsterSDFMouth* m,Vector3 center,Vector3 half,MonsterSDFRange d) {
-    Vector3 oralP=Vec3_Sub(center,m->entranceCenterLocal);
-    oralP.y-=MonsterSDF_OralShift(m,center.z);
-    Vector3 oralHalf=half;oralHalf.y+=(fabsf(m->oralSlope)+4*fabsf(m->oralArch)/fmaxf(.001f,2*m->entranceHalfExtents.z))*half.z;
-    double radius=Vec3_Length(oralHalf);
-    float slot=SDF_RoundedSlotExtruded(oralP,m->entranceHalfExtents.x,m->entranceHalfExtents.y,m->entranceHalfExtents.z);
-    Vector3 cavityP=Vec3_Sub(center,m->cavityCenterLocal);
-    cavityP.y-=MonsterSDF_OralShift(m,center.z)-MonsterSDF_OralShift(m,m->cavityCenterLocal.z);
-    MonsterSDFRange cavity=MonsterSDF_EllipsoidRange(cavityP,oralHalf,m->cavityRadii);
-    if (m->sweptSkull) {
-        double wall=Range_Max(m->entranceHalfExtents.y*2,m->faceMidRadii.x*.12);
-        MonsterSDFRange envelope=MonsterSDF_StationsRange(m->headStations,6,
-            (AABB3D){Vec3_Sub(center,half),Vec3_Add(center,half)});
-        cavity.lo=Range_Max(cavity.lo,envelope.lo+wall);
-        cavity.hi=Range_Max(cavity.hi,envelope.hi+wall);
+    bool skipMouthCutter = m->anatomicalHead && (m->entranceHalfExtents.y < 0.00095f || m->beakWeight > 0.5f);
+    double dev;
+    MonsterSDFRange cavity;
+    if (!skipMouthCutter) {
+        Vector3 oralP=Vec3_Sub(center,m->entranceCenterLocal);
+        oralP.y-=MonsterSDF_OralShift(m,center.z);
+        Vector3 oralHalf=half;oralHalf.y+=(fabsf(m->oralSlope)+4*fabsf(m->oralArch)/fmaxf(.001f,2*m->entranceHalfExtents.z))*half.z;
+        double radius=Vec3_Length(oralHalf);
+        float slot=SDF_RoundedSlotExtruded(oralP,m->entranceHalfExtents.x,m->entranceHalfExtents.y,m->entranceHalfExtents.z);
+        Vector3 cavityP=Vec3_Sub(center,m->cavityCenterLocal);
+        cavityP.y-=MonsterSDF_OralShift(m,center.z)-MonsterSDF_OralShift(m,m->cavityCenterLocal.z);
+        cavity=MonsterSDF_EllipsoidRange(cavityP,oralHalf,m->cavityRadii);
+        if (m->sweptSkull) {
+            double wall=Range_Max(m->entranceHalfExtents.y*2,m->faceMidRadii.x*.12);
+            MonsterSDFRange envelope=MonsterSDF_StationsRange(m->headStations,6,
+                (AABB3D){Vec3_Sub(center,half),Vec3_Add(center,half)});
+            cavity.lo=Range_Max(cavity.lo,envelope.lo+wall);
+            cavity.hi=Range_Max(cavity.hi,envelope.hi+wall);
+        }
+        cavity=MonsterSDF_UnionRange((MonsterSDFRange){slot-radius,slot+radius},cavity,m->entranceToCavitySmoothness);
+        dev=MonsterSDF_ClampDouble((m->cephalicDevelopment-.05)/.25,0,1);
+        cavity=MonsterSDF_OffsetRange(cavity,(1-dev)*Range_Max(m->hostRadii.x,Range_Max(m->hostRadii.y,m->hostRadii.z))*2);
+        d=MonsterSDF_SubtractRange(d,cavity,m->rimBevel);
     }
-    cavity=MonsterSDF_UnionRange((MonsterSDFRange){slot-radius,slot+radius},cavity,m->entranceToCavitySmoothness);
-    double dev=MonsterSDF_ClampDouble((m->cephalicDevelopment-.05)/.25,0,1);
-    cavity=MonsterSDF_OffsetRange(cavity,(1-dev)*Range_Max(m->hostRadii.x,Range_Max(m->hostRadii.y,m->hostRadii.z))*2);
-    d=MonsterSDF_SubtractRange(d,cavity,m->rimBevel);
     dev=MonsterSDF_ClampDouble(m->cephalicDevelopment,0,1);double weight=dev*dev*(3-2*dev);
     Vector3 left=Vec3_Add(m->leftOrbitCenterLocal,Vec3_Scale(m->leftOrbitNormal,m->orbitRadii.x*.18f));
     Vector3 right=Vec3_Add(m->rightOrbitCenterLocal,Vec3_Scale(m->rightOrbitNormal,m->orbitRadii.x*.18f));
@@ -4042,11 +4252,17 @@ static inline float MonsterSDF_EvalUpperHeadPruned(const MonsterSDFMouth* mouth,
                 mouth->earFold, mouth->earRootFlare, -mouth->earMarginBow, 1.0f - mouth->earMarginAsymmetry), kEar);
         }
     }
-    if (mouth->sweptSkull) {
+    if (mouth->sweptSkull && mouth->beakWeight < 0.5f && mouth->entranceHalfExtents.y >= 0.00095f) {
         float oralPlane = mouth->entranceCenterLocal.y + mouth->entranceHalfExtents.y - localP.y + MonsterSDF_OralShift(mouth,localP.z);
         float rearPlane = localP.z - (mouth->entranceCenterLocal.z - mouth->entranceHalfExtents.z);
         float sidePlane = mouth->entranceHalfExtents.x + mouth->rimBevel - fabsf(localP.x);
         d = Math_Max(d, Math_Min(oralPlane, Math_Min(rearPlane, sidePlane)));
+    }
+    if (mouth->beakWeight > 0.001f) {
+        float kBeak = Math_Max(mouth->beakBaseRadii.x * 0.14f, 0.003f);
+        float beakDist = MonsterSDF_EvalAvianUpperBeakDistance(mouth, localP)
+            + (1.0f - Math_Clamp01(mouth->beakWeight)) * Math_Max(mouth->beakBaseRadii.x, 0.05f) * 3.0f;
+        d = SDF_SmoothUnion(d, beakDist, kBeak);
     }
     return d;
 }

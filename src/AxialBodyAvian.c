@@ -15,40 +15,40 @@ bool AxialBodyAvian_Resolve(const AxialPhenotype* p, uint32_t module,
     float L = p->trunkLength;
     float refY = p->withersHeight;
 
-    /* Estaciones semánticas de torso aviar: cuello integrado -> cintura escapular alta ->
-     * pecho aquillado profundo -> tórax medio -> abdomen estrecho -> sinsacro/uropigio. */
+    /* Estaciones semánticas de torso aviar: cuello corto muscular integrado -> cintura escapular ancha ->
+     * pecho aquillado profundo en gota -> tórax medio -> abdomen ahusado -> sinsacro/uropigio compacto. */
     float widths[6] = {
         p->neckWidth * 0.56f,
-        p->shoulderWidth * 0.52f,
-        p->thoraxWidth * 0.54f,
-        p->thoraxWidth * 0.48f,
-        p->abdomenWidth * 0.42f,
-        p->pelvicWidth * 0.32f
+        p->shoulderWidth * 0.55f,
+        p->thoraxWidth * 0.56f,
+        p->thoraxWidth * 0.46f,
+        p->abdomenWidth * 0.38f,
+        p->pelvicWidth * 0.27f
     };
     float heights[6] = {
-        p->neckWidth * 0.52f,
-        p->thoraxHeight * 0.48f,
-        p->thoraxHeight * 0.52f,
-        p->thoraxHeight * 0.46f,
-        p->abdomenHeight * 0.38f,
-        p->pelvicHeight * 0.28f
+        p->neckWidth * 0.54f,
+        p->thoraxHeight * 0.50f,
+        p->thoraxHeight * 0.54f,
+        p->thoraxHeight * 0.45f,
+        p->abdomenHeight * 0.36f,
+        p->pelvicHeight * 0.25f
     };
-    /* Postura aviar aerodinámica en gota: pecho lleno redondeado, cuello corto e integrado. */
+    /* Postura rapaz aerodinámica compacta: pecho lleno y redondeado, espalda continua, cuello firme. */
     float z[6] = {
-        L * 0.24f + p->neckLength * 0.62f,
-        L * 0.16f,
+        L * 0.22f + p->neckLength * 0.50f,
+        L * 0.14f,
         -L * 0.08f,
-        -L * 0.36f,
-        -L * 0.66f,
-        -L * 0.94f
+        -L * 0.35f,
+        -L * 0.64f,
+        -L * 0.90f
     };
     float yRel[6] = {
-        p->neckLength * 0.42f + heights[1] * 0.28f,
-        heights[1] * 0.06f,
-        -heights[2] * 0.10f - p->brisketDepth * p->thoraxHeight * 0.18f,
-        -heights[3] * 0.16f,
-        -heights[4] * 0.24f,
-        -heights[5] * 0.30f
+        p->neckLength * 0.34f + heights[1] * 0.34f,
+        heights[1] * 0.04f,
+        -heights[2] * 0.05f - p->brisketDepth * p->thoraxHeight * 0.09f,
+        -heights[3] * 0.11f,
+        -heights[4] * 0.18f,
+        -heights[5] * 0.24f
     };
 
     for (unsigned i = 0; i < 6; ++i) {
@@ -213,14 +213,14 @@ bool AxialBodyAvian_BuildSweepStations(const AxialPhenotype* p, const AnatomyGra
         }
         outStations[c++] = st;
     }
-    /* Cierre caudal suave en el uropigio */
+    /* Cierre caudal compacto y suave en el uropigio (sin prolongación rígida) */
     Vector3 tip = nodes[5]->center;
-    tip.z -= nodes[5]->widthRadius * 0.72f;
-    tip.y -= nodes[5]->heightRadius * 0.10f;
+    tip.z -= nodes[5]->widthRadius * 0.45f;
+    tip.y -= nodes[5]->heightRadius * 0.08f;
     outStations[c++] = (SDFSweepStation){
         .center = tip,
-        .width = nodes[5]->widthRadius * 0.42f,
-        .height = nodes[5]->heightRadius * 0.36f
+        .width = nodes[5]->widthRadius * 0.46f,
+        .height = nodes[5]->heightRadius * 0.40f
     };
     *outCount = c;
     return true;

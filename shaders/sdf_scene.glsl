@@ -97,9 +97,12 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         float k=C_localSmoothness(c);
         if(pruneBox(p,C_bounds_start(c),C_bounds_end(c),C_distanceLowerBoundScale(c),result.w+k))continue;
         float distance=MonsterSDF_EvalConnectorDistance(c,p);
-        bool lumen=C_kind(c)==BODY_CONNECTION_PAIRED_OPENINGS&&!C_nasalTerminal(c)&&C_length(c)>=1e-6&&
-            MonsterSDF_PairedConnectorCavity(c,p-C_a(c))>=distance-1e-6;
-        result=joinSemantic(semantic,result,vec4(lumen?vec3(52,43,37)/255.0:C_color(c),distance),k,
+        bool lumen=(C_kind(c)==BODY_CONNECTION_PAIRED_OPENINGS&&!C_nasalTerminal(c)&&C_length(c)>=1e-6&&
+            MonsterSDF_PairedConnectorCavity(c,p-C_a(c))>=distance-1e-6) ||
+            (C_kind(c)==BODY_CONNECTION_FUNNEL_OPENING&&C_length(c)>=1e-6&&
+            MonsterSDF_FunnelConnectorCavity(c,p-C_a(c))>=distance-1e-6);
+        vec3 lumenCol=C_kind(c)==BODY_CONNECTION_FUNNEL_OPENING?vec3(46,24,22)/255.0:vec3(52,43,37)/255.0;
+        result=joinSemantic(semantic,result,vec4(lumen?lumenCol:C_color(c),distance),k,
             uint(C_moduleInstanceId(c)),C_nasalBodySkin(c)?3u:uint(C_region(c)),lumen?3u:tissueMaterial(C_material(c)),
             C_material(c)==0&&!lumen?1.0:0.0);
     }
@@ -111,13 +114,23 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         vec3 headColor=M_skinColor(m);float headSkin=1.0;uint headMaterial=1u;
         if((M_hasNasalPad(m) && SDF_Ellipsoid(local-M_noseCenterLocal(m),M_noseRadii(m))<M_headUnionSmoothness(m)*.5) ||
            (M_isBill(m) && local.z >= M_noseCenterLocal(m).z)) {headColor=M_nasalColor(m);headSkin=0.0;headMaterial=4u;}
+        else if(M_beakWeight(m)>0.5 && local.z >= M_beakBaseLocal(m).z - M_beakBaseRadii(m).x*0.06) {
+            float bSpan=max(M_beakTipLocal(m).z-M_beakBaseLocal(m).z,0.005);
+            float uB=clamp((local.z-M_beakBaseLocal(m).z)/bSpan,0.0,1.0);
+            if(uB<=M_beakBaseRadii(m).z && local.y>=M_beakBaseLocal(m).y-M_beakBaseRadii(m).y*0.28) {
+                headColor=M_nasalColor(m);headSkin=0.0;headMaterial=4u;
+            } else {
+                float tipShade=clamp((uB-M_beakBaseRadii(m).z)/max(1.0-M_beakBaseRadii(m).z,0.1),0.0,1.0);
+                headColor=mix(vec3(108,118,130)/255.0,vec3(24,26,32)/255.0,tipShade);headSkin=0.0;headMaterial=5u;
+            }
+        }
         result=joinSemantic(semantic,result,vec4(headColor,MonsterSDF_EvalUpperHeadDistance(m,local)),M_anatomicalHead(m)?M_headBodySmoothness(m):M_muzzleSmoothness(m),uint(M_moduleInstanceId(m)),1u,headMaterial,headSkin);
     }
     for(int i=0;i<mouthCount;++i) {
         if(!(rayHeadActive||rayMouthActive))continue;
         int m=mouthBase+i*M_STRIDE;
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
-        if(rayMouthActive&&!(M_anatomicalHead(m)&&M_entranceHalfExtents(m).y<0.00095)) {
+        if(rayMouthActive&&!(M_anatomicalHead(m)&&(M_entranceHalfExtents(m).y<0.00095||M_beakWeight(m)>0.5))) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
             vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=MonsterSDF_OralShift(m,local.z);
             float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);
@@ -135,7 +148,8 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
             bool eqRim=!M_hasNasalPad(m)&&M_nostrilCurve(m)>.70;
             float eqOrbitK=M_headUnionSmoothness(m)*(eqRim?.18:.06);
             float eqNostrilK=M_headUnionSmoothness(m)*(eqRim?.12:.04);
-            result=cutSemantic(semantic,result,MonsterSDF_EvalOrbitCavities(m,local),(eqRim?vec3(74,48,34):vec3(24,28,19))/255.0,eqOrbitK,3u);
+            vec3 orbCol=M_beakWeight(m)>0.5?M_nasalColor(m):(eqRim?vec3(74,48,34):vec3(24,28,19))/255.0;
+            result=cutSemantic(semantic,result,MonsterSDF_EvalOrbitCavities(m,local),orbCol,eqOrbitK,3u);
             result=cutSemantic(semantic,result,MonsterSDF_EvalNostrilCavities(m,local),(eqRim?vec3(56,36,30):vec3(18,20,14))/255.0,eqNostrilK,3u);
             if(M_hasTympana(m))result=cutSemantic(semantic,result,MonsterSDF_EvalTympanumCavities(m,local),vec3(25,24,16)/255.0,M_headUnionSmoothness(m)*.04,3u);
         }
@@ -150,9 +164,10 @@ vec4 sceneDetailed(vec3 p,out SDFResult semantic) {
         float hCheek=kCheek<=1e-5?(result.w<d?1.0:0.0):clamp(.5+.5*(d-result.w)/kCheek,0.0,1.0);
         if(hCheek<1.0) {
             bool billJaw = M_isBill(m) && local.z >= M_noseCenterLocal(m).z;
-            vec3 col=billJaw ? M_nasalColor(m) : M_skinColor(m);
-            float jawSkin=billJaw ? 0.0 : 1.0;
-            uint jawMaterial=billJaw ? 4u : 1u;
+            bool beakJaw = M_beakWeight(m) > 0.5 && local.z >= M_beakBaseLocal(m).z - M_beakBaseRadii(m).x*0.15;
+            vec3 col=billJaw ? M_nasalColor(m) : (beakJaw ? vec3(74,82,92)/255.0 : M_skinColor(m));
+            float jawSkin=(billJaw||beakJaw) ? 0.0 : 1.0;
+            uint jawMaterial=billJaw ? 4u : (beakJaw ? 5u : 1u);
             if(M_taperedMandible(m)&&tongueDistance<=d+0.005){col=M_insideColor(m);jawSkin=0.0;jawMaterial=2u;}
             semantic.skinWeight=mix(jawSkin,semantic.skinWeight,hCheek);
             if(hCheek<.5) {
@@ -210,7 +225,7 @@ float sceneDistance(vec3 p) {
         if(!(rayHeadActive||rayMouthActive))continue;
         int m=mouthBase+i*M_STRIDE;
         vec3 local=M_inverseRotation(m)*(p-M_center(m));
-        if(rayMouthActive&&!(M_anatomicalHead(m)&&M_entranceHalfExtents(m).y<0.00095)) {
+        if(rayMouthActive&&!(M_anatomicalHead(m)&&(M_entranceHalfExtents(m).y<0.00095||M_beakWeight(m)>0.5))) {
             vec3 ext=M_entranceHalfExtents(m),r=M_hostRadii(m);
             vec3 oralRel=local-M_entranceCenterLocal(m);oralRel.y-=MonsterSDF_OralShift(m,local.z);
             float entrance=SDF_RoundedSlotExtruded(oralRel,ext.x,ext.y,ext.z);

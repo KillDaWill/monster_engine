@@ -34,29 +34,29 @@ bool LimbArthropod_Resolve(const LimbPhenotype* p, uint32_t module, const Attach
     float sweep = p->proximalSweep; /* positivo: patas delanteras hacia delante; negativo: traseras hacia atrás */
     float sprawl = Math_Clamp(p->sprawl, 0.15f, 1.0f);
 
-    Vector3 coxa = {-side * r * p->attachmentInset * 0.4f, 0.0f, 0.0f};
+    Vector3 coxa = {-side * r * p->attachmentInset * 0.35f, 0.0f, 0.0f};
     Vector3 femurTip = {
-        coxa.x + side * fem * (0.48f + 0.36f * sprawl),
-        -fem * (0.28f - 0.22f * sprawl),
-        fem * (0.18f + 0.65f * sweep)
+        coxa.x + side * fem * (0.44f + 0.34f * sprawl),
+        -fem * (0.36f - 0.18f * sprawl),
+        fem * (0.14f + 0.68f * sweep)
     };
     Vector3 tibiaTip = {
-        femurTip.x + side * tib * (0.24f + 0.16f * sprawl),
-        femurTip.y - tib * 0.84f,
-        femurTip.z + tib * (0.26f * sweep + 0.18f * p->distalSweep)
+        femurTip.x + side * tib * (0.16f + 0.14f * sprawl),
+        femurTip.y - tib * 0.82f,
+        femurTip.z + tib * (0.36f * sweep + 0.24f * p->distalSweep)
     };
     Vector3 tarsusTip = {
-        tibiaTip.x + side * tar * 0.36f,
-        tibiaTip.y - tar * 0.42f,
-        tibiaTip.z + tar * (0.46f + 0.32f * sweep)
+        tibiaTip.x + side * tar * 0.22f,
+        tibiaTip.y - tar * 0.36f,
+        tibiaTip.z + tar * (0.48f + 0.36f * sweep)
     };
 
     Vector3 pts[4] = {coxa, femurTip, tibiaTip, tarsusTip};
     float wr[4] = {
-        r * 1.30f * p->rootThicknessScale,
-        r * 0.92f * p->proximalThicknessScale,
-        r * 0.64f * p->middleThicknessScale,
-        r * 0.44f * p->distalThicknessScale
+        r * 1.15f * p->rootThicknessScale,
+        r * 0.84f * p->proximalThicknessScale,
+        r * 0.56f * p->middleThicknessScale,
+        r * 0.38f * p->distalThicknessScale
     };
 
     for (unsigned i = 0; i < 4; ++i) {

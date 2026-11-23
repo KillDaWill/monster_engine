@@ -231,6 +231,27 @@ void HeadAnatomy_Blend(const HeadAnatomy* a,const HeadAnatomy* b,float t,HeadAna
         out->surface.equineCrestEnd=eq->equineCrestEnd;
         out->surface.equineCrestRadii=eq->equineCrestRadii;
     }
+    out->surface.beakWeight=Math_Lerp(a->surface.beakWeight,b->surface.beakWeight,t);
+    if(a->surface.beakWeight>0.0f && b->surface.beakWeight>0.0f) {
+        out->surface.beakBase=Vec3_Lerp(a->surface.beakBase,b->surface.beakBase,t);
+        out->surface.beakMid=Vec3_Lerp(a->surface.beakMid,b->surface.beakMid,t);
+        out->surface.beakTip=Vec3_Lerp(a->surface.beakTip,b->surface.beakTip,t);
+        out->surface.beakBaseRadii=Vec3_Lerp(a->surface.beakBaseRadii,b->surface.beakBaseRadii,t);
+        out->surface.beakShape=Vec3_Lerp(a->surface.beakShape,b->surface.beakShape,t);
+        out->surface.beakTipShape=Vec3_Lerp(a->surface.beakTipShape,b->surface.beakTipShape,t);
+        out->surface.beakLowerTip=Vec3_Lerp(a->surface.beakLowerTip,b->surface.beakLowerTip,t);
+        out->surface.beakLowerRadii=Vec3_Lerp(a->surface.beakLowerRadii,b->surface.beakLowerRadii,t);
+    } else if(a->surface.beakWeight>0.0f || b->surface.beakWeight>0.0f) {
+        const HeadSurfaceRecipe* bk=a->surface.beakWeight>0.0f?&a->surface:&b->surface;
+        out->surface.beakBase=bk->beakBase;
+        out->surface.beakMid=bk->beakMid;
+        out->surface.beakTip=bk->beakTip;
+        out->surface.beakBaseRadii=bk->beakBaseRadii;
+        out->surface.beakShape=bk->beakShape;
+        out->surface.beakTipShape=bk->beakTipShape;
+        out->surface.beakLowerTip=bk->beakLowerTip;
+        out->surface.beakLowerRadii=bk->beakLowerRadii;
+    }
     if(a->surface.hasCranialProfile || b->surface.hasCranialProfile) {
         Vector3 ca[6],cb[6],ra[6],rb[6];
         Morph_HeadCranialStations(&a->surface,ca,ra);
@@ -713,6 +734,15 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     s->equineNasalRoof = face.surface.equineNasalRoof;
     s->equineNasalRoof.z += s->faceMid.z-face.surface.faceMid.z;
     s->equineCrestRadii = face.surface.equineCrestRadii;
+    s->beakWeight = face.surface.beakWeight;
+    s->beakBase = FacialPoint(face.surface.beakBase,&face.surface,s);
+    s->beakMid = FacialPoint(face.surface.beakMid,&face.surface,s);
+    s->beakTip = FacialPoint(face.surface.beakTip,&face.surface,s);
+    s->beakLowerTip = FacialPoint(face.surface.beakLowerTip,&face.surface,s);
+    s->beakBaseRadii = face.surface.beakBaseRadii;
+    s->beakShape = face.surface.beakShape;
+    s->beakTipShape = face.surface.beakTipShape;
+    s->beakLowerRadii = face.surface.beakLowerRadii;
 
 #define SKULL(field, sample) s->field = RelativeToSkull(sample.surface.field,&sample.surface,s)
     SKULL(leftTemporalCenter,cheek); SKULL(rightTemporalCenter,cheek);

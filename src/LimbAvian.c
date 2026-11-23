@@ -36,45 +36,48 @@ static bool ResolveWing(const LimbPhenotype* p, uint32_t module, const Attachmen
     float inset = -side * r * p->attachmentInset;
 
     /* Cadena ósea aviar auténtica:
-     * 1: Hombro
-     * 2: Codo (dirigido atrás-abajo; pegado al flanco al plegar)
+     * 1: Hombro (integrado en la cintura escapular)
+     * 2: Codo (alineado suavemente en vuelo extendido; pegado al flanco al plegar)
      * 3: Punto medio radio/ulna (sostiene rémiges secundarias)
-     * 4: Carpo/muñeca (borde de ataque anterior; gira hacia delante al plegar) */
+     * 4: Carpo/muñeca (borde de ataque continuo; gira hacia delante contra el hombro al plegar) */
     Vector3 shoulder = {inset, 0.0f, 0.0f};
     Vector3 elbow = {
-        inset + side * hum * Math_Lerp(0.18f, 0.92f, ext),
+        inset + side * hum * Math_Lerp(0.08f, 0.94f, ext),
         -hum * Math_Lerp(0.26f, 0.02f, ext),
-        -hum * Math_Lerp(0.86f, 0.18f - 0.08f * p->proximalSweep, ext)
+        -hum * Math_Lerp(0.84f, 0.06f - 0.04f * p->proximalSweep, ext)
     };
     Vector3 midUlna = {
-        elbow.x + side * ulna * Math_Lerp(0.06f, 0.52f, ext),
-        elbow.y + ulna * Math_Lerp(0.10f, 0.04f, ext),
-        elbow.z + ulna * Math_Lerp(0.44f, 0.14f, ext)
+        elbow.x + side * ulna * Math_Lerp(0.04f, 0.52f, ext),
+        elbow.y + ulna * Math_Lerp(0.10f, 0.03f, ext),
+        elbow.z + ulna * Math_Lerp(0.42f, 0.08f, ext)
     };
     Vector3 wrist = {
-        elbow.x + side * ulna * Math_Lerp(0.14f, 0.98f, ext),
-        elbow.y + ulna * Math_Lerp(0.20f, 0.07f, ext),
-        elbow.z + ulna * Math_Lerp(0.84f, 0.24f + 0.08f * p->distalSweep, ext)
+        elbow.x + side * ulna * Math_Lerp(0.06f, 0.98f, ext),
+        elbow.y + ulna * Math_Lerp(0.18f, 0.05f, ext),
+        elbow.z + ulna * Math_Lerp(0.78f, 0.14f + 0.06f * p->distalSweep, ext)
     };
 
     Vector3 pts[4] = {shoulder, elbow, midUlna, wrist};
     float wr[4] = {
-        r * 1.15f * p->rootThicknessScale,
-        r * 0.84f * p->proximalThicknessScale,
-        r * 0.64f * p->middleThicknessScale,
-        r * 0.48f * p->distalThicknessScale
+        r * 0.96f * p->rootThicknessScale,
+        r * 0.62f * p->proximalThicknessScale,
+        r * 0.46f * p->middleThicknessScale,
+        r * 0.34f * p->distalThicknessScale
     };
-    float hr[4] = {wr[0] * 1.05f, wr[1] * 0.92f, wr[2] * 0.82f, wr[3] * 0.72f};
+    float hr[4] = {wr[0] * 0.90f, wr[1] * 0.74f, wr[2] * 0.64f, wr[3] * 0.54f};
 
     for (unsigned i = 0; i < 4; ++i) {
         if (!Module_Node(g, module, (uint16_t)(i + 1), WorldFrame(slot, pts[i]),
                          wr[i], hr[i], 2, ANATOMY_ROLE_JOINT, ANATOMY_REGION_WING, aSide, p->development))
             return false;
         if (i > 0) {
+            /* En ala plegada el núcleo esquelético queda cubierto por el plumaje suplementario;
+             * en extendida el brazo proximal sirve de soporte interno envuelto por el perfil alar. */
+            BodyConnectionKind kind = (fold > 0.45f && i >= 2) ? BODY_CONNECTION_SUPPORT : BODY_CONNECTION_LIMB_SEGMENT;
             if (!Module_Edge(g, module, (uint16_t)i,
                              Anatomy_MakeId(module, (uint16_t)i),
                              Anatomy_MakeId(module, (uint16_t)(i + 1)),
-                             BODY_CONNECTION_LIMB_SEGMENT, p->development))
+                             kind, p->development))
                 return false;
             BodyConnection* e = &g->connections[g->connectionCount - 1];
             e->transverseAxis = slot->up;
@@ -86,11 +89,11 @@ static bool ResolveWing(const LimbPhenotype* p, uint32_t module, const Attachmen
         return false;
 
     /* Mano distal reducida (carpometacarpo + falange alar que sostiene las primarias).
-     * A diferencia del murciélago, las aves NO tienen 4 dedos alargados en abanico. */
+     * Usa BODY_CONNECTION_SUPPORT para deformar las rémiges sin exponer varillas desnudas. */
     Vector3 handDir = Vec3_Normalize(Vec3_Create(
-        side * Math_Lerp(0.10f, 0.92f, ext),
-        Math_Lerp(-0.18f, 0.02f, ext),
-        Math_Lerp(-0.96f, -0.34f - 0.14f * p->wingPointedness, ext)
+        side * Math_Lerp(-0.08f, 0.92f, ext),
+        Math_Lerp(-0.22f, 0.01f, ext),
+        Math_Lerp(-0.97f, -0.34f - 0.16f * p->wingPointedness, ext)
     ));
     AnatomyId prev = Anatomy_MakeId(module, LIMB_NODE_AUTOPOD);
     for (unsigned j = 0; j < 3; ++j) {
@@ -101,20 +104,20 @@ static bool ResolveWing(const LimbPhenotype* p, uint32_t module, const Attachmen
         if (!Module_Node(g, module, lid, WorldFrame(slot, hp), hrj, hrj * 0.75f, 2,
                          ANATOMY_ROLE_DIGIT, ANATOMY_REGION_DIGIT, aSide, p->development) ||
             !Module_Edge(g, module, lid, prev, Anatomy_MakeId(module, lid),
-                         BODY_CONNECTION_DIGIT_SEGMENT, p->development))
+                         BODY_CONNECTION_SUPPORT, p->development))
             return false;
         g->connections[g->connectionCount - 1].transverseAxis = slot->up;
         prev = Anatomy_MakeId(module, lid);
     }
-    /* Álula compacta en el borde anterior del carpo */
-    Vector3 alulaDir = Vec3_Normalize(Vec3_Create(side * 0.55f, 0.12f, 0.82f));
-    Vector3 alulaPos = Vec3_Add(wrist, Vec3_Scale(alulaDir, hand * 0.18f));
+    /* Álula compacta integrada en el borde anterior del carpo (sin espiga desnuda). */
+    Vector3 alulaDir = Vec3_Normalize(Vec3_Add(Vec3_Scale(handDir, 0.72f), Vec3_Create(side * 0.25f, 0.06f, 0.42f * ext)));
+    Vector3 alulaPos = Vec3_Add(wrist, Vec3_Scale(alulaDir, hand * 0.16f));
     uint16_t alulaId = Limb_DigitLocalId(1, 0);
     if (!Module_Node(g, module, alulaId, WorldFrame(slot, alulaPos),
-                     wr[3] * 0.42f, wr[3] * 0.34f, 2,
+                     wr[3] * 0.36f, wr[3] * 0.28f, 2,
                      ANATOMY_ROLE_DIGIT, ANATOMY_REGION_DIGIT, aSide, p->development) ||
         !Module_Edge(g, module, alulaId, Anatomy_MakeId(module, LIMB_NODE_AUTOPOD),
-                     Anatomy_MakeId(module, alulaId), BODY_CONNECTION_DIGIT_SEGMENT, p->development))
+                     Anatomy_MakeId(module, alulaId), BODY_CONNECTION_SUPPORT, p->development))
         return false;
     return true;
 }
@@ -154,12 +157,12 @@ static bool ResolveLeg(const LimbPhenotype* p, uint32_t module, const Attachment
 
     Vector3 pts[4] = {hip, knee, ankle, foot};
     float wr[4] = {
-        r * 1.65f * p->rootThicknessScale,
-        r * 1.25f * p->proximalThicknessScale,
-        r * 0.62f * p->middleThicknessScale,
-        r * 0.54f * p->distalThicknessScale
+        r * 1.98f * p->rootThicknessScale,
+        r * 1.52f * p->proximalThicknessScale,
+        r * 0.58f * p->middleThicknessScale,
+        r * 0.52f * p->distalThicknessScale
     };
-    float hr[4] = {wr[0] * 1.15f, wr[1] * 1.08f, wr[2] * 1.05f, wr[3] * 0.90f};
+    float hr[4] = {wr[0] * 1.18f, wr[1] * 1.12f, wr[2] * 1.02f, wr[3] * 0.90f};
 
     for (unsigned i = 0; i < 4; ++i) {
         if (!Module_Node(g, module, (uint16_t)(i + 1), WorldFrame(slot, pts[i]),

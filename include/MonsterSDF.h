@@ -246,6 +246,15 @@ typedef struct MonsterSDFMouth {
     Vector3 equineCrestStartLocal; /**< Origen caudal de la cresta facial. */
     Vector3 equineCrestEndLocal; /**< Extremo rostral de la cresta facial. */
     Vector3 equineCrestRadii; /**< Semiejes de cresta (lateral, vertical) e intensidad subcrestal. */
+    float beakWeight; /**< Peso continuo [0,1] del pico aviar 3D especializado. */
+    Vector3 beakBaseLocal; /**< Base local del pico superior en la unión frente/cera. */
+    Vector3 beakMidLocal; /**< Punto de control dorsal del culmen local. */
+    Vector3 beakTipLocal; /**< Punta distal local del pico superior. */
+    Vector3 beakBaseRadii; /**< (semiancho basal, semialtura dorsal basal, fracción de cera). */
+    Vector3 beakShape; /**< (exponente de ahusamiento, curvatura/gancho, diente tomial). */
+    Vector3 beakTipShape; /**< (semiancho punta, semialtura punta, quilla dorsal del culmen). */
+    Vector3 beakLowerTipLocal; /**< Punta distal local del pico inferior. */
+    Vector3 beakLowerRadii; /**< (semiancho basal inferior, semialtura basal inferior, semiancho punta inferior). */
     AABB3D influenceBounds;
     AABB3D headBounds; /**< AABB mundial ajustada al campo local de cabeza. */
     AABB3D positiveHeadBounds; /**< Soporte certificado del subnivel cefálico d <= k cabeza-cuerpo. */

@@ -58,7 +58,8 @@ typedef enum BodyConnectionKind {
     BODY_CONNECTION_TUSK,
     BODY_CONNECTION_TUSK_ROOT,
     BODY_CONNECTION_PAIRED_OPENINGS,
-    BODY_CONNECTION_FLEXIBLE_SEGMENT
+    BODY_CONNECTION_FLEXIBLE_SEGMENT,
+    BODY_CONNECTION_FUNNEL_OPENING /**< Embudo/sifón con abertura terminal circular centrada. */
 } BodyConnectionKind;
 
 /** @struct AnatomyNode
