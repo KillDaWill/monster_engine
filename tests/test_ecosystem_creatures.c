@@ -187,18 +187,19 @@ static void AnatomicalContactAndGrowth(void) {
         for(unsigned step=0;step<120;++step)EcosystemAnatomy_Update(e,1.f/60);
         TEST_ASSERT(e->body.reach.status!=REACH_REACHED,"ningún objetivo imposible declara contacto");
         const EcosystemSpecies* profile=&world.species[e->speciesIndex];
-        size_t joints=e->anatomicalBody->rig.skeleton.jointCount;
+        size_t joints=EcosystemAnatomy_Rig(e->anatomicalBody)->skeleton.jointCount;
         for(unsigned stage=0;stage<=4;++stage) {
             e->physiology.age=profile->physiology.maturityAge*(double)stage/4;
             e->physiology.stage=stage<4?LIFE_JUVENILE:LIFE_ADULT;
             TEST_ASSERT(EcosystemAnatomy_Configure(e,profile),"crecimiento compila un cuerpo válido");
             const EcosystemAnatomy* body=e->anatomicalBody;
-            TEST_ASSERT(body->rig.skeleton.jointCount==joints&&Skeleton_Validate(&body->rig.skeleton),
+            const Rig* rig=EcosystemAnatomy_Rig(body);
+            TEST_ASSERT(rig&&rig->skeleton.jointCount==joints&&Skeleton_Validate(&rig->skeleton),
                 "neonato, juvenil y adulto conservan topología de rig");
-            TEST_ASSERT(body->rig.limbCount==4,"el neonato nace con cuatro miembros completos");
-            for(size_t leg=0;leg<body->rig.limbCount;++leg) {
-                int foot=body->rig.limbs[leg].endEffectorJoint;
-                Vector3 p=body->pose.joints[foot].worldPosition;
+            TEST_ASSERT(rig->limbCount==4,"el neonato nace con cuatro miembros completos");
+            for(size_t leg=0;leg<rig->limbCount;++leg) {
+                int foot=rig->limbs[leg].endEffectorJoint;
+                Vector3 p=body->tmpl->standingRest.joints[foot].worldPosition;
                 TEST_ASSERT(isfinite(p.x)&&isfinite(p.y)&&isfinite(p.z),"pies finitos durante todo el desarrollo");
             }
         }
@@ -347,7 +348,7 @@ static void CarnivoreAnimations(void) {
             for(size_t j=0;j<packet.pose->jointCount;++j)
                 TEST_ASSERT(isfinite(Vec3_LengthSq(packet.pose->joints[j].worldPosition)),"ninguna animación produce articulaciones inválidas");
             for(size_t leg=0;leg<4;++leg) {
-                int foot=entity->anatomicalBody->rig.limbs[leg].endEffectorJoint;
+                int foot=EcosystemAnatomy_Rig(entity->anatomicalBody)->limbs[leg].endEffectorJoint;
                 if(frame)travel[leg]+=Vec3_Distance(previous.joints[foot].worldPosition,packet.pose->joints[foot].worldPosition);
             }
             jawOpening=fmaxf(jawOpening,fabsf(packet.pose->joints[packet.jawJoint].localRotation.x));

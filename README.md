@@ -231,11 +231,12 @@ make clean
    ```
 
 7. **Evolution Arena — Cerebros Neuronales Evolutivos (`demos/demo_evolution_arena`)**:
-   Laboratorio visual y simulador headless sobre el mismo núcleo autoritativo donde poblaciones de **Brumacerno** y **Velkar** operan con redes neuronales recurrentes independientes (`32 → 12 → 10`, 670 parámetros), heredan y mutan sus genomas neuronales por selección natural, y permiten exportar, importar, copiar e intercambiar cerebros (`*.brain.json`) entre especies sin alterar sus cuerpos ni su fisiología:
-   - **Documentación detallada:** [Cerebros Neuronales Evolutivos](docs/EVOLUTIONARY_NEURAL_BRAINS.md), [Evolution Arena](docs/EVOLUTION_ARENA.md) y [Formato `*.brain.json`](docs/NEURAL_BRAIN_FORMAT.md).
+   Laboratorio visual y simulador headless sobre el mismo núcleo autoritativo donde poblaciones de **Brumacerno** y **Velkar** (desde 22 hasta **500–1.000+ criaturas simultáneas** con soporte para 1.024–2.048 ranuras) operan con redes neuronales recurrentes independientes (`32 → 12 → 10`, 670 parámetros), heredan y mutan sus genomas neuronales por selección natural, y permiten exportar, importar, copiar e intercambiar cerebros (`*.brain.json`) entre especies sin alterar sus cuerpos ni su fisiología:
+   - **Documentación detallada:** [Cerebros Neuronales Evolutivos](docs/EVOLUTIONARY_NEURAL_BRAINS.md), [Evolution Arena](docs/EVOLUTION_ARENA.md), [Arquitectura Escalable 500+](docs/EVOLUTION_ARENA_SCALABILITY.md), [Informe de Rendimiento](docs/EVOLUTION_ARENA_PERFORMANCE.md) y [Formato `*.brain.json`](docs/NEURAL_BRAIN_FORMAT.md).
    - **Controles interactivos:**
      - **ESPACIO**: Pausar / reanudar la simulación (cámara e inspección siguen activas en pausa).
-     - **1, 2, 3, 4**: Velocidad solicitada (1x, 4x, 16x, 64x mediante ticks fijos de 1/60 s).
+     - **1, 2, 3, 4, 5**: Velocidad solicitada (`1x`, `4x`, `16x`, `64x` o **`MAX`** mediante ticks fijos de `1/60 s` en hilo dedicado).
+     - **P / Q / M**: Panel de telemetría de rendimiento / ciclo de calidad LOD (`HIGH`/`MED`/`LOW`) / minimapa cenital.
      - **TAB / Clic izquierdo**: Seleccionar criatura viva.
      - **F**: Seguir a la criatura seleccionada; **O**: Vista cenital; **Flechas / Rueda / Arrastre derecho**: Órbita y zoom; **W/S/J/L / Botón central**: Desplazamiento.
      - **N**: Mostrar / ocultar el inspector en vivo de la red neuronal (clic en cualquier neurona para aislar sus conexiones; `[` / `]` o `W-` / `W+` para filtrar pesos débiles).
@@ -250,11 +251,13 @@ make clean
    make demos/demo_evolution_arena
    make demos/demo_evolution_arena_headless
 
-   # Laboratorio visual 3D (OpenGL/SDL2):
+   # Laboratorio visual 3D clásico (22 criaturas) y escalable (500 criaturas a 1080p):
    ./demos/demo_evolution_arena
+   ./demos/demo_evolution_arena --preset=large --seed=42 --width=1920 --height=1080 --show-perf --minimap
 
-   # Simulador headless para experimentos evolutivos reproducibles:
+   # Simulador headless para experimentos evolutivos reproducibles (small/medium/large/stress):
    ./demos/demo_evolution_arena_headless --help
+   ./demos/demo_evolution_arena_headless --preset=large --seed=42 --days=5 --summary=build/evolution/large_500.json
    ./demos/demo_evolution_arena_headless \
      --seed=42 --days=30 --brumacernos=16 --velkares=6 --capacity=128 \
      --controller=neural --founders=seeded \

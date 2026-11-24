@@ -74,5 +74,6 @@ scratch/
 /demos/demo_evolution_arena_headless
 /benchmarks/benchmark_neural
 /benchmarks/benchmark_ecosystem
+/benchmarks/benchmark_evolution_scalability
 
 /demos/interface_demo

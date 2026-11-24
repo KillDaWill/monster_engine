@@ -1,20 +1,22 @@
 /** @file EcosystemVisual.h
- * @brief Orquestador visual compartido para criaturas de un ecosistema.
+ * @brief Orquestador visual compartido y escalable (1024+ ranuras) para criaturas de un ecosistema.
  */
 #ifndef ECOSYSTEM_VISUAL_H
 #define ECOSYSTEM_VISUAL_H
 
 #include "AnatomyDeformer.h"
 #include "EcosystemWorld.h"
+#include "EvolutionSimulationRunner.h"
+#include "EvolutionProfiler.h"
 #include "MonsterVisual.h"
 #include "VisualVariation.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#define ECOSYSTEM_VISUAL_MAX_SLOTS 256u
-#define ECOSYSTEM_VISUAL_CACHE_CAPACITY 48u
-#define ECOSYSTEM_VISUAL_QUEUE_CAPACITY 32u
+#define ECOSYSTEM_VISUAL_MAX_SLOTS 2048u
+#define ECOSYSTEM_VISUAL_CACHE_CAPACITY 96u
+#define ECOSYSTEM_VISUAL_QUEUE_CAPACITY 64u
 
 /** @brief Clave estructural de una malla compartida. */
 typedef struct EcosystemVisualCacheKey {
@@ -30,11 +32,32 @@ typedef struct EcosystemVisualProjection {
     bool visible;
 } EcosystemVisualProjection;
 
+/** @brief Estadísticas visuales del último fotograma para diagnóstico/HUD. */
+typedef struct EcosystemVisualStats {
+    size_t activeSlots;
+    size_t slotCapacity;
+    size_t visibleCount;
+    size_t animatedCount;
+    size_t nearCount;
+    size_t midCount;
+    size_t farCount;
+    size_t culledCount;
+    size_t monsterInstances;
+    size_t cacheEntries;
+    size_t cacheBytes;
+    size_t pendingQueue;
+    size_t buildCount;
+    size_t cacheHits;
+} EcosystemVisualStats;
+
 /** @brief Paquete inmutable que el adaptador gráfico consume durante un frame. */
 typedef struct EcosystemVisualDrawPacket {
     uint32_t slotIndex;
     AIObjectId entityId;
+    uint32_t recipeId;
+    uint32_t morphologyBucket;
     bool ready;
+    bool instancedEligible; /**< true para instancias FAR ligeras aptas para instancing GPU. */
     VisualTier tier;
     const Mesh* bodyMesh;
     const Mesh* headMesh;
@@ -62,23 +85,17 @@ typedef struct EcosystemVisualDrawPacket {
     Vector3 position;
     float yaw;
     float scale;
-    /** @brief Semianchura máxima del torso anatómico en unidades de malla. */
+    float bobY;       /**< Oscilación vertical analítica para instancias FAR. */
+    float leanPitch;  /**< Inclinación axial analítica para instancias FAR. */
+    Color tintColor;  /**< Pigmentación individual para lotes instanciados. */
     float meshRadius;
-    /** @brief Radio radial bruto medido en el tercio central de la malla. */
     float measuredMeshRadius;
-    /** @brief Longitud axial de la malla, medida una vez al construir la caché. */
     float meshLength;
-    /** @brief Longitud axial canónica compartida por todos los niveles de detalle. */
     float calibrationLength;
-    /** @brief Escala axial del fenotipo canónico usado para construir la malla. */
     float axialTotalScale;
-    /** @brief Factor malla->mundo derivado de la longitud axial de referencia. */
     float calibrationFactor;
-    /** @brief Multiplicador de avance de la animación derivado de genome.speed. */
     float gaitCadence;
-    /** @brief Sesgo postural [-1,1] aplicado como una pequeña inclinación de la pose. */
     float postureLean;
-    /** @brief Frecuencia perceptiva disponible para un renderizador con escaneo cefálico. */
     float headScanRate;
     SurfaceRecipe surfaceRecipe;
 } EcosystemVisualDrawPacket;
@@ -88,14 +105,24 @@ typedef struct EcosystemVisual {
     void* state;
 } EcosystemVisual;
 
-/** @brief Inicializa caché, fallback y el único trabajador de mallado. */
+/** @brief Inicializa caché, fallback y el trabajador de mallado vinculado a un EcosystemWorld. */
 bool EcosystemVisual_Init(EcosystemVisual*, EcosystemWorld*);
+/** @brief Inicializa en modo desacoplado por snapshots inmutables (sin acceder a EcosystemWorld*). */
+bool EcosystemVisual_InitForSnapshots(EcosystemVisual*, unsigned initialCapacity);
 /** @brief Cambia el mundo vinculado y destruye todas las ranuras anteriores. */
 bool EcosystemVisual_BindWorld(EcosystemVisual*, EcosystemWorld*);
-/** @brief Sincroniza por valor; nunca conserva EcosystemEntity*. */
+/** @brief Configura presupuestos de LOD detallado (NEAR/MID) y factor de calidad/distancia. */
+void EcosystemVisual_SetBudget(EcosystemVisual*, unsigned maxNear, unsigned maxMid, float lodBias);
+/** @brief Asocia un perfilador opcional para registrar tiempos y contadores visuales. */
+void EcosystemVisual_SetProfiler(EcosystemVisual*, EvolutionProfiler*);
+/** @brief Sincroniza desde EcosystemWorld por valor; nunca conserva EcosystemEntity*. */
 bool EcosystemVisual_Sync(EcosystemVisual*);
-/** @brief Avanza reconciliación, animación, publicación y como máximo una cola. */
+/** @brief Reconciliación incremental desde un snapshot inmutable de simulación. */
+bool EcosystemVisual_SyncSnapshot(EcosystemVisual*, const EvolutionRenderSnapshot*);
+/** @brief Avanza reconciliación, animación, publicación y como máximo una cola (modo clásico). */
 bool EcosystemVisual_Update(EcosystemVisual*, float deltaSeconds);
+/** @brief Avanza LOD, animación acotada y publicación desde un snapshot inmutable. */
+bool EcosystemVisual_UpdateFromSnapshot(EcosystemVisual*, const EvolutionRenderSnapshot*, float realDeltaSeconds);
 /** @brief Libera worker, caché, deformadores, mallas auxiliares y ranuras. */
 void EcosystemVisual_Shutdown(EcosystemVisual*);
 
@@ -115,25 +142,18 @@ const Mesh* EcosystemVisual_FallbackMesh(const EcosystemVisual*);
 /** @brief Copia paquetes de draw sin transferir propiedad al consumidor. */
 size_t EcosystemVisual_GetDrawPackets(const EcosystemVisual*, EcosystemVisualDrawPacket*, size_t);
 /** @brief Ruta CPU equivalente al skinning de pose y crecimiento, sin remallado. */
-bool EcosystemVisual_DeformBody(const EcosystemVisualDrawPacket*,Mesh* output);
+bool EcosystemVisual_DeformBody(const EcosystemVisualDrawPacket*, Mesh* output);
 
-/** @brief Selecciona la superficie dibujada más próxima a un rayo mundial.
- * @param packets Paquetes del último frame, incluida su pose y escala.
- * @param count Número de paquetes.
- * @param origin Origen mundial del rayo.
- * @param direction Dirección mundial, normalizada internamente.
- * @param nearDistance Inicio del intervalo visible, en unidades mundiales.
- * @param farDistance Fin del intervalo visible, en unidades mundiales.
- * @return ID estable del individuo alcanzado, o cero sobre el fondo.
- */
-AIObjectId EcosystemVisual_PickRay(const EcosystemVisualDrawPacket* packets,size_t count,
-    Vector3 origin,Vector3 direction,float nearDistance,float farDistance);
+/** @brief Selecciona la superficie dibujada más próxima a un rayo mundial. */
+AIObjectId EcosystemVisual_PickRay(const EcosystemVisualDrawPacket* packets, size_t count,
+    Vector3 origin, Vector3 direction, float nearDistance, float farDistance);
 
-/** @brief Comprueba que cada entidad viva tenga una única ranura válida. */
+/** @brief Comprueba que cada entidad viva tenga una única ranura válida (diagnóstico explícito). */
 bool EcosystemVisual_Validate(const EcosystemVisual*);
 /** @brief Consulta el hash determinista de una clave estructural. */
 uint64_t EcosystemVisual_CacheKeyHash(EcosystemVisualCacheKey);
-/** @brief Cuenta ranuras, entradas residentes y trabajos generados. */
+/** @brief Estadísticas detalladas de ranuras, LOD y caché de mallas. */
+EcosystemVisualStats EcosystemVisual_GetStats(const EcosystemVisual*);
 size_t EcosystemVisual_SlotCount(const EcosystemVisual*);
 size_t EcosystemVisual_CacheCount(const EcosystemVisual*);
 size_t EcosystemVisual_BuildCount(const EcosystemVisual*);

@@ -12,13 +12,14 @@ typedef struct CreatureNavigation {
     bool swimming, failed;
     NavigationProgress progress;
     unsigned failures;
+    uint64_t lastExpandedNodes;
 } CreatureNavigation;
-/** @brief A* XZ acotado; buffers automáticos, ningún malloc en actualización.
- */
+/** @brief Precomputa o refresca la caché estática de holgura en AIWorld (sólo cuando cambia revision). */
+bool CreatureNavigation_EnsureCache(AIWorld *);
+/** @brief A* XZ con montículo binario, resolución en espacio mundo y scratch por hilo sin heap por consulta. */
 bool CreatureNavigation_Plan(CreatureNavigation *, const AIWorld *, Vector3 from, Vector3 goal,
                              float clearance, bool swimming);
-/** @brief Reutiliza camino, detecta llegada/estancamiento y devuelve waypoint.
- */
+/** @brief Reutiliza camino, detecta llegada/estancamiento y devuelve waypoint. */
 NavigationGoalStatus CreatureNavigation_Update(CreatureNavigation *, Vector3, float yaw,
                                                float speed, float turn, float dt,
                                                Vector3 *waypoint);

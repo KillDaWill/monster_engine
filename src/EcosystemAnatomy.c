@@ -1,106 +1,275 @@
 /** @file EcosystemAnatomy.c
- * @brief Alcance cervical autoritativo derivado de recetas, sin SDF ni render. */
+ * @brief Alcance cervical autoritativo sobre plantillas compartidas y cadena compacta. */
 #include "EcosystemAnatomy.h"
-#include "Creature.h"
-#include "Monster.h"
-#include "CreatureRecipes.h"
 #include "VisualVariation.h"
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
-static Vector3 Yaw(Vector3 v,float a) {
-    return Vec3_Create(cosf(a)*v.x+sinf(a)*v.z,v.y,-sinf(a)*v.x+cosf(a)*v.z);
+static Vector3 Yaw(Vector3 v, float a) {
+    float c = cosf(a), s = sinf(a);
+    return Vec3_Create(c * v.x + s * v.z, v.y, -s * v.x + c * v.z);
 }
-float EcosystemAnatomy_ModelLength(const CreaturePhenotype* p) {
-    return (p->axial.trunkLength+p->axial.neckLength+2.2f*p->headEnvelope.scale*p->headEnvelope.lengthScale)*p->axial.totalScale;
+
+float EcosystemAnatomy_ModelLength(const CreaturePhenotype *p) {
+    return (p->axial.trunkLength + p->axial.neckLength +
+            2.2f * p->headEnvelope.scale * p->headEnvelope.lengthScale) *
+           p->axial.totalScale;
 }
-float EcosystemAnatomy_Scale(const EcosystemAnatomy* a,const EcosystemEntity* e) {
-    return 2.05f/a->modelLength*e->genome.size*e->developmentScale;
+
+float EcosystemAnatomy_Scale(const EcosystemAnatomy *a, const EcosystemEntity *e) {
+    return 2.05f / a->modelLength * e->genome.size * e->developmentScale;
 }
-bool EcosystemAnatomy_Configure(EcosystemEntity* e,const EcosystemSpecies* s) {
-    if(!s->anatomicalOral)return true;
-    unsigned stage=e->physiology.stage==LIFE_JUVENILE?CREATURE_STAGE_JUVENILE:CREATURE_STAGE_ADULT;
-    unsigned bucket=VisualVariation_Profile(&e->genome,e->seed).bucket;
-    EcosystemAnatomy* a=e->anatomicalBody;
-    double maturity=s->physiology.maturityAge*e->genome.maturation;
-    double sample=e->physiology.age>=maturity?maturity:floor(e->physiology.age*2)*.5;
-    if(a&&a->stage==stage&&a->bucket==bucket&&a->growthSample==sample)return true;
-    const CreatureRecipe* base=CreatureRecipes_Find(s->recipeId);
-    if(!base)return false;
-    CreatureRecipe recipe;CreaturePhenotype p;
-    CreaturePhenotype development=CreatureRecipe_EvaluateDevelopment(base,(float)fmin(1,sample/maturity));
-    if(!VisualVariation_ApplyBucket(base,&development,bucket,0,&recipe,&p))return false;
-    Monster m=Monster_Create();
-    if(!Creature_BuildMonster(&m,&recipe,&p)||!m.animation) {Monster_Free(&m);return false;}
-    EcosystemAnatomy* next=calloc(1,sizeof(*next));
-    if(!next){Monster_Free(&m);return false;}
-    next->rig=m.animation->rig;next->standingHeight=m.animation->standingHeight-m.animation->animator.gait.supportCompression;
-    next->modelLength=EcosystemAnatomy_ModelLength(&p);
-    next->center=m.animation->animator.locomotion.supportCenter;
-    next->stage=stage;next->bucket=bucket;
-    next->growthSample=sample;next->generation=a?a->generation+1:1;
-    next->phenotype=p;next->graph=m.anatomyGraph;
-    next->pose=m.animation->pose;
-    SkeletonPose_Init(&next->rest,&next->rig.skeleton);
-    bool feline=recipe.gait==CREATURE_GAIT_FELINE_STALK;
-    ReachPreset preset=AnatomicalReach_DefaultPreset();
-    preset.torsoJoints=feline?1u:0u;
-    preset.crouchFraction=feline?.38f:.25f;
-    bool ok=AnatomicalReach_Compile(&next->profile,&next->rig,preset);
-    Monster_Free(&m);
-    if(!ok){free(next);return false;}
-    if(a) {
-        next->crouch=a->crouch;
-        for(unsigned k=0;k<next->profile.count;++k) {
-            int j=next->profile.joints[k].index;
-            next->pose.joints[j].localRotation=a->pose.joints[j].localRotation;
+
+void EcosystemAnatomy_Destroy(EcosystemAnatomy *a) {
+    if (!a) return;
+    EcosystemAnatomyCache_Release(a->tmpl);
+    free(a);
+}
+
+void EcosystemAnatomy_InvalidateInteraction(EcosystemAnatomy *a) {
+    if (!a) return;
+    AnatomicalReach_InvalidateCache(&a->state);
+    a->settled = false;
+}
+
+bool EcosystemAnatomy_ConfigureProfiled(EcosystemEntity *e, const EcosystemSpecies *s,
+                                        EvolutionProfiler *profiler) {
+    if (!s->anatomicalOral) return true;
+    unsigned stage = e->physiology.stage == LIFE_JUVENILE ? CREATURE_STAGE_JUVENILE : CREATURE_STAGE_ADULT;
+    unsigned bucket = VisualVariation_Profile(&e->genome, e->seed).bucket;
+    double maturity = s->physiology.maturityAge * e->genome.maturation;
+    double normalizedAge = (maturity > 1e-6) ? fmin(1.0, fmax(0.0, e->physiology.age / maturity)) : 1.0;
+    uint32_t growthStep = EcosystemAnatomyCache_GrowthStep(normalizedAge);
+
+    EcosystemAnatomy *a = e->anatomicalBody;
+    if (a && a->tmpl && a->tmpl->key.recipeId == s->recipeId &&
+        a->stage == stage && a->bucket == bucket && a->growthStep == growthStep) {
+        return true;
+    }
+
+    const EcosystemAnatomyTemplate *tmpl =
+        EcosystemAnatomyCache_Acquire(s->recipeId, bucket, growthStep, profiler);
+    if (!tmpl) return false;
+
+    if (!a) {
+        a = calloc(1, sizeof(*a));
+        if (!a) {
+            EcosystemAnatomyCache_Release(tmpl);
+            return false;
         }
-        AnatomicalReach_Reset(&next->state,&next->profile,&next->pose);
+        if (profiler) EvolutionProfiler_AddAtomic(&profiler->counters.allocations, 1u);
+        a->tmpl = tmpl;
+        a->center = tmpl->center;
+        a->modelLength = tmpl->modelLength;
+        a->standingHeight = tmpl->standingHeight;
+        a->stage = stage;
+        a->bucket = bucket;
+        a->growthStep = growthStep;
+        a->growthSample = normalizedAge;
+        a->generation = 1u;
+        a->crouch = 0.0f;
+        AnatomicalReach_Reset(&a->state, &tmpl->profile, NULL);
+        for (unsigned k = 0; k < tmpl->profile.count; ++k) {
+            int j = tmpl->profile.joints[k].index;
+            a->cervicalWorldPos[k] = tmpl->standingRest.joints[j].worldPosition;
+            a->cervicalWorldRot[k] = tmpl->standingRest.joints[j].worldRotation;
+        }
+        a->settled = true;
+        e->anatomicalBody = a;
+        return true;
     }
-    free(a);e->anatomicalBody=next;return true;
+
+    /* Reutilizar el almacenamiento por entidad cambiando la plantilla compartida sin malloc/free. */
+    const EcosystemAnatomyTemplate *prev = a->tmpl;
+    bool compatibleTopology = (prev && prev->topologyHash == tmpl->topologyHash &&
+                               prev->profile.count == tmpl->profile.count);
+    Quaternion preserved[REACH_MAX_JOINTS];
+    if (compatibleTopology) {
+        for (unsigned k = 0; k < tmpl->profile.count; ++k) {
+            preserved[k] = a->state.rotation[k];
+        }
+    }
+
+    a->tmpl = tmpl;
+    a->center = tmpl->center;
+    a->modelLength = tmpl->modelLength;
+    a->standingHeight = tmpl->standingHeight;
+    a->stage = stage;
+    a->bucket = bucket;
+    a->growthStep = growthStep;
+    a->growthSample = normalizedAge;
+    ++a->generation;
+
+    AnatomicalReach_Reset(&a->state, &tmpl->profile, NULL);
+    if (compatibleTopology) {
+        for (unsigned k = 0; k < tmpl->profile.count; ++k) {
+            a->state.rotation[k] = Skeleton_ConstrainRotation(&tmpl->profile.joints[k].bounded, preserved[k]);
+            a->state.desired[k] = a->state.rotation[k];
+        }
+    }
+    for (unsigned k = 0; k < tmpl->profile.count; ++k) {
+        int j = tmpl->profile.joints[k].index;
+        a->cervicalWorldPos[k] = tmpl->standingRest.joints[j].worldPosition;
+        a->cervicalWorldRot[k] = tmpl->standingRest.joints[j].worldRotation;
+    }
+    a->settled = false;
+    EcosystemAnatomyCache_Release(prev);
+    return true;
 }
-void EcosystemAnatomy_Update(EcosystemEntity* e,float dt) {
-    EcosystemAnatomy* a=e->anatomicalBody;if(!a)return;
-    float scale=EcosystemAnatomy_Scale(a,e);
-    SkeletonPose_ResetToRest(&a->pose,&a->rig.skeleton);
-    for(size_t j=0;j<a->rig.skeleton.jointCount;++j)if(a->rig.skeleton.joints[j].parentIndex<0)
-        a->pose.joints[j].localPosition.y+=a->standingHeight;
-    SkeletonPose_UpdateWorldTransforms(&a->pose,&a->rig.skeleton);
-    InteractionTarget target=e->mind.intent.interaction;
-    bool active=e->mind.intent.interact&&target.valid;
-    if(active) {
-        target.position=Vec3_Add(a->center,Vec3_Scale(Yaw(Vec3_Sub(target.position,e->body.position),-e->body.yaw),1/scale));
-        target.approach=Yaw(target.approach,-e->body.yaw);target.normal=Yaw(target.normal,-e->body.yaw);
-        target.positionTolerance/=scale;
+
+bool EcosystemAnatomy_Configure(EcosystemEntity *e, const EcosystemSpecies *s) {
+    return EcosystemAnatomy_ConfigureProfiled(e, s, NULL);
+}
+
+void EcosystemAnatomy_UpdateProfiled(EcosystemEntity *e, float dt, EvolutionProfiler *profiler) {
+    EcosystemAnatomy *a = e->anatomicalBody;
+    if (!a || !a->tmpl) return;
+    const EcosystemAnatomyTemplate *tmpl = a->tmpl;
+    const AnatomicalReachProfile *profile = &tmpl->profile;
+    float scale = EcosystemAnatomy_Scale(a, e);
+
+    InteractionTarget target = e->mind.intent.interaction;
+    bool active = e->mind.intent.interact && target.valid;
+
+    float desiredCrouch = e->mind.action == ACTION_REST ? profile->maximumCrouch * 0.60f :
+        e->mind.action == ACTION_ATTACK ? profile->maximumCrouch * 0.46f :
+        (e->mind.action == ACTION_EAT || e->mind.action == ACTION_DRINK) ? profile->maximumCrouch * 0.45f : 0.0f;
+
+    /* Camino rápido sin interacción oral cuando la postura cervical ya está asentada en reposo. */
+    if (!active && a->settled && fabsf(desiredCrouch - a->crouch) < 1e-4f) {
+        a->crouch = desiredCrouch;
+        Vector3 crouchShift = Vec3_Create(0.0f, -a->crouch, 0.0f);
+        Vector3 mouthModel = Vec3_Add(tmpl->neutralMouthLocal, crouchShift);
+        Vector3 pivotModel = Vec3_Add(tmpl->neutralPivotLocal, crouchShift);
+        Vector3 elbowModel = Vec3_Add(tmpl->neutralElbowLocal, crouchShift);
+        float c = cosf(e->body.yaw), s = sinf(e->body.yaw);
+        Vector3 mRel = Vec3_Scale(Vec3_Sub(mouthModel, a->center), scale);
+        Vector3 mouth = Vec3_Add(e->body.position,
+                                 Vec3_Create(c * mRel.x + s * mRel.z, mRel.y, -s * mRel.x + c * mRel.z));
+        e->oralMotion = dt > 0.0f ? Vec3_Distance(mouth, e->body.mouth) / dt : 0.0f;
+        e->body.mouth = mouth;
+        Vector3 d = tmpl->neutralMouthDir;
+        e->body.mouthDirection = Vec3_Create(c * d.x + s * d.z, d.y, -s * d.x + c * d.z);
+        Vector3 pRel = Vec3_Scale(Vec3_Sub(pivotModel, a->center), scale);
+        e->oralPivot = Vec3_Add(e->body.position,
+                                Vec3_Create(c * pRel.x + s * pRel.z, pRel.y, -s * pRel.x + c * pRel.z));
+        Vector3 eRel = Vec3_Scale(Vec3_Sub(elbowModel, a->center), scale);
+        e->oralElbow = Vec3_Add(e->body.position,
+                                Vec3_Create(c * eRel.x + s * eRel.z, eRel.y, -s * eRel.x + c * eRel.z));
+        e->body.reach = (ReachResult){
+            .status = REACH_INVALID,
+            .mouth = mouth,
+            .direction = e->body.mouthDirection
+        };
+        return;
     }
-    float desiredCrouch=e->mind.action==ACTION_REST?a->profile.maximumCrouch*.60f:
-        e->mind.action==ACTION_ATTACK?a->profile.maximumCrouch*.46f:
-        (e->mind.action==ACTION_EAT||e->mind.action==ACTION_DRINK)?a->profile.maximumCrouch*.45f:0;
-    if(active) {
-        int base=a->profile.joints[0].index;
-        Vector3 delta=Vec3_Sub(a->pose.joints[base].worldPosition,target.position);
-        float reach=a->profile.maximumReach*.68f,planar=delta.x*delta.x+delta.z*delta.z;
-        if(delta.y>.75f)
-            desiredCrouch=fmaxf(desiredCrouch,a->profile.maximumCrouch*.78f);
-        if(planar<reach*reach&&delta.y>0)
-            desiredCrouch=fmaxf(desiredCrouch,delta.y-sqrtf(reach*reach-planar)+.04f);
+
+    if (active) {
+        target.position = Vec3_Add(a->center,
+                                   Vec3_Scale(Yaw(Vec3_Sub(target.position, e->body.position), -e->body.yaw),
+                                              1.0f / scale));
+        target.approach = Yaw(target.approach, -e->body.yaw);
+        target.normal = Yaw(target.normal, -e->body.yaw);
+        target.positionTolerance /= scale;
+
+        /* Posición base cervical antes del agachamiento actual. */
+        int baseJ = profile->joints[0].index;
+        Vector3 baseStanding = tmpl->standingRest.joints[baseJ].worldPosition;
+        Vector3 delta = Vec3_Sub(baseStanding, target.position);
+        float reach = profile->maximumReach * 0.68f;
+        float planar = delta.x * delta.x + delta.z * delta.z;
+        if (delta.y > 0.75f)
+            desiredCrouch = fmaxf(desiredCrouch, profile->maximumCrouch * 0.78f);
+        if (planar < reach * reach && delta.y > 0.0f)
+            desiredCrouch = fmaxf(desiredCrouch, delta.y - sqrtf(reach * reach - planar) + 0.04f);
     }
-    desiredCrouch=fminf(a->profile.maximumCrouch,desiredCrouch);
-    a->crouch+=(desiredCrouch-a->crouch)*(1-expf(-9*dt));
-    for(size_t j=0;j<a->rig.skeleton.jointCount;++j)if(a->rig.skeleton.joints[j].parentIndex<0)
-        a->pose.joints[j].localPosition.y-=a->crouch;
-    SkeletonPose_UpdateWorldTransforms(&a->pose,&a->rig.skeleton);
-    ReachResult reach=AnatomicalReach_Update(&a->profile,&a->state,&a->rig.skeleton,&a->pose,active?&target:NULL,dt);
-    const JointPose* head=&a->pose.joints[a->rig.headJoint];
-    Vector3 point=Vec3_Add(head->worldPosition,Quat_RotateVector(head->worldRotation,a->rig.oralPoint));
-    Vector3 mouth=Vec3_Add(e->body.position,Yaw(Vec3_Scale(Vec3_Sub(point,a->center),scale),e->body.yaw));
-    e->oralMotion=dt>0?Vec3_Distance(mouth,e->body.mouth)/dt:0;
-    e->body.mouth=mouth;
-    e->body.mouthDirection=Yaw(Quat_RotateVector(head->worldRotation,a->rig.oralDirection),e->body.yaw);
-    int base=a->rig.cervicalBaseJoint>=0?a->rig.cervicalBaseJoint:a->rig.neckJoint;
-    e->oralPivot=Vec3_Add(e->body.position,Yaw(Vec3_Scale(Vec3_Sub(a->pose.joints[base].worldPosition,a->center),scale),e->body.yaw));
-    e->oralElbow=Vec3_Add(e->body.position,Yaw(Vec3_Scale(Vec3_Sub(a->pose.joints[a->rig.neckJoint].worldPosition,a->center),scale),e->body.yaw));
-    reach.mouth=mouth;reach.direction=e->body.mouthDirection;reach.error*=scale;
-    e->body.reach=reach;
-    if(active)e->body.reach.objectId=target.objectId;
+
+    desiredCrouch = fminf(profile->maximumCrouch, desiredCrouch);
+    a->crouch += (desiredCrouch - a->crouch) * (1.0f - expf(-9.0f * dt));
+
+    Vector3 baseParentPos = tmpl->cervicalParentStandingPos;
+    baseParentPos.y -= a->crouch;
+    Quaternion baseParentRot = tmpl->cervicalParentStandingRot;
+
+    unsigned solveCalls = 0u, fkUpdates = 0u;
+    ReachResult reach = AnatomicalReach_UpdateCompact(
+        profile, &a->state, baseParentPos, baseParentRot,
+        active ? &target : NULL, dt,
+        a->cervicalWorldPos, a->cervicalWorldRot,
+        &solveCalls, &fkUpdates);
+
+    if (profiler) {
+        if (solveCalls) EvolutionProfiler_AddAtomic(&profiler->counters.anatomicalSolverInvocations, solveCalls);
+        if (reach.iterations) EvolutionProfiler_AddAtomic(&profiler->counters.anatomicalSolverIterations, reach.iterations);
+        if (fkUpdates) EvolutionProfiler_AddAtomic(&profiler->counters.skeletonTransformUpdates, fkUpdates);
+    }
+
+    /* Detectar asentamiento en reposo para activar el camino rápido en ticks sucesivos. */
+    if (!active && fabsf(desiredCrouch - a->crouch) < 1e-4f && reach.stability < 1e-4f) {
+        bool atNeutral = true;
+        for (unsigned k = 0; k < profile->count; ++k) {
+            float dot = fabsf(a->state.rotation[k].x * profile->joints[k].neutral.x +
+                              a->state.rotation[k].y * profile->joints[k].neutral.y +
+                              a->state.rotation[k].z * profile->joints[k].neutral.z +
+                              a->state.rotation[k].w * profile->joints[k].neutral.w);
+            if (dot < 0.999999f) { atNeutral = false; break; }
+        }
+        a->settled = atNeutral;
+    } else {
+        a->settled = false;
+    }
+
+    Vector3 mouth = Vec3_Add(e->body.position,
+                             Yaw(Vec3_Scale(Vec3_Sub(reach.mouth, a->center), scale), e->body.yaw));
+    e->oralMotion = dt > 0.0f ? Vec3_Distance(mouth, e->body.mouth) / dt : 0.0f;
+    e->body.mouth = mouth;
+    e->body.mouthDirection = Yaw(reach.direction, e->body.yaw);
+
+    Vector3 pivotModel = (tmpl->pivotChainIndex >= 0)
+                             ? a->cervicalWorldPos[tmpl->pivotChainIndex]
+                             : Vec3_Add(tmpl->neutralPivotLocal, Vec3_Create(0.0f, -a->crouch, 0.0f));
+    Vector3 elbowModel = (tmpl->elbowChainIndex >= 0)
+                             ? a->cervicalWorldPos[tmpl->elbowChainIndex]
+                             : Vec3_Add(tmpl->neutralElbowLocal, Vec3_Create(0.0f, -a->crouch, 0.0f));
+    e->oralPivot = Vec3_Add(e->body.position,
+                            Yaw(Vec3_Scale(Vec3_Sub(pivotModel, a->center), scale), e->body.yaw));
+    e->oralElbow = Vec3_Add(e->body.position,
+                            Yaw(Vec3_Scale(Vec3_Sub(elbowModel, a->center), scale), e->body.yaw));
+
+    reach.mouth = mouth;
+    reach.direction = e->body.mouthDirection;
+    reach.error *= scale;
+    e->body.reach = reach;
+    if (active) e->body.reach.objectId = target.objectId;
+}
+
+void EcosystemAnatomy_Update(EcosystemEntity *e, float dt) {
+    EcosystemAnatomy_UpdateProfiled(e, dt, NULL);
+}
+
+void EcosystemAnatomy_ApplyCervicalPose(const EcosystemAnatomy *body, const Rig *rig, SkeletonPose *pose) {
+    if (!body || !body->tmpl || !pose) return;
+    const AnatomicalReachProfile *profile = &body->tmpl->profile;
+    for (unsigned k = 0; k < profile->count; ++k) {
+        int j = profile->joints[k].index;
+        if (j >= 0 && (size_t)j < pose->jointCount) {
+            pose->joints[j].localRotation = body->state.rotation[k];
+        }
+    }
+    if (rig) {
+        for (size_t k = 0; k < rig->spineCount; ++k) {
+            int j = rig->spine[k];
+            if (j >= 0 && (size_t)j < pose->jointCount && (size_t)j < body->tmpl->rest.jointCount) {
+                /* Si el eslabón de columna forma parte de la cadena cervical ya quedó aplicado arriba. */
+                bool inChain = false;
+                for (unsigned c = 0; c < profile->count; ++c) {
+                    if (profile->joints[c].index == j) { inChain = true; break; }
+                }
+                if (!inChain) {
+                    pose->joints[j].localRotation = body->tmpl->rest.joints[j].localRotation;
+                }
+            }
+        }
+    }
 }

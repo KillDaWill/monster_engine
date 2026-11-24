@@ -29,8 +29,14 @@ void NeuralBrain_Destroy(NeuralBrain *brain) {
 bool NeuralBrain_Evaluate(const NeuralGenome *genome, NeuralBrainRuntime *runtime,
                           const float *inputs, unsigned inputCount,
                           float *outputsOut, unsigned outputCount) {
-    if (!NeuralGenome_Validate(genome) || !runtime || !inputs) return false;
-    if (inputCount != genome->inputCount || outputCount != genome->outputCount) return false;
+    if (!genome || !genome->valid || !runtime || !inputs) return false;
+    if (genome->formatVersion != NEURAL_BRAIN_FORMAT_VERSION ||
+        genome->architecture != NEURAL_ARCH_FIXED_RNN ||
+        inputCount != NEURAL_RNN_INPUTS || outputCount != NEURAL_RNN_OUTPUTS ||
+        genome->inputCount != NEURAL_RNN_INPUTS ||
+        genome->hiddenCount != NEURAL_RNN_HIDDEN ||
+        genome->outputCount != NEURAL_RNN_OUTPUTS)
+        return false;
 
     for (unsigned i = 0; i < inputCount; ++i) {
         if (!isfinite(inputs[i])) return false;

@@ -40,6 +40,65 @@ bool EvolutionFounderMode_FromName(const char *name, EvolutionFounderMode *out) 
     return false;
 }
 
+const char *EvolutionArenaPreset_Name(EvolutionArenaPreset preset) {
+    switch (preset) {
+    case EVOLUTION_PRESET_SMALL:  return "small";
+    case EVOLUTION_PRESET_MEDIUM: return "medium";
+    case EVOLUTION_PRESET_LARGE:  return "large";
+    case EVOLUTION_PRESET_STRESS: return "stress";
+    default:                      return "custom";
+    }
+}
+
+bool EvolutionArenaConfig_ApplyPreset(EvolutionArenaConfig *cfg, const char *name) {
+    if (!cfg || !name) return false;
+    if (strcmp(name, "small") == 0) {
+        cfg->presetName = "small";
+        cfg->arenaSize = 40.0f;
+        cfg->brumacernos = 16u;
+        cfg->velkares = 6u;
+        cfg->plants = 36u;
+        cfg->ponds = 2u;
+        cfg->obstacles = 5u;
+        cfg->capacity = 128u;
+        return true;
+    }
+    if (strcmp(name, "medium") == 0) {
+        cfg->presetName = "medium";
+        cfg->arenaSize = 90.0f;
+        cfg->brumacernos = 76u;
+        cfg->velkares = 24u;
+        cfg->plants = 160u;
+        cfg->ponds = 8u;
+        cfg->obstacles = 12u;
+        cfg->capacity = 256u;
+        return true;
+    }
+    if (strcmp(name, "large") == 0) {
+        cfg->presetName = "large";
+        cfg->arenaSize = 200.0f;
+        cfg->brumacernos = 400u;
+        cfg->velkares = 100u;
+        cfg->plants = 800u;
+        cfg->ponds = 40u;
+        cfg->obstacles = 24u;
+        cfg->capacity = 1024u;
+        return true;
+    }
+    if (strcmp(name, "stress") == 0) {
+        cfg->presetName = "stress";
+        cfg->arenaSize = 280.0f;
+        cfg->brumacernos = 800u;
+        cfg->velkares = 200u;
+        cfg->plants = 1600u;
+        cfg->ponds = 80u;
+        cfg->obstacles = 36u;
+        cfg->capacity = 2048u;
+        return true;
+    }
+    return false;
+}
+
 EvolutionArenaConfig EvolutionArenaConfig_Default(void) {
     return (EvolutionArenaConfig){
         .seed = 42u,
@@ -50,6 +109,7 @@ EvolutionArenaConfig EvolutionArenaConfig_Default(void) {
         .ponds = 2u,
         .obstacles = 5u,
         .capacity = 128u,
+        .workers = 0u,
         .step = 1.0 / 60.0,
         .day = 120.0,
         .days = 30.0,
@@ -63,7 +123,8 @@ EvolutionArenaConfig EvolutionArenaConfig_Default(void) {
         .founderBrainPath = NULL,
         .brumacernoBrainPath = NULL,
         .velkarBrainPath = NULL,
-        .legacyScenario = NULL
+        .legacyScenario = NULL,
+        .presetName = "small"
     };
 }
 
@@ -72,6 +133,7 @@ bool EvolutionArenaConfig_ApplyLegacyScenario(EvolutionArenaConfig *cfg, const c
     EcosystemConfig eco = EcosystemConfig_Default();
     if (!EcosystemConfig_Scenario(&eco, name)) return false;
     cfg->legacyScenario = eco.scenario;
+    cfg->presetName = NULL;
     cfg->controller = CREATURE_CONTROLLER_UTILITY;
     cfg->arenaSize = 48.0f;
     cfg->brumacernos = eco.herbivores;
@@ -85,10 +147,10 @@ bool EvolutionArenaConfig_ApplyLegacyScenario(EvolutionArenaConfig *cfg, const c
 
 bool EvolutionArenaConfig_Validate(const EvolutionArenaConfig *cfg) {
     if (!cfg) return false;
-    if (!isfinite(cfg->arenaSize) || cfg->arenaSize < 12.0f || cfg->arenaSize > 400.0f) return false;
-    if (cfg->capacity == 0 || cfg->capacity > 10000u) return false;
+    if (!isfinite(cfg->arenaSize) || cfg->arenaSize < 12.0f || cfg->arenaSize > 1000.0f) return false;
+    if (cfg->capacity == 0 || cfg->capacity > 50000u) return false;
     if (cfg->brumacernos > cfg->capacity || cfg->velkares > cfg->capacity - cfg->brumacernos) return false;
-    if (cfg->plants > 10000u || cfg->ponds > 16u || cfg->obstacles > ECOSYSTEM_MAX_OBSTACLES) return false;
+    if (cfg->plants > 50000u || cfg->ponds > 512u || cfg->obstacles > 2048u) return false;
     if (!isfinite(cfg->step) || cfg->step <= 0.0 || !isfinite(cfg->day) || cfg->day <= 0.0) return false;
     if (!isfinite(cfg->days) || cfg->days < 0.0) return false;
     if (!NeuralMutationConfig_Validate(&cfg->mutation)) return false;
@@ -102,7 +164,6 @@ bool EvolutionArenaConfig_Validate(const EvolutionArenaConfig *cfg) {
 
 static bool buildSpecies(EcosystemSpecies *brumOut, EcosystemSpecies *velkOut,
                          const EvolutionArenaConfig *cfg, char *error, size_t errorSize) {
-    /* Resolver las recetas reales mediante el registro/catálogo vigente. */
     const CreatureRecipe *brumRecipe = CreatureRecipes_Find(3u);
     if (!brumRecipe) brumRecipe = CreatureRecipes_Brumacerno();
     const CreatureRecipe *velkRecipe = CreatureRecipes_Find(4u);
@@ -127,7 +188,6 @@ static bool buildSpecies(EcosystemSpecies *brumOut, EcosystemSpecies *velkOut,
     brum.turnRate = 1.0f;
     velk.turnRate = 2.0f;
 
-    /* Propiedades biológicas explícitas separadas de las preferencias cerebrales. */
     brum.physiology.dietMask = ECO_PLANT;
     brum.physiology.preyMask = 0u;
     brum.physiology.canAttackPhysically = false;
@@ -146,7 +206,6 @@ static bool buildSpecies(EcosystemSpecies *brumOut, EcosystemSpecies *velkOut,
         brum.turnRate = 1.5f;
         velk.turnRate = 1.7f;
     } else if (!cfg->legacyScenario) {
-        /* Calibración equilibrada para Evolution Arena (40x40): permite persecución y fuga reales. */
         brum.speed = 2.35f;
         velk.speed = 2.65f;
         velk.damage = 0.28f;
@@ -212,6 +271,20 @@ static bool initializeFounderBrain(EcosystemWorld *w, AIObjectId id, unsigned sp
     return ok;
 }
 
+/* Muestreo estratificado determinista en rejilla con jitter acotado. */
+static Vector3 stratifiedCellPosition(unsigned index, unsigned total, float span, uint32_t *rng) {
+    unsigned cols = (unsigned)ceil(sqrt((double)(total ? total : 1u)));
+    unsigned rows = (total + cols - 1u) / cols;
+    unsigned gx = index % cols;
+    unsigned gz = index / cols;
+    float cellW = (2.0f * span) / (float)cols;
+    float cellH = (2.0f * span) / (float)rows;
+    float jx = 0.2f + CreatureGenome_Random(rng) * 0.6f;
+    float jz = 0.2f + CreatureGenome_Random(rng) * 0.6f;
+    return Vec3_Create(-span + ((float)gx + jx) * cellW, 0.0f,
+                       -span + ((float)gz + jz) * cellH);
+}
+
 bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
                            char *error, size_t errorSize) {
     if (!w || !EvolutionArenaConfig_Validate(cfg)) {
@@ -219,20 +292,12 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         return false;
     }
 
-    /* Si hay modo clásico exacto (A..E o reference) con controlador utilidad,
-     * preservar exactamente la secuencia de generación del escenario ecológico. */
     if (cfg->legacyScenario && cfg->controller == CREATURE_CONTROLLER_UTILITY &&
         cfg->obstacles == 0u && cfg->ponds == 2u && fabsf(cfg->arenaSize - 48.0f) < 1e-3f) {
         EcosystemConfig eco = {
-            .seed = cfg->seed,
-            .herbivores = cfg->brumacernos,
-            .carnivores = cfg->velkares,
-            .plants = cfg->plants,
-            .capacity = cfg->capacity,
-            .step = cfg->step,
-            .day = cfg->day,
-            .days = cfg->days,
-            .scenario = cfg->legacyScenario
+            .seed = cfg->seed, .herbivores = cfg->brumacernos, .carnivores = cfg->velkares,
+            .plants = cfg->plants, .capacity = cfg->capacity, .step = cfg->step,
+            .day = cfg->day, .days = cfg->days, .scenario = cfg->legacyScenario
         };
         if (!EcosystemScenario_Create(w, &eco)) {
             setErr(error, errorSize, "Fallo al construir escenario clásico");
@@ -241,7 +306,6 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         return true;
     }
 
-    /* Cargar cerebros importados si se indicaron rutas (validación previa al mundo). */
     NeuralGenome importedCommon = {0}, importedBrum = {0}, importedVelk = {0};
     bool hasCommon = false, hasBrum = false, hasVelk = false;
     if (cfg->founderBrainPath && cfg->founderBrainPath[0]) {
@@ -269,11 +333,20 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
     }
 
     float halfSize = cfg->arenaSize * 0.5f;
-    unsigned resCap = cfg->plants + cfg->ponds + cfg->capacity + 16u;
+    unsigned resCap = cfg->plants + cfg->ponds + cfg->capacity + 64u;
     if (!EcosystemWorld_InitArena(w, cfg->capacity, resCap, 2u, halfSize, cfg->seed, cfg->step, cfg->day)) {
         setErr(error, errorSize, "No se pudo reservar memoria para Evolution Arena");
         return false;
     }
+
+    /* Configurar pool de trabajadores paralelos (0 = auto sólo en poblaciones grandes si no se pidió 1). */
+    unsigned workers = cfg->workers;
+    if (workers == 0u && (cfg->brumacernos + cfg->velkares) >= 64u) {
+        workers = EvolutionJobSystem_RecommendedWorkers();
+    } else if (workers == 0u) {
+        workers = 1u;
+    }
+    EcosystemWorld_SetWorkerCount(w, workers);
 
     w->defaultController = cfg->controller;
     w->neuralMutation = cfg->mutation;
@@ -291,23 +364,48 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         goto failure;
     }
 
-    /* Estanques de agua distribuidos simétricamente dentro de la arena física. */
-    float pondOffset = fminf(halfSize * 0.42f, 8.5f);
-    for (unsigned i = 0; i < cfg->ponds; ++i) {
-        float angle = (cfg->ponds == 2u) ? (i == 0u ? -1.5707963f : 1.5707963f)
-                                         : (6.2831853f * (float)i / (float)cfg->ponds);
-        Vector3 pos = (cfg->ponds == 1u)
-                          ? Vec3_Zero()
-                          : Vec3_Create(sinf(angle) * pondOffset, 0.0f, cosf(angle) * pondOffset);
-        if (!EcosystemWorld_AddResource(w, (EcosystemResource){
-                .category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f
-            }, pos, 1.5f)) {
-            setErr(error, errorSize, "No se pudo colocar estanque en la arena");
-            goto failure;
+    bool distributedLayout = (cfg->ponds > 2u || cfg->arenaSize > 50.0f);
+
+    /* 1) Estanques de agua: distribución estratificada en arenas grandes, simétrica en arena pequeña. */
+    if (!distributedLayout) {
+        float pondOffset = fminf(halfSize * 0.42f, 8.5f);
+        for (unsigned i = 0; i < cfg->ponds; ++i) {
+            float angle = (cfg->ponds == 2u) ? (i == 0u ? -1.5707963f : 1.5707963f)
+                                             : (6.2831853f * (float)i / (float)cfg->ponds);
+            Vector3 pos = (cfg->ponds == 1u)
+                              ? Vec3_Zero()
+                              : Vec3_Create(sinf(angle) * pondOffset, 0.0f, cosf(angle) * pondOffset);
+            if (!EcosystemWorld_AddResource(w, (EcosystemResource){
+                    .category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f
+                }, pos, 1.5f)) {
+                setErr(error, errorSize, "No se pudo colocar estanque en la arena");
+                goto failure;
+            }
+        }
+    } else {
+        float pondSpan = fmaxf(4.0f, halfSize - 5.0f);
+        for (unsigned i = 0; i < cfg->ponds; ++i) {
+            bool placed = false;
+            float pondRadius = 1.8f;
+            for (unsigned attempt = 0; attempt < 64u && !placed; ++attempt) {
+                Vector3 pos = (attempt < 16u)
+                                  ? stratifiedCellPosition(i, cfg->ponds, pondSpan, &w->random)
+                                  : Vec3_Create(-pondSpan + CreatureGenome_Random(&w->random) * 2.0f * pondSpan,
+                                                0.0f,
+                                                -pondSpan + CreatureGenome_Random(&w->random) * 2.0f * pondSpan);
+                if (!AIWorld_Walkable(&w->observations, pos, pondRadius + 3.0f, false)) continue;
+                placed = EcosystemWorld_AddResource(w, (EcosystemResource){
+                    .category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f
+                }, pos, pondRadius) != 0;
+            }
+            if (!placed) {
+                setErr(error, errorSize, "No se pudo colocar estanque distribuido en la arena");
+                goto failure;
+            }
         }
     }
 
-    /* Obstáculos estáticos físicos (bloquean visión y navegación). */
+    /* 2) Obstáculos estáticos físicos (bloquean visión y navegación). */
     static const float obstaclePresets[5][3] = {
         {  0.0f,  0.0f, 1.35f },
         { -9.5f,  9.0f, 1.15f },
@@ -315,11 +413,12 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         { -9.0f, -9.5f, 1.10f },
         {  9.0f,  9.5f, 1.10f }
     };
+    float obsSpan = fmaxf(2.0f, halfSize - 4.0f);
     for (unsigned i = 0; i < cfg->obstacles; ++i) {
         Vector3 pos;
         float radius = 1.15f;
         bool placed = false;
-        if (i < 5u && halfSize >= 14.0f) {
+        if (!distributedLayout && i < 5u && halfSize >= 14.0f) {
             float scale = fminf(1.0f, (halfSize - 3.5f) / 11.5f);
             pos = Vec3_Create(obstaclePresets[i][0] * scale, 0.0f, obstaclePresets[i][1] * scale);
             radius = obstaclePresets[i][2];
@@ -328,11 +427,12 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
             }
         }
         for (unsigned attempt = 0; attempt < 64u && !placed; ++attempt) {
-            float span = fmaxf(2.0f, halfSize - 3.5f);
-            pos = Vec3_Create(-span + CreatureGenome_Random(&w->random) * 2.0f * span, 0.0f,
-                              -span + CreatureGenome_Random(&w->random) * 2.0f * span);
-            radius = 0.9f + CreatureGenome_Random(&w->random) * 0.6f;
-            if (AIWorld_Walkable(&w->observations, pos, radius + 1.5f, false)) {
+            pos = (distributedLayout && attempt < 16u)
+                      ? stratifiedCellPosition(i, cfg->obstacles, obsSpan, &w->random)
+                      : Vec3_Create(-obsSpan + CreatureGenome_Random(&w->random) * 2.0f * obsSpan, 0.0f,
+                                    -obsSpan + CreatureGenome_Random(&w->random) * 2.0f * obsSpan);
+            radius = 0.9f + CreatureGenome_Random(&w->random) * 0.7f;
+            if (AIWorld_Walkable(&w->observations, pos, radius + 2.2f, false)) {
                 placed = EcosystemWorld_AddObstacle(w, pos, radius, 2.2f) != 0;
             }
         }
@@ -342,14 +442,16 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         }
     }
 
-    /* Plantas regenerables sobre terreno transitable (evitando estanques y obstáculos). */
+    /* 3) Plantas regenerables distribuidas sobre terreno transitable. */
     bool scarce = cfg->legacyScenario && strcmp(cfg->legacyScenario, "scarce") == 0;
     float plantSpan = fmaxf(2.0f, halfSize - 2.2f);
     for (unsigned i = 0; i < cfg->plants; ++i) {
         bool placed = false;
         for (unsigned attempt = 0; attempt < 128u && !placed; ++attempt) {
-            Vector3 p = Vec3_Create(-plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan, 0.0f,
-                                    -plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan);
+            Vector3 p = (distributedLayout && attempt < 12u)
+                            ? stratifiedCellPosition(i, cfg->plants, plantSpan, &w->random)
+                            : Vec3_Create(-plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan, 0.0f,
+                                          -plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan);
             if (!AIWorld_Walkable(&w->observations, p, 1.0f, false)) continue;
             float biomass = scarce ? 0.15f : 5.5f;
             float regen = scarce ? 0.0001f : 0.022f;
@@ -364,15 +466,19 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         }
     }
 
-    /* Spawnear Brumacernos y Velkares respetando límites físicos y obstáculos. */
+    /* 4) Spawnear Brumacernos y Velkares respetando límites físicos y obstáculos. */
     float spawnSpan = fmaxf(2.0f, halfSize - 2.5f);
+    unsigned totalInitial = cfg->brumacernos + cfg->velkares;
+    unsigned spawnCursor = 0u;
     for (unsigned species = 1u; species <= 2u; ++species) {
         unsigned count = (species == 1u) ? cfg->brumacernos : cfg->velkares;
-        for (unsigned i = 0; i < count; ++i) {
+        for (unsigned i = 0; i < count; ++i, ++spawnCursor) {
             AIObjectId id = 0u;
             for (unsigned attempt = 0; attempt < 1000u && !id; ++attempt) {
-                Vector3 p = Vec3_Create(-spawnSpan + CreatureGenome_Random(&w->random) * 2.0f * spawnSpan, 0.0f,
-                                        -spawnSpan + CreatureGenome_Random(&w->random) * 2.0f * spawnSpan);
+                Vector3 p = (distributedLayout && attempt < 16u)
+                                ? stratifiedCellPosition(spawnCursor, totalInitial, spawnSpan, &w->random)
+                                : Vec3_Create(-spawnSpan + CreatureGenome_Random(&w->random) * 2.0f * spawnSpan, 0.0f,
+                                              -spawnSpan + CreatureGenome_Random(&w->random) * 2.0f * spawnSpan);
                 float energy = scarce ? 0.30f : (species == 2u ? 0.58f : 0.85f);
                 double age = 180.0 + CreatureGenome_Random(&w->random) * 180.0;
                 id = EcosystemWorld_Spawn(w, species, p, age, energy, NULL);
@@ -391,6 +497,7 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         }
     }
 
+    CreatureNavigation_EnsureCache(&w->observations);
     EcosystemWorld_ComputeNeuralMetrics(w);
     return true;
 

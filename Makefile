@@ -16,7 +16,11 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/NeuralGenome.c \
+CORE_SRCS = $(SRC_DIR)/EvolutionProfiler.c \
+            $(SRC_DIR)/EvolutionJobSystem.c \
+            $(SRC_DIR)/EvolutionSimulationRunner.c \
+            $(SRC_DIR)/AISpatialIndex.c \
+            $(SRC_DIR)/NeuralGenome.c \
             $(SRC_DIR)/NeuralBrain.c \
             $(SRC_DIR)/NeuralBrainIO.c \
             $(SRC_DIR)/NeuralController.c \
@@ -27,6 +31,7 @@ CORE_SRCS = $(SRC_DIR)/NeuralGenome.c \
             $(SRC_DIR)/ArmorScales.c \
             $(SRC_DIR)/SupplementaryMesh.c \
             $(SRC_DIR)/LongHairScheduler.c \
+            $(SRC_DIR)/EcosystemAnatomyCache.c \
             $(SRC_DIR)/EcosystemAnatomy.c \
             $(SRC_DIR)/SimulationClock.c \
             $(SRC_DIR)/CreaturePhysiology.c \
@@ -158,6 +163,7 @@ TEST_SRCS = $(TEST_DIR)/test_neural_brain.c \
             $(TEST_DIR)/test_neural_brain_io.c \
             $(TEST_DIR)/test_neural_controller.c \
             $(TEST_DIR)/test_evolution_arena.c \
+            $(TEST_DIR)/test_evolution_scalability.c \
             $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_long_hair.c \
             $(TEST_DIR)/test_long_hair_concurrency.c \
@@ -589,16 +595,22 @@ demos/demo_evolution_arena: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_evolution_are
 benchmarks/benchmark_neural: $(CORE_OBJS) benchmarks/benchmark_neural.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
-.PHONY: benchmark-neural
+.PHONY: benchmark-neural benchmark-evolution-scalability
 benchmark-neural: benchmarks/benchmark_neural
 	./benchmarks/benchmark_neural
+
+benchmarks/benchmark_evolution_scalability: $(CORE_OBJS) benchmarks/benchmark_evolution_scalability.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+benchmark-evolution-scalability: benchmarks/benchmark_evolution_scalability
+	./benchmarks/benchmark_evolution_scalability
 
 benchmarks/benchmark_ecosystem: $(CORE_OBJS) benchmarks/benchmark_ecosystem.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 # Diagnóstico de memoria de la simulación y cerebros neuronales, sin recompilar objetos de producción.
 ECOSYSTEM_SANITIZER_SRCS = $(CORE_SRCS)
-.PHONY: ecosystem-sanitize evolution-sanitize
+.PHONY: ecosystem-sanitize evolution-sanitize evolution-tsan
 ecosystem-sanitize:
 	@mkdir -p $(BUILD_DIR)
 	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) benchmarks/benchmark_ecosystem.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/ecosystem-sanitize
@@ -606,9 +618,15 @@ ecosystem-sanitize:
 
 evolution-sanitize:
 	@mkdir -p $(BUILD_DIR)
-	printf 'void run_neural_brain_tests(void); void run_neural_genome_tests(void); void run_neural_brain_io_tests(void); void run_neural_controller_tests(void); void run_evolution_arena_tests(void); int main(void){ run_neural_brain_tests(); run_neural_genome_tests(); run_neural_brain_io_tests(); run_neural_controller_tests(); run_evolution_arena_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_sanitize_main.c
-	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_neural_brain.c tests/test_neural_genome.c tests/test_neural_brain_io.c tests/test_neural_controller.c tests/test_evolution_arena.c $(BUILD_DIR)/evolution_sanitize_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-sanitize
+	printf 'void run_neural_brain_tests(void); void run_neural_genome_tests(void); void run_neural_brain_io_tests(void); void run_neural_controller_tests(void); void run_evolution_arena_tests(void); void run_evolution_scalability_tests(void); int main(void){ run_neural_brain_tests(); run_neural_genome_tests(); run_neural_brain_io_tests(); run_neural_controller_tests(); run_evolution_arena_tests(); run_evolution_scalability_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_sanitize_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_neural_brain.c tests/test_neural_genome.c tests/test_neural_brain_io.c tests/test_neural_controller.c tests/test_evolution_arena.c tests/test_evolution_scalability.c $(BUILD_DIR)/evolution_sanitize_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-sanitize
 	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/evolution-sanitize
+
+evolution-tsan:
+	@mkdir -p $(BUILD_DIR)
+	printf 'void run_evolution_scalability_tests(void); int main(void){ run_evolution_scalability_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_tsan_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=thread -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_evolution_scalability.c $(BUILD_DIR)/evolution_tsan_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-tsan
+	setarch $$(uname -m) -R $(BUILD_DIR)/evolution-tsan
 
 .PHONY: validate-ecosystem
 validate-ecosystem: demos/demo_evolution_arena_headless

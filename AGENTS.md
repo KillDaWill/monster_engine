@@ -21,6 +21,9 @@ make demos/demo_evolution_arena_headless   # Build headless Evolution Arena exec
 make validate-ecosystem                    # Headless Python ecosystem validation
 make benchmark                             # CPU SDF/meshing benchmark
 make benchmark-neural                      # Neural inference and Evolution Arena benchmark
+make benchmark-evolution-scalability       # Sustained 22..1000 Evolution Arena scalability benchmark
+make evolution-sanitize                    # ASan/UBSan/LSan on neural & scalability suites
+make evolution-tsan                        # ThreadSanitizer on parallel simulation & runner suites
 make benchmark-ager-realtime       # Aging and morph timing
 make benchmark-ai                  # AI benchmark
 make benchmark-animation           # Animation cost benchmark
@@ -51,12 +54,12 @@ make creature-editor               # Local editor: http://127.0.0.1:8765
 | Surfaces and fur | `src/Surface.c`, `src/SurfaceMapper.c`, `src/Fur.c`, `src/SurfacePresets.c`, `shaders/surface/`, `shaders/fur_guard.*` |
 | Graphics/GPU | `src/OpenGLRenderer.c`, `src/GpuSDFSurfaceCache.c`, `shaders/`, `tools/generate_sdf_shader.py`, `tools/generate_surface_shader.py` |
 | Animation and IK | `src/CreatureRig.c`, `src/RigBuilder.c`, `src/IK.c`, `src/ProceduralAnimator.c`, `src/AnatomicalReach.c` |
-| AI/ecosystem | `src/CreatureMind.c`, `src/CreatureActions.c`, `src/CreatureNavigation.c`, `src/EcosystemWorld.c`, `src/EcosystemScenario.c` |
+| AI/ecosystem | `src/CreatureMind.c`, `src/CreatureActions.c`, `src/CreatureNavigation.c`, `src/AISpatialIndex.c`, `src/EcosystemAnatomyCache.c`, `src/EcosystemWorld.c`, `src/EvolutionJobSystem.c`, `src/EvolutionSimulationRunner.c`, `src/EvolutionProfiler.c`, `src/EcosystemScenario.c` |
 | End-to-end demos | `demos/demo_morph_species.c`, `demos/demo_game_scene.c`, `demos/demo_evolution_arena.c`, `demos/demo_evolution_arena_headless.c` |
 | Editor (extra instructions) | `tools/creature_editor/AGENTS.md`, `docs/CREATURE_EDITOR.md`, `tools/creature_editor/` |
 | Verification | `tests/`, `benchmarks/`, `tools/validate_*.py`, `docs/validation/` |
 
-Read documentation **selectively**: `docs/MONSTER_ENGINE_PROCEDURAL_CREATURE_ARCHITECTURE.md`, `docs/PROCEDURAL_SURFACES.md`, `docs/PROCEDURAL_ANIMATION.md`, `docs/AGER_MORPH_SAFETY_AUDIT.md`, `docs/AGER_CHUNKED_MORPH_IMPLEMENTATION.md`, `docs/CREATURE_AI_ARCHITECTURE.md`, `docs/ECOSYSTEM_SIMULATION.md`, `docs/BRUMACERNO_BODY_AND_HOOVES.md`.
+Read documentation **selectively**: `docs/MONSTER_ENGINE_PROCEDURAL_CREATURE_ARCHITECTURE.md`, `docs/PROCEDURAL_SURFACES.md`, `docs/PROCEDURAL_ANIMATION.md`, `docs/AGER_MORPH_SAFETY_AUDIT.md`, `docs/AGER_CHUNKED_MORPH_IMPLEMENTATION.md`, `docs/CREATURE_AI_ARCHITECTURE.md`, `docs/ECOSYSTEM_SIMULATION.md`, `docs/EVOLUTION_ARENA_SCALABILITY.md`, `docs/EVOLUTION_ARENA_PERFORMANCE.md`, `docs/BRUMACERNO_BODY_AND_HOOVES.md`.
 
 ## 4. Architecture contracts and common pitfalls
 

@@ -22,8 +22,8 @@ void CreatureMind_Init(CreatureMind *m, const BrainProfile *p, AIObjectId self, 
     m->self = self;
     m->random = seed ? seed : 1;
     m->started = -p->commitment;
-    m->perception.nextRefresh = (self % 7) * .013;
-    m->nextDecision = (self % 5) * .017;
+    m->perception.nextRefresh = (self % 12u) * (1.0 / 60.0);
+    m->nextDecision = (self % 12u) * (1.0 / 60.0);
 }
 void CreatureMind_Reset(CreatureMind *m) {
     if (!m) return;

@@ -65,6 +65,7 @@ void run_neural_genome_tests(void);
 void run_neural_brain_io_tests(void);
 void run_neural_controller_tests(void);
 void run_evolution_arena_tests(void);
+void run_evolution_scalability_tests(void);
 void run_creature_visual_variation_tests(void);
 void run_ecosystem_creatures_tests(void);
 int main(void) {
@@ -73,6 +74,7 @@ int main(void) {
     run_neural_brain_io_tests();
     run_neural_controller_tests();
     run_evolution_arena_tests();
+    run_evolution_scalability_tests();
     run_equine_anatomy_tests();
     run_suid_anatomy_tests();
     run_flexible_appendage_tests();

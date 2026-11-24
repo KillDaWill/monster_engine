@@ -39,6 +39,8 @@ static void ensureParentDir(const char *path) {
 
 static void printHelp(void) {
     puts("Uso: ./demos/demo_evolution_arena_headless [OPCIONES]\n"
+         "  --preset=small|medium|large|stress  Preset de escala de arena (defecto small)\n"
+         "  --workers=N                  Hilos CPU para simulación paralela (0=auto, 1=serial)\n"
          "  --seed=N                     Semilla PRNG determinista (defecto 42)\n"
          "  --days=N                     Días simulados (defecto 30)\n"
          "  --arena-size=N               Ancho/profundidad física de la arena (defecto 40)\n"
@@ -82,9 +84,14 @@ int main(int argc, char **argv) {
     const char *recipesDirectory = "recipes";
     bool trace = false;
 
-    /* Primero aplicar --scenario si se especifica para que las banderas explícitas sobrescriban. */
+    /* Primero aplicar --preset y --scenario para que las banderas explícitas sobrescriban. */
     for (int i = 1; i < argc; ++i) {
-        if (strncmp(argv[i], "--scenario=", 11) == 0) {
+        if (strncmp(argv[i], "--preset=", 9) == 0) {
+            if (!EvolutionArenaConfig_ApplyPreset(&cfg, argv[i] + 9)) {
+                fprintf(stderr, "Preset desconocido: %s\n", argv[i] + 9);
+                return 2;
+            }
+        } else if (strncmp(argv[i], "--scenario=", 11) == 0) {
             if (!EvolutionArenaConfig_ApplyLegacyScenario(&cfg, argv[i] + 11)) {
                 fprintf(stderr, "Escenario desconocido: %s\n", argv[i] + 11);
                 return 2;
@@ -98,6 +105,7 @@ int main(int argc, char **argv) {
         if (strcmp(a, "--help") == 0) { printHelp(); return 0; }
         if (strcmp(a, "--trace") == 0) { trace = true; continue; }
         if (strcmp(a, "--no-physical-mutation") == 0) { cfg.disablePhysicalMutation = true; continue; }
+        if (strncmp(a, "--preset=", 9) == 0) continue;
         if (strncmp(a, "--scenario=", 11) == 0) continue;
         if (strncmp(a, "--summary=", 10) == 0) { summaryPath = a + 10; continue; }
         if (strncmp(a, "--history=", 10) == 0) { historyPath = a + 10; continue; }
@@ -157,6 +165,7 @@ int main(int argc, char **argv) {
         else if (strncmp(a, "--ponds=", 8) == 0) cfg.ponds = (unsigned)n;
         else if (strncmp(a, "--obstacles=", 12) == 0) cfg.obstacles = (unsigned)n;
         else if (strncmp(a, "--capacity=", 11) == 0) cfg.capacity = (unsigned)n;
+        else if (strncmp(a, "--workers=", 10) == 0) cfg.workers = (unsigned)n;
         else goto invalid;
         continue;
     invalid:

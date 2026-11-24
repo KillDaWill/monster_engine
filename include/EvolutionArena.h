@@ -23,6 +23,14 @@ typedef enum EvolutionFounderMode {
     EVOLUTION_FOUNDERS_IMPORTED = 2  /**< Fundadores cargados desde archivos *.brain.json. */
 } EvolutionFounderMode;
 
+/** @brief Presets escalables de arena (preservando la arena pequeña clásica). */
+typedef enum EvolutionArenaPreset {
+    EVOLUTION_PRESET_SMALL = 0,   /**< 22 criaturas, arena 40x40, cap 128, 36 plantas, 2 estanques. */
+    EVOLUTION_PRESET_MEDIUM = 1,  /**< 100 criaturas, arena 90x90, cap 256, 160 plantas, 8 estanques. */
+    EVOLUTION_PRESET_LARGE = 2,   /**< 500 criaturas, arena 200x200, cap 1024, 800 plantas, 40 estanques. */
+    EVOLUTION_PRESET_STRESS = 3   /**< 1000 criaturas, arena 280x280, cap 2048, 1600 plantas, 80 estanques. */
+} EvolutionArenaPreset;
+
 /** @brief Parámetros reproducibles de un experimento de Evolution Arena. */
 typedef struct EvolutionArenaConfig {
     uint32_t seed;
@@ -33,6 +41,7 @@ typedef struct EvolutionArenaConfig {
     unsigned ponds;                   /**< Estanques de agua accesibles (defecto 2). */
     unsigned obstacles;               /**< Obstáculos cilíndricos estáticos (defecto 5). */
     unsigned capacity;                /**< Capacidad máxima de población (defecto 128). */
+    unsigned workers;                 /**< Hilos de simulación (0=auto, 1=serial, 2..16). */
     double step;                      /**< Paso fijo de simulación (1/60 s). */
     double day;                       /**< Duración de un día ecológico (120 s). */
     double days;                      /**< Días a simular en modo headless (defecto 30). */
@@ -47,6 +56,7 @@ typedef struct EvolutionArenaConfig {
     const char *brumacernoBrainPath;  /**< Archivo *.brain.json específico para Brumacerno. */
     const char *velkarBrainPath;      /**< Archivo *.brain.json específico para Velkar. */
     const char *legacyScenario;       /**< NULL para Evolution Arena; "A".."E"/"reference" compat. */
+    const char *presetName;           /**< "small" | "medium" | "large" | "stress" | NULL. */
 } EvolutionArenaConfig;
 
 /** @brief Nombre textual del modo de fundadores. */
@@ -54,6 +64,12 @@ const char *EvolutionFounderMode_Name(EvolutionFounderMode mode);
 
 /** @brief Parsea "random", "seeded" o "imported". */
 bool EvolutionFounderMode_FromName(const char *name, EvolutionFounderMode *out);
+
+/** @brief Nombre textual del preset de arena. */
+const char *EvolutionArenaPreset_Name(EvolutionArenaPreset preset);
+
+/** @brief Aplica uno de los presets ("small", "medium", "large", "stress"). */
+bool EvolutionArenaConfig_ApplyPreset(EvolutionArenaConfig *cfg, const char *name);
 
 /** @brief Configuración por defecto de Evolution Arena (40x40, 16 Brumacernos, 6 Velkares, 5 Hz). */
 EvolutionArenaConfig EvolutionArenaConfig_Default(void);

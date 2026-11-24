@@ -58,7 +58,8 @@ La interfaz visual (`demos/demo_evolution_arena`) reutiliza el renderizador Open
 | Control | Acción |
 |---|---|
 | `ESPACIO` | Pausar / reanudar simulación (cámara e inspector siguen operativos en pausa) |
-| `1`, `2`, `3`, `4` | Velocidad solicitada `1x`, `4x`, `16x`, `64x` (siempre mediante ticks fijos de `1/60 s`) |
+| `1`, `2`, `3`, `4`, `5` | Velocidad solicitada `1x`, `4x`, `16x`, `64x` o **`MAX`** (siempre mediante ticks fijos de `1/60 s` en hilo dedicado) |
+| `P` / `Q` / `M` | Alternar panel de telemetría de rendimiento / ciclar calidad LOD (`HIGH`/`MED`/`LOW`) / alternar minimapa cenital |
 | `TAB` / Clic izquierdo | Seleccionar individuo |
 | `F` / `O` | Seguir seleccionado / alternar vista cenital |
 | Flechas / Arrastre derecho / Rueda | Órbita y zoom de cámara |
@@ -69,7 +70,15 @@ La interfaz visual (`demos/demo_evolution_arena`) reutiliza el renderizador Open
 | `X` | Intercambio atómico de cerebros entre dos criaturas (marca A, luego selecciona B y pulsa `X`) |
 | `B` / `R` / `ESC` | Reiniciar cerebro a aleatorio / reiniciar experimento / cancelar modal o salir |
 
-## 4. Rendimiento medido (`make benchmark-neural`)
+## 4. Escalabilidad 500+ criaturas y rendimiento
+
+La arquitectura actual desacopla el núcleo autoritativo en un hilo dedicado (`EvolutionSimulationRunner`) con *triple buffering*, índice espacial 2D (`AISpatialIndex`), alcance cervical compacto sobre plantillas anatómicas compartidas (`EcosystemAnatomyCache`), paralelismo determinista por fases (`EvolutionJobSystem`) e instancing GPU (`OpenGLRenderer_RenderMeshInstanced`).
+
+- Presets escalables disponibles tanto en visual como en headless: `--preset=small` (22), `--preset=medium` (100), **`--preset=large` (500 criaturas, arena 200×200, capacidad 1.024)** y `--preset=stress` (1.000 criaturas, capacidad 2.048).
+- Con **500 criaturas vivas** a **1920×1080**: **317,6 FPS** (`3,15 ms` media, P95 `5,36 ms`, P99 `5,90 ms`, 8–9 *draw calls*) a `1×`, y **295–327 FPS** sin bloqueos de UI a `64×`/`MAX`. En modo headless sostenido: **0,75–1,19 ms/tick** (`14×–22×` tiempo real, 46–73× más rápido que la línea base de `54,75 ms/tick`).
+- Véanse los informes detallados en [EVOLUTION_ARENA_PERFORMANCE.md](EVOLUTION_ARENA_PERFORMANCE.md) y [EVOLUTION_ARENA_SCALABILITY.md](EVOLUTION_ARENA_SCALABILITY.md).
+
+### Referencia histórica (línea base inicial `make benchmark-neural`)
 
 Equipo de medición: NVIDIA GeForce RTX 3050 Laptop GPU, GCC `-Wall -Wextra -Wpedantic -O2`.
 

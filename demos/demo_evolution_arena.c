@@ -1,12 +1,14 @@
 /**
  * @file demo_evolution_arena.c
- * @brief Evolution Arena visual: laboratorio interactivo sobre la misma simulación autoritativa
- *        que demo_evolution_arena_headless.
+ * @brief Evolution Arena visual escalable: laboratorio interactivo desacoplado sobre
+ *        EvolutionSimulationRunner (hilo dedicado + triple buffering), instancing GPU,
+ *        LOD automático y diagnóstico de rendimiento para 500+ criaturas.
  */
 #include "EvolutionArena.h"
+#include "EvolutionSimulationRunner.h"
+#include "EvolutionProfiler.h"
 #include "EcosystemVisual.h"
 #include "CreatureRecipeRegistry.h"
-#include "EcosystemAnatomy.h"
 #include "OpenGLRenderer.h"
 #include "PrimitiveMesh.h"
 #include <math.h>
@@ -19,10 +21,11 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define ARENA_WINDOW_W 1280
-#define ARENA_WINDOW_H 800
+#define ARENA_DEFAULT_W 1280
+#define ARENA_DEFAULT_H 800
 #define ARENA_MAX_FPS 60.0
 #define ARENA_HISTORY_LEN 180u
+#define ARENA_FRAME_RING 120u
 
 typedef enum ViewMode { VIEW_SIDE, VIEW_FRONT, VIEW_THREE_QUARTER, VIEW_OVERVIEW } ViewMode;
 typedef enum CaptureState {
@@ -31,13 +34,32 @@ typedef enum CaptureState {
     CAPTURE_FEEDING, CAPTURE_RESTING, CAPTURE_ATTACKING, CAPTURE_TURNING,
     CAPTURE_MATING
 } CaptureState;
-
 typedef enum PromptMode { PROMPT_NONE = 0, PROMPT_EXPORT = 1, PROMPT_IMPORT = 2 } PromptMode;
+typedef enum QualityPreset { QUALITY_LOW = 0, QUALITY_MEDIUM = 1, QUALITY_HIGH = 2 } QualityPreset;
 
 typedef struct UiButton {
     float x, y, w, h;
     const char *label;
 } UiButton;
+
+typedef struct LineBatch {
+    Vector3 *verts;
+    Color *cols;
+    size_t count; /* Número de segmentos (2 vértices por segmento). */
+    size_t capacity;
+} LineBatch;
+
+typedef struct InstanceBatch {
+    OpenGLMeshInstance *items;
+    size_t count;
+    size_t capacity;
+} InstanceBatch;
+
+typedef struct MeshGroup {
+    const Mesh *mesh;
+    size_t start;
+    size_t count;
+} MeshGroup;
 
 static AIObjectId turningEntity = 0;
 static float observedTurnRate = 0.0f;
@@ -45,6 +67,84 @@ static float observedTurnRate = 0.0f;
 static int compareDouble(const void *a, const void *b) {
     double x = *(const double *)a, y = *(const double *)b;
     return (x > y) - (x < y);
+}
+
+static const char *qualityName(QualityPreset q) {
+    switch (q) {
+    case QUALITY_LOW: return "LOW";
+    case QUALITY_MEDIUM: return "MED";
+    case QUALITY_HIGH: return "HIGH";
+    default: return "MED";
+    }
+}
+
+static void applyQualityBudget(EcosystemVisual *visual, QualityPreset q) {
+    if (q == QUALITY_LOW) {
+        EcosystemVisual_SetBudget(visual, 3u, 10u, 0.75f);
+    } else if (q == QUALITY_MEDIUM) {
+        EcosystemVisual_SetBudget(visual, 6u, 20u, 1.00f);
+    } else {
+        EcosystemVisual_SetBudget(visual, 12u, 32u, 1.15f);
+    }
+}
+
+static void lineBatchFree(LineBatch *b) {
+    free(b->verts);
+    free(b->cols);
+    memset(b, 0, sizeof(*b));
+}
+
+static void lineBatchClear(LineBatch *b) {
+    b->count = 0;
+}
+
+static void lineBatchPush(LineBatch *b, Vector3 a, Vector3 p, Color c) {
+    if (b->count >= b->capacity) {
+        size_t nc = b->capacity ? b->capacity * 2u : 1024u;
+        Vector3 *nv = realloc(b->verts, nc * 2u * sizeof(*nv));
+        Color *ncl = realloc(b->cols, nc * sizeof(*ncl));
+        if (!nv || !ncl) {
+            if (nv) b->verts = nv;
+            if (ncl) b->cols = ncl;
+            return;
+        }
+        b->verts = nv;
+        b->cols = ncl;
+        b->capacity = nc;
+    }
+    size_t idx = b->count * 2u;
+    b->verts[idx] = a;
+    b->verts[idx + 1u] = p;
+    b->cols[b->count] = c;
+    ++b->count;
+}
+
+static void lineBatchPushRing(LineBatch *b, Vector3 p, float radius, float yOffset, unsigned segs, Color c) {
+    if (segs < 8u) segs = 8u;
+    float step = 6.2831853f / (float)segs;
+    for (unsigned i = 0; i < segs; ++i) {
+        float a = (float)i * step, bb = (float)(i + 1u) * step;
+        lineBatchPush(b,
+            Vec3_Add(p, Vec3_Create(sinf(a) * radius, yOffset, cosf(a) * radius)),
+            Vec3_Add(p, Vec3_Create(sinf(bb) * radius, yOffset, cosf(bb) * radius)), c);
+    }
+}
+
+static void instanceBatchFree(InstanceBatch *b) {
+    free(b->items);
+    memset(b, 0, sizeof(*b));
+}
+
+static bool instanceBatchPush(InstanceBatch *b, OpenGLMeshInstance item) {
+    if (b->count >= b->capacity) {
+        size_t nc = b->capacity ? b->capacity * 2u : 256u;
+        OpenGLMeshInstance *ni = realloc(b->items, nc * sizeof(*ni));
+        if (!ni) return false;
+        b->items = ni;
+        b->capacity = nc;
+    }
+    b->items[b->count++] = item;
+    return true;
 }
 
 static size_t componentRoot(size_t *parent, size_t i) {
@@ -115,29 +215,28 @@ static void drawMesh(Renderer3D *r, const Mesh *mesh, Vector3 p, float yaw, floa
     OpenGLRenderer_PopModelMatrix();
 }
 
-static void drawRing3D(Vector3 p, float radius, float yOffset, Color c) {
-    for (unsigned i = 0; i < 28; ++i) {
-        float a = i * 6.2831853f / 28.0f, b = (i + 1) * 6.2831853f / 28.0f;
-        OpenGLRenderer_DebugLine(
-            Vec3_Add(p, Vec3_Create(sinf(a) * radius, yOffset, cosf(a) * radius)),
-            Vec3_Add(p, Vec3_Create(sinf(b) * radius, yOffset, cosf(b) * radius)), c);
-    }
-}
-
 static uint64_t packetGeneration(const EcosystemVisualDrawPacket *packet) {
     return packet->bodyMesh ? packet->bodyMesh->geometryGeneration : 1;
 }
 
-static bool projectEntity(const ICamera *camera, float orthoHeight, int width, int height,
-                          const EcosystemEntity *entity, EcosystemVisualProjection *projection) {
+static const EvolutionEntitySnapshot *findSnapEntity(const EvolutionRenderSnapshot *snap, AIObjectId id) {
+    if (!snap || !id) return NULL;
+    for (unsigned i = 0; i < snap->entityCount; ++i) {
+        if (snap->entities[i].id == id) return &snap->entities[i];
+    }
+    return NULL;
+}
+
+static bool projectSnapEntity(const ICamera *camera, float orthoHeight, int width, int height,
+                              const EvolutionEntitySnapshot *entity, EcosystemVisualProjection *projection) {
     Vector3 forward = Vec3_Normalize(Vec3_Sub(camera->target, camera->position));
     Vector3 right = Vec3_Normalize(Vec3_Cross(forward, camera->up));
     Vector3 up = Vec3_Normalize(Vec3_Cross(right, forward));
     float radius = fmaxf(0.18f, 0.75f * entity->developmentScale * fmaxf(0.1f, entity->genome.size));
-    Vector3 relative = Vec3_Sub(entity->body.position, camera->target);
+    Vector3 relative = Vec3_Sub(entity->position, camera->target);
     float horizontal = fabsf(Vec3_Dot(relative, right));
     float vertical = fabsf(Vec3_Dot(relative, up));
-    float depth = Vec3_Dot(Vec3_Sub(entity->body.position, camera->position), forward);
+    float depth = Vec3_Dot(Vec3_Sub(entity->position, camera->position), forward);
     float halfHeight = orthoHeight * 0.5f, halfWidth = halfHeight * (float)width / (float)height;
     projection->visible = depth + radius >= camera->nearPlane && depth - radius <= camera->farPlane &&
                           horizontal <= halfWidth + radius && vertical <= halfHeight + radius;
@@ -166,42 +265,35 @@ static void setCameraPose(ICamera *camera, Vector3 target, float zoom, double an
     camera->up = Vec3_Create(0.0f, 1.0f, 0.0f);
 }
 
-static bool matchesCapture(const EcosystemWorld *world, const EcosystemEntity *entity, CaptureState state) {
-    if (state == CAPTURE_OVERVIEW || entity->physiology.stage == LIFE_DEAD) return false;
+static bool matchesCaptureSnap(const EvolutionEntitySnapshot *entity, CaptureState state) {
+    if (!entity || state == CAPTURE_OVERVIEW || entity->lifeStage == LIFE_DEAD) return false;
     switch (state) {
-    case CAPTURE_ADULT:     return entity->physiology.stage != LIFE_JUVENILE;
-    case CAPTURE_JUVENILE:  return entity->physiology.stage == LIFE_JUVENILE;
-    case CAPTURE_NEWBORN: {
-        const EcosystemSpecies *species = &world->species[entity->speciesIndex];
-        return entity->physiology.stage == LIFE_JUVENILE &&
-               entity->physiology.age <= species->physiology.maturityAge * 0.25;
-    }
-    case CAPTURE_WALKING:   return entity->body.speed > 0.05f;
-    case CAPTURE_TURNING:   return entity->id == turningEntity && entity->body.speed > 0.05f && fabsf(observedTurnRate) > 0.1f;
-    case CAPTURE_DRINKING:  return entity->mind.action == ACTION_DRINK && entity->body.reach.status == REACH_REACHED;
-    case CAPTURE_FEEDING:   return entity->mind.action == ACTION_EAT && entity->body.reach.status == REACH_REACHED;
-    case CAPTURE_ATTACKING: return entity->mind.action == ACTION_ATTACK && entity->body.reach.status == REACH_REACHED;
-    case CAPTURE_RESTING:   return entity->mind.action == ACTION_REST;
-    case CAPTURE_HUNTING:   return entity->mind.action == ACTION_CHASE || entity->mind.action == ACTION_ATTACK || entity->mind.goal == GOAL_HUNT;
-    case CAPTURE_FLEEING:   return entity->mind.action == ACTION_ESCAPE || entity->mind.goal == GOAL_FLEE;
-    case CAPTURE_MATING:    return entity->mind.action == ACTION_APPROACH_MATE || entity->reproduction.gestating;
+    case CAPTURE_ADULT:     return entity->lifeStage != LIFE_JUVENILE;
+    case CAPTURE_JUVENILE:  return entity->lifeStage == LIFE_JUVENILE;
+    case CAPTURE_NEWBORN:   return entity->lifeStage == LIFE_JUVENILE &&
+                                   entity->ageSeconds <= entity->maturityAgeSeconds * 0.25f;
+    case CAPTURE_WALKING:   return entity->speed > 0.05f;
+    case CAPTURE_TURNING:   return entity->id == turningEntity && entity->speed > 0.05f && fabsf(observedTurnRate) > 0.1f;
+    case CAPTURE_DRINKING:  return entity->action == ACTION_DRINK && entity->reachStatus == REACH_REACHED;
+    case CAPTURE_FEEDING:   return entity->action == ACTION_EAT && entity->reachStatus == REACH_REACHED;
+    case CAPTURE_ATTACKING: return entity->action == ACTION_ATTACK && entity->reachStatus == REACH_REACHED;
+    case CAPTURE_RESTING:   return entity->action == ACTION_REST;
+    case CAPTURE_HUNTING:   return entity->action == ACTION_CHASE || entity->action == ACTION_ATTACK || entity->goal == GOAL_HUNT;
+    case CAPTURE_FLEEING:   return entity->action == ACTION_ESCAPE || entity->goal == GOAL_FLEE;
+    case CAPTURE_MATING:    return entity->action == ACTION_APPROACH_MATE || entity->gestating;
     default:                return false;
     }
 }
 
-static const EcosystemEntity *findEntity(const EcosystemWorld *world, AIObjectId id) {
-    return EcosystemWorld_GetConst(world, id);
-}
-
-static double mouthFrameError(const EcosystemWorld *world, const EcosystemVisualDrawPacket *packet, bool *hasSample) {
-    const EcosystemEntity *entity = findEntity(world, packet->entityId);
+static double mouthFrameErrorSnap(const EvolutionRenderSnapshot *snap, const EcosystemVisualDrawPacket *packet, bool *hasSample) {
+    const EvolutionEntitySnapshot *entity = findSnapEntity(snap, packet->entityId);
     if (!entity || !packet->ready || !packet->pose || packet->headJoint < 0) return 0.0;
     *hasSample = true;
-    return Vec3_Distance(packet->renderedMouth, entity->body.mouth);
+    return Vec3_Distance(packet->renderedMouth, entity->mouth);
 }
 
 /* ========================================================================== */
-/* Laboratorio 2D: Barras, Paneles e Inspector de Red Neuronal en vivo        */
+/* Laboratorio 2D: Barras, Paneles, Minimap, Diagnóstico e Inspector Neuronal */
 /* ========================================================================== */
 
 static void drawPhysBar(float x, float y, float w, float h, const char *label,
@@ -250,7 +342,7 @@ static Color activationFill(float val) {
                           (unsigned char)(32 + 54 * mag), 245);
 }
 
-static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
+static void drawNeuralInspector(const EvolutionSelectedSnapshot *sel, float edgeThreshold,
                                 int inspectedLayer, int inspectedIndex,
                                 UiButton *btnThMinus, UiButton *btnThPlus, UiButton *btnClearSel,
                                 float inPos[NEURAL_RNN_INPUTS][2],
@@ -260,19 +352,19 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
     OpenGLRenderer_DrawRect2D(px, py, pw, ph, Color_Create(8, 14, 20, 234), Color_Create(46, 152, 174, 220));
     OpenGLRenderer_DrawRect2D(px, py, pw, 28.0f, Color_Create(13, 28, 39, 245), Color_Create(46, 152, 174, 220));
 
-    if (!e || e->mind.controllerType != CREATURE_CONTROLLER_NEURAL || !e->mind.neuralBrain.genome.valid) {
+    if (!sel || !sel->valid || sel->controllerType != CREATURE_CONTROLLER_NEURAL || !sel->hasNeuralBrain || !sel->genome.valid) {
         OpenGLRenderer_DrawText2D(px + 12.0f, py + 8.0f, 1.4f, Color_Create(78, 216, 232, 255),
                                   "NEURAL INSPECTOR  (UTILITY CONTROLLER / NO NEURAL BRAIN)");
         return;
     }
 
-    const NeuralGenome *g = &e->mind.neuralBrain.genome;
-    const NeuralBrainRuntime *rt = &e->mind.neuralBrain.runtime;
-    const NeuralControllerState *st = &e->mind.neuralState;
+    const NeuralGenome *g = &sel->genome;
+    const NeuralBrainRuntime *rt = &sel->runtime;
+    const NeuralControllerState *st = &sel->neuralState;
 
     char header[160];
     snprintf(header, sizeof(header), "NEURAL RNN 32-12-10  #%u  FP:%08llX  STEPS:%llu",
-             e->id, (unsigned long long)(g->metadata.fingerprint & 0xFFFFFFFFu),
+             sel->entityId, (unsigned long long)(g->metadata.fingerprint & 0xFFFFFFFFu),
              (unsigned long long)rt->stepCount);
     OpenGLRenderer_DrawText2D(px + 10.0f, py + 8.0f, 1.35f, Color_Create(78, 222, 236, 255), header);
 
@@ -286,7 +378,6 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
     OpenGLRenderer_DrawText2D(px + pw - 120.0f, py + 8.0f, 1.25f, Color_Create(190, 224, 232, 255), thBuf);
     drawButton(btnClearSel, inspectedLayer >= 0, false);
 
-    /* Posiciones deterministas de las 3 capas. */
     float xIn = px + 96.0f, xHid = px + 310.0f, xOut = px + 458.0f;
     float yTop = py + 44.0f, yBot = py + ph - 52.0f;
     for (unsigned i = 0; i < NEURAL_RNN_INPUTS; ++i) {
@@ -304,7 +395,6 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
 
     bool filterNode = (inspectedLayer >= 0 && inspectedIndex >= 0);
 
-    /* Conexiones W_xh (entrada -> oculta). */
     for (unsigned h = 0; h < NEURAL_RNN_HIDDEN; ++h) {
         for (unsigned i = 0; i < NEURAL_RNN_INPUTS; ++i) {
             float w = g->w_xh[h * NEURAL_RNN_INPUTS + i];
@@ -321,7 +411,6 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
         }
     }
 
-    /* Conexiones recurrentes W_hh (oculta_{t-1} -> oculta_t) en tono ámbar identificable. */
     for (unsigned h = 0; h < NEURAL_RNN_HIDDEN; ++h) {
         for (unsigned k = 0; k < NEURAL_RNN_HIDDEN; ++k) {
             float w = g->w_hh[h * NEURAL_RNN_HIDDEN + k];
@@ -333,11 +422,9 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
             Color col = weightColor(w, filterNode ? 1.0f : 0.85f, true);
             float lw = 1.2f + fminf(2.4f, fabsf(w) * 0.7f);
             if (h == k) {
-                /* Bucle autorrecurrente a la derecha del nodo oculto. */
                 OpenGLRenderer_DrawCircle2D(hidPos[h][0] + 13.0f, hidPos[h][1], 7.0f,
                                             Color_Create(0, 0, 0, 0), col);
             } else {
-                /* Arco lateral hacia la derecha entre neuronas ocultas. */
                 float arcX = xHid + 26.0f + fabsf((float)h - (float)k) * 3.8f;
                 float midY = 0.5f * (hidPos[h][1] + hidPos[k][1]);
                 OpenGLRenderer_DrawLine2D(hidPos[k][0] + 8.0f, hidPos[k][1], arcX, midY, lw, col);
@@ -346,7 +433,6 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
         }
     }
 
-    /* Conexiones W_hy (oculta -> salida). */
     for (unsigned o = 0; o < NEURAL_RNN_OUTPUTS; ++o) {
         for (unsigned h = 0; h < NEURAL_RNN_HIDDEN; ++h) {
             float w = g->w_hy[o * NEURAL_RNN_HIDDEN + h];
@@ -363,33 +449,30 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
         }
     }
 
-    /* Nodos de entrada (32). */
     for (unsigned i = 0; i < NEURAL_RNN_INPUTS; ++i) {
         float v = rt->inputs[i];
-        bool sel = (inspectedLayer == 0 && inspectedIndex == (int)i);
-        Color border = sel ? Color_Create(255, 240, 120, 255)
-                           : (v >= 0.0f ? Color_Create(78, 212, 226, 220) : Color_Create(232, 102, 92, 220));
-        OpenGLRenderer_DrawCircle2D(inPos[i][0], inPos[i][1], sel ? 6.0f : 4.5f, activationFill(v), border);
+        bool isSel = (inspectedLayer == 0 && inspectedIndex == (int)i);
+        Color border = isSel ? Color_Create(255, 240, 120, 255)
+                             : (v >= 0.0f ? Color_Create(78, 212, 226, 220) : Color_Create(232, 102, 92, 220));
+        OpenGLRenderer_DrawCircle2D(inPos[i][0], inPos[i][1], isSel ? 6.0f : 4.5f, activationFill(v), border);
         char lbl[32];
         snprintf(lbl, sizeof(lbl), "%-9s", NeuralSensor_Name(i));
         OpenGLRenderer_DrawText2D(px + 8.0f, inPos[i][1] - 3.5f, 1.05f,
-                                  sel ? Color_Create(255, 245, 160, 255) : Color_Create(168, 198, 210, 235), lbl);
+                                  isSel ? Color_Create(255, 245, 160, 255) : Color_Create(168, 198, 210, 235), lbl);
     }
 
-    /* Nodos ocultos recurrentes (12). */
     for (unsigned h = 0; h < NEURAL_RNN_HIDDEN; ++h) {
         float v = rt->hidden[h];
-        bool sel = (inspectedLayer == 1 && inspectedIndex == (int)h);
-        Color border = sel ? Color_Create(255, 240, 120, 255)
-                           : (v >= 0.0f ? Color_Create(80, 226, 240, 240) : Color_Create(238, 102, 94, 240));
-        OpenGLRenderer_DrawCircle2D(hidPos[h][0], hidPos[h][1], sel ? 10.5f : 8.5f, activationFill(v), border);
+        bool isSel = (inspectedLayer == 1 && inspectedIndex == (int)h);
+        Color border = isSel ? Color_Create(255, 240, 120, 255)
+                             : (v >= 0.0f ? Color_Create(80, 226, 240, 240) : Color_Create(238, 102, 94, 240));
+        OpenGLRenderer_DrawCircle2D(hidPos[h][0], hidPos[h][1], isSel ? 10.5f : 8.5f, activationFill(v), border);
         char hbuf[16];
         snprintf(hbuf, sizeof(hbuf), "H%u", h);
         OpenGLRenderer_DrawText2D(hidPos[h][0] - 8.0f, hidPos[h][1] - 4.0f, 1.05f,
                                   Color_Create(240, 250, 255, 255), hbuf);
     }
 
-    /* Nodos de salida (10) con barras de preferencia y ganador destacado. */
     float minOut = rt->outputs[0], maxOut = rt->outputs[0];
     for (unsigned o = 1; o < NEURAL_RNN_OUTPUTS; ++o) {
         if (rt->outputs[o] < minOut) minOut = rt->outputs[o];
@@ -399,10 +482,10 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
     for (unsigned o = 0; o < NEURAL_RNN_OUTPUTS; ++o) {
         float v = rt->outputs[o];
         bool winner = (st->selectedIntent == (NeuralActionIntent)o);
-        bool sel = (inspectedLayer == 2 && inspectedIndex == (int)o);
+        bool isSel = (inspectedLayer == 2 && inspectedIndex == (int)o);
         float norm = fmaxf(0.0f, fminf(1.0f, (v - minOut) / span));
-        Color border = sel ? Color_Create(255, 240, 120, 255)
-                           : (winner ? Color_Create(84, 242, 255, 255) : Color_Create(62, 130, 148, 210));
+        Color border = isSel ? Color_Create(255, 240, 120, 255)
+                             : (winner ? Color_Create(84, 242, 255, 255) : Color_Create(62, 130, 148, 210));
         OpenGLRenderer_DrawCircle2D(outPos[o][0], outPos[o][1], winner ? 9.5f : 7.5f,
                                     activationFill(tanhf(v * 0.5f)), border);
         float barX = outPos[o][0] + 15.0f;
@@ -419,7 +502,6 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
                                   winner ? Color_Create(240, 255, 255, 255) : Color_Create(190, 216, 226, 240), obuf);
     }
 
-    /* Leyenda inferior e inspección detallada de neurona seleccionada. */
     float fy = py + ph - 36.0f;
     OpenGLRenderer_DrawRect2D(px + 6.0f, fy - 4.0f, pw - 12.0f, 34.0f,
                               Color_Create(12, 20, 28, 235), Color_Create(38, 88, 104, 170));
@@ -442,10 +524,66 @@ static void drawNeuralInspector(const EcosystemEntity *e, float edgeThreshold,
     OpenGLRenderer_DrawText2D(px + 14.0f, fy + 6.0f, 1.25f, Color_Create(198, 228, 238, 255), foot);
 }
 
+static void drawMinimap(int winW, int winH, const EvolutionRenderSnapshot *snap,
+                        AIObjectId selectedId, Vector3 camTarget, float zoom) {
+    if (!snap || snap->arenaHalfSize <= 0.0f) return;
+    const float sz = 186.0f;
+    const float mx = (float)winW - sz - 14.0f;
+    const float my = (float)winH - sz - 48.0f;
+    OpenGLRenderer_DrawRect2D(mx, my, sz, sz + 20.0f, Color_Create(8, 14, 20, 224), Color_Create(46, 142, 164, 210));
+    OpenGLRenderer_DrawText2D(mx + 8.0f, my + 5.0f, 1.15f, Color_Create(92, 222, 236, 255), "ARENA MINIMAP [M]");
+    const float mapX = mx + 6.0f, mapY = my + 20.0f, mapS = sz - 12.0f;
+    OpenGLRenderer_DrawRect2D(mapX, mapY, mapS, mapS, Color_Create(14, 22, 24, 240), Color_Create(44, 96, 108, 190));
+
+    float invSpan = 1.0f / (2.0f * snap->arenaHalfSize);
+    /* Estanques */
+    for (unsigned i = 0; i < snap->resourceCount; ++i) {
+        if (snap->resources[i].category != ECO_WATER) continue;
+        float ux = (snap->resources[i].position.x + snap->arenaHalfSize) * invSpan;
+        float uz = (snap->resources[i].position.z + snap->arenaHalfSize) * invSpan;
+        float r = fmaxf(2.0f, snap->resources[i].radius * invSpan * mapS);
+        OpenGLRenderer_DrawCircle2D(mapX + ux * mapS, mapY + uz * mapS, r,
+                                    Color_Create(42, 128, 178, 190), Color_Create(82, 194, 230, 210));
+    }
+    /* Obstáculos */
+    for (unsigned i = 0; i < snap->obstacleCount; ++i) {
+        float ux = (snap->obstacles[i].position.x + snap->arenaHalfSize) * invSpan;
+        float uz = (snap->obstacles[i].position.z + snap->arenaHalfSize) * invSpan;
+        float r = fmaxf(1.8f, snap->obstacles[i].radius * invSpan * mapS);
+        OpenGLRenderer_DrawCircle2D(mapX + ux * mapS, mapY + uz * mapS, r,
+                                    Color_Create(76, 92, 102, 210), Color_Create(0, 0, 0, 0));
+    }
+    /* Criaturas */
+    float selX = -1.0f, selY = -1.0f;
+    for (unsigned i = 0; i < snap->entityCount; ++i) {
+        const EvolutionEntitySnapshot *e = &snap->entities[i];
+        float ux = fmaxf(0.0f, fminf(1.0f, (e->position.x + snap->arenaHalfSize) * invSpan));
+        float uz = fmaxf(0.0f, fminf(1.0f, (e->position.z + snap->arenaHalfSize) * invSpan));
+        float px = mapX + ux * mapS, py = mapY + uz * mapS;
+        Color c = e->speciesIndex == 0u ? Color_Create(110, 224, 152, 235) : Color_Create(242, 118, 92, 235);
+        OpenGLRenderer_DrawRect2D(px - 1.2f, py - 1.2f, 2.4f, 2.4f, c, Color_Create(0, 0, 0, 0));
+        if (e->id == selectedId) { selX = px; selY = py; }
+    }
+    if (selX >= 0.0f) {
+        OpenGLRenderer_DrawCircle2D(selX, selY, 4.5f, Color_Create(0, 0, 0, 0), Color_Create(84, 242, 255, 255));
+    }
+    /* Rectángulo de cámara aproximado */
+    float aspect = (float)winW / (float)winH;
+    float vw = fminf(mapS, (zoom * aspect) * invSpan * mapS);
+    float vh = fminf(mapS, zoom * invSpan * mapS);
+    float cx = mapX + ((camTarget.x + snap->arenaHalfSize) * invSpan) * mapS - vw * 0.5f;
+    float cz = mapY + ((camTarget.z + snap->arenaHalfSize) * invSpan) * mapS - vh * 0.5f;
+    OpenGLRenderer_DrawRect2D(fmaxf(mapX, cx), fmaxf(mapY, cz), fminf(vw, mapX + mapS - fmaxf(mapX, cx)),
+                              fminf(vh, mapY + mapS - fmaxf(mapY, cz)),
+                              Color_Create(0, 0, 0, 0), Color_Create(220, 246, 255, 170));
+}
+
 static void printHelp(void) {
     puts("Uso: ./demos/demo_evolution_arena [OPCIONES]\n"
+         "  --preset=small|medium|large|stress  --workers=N\n"
          "  --seed=N  --arena-size=N  --brumacernos=N (--herbivores=N)  --velkares=N (--carnivores=N)\n"
-         "  --plants=N  --ponds=N  --obstacles=N  --capacity=N  --speed=1|2|4|16|64\n"
+         "  --plants=N  --ponds=N  --obstacles=N  --capacity=N  --speed=1|2|4|16|64|max\n"
+         "  --quality=low|medium|high  --width=W  --height=H  --show-perf  --minimap  --realtime\n"
          "  --controller=neural|utility  --founders=random|seeded|imported\n"
          "  --brain=PATH  --brumacerno-brain=PATH  --velkar-brain=PATH\n"
          "  --mutation-rate=N  --mutation-sigma=N  --replace-rate=N  --crossover=neuron|uniform|mutation-only\n"
@@ -464,7 +602,12 @@ int main(int argc, char **argv) {
     const char *cliImportBrain = NULL, *cliExportBrain = NULL;
     AIObjectId cliSwapA = 0, cliSwapB = 0;
     double initialSpeed = 1.0, initialZoom = 26.0, initialAge = -1.0;
-    bool showHud = true, showNeural = false, captured = false, validateSkin = false, forceCpu = false;
+    bool initialMaxSpeed = false, zoomExplicit = false, qualityExplicit = false;
+    bool showHud = true, showNeural = false, showPerf = false, showMinimap = false, minimapExplicit = false;
+    bool forceRealtime = false, forceStepLock = false;
+    bool captured = false, validateSkin = false, forceCpu = false;
+    int winW = ARENA_DEFAULT_W, winH = ARENA_DEFAULT_H;
+    QualityPreset quality = QUALITY_HIGH;
     ViewMode view = VIEW_THREE_QUARTER;
     CaptureState captureState = CAPTURE_OVERVIEW;
     AIObjectId focusId = 0;
@@ -474,16 +617,24 @@ int main(int argc, char **argv) {
     VisualTier captureTier = VISUAL_TIER_NEAR;
     bool lodCycle = false;
 
+    /* Primero aplicar presets/escenarios base para que los flags explícitos puedan sobrescribirlos. */
     for (int i = 1; i < argc; ++i) {
         if (!strncmp(argv[i], "--scenario=", 11)) {
             if (!EvolutionArenaConfig_ApplyLegacyScenario(&config, argv[i] + 11)) return 2;
+        } else if (!strncmp(argv[i], "--preset=", 9)) {
+            const char *pname = argv[i] + 9;
+            if (!EvolutionArenaConfig_ApplyPreset(&config, pname)) return 2;
+            if (!strcmp(pname, "medium")) { initialZoom = 56.0; quality = QUALITY_MEDIUM; }
+            else if (!strcmp(pname, "large")) { initialZoom = 115.0; quality = QUALITY_MEDIUM; showMinimap = true; }
+            else if (!strcmp(pname, "stress")) { initialZoom = 155.0; quality = QUALITY_LOW; showMinimap = true; }
         }
     }
 
     for (int i = 1; i < argc; ++i) {
         const char *a = argv[i];
         if (!strcmp(a, "--help")) { printHelp(); return 0; }
-        else if (!strncmp(a, "--scenario=", 11)) continue;
+        else if (!strncmp(a, "--scenario=", 11) || !strncmp(a, "--preset=", 9)) continue;
+        else if (!strncmp(a, "--workers=", 10)) config.workers = (unsigned)strtoul(a + 10, NULL, 10);
         else if (!strncmp(a, "--seed=", 7)) config.seed = (uint32_t)strtoul(a + 7, NULL, 10);
         else if (!strncmp(a, "--arena-size=", 13)) config.arenaSize = strtof(a + 13, NULL);
         else if (!strncmp(a, "--brumacernos=", 14)) config.brumacernos = (unsigned)strtoul(a + 14, NULL, 10);
@@ -494,6 +645,21 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--ponds=", 8)) config.ponds = (unsigned)strtoul(a + 8, NULL, 10);
         else if (!strncmp(a, "--obstacles=", 12)) config.obstacles = (unsigned)strtoul(a + 12, NULL, 10);
         else if (!strncmp(a, "--capacity=", 11)) config.capacity = (unsigned)strtoul(a + 11, NULL, 10);
+        else if (!strncmp(a, "--width=", 8)) winW = (int)strtol(a + 8, NULL, 10);
+        else if (!strncmp(a, "--height=", 9)) winH = (int)strtol(a + 9, NULL, 10);
+        else if (!strncmp(a, "--quality=", 10)) {
+            const char *v = a + 10;
+            if (!strcmp(v, "low")) quality = QUALITY_LOW;
+            else if (!strcmp(v, "medium") || !strcmp(v, "med")) quality = QUALITY_MEDIUM;
+            else if (!strcmp(v, "high")) quality = QUALITY_HIGH;
+            else return 2;
+            qualityExplicit = true;
+        }
+        else if (!strcmp(a, "--show-perf")) showPerf = true;
+        else if (!strcmp(a, "--minimap")) { showMinimap = true; minimapExplicit = true; }
+        else if (!strcmp(a, "--no-minimap")) { showMinimap = false; minimapExplicit = true; }
+        else if (!strcmp(a, "--realtime") || !strcmp(a, "--async")) forceRealtime = true;
+        else if (!strcmp(a, "--step-lock")) forceStepLock = true;
         else if (!strncmp(a, "--controller=", 13)) {
             if (!strcmp(a + 13, "neural")) config.controller = CREATURE_CONTROLLER_NEURAL;
             else if (!strcmp(a + 13, "utility")) config.controller = CREATURE_CONTROLLER_UTILITY;
@@ -523,7 +689,10 @@ int main(int argc, char **argv) {
             cliSwapA = (AIObjectId)sA; cliSwapB = (AIObjectId)sB;
         }
         else if (!strncmp(a, "--frames=", 9)) frames = (unsigned)strtoul(a + 9, NULL, 10);
-        else if (!strncmp(a, "--speed=", 8)) initialSpeed = strtod(a + 8, NULL);
+        else if (!strncmp(a, "--speed=", 8)) {
+            if (!strcmp(a + 8, "max") || !strcmp(a + 8, "MAX")) { initialMaxSpeed = true; initialSpeed = 64.0; }
+            else { initialMaxSpeed = false; initialSpeed = strtod(a + 8, NULL); }
+        }
         else if (!strcmp(a, "--validate-skinning")) validateSkin = true;
         else if (!strcmp(a, "--lod-cycle")) lodCycle = true;
         else if (!strncmp(a, "--focus-lod=", 12)) {
@@ -541,7 +710,7 @@ int main(int argc, char **argv) {
         }
         else if (!strcmp(a, "--no-hud")) showHud = false;
         else if (!strncmp(a, "--initial-age=", 14)) initialAge = strtod(a + 14, NULL);
-        else if (!strncmp(a, "--zoom=", 7)) initialZoom = strtod(a + 7, NULL);
+        else if (!strncmp(a, "--zoom=", 7)) { initialZoom = strtod(a + 7, NULL); zoomExplicit = true; }
         else if (!strncmp(a, "--capture=", 10)) capture = a + 10;
         else if (!strncmp(a, "--profile=", 10)) profile = a + 10;
         else if (!strncmp(a, "--view=", 7)) { if (!parseView(a + 7, &view)) return 2; }
@@ -552,9 +721,19 @@ int main(int argc, char **argv) {
         else return 2;
     }
 
+    double maxZoom = fmax(110.0, (double)config.arenaSize * 1.45);
+    if (!zoomExplicit && config.arenaSize > 80.0f && initialZoom < 30.0) {
+        initialZoom = fmin(maxZoom, (double)config.arenaSize * 0.58);
+    }
+    if (!qualityExplicit && (config.brumacernos + config.velkares) >= 200u) {
+        quality = QUALITY_MEDIUM;
+    }
+    if (!minimapExplicit && !showHud) showMinimap = false;
+
     if (!isfinite(initialAge) || initialAge > 10000 || frames > 1000000 ||
-        !isfinite(initialZoom) || initialZoom < 0.4 || initialZoom > 110.0 ||
-        (initialSpeed != 1 && initialSpeed != 2 && initialSpeed != 4 && initialSpeed != 16 && initialSpeed != 64))
+        winW < 320 || winW > 7680 || winH < 240 || winH > 4320 ||
+        !isfinite(initialZoom) || initialZoom < 0.4 || initialZoom > maxZoom ||
+        (!initialMaxSpeed && initialSpeed != 1 && initialSpeed != 2 && initialSpeed != 4 && initialSpeed != 16 && initialSpeed != 64))
         return 2;
 
     char errBuf[256] = {0};
@@ -563,70 +742,109 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    EcosystemWorld w;
-    if (!EvolutionArena_Create(&w, &config, errBuf, sizeof(errBuf))) {
-        fprintf(stderr, "Error al iniciar Evolution Arena: %s\n", errBuf);
+    /* En modo captura/regresión con --frames=N bloqueamos el paso por fotograma para determinismo;
+     * en modo interactivo o --realtime/--profile puro, el hilo de simulación corre asíncrono. */
+    bool stepLocked = forceStepLock ||
+                      (!forceRealtime && frames > 0 &&
+                       (capture != NULL || validateMouthFrames > 0 || validateSkin ||
+                        inspect != NULL || captureState != CAPTURE_OVERVIEW));
+
+    EvolutionSimulationRunner *runner = EvolutionSimulationRunner_Create(&config, stepLocked, errBuf, sizeof(errBuf));
+    if (!runner) {
+        fprintf(stderr, "Error al iniciar EvolutionSimulationRunner: %s\n", errBuf);
         return 1;
     }
-    if (initialAge >= 0.0) {
-        for (unsigned i = 0; i < w.capacity; ++i)
-            if (w.entities[i].id) w.entities[i].physiology.age = initialAge;
-    }
-    w.clock.speed = initialSpeed;
 
-    /* Acciones CLI reproducibles de gestión de cerebros (para validación visual/automatizada). */
-    char statusMsg[160] = "READY";
+    if (initialAge >= 0.0) {
+        uint64_t cid = EvolutionSimulationRunner_PostSetInitialAge(runner, initialAge);
+        EvolutionCommandAck ack;
+        EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack);
+    }
+    {
+        uint64_t cid = EvolutionSimulationRunner_PostSetSpeed(runner, initialSpeed, initialMaxSpeed);
+        EvolutionCommandAck ack;
+        EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack);
+    }
+
+    /* Determinar entidad inicial desde el snapshot 0 (sin tocar nunca EcosystemWorld). */
+    char statusMsg[192] = "READY";
     bool statusError = false;
-    AIObjectId initialTargetId = hasFocus ? focusId : 0u;
-    if (!initialTargetId) {
-        for (unsigned i = 0; i < w.capacity; ++i) {
-            if (w.entities[i].id && (!captureSpecies || w.entities[i].body.species == captureSpecies)) {
-                initialTargetId = w.entities[i].id;
-                break;
+    AIObjectId selectedEntityId = hasFocus ? focusId : 0u;
+    unsigned initialPopulation = 0u;
+    {
+        const EvolutionRenderSnapshot *initSnap = EvolutionSimulationRunner_AcquireSnapshot(runner);
+        if (initSnap) {
+            initialPopulation = initSnap->entityCount;
+            if (!selectedEntityId) {
+                for (unsigned i = 0; i < initSnap->entityCount; ++i) {
+                    if (!captureSpecies || initSnap->entities[i].speciesId == captureSpecies) {
+                        selectedEntityId = initSnap->entities[i].id;
+                        break;
+                    }
+                }
             }
+            EvolutionSimulationRunner_ReleaseSnapshot(runner, initSnap);
         }
     }
-    if (cliImportBrain && initialTargetId) {
-        if (EcosystemWorld_ImportBrain(&w, initialTargetId, cliImportBrain, errBuf, sizeof(errBuf))) {
-            snprintf(statusMsg, sizeof(statusMsg), "IMPORTED BRAIN INTO #%u", initialTargetId);
+
+    /* Acciones CLI reproducibles de gestión de cerebros (a través de la cola segura de comandos). */
+    if (cliImportBrain && selectedEntityId) {
+        EvolutionCommandAck ack = {0};
+        uint64_t cid = EvolutionSimulationRunner_PostImportBrain(runner, selectedEntityId, cliImportBrain);
+        if (EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack) && ack.status == EVO_CMD_STATUS_OK) {
+            snprintf(statusMsg, sizeof(statusMsg), "%s", ack.message);
         } else {
-            snprintf(statusMsg, sizeof(statusMsg), "IMPORT ERROR: %s", errBuf);
+            snprintf(statusMsg, sizeof(statusMsg), "IMPORT ERROR: %.160s", ack.message);
             statusError = true;
         }
     }
     if (cliSwapA && cliSwapB) {
-        if (EcosystemWorld_SwapBrains(&w, cliSwapA, cliSwapB)) {
-            snprintf(statusMsg, sizeof(statusMsg), "SWAPPED BRAINS #%u <-> #%u", cliSwapA, cliSwapB);
+        EvolutionCommandAck ack = {0};
+        uint64_t cid = EvolutionSimulationRunner_PostSwapBrains(runner, cliSwapA, cliSwapB);
+        if (EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack) && ack.status == EVO_CMD_STATUS_OK) {
+            snprintf(statusMsg, sizeof(statusMsg), "%s", ack.message);
         } else {
             snprintf(statusMsg, sizeof(statusMsg), "SWAP FAILED #%u <-> #%u", cliSwapA, cliSwapB);
             statusError = true;
         }
     }
-    if (cliExportBrain && initialTargetId) {
+    if (cliExportBrain && selectedEntityId) {
         ensureParentDir(cliExportBrain);
-        if (EcosystemWorld_ExportBrain(&w, initialTargetId, cliExportBrain, true, errBuf, sizeof(errBuf))) {
-            snprintf(statusMsg, sizeof(statusMsg), "EXPORTED #%u -> %s", initialTargetId, cliExportBrain);
+        EvolutionCommandAck ack = {0};
+        uint64_t cid = EvolutionSimulationRunner_PostExportBrain(runner, selectedEntityId, cliExportBrain, true);
+        if (EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack) && ack.status == EVO_CMD_STATUS_OK) {
+            snprintf(statusMsg, sizeof(statusMsg), "%s", ack.message);
         } else {
-            snprintf(statusMsg, sizeof(statusMsg), "EXPORT ERROR: %s", errBuf);
+            snprintf(statusMsg, sizeof(statusMsg), "EXPORT ERROR: %.160s", ack.message);
             statusError = true;
         }
     }
-
-    OpenGLDemoWindow *window = OpenGLDemoWindow_Create("Monster Engine - Evolution Arena", ARENA_WINDOW_W, ARENA_WINDOW_H);
-    if (!window) { EcosystemWorld_Free(&w); return 1; }
-
-    EcosystemVisual visual = {0};
-    if (!EcosystemVisual_Init(&visual, &w)) {
-        fprintf(stderr, "[ADVERTENCIA] No se pudo inicializar EcosystemVisual.\n");
-        OpenGLDemoWindow_Free(window); EcosystemWorld_Free(&w); return 1;
+    if (selectedEntityId) {
+        EvolutionCommandAck ack = {0};
+        uint64_t cid = EvolutionSimulationRunner_PostInspectTarget(runner, selectedEntityId);
+        EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack);
     }
 
+    OpenGLDemoWindow *window = OpenGLDemoWindow_Create("Monster Engine - Evolution Arena", winW, winH);
+    if (!window) { EvolutionSimulationRunner_Destroy(runner); return 1; }
+
+    EvolutionProfiler visualProfiler;
+    EvolutionProfiler_Init(&visualProfiler, true);
+
+    EcosystemVisual visual = {0};
+    unsigned initVisualCap = config.capacity > 64u ? config.capacity : 64u;
+    if (!EcosystemVisual_InitForSnapshots(&visual, initVisualCap)) {
+        fprintf(stderr, "[ADVERTENCIA] No se pudo inicializar EcosystemVisual.\n");
+        OpenGLDemoWindow_Free(window); EvolutionSimulationRunner_Destroy(runner); return 1;
+    }
+    applyQualityBudget(&visual, quality);
+    EcosystemVisual_SetProfiler(&visual, &visualProfiler);
+
     ICamera camera = {.position = {28, 28, 32}, .target = {0, 0, 0}, .up = {0, 1, 0},
-                      .fov = 50, .aspectRatio = (float)ARENA_WINDOW_W / (float)ARENA_WINDOW_H,
-                      .nearPlane = 0.1f, .farPlane = 240.0f};
+                      .fov = 50, .aspectRatio = (float)winW / (float)winH,
+                      .nearPlane = 0.1f, .farPlane = fmaxf(260.0f, config.arenaSize * 3.5f)};
     Renderer3D renderer = OpenGLRenderer_Create(&camera);
 
-    /* Mallas de entorno: suelo, estanque, planta, cadáver y obstáculo monolito. */
     Mesh meshes[5];
     for (unsigned i = 0; i < 5; ++i) meshes[i] = Mesh_Create();
     Color decorColors[] = {
@@ -645,7 +863,7 @@ int main(int argc, char **argv) {
     if (!ok) {
         for (unsigned i = 0; i < 5; ++i) Mesh_Free(&meshes[i]);
         EcosystemVisual_Shutdown(&visual); OpenGLRenderer_Destroy(&renderer);
-        OpenGLDemoWindow_Free(window); EcosystemWorld_Free(&w); return 1;
+        OpenGLDemoWindow_Free(window); EvolutionSimulationRunner_Destroy(runner); return 1;
     }
 
     double *times = frames ? calloc(frames, sizeof(double)) : NULL;
@@ -655,21 +873,42 @@ int main(int argc, char **argv) {
         free(times); free(simulationTimes); free(mouthWindow);
         for (unsigned i = 0; i < 5; ++i) Mesh_Free(&meshes[i]);
         EcosystemVisual_Shutdown(&visual); OpenGLRenderer_Destroy(&renderer);
-        OpenGLDemoWindow_Free(window); EcosystemWorld_Free(&w); return 1;
+        OpenGLDemoWindow_Free(window); EvolutionSimulationRunner_Destroy(runner); return 1;
     }
 
+    /* Buffers dinámicos escalables (sin límite fijo de 256). */
+    size_t dynCap = initVisualCap > 256u ? initVisualCap : 256u;
+    EcosystemVisualDrawPacket *packets = calloc(dynCap, sizeof(*packets));
+    EcosystemVisualDrawPacket *displayedPackets = calloc(dynCap, sizeof(*displayedPackets));
+    Mesh *cpuBodies = calloc(dynCap, sizeof(*cpuBodies));
+    AIObjectId *validatedSkin = calloc(dynCap, sizeof(*validatedSkin));
+    uint64_t *validatedSkinMesh = calloc(dynCap, sizeof(*validatedSkinMesh));
+    if (!packets || !displayedPackets || !cpuBodies || !validatedSkin || !validatedSkinMesh) {
+        free(packets); free(displayedPackets); free(cpuBodies); free(validatedSkin); free(validatedSkinMesh);
+        free(times); free(simulationTimes); free(mouthWindow);
+        for (unsigned i = 0; i < 5; ++i) Mesh_Free(&meshes[i]);
+        EcosystemVisual_Shutdown(&visual); OpenGLRenderer_Destroy(&renderer);
+        OpenGLDemoWindow_Free(window); EvolutionSimulationRunner_Destroy(runner); return 1;
+    }
+    size_t displayedCount = 0;
+
+    /* Caché estática de cuadrícula + lotes de líneas e instancias GPU. */
+    LineBatch staticGrid = {0}, dynamicLines = {0};
+    float cachedGridHalfSize = -1.0f;
+    InstanceBatch envInstances = {0}, bodyInstances = {0}, headInstances = {0};
+    MeshGroup bodyGroups[64], headGroups[64];
+
     double last = OpenGLDemoWindow_Time(), angle = 0.65, zoom = initialZoom;
-    double gpuSum = 0.0, displayedFps = ARENA_MAX_FPS, effectiveSpeed = initialSpeed;
+    double gpuSum = 0.0, displayedFps = ARENA_MAX_FPS;
     unsigned gpuSamples = 0, gpuTimingGeneration = 0;
     OpenGLMeshPerformanceStats finalGpu = {0};
     float footErrorMax = 0.0f, stanceFootErrorMax = 0.0f, skinPositionError = 0.0f, skinNormalError = 0.0f;
-    unsigned initialPopulation = w.count, drawnMin = ECOSYSTEM_VISUAL_MAX_SLOTS, drawnMax = 0;
+    unsigned drawnMin = UINT32_MAX, drawnMax = 0;
     double drawnSum = 0.0, adapterSum = 0.0, renderSum = 0.0, geometryWarmSeconds = 0.0;
-    AIObjectId validatedSkin[ECOSYSTEM_VISUAL_MAX_SLOTS] = {0};
-    uint64_t validatedSkinMesh[ECOSYSTEM_VISUAL_MAX_SLOTS] = {0};
-    Mesh cpuBodies[ECOSYSTEM_VISUAL_MAX_SLOTS] = {0};
+    double drawCallsSum = 0.0, instDrawsSum = 0.0, instCountSum = 0.0;
+    double nearSum = 0.0, midSum = 0.0, farSum = 0.0, culledSum = 0.0;
 
-    unsigned frame = 0, selectedSlot = 0;
+    unsigned frame = 0;
     bool debug = false, follow = hasFocus, overheadToggle = (view == VIEW_OVERVIEW);
     Vector3 cameraCenter = Vec3_Zero();
 
@@ -677,19 +916,22 @@ int main(int argc, char **argv) {
     unsigned historyCount = 0, historyIndex = 0;
     double nextSample = 0.0;
 
-    if (hasFocus) {
-        for (unsigned i = 0; i < w.capacity; ++i) if (w.entities[i].id == focusId) { selectedSlot = i; break; }
-    } else if (captureSpecies) {
-        for (unsigned i = 0; i < w.capacity; ++i)
-            if (w.entities[i].id && w.entities[i].body.species == captureSpecies) { selectedSlot = i; break; }
-    }
+    /* Ring buffer de tiempos de fotograma para métricas en vivo del panel P. */
+    double frameRing[ARENA_FRAME_RING] = {0};
+    unsigned frameRingCount = 0, frameRingIdx = 0;
+    double lastPerfRefreshMs = -1000.0;
+    char perfPanelBuf[1024] = "COLLECTING TELEMETRY...";
 
     const double speeds[] = {1.0, 4.0, 16.0, 64.0};
-    unsigned speedIndex = initialSpeed >= 64.0 ? 3u : initialSpeed >= 16.0 ? 2u : initialSpeed >= 4.0 ? 1u : 0u;
-    AIObjectId selectedRequestId = 0, captureTargetId = 0;
+    unsigned speedIndex = initialMaxSpeed ? 4u
+                        : (initialSpeed >= 64.0 ? 3u : initialSpeed >= 16.0 ? 2u : initialSpeed >= 4.0 ? 1u : 0u);
+    bool uiPaused = stepLocked;
+    AIObjectId selectedRequestId = 0, inspectedTargetSent = selectedEntityId, captureTargetId = 0;
     bool focusWarned = false, captureWarned = false, updateWarned = false, projectionWarned = false;
     unsigned mouthWindowCount = 0, mouthWindowIndex = 0;
     bool scaleProofPrinted[5] = {false};
+    float previousObservedYaw = 0.0f;
+    AIObjectId previousObservedId = 0;
 
     /* Estado de gestión de cerebros en el laboratorio. */
     bool hasClipboard = false;
@@ -699,6 +941,7 @@ int main(int argc, char **argv) {
     bool promptSavedPause = false;
     bool promptOverwrite = false;
     char promptPath[256] = {0};
+    uint64_t pendingExportCmd = 0, pendingImportCmd = 0;
 
     /* Estado del inspector de red neuronal. */
     float edgeThreshold = 0.35f;
@@ -709,9 +952,16 @@ int main(int argc, char **argv) {
     float hidPos[NEURAL_RNN_HIDDEN][2] = {{0}};
     float outPos[NEURAL_RNN_OUTPUTS][2] = {{0}};
 
+    /* Campos finales para el reporte --profile. */
+    unsigned finalPopulation = initialPopulation;
+    CreatureControllerType finalController = config.controller;
+    char finalFounderMode[32] = "random";
+    EcosystemStatistics finalStats = {0};
+    double finalAchievedSpeed = 0.0, finalRequestedSpeed = initialSpeed, finalTps = 0.0;
+    double finalSimMeanMs = 0.0, finalSimP95Ms = 0.0;
+    unsigned finalWorkers = config.workers;
+
     clock_t processStart = clock();
-    EcosystemVisualDrawPacket displayedPackets[ECOSYSTEM_VISUAL_MAX_SLOTS];
-    size_t displayedCount = 0;
 
     while (!frames || frame < frames) {
         double start = OpenGLDemoWindow_Time(), frameSeconds = start - last;
@@ -722,11 +972,49 @@ int main(int argc, char **argv) {
         double dt = frames ? (1.0 / 60.0) : fmin(frameSeconds, 0.1);
         OpenGLDemoInput input = OpenGLDemoWindow_Poll(window);
 
+        /* Recoger acuses de comandos completados en el hilo de simulación. */
+        EvolutionCommandAck ack;
+        while (EvolutionSimulationRunner_PopAck(runner, &ack)) {
+            if (ack.type == EVO_CMD_EXPORT_BRAIN && ack.commandId == pendingExportCmd) {
+                pendingExportCmd = 0;
+                if (ack.status == EVO_CMD_STATUS_OK) {
+                    snprintf(statusMsg, sizeof(statusMsg), "%s", ack.message);
+                    statusError = false;
+                    promptMode = PROMPT_NONE;
+                    promptOverwrite = false;
+                    if (!promptSavedPause) EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_RESUME);
+                } else if (strstr(ack.message, "ya existe")) {
+                    promptOverwrite = true;
+                    snprintf(statusMsg, sizeof(statusMsg), "FILE EXISTS! PRESS ENTER AGAIN TO OVERWRITE");
+                    statusError = true;
+                } else {
+                    snprintf(statusMsg, sizeof(statusMsg), "EXPORT ERR: %.140s", ack.message);
+                    statusError = true;
+                }
+            } else if (ack.type == EVO_CMD_IMPORT_BRAIN && ack.commandId == pendingImportCmd) {
+                pendingImportCmd = 0;
+                if (ack.status == EVO_CMD_STATUS_OK) {
+                    snprintf(statusMsg, sizeof(statusMsg), "%s", ack.message);
+                    statusError = false;
+                    promptMode = PROMPT_NONE;
+                    if (!promptSavedPause) EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_RESUME);
+                } else {
+                    snprintf(statusMsg, sizeof(statusMsg), "IMPORT ERR: %.140s", ack.message);
+                    statusError = true;
+                }
+            } else if (ack.type == EVO_CMD_ASSIGN_BRAIN || ack.type == EVO_CMD_CLONE_BRAIN ||
+                       ack.type == EVO_CMD_SWAP_BRAINS || ack.type == EVO_CMD_RESET_BRAIN_RANDOM ||
+                       ack.type == EVO_CMD_RESET) {
+                snprintf(statusMsg, sizeof(statusMsg), "%s", ack.message);
+                statusError = (ack.status != EVO_CMD_STATUS_OK);
+            }
+        }
+
         /* Modo de entrada de ruta para exportar/importar cerebro. */
         if (promptMode != PROMPT_NONE) {
             if (input.quit) {
                 promptMode = PROMPT_NONE;
-                w.clock.paused = promptSavedPause;
+                if (!promptSavedPause) EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_RESUME);
                 snprintf(statusMsg, sizeof(statusMsg), "CANCELLED");
                 statusError = false;
                 input.quit = false;
@@ -743,44 +1031,24 @@ int main(int argc, char **argv) {
                     promptPath[len] = '\0';
                 }
                 if (input.keyEnter) {
-                    EcosystemEntity *sel = w.entities[selectedSlot].id ? &w.entities[selectedSlot] : NULL;
-                    if (!sel) {
+                    if (!selectedEntityId) {
                         snprintf(statusMsg, sizeof(statusMsg), "NO CREATURE SELECTED");
                         statusError = true;
                     } else if (promptMode == PROMPT_EXPORT) {
                         ensureParentDir(promptPath);
-                        if (EcosystemWorld_ExportBrain(&w, sel->id, promptPath, promptOverwrite, errBuf, sizeof(errBuf))) {
-                            snprintf(statusMsg, sizeof(statusMsg), "EXPORTED #%u -> %s", sel->id, promptPath);
-                            statusError = false;
-                            promptMode = PROMPT_NONE;
-                            w.clock.paused = promptSavedPause;
-                            promptOverwrite = false;
-                        } else {
-                            /* Permitir segunda confirmación explícita si el archivo ya existe. */
-                            if (strstr(errBuf, "ya existe")) {
-                                promptOverwrite = true;
-                                snprintf(statusMsg, sizeof(statusMsg), "FILE EXISTS! PRESS ENTER AGAIN TO OVERWRITE");
-                            } else {
-                                snprintf(statusMsg, sizeof(statusMsg), "EXPORT ERR: %.120s", errBuf);
-                            }
-                            statusError = true;
-                        }
+                        pendingExportCmd = EvolutionSimulationRunner_PostExportBrain(runner, selectedEntityId, promptPath, promptOverwrite);
+                        snprintf(statusMsg, sizeof(statusMsg), "EXPORTING #%u...", selectedEntityId);
+                        statusError = false;
                     } else if (promptMode == PROMPT_IMPORT) {
-                        if (EcosystemWorld_ImportBrain(&w, sel->id, promptPath, errBuf, sizeof(errBuf))) {
-                            snprintf(statusMsg, sizeof(statusMsg), "IMPORTED BRAIN INTO #%u", sel->id);
-                            statusError = false;
-                            promptMode = PROMPT_NONE;
-                            w.clock.paused = promptSavedPause;
-                        } else {
-                            snprintf(statusMsg, sizeof(statusMsg), "IMPORT ERR: %.120s", errBuf);
-                            statusError = true;
-                        }
+                        pendingImportCmd = EvolutionSimulationRunner_PostImportBrain(runner, selectedEntityId, promptPath);
+                        snprintf(statusMsg, sizeof(statusMsg), "IMPORTING INTO #%u...", selectedEntityId);
+                        statusError = false;
                     }
                 }
             }
-            /* Desactivar atajos mientras se escribe una ruta. */
             input.togglePause = input.toggleDebug = input.keyR = input.keyF = input.keyN = false;
             input.keyE = input.keyI = input.keyC = input.keyV = input.keyX = input.keyB = input.keyO = false;
+            input.keyP = input.keyQ = input.keyM = false;
             input.digitKey = -1;
             input.surfaceDebugNext = false;
             input.panForward = input.panRight = 0;
@@ -788,9 +1056,50 @@ int main(int argc, char **argv) {
 
         if (input.quit) break;
 
+        /* En modo determinista paso-a-paso (--capture/--validate), avanzar ticks exactos antes de leer snapshot. */
+        double simStepMs = 0.0;
+        if (stepLocked) {
+            unsigned stepTicks = (unsigned)fmax(1.0, round(initialSpeed));
+            double s0 = OpenGLDemoWindow_Time();
+            uint64_t scid = EvolutionSimulationRunner_PostStepExact(runner, stepTicks);
+            EvolutionCommandAck sack;
+            EvolutionSimulationRunner_WaitCommand(runner, scid, 10.0, &sack);
+            simStepMs = (OpenGLDemoWindow_Time() - s0) * 1000.0;
+        }
+
+        /* Adquirir el snapshot inmutable más reciente (triple buffering seguro). */
+        const EvolutionRenderSnapshot *snap = EvolutionSimulationRunner_AcquireSnapshot(runner);
+        if (!snap) {
+            if (!frames) OpenGLDemoWindow_LimitFPS(start, ARENA_MAX_FPS);
+            continue;
+        }
+        if (simulationTimes) simulationTimes[frame] = stepLocked ? simStepMs : snap->meanTickMs;
+        uiPaused = snap->paused;
+
+        /* Crecer buffers dinámicos si la capacidad del mundo aumentó. */
+        size_t needCap = snap->capacity > snap->entityCount ? snap->capacity : snap->entityCount;
+        if (needCap < 64u) needCap = 64u;
+        if (needCap > dynCap) {
+            size_t newCap = dynCap;
+            while (newCap < needCap) newCap *= 2u;
+            EcosystemVisualDrawPacket *np = realloc(packets, newCap * sizeof(*np));
+            EcosystemVisualDrawPacket *nd = realloc(displayedPackets, newCap * sizeof(*nd));
+            Mesh *nc = realloc(cpuBodies, newCap * sizeof(*nc));
+            AIObjectId *nv = realloc(validatedSkin, newCap * sizeof(*nv));
+            uint64_t *nm = realloc(validatedSkinMesh, newCap * sizeof(*nm));
+            if (np && nd && nc && nv && nm) {
+                memset(nc + dynCap, 0, (newCap - dynCap) * sizeof(*nc));
+                memset(nv + dynCap, 0, (newCap - dynCap) * sizeof(*nv));
+                memset(nm + dynCap, 0, (newCap - dynCap) * sizeof(*nm));
+                packets = np; displayedPackets = nd; cpuBodies = nc;
+                validatedSkin = nv; validatedSkinMesh = nm;
+                dynCap = newCap;
+            }
+        }
+
         /* Gestión de clics en interfaz 2D antes de selección 3D. */
         bool uiConsumedClick = false;
-        EcosystemEntity *selectedNow = w.entities[selectedSlot].id ? &w.entities[selectedSlot] : NULL;
+        const EvolutionEntitySnapshot *selectedNow = findSnapEntity(snap, selectedEntityId);
         if (input.mouseLeftPressed && showHud && promptMode == PROMPT_NONE) {
             if (hitRect(input.mouseX, input.mouseY, btnExport.x, btnExport.y, btnExport.w, btnExport.h)) {
                 input.keyE = true; uiConsumedClick = true;
@@ -813,7 +1122,6 @@ int main(int argc, char **argv) {
                 } else if (hitRect(input.mouseX, input.mouseY, btnClearSel.x, btnClearSel.y, btnClearSel.w, btnClearSel.h)) {
                     inspectedLayer = -1; inspectedIndex = -1;
                 } else {
-                    /* Seleccionar neurona más cercana al clic dentro del inspector. */
                     float bestD = 18.0f;
                     int bestL = -1, bestIdx = -1;
                     for (unsigned i = 0; i < NEURAL_RNN_INPUTS; ++i) {
@@ -839,76 +1147,86 @@ int main(int argc, char **argv) {
             Vector3 forward = Vec3_Normalize(Vec3_Sub(camera.target, camera.position));
             Vector3 right = Vec3_Normalize(Vec3_Cross(forward, camera.up));
             Vector3 up = Vec3_Normalize(Vec3_Cross(right, forward));
-            float x = ((input.mouseX + 0.5f) / (float)ARENA_WINDOW_W - 0.5f) * (float)zoom * camera.aspectRatio;
-            float y = (0.5f - (input.mouseY + 0.5f) / (float)ARENA_WINDOW_H) * (float)zoom;
+            float x = ((input.mouseX + 0.5f) / (float)winW - 0.5f) * (float)zoom * camera.aspectRatio;
+            float y = (0.5f - (input.mouseY + 0.5f) / (float)winH) * (float)zoom;
             Vector3 origin = Vec3_Add(camera.position, Vec3_Add(Vec3_Scale(right, x), Vec3_Scale(up, y)));
             AIObjectId picked = EcosystemVisual_PickRay(displayedPackets, displayedCount, origin, forward,
                                                         camera.nearPlane, camera.farPlane);
-            if (picked) {
-                for (unsigned i = 0; i < w.capacity; ++i) {
-                    if (w.entities[i].id == picked) {
-                        selectedSlot = i; hasFocus = false; focusId = 0; follow = true;
-                        selectedNow = &w.entities[i];
-                        printf("mouse_focus_entity=%u\n", picked);
-                        break;
-                    }
-                }
+            if (picked && findSnapEntity(snap, picked)) {
+                selectedEntityId = picked;
+                hasFocus = false; focusId = 0; follow = true;
+                selectedNow = findSnapEntity(snap, selectedEntityId);
+                printf("mouse_focus_entity=%u\n", picked);
             }
         }
 
-        /* Atajos de simulación y laboratorio. */
-        if (input.togglePause) w.clock.paused = !w.clock.paused;
+        /* Atajos de simulación, velocidad, calidad y laboratorio. */
+        if (input.togglePause) EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_TOGGLE_PAUSE);
         if (input.toggleDebug) debug = !debug;
         if (input.keyN) showNeural = !showNeural;
+        if (input.keyP) showPerf = !showPerf;
+        if (input.keyM) showMinimap = !showMinimap;
+        if (input.keyQ) {
+            quality = (QualityPreset)(((int)quality + 1) % 3);
+            applyQualityBudget(&visual, quality);
+            snprintf(statusMsg, sizeof(statusMsg), "QUALITY PRESET: %s", qualityName(quality));
+            statusError = false;
+        }
         if (input.keyO) { overheadToggle = !overheadToggle; view = overheadToggle ? VIEW_OVERVIEW : VIEW_THREE_QUARTER; }
         if (input.furLengthAdjust < 0) edgeThreshold = fmaxf(0.05f, edgeThreshold - 0.10f);
         if (input.furLengthAdjust > 0) edgeThreshold = fminf(2.50f, edgeThreshold + 0.10f);
         if (input.digitKey >= 0 && input.digitKey < 4) {
             speedIndex = (unsigned)input.digitKey;
-            w.clock.speed = speeds[speedIndex];
+            EvolutionSimulationRunner_PostSetSpeed(runner, speeds[speedIndex], false);
+        } else if (input.digitKey == 4) {
+            speedIndex = 4u;
+            EvolutionSimulationRunner_PostSetSpeed(runner, 64.0, true);
+            snprintf(statusMsg, sizeof(statusMsg), "SPEED: MAX (THROUGHPUT LIMITED)");
+            statusError = false;
         }
         if (input.surfaceSelect) angle += input.surfaceSelect * 0.12;
         if (input.mouseRightHeld) angle += input.mouseDeltaX * 0.008;
-        if (input.surfaceAdjust) zoom = fmax(2.0, fmin(100.0, zoom - input.surfaceAdjust * fmax(0.3, zoom * 0.12)));
-        if (input.mouseWheel != 0) zoom = fmax(2.0, fmin(100.0, zoom - input.mouseWheel * fmax(0.5, zoom * 0.10)));
-        if (input.surfaceDebugNext) {
+        if (input.surfaceAdjust) zoom = fmax(2.0, fmin(maxZoom, zoom - input.surfaceAdjust * fmax(0.3, zoom * 0.12)));
+        if (input.mouseWheel != 0) zoom = fmax(2.0, fmin(maxZoom, zoom - input.mouseWheel * fmax(0.5, zoom * 0.10)));
+        if (input.surfaceDebugNext && snap->entityCount > 0) {
             hasFocus = false; focusId = 0;
-            for (unsigned i = 0; i < w.capacity; ++i) {
-                selectedSlot = (selectedSlot + 1) % w.capacity;
-                if (w.entities[selectedSlot].id) break;
+            unsigned curIdx = 0;
+            for (unsigned i = 0; i < snap->entityCount; ++i) {
+                if (snap->entities[i].id == selectedEntityId) { curIdx = i; break; }
             }
-            selectedNow = w.entities[selectedSlot].id ? &w.entities[selectedSlot] : NULL;
+            selectedEntityId = snap->entities[(curIdx + 1u) % snap->entityCount].id;
+            selectedNow = findSnapEntity(snap, selectedEntityId);
         }
         if (input.keyF) { follow = !follow; hasFocus = false; focusId = 0; }
 
-        /* Acciones seguras de gestión de cerebros (entre ticks o en pausa). */
+        /* Acciones seguras de gestión de cerebros (enviadas como comandos al hilo autoritativo). */
         if (input.keyE && selectedNow) {
             promptMode = PROMPT_EXPORT;
-            promptSavedPause = w.clock.paused;
+            promptSavedPause = uiPaused;
             promptOverwrite = false;
-            w.clock.paused = true;
+            EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_PAUSE);
             snprintf(promptPath, sizeof(promptPath), "build/brains/creature_%u.brain.json", selectedNow->id);
             snprintf(statusMsg, sizeof(statusMsg), "TYPE EXPORT PATH + ENTER (ESC CANCEL)");
             statusError = false;
         }
         if (input.keyI && selectedNow) {
             promptMode = PROMPT_IMPORT;
-            promptSavedPause = w.clock.paused;
-            w.clock.paused = true;
+            promptSavedPause = uiPaused;
+            EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_PAUSE);
             snprintf(promptPath, sizeof(promptPath), "brains/seeded_baseline.brain.json");
             snprintf(statusMsg, sizeof(statusMsg), "TYPE IMPORT PATH + ENTER (ESC CANCEL)");
             statusError = false;
         }
         if (input.keyC && selectedNow) {
-            const NeuralGenome *g = CreatureMind_GetNeuralGenome(&selectedNow->mind);
-            if (g && NeuralGenome_Clone(&clipboardBrain, g)) {
+            if (snap->selected.valid && snap->selected.entityId == selectedNow->id &&
+                snap->selected.hasNeuralBrain && NeuralGenome_Clone(&clipboardBrain, &snap->selected.genome)) {
                 hasClipboard = true;
                 clipboardSourceId = selectedNow->id;
                 snprintf(statusMsg, sizeof(statusMsg), "COPIED BRAIN #%u (%08llX)",
-                         selectedNow->id, (unsigned long long)(g->metadata.fingerprint & 0xFFFFFFFFu));
+                         selectedNow->id, (unsigned long long)(clipboardBrain.metadata.fingerprint & 0xFFFFFFFFu));
                 statusError = false;
             } else {
-                snprintf(statusMsg, sizeof(statusMsg), "COPY FAILED: NO NEURAL BRAIN");
+                snprintf(statusMsg, sizeof(statusMsg), "COPY PENDING/NO NEURAL BRAIN (TRY AGAIN)");
                 statusError = true;
             }
         }
@@ -916,90 +1234,66 @@ int main(int argc, char **argv) {
             if (!hasClipboard) {
                 snprintf(statusMsg, sizeof(statusMsg), "CLIPBOARD EMPTY (PRESS C TO COPY)");
                 statusError = true;
-            } else if (EcosystemWorld_AssignBrain(&w, selectedNow->id, &clipboardBrain, "paste")) {
-                snprintf(statusMsg, sizeof(statusMsg), "PASTED BRAIN FROM #%u INTO #%u",
-                         clipboardSourceId, selectedNow->id);
-                statusError = false;
             } else {
-                snprintf(statusMsg, sizeof(statusMsg), "PASTE FAILED");
-                statusError = true;
+                EvolutionSimulationRunner_PostAssignBrain(runner, selectedNow->id, &clipboardBrain, "paste");
+                snprintf(statusMsg, sizeof(statusMsg), "PASTING BRAIN #%u -> #%u...", clipboardSourceId, selectedNow->id);
+                statusError = false;
             }
         }
         if (input.keyX && selectedNow) {
-            if (swapPendingId == 0 || swapPendingId == selectedNow->id || !EcosystemWorld_Get(&w, swapPendingId)) {
+            if (swapPendingId == 0 || swapPendingId == selectedNow->id || !findSnapEntity(snap, swapPendingId)) {
                 swapPendingId = selectedNow->id;
                 snprintf(statusMsg, sizeof(statusMsg), "SWAP ARMED: #%u -> SELECT 2ND + PRESS X", swapPendingId);
                 statusError = false;
             } else {
                 AIObjectId a = swapPendingId, b = selectedNow->id;
-                if (EcosystemWorld_SwapBrains(&w, a, b)) {
-                    snprintf(statusMsg, sizeof(statusMsg), "SWAPPED BRAINS #%u <-> #%u", a, b);
-                    statusError = false;
-                } else {
-                    snprintf(statusMsg, sizeof(statusMsg), "SWAP FAILED #%u <-> #%u", a, b);
-                    statusError = true;
-                }
+                EvolutionSimulationRunner_PostSwapBrains(runner, a, b);
+                snprintf(statusMsg, sizeof(statusMsg), "SWAPPING #%u <-> #%u...", a, b);
+                statusError = false;
                 swapPendingId = 0;
             }
         }
         if (input.keyB && selectedNow) {
-            if (EcosystemWorld_ResetBrainRandom(&w, selectedNow->id)) {
-                snprintf(statusMsg, sizeof(statusMsg), "RESET #%u TO NEW RANDOM BRAIN", selectedNow->id);
-                statusError = false;
-            } else {
-                snprintf(statusMsg, sizeof(statusMsg), "RANDOM RESET FAILED");
-                statusError = true;
-            }
+            EvolutionSimulationRunner_PostResetBrainRandom(runner, selectedNow->id);
+            snprintf(statusMsg, sizeof(statusMsg), "RESETTING #%u TO RANDOM BRAIN...", selectedNow->id);
+            statusError = false;
         }
         if (input.keyR) {
-            EcosystemWorld_Free(&w);
-            if (!EvolutionArena_Create(&w, &config, errBuf, sizeof(errBuf))) { ok = false; break; }
-            w.clock.speed = speeds[speedIndex];
+            EvolutionSimulationRunner_PostReset(runner, &config);
             nextSample = 0.0; historyCount = historyIndex = 0;
-            selectedSlot = 0; selectedRequestId = 0; captureTargetId = 0;
+            selectedEntityId = 0; selectedRequestId = 0; captureTargetId = 0;
             displayedCount = 0; follow = false; swapPendingId = 0;
             cameraCenter = Vec3_Zero();
-            snprintf(statusMsg, sizeof(statusMsg), "EXPERIMENT RESET (SEED %u)", config.seed);
+            snprintf(statusMsg, sizeof(statusMsg), "RESETTING EXPERIMENT (SEED %u)...", config.seed);
             statusError = false;
-            if (!EcosystemVisual_BindWorld(&visual, &w))
-                fprintf(stderr, "[ADVERTENCIA] Fallo al volver a enlazar EcosystemVisual.\n");
         }
 
-        /* Avance autoritativo de la simulación con pasos fijos. */
-        AIObjectId observedId = hasFocus ? focusId : w.entities[selectedSlot].id;
-        const EcosystemEntity *beforeTurn = findEntity(&w, observedId);
-        float previousYaw = beforeTurn ? beforeTurn->body.yaw : 0.0f;
-        double simStart = OpenGLDemoWindow_Time();
-        unsigned stepped = EcosystemWorld_Advance(&w, dt);
-        double simMs = (OpenGLDemoWindow_Time() - simStart) * 1000.0;
-        if (simulationTimes) simulationTimes[frame] = simMs;
-        if (!w.clock.paused && dt > 1e-6) {
-            double instSpeed = ((double)stepped * w.clock.fixedStep) / dt;
-            effectiveSpeed += (instSpeed - effectiveSpeed) * 0.15;
-        } else if (w.clock.paused) {
-            effectiveSpeed = 0.0;
-        }
-
-        const EcosystemEntity *afterTurn = findEntity(&w, observedId);
-        turningEntity = afterTurn ? observedId : 0;
-        float deltaYaw = afterTurn ? afterTurn->body.yaw - previousYaw : 0.0f;
-        observedTurnRate = dt > 1e-6 ? atan2f(sinf(deltaYaw), cosf(deltaYaw)) / (float)dt : 0.0f;
-
-        if (w.clock.seconds >= nextSample) {
-            unsigned bCount = 0, vCount = 0;
-            for (unsigned i = 0; i < w.capacity; ++i) {
-                if (!w.entities[i].id) continue;
-                if (w.entities[i].speciesIndex == 0) ++bCount;
-                else ++vCount;
+        /* Seguimiento de giro para CAPTURE_TURNING. */
+        AIObjectId observedId = hasFocus ? focusId : selectedEntityId;
+        const EvolutionEntitySnapshot *obsEnt = findSnapEntity(snap, observedId);
+        if (obsEnt) {
+            if (previousObservedId == observedId && dt > 1e-6) {
+                float deltaYaw = obsEnt->yaw - previousObservedYaw;
+                observedTurnRate = atan2f(sinf(deltaYaw), cosf(deltaYaw)) / (float)dt;
+                turningEntity = observedId;
             }
-            histBrum[historyIndex] = (float)bCount;
-            histVelk[historyIndex] = (float)vCount;
+            previousObservedYaw = obsEnt->yaw;
+            previousObservedId = observedId;
+        } else {
+            turningEntity = 0;
+            observedTurnRate = 0.0f;
+            previousObservedId = 0;
+        }
+
+        if (snap->seconds >= nextSample) {
+            histBrum[historyIndex] = (float)snap->brumacernoCount;
+            histVelk[historyIndex] = (float)snap->velkarCount;
             historyIndex = (historyIndex + 1u) % ARENA_HISTORY_LEN;
             if (historyCount < ARENA_HISTORY_LEN) ++historyCount;
-            nextSample = w.clock.seconds + config.day / 12.0;
+            nextSample = snap->seconds + config.day / 12.0;
         }
 
-        /* Desplazamiento de cámara (pan por teclado W/S/J/L o botón central). */
+        /* Desplazamiento de cámara. */
         float panScale = (float)dt * fmaxf(8.0f, (float)zoom * 0.55f);
         cameraCenter.x += (float)input.panRight * panScale;
         cameraCenter.z -= (float)input.panForward * panScale;
@@ -1009,11 +1303,12 @@ int main(int argc, char **argv) {
             follow = false;
         }
 
-        if (!w.entities[selectedSlot].id) {
-            for (unsigned i = 0; i < w.capacity; ++i) if (w.entities[i].id) { selectedSlot = i; break; }
+        const EvolutionEntitySnapshot *selected = findSnapEntity(snap, selectedEntityId);
+        if (!selected && snap->entityCount > 0) {
+            selectedEntityId = snap->entities[0].id;
+            selected = &snap->entities[0];
         }
-        EcosystemEntity *selected = w.entities[selectedSlot].id ? &w.entities[selectedSlot] : NULL;
-        const EcosystemEntity *focus = findEntity(&w, focusId);
+        const EvolutionEntitySnapshot *focus = findSnapEntity(snap, focusId);
         if (hasFocus && !focus && !focusWarned) {
             fprintf(stderr, "[ADVERTENCIA] --focus=%u no corresponde a una entidad viva.\n", focusId);
             focusWarned = true;
@@ -1023,157 +1318,220 @@ int main(int argc, char **argv) {
             captureTier = cycle[(frame / 180) % 4];
         }
         if (captureTargetId) {
-            const EcosystemEntity *current = findEntity(&w, captureTargetId);
-            if (!current || !matchesCapture(&w, current, captureState)) captureTargetId = 0;
+            const EvolutionEntitySnapshot *current = findSnapEntity(snap, captureTargetId);
+            if (!current || !matchesCaptureSnap(current, captureState)) captureTargetId = 0;
         }
         if (captureState != CAPTURE_OVERVIEW && !captureTargetId) {
-            for (unsigned i = 0; i < w.capacity; ++i) {
-                if (w.entities[i].id &&
-                    (!captureSpecies || w.entities[i].body.species == captureSpecies) &&
-                    (!hasFocus || w.entities[i].id == focusId) &&
-                    matchesCapture(&w, &w.entities[i], captureState)) {
-                    captureTargetId = w.entities[i].id;
-                    selectedSlot = i;
-                    selected = &w.entities[i];
+            for (unsigned i = 0; i < snap->entityCount; ++i) {
+                const EvolutionEntitySnapshot *e = &snap->entities[i];
+                if ((!captureSpecies || e->speciesId == captureSpecies) &&
+                    (!hasFocus || e->id == focusId) &&
+                    matchesCaptureSnap(e, captureState)) {
+                    captureTargetId = e->id;
+                    selectedEntityId = e->id;
+                    selected = e;
                     break;
                 }
             }
         }
 
+        /* Notificar al hilo de simulación qué entidad debe poblar snap->selected. */
+        AIObjectId desiredInspect = selected ? selected->id : 0u;
+        if (desiredInspect != inspectedTargetSent) {
+            EvolutionSimulationRunner_PostInspectTarget(runner, desiredInspect);
+            inspectedTargetSent = desiredInspect;
+        }
+
+        /* Reconciliación incremental primero para garantizar ranuras existentes antes de RequestTier. */
+        if (!EcosystemVisual_SyncSnapshot(&visual, snap) && !projectionWarned) {
+            fprintf(stderr, "[ADVERTENCIA] No se pudo sincronizar EcosystemVisual.\n");
+            projectionWarned = true;
+        }
+
         if (selectedRequestId && (!selected || selectedRequestId != selected->id))
             EcosystemVisual_ClearTierRequest(&visual, selectedRequestId);
-        selectedRequestId = selected ? selected->id : 0;
+        selectedRequestId = selected ? selected->id : 0u;
         if (selected) EcosystemVisual_RequestTier(&visual, selected->id, captureTier);
         if (focus) EcosystemVisual_RequestTier(&visual, focus->id, captureTier);
         if (captureTargetId) EcosystemVisual_RequestTier(&visual, captureTargetId, captureTier);
 
         Vector3 camTarget = cameraCenter;
-        if (focus) camTarget = focus->body.position;
+        if (focus) camTarget = focus->position;
         else if (captureTargetId) {
-            const EcosystemEntity *ct = findEntity(&w, captureTargetId);
-            if (ct) camTarget = ct->body.position;
-        } else if (follow && selected) camTarget = selected->body.position;
+            const EvolutionEntitySnapshot *ct = findSnapEntity(snap, captureTargetId);
+            if (ct) camTarget = ct->position;
+        } else if (follow && selected) camTarget = selected->position;
         cameraCenter = camTarget;
 
-        const EcosystemEntity *cameraSubject = focus ? focus : findEntity(&w, captureTargetId);
-        double cameraAngle = cameraSubject ? cameraSubject->body.yaw + (view == VIEW_THREE_QUARTER ? 0.65 : 0.0) : angle;
+        const EvolutionEntitySnapshot *cameraSubject = focus ? focus : findSnapEntity(snap, captureTargetId);
+        double cameraAngle = cameraSubject ? cameraSubject->yaw + (view == VIEW_THREE_QUARTER ? 0.65 : 0.0) : angle;
         angle = cameraAngle;
-        if (inspect && cameraSubject && cameraSubject->anatomicalBody) {
-            const EcosystemAnatomy *a = cameraSubject->anatomicalBody;
-            Vector3 local = Vec3_Create(0, a->standingHeight * 0.52f, -a->phenotype.axial.trunkLength * 0.42f);
+        if (inspect && cameraSubject && cameraSubject->hasAnatomicalBody) {
+            Vector3 local = Vec3_Create(0, cameraSubject->standingHeight * 0.52f, -cameraSubject->trunkLength * 0.42f);
+            float invScale = 1.0f / fmaxf(1e-4f, cameraSubject->anatomicalScale);
             if (!strcmp(inspect, "head")) {
-                local = Vec3_Lerp(a->pose.joints[a->rig.headJoint].worldPosition,
-                    Vec3_Add(a->center, Vec3_Scale(Vec3_Create(
-                        (cameraSubject->body.mouth.x - cameraSubject->body.position.x) * cosf(cameraSubject->body.yaw) -
-                        (cameraSubject->body.mouth.z - cameraSubject->body.position.z) * sinf(cameraSubject->body.yaw),
-                        cameraSubject->body.mouth.y - cameraSubject->body.position.y,
-                        (cameraSubject->body.mouth.x - cameraSubject->body.position.x) * sinf(cameraSubject->body.yaw) +
-                        (cameraSubject->body.mouth.z - cameraSubject->body.position.z) * cosf(cameraSubject->body.yaw)),
-                        1.0f / EcosystemAnatomy_Scale(a, cameraSubject))), 0.5f);
+                Vector3 headWorld = cameraSubject->headWorldPos;
+                local = Vec3_Lerp(headWorld,
+                    Vec3_Add(cameraSubject->anatomyCenter, Vec3_Scale(Vec3_Create(
+                        (cameraSubject->mouth.x - cameraSubject->position.x) * cosf(cameraSubject->yaw) -
+                        (cameraSubject->mouth.z - cameraSubject->position.z) * sinf(cameraSubject->yaw),
+                        cameraSubject->mouth.y - cameraSubject->position.y,
+                        (cameraSubject->mouth.x - cameraSubject->position.x) * sinf(cameraSubject->yaw) +
+                        (cameraSubject->mouth.z - cameraSubject->position.z) * cosf(cameraSubject->yaw)),
+                        invScale)), 0.5f);
             } else if (!strcmp(inspect, "feet")) local = Vec3_Create(0, 0.25f, 0);
-            else if (!strcmp(inspect, "neck")) local = Vec3_Create(0, a->standingHeight * 0.75f, 0);
-            local = Vec3_Scale(Vec3_Sub(local, a->center), EcosystemAnatomy_Scale(a, cameraSubject));
-            float sn = sinf(cameraSubject->body.yaw), cs = cosf(cameraSubject->body.yaw);
-            camTarget = Vec3_Add(cameraSubject->body.position, Vec3_Create(local.x * cs + local.z * sn, local.y, -local.x * sn + local.z * cs));
+            else if (!strcmp(inspect, "neck")) local = Vec3_Create(0, cameraSubject->standingHeight * 0.75f, 0);
+            local = Vec3_Scale(Vec3_Sub(local, cameraSubject->anatomyCenter), cameraSubject->anatomicalScale);
+            float sn = sinf(cameraSubject->yaw), cs = cosf(cameraSubject->yaw);
+            camTarget = Vec3_Add(cameraSubject->position, Vec3_Create(local.x * cs + local.z * sn, local.y, -local.x * sn + local.z * cs));
         }
 
         setCameraPose(&camera, camTarget, (float)zoom, cameraAngle, view, inspect != NULL);
-        if (!EcosystemVisual_Sync(&visual) && !projectionWarned) {
-            fprintf(stderr, "[ADVERTENCIA] No se pudo sincronizar EcosystemVisual.\n");
-            projectionWarned = true;
-        }
-        for (unsigned i = 0; i < w.capacity; ++i) if (w.entities[i].id) {
+
+        for (unsigned i = 0; i < snap->entityCount; ++i) {
             EcosystemVisualProjection projection = {0};
-            if (!projectEntity(&camera, (float)zoom, ARENA_WINDOW_W, ARENA_WINDOW_H, &w.entities[i], &projection) && !projectionWarned) {
+            if (!projectSnapEntity(&camera, (float)zoom, winW, winH, &snap->entities[i], &projection) && !projectionWarned) {
                 fprintf(stderr, "[ADVERTENCIA] Proyección visual no finita.\n");
                 projectionWarned = true;
             }
-            EcosystemVisual_SetProjection(&visual, w.entities[i].id, projection);
+            EcosystemVisual_SetProjection(&visual, snap->entities[i].id, projection);
         }
 
+        /* Precalentamiento inicial acotado de mallas compartidas visibles. */
         if (frame == 0) {
             EcosystemVisual_PrewarmVisible(&visual);
             double warmStart = OpenGLDemoWindow_Time();
             bool loading = true;
             while (loading && OpenGLDemoWindow_Time() - warmStart < 60.0) {
-                EcosystemVisual_Update(&visual, 0.016f);
-                EcosystemVisualDrawPacket warm[ECOSYSTEM_VISUAL_MAX_SLOTS];
-                size_t count = EcosystemVisual_GetDrawPackets(&visual, warm, ECOSYSTEM_VISUAL_MAX_SLOTS);
+                EcosystemVisual_UpdateFromSnapshot(&visual, snap, 0.016f);
+                size_t count = EcosystemVisual_GetDrawPackets(&visual, packets, dynCap);
                 loading = false;
                 for (size_t i = 0; i < count; ++i)
-                    if (!warm[i].ready || ((warm[i].entityId == focusId || warm[i].entityId == captureTargetId) && warm[i].tier != captureTier))
+                    if (!packets[i].ready || ((packets[i].entityId == focusId || packets[i].entityId == captureTargetId) && packets[i].tier != captureTier))
                         loading = true;
                 if (OpenGLDemoWindow_Poll(window).quit) { ok = false; loading = false; }
                 if (loading) {
                     renderer.beginFrame(&renderer);
-                    OpenGLRenderer_DrawTextPanel(ARENA_WINDOW_W, ARENA_WINDOW_H, 410, 380, "PREPARING EVOLUTION ARENA ANATOMY");
+                    OpenGLRenderer_DrawTextPanel(winW, winH, winW / 2 - 230, winH / 2 - 20, "PREPARING EVOLUTION ARENA ANATOMY");
                     renderer.endFrame(&renderer); OpenGLDemoWindow_Swap(window);
                     OpenGLDemoWindow_LimitFPS(OpenGLDemoWindow_Time(), ARENA_MAX_FPS);
                 }
             }
-            if (loading) { fprintf(stderr, "No se completó el LOD solicitado durante la carga.\n"); ok = false; break; }
+            if (loading) {
+                fprintf(stderr, "No se completó el LOD solicitado durante la carga.\n");
+                ok = false;
+                EvolutionSimulationRunner_ReleaseSnapshot(runner, snap);
+                break;
+            }
             geometryWarmSeconds = OpenGLDemoWindow_Time() - warmStart;
             printf("geometry_warmup_seconds=%.6f cache_builds=%zu\n", geometryWarmSeconds, EcosystemVisual_BuildCount(&visual));
             start = OpenGLDemoWindow_Time(); last = start;
         }
 
         double adapterStart = OpenGLDemoWindow_Time();
-        if (!EcosystemVisual_Update(&visual, (float)dt) && !updateWarned) {
-            fprintf(stderr, "[ADVERTENCIA] EcosystemVisual_Update agotó su estado.\n");
+        if (!EcosystemVisual_UpdateFromSnapshot(&visual, snap, (float)dt) && !updateWarned) {
+            fprintf(stderr, "[ADVERTENCIA] EcosystemVisual_UpdateFromSnapshot agotó su estado.\n");
             updateWarned = true;
         }
         adapterSum += (OpenGLDemoWindow_Time() - adapterStart) * 1000.0;
 
-        /* Renderizado 3D del terreno, límites físicos, obstáculos, recursos y criaturas. */
+        /* ================================================================== */
+        /* Renderizado 3D: Terreno, Entorno Instanciado y Criaturas LOD/GPU   */
+        /* ================================================================== */
         double renderStart = OpenGLDemoWindow_Time();
+        OpenGLRenderer_ResetFrameDrawStats(&renderer);
         renderer.beginFrame(&renderer);
-        OpenGLRenderer_SetupCameraOrtho(&camera, (float)zoom, ARENA_WINDOW_W, ARENA_WINDOW_H);
+        OpenGLRenderer_SetupCameraOrtho(&camera, (float)zoom, winW, winH);
 
-        float limit = w.observations.halfSize;
+        float limit = snap->arenaHalfSize;
         drawMesh(&renderer, &meshes[0], Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f);
 
-        /* Límites físicos visibles de la arena + cuadrícula de referencia sutil. */
-        Vector3 corners[4] = {{-limit, 0.04f, -limit}, {limit, 0.04f, -limit}, {limit, 0.04f, limit}, {-limit, 0.04f, limit}};
-        for (unsigned i = 0; i < 4; ++i) {
-            OpenGLRenderer_DebugLine(corners[i], corners[(i + 1) % 4], Color_FromRGB(62, 198, 214));
-            Vector3 topA = Vec3_Add(corners[i], Vec3_Create(0, 0.45f, 0));
-            Vector3 topB = Vec3_Add(corners[(i + 1) % 4], Vec3_Create(0, 0.45f, 0));
-            OpenGLRenderer_DebugLine(corners[i], topA, Color_FromRGB(62, 198, 214));
-            OpenGLRenderer_DebugLine(topA, topB, Color_Create(46, 134, 150, 170));
-        }
-        for (float g = -limit + 5.0f; g < limit; g += 5.0f) {
-            OpenGLRenderer_DebugLine(Vec3_Create(g, 0.01f, -limit), Vec3_Create(g, 0.01f, limit), Color_Create(42, 66, 74, 120));
-            OpenGLRenderer_DebugLine(Vec3_Create(-limit, 0.01f, g), Vec3_Create(limit, 0.01f, g), Color_Create(42, 66, 74, 120));
-        }
-
-        /* Obstáculos físicos estáticos. */
-        for (unsigned i = 0; i < w.obstacleCount; ++i) {
-            const EcosystemObstacle *ob = &w.obstacles[i];
-            drawMesh(&renderer, &meshes[4], ob->position, 0.0f, ob->radius);
-            drawRing3D(ob->position, ob->radius, 0.04f, Color_FromRGB(96, 122, 134));
-        }
-
-        /* Recursos (estanques, plantas, cadáveres). */
-        for (unsigned i = 0; i < w.resourceCapacity; ++i) {
-            const EcosystemResource *resource = &w.resources[i];
-            if (!resource->id) continue;
-            const AIWorldObject *object = AIWorld_Get(&w.observations, resource->id);
-            if (!object) continue;
-            if (resource->category == ECO_WATER) {
-                drawMesh(&renderer, &meshes[1], Vec3_Create(object->position.x, -0.02f, object->position.z), 0.0f, object->radius);
-                drawRing3D(object->position, object->radius, 0.03f, Color_FromRGB(74, 188, 224));
-            } else {
-                float biomass = resource->maximumBiomass > 0.0f ? resource->biomass / resource->maximumBiomass : 0.0f;
-                if (biomass > 0.001f) {
-                    drawMesh(&renderer, &meshes[resource->category == ECO_PLANT ? 2 : 3],
-                             object->position, 0.0f, 0.3f + 1.4f * sqrtf(biomass));
-                }
+        /* Caché estática de perímetro y cuadrícula (1 única llamada batch por fotograma). */
+        if (fabsf(limit - cachedGridHalfSize) > 0.01f) {
+            lineBatchClear(&staticGrid);
+            Vector3 corners[4] = {{-limit, 0.04f, -limit}, {limit, 0.04f, -limit}, {limit, 0.04f, limit}, {-limit, 0.04f, limit}};
+            for (unsigned i = 0; i < 4; ++i) {
+                lineBatchPush(&staticGrid, corners[i], corners[(i + 1) % 4], Color_FromRGB(62, 198, 214));
+                Vector3 topA = Vec3_Add(corners[i], Vec3_Create(0, 0.45f, 0));
+                Vector3 topB = Vec3_Add(corners[(i + 1) % 4], Vec3_Create(0, 0.45f, 0));
+                lineBatchPush(&staticGrid, corners[i], topA, Color_FromRGB(62, 198, 214));
+                lineBatchPush(&staticGrid, topA, topB, Color_Create(46, 134, 150, 170));
             }
+            float gridStep = limit >= 80.0f ? 20.0f : (limit >= 35.0f ? 10.0f : 5.0f);
+            for (float g = -limit + gridStep; g < limit; g += gridStep) {
+                lineBatchPush(&staticGrid, Vec3_Create(g, 0.01f, -limit), Vec3_Create(g, 0.01f, limit), Color_Create(42, 66, 74, 120));
+                lineBatchPush(&staticGrid, Vec3_Create(-limit, 0.01f, g), Vec3_Create(limit, 0.01f, g), Color_Create(42, 66, 74, 120));
+            }
+            cachedGridHalfSize = limit;
+        }
+        if (staticGrid.count > 0) {
+            OpenGLRenderer_BatchDebugLines(staticGrid.verts, staticGrid.cols, staticGrid.count, true);
         }
 
-        /* Criaturas procedurales (reutilizando caché compartida de mallas, LOD y skinning). */
-        EcosystemVisualDrawPacket packets[ECOSYSTEM_VISUAL_MAX_SLOTS];
-        size_t packetCount = EcosystemVisual_GetDrawPackets(&visual, packets, ECOSYSTEM_VISUAL_MAX_SLOTS);
+        lineBatchClear(&dynamicLines);
+
+        /* Obstáculos físicos estáticos (1 llamada instanciada). */
+        envInstances.count = 0;
+        for (unsigned i = 0; i < snap->obstacleCount; ++i) {
+            const EvolutionObstacleSnapshot *ob = &snap->obstacles[i];
+            instanceBatchPush(&envInstances, (OpenGLMeshInstance){
+                .position = ob->position, .yaw = 0.0f, .scale = ob->radius, .scaleY = ob->radius,
+                .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[4]
+            });
+            lineBatchPushRing(&dynamicLines, ob->position, ob->radius, 0.04f, 18u, Color_FromRGB(96, 122, 134));
+        }
+        if (envInstances.count > 0) {
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[4], envInstances.items, envInstances.count, false);
+        }
+
+        /* Estanques de agua (1 llamada instanciada). */
+        envInstances.count = 0;
+        for (unsigned i = 0; i < snap->resourceCount; ++i) {
+            const EvolutionResourceSnapshot *res = &snap->resources[i];
+            if (res->category != ECO_WATER) continue;
+            instanceBatchPush(&envInstances, (OpenGLMeshInstance){
+                .position = Vec3_Create(res->position.x, -0.02f, res->position.z),
+                .yaw = 0.0f, .scale = res->radius, .scaleY = fminf(res->radius, 1.5f),
+                .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[1]
+            });
+            lineBatchPushRing(&dynamicLines, res->position, res->radius, 0.03f, 20u, Color_FromRGB(74, 188, 224));
+        }
+        if (envInstances.count > 0) {
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[1], envInstances.items, envInstances.count, false);
+        }
+
+        /* Plantas (1 llamada instanciada). */
+        envInstances.count = 0;
+        for (unsigned i = 0; i < snap->resourceCount; ++i) {
+            const EvolutionResourceSnapshot *res = &snap->resources[i];
+            if (res->category != ECO_PLANT || res->biomassFraction <= 0.001f) continue;
+            float s = 0.3f + 1.4f * sqrtf(res->biomassFraction);
+            instanceBatchPush(&envInstances, (OpenGLMeshInstance){
+                .position = res->position, .yaw = (float)(res->id % 17u) * 0.37f,
+                .scale = s, .scaleY = s, .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[2]
+            });
+        }
+        if (envInstances.count > 0) {
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[2], envInstances.items, envInstances.count, false);
+        }
+
+        /* Cadáveres/carne (1 llamada instanciada). */
+        envInstances.count = 0;
+        for (unsigned i = 0; i < snap->resourceCount; ++i) {
+            const EvolutionResourceSnapshot *res = &snap->resources[i];
+            if (res->category == ECO_WATER || res->category == ECO_PLANT || res->biomassFraction <= 0.001f) continue;
+            float s = 0.3f + 1.4f * sqrtf(res->biomassFraction);
+            instanceBatchPush(&envInstances, (OpenGLMeshInstance){
+                .position = res->position, .yaw = (float)(res->id % 13u) * 0.48f,
+                .scale = s, .scaleY = s, .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[3]
+            });
+        }
+        if (envInstances.count > 0) {
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[3], envInstances.items, envInstances.count, false);
+        }
+
+        /* Obtener paquetes de dibujo de criaturas. */
+        size_t packetCount = EcosystemVisual_GetDrawPackets(&visual, packets, dynCap);
         bool frameHasMouth = false, captureTargetReady = false;
         double frameMouthError = 0.0;
         memcpy(displayedPackets, packets, packetCount * sizeof(*packets));
@@ -1182,38 +1540,132 @@ int main(int argc, char **argv) {
         if (packetCount < drawnMin) drawnMin = (unsigned)packetCount;
         if (packetCount > drawnMax) drawnMax = (unsigned)packetCount;
 
+        /* 1) Agrupar y renderizar criaturas FAR elegibles mediante GPU instancing (glDrawElementsInstanced). */
+        unsigned bodyGroupCount = 0u, headGroupCount = 0u;
+        bodyInstances.count = 0;
+        headInstances.count = 0;
+        for (size_t i = 0; i < packetCount; ++i) {
+            const EcosystemVisualDrawPacket *p = &packets[i];
+            if (!p->instancedEligible || forceCpu || validateSkin) continue;
+            const Mesh *bm = p->bodyMesh ? p->bodyMesh : EcosystemVisual_FallbackMesh(&visual);
+            if (bm && bm->vertexCount) {
+                unsigned g = 0u;
+                while (g < bodyGroupCount && bodyGroups[g].mesh != bm) ++g;
+                if (g == bodyGroupCount && bodyGroupCount < 64u) {
+                    bodyGroups[bodyGroupCount++] = (MeshGroup){.mesh = bm, .start = 0, .count = 0};
+                }
+                if (g < bodyGroupCount) ++bodyGroups[g].count;
+            }
+            if (p->headMesh && p->headMesh->vertexCount) {
+                unsigned g = 0u;
+                while (g < headGroupCount && headGroups[g].mesh != p->headMesh) ++g;
+                if (g == headGroupCount && headGroupCount < 64u) {
+                    headGroups[headGroupCount++] = (MeshGroup){.mesh = p->headMesh, .start = 0, .count = 0};
+                }
+                if (g < headGroupCount) ++headGroups[g].count;
+            }
+        }
+        size_t bodyTotal = 0, headTotal = 0;
+        for (unsigned g = 0; g < bodyGroupCount; ++g) { bodyGroups[g].start = bodyTotal; bodyTotal += bodyGroups[g].count; bodyGroups[g].count = 0; }
+        for (unsigned g = 0; g < headGroupCount; ++g) { headGroups[g].start = headTotal; headTotal += headGroups[g].count; headGroups[g].count = 0; }
+        if (bodyTotal > bodyInstances.capacity) {
+            OpenGLMeshInstance *ni = realloc(bodyInstances.items, bodyTotal * sizeof(*ni));
+            if (ni) { bodyInstances.items = ni; bodyInstances.capacity = bodyTotal; }
+        }
+        if (headTotal > headInstances.capacity) {
+            OpenGLMeshInstance *ni = realloc(headInstances.items, headTotal * sizeof(*ni));
+            if (ni) { headInstances.items = ni; headInstances.capacity = headTotal; }
+        }
+        if (bodyTotal > 0 && bodyInstances.capacity >= bodyTotal) {
+            for (size_t i = 0; i < packetCount; ++i) {
+                const EcosystemVisualDrawPacket *p = &packets[i];
+                if (!p->instancedEligible || forceCpu || validateSkin) continue;
+                Color tint = p->tintColor; /* Variación tonal individual exacta respecto a la receta canónica. */
+                OpenGLMeshInstance inst = {
+                    .position = p->position, .yaw = p->yaw, .scale = p->scale, .scaleY = p->scale,
+                    .bobY = p->bobY, .leanPitch = p->leanPitch, .tint = tint
+                };
+                const Mesh *bm = p->bodyMesh ? p->bodyMesh : EcosystemVisual_FallbackMesh(&visual);
+                if (bm && bm->vertexCount) {
+                    for (unsigned g = 0; g < bodyGroupCount; ++g) {
+                        if (bodyGroups[g].mesh == bm) {
+                            bodyInstances.items[bodyGroups[g].start + bodyGroups[g].count++] = inst;
+                            break;
+                        }
+                    }
+                }
+                if (p->headMesh && p->headMesh->vertexCount && headInstances.capacity >= headTotal) {
+                    for (unsigned g = 0; g < headGroupCount; ++g) {
+                        if (headGroups[g].mesh == p->headMesh) {
+                            headInstances.items[headGroups[g].start + headGroups[g].count++] = inst;
+                            break;
+                        }
+                    }
+                }
+            }
+            for (unsigned g = 0; g < bodyGroupCount; ++g) {
+                if (bodyGroups[g].count > 0) {
+                    OpenGLRenderer_RenderMeshInstanced(&renderer, bodyGroups[g].mesh,
+                                                       &bodyInstances.items[bodyGroups[g].start],
+                                                       bodyGroups[g].count, true);
+                }
+            }
+            for (unsigned g = 0; g < headGroupCount; ++g) {
+                if (headGroups[g].count > 0) {
+                    OpenGLRenderer_RenderMeshInstanced(&renderer, headGroups[g].mesh,
+                                                       &headInstances.items[headGroups[g].start],
+                                                       headGroups[g].count, true);
+                }
+            }
+        }
+
+        /* 2) Renderizar criaturas detalladas (NEAR y MID) con skinning GPU, pelaje (NEAR) y ojos/mandíbula. */
         for (size_t i = 0; i < packetCount; ++i) {
             EcosystemVisualDrawPacket *packet = &packets[i];
             if (packet->entityId == captureTargetId && packet->ready && packet->tier == VISUAL_TIER_NEAR)
                 captureTargetReady = true;
-            const Mesh *body = packet->bodyMesh ? packet->bodyMesh : EcosystemVisual_FallbackMesh(&visual);
-            const EcosystemEntity *packetEntity = findEntity(&w, packet->entityId);
-            if (packet->ready && packetEntity && packetEntity->speciesIndex < w.speciesCount) {
-                const EcosystemSpecies *packetSpecies = &w.species[packetEntity->speciesIndex];
-                uint32_t recipeId = packetSpecies->recipeId;
+            const EvolutionEntitySnapshot *packetEntity = findSnapEntity(snap, packet->entityId);
+            if (packet->ready && packetEntity) {
+                uint32_t recipeId = packetEntity->recipeId;
                 if ((recipeId == 3u || recipeId == 4u) && !scaleProofPrinted[recipeId] && packet->meshRadius > 1e-4f) {
                     float renderedWidth = packet->scale * packet->meshRadius;
                     float size = packetEntity->genome.size * packetEntity->developmentScale;
-                    float expectedWidth = packetSpecies->radius * size;
+                    float expectedWidth = packetEntity->speciesRadius * size;
                     float normalizedWidth = renderedWidth / fmaxf(0.01f, size);
                     printf("scale_proof recipeId=%u meshRadius=%.6f measuredMeshRadius=%.6f meshLength=%.6f calibrationLength=%.6f totalScale=%.6f k=%.9f rendered_width=%.6f species_radius=%.6f expected_width=%.6f normalized_width=%.6f\n",
                            recipeId, packet->meshRadius, packet->measuredMeshRadius, packet->meshLength,
                            packet->calibrationLength, packet->axialTotalScale, packet->calibrationFactor,
-                           renderedWidth, packetSpecies->radius, expectedWidth, normalizedWidth);
+                           renderedWidth, packetEntity->speciesRadius, expectedWidth, normalizedWidth);
                     scaleProofPrinted[recipeId] = true;
                 }
             }
+            if (packet->instancedEligible && !forceCpu && !validateSkin) {
+                if (validateMouthFrames) {
+                    bool hasSample = false;
+                    double err = mouthFrameErrorSnap(snap, packet, &hasSample);
+                    if (hasSample) { frameHasMouth = true; if (err > frameMouthError) frameMouthError = err; }
+                }
+                continue;
+            }
+            const Mesh *body = packet->bodyMesh ? packet->bodyMesh : EcosystemVisual_FallbackMesh(&visual);
             if (body) {
+                /* Desactivar capas de pelaje costosas en MID; conservar pelaje completo en NEAR y seleccionada. */
+                bool enableFur = (packet->tier == VISUAL_TIER_NEAR) || (packet->entityId == selectedEntityId);
+                OpenGLRenderer_SetFurQuality(&renderer, enableFur, enableFur, 0);
+
                 OpenGLRenderer_ModelTransform(packet->position, packet->yaw * 57.29578f, packet->scale, Vec3_Zero());
                 bool skinning = !forceCpu && packet->deformer && packet->skeleton && packet->pose &&
                                 OpenGLRenderer_SetMeshMorphSkinning(&renderer, body, packet->deformer, packet->skeleton,
                                                                     packet->pose, packet->targetGraph, packet->headJoint,
                                                                     packet->headScale, packetGeneration(packet));
                 OpenGLRenderer_SetMeshSurfaceOverride(&renderer, &packet->surfaceRecipe);
-                if (skinning || !packet->ready) renderer.renderMesh(&renderer, body);
-                else if (EcosystemVisual_DeformBody(packet, &cpuBodies[packet->slotIndex]))
+                if (skinning || !packet->ready) {
+                    renderer.renderMesh(&renderer, body);
+                } else if (packet->slotIndex < dynCap && EcosystemVisual_DeformBody(packet, &cpuBodies[packet->slotIndex])) {
                     renderer.renderMesh(&renderer, &cpuBodies[packet->slotIndex]);
-                if (validateSkin && skinning &&
+                    ++visualProfiler.counters.cpuDeformationFallbacks;
+                }
+                if (validateSkin && skinning && packet->slotIndex < dynCap &&
                     (validatedSkin[packet->slotIndex] != packet->entityId ||
                      validatedSkinMesh[packet->slotIndex] != body->identity)) {
                     float positionError = 0.0f, normalError = 0.0f;
@@ -1231,7 +1683,7 @@ int main(int argc, char **argv) {
                 OpenGLRenderer_SetMeshSkinning(&renderer, NULL, NULL, NULL, NULL, 0);
                 OpenGLRenderer_PushJointMorphTransform(packet->restPose, packet->pose, packet->headJoint, packet->headScale);
                 if (packet->headMesh && packet->headMesh->vertexCount) renderer.renderMesh(&renderer, packet->headMesh);
-                if (renderer.renderEye) {
+                if (renderer.renderEye && enableFur) {
                     for (size_t eye = 0; eye < packet->eyeCount; ++eye) {
                         OpenGLRenderer_ModelTransform(packet->eyes[eye].center, 0, packet->eyeScale, packet->eyes[eye].center);
                         renderer.renderEye(&renderer, &packet->eyes[eye]);
@@ -1253,98 +1705,112 @@ int main(int argc, char **argv) {
             }
             if (validateMouthFrames) {
                 bool hasSample = false;
-                double err = mouthFrameError(&w, packet, &hasSample);
+                double err = mouthFrameErrorSnap(snap, packet, &hasSample);
                 if (hasSample) { frameHasMouth = true; if (err > frameMouthError) frameMouthError = err; }
             }
         }
+        OpenGLRenderer_SetFurQuality(&renderer, true, true, 0);
+
         if (validateMouthFrames && frameHasMouth) {
             mouthWindow[mouthWindowIndex] = frameMouthError;
             mouthWindowIndex = (mouthWindowIndex + 1) % validateMouthFrames;
             if (mouthWindowCount < validateMouthFrames) ++mouthWindowCount;
         }
 
-        /* Indicadores de especie/selección y overlays opcionales (D). */
-        for (unsigned i = 0; i < w.capacity; ++i) {
-            if (!w.entities[i].id) continue;
-            EcosystemEntity *entity = &w.entities[i];
-            if (showHud) {
+        /* Indicadores de especie/selección y overlays opcionales (D) en un único batch. */
+        bool drawAllRings = showHud && !(zoom > 55.0 && snap->entityCount > 120u && !debug);
+        unsigned ringSegs = snap->entityCount > 120u ? 12u : 22u;
+        for (unsigned i = 0; i < snap->entityCount; ++i) {
+            const EvolutionEntitySnapshot *entity = &snap->entities[i];
+            if (drawAllRings) {
                 Color spMark = entity->speciesIndex == 0 ? Color_Create(110, 216, 152, 160) : Color_Create(238, 118, 92, 160);
-                drawRing3D(entity->body.position, entity->body.capabilities.clearance * 0.92f, 0.02f, spMark);
+                lineBatchPushRing(&dynamicLines, entity->position, entity->clearance * 0.92f, 0.02f, ringSegs, spMark);
             }
             if (debug) {
-                OpenGLRenderer_DebugLine(entity->oralPivot, entity->oralElbow, Color_FromRGB(245, 200, 100));
-                OpenGLRenderer_DebugLine(entity->oralElbow, entity->body.mouth, Color_FromRGB(245, 200, 100));
-                if (entity->mind.target) {
-                    const AIWorldObject *obj = AIWorld_Get(&w.observations, entity->mind.target);
-                    if (obj) OpenGLRenderer_DebugLine(entity->body.eye, obj->position, Color_FromRGB(68, 224, 240));
+                lineBatchPush(&dynamicLines, entity->oralPivot, entity->oralElbow, Color_FromRGB(245, 200, 100));
+                lineBatchPush(&dynamicLines, entity->oralElbow, entity->mouth, Color_FromRGB(245, 200, 100));
+                if (entity->hasTarget) {
+                    lineBatchPush(&dynamicLines, entity->eyePos, entity->targetPos, Color_FromRGB(68, 224, 240));
                 }
-                for (unsigned p = entity->mind.navigation.index; p + 1 < entity->mind.navigation.count; ++p) {
-                    OpenGLRenderer_DebugLine(
-                        Vec3_Add(entity->mind.navigation.points[p], Vec3_Create(0, 0.08f, 0)),
-                        Vec3_Add(entity->mind.navigation.points[p + 1], Vec3_Create(0, 0.08f, 0)),
-                        Color_FromRGB(120, 210, 225));
-                }
+            }
+        }
+        if (debug && snap->selected.valid && snap->selected.navPointCount > 1u) {
+            for (unsigned p = snap->selected.navPointIndex; p + 1u < snap->selected.navPointCount; ++p) {
+                lineBatchPush(&dynamicLines,
+                    Vec3_Add(snap->selected.navPoints[p], Vec3_Create(0, 0.08f, 0)),
+                    Vec3_Add(snap->selected.navPoints[p + 1u], Vec3_Create(0, 0.08f, 0)),
+                    Color_FromRGB(120, 210, 225));
             }
         }
         if (selected && showHud) {
-            drawRing3D(selected->body.position, selected->body.capabilities.clearance + 0.25f, 0.05f, Color_FromRGB(74, 236, 250));
+            lineBatchPushRing(&dynamicLines, selected->position, selected->clearance + 0.28f, 0.06f, 28u, Color_FromRGB(74, 236, 250));
             if (swapPendingId && swapPendingId != selected->id) {
-                const EcosystemEntity *sw = findEntity(&w, swapPendingId);
-                if (sw) drawRing3D(sw->body.position, sw->body.capabilities.clearance + 0.30f, 0.06f, Color_FromRGB(252, 206, 82));
+                const EvolutionEntitySnapshot *sw = findSnapEntity(snap, swapPendingId);
+                if (sw) lineBatchPushRing(&dynamicLines, sw->position, sw->clearance + 0.34f, 0.07f, 28u, Color_FromRGB(252, 206, 82));
             }
         }
+        if (dynamicLines.count > 0) {
+            OpenGLRenderer_BatchDebugLines(dynamicLines.verts, dynamicLines.cols, dynamicLines.count, true);
+        }
+
+        EcosystemVisualStats vStats = EcosystemVisual_GetStats(&visual);
+        OpenGLMeshPerformanceStats drawStatsNow = OpenGLRenderer_GetMeshPerformanceStats(&renderer);
+        drawCallsSum += (double)drawStatsNow.drawCalls;
+        instDrawsSum += (double)drawStatsNow.instancedDrawCalls;
+        instCountSum += (double)drawStatsNow.instancedCount;
+        nearSum += (double)vStats.nearCount;
+        midSum += (double)vStats.midCount;
+        farSum += (double)vStats.farCount;
+        culledSum += (double)vStats.culledCount;
 
         /* ================================================================== */
         /* Interfaz 2D de laboratorio                                         */
         /* ================================================================== */
         if (showHud) {
-            OpenGLRenderer_Begin2D(ARENA_WINDOW_W, ARENA_WINDOW_H);
+            OpenGLRenderer_Begin2D(winW, winH);
 
             /* 1) Panel Izquierdo: Estadísticas de Población y Gráfica. */
-            unsigned brums = 0, velks = 0;
-            for (unsigned i = 0; i < w.capacity; ++i) {
-                if (!w.entities[i].id) continue;
-                if (w.entities[i].speciesIndex == 0) ++brums; else ++velks;
-            }
             const float lx = 12.0f, ly = 12.0f, lw = 308.0f, lh = 396.0f;
             OpenGLRenderer_DrawRect2D(lx, ly, lw, lh, Color_Create(9, 15, 22, 226), Color_Create(42, 138, 158, 205));
             OpenGLRenderer_DrawRect2D(lx, ly, lw, 26.0f, Color_Create(14, 28, 39, 240), Color_Create(42, 138, 158, 205));
             char hdr[96];
             snprintf(hdr, sizeof(hdr), "EVOLUTION ARENA  [%s]",
-                     w.defaultController == CREATURE_CONTROLLER_NEURAL ? w.founderModeName : "UTILITY");
+                     snap->controller == CREATURE_CONTROLLER_NEURAL ? snap->founderModeName : "UTILITY");
             OpenGLRenderer_DrawText2D(lx + 10.0f, ly + 7.0f, 1.35f, Color_Create(78, 222, 236, 255), hdr);
 
-            unsigned minute = (unsigned)(SimulationClock_TimeOfDay(&w.clock) * 1440.0);
+            unsigned minute = (unsigned)(snap->timeOfDay * 1440.0);
+            char reqBuf[16];
+            if (snap->maxSpeedMode) snprintf(reqBuf, sizeof(reqBuf), "MAX");
+            else snprintf(reqBuf, sizeof(reqBuf), "%2.0fX", snap->requestedSpeed);
             char statsTxt[512];
             snprintf(statsTxt, sizeof(statsTxt),
                      "SEED %-6u  DAY %3.0f %02u:%02u\n"
-                     "REQ %2.0fX  EFF %4.1fX  %s%s\n"
-                     "POP %3u/%-3u  GEN MAX %-2u\n"
+                     "REQ %-3s  ACH %5.1fX  %s%s\n"
+                     "POP %4u/%-4u GEN MAX %-2u\n"
                      "BIRTHS %-4llu  DEATHS %-4llu\n"
                      "STARV %-3llu DEHYD %-3llu PRED %-3llu\n"
                      "AVG HP %.2f  AVG ENG %.2f\n"
-                     "BIOMASS %5.1f  DIV %.3f\n"
-                     "LINEAGES %-3u  INTV %-3llu",
-                     config.seed, floor(SimulationClock_Days(&w.clock)), minute / 60, minute % 60,
-                     w.clock.speed, effectiveSpeed, w.clock.paused ? "PAUSE" : "RUN",
-                     w.clock.behind ? " BACKLOG" : "",
-                     w.count, w.capacity, w.statistics.maximumGeneration,
-                     (unsigned long long)w.statistics.births, (unsigned long long)w.statistics.deaths,
-                     (unsigned long long)w.statistics.deathCauses[DEATH_STARVATION],
-                     (unsigned long long)w.statistics.deathCauses[DEATH_DEHYDRATION],
-                     (unsigned long long)w.statistics.deathCauses[DEATH_PREDATION],
-                     w.statistics.averageHealth, w.statistics.averageEnergy,
-                     w.statistics.plantBiomass, w.statistics.neuralDiversity,
-                     w.statistics.activeLineages, (unsigned long long)w.interventionCount);
+                     "BIOMASS %5.0f  DIV %.3f\n"
+                     "LINEAGES %-3u  W:%u Q:%s",
+                     config.seed, floor(snap->days), minute / 60, minute % 60,
+                     reqBuf, snap->achievedSpeed, snap->paused ? "PAUSE" : "RUN",
+                     snap->behind ? " LIM" : "",
+                     snap->entityCount, snap->capacity, snap->statistics.maximumGeneration,
+                     (unsigned long long)snap->statistics.births, (unsigned long long)snap->statistics.deaths,
+                     (unsigned long long)snap->statistics.deathCauses[DEATH_STARVATION],
+                     (unsigned long long)snap->statistics.deathCauses[DEATH_DEHYDRATION],
+                     (unsigned long long)snap->statistics.deathCauses[DEATH_PREDATION],
+                     snap->statistics.averageHealth, snap->statistics.averageEnergy,
+                     snap->statistics.plantBiomass, snap->statistics.neuralDiversity,
+                     snap->statistics.activeLineages, snap->workerCount, qualityName(quality));
             OpenGLRenderer_DrawText2D(lx + 10.0f, ly + 36.0f, 1.35f, Color_Create(218, 234, 240, 255), statsTxt);
 
-            /* Leyenda por especie. */
             float gy = ly + 258.0f;
             char spBuf[64];
-            snprintf(spBuf, sizeof(spBuf), "BRUMACERNO: %u", brums);
+            snprintf(spBuf, sizeof(spBuf), "BRUMACERNO: %u", snap->brumacernoCount);
             OpenGLRenderer_DrawRect2D(lx + 10.0f, gy, 10.0f, 10.0f, Color_Create(110, 216, 152, 255), Color_Create(0, 0, 0, 0));
             OpenGLRenderer_DrawText2D(lx + 24.0f, gy, 1.25f, Color_Create(158, 232, 186, 255), spBuf);
-            snprintf(spBuf, sizeof(spBuf), "VELKAR: %u", velks);
+            snprintf(spBuf, sizeof(spBuf), "VELKAR: %u", snap->velkarCount);
             OpenGLRenderer_DrawRect2D(lx + 170.0f, gy, 10.0f, 10.0f, Color_Create(238, 118, 92, 255), Color_Create(0, 0, 0, 0));
             OpenGLRenderer_DrawText2D(lx + 184.0f, gy, 1.25f, Color_Create(244, 158, 138, 255), spBuf);
 
@@ -1359,38 +1825,92 @@ int main(int argc, char **argv) {
                                               gVelk, Color_Create(238, 118, 92, 255),
                                               historyCount, 12.0f);
 
+            /* 1b) Panel Opcional de Rendimiento y Diagnóstico (P), refrescado a ~5 Hz. */
+            if (showPerf) {
+                double nowMsVal = EvolutionSimulationRunner_NowMs();
+                if (nowMsVal - lastPerfRefreshMs >= 200.0 || frame == 0) {
+                    lastPerfRefreshMs = nowMsVal;
+                    double sorted[ARENA_FRAME_RING];
+                    unsigned n = frameRingCount;
+                    double fMean = 0.0, fP95 = 0.0, fP99 = 0.0;
+                    if (n > 0) {
+                        for (unsigned k = 0; k < n; ++k) { sorted[k] = frameRing[k]; fMean += sorted[k]; }
+                        qsort(sorted, n, sizeof(double), compareDouble);
+                        fMean /= (double)n;
+                        fP95 = sorted[(n - 1u) * 95u / 100u];
+                        fP99 = sorted[(n - 1u) * 99u / 100u];
+                    }
+                    double snapAgeMs = fmax(0.0, nowMsVal - snap->publishedAtMs);
+                    struct rusage ru; getrusage(RUSAGE_SELF, &ru);
+                    double rssMb = (double)ru.ru_maxrss / 1024.0;
+                    double cacheMb = (double)vStats.cacheBytes / (1024.0 * 1024.0);
+                    snprintf(perfPanelBuf, sizeof(perfPanelBuf),
+                             "FPS %5.1f  FRM %.1f P95 %.1f P99 %.1f\n"
+                             "SIM %.2fMS (P95 %.2f)  TPS %5.0f\n"
+                             "SPEED REQ %-3s  ACH %5.1fX  CPU %2.0f%%\n"
+                             "BACKLOG %.3fS  SNAP AGE %4.1fMS\n"
+                             "POP %4u/%-4u  WORKERS %u  QLT %s\n"
+                             "VIS %4zu  N:%2zu M:%2zu F:%3zu CUL:%3zu\n"
+                             "ANIM %3zu  MONSTERS %2zu  BUILD %zu\n"
+                             "DRAWS %3llu  INST %2llu (%4llu OBJ)\n"
+                             "REACH %llu  NAV %llu  CAND %llu\n"
+                             "CACHE %zu (%.1fMB)  RSS %.1fMB",
+                             displayedFps, fMean, fP95, fP99,
+                             snap->meanTickMs, snap->p95TickMs, snap->ticksPerSecond,
+                             reqBuf, snap->achievedSpeed, snap->simCpuUtilization,
+                             snap->backlogSeconds, snapAgeMs,
+                             snap->entityCount, snap->capacity, snap->workerCount, qualityName(quality),
+                             vStats.visibleCount, vStats.nearCount, vStats.midCount, vStats.farCount, vStats.culledCount,
+                             vStats.animatedCount, vStats.monsterInstances, vStats.buildCount,
+                             (unsigned long long)drawStatsNow.drawCalls,
+                             (unsigned long long)drawStatsNow.instancedDrawCalls,
+                             (unsigned long long)drawStatsNow.instancedCount,
+                             (unsigned long long)snap->simCounters.anatomicalSolverInvocations,
+                             (unsigned long long)snap->simCounters.navigationRequests,
+                             (unsigned long long)snap->simCounters.spatialQueryCandidates,
+                             vStats.cacheEntries, cacheMb, rssMb);
+                }
+                const float px = 12.0f, py = ly + lh + 10.0f, pw = 308.0f, ph = 248.0f;
+                OpenGLRenderer_DrawRect2D(px, py, pw, ph, Color_Create(8, 14, 21, 232), Color_Create(58, 172, 192, 220));
+                OpenGLRenderer_DrawRect2D(px, py, pw, 22.0f, Color_Create(15, 32, 44, 245), Color_Create(58, 172, 192, 220));
+                OpenGLRenderer_DrawText2D(px + 10.0f, py + 5.0f, 1.25f, Color_Create(92, 232, 244, 255), "PERFORMANCE TELEMETRY [P]");
+                OpenGLRenderer_DrawText2D(px + 8.0f, py + 28.0f, 1.18f, Color_Create(208, 234, 242, 255), perfPanelBuf);
+            }
+
             /* 2) Panel Derecho: Inspector del Individuo Seleccionado + Controles de Cerebro. */
-            const float rx = (float)ARENA_WINDOW_W - 324.0f, ry = 12.0f, rw = 312.0f, rh = 482.0f;
+            const float rx = (float)winW - 324.0f, ry = 12.0f, rw = 312.0f, rh = 482.0f;
             OpenGLRenderer_DrawRect2D(rx, ry, rw, rh, Color_Create(9, 15, 22, 226), Color_Create(42, 138, 158, 205));
             OpenGLRenderer_DrawRect2D(rx, ry, rw, 26.0f, Color_Create(14, 28, 39, 240), Color_Create(42, 138, 158, 205));
             if (selected) {
-                const EcosystemSpecies *sp = &w.species[selected->speciesIndex];
-                const NeuralGenome *ng = CreatureMind_GetNeuralGenome(&selected->mind);
+                const EvolutionSelectedSnapshot *ds = (snap->selected.valid && snap->selected.entityId == selected->id)
+                                                      ? &snap->selected : NULL;
+                const char *spName = selected->speciesIndex < snap->speciesCount ? snap->speciesNames[selected->speciesIndex] : "SPECIES";
+                const NeuralGenome *ng = (ds && ds->hasNeuralBrain) ? &ds->genome : NULL;
                 char rHdr[80];
-                snprintf(rHdr, sizeof(rHdr), "CREATURE #%u  %s", selected->id, sp->name);
+                snprintf(rHdr, sizeof(rHdr), "CREATURE #%u  %s", selected->id, spName);
                 OpenGLRenderer_DrawText2D(rx + 10.0f, ry + 7.0f, 1.35f,
                                           selected->speciesIndex == 0 ? Color_Create(126, 232, 168, 255)
                                                                       : Color_Create(246, 146, 118, 255), rHdr);
-                const char *stageStr = selected->physiology.stage == LIFE_JUVENILE ? "JUV"
-                                       : selected->physiology.stage == LIFE_ADULT ? "ADULT" : "OLD";
+                const char *stageStr = selected->lifeStage == LIFE_JUVENILE ? "JUV"
+                                       : selected->lifeStage == LIFE_ADULT ? "ADULT" : "OLD";
                 char idTxt[256];
                 snprintf(idTxt, sizeof(idTxt),
                          "AGE %5.1fS (%s)  GEN %-2u\n"
                          "PARENTS %u,%u  OFFSP %-2u\n"
                          "LINEAGE #%llu",
-                         selected->physiology.age, stageStr, selected->generation,
-                         selected->reproduction.parents[0], selected->reproduction.parents[1],
+                         ds ? ds->age : (double)selected->ageSeconds, stageStr, selected->generation,
+                         ds ? ds->parents[0] : 0u, ds ? ds->parents[1] : 0u,
                          selected->offspringCount,
                          (unsigned long long)(ng ? ng->metadata.lineageId : 0u));
                 OpenGLRenderer_DrawText2D(rx + 10.0f, ry + 34.0f, 1.3f, Color_Create(208, 228, 236, 255), idTxt);
 
-                drawPhysBar(rx + 10.0f, ry + 84.0f, rw - 20.0f, 16.0f, "HEALTH", selected->physiology.health, Color_Create(96, 214, 140, 235));
-                drawPhysBar(rx + 10.0f, ry + 104.0f, rw - 20.0f, 16.0f, "ENERGY", selected->physiology.energy, Color_Create(64, 210, 224, 235));
-                drawPhysBar(rx + 10.0f, ry + 124.0f, rw - 20.0f, 16.0f, "HYDRAT", selected->physiology.hydration, Color_Create(78, 162, 238, 235));
-                drawPhysBar(rx + 10.0f, ry + 144.0f, rw - 20.0f, 16.0f, "FATIG ", selected->physiology.fatigue, Color_Create(236, 186, 78, 235));
+                drawPhysBar(rx + 10.0f, ry + 84.0f, rw - 20.0f, 16.0f, "HEALTH", selected->health, Color_Create(96, 214, 140, 235));
+                drawPhysBar(rx + 10.0f, ry + 104.0f, rw - 20.0f, 16.0f, "ENERGY", selected->energy, Color_Create(64, 210, 224, 235));
+                drawPhysBar(rx + 10.0f, ry + 124.0f, rw - 20.0f, 16.0f, "HYDRAT", selected->hydration, Color_Create(78, 162, 238, 235));
+                drawPhysBar(rx + 10.0f, ry + 144.0f, rw - 20.0f, 16.0f, "FATIG ", selected->fatigue, Color_Create(236, 186, 78, 235));
 
-                const char *reproStr = selected->reproduction.gestating ? "GESTATING"
-                                       : selected->body.mateReady ? "READY" : "WAIT";
+                const char *reproStr = selected->gestating ? "GESTATING"
+                                       : selected->mateReady ? "READY" : "WAIT";
                 char mindTxt[384];
                 snprintf(mindTxt, sizeof(mindTxt),
                          "INTENT  %s\n"
@@ -1400,19 +1920,18 @@ int main(int argc, char **argv) {
                          "FB F:%.1f I:%.1f D:%.1f\n"
                          "ARCH    %s\n"
                          "FP      %016llX",
-                         selected->mind.controllerType == CREATURE_CONTROLLER_NEURAL
-                             ? NeuralActionIntent_Name(selected->mind.neuralState.selectedIntent) : "UTILITY",
-                         CreatureAction_Name(selected->mind.action),
-                         selected->mind.target, reproStr,
-                         NeuralInteractionOutcome_Name(selected->mind.neuralState.lastOutcome),
-                         selected->mind.neuralState.lastFeedback[0],
-                         selected->mind.neuralState.lastFeedback[1],
-                         selected->mind.neuralState.lastFeedback[2],
+                         (ds && ds->controllerType == CREATURE_CONTROLLER_NEURAL)
+                             ? NeuralActionIntent_Name(ds->neuralState.selectedIntent) : "UTILITY",
+                         CreatureAction_Name(selected->action),
+                         selected->targetId, reproStr,
+                         ds ? NeuralInteractionOutcome_Name(ds->neuralState.lastOutcome) : "NONE",
+                         ds ? ds->neuralState.lastFeedback[0] : 0.0f,
+                         ds ? ds->neuralState.lastFeedback[1] : 0.0f,
+                         ds ? ds->neuralState.lastFeedback[2] : 0.0f,
                          ng ? "FIXED_RNN 32-12-10" : "LEGACY_UTILITY",
                          (unsigned long long)(ng ? ng->metadata.fingerprint : 0u));
                 OpenGLRenderer_DrawText2D(rx + 10.0f, ry + 172.0f, 1.3f, Color_Create(212, 232, 240, 255), mindTxt);
 
-                /* Botones de gestión de cerebros. */
                 float by1 = ry + 322.0f, by2 = ry + 350.0f, bw = 92.0f, bh = 24.0f;
                 btnExport = (UiButton){rx + 10.0f, by1, bw, bh, "[E]EXPORT"};
                 btnImport = (UiButton){rx + 110.0f, by1, bw, bh, "[I]IMPORT"};
@@ -1436,7 +1955,6 @@ int main(int argc, char **argv) {
                 OpenGLRenderer_DrawText2D(rx + 10.0f, ry + 7.0f, 1.35f, Color_Create(180, 198, 206, 255), "NO LIVING CREATURES");
             }
 
-            /* Banner de estado / errores de validación con ajuste de línea limpio. */
             OpenGLRenderer_DrawRect2D(rx + 8.0f, ry + rh - 70.0f, rw - 16.0f, 62.0f,
                                       statusError ? Color_Create(56, 18, 22, 235) : Color_Create(13, 28, 36, 235),
                                       statusError ? Color_Create(236, 92, 86, 230) : Color_Create(46, 148, 166, 200));
@@ -1455,13 +1973,18 @@ int main(int argc, char **argv) {
 
             /* 3) Inspector de Red Neuronal en vivo (N). */
             if (showNeural) {
-                drawNeuralInspector(selected, edgeThreshold, inspectedLayer, inspectedIndex,
+                drawNeuralInspector(&snap->selected, edgeThreshold, inspectedLayer, inspectedIndex,
                                     &btnThMinus, &btnThPlus, &btnClearSel, inPos, hidPos, outPos);
             }
 
-            /* 4) Modal de entrada de ruta de archivo (Export / Import). */
+            /* 4) Minimapa cenital de densidad poblacional (M). */
+            if (showMinimap) {
+                drawMinimap(winW, winH, snap, selectedEntityId, camTarget, (float)zoom);
+            }
+
+            /* 5) Modal de entrada de ruta de archivo (Export / Import). */
             if (promptMode != PROMPT_NONE) {
-                float mx = 360.0f, my = 600.0f, mw = 560.0f, mh = 96.0f;
+                float mx = (float)winW * 0.5f - 280.0f, my = (float)winH - 200.0f, mw = 560.0f, mh = 96.0f;
                 OpenGLRenderer_DrawRect2D(mx, my, mw, mh, Color_Create(8, 16, 24, 248), Color_Create(78, 226, 244, 255));
                 OpenGLRenderer_DrawText2D(mx + 14.0f, my + 12.0f, 1.4f, Color_Create(86, 232, 246, 255),
                                           promptMode == PROMPT_EXPORT ? "EXPORT BRAIN (*.brain.json) - ENTER TO SAVE, ESC CANCEL"
@@ -1473,15 +1996,15 @@ int main(int argc, char **argv) {
                 OpenGLRenderer_DrawText2D(mx + 22.0f, my + 50.0f, 1.45f, Color_Create(238, 250, 255, 255), pbuf);
             }
 
-            /* 5) Barra inferior de controles y rendimiento. */
-            OpenGLRenderer_DrawRect2D(12.0f, (float)ARENA_WINDOW_H - 36.0f, (float)ARENA_WINDOW_W - 24.0f, 26.0f,
+            /* 6) Barra inferior de controles y rendimiento. */
+            OpenGLRenderer_DrawRect2D(12.0f, (float)winH - 36.0f, (float)winW - 24.0f, 26.0f,
                                       Color_Create(9, 15, 22, 220), Color_Create(38, 108, 126, 175));
-            OpenGLRenderer_DrawText2D(20.0f, (float)ARENA_WINDOW_H - 28.0f, 1.2f, Color_Create(168, 206, 218, 255),
-                                      "SPACE:PAUSE  1-4:1X/4X/16X/64X  TAB:NEXT  F:FOLLOW  O:TOP  N:NEURAL  D:DEBUG  E:EXP I:IMP C:CPY V:PST X:SWP B:RND R:RST");
+            OpenGLRenderer_DrawText2D(20.0f, (float)winH - 28.0f, 1.15f, Color_Create(168, 206, 218, 255),
+                                      "SPACE:PAUSE 1-5:1X/4X/16X/64X/MAX P:PERF Q:QLT M:MAP N:RNN O:TOP F:FOL D:DBG E/I/C/V/X/B:BRAIN R:RST");
             double renderCpu = (OpenGLDemoWindow_Time() - start) * 1000.0;
             char fpsBuf[64];
             snprintf(fpsBuf, sizeof(fpsBuf), "FPS %2.0f  %.1fMS", displayedFps, renderCpu);
-            OpenGLRenderer_DrawText2D((float)ARENA_WINDOW_W - 160.0f, (float)ARENA_WINDOW_H - 28.0f,
+            OpenGLRenderer_DrawText2D((float)winW - 160.0f, (float)winH - 28.0f,
                                       1.25f, Color_Create(86, 226, 238, 255), fpsBuf);
 
             OpenGLRenderer_End2D();
@@ -1516,7 +2039,7 @@ int main(int argc, char **argv) {
                                bounds.start.x, bounds.start.y, bounds.start.z, bounds.end.x, bounds.end.y, bounds.end.z);
                     }
                     Mesh_Free(&posed);
-                    if (packets[i].jawJoint >= 0) {
+                    if (packets[i].jawJoint >= 0 && packets[i].restPose && packets[i].pose) {
                         printf("capture_jaw_scale=%g,%g,%g rest_rot=%g,%g,%g,%g pose_rot=%g,%g,%g,%g\n",
                                packets[i].jawScale.x, packets[i].jawScale.y, packets[i].jawScale.z,
                                packets[i].restPose->joints[packets[i].jawJoint].localRotation.x,
@@ -1532,16 +2055,30 @@ int main(int argc, char **argv) {
                 }
             }
             ensureParentDir(capture);
-            captured = ok && OpenGLRenderer_SavePPM(capture, ARENA_WINDOW_W, ARENA_WINDOW_H);
+            captured = ok && OpenGLRenderer_SavePPM(capture, winW, winH);
             ok = captured && ok;
-            const EcosystemEntity *subject = findEntity(&w, captureTargetId ? captureTargetId : focusId);
+            const EvolutionEntitySnapshot *subject = findSnapEntity(snap, captureTargetId ? captureTargetId : focusId);
             if (subject) {
                 printf("capture_entity=%u species=%u recipe=%u action=%s stage=%u\n",
-                       subject->id, subject->body.species, w.species[subject->speciesIndex].recipeId,
-                       CreatureAction_Name(subject->mind.action), subject->physiology.stage);
+                       subject->id, subject->speciesId, subject->recipeId,
+                       CreatureAction_Name(subject->action), subject->lifeStage);
             }
             if (subject && subject->id == turningEntity) printf("capture_yaw_rate_rad_s=%g\n", observedTurnRate);
         }
+
+        /* Guardar última telemetría autoritativa antes de liberar propiedad de lectura del snapshot. */
+        finalPopulation = snap->entityCount;
+        finalController = snap->controller;
+        snprintf(finalFounderMode, sizeof(finalFounderMode), "%s", snap->founderModeName);
+        finalStats = snap->statistics;
+        finalAchievedSpeed = snap->achievedSpeed;
+        finalRequestedSpeed = snap->requestedSpeed;
+        finalTps = snap->ticksPerSecond;
+        finalSimMeanMs = snap->meanTickMs;
+        finalSimP95Ms = snap->p95TickMs;
+        finalWorkers = snap->workerCount;
+
+        EvolutionSimulationRunner_ReleaseSnapshot(runner, snap);
 
         renderer.endFrame(&renderer);
         finalGpu = OpenGLRenderer_GetMeshPerformanceStats(&renderer);
@@ -1551,7 +2088,11 @@ int main(int argc, char **argv) {
             ++gpuSamples;
         }
         OpenGLDemoWindow_Swap(window);
-        if (times) times[frame] = (OpenGLDemoWindow_Time() - start) * 1000.0;
+        double frameTotalMs = (OpenGLDemoWindow_Time() - start) * 1000.0;
+        frameRing[frameRingIdx] = frameTotalMs;
+        frameRingIdx = (frameRingIdx + 1u) % ARENA_FRAME_RING;
+        if (frameRingCount < ARENA_FRAME_RING) ++frameRingCount;
+        if (times) times[frame] = frameTotalMs;
         if (!frames) OpenGLDemoWindow_LimitFPS(start, ARENA_MAX_FPS);
         ++frame;
         if (captured) break;
@@ -1574,30 +2115,40 @@ int main(int argc, char **argv) {
         FILE *f = fopen(profile, "w");
         if (f) {
             fprintf(f,
-                "{\"frames\":%u,\"initial_population\":%u,\"final_population\":%u,\"controller\":\"%s\",\"founder_mode\":\"%s\","
+                "{\"frames\":%u,\"width\":%d,\"height\":%d,\"quality\":\"%s\",\"workers\":%u,"
+                "\"initial_population\":%u,\"final_population\":%u,\"controller\":\"%s\",\"founder_mode\":\"%s\","
                 "\"mean_ms\":%.6f,\"p50_ms\":%.6f,\"p95_ms\":%.6f,\"p99_ms\":%.6f,\"max_ms\":%.6f,"
-                "\"sim_mean_ms\":%.6f,\"adapter_mean_ms\":%.6f,\"render_mean_ms\":%.6f,"
+                "\"sim_mean_ms\":%.6f,\"sim_tick_mean_ms\":%.6f,\"sim_tick_p95_ms\":%.6f,"
+                "\"requested_speed\":%.3f,\"achieved_speed\":%.3f,\"ticks_per_second\":%.3f,"
+                "\"adapter_mean_ms\":%.6f,\"render_mean_ms\":%.6f,"
                 "\"geometry_warmup_seconds\":%.6f,\"gpu_mean_ms\":%.6f,\"process_cpu_ms\":%.6f,"
+                "\"draw_calls_mean\":%.2f,\"instanced_draws_mean\":%.2f,\"instanced_count_mean\":%.2f,"
+                "\"near_mean\":%.2f,\"mid_mean\":%.2f,\"far_mean\":%.2f,\"culled_mean\":%.2f,"
                 "\"cache_entries\":%zu,\"cache_builds\":%zu,\"cache_hits\":%zu,\"drawn_mean\":%.3f,"
                 "\"drawn_min\":%u,\"drawn_max\":%u,\"mouth_window_max_error\":%.6f,"
                 "\"foot_error_max\":%.6f,\"stance_foot_error_max\":%.6f,"
                 "\"skin_position_error\":%.6f,\"skin_normal_error\":%.6f,"
                 "\"peak_rss_kib\":%ld,\"births\":%llu,\"deaths\":%llu,\"max_generation\":%u,\"neural_diversity\":%.6f}\n",
-                frame, initialPopulation, w.count,
-                w.defaultController == CREATURE_CONTROLLER_NEURAL ? "neural" : "utility",
-                w.founderModeName,
+                frame, winW, winH, qualityName(quality), finalWorkers,
+                initialPopulation, finalPopulation,
+                finalController == CREATURE_CONTROLLER_NEURAL ? "neural" : "utility",
+                finalFounderMode,
                 sum / frame, times[frame / 2], times[(frame - 1) * 95 / 100],
                 times[(frame - 1) * 99 / 100], times[frame - 1],
-                simSum / frame, adapterSum / frame, renderSum / frame,
+                simSum / frame, finalSimMeanMs, finalSimP95Ms,
+                finalRequestedSpeed, finalAchievedSpeed, finalTps,
+                adapterSum / frame, renderSum / frame,
                 geometryWarmSeconds, gpuSamples ? gpuSum / gpuSamples : 0.0,
                 1000.0 * (double)(clock() - processStart) / CLOCKS_PER_SEC / frame,
+                drawCallsSum / frame, instDrawsSum / frame, instCountSum / frame,
+                nearSum / frame, midSum / frame, farSum / frame, culledSum / frame,
                 EcosystemVisual_CacheCount(&visual), EcosystemVisual_BuildCount(&visual),
                 EcosystemVisual_CacheHitCount(&visual), drawnSum / frame,
-                drawnMin == ECOSYSTEM_VISUAL_MAX_SLOTS ? 0 : drawnMin, drawnMax,
+                drawnMin == UINT32_MAX ? 0u : drawnMin, drawnMax,
                 mouthMax, footErrorMax, stanceFootErrorMax, skinPositionError, skinNormalError,
-                usage.ru_maxrss, (unsigned long long)w.statistics.births,
-                (unsigned long long)w.statistics.deaths, w.statistics.maximumGeneration,
-                w.statistics.neuralDiversity);
+                usage.ru_maxrss, (unsigned long long)finalStats.births,
+                (unsigned long long)finalStats.deaths, finalStats.maximumGeneration,
+                finalStats.neuralDiversity);
             fclose(f);
         } else {
             ok = false;
@@ -1605,12 +2156,18 @@ int main(int argc, char **argv) {
     }
 
     if (hasClipboard) NeuralGenome_Destroy(&clipboardBrain);
+    lineBatchFree(&staticGrid);
+    lineBatchFree(&dynamicLines);
+    instanceBatchFree(&envInstances);
+    instanceBatchFree(&bodyInstances);
+    instanceBatchFree(&headInstances);
+    for (size_t i = 0; i < dynCap; ++i) Mesh_Free(&cpuBodies[i]);
+    free(packets); free(displayedPackets); free(cpuBodies); free(validatedSkin); free(validatedSkinMesh);
     free(times); free(simulationTimes); free(mouthWindow);
-    for (unsigned i = 0; i < ECOSYSTEM_VISUAL_MAX_SLOTS; ++i) Mesh_Free(&cpuBodies[i]);
     for (unsigned i = 0; i < 5; ++i) Mesh_Free(&meshes[i]);
     EcosystemVisual_Shutdown(&visual);
     OpenGLRenderer_Destroy(&renderer);
     OpenGLDemoWindow_Free(window);
-    EcosystemWorld_Free(&w);
+    EvolutionSimulationRunner_Destroy(runner);
     return ok ? 0 : 1;
 }

@@ -54,8 +54,9 @@ $$
 
 - **Actualización recurrente simultánea:** todas las neuronas ocultas leen la instantánea previa completa $h_{t-1}$ antes de publicar $h_t$.
 - **Cadencia independiente de FPS:** la inferencia se ejecuta a **5 Hz simulados** (`decisionInterval = 0.2 s`, cada 12 ticks de `1/60 s`).
-- **Seguridad numérica:** las entradas no finitas (`NaN`/`Inf`) se rechazan antes de modificar el estado temporal; todos los pesos y sesgos están acotados y validados.
+- **Seguridad numérica:** las entradas y salidas no finitas (`NaN`/`Inf`) se rechazan antes de modificar el estado temporal; los genomas se validan en construcción/carga/herencia y la inferencia aplica comprobaciones estructurales $O(1)$ (`~0,59 µs/eval`, >1,7 M eval/s en 1 hilo).
 - **Sin heap en inferencia:** `NeuralBrain_Evaluate` opera exclusivamente sobre almacenamiento automático y el estado preasignado de la criatura.
+- **Escalabilidad a 500–2.048+ individuos:** las tablas de fundadores, linajes e historial parental crecen dinámicamente sin topes fijos; véanse [EVOLUTION_ARENA_SCALABILITY.md](EVOLUTION_ARENA_SCALABILITY.md) y [EVOLUTION_ARENA_PERFORMANCE.md](EVOLUTION_ARENA_PERFORMANCE.md).
 
 ## 4. Sistema sensorial privado (`monster_sensor_v1`)
 

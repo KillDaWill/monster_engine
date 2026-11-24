@@ -288,6 +288,7 @@ typedef struct OpenGLMeshPerformanceStats {
     uint64_t uploadCount,cacheHitCount,totalBytesUploaded;
     uint64_t meshCacheMisses,staticGeometryUploads,staticSurfaceUploads,indexUploads;
     uint64_t furRootUploads,skinUploads;
+    uint64_t drawCalls,instancedDrawCalls,instancedCount;
     double lastUploadMs;
     float gpuRenderMs;
     uint64_t gpuTimingGeneration; /**< Frame 1-based de la última consulta completada. */
@@ -296,6 +297,27 @@ typedef struct OpenGLMeshPerformanceStats {
     int furShells;
     float furPixels;
 } OpenGLMeshPerformanceStats;
+
+/** @brief Datos compactos por instancia para renderizado GPU instanciado (glDrawElementsInstanced). */
+typedef struct OpenGLMeshInstance {
+    Vector3 position;
+    float yaw;       /**< Orientación Y en radianes. */
+    float scale;     /**< Escala XZ (y uniforme si scaleY <= 0). */
+    float scaleY;    /**< Escala Y opcional (0 => usa scale). */
+    float bobY;      /**< Desplazamiento vertical analítico de marcha. */
+    float leanPitch; /**< Inclinación axial analítica en radianes. */
+    Color tint;      /**< Pigmentación/tinte individual (alfa controla peso del tinte). */
+} OpenGLMeshInstance;
+
+/** @brief Dibuja @p count instancias de @p mesh en una única llamada glDrawElementsInstanced. */
+bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer, const Mesh* mesh,
+                                        const OpenGLMeshInstance* instances, size_t count,
+                                        bool useTintColor);
+/** @brief Reinicia los contadores de draw calls acumulados del fotograma actual. */
+void OpenGLRenderer_ResetFrameDrawStats(Renderer3D* renderer);
+/** @brief Dibuja un lote de segmentos 3D con un único cambio de estado OpenGL. */
+void OpenGLRenderer_BatchDebugLines(const Vector3* vertices, const Color* colors,
+                                    size_t lineCount, bool depthTest);
 /** @brief Obtiene métricas del renderer de mallas sin sincronizar la GPU. */
 OpenGLMeshPerformanceStats OpenGLRenderer_GetMeshPerformanceStats(const Renderer3D* renderer);
 
@@ -313,7 +335,7 @@ typedef struct OpenGLDemoInput {
     bool keyG;     /**< true si se pulsa la tecla 'G' */
     bool keyF;     /**< true si se pulsa la tecla 'F' (fur toggle / follow) */
     bool keyT;     /**< true si se pulsa la tecla 'T' (mutación de criatura) */
-    bool keyN, keyE, keyI, keyC, keyV, keyX, keyB, keyO; /**< Controles de laboratorio neuronal. */
+    bool keyN, keyE, keyI, keyC, keyV, keyX, keyB, keyO, keyP, keyQ; /**< Controles de laboratorio neuronal y rendimiento. */
     bool keyBackspace, keyEnter, shiftHeld;
     char textInput[16]; /**< Texto ASCII introducido en el fotograma (rutas de archivos). */
     int furLengthAdjust;  /**< +1 o -1 con [ / ] */

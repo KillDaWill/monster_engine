@@ -4,6 +4,7 @@
 #define AIWORLD_H
 #include "Vector.h"
 #include "InteractionTarget.h"
+#include "AISpatialIndex.h"
 #include <stdint.h>
 #define AI_WORLD_CAPACITY 128
 typedef uint32_t AIObjectId;
@@ -23,6 +24,8 @@ typedef struct AIWorldObject {
 typedef struct AIWorld {
     AIWorldObject objects[AI_WORLD_CAPACITY];
     AIWorldObject *storage; /**< NULL usa almacenamiento heredado sin heap. */
+    AISpatialIndex *spatial; /**< Índice espacial y hash O(1) cuando se usa InitCapacity. */
+    void *navCache; /**< Caché compartida de ocupación estática para A* (propiedad de AIWorld). */
     unsigned capacity;
     AIObjectId nextId;
     unsigned revision;
@@ -30,10 +33,12 @@ typedef struct AIWorld {
 } AIWorld;
 /** @brief Inicializa registro acotado; IDs nunca se reutilizan. */
 void AIWorld_Init(AIWorld *, float halfSize);
-/** @brief Reserva capacidad configurable. No copiar por valor un mundo propietario. */
+/** @brief Reserva capacidad configurable e índice espacial. No copiar por valor un mundo propietario. */
 bool AIWorld_InitCapacity(AIWorld *, float halfSize, unsigned capacity);
-/** @brief Libera almacenamiento opcional, después de retirar usuarios. */
+/** @brief Libera almacenamiento opcional e índice espacial, después de retirar usuarios. */
 void AIWorld_Destroy(AIWorld *);
+/** @brief Reconfigura el tamaño de celda del índice espacial (p. ej. 2, 4 u 8 unidades). */
+bool AIWorld_SetSpatialCellSize(AIWorld *, float cellSize);
 /** @brief Acceso por ranura para sensores, sin truncar candidatos a 128. */
 const AIWorldObject *AIWorld_At(const AIWorld *, unsigned slot);
 /** @brief Publica datos observables sin invalidar navegación. */
@@ -41,6 +46,13 @@ bool AIWorld_SetObservation(AIWorld *, AIObjectId, unsigned species, unsigned ca
     unsigned foodCategory, bool available, bool reproductiveReady);
 /** @brief Publica rol y capacidad observable del agente, sin invalidar rutas. */
 bool AIWorld_SetAgentState(AIWorld *,AIObjectId,unsigned role,float maximumSpeed);
+/** @brief Publicación combinada O(1) de estado, posición, cotas y observación de una criatura. */
+bool AIWorld_PublishAgent(AIWorld *, AIObjectId, unsigned role, float maximumSpeed,
+    Vector3 position, Vector3 velocity, float radius, float height,
+    unsigned species, unsigned category, unsigned foodCategory,
+    bool available, bool reproductiveReady);
+/** @brief Publicación O(1) del estado observable de un recurso sin búsquedas lineales. */
+bool AIWorld_PublishResource(AIWorld *, AIObjectId, unsigned species, unsigned foodCategory, bool available);
 /** @brief Registra objeto por valor; cero indica capacidad agotada. */
 AIObjectId AIWorld_Add(AIWorld *, AIWorldObject);
 /** @brief Consulta por identificador estable, NULL si fue retirado. */
@@ -55,6 +67,12 @@ bool AIWorld_SetBounds(AIWorld *, AIObjectId, float radius, float height);
 void AIWorld_Remove(AIWorld *, AIObjectId);
 /** @brief Broadphase por esfera, devuelve IDs hasta capacidad. */
 unsigned AIWorld_Candidates(const AIWorld *, Vector3, float, AIObjectId *, unsigned);
+/** @brief Consulta espacial conservadora por radio devolviendo ranuras en orden determinista por ID. */
+unsigned AIWorld_QuerySlotsRadius(const AIWorld *, uint32_t layerMask, Vector3 center, float radius,
+    uint32_t *outSlots, unsigned capacity, bool *overflowed);
+/** @brief Consulta espacial conservadora por segmento devolviendo ranuras candidatas. */
+unsigned AIWorld_QuerySlotsSegment(const AIWorld *, uint32_t layerMask, Vector3 a, Vector3 b, float radius,
+    uint32_t *outSlots, unsigned capacity, bool *overflowed);
 /** @brief Visibilidad por cilindros estáticos; Y vertical. */
 bool AIWorld_LineOfSight(const AIWorld *, Vector3, Vector3, AIObjectId ignore);
 /** @brief Barrido volumétrico contra obstáculos y oclusores cilíndricos. */

@@ -7,15 +7,17 @@
 #include "CreaturePhysiology.h"
 #include "CreatureReproduction.h"
 #include "EcosystemResources.h"
+#include "EvolutionJobSystem.h"
+#include "EvolutionProfiler.h"
 #include "NeuralBrainIO.h"
 #include <stdio.h>
 #include <stdint.h>
 
-#define ECOSYSTEM_MAX_OBSTACLES 32u
+#define ECOSYSTEM_DEFAULT_OBSTACLE_CAPACITY 64u
 #define ECOSYSTEM_MAX_GENERATION_BUCKETS 64u
 #define ECOSYSTEM_INTERVENTION_LOG_CAPACITY 64u
-#define ECOSYSTEM_MAX_LINEAGES 256u
-#define ECOSYSTEM_MAX_FOUNDERS 64u
+#define ECOSYSTEM_INITIAL_LINEAGE_CAPACITY 256u
+#define ECOSYSTEM_INITIAL_FOUNDER_CAPACITY 256u
 
 typedef struct EcosystemObstacle {
     AIObjectId id;
@@ -34,8 +36,10 @@ typedef struct EcosystemIntervention {
 
 typedef struct EcosystemLineage {
     uint64_t lineageId;
+    uint64_t externalLineageId; /**< ID original externo cuando fue remapeado al importar. */
     uint64_t founderFingerprint;
-    unsigned speciesId;
+    unsigned speciesId;         /**< Primera especie observada (compatibilidad). */
+    uint32_t speciesMask;       /**< Máscara de especies que han portado este linaje. */
     unsigned livingCount;
     uint64_t totalMembers;
     uint64_t totalOffspring;
@@ -50,6 +54,14 @@ typedef struct EcosystemFounderRecord {
     NeuralGenome genome;
 } EcosystemFounderRecord;
 
+typedef struct EcosystemParentRecord {
+    AIObjectId entityId;
+    unsigned offspringCount;
+    unsigned matureOffspringCount;
+    unsigned reproductiveOffspringCount;
+    bool alive;
+} EcosystemParentRecord;
+
 typedef struct EcosystemArchiveEntry {
     bool valid;
     bool stillLiving;
@@ -57,7 +69,8 @@ typedef struct EcosystemArchiveEntry {
     unsigned speciesId;
     unsigned generation;
     unsigned offspringCount;
-    double survivalSeconds;
+    double survivalSeconds;     /**< Duración observada de supervivencia (seconds - bornAt). */
+    double biologicalAge;       /**< Edad fisiológica biológica separada. */
     uint64_t lineageId;
     NeuralGenome genome;
 } EcosystemArchiveEntry;
@@ -81,31 +94,38 @@ typedef struct EcosystemEntity {
     uint32_t seed;
     double bornAt;
     float founderDistance;
+    bool founderMissing;
+    bool maturityRecorded;
+    bool reproductiveRecorded;
     CreatureGenome genome;
     BrainProfile brain; /**< Perfil privado resuelto, dirección estable durante su vida. */
     CreatureMind mind;
     CreaturePhysiology physiology;
     CreatureReproduction reproduction;
     CreatureBodyState body;
-    Vector3 previousPosition, oralLocal, oralPivot, oralElbow;
+    Vector3 previousPosition, velocity, oralLocal, oralPivot, oralElbow;
     double nextAttack;
     float developmentScale, oralMotion;
     void *visual; /**< Préstamo opcional; el núcleo nunca lo consulta ni libera. */
-    struct EcosystemAnatomy* anatomicalBody; /**< Propiedad privada del cuerpo oral, sin recursos gráficos. */
+    struct EcosystemAnatomy *anatomicalBody; /**< Propiedad privada del cuerpo oral, sin recursos gráficos. */
 } EcosystemEntity;
 
 typedef struct EcosystemStatistics {
     uint64_t births, deaths, deathCauses[DEATH_CAUSE_COUNT], kills, attacks, matings;
+    uint64_t conceptions, offspringReachingMaturity, reproductiveOffspring;
     uint64_t failedBirths, failedSpawns, actionFailures, navigationFailures, failedInteractions;
     uint64_t meals, drinks, escapes;
     uint64_t birthsPerGeneration[ECOSYSTEM_MAX_GENERATION_BUCKETS];
     uint64_t intentSelections[ACTION_INTENT_COUNT];
     unsigned population, juveniles, maximumGeneration, activeLineages;
+    unsigned missingFounderCount;
     double foodConsumed, plantConsumed, meatConsumed, waterConsumed, plantBiomass;
     double averageAge, averageHealth, averageEnergy, averageGeneration;
     double survivalDurationSum, averageSurvivalDuration, maxObservedSurvival;
     uint64_t completedLifetimes;
-    double neuralDiversity, averageFounderDistance, maxFounderDistance;
+    double neuralDiversity;      /**< Media determinista de distancia RMS por pares sobre toda la población. */
+    double neuralDispersionRms;  /**< Raíz exacta del cuadrado medio de distancias por pares (O(N*P)). */
+    double averageFounderDistance, maxFounderDistance;
     uint64_t eventHash; /**< Firma de eventos ordenados para validación determinista. */
 } EcosystemStatistics;
 
@@ -118,6 +138,20 @@ typedef struct EcosystemBirth {
     Vector3 position;
 } EcosystemBirth;
 
+typedef struct EcosystemIdMap {
+    uint32_t *keys;
+    uint32_t *values;
+    uint32_t mask;
+    uint32_t capacity;
+} EcosystemIdMap;
+
+typedef struct EcosystemMoveProposal {
+    Vector3 nextPosition;
+    float nextYaw;
+    float desiredSpeed;
+    bool wantsMove;
+} EcosystemMoveProposal;
+
 typedef struct EcosystemWorld {
     SimulationClock clock;
     AIWorld observations;
@@ -127,8 +161,23 @@ typedef struct EcosystemWorld {
     EcosystemResource *resources;
     EcosystemBirth *birthQueue;
     unsigned *order;
-    EcosystemObstacle obstacles[ECOSYSTEM_MAX_OBSTACLES];
-    unsigned obstacleCount;
+    EcosystemMoveProposal *moveProposals;
+
+    /* Listas compactas y tablas hash O(1) para entidades y recursos. */
+    EcosystemIdMap entityMap;
+    EcosystemIdMap resourceMap;
+    unsigned *activeEntitySlots;
+    unsigned *entitySlotToActive;
+    unsigned *freeEntitySlots;
+    unsigned freeEntityCount;
+    unsigned *activeResourceSlots;
+    unsigned *resourceSlotToActive;
+    unsigned *freeResourceSlots;
+    unsigned activeResourceCount;
+    unsigned freeResourceCount;
+
+    EcosystemObstacle *obstacles;
+    unsigned obstacleCount, obstacleCapacity;
     unsigned capacity, resourceCapacity, birthCount, count;
     uint32_t random, initialSeed;
     bool updating;
@@ -139,17 +188,24 @@ typedef struct EcosystemWorld {
     bool disablePhysicalMutation;
     uint64_t nextLineageId;
     char founderModeName[32];
-    /* Estadísticas, linajes, archivo observacional e historial de intervenciones acotados. */
+    /* Estadísticas, linajes, fundadores e historial parental dinámicos. */
     EcosystemStatistics statistics;
     EcosystemLineage *lineages;
-    unsigned lineageCount;
+    unsigned lineageCount, lineageCapacity;
     EcosystemFounderRecord *founders;
-    unsigned founderCount;
+    unsigned founderCount, founderCapacity;
+    EcosystemParentRecord *parentHistory;
+    unsigned parentHistoryCount, parentHistoryCapacity;
+    EcosystemIdMap parentHistoryMap;
     EcosystemArchiveEntry archiveBestOffspring;
     EcosystemArchiveEntry archiveLongestSurvival;
     EcosystemArchiveEntry archiveHighestGeneration;
     EcosystemIntervention interventions[ECOSYSTEM_INTERVENTION_LOG_CAPACITY];
     uint64_t interventionCount;
+    /* Paralelismo determinista y perfilado opcionales. */
+    EvolutionJobSystem *jobs;
+    unsigned configuredWorkers;
+    EvolutionProfiler *profiler; /**< Préstamo opcional; NULL desactiva perfilado con coste cero. */
     FILE *eventOutput; /**< Préstamo diagnóstico opcional, nunca se cierra desde el núcleo. */
 } EcosystemWorld;
 
@@ -160,6 +216,12 @@ bool EcosystemWorld_Init(EcosystemWorld *,unsigned populationCap,unsigned resour
 /** @brief Reserva arrays acotados con semiancho de arena configurable (ej. halfSize=20 para 40x40). */
 bool EcosystemWorld_InitArena(EcosystemWorld *,unsigned populationCap,unsigned resourceCap,unsigned speciesCap,
                               float arenaHalfSize,uint32_t seed,double step,double day);
+/** @brief Configura el número de trabajadores CPU para las fases paralelas deterministas (1=serial, 0=auto). */
+bool EcosystemWorld_SetWorkerCount(EcosystemWorld *, unsigned workerCount);
+/** @brief Consulta el número efectivo de trabajadores activos (1 si serial). */
+unsigned EcosystemWorld_WorkerCount(const EcosystemWorld *);
+/** @brief Asocia un perfilador opcional (NULL desactiva). */
+void EcosystemWorld_SetProfiler(EcosystemWorld *, EvolutionProfiler *);
 /** @brief Libera todos los arrays propios; visuales pertenecen al adaptador. */
 void EcosystemWorld_Free(EcosystemWorld *);
 /** @brief Copia y valida especie; cero indica error, devuelve id lógico de especie. */
@@ -172,6 +234,8 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *,unsigned speciesId,Vector3,doub
 EcosystemEntity *EcosystemWorld_Get(EcosystemWorld *,AIObjectId);
 /** @brief Consulta de sólo lectura por ID estable. */
 const EcosystemEntity *EcosystemWorld_GetConst(const EcosystemWorld *,AIObjectId);
+/** @brief Consulta el registro histórico de descendencia de un progenitor (incluso fallecido). */
+const EcosystemParentRecord *EcosystemWorld_GetParentRecord(const EcosystemWorld *, AIObjectId);
 /** @brief Solicita muerte idempotente; se retira al final del siguiente tick activo. */
 bool EcosystemWorld_RequestDeath(EcosystemWorld *,AIObjectId,CreatureDeathCause);
 /** @brief Registra recurso compatible con AIWorld, comprobando geometría y cantidades. */

@@ -252,7 +252,10 @@ static bool intentMatchesActiveInteraction(const CreatureMind *m, NeuralActionIn
 void NeuralController_Update(CreatureMind *m, const AIWorld *w, const CreatureBodyState *b) {
     (void)w;
     if (!m || !b || !m->profile) return;
-    if (!NeuralGenome_Validate(&m->neuralBrain.genome)) {
+    if (!m->neuralBrain.genome.valid ||
+        m->neuralBrain.genome.architecture != NEURAL_ARCH_FIXED_RNN ||
+        m->neuralBrain.genome.inputCount != NEURAL_RNN_INPUTS ||
+        m->neuralBrain.genome.outputCount != NEURAL_RNN_OUTPUTS) {
         m->action = ACTION_IDLE;
         m->goal = GOAL_EXPLORE;
         m->target = 0;
