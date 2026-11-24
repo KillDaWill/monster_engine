@@ -2789,10 +2789,22 @@ OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int he
 }
 OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
     (void)w; OpenGLDemoInput input={.view=-1, .digitKey=-1}; SDL_Event e;
+    static int prevMouseX=-1, prevMouseY=-1;
+    size_t textLen=0;
     while(SDL_PollEvent(&e)) {
         if(e.type==SDL_QUIT)input.quit=true;
         if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT) {
             input.mouseLeftPressed=true;input.mouseX=e.button.x;input.mouseY=e.button.y;
+        }
+        if(e.type==SDL_MOUSEWHEEL) {
+            input.mouseWheel+=e.wheel.y;
+        }
+        if(e.type==SDL_TEXTINPUT) {
+            for(const char *p=e.text.text;*p && textLen+1<sizeof(input.textInput);++p) {
+                unsigned char ch=(unsigned char)*p;
+                if(ch>=32 && ch<127) input.textInput[textLen++]=(char)ch;
+            }
+            input.textInput[textLen]='\0';
         }
         if(e.type==SDL_KEYDOWN) {
             if(e.key.keysym.sym==SDLK_ESCAPE)input.quit=true;
@@ -2805,11 +2817,20 @@ OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
             if(e.key.keysym.sym==SDLK_m) input.keyM=true;
             if(e.key.keysym.sym==SDLK_a) input.keyA=true;
             if(e.key.keysym.sym==SDLK_g) input.keyG=true;
-            if(e.key.keysym.sym==SDLK_c)input.surfacePigment=true;
+            if(e.key.keysym.sym==SDLK_c) { input.surfacePigment=true; input.keyC=true; }
             if(e.key.keysym.sym==SDLK_TAB)input.surfaceDebugNext=true;
             if(e.key.keysym.sym==SDLK_s)input.surfaceToggle=true;
             if(e.key.keysym.sym==SDLK_f)input.keyF=true;
             if(e.key.keysym.sym==SDLK_t)input.keyT=true;
+            if(e.key.keysym.sym==SDLK_n)input.keyN=true;
+            if(e.key.keysym.sym==SDLK_e)input.keyE=true;
+            if(e.key.keysym.sym==SDLK_i)input.keyI=true;
+            if(e.key.keysym.sym==SDLK_v)input.keyV=true;
+            if(e.key.keysym.sym==SDLK_x)input.keyX=true;
+            if(e.key.keysym.sym==SDLK_b)input.keyB=true;
+            if(e.key.keysym.sym==SDLK_o)input.keyO=true;
+            if(e.key.keysym.sym==SDLK_BACKSPACE)input.keyBackspace=true;
+            if(e.key.keysym.sym==SDLK_RETURN || e.key.keysym.sym==SDLK_KP_ENTER)input.keyEnter=true;
             if(e.key.keysym.sym==SDLK_LEFTBRACKET)input.furLengthAdjust=-1;
             if(e.key.keysym.sym==SDLK_RIGHTBRACKET)input.furLengthAdjust=1;
             if(e.key.keysym.sym==SDLK_SEMICOLON)input.furDensityAdjust=-1;
@@ -2820,9 +2841,19 @@ OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
             if(e.key.keysym.sym==SDLK_0)input.digitKey=9;
         }
     }
+    int mx=0,my=0;
+    Uint32 buttons=SDL_GetMouseState(&mx,&my);
+    if(!input.mouseLeftPressed){input.mouseX=mx;input.mouseY=my;}
+    if(prevMouseX>=0){input.mouseDeltaX=mx-prevMouseX;input.mouseDeltaY=my-prevMouseY;}
+    prevMouseX=mx;prevMouseY=my;
+    input.mouseRightHeld=(buttons&SDL_BUTTON(SDL_BUTTON_RIGHT))!=0;
+    input.mouseMiddleHeld=(buttons&SDL_BUTTON(SDL_BUTTON_MIDDLE))!=0;
     const Uint8 *held=SDL_GetKeyboardState(NULL);
     input.cameraForward=(held[SDL_SCANCODE_I]!=0)-(held[SDL_SCANCODE_K]!=0);
     input.cameraRight=(held[SDL_SCANCODE_L]!=0)-(held[SDL_SCANCODE_J]!=0);
+    input.panForward=(held[SDL_SCANCODE_W]!=0)-(held[SDL_SCANCODE_S]!=0);
+    input.panRight=(held[SDL_SCANCODE_L]!=0)-(held[SDL_SCANCODE_J]!=0);
+    input.shiftHeld=(held[SDL_SCANCODE_LSHIFT]!=0)||(held[SDL_SCANCODE_RSHIFT]!=0);
     return input;
 }
 void OpenGLDemoWindow_Swap(OpenGLDemoWindow* w) { if(w){ResolveDemoFramebuffer();SDL_GL_SwapWindow(w->window);} }
@@ -3763,4 +3794,165 @@ void OpenGLRenderer_DrawHistory(int width,int height,int x,int y,int plotWidth,i
     glColor4ub(113,218,132,255);glLineWidth(2);glBegin(GL_LINE_STRIP);
     for(unsigned i=0;i<count;++i)glVertex2f(x+plotWidth*(float)i/fmaxf(1,(float)count-1),y+plotHeight-5-values[i]/maximum*(plotHeight-10));
     glEnd();glPopMatrix();glMatrixMode(GL_PROJECTION);glPopMatrix();glMatrixMode(GL_MODELVIEW);glPopAttrib();
+}
+
+void OpenGLRenderer_Begin2D(int width,int height) {
+    if(width<=0||height<=0)return;
+    glPushAttrib(GL_ENABLE_BIT|GL_CURRENT_BIT|GL_LINE_BIT|GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);glDisable(GL_LIGHTING);glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glMatrixMode(GL_PROJECTION);glPushMatrix();glLoadIdentity();glOrtho(0,width,height,0,-1,1);
+    glMatrixMode(GL_MODELVIEW);glPushMatrix();glLoadIdentity();
+}
+
+void OpenGLRenderer_End2D(void) {
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopAttrib();
+}
+
+void OpenGLRenderer_DrawRect2D(float x,float y,float w,float h,Color fill,Color border) {
+    if(w<=0||h<=0)return;
+    if(fill.a>0) {
+        glColor4ub(fill.r,fill.g,fill.b,fill.a);
+        glBegin(GL_QUADS);
+        glVertex2f(x,y);glVertex2f(x+w,y);glVertex2f(x+w,y+h);glVertex2f(x,y+h);
+        glEnd();
+    }
+    if(border.a>0) {
+        glLineWidth(1.0f);
+        glColor4ub(border.r,border.g,border.b,border.a);
+        glBegin(GL_LINE_LOOP);
+        glVertex2f(x+0.5f,y+0.5f);glVertex2f(x+w-0.5f,y+0.5f);
+        glVertex2f(x+w-0.5f,y+h-0.5f);glVertex2f(x+0.5f,y+h-0.5f);
+        glEnd();
+    }
+}
+
+void OpenGLRenderer_DrawLine2D(float x0,float y0,float x1,float y1,float lineWidth,Color color) {
+    if(color.a==0)return;
+    glLineWidth(fmaxf(1.0f,fminf(6.0f,lineWidth)));
+    glColor4ub(color.r,color.g,color.b,color.a);
+    glBegin(GL_LINES);
+    glVertex2f(x0,y0);glVertex2f(x1,y1);
+    glEnd();
+}
+
+void OpenGLRenderer_DrawCircle2D(float cx,float cy,float radius,Color fill,Color border) {
+    if(radius<=0.5f)return;
+    const int segs=20;
+    if(fill.a>0) {
+        glColor4ub(fill.r,fill.g,fill.b,fill.a);
+        glBegin(GL_TRIANGLE_FAN);
+        glVertex2f(cx,cy);
+        for(int i=0;i<=segs;++i) {
+            float a=(float)i*6.2831853f/(float)segs;
+            glVertex2f(cx+cosf(a)*radius,cy+sinf(a)*radius);
+        }
+        glEnd();
+    }
+    if(border.a>0) {
+        glLineWidth(1.5f);
+        glColor4ub(border.r,border.g,border.b,border.a);
+        glBegin(GL_LINE_LOOP);
+        for(int i=0;i<segs;++i) {
+            float a=(float)i*6.2831853f/(float)segs;
+            glVertex2f(cx+cosf(a)*radius,cy+sinf(a)*radius);
+        }
+        glEnd();
+    }
+}
+
+static bool glyphPixel(unsigned char c,int col,int row) {
+    static const unsigned char glyphs[36][5]={
+        {0x7e,0x11,0x11,0x11,0x7e},{0x7f,0x49,0x49,0x49,0x36},{0x3e,0x41,0x41,0x41,0x22},
+        {0x7f,0x41,0x41,0x22,0x1c},{0x7f,0x49,0x49,0x49,0x41},{0x7f,0x09,0x09,0x09,0x01},
+        {0x3e,0x41,0x49,0x49,0x7a},{0x7f,0x08,0x08,0x08,0x7f},{0,0x41,0x7f,0x41,0},
+        {0x20,0x40,0x41,0x3f,0x01},{0x7f,0x08,0x14,0x22,0x41},{0x7f,0x40,0x40,0x40,0x40},
+        {0x7f,0x02,0x0c,0x02,0x7f},{0x7f,0x04,0x08,0x10,0x7f},{0x3e,0x41,0x41,0x41,0x3e},
+        {0x7f,0x09,0x09,0x09,0x06},{0x3e,0x41,0x51,0x21,0x5e},{0x7f,0x09,0x19,0x29,0x46},
+        {0x46,0x49,0x49,0x49,0x31},{0x01,0x01,0x7f,0x01,0x01},{0x3f,0x40,0x40,0x40,0x3f},
+        {0x1f,0x20,0x40,0x20,0x1f},{0x3f,0x40,0x38,0x40,0x3f},{0x63,0x14,0x08,0x14,0x63},
+        {0x07,0x08,0x70,0x08,0x07},{0x61,0x51,0x49,0x45,0x43},
+        {0x3e,0x51,0x49,0x45,0x3e},{0,0x42,0x7f,0x40,0},{0x42,0x61,0x51,0x49,0x46},
+        {0x21,0x41,0x45,0x4b,0x31},{0x18,0x14,0x12,0x7f,0x10},{0x27,0x45,0x45,0x45,0x39},
+        {0x3c,0x4a,0x49,0x49,0x30},{0x01,0x71,0x09,0x05,0x03},{0x36,0x49,0x49,0x49,0x36},
+        {0x06,0x49,0x49,0x29,0x1e}};
+    if(c>='a'&&c<='z')c=(unsigned char)(c-'a'+'A');
+    if(c>='A'&&c<='Z')return (glyphs[c-'A'][col]&(1u<<row))!=0;
+    if(c>='0'&&c<='9')return (glyphs[26+c-'0'][col]&(1u<<row))!=0;
+    switch(c) {
+    case ':': return col==2&&(row==2||row==5);
+    case '.': return col==2&&row==6;
+    case ',': return (col==2&&row==5)||(col==1&&row==6);
+    case '-': return row==3&&col>=1&&col<=3;
+    case '_': return row==6;
+    case '+': return (row==3&&col>=1&&col<=3)||(col==2&&row>=2&&row<=4);
+    case '=': return (row==2||row==4)&&col>=1&&col<=3;
+    case '/': return col==4-row/2;
+    case '(': return (col==3&&(row==0||row==6))||(col==2&&(row==1||row==5))||(col==1&&row>=2&&row<=4);
+    case ')': return (col==1&&(row==0||row==6))||(col==2&&(row==1||row==5))||(col==3&&row>=2&&row<=4);
+    case '[': return col==1||(col==2&&(row==0||row==6))||(col==3&&(row==0||row==6));
+    case ']': return col==3||(col==2&&(row==0||row==6))||(col==1&&(row==0||row==6));
+    case '|': return col==2;
+    case '%': return (col==0&&row==1)||(col==4&&row==5)||(col==4-row/2);
+    case '#': return col==1||col==3||row==2||row==4;
+    case '!': return col==2&&(row<=4||row==6);
+    case '>': return (col==1&&(row==1||row==5))||(col==2&&(row==2||row==4))||(col==3&&row==3);
+    case '<': return (col==3&&(row==1||row==5))||(col==2&&(row==2||row==4))||(col==1&&row==3);
+    default:  return false;
+    }
+}
+
+void OpenGLRenderer_DrawText2D(float x,float y,float scale,Color color,const char *text) {
+    if(!text||scale<=0||color.a==0)return;
+    glColor4ub(color.r,color.g,color.b,color.a);
+    glBegin(GL_QUADS);
+    float px=x,py=y,advX=6.0f*scale,advY=10.0f*scale;
+    for(const char *p=text;*p;++p) {
+        if(*p=='\n'){px=x;py+=advY;continue;}
+        unsigned char c=(unsigned char)*p;
+        if(c!=' ') {
+            for(int col=0;col<5;++col)for(int row=0;row<7;++row) {
+                if(glyphPixel(c,col,row)) {
+                    float a=px+col*scale,b=py+row*scale;
+                    glVertex2f(a,b);glVertex2f(a+scale,b);glVertex2f(a+scale,b+scale);glVertex2f(a,b+scale);
+                }
+            }
+        }
+        px+=advX;
+    }
+    glEnd();
+}
+
+void OpenGLRenderer_DrawMultiHistory2D(float x,float y,float w,float h,
+    const float *seriesA,Color colorA,const float *seriesB,Color colorB,unsigned count,float minMaxY) {
+    if(w<=4||h<=4)return;
+    OpenGLRenderer_DrawRect2D(x,y,w,h,Color_Create(8,14,20,230),Color_Create(40,95,112,180));
+    /* Líneas guía horizontales sutiles. */
+    for(int g=1;g<4;++g) {
+        float gy=y+h*(float)g/4.0f;
+        OpenGLRenderer_DrawLine2D(x+2,gy,x+w-2,gy,1.0f,Color_Create(35,62,74,100));
+    }
+    if(count<2)return;
+    float maximum=fmaxf(1.0f,minMaxY);
+    for(unsigned i=0;i<count;++i) {
+        if(seriesA&&seriesA[i]>maximum)maximum=seriesA[i];
+        if(seriesB&&seriesB[i]>maximum)maximum=seriesB[i];
+    }
+    if(seriesA) {
+        glColor4ub(colorA.r,colorA.g,colorA.b,colorA.a);glLineWidth(2.0f);
+        glBegin(GL_LINE_STRIP);
+        for(unsigned i=0;i<count;++i)
+            glVertex2f(x+3+(w-6)*(float)i/(float)(count-1),y+h-4-(seriesA[i]/maximum)*(h-8));
+        glEnd();
+    }
+    if(seriesB) {
+        glColor4ub(colorB.r,colorB.g,colorB.b,colorB.a);glLineWidth(2.0f);
+        glBegin(GL_LINE_STRIP);
+        for(unsigned i=0;i<count;++i)
+            glVertex2f(x+3+(w-6)*(float)i/(float)(count-1),y+h-4-(seriesB[i]/maximum)*(h-8));
+        glEnd();
+    }
 }

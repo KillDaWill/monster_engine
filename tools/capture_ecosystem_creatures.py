@@ -42,11 +42,12 @@ def main():
             ('overview', ['--frames=180', '--zoom=25', '--view=three-quarter']),
         ])
     for name, options in cases:
-        binary_hash = hashlib.sha256(Path('demos/demo_ecosystem').read_bytes()).hexdigest()
+        binary_hash = hashlib.sha256(Path('demos/demo_evolution_arena').read_bytes()).hexdigest()
         recipe_hashes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                          for path in [Path('recipes/catalog.txt'), *sorted(Path('recipes').glob('*.creature.json'))]}
         ppm = args.output / f'{name}.ppm'
-        command = ['./demos/demo_ecosystem', '--no-hud', '--inspect=body', '--zoom=3', '--validate-mouth=240', '--validate-skinning', *options,
+        command = ['./demos/demo_evolution_arena', '--controller=utility', '--obstacles=0', '--arena-size=48',
+                   '--no-hud', '--inspect=body', '--zoom=3', '--validate-mouth=240', '--validate-skinning', *options,
                    f'--capture={ppm}', f'--profile={args.output / (name + ".json")}']
         with (args.output / (name + '.log')).open('w') as log:
             result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
@@ -54,7 +55,7 @@ def main():
             ready = 'capture_mesh_ready=1 tier=2' in (args.output / (name + '.log')).read_text()
             if not ready:
                 raise RuntimeError(f'{name}: falta prueba de malla NEAR residente')
-        if hashlib.sha256(Path('demos/demo_ecosystem').read_bytes()).hexdigest() != binary_hash:
+        if hashlib.sha256(Path('demos/demo_evolution_arena').read_bytes()).hexdigest() != binary_hash:
             raise RuntimeError('El ejecutable cambió durante una captura; repetir con el build terminado.')
         record = {'recipe_sha256': recipe_hashes, 'name': name, 'command': command, 'exit_code': result.returncode, 'binary_sha256': binary_hash}
         if result.returncode == 0 and ppm.exists():

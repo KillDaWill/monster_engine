@@ -311,12 +311,16 @@ typedef struct OpenGLDemoInput {
     bool keyR;     /**< true si se pulsa la tecla 'R' */
     bool keyM, keyA; /**< Comparación monocroma y anatomía. */
     bool keyG;     /**< true si se pulsa la tecla 'G' */
-    bool keyF;     /**< true si se pulsa la tecla 'F' (fur toggle) */
+    bool keyF;     /**< true si se pulsa la tecla 'F' (fur toggle / follow) */
     bool keyT;     /**< true si se pulsa la tecla 'T' (mutación de criatura) */
+    bool keyN, keyE, keyI, keyC, keyV, keyX, keyB, keyO; /**< Controles de laboratorio neuronal. */
+    bool keyBackspace, keyEnter, shiftHeld;
+    char textInput[16]; /**< Texto ASCII introducido en el fotograma (rutas de archivos). */
     int furLengthAdjust;  /**< +1 o -1 con [ / ] */
     int furDensityAdjust; /**< +1 o -1 con ; / ' */
-    bool mouseLeftPressed; /**< Pulsación izquierda, sin repetición al mantener. */
-    int mouseX,mouseY; /**< Coordenadas de ventana desde la esquina superior izquierda. */
+    bool mouseLeftPressed, mouseRightHeld, mouseMiddleHeld; /**< Pulsación izquierda y arrastre cámara. */
+    int mouseX,mouseY,mouseDeltaX,mouseDeltaY,mouseWheel; /**< Coordenadas y rueda de ratón. */
+    int panForward, panRight; /**< Desplazamiento W/S y A/Q alternativo sin conflicto con I. */
 } OpenGLDemoInput;
 /** @brief Crea contexto para demos; NULL si falla. */
 /** @brief Crea una ventana con MSAA solicitado y fallback sin MSAA. */
@@ -357,6 +361,21 @@ void OpenGLRenderer_DrawHUD(int width, int height, float fps, float frameTimeMs)
 void OpenGLRenderer_DrawTextPanel(int width,int height,int x,int y,const char *text);
 /** @brief Historia de valores cronológicos con escala vertical automática. */
 void OpenGLRenderer_DrawHistory(int width,int height,int x,int y,int plotWidth,int plotHeight,const float *values,unsigned count);
+/** @brief Inicia contexto ortográfico 2D en píxeles de ventana (origen arriba-izquierda). */
+void OpenGLRenderer_Begin2D(int width,int height);
+/** @brief Restaura matrices y atributos previos al bloque 2D. */
+void OpenGLRenderer_End2D(void);
+/** @brief Rectángulo 2D con relleno y borde opcionales (alfa 0 omite borde/relleno). */
+void OpenGLRenderer_DrawRect2D(float x,float y,float w,float h,Color fill,Color border);
+/** @brief Segmento 2D con grosor y color RGBA (conexiones neuronales, gráficas). */
+void OpenGLRenderer_DrawLine2D(float x0,float y0,float x1,float y1,float lineWidth,Color color);
+/** @brief Círculo 2D con relleno y borde (nodos neuronales, indicadores). */
+void OpenGLRenderer_DrawCircle2D(float cx,float cy,float radius,Color fill,Color border);
+/** @brief Texto ASCII matricial 2D con escala y color configurables (dentro de Begin2D/End2D). */
+void OpenGLRenderer_DrawText2D(float x,float y,float scale,Color color,const char *text);
+/** @brief Gráfica 2D de dos series cronológicas con escala vertical compartida. */
+void OpenGLRenderer_DrawMultiHistory2D(float x,float y,float w,float h,
+    const float *seriesA,Color colorA,const float *seriesB,Color colorB,unsigned count,float minMaxY);
 
 #ifdef __cplusplus
 }

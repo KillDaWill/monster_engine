@@ -4,7 +4,8 @@ static float unit(float x) {return fmaxf(0,fminf(1,x));}
 PhysiologyProfile CreaturePhysiology_Default(void) {
     return (PhysiologyProfile){.basalCost=.0022f,.hydrationCost=.003f,.movementCost=.0007f,
         .starvationDamage=.018f,.dehydrationDamage=.025f,.recoveryRate=.002f,
-        .fatigueRate=.0015f,.restRate=.04f,.maturityAge=120,.oldAge=1600,.maximumAge=2200};
+        .fatigueRate=.0015f,.restRate=.04f,.maturityAge=120,.oldAge=1600,.maximumAge=2200,
+        .dietMask=0u,.preyMask=0u,.canAttackPhysically=false,.waterInteraction=true};
 }
 CreaturePhysiology CreaturePhysiology_Create(double age,float energy) {
     return (CreaturePhysiology){.energy=unit(energy),.hydration=.85f,.health=1,.age=fmax(0,age)};

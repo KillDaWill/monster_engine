@@ -59,7 +59,8 @@ def main():
         ])
         for name, options in cases:
             ppm = out / ('ecosystem-' + name + '.ppm')
-            run('ecosystem-' + name, ['./demos/demo_ecosystem', '--no-hud', '--inspect=body', '--zoom=3',
+            run('ecosystem-' + name, ['./demos/demo_evolution_arena', '--controller=utility', '--obstacles=0',
+                '--arena-size=48', '--no-hud', '--inspect=body', '--zoom=3',
                 '--validate-mouth=240', '--validate-skinning', *options, '--capture=' + str(ppm),
                 '--profile=' + str(ppm.with_suffix('.json'))])
             Image.open(ppm).save(ppm.with_suffix('.png'))

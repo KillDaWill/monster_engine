@@ -16,7 +16,12 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/EcosystemScenario.c \
+CORE_SRCS = $(SRC_DIR)/NeuralGenome.c \
+            $(SRC_DIR)/NeuralBrain.c \
+            $(SRC_DIR)/NeuralBrainIO.c \
+            $(SRC_DIR)/NeuralController.c \
+            $(SRC_DIR)/EvolutionArena.c \
+            $(SRC_DIR)/EcosystemScenario.c \
             $(SRC_DIR)/LongHair.c \
             $(SRC_DIR)/Membrane.c \
             $(SRC_DIR)/ArmorScales.c \
@@ -148,7 +153,12 @@ CORE_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(CORE_SRCS))
 RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
-TEST_SRCS = $(TEST_DIR)/test_ecosystem.c \
+TEST_SRCS = $(TEST_DIR)/test_neural_brain.c \
+            $(TEST_DIR)/test_neural_genome.c \
+            $(TEST_DIR)/test_neural_brain_io.c \
+            $(TEST_DIR)/test_neural_controller.c \
+            $(TEST_DIR)/test_evolution_arena.c \
+            $(TEST_DIR)/test_ecosystem.c \
             $(TEST_DIR)/test_long_hair.c \
             $(TEST_DIR)/test_long_hair_concurrency.c \
             $(TEST_DIR)/test_long_hair_scheduler.c \
@@ -379,7 +389,7 @@ $(LIZARD_VIEWER_BIN): $(CORE_OBJS) $(RENDER_OBJS) $(SRC_DIR)/main_lizard_viewer.
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
 
 # Demos
-demos: demos/demo_ecosystem demos/demo_ecosystem_headless $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN)
+demos: demos/demo_evolution_arena demos/demo_evolution_arena_headless $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) demos/demo_dog $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN)
 
 # Escritorio independiente. Los tests de lógica no necesitan SDL ni OpenGL.
 UI_MODEL_SRCS = src/interface/UiCommands.c src/interface/UiDesktop.c \
@@ -470,7 +480,7 @@ codegraph:
 # Limpieza de binarios y archivos temporales de compilación
 clean:
 	rm -f benchmarks/benchmark_anatomy $(UI_BIN)
-	rm -rf demos/demo_ecosystem demos/demo_ecosystem_headless benchmarks/benchmark_ecosystem $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
+	rm -rf demos/demo_evolution_arena demos/demo_evolution_arena_headless benchmarks/benchmark_neural benchmarks/benchmark_ecosystem $(DEMO_MORPH_BIN) $(DEMO_GAME_SCENE_BIN) demos/demo_dog benchmarks/benchmark_animation $(ANIMATION_DEMOS) $(BUILD_DIR) $(TEST_BIN) $(BENCHMARK_BIN) $(LIZARD_VIEWER_BIN) $(DEMO_AGER_BIN) $(DEMO_LIZARD_BIN) $(DEMO_MOUTH_BIN) $(DEMO_ANIMATION_BIN) $(DEMO_DIVERSITY_BIN) benchmarks/benchmark_lizard benchmarks/benchmark_appendages benchmarks/benchmark_ager_realtime benchmarks/benchmark_morph_dynamic benchmarks/benchmark_gpu_sparse_surface benchmarks/benchmark_growth benchmarks/benchmark_head_morph benchmarks/benchmark_ai benchmarks/benchmark_interactions doc/html doc/latex
 
 # Dependencias de cabeceras: evita mezclar layouts de structs antiguos y nuevos.
 -include $(CORE_OBJS:.o=.d) $(RENDER_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -569,24 +579,37 @@ benchmark-ai: benchmarks/benchmark_ai
 benchmarks/benchmark_interactions: $(CORE_OBJS) benchmarks/benchmark_interactions.c
 	$(CC) $(CFLAGS) benchmarks/benchmark_interactions.c $(CORE_OBJS) -o $@ $(LIBS)
 
-# Ecosistema: simulación sin dependencias gráficas.
-demos/demo_ecosystem_headless: $(CORE_OBJS) demos/demo_ecosystem_headless.c
+# Evolution Arena: simulación neuronal evolutiva (headless sin dependencias gráficas y visual).
+demos/demo_evolution_arena_headless: $(CORE_OBJS) demos/demo_evolution_arena_headless.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
-demos/demo_ecosystem: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_ecosystem.c
+demos/demo_evolution_arena: $(CORE_OBJS) $(RENDER_OBJS) demos/demo_evolution_arena.c
 	$(CC) $(CFLAGS) $^ $(GL_LIBS) -o $@
+
+benchmarks/benchmark_neural: $(CORE_OBJS) benchmarks/benchmark_neural.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-neural
+benchmark-neural: benchmarks/benchmark_neural
+	./benchmarks/benchmark_neural
 
 benchmarks/benchmark_ecosystem: $(CORE_OBJS) benchmarks/benchmark_ecosystem.c
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
-# Diagnóstico de memoria de la simulación, sin recompilar objetos de producción.
+# Diagnóstico de memoria de la simulación y cerebros neuronales, sin recompilar objetos de producción.
 ECOSYSTEM_SANITIZER_SRCS = $(CORE_SRCS)
-.PHONY: ecosystem-sanitize
+.PHONY: ecosystem-sanitize evolution-sanitize
 ecosystem-sanitize:
 	@mkdir -p $(BUILD_DIR)
 	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) benchmarks/benchmark_ecosystem.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/ecosystem-sanitize
 	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/ecosystem-sanitize 100 3600 10000
 
+evolution-sanitize:
+	@mkdir -p $(BUILD_DIR)
+	printf 'void run_neural_brain_tests(void); void run_neural_genome_tests(void); void run_neural_brain_io_tests(void); void run_neural_controller_tests(void); void run_evolution_arena_tests(void); int main(void){ run_neural_brain_tests(); run_neural_genome_tests(); run_neural_brain_io_tests(); run_neural_controller_tests(); run_evolution_arena_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_sanitize_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_neural_brain.c tests/test_neural_genome.c tests/test_neural_brain_io.c tests/test_neural_controller.c tests/test_evolution_arena.c $(BUILD_DIR)/evolution_sanitize_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-sanitize
+	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/evolution-sanitize
+
 .PHONY: validate-ecosystem
-validate-ecosystem: demos/demo_ecosystem_headless
+validate-ecosystem: demos/demo_evolution_arena_headless
 	python3 tools/validate_ecosystem.py

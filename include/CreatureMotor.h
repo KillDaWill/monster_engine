@@ -16,7 +16,7 @@ typedef struct CreatureBodyState {
     float yaw, visionYaw, speed;
     unsigned group, species, reproductiveRole;
     bool mateReady, canAttack;
-    float energy, fatigue, attackRange;
+    float energy, hydration, fatigue, health, normalizedAge, attackRange;
     CreatureCapabilities capabilities;
 } CreatureBodyState;
 typedef struct CreatureIntent {

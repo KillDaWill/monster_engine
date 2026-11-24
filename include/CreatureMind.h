@@ -6,8 +6,14 @@
 #include "CreatureNavigation.h"
 #include "CreatureNeeds.h"
 #include "CreaturePerception.h"
+#include "NeuralBrain.h"
+#include "NeuralController.h"
 typedef struct CreatureMind {
     const BrainProfile *profile; /* Referencia inmutable prestada; debe sobrevivir a la mente. */
+    CreatureControllerType controllerType;
+    unsigned desiredFoodCategory; /**< 0 = cualquiera (legacy), ECO_PLANT o ECO_MEAT. */
+    NeuralBrain neuralBrain;
+    NeuralControllerState neuralState;
     CreatureNeeds needs;
     CreaturePerception perception;
     CreatureNavigation navigation;
@@ -51,4 +57,26 @@ float CreatureMind_Random(CreatureMind *);
 
 /** @brief Confirma sólo beneficio realmente transferido, después del arbitraje mundial. */
 void CreatureMind_ConfirmIntake(CreatureMind *,float confirmedBenefit);
+
+/** @brief Asigna un genoma neuronal validado por copia independiente y reinicia estado recurrente.
+ *
+ * Preserva identidad, PRNG, tiempo y necesidades; cancela tareas/rutas previas y nunca
+ * transfiere memoria perceptiva de otro individuo. Ante genoma inválido no modifica nada.
+ */
+bool CreatureMind_AssignNeuralGenome(CreatureMind *, const NeuralGenome *);
+
+/** @brief Obtiene el genoma neuronal de sólo lectura, o NULL si no usa controlador neuronal. */
+const NeuralGenome *CreatureMind_GetNeuralGenome(const CreatureMind *);
+
+/** @brief Configura parámetros de cadencia, compromiso y ruido del controlador neuronal. */
+void CreatureMind_SetNeuralConfig(CreatureMind *, NeuralControllerConfig);
+
+/** @brief Registra retroalimentación real de fallo físico entre ticks de decisión. */
+void CreatureMind_RecordFailure(CreatureMind *, NeuralInteractionOutcome);
+
+/** @brief Registra retroalimentación real de daño físico recibido entre ticks de decisión. */
+void CreatureMind_RecordDamage(CreatureMind *, float damage);
+
+/** @brief Registra el resultado de la última interacción física para inspección. */
+void CreatureMind_RecordOutcome(CreatureMind *, NeuralInteractionOutcome);
 #endif

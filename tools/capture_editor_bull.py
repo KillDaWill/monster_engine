@@ -16,7 +16,7 @@ def main():
     parser.add_argument('--baseline',action='store_true',help='Usar recetas C de respaldo con el binario actual.')
     args=parser.parse_args()
     OUTPUT.mkdir(parents=True,exist_ok=True)
-    binary=Path('demos/demo_ecosystem')
+    binary=Path('demos/demo_evolution_arena')
     cases=[
         ('adult-side',['--frames=1','--view=side']),
         ('adult-front',['--frames=1','--view=front']),
@@ -34,7 +34,8 @@ def main():
         if args.only and name not in args.only:continue
         path=OUTPUT/(('baseline-' if args.baseline else '')+name)
         zoom='3.5' if name in ('drinking','feeding') else '2'
-        command=[str(binary.resolve()),'--herbivores=1','--carnivores=0','--plants=0','--focus=3',
+        command=[str(binary.resolve()),'--controller=utility','--obstacles=0','--arena-size=48',
+            '--herbivores=1','--carnivores=0','--plants=0','--focus=3',
             '--zoom='+zoom,'--no-hud','--validate-skinning','--validate-mouth=240',*options,
             '--capture='+str(path.with_suffix('.ppm')),'--profile='+str(path.with_suffix('.json'))]
         if args.baseline:

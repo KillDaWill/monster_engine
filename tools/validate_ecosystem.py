@@ -28,7 +28,7 @@ def run(executable, output, scenario, seed, days, suffix=""):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--executable", type=Path, default=Path("demos/demo_ecosystem_headless"))
+    parser.add_argument("--executable", type=Path, default=Path("demos/demo_evolution_arena_headless"))
     parser.add_argument("--output", type=Path, default=Path("build/ecosystem-validation"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--days", type=float, default=30)

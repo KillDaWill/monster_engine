@@ -5,6 +5,7 @@
 #include "CreatureGenome.h"
 #include "CreaturePhysiology.h"
 #include "AIWorld.h"
+#include "NeuralGenome.h"
 typedef struct ReproductionProfile {
     double cooldown, gestation, maximumAge;
     unsigned offspring;
@@ -13,6 +14,8 @@ typedef struct ReproductionProfile {
 typedef struct CreatureReproduction {
     AIObjectId partner, parents[2], gestationParents[2];
     CreatureGenome mateGenome;
+    bool hasGestationNeuralGenomes; /**< Genomas neuronales fijados en la concepción. */
+    NeuralGenome gestationNeuralGenomes[2]; /**< [0]=gestante, [1]=fecundante en la concepción. */
     double cooldownUntil, due;
     bool gestating;
     unsigned role, mateGeneration;

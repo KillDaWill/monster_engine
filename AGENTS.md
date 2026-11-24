@@ -15,11 +15,12 @@ Monster Engine is a procedural creature and ecosystem engine written in C: rende
 ## 2. Useful commands (from repository root)
 
 ```sh
-make test                          # Compile + run C unit suite; no GL needed
-make editor-test                   # Creature editor bridge/API test
-make demos/demo_ecosystem_headless # Build headless ecosystem executable
-make validate-ecosystem            # Headless Python ecosystem validation
-make benchmark                     # CPU SDF/meshing benchmark
+make test                                  # Compile + run C unit suite; no GL needed
+make editor-test                           # Creature editor bridge/API test
+make demos/demo_evolution_arena_headless   # Build headless Evolution Arena executable
+make validate-ecosystem                    # Headless Python ecosystem validation
+make benchmark                             # CPU SDF/meshing benchmark
+make benchmark-neural                      # Neural inference and Evolution Arena benchmark
 make benchmark-ager-realtime       # Aging and morph timing
 make benchmark-ai                  # AI benchmark
 make benchmark-animation           # Animation cost benchmark
@@ -51,7 +52,7 @@ make creature-editor               # Local editor: http://127.0.0.1:8765
 | Graphics/GPU | `src/OpenGLRenderer.c`, `src/GpuSDFSurfaceCache.c`, `shaders/`, `tools/generate_sdf_shader.py`, `tools/generate_surface_shader.py` |
 | Animation and IK | `src/CreatureRig.c`, `src/RigBuilder.c`, `src/IK.c`, `src/ProceduralAnimator.c`, `src/AnatomicalReach.c` |
 | AI/ecosystem | `src/CreatureMind.c`, `src/CreatureActions.c`, `src/CreatureNavigation.c`, `src/EcosystemWorld.c`, `src/EcosystemScenario.c` |
-| End-to-end demos | `demos/demo_morph_species.c`, `demos/demo_game_scene.c`, `demos/demo_ecosystem.c`, `demos/demo_ecosystem_headless.c` |
+| End-to-end demos | `demos/demo_morph_species.c`, `demos/demo_game_scene.c`, `demos/demo_evolution_arena.c`, `demos/demo_evolution_arena_headless.c` |
 | Editor (extra instructions) | `tools/creature_editor/AGENTS.md`, `docs/CREATURE_EDITOR.md`, `tools/creature_editor/` |
 | Verification | `tests/`, `benchmarks/`, `tools/validate_*.py`, `docs/validation/` |
 
@@ -86,7 +87,7 @@ Read documentation **selectively**: `docs/MONSTER_ENGINE_PROCEDURAL_CREATURE_ARC
 - **Surface, fur or shaders:** relevant `test_surface.c`, `test_fur.c`, and GPU tests, plus renderer captures. Check close/far views, motion, occlusion, body attachment, transitions, and CPU/GLSL agreement when shared formulas change.
 - **AI/ecosystem:** `make validate-ecosystem`, relevant C tests, and a seeded headless run when useful:
   ```sh
-  ./demos/demo_ecosystem_headless --scenario=B --seed=42 --days=1 --summary=/tmp/monster-ecosystem.json
+  ./demos/demo_evolution_arena_headless --scenario=B --seed=42 --days=1 --summary=/tmp/monster-ecosystem.json
   ```
   Check resources, bounded movement, births/deaths, and deterministic output. `make ecosystem-sanitize` is an expensive ASan/UBSan check for deeper memory investigations.
 - **Performance-sensitive work:** compare baseline and modified results using the relevant `make benchmark*` target. Report frame/worker times, allocations, mesh updates, or ecosystem tick costs; do not claim a speedup from an unmatched run or trade away visual fidelity without explicit agreement.

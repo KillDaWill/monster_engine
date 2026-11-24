@@ -230,28 +230,42 @@ make clean
    ./demos/demo_game_scene --headless --validate-ai --seed=42 --fixed-dt=.016666667 --frames=1800 --cycles=0
    ```
 
-7. **Simulación de Ecosistema Completo y Vida Artificial (`demos/demo_ecosystem`)**:
-   Simulador de vida artificial continuo donde decenas de criaturas cohabitan, buscan alimento, se reproducen, transmiten su genoma y mueren por causas fisiológicas:
-   - **Dinámica Poblacional y Genética**: Selección de presas/depredadores, descomposición de biomasa, linajes evolutivos y herencia de rasgos cuantitativos (`CreatureGenome`).
-   - **Controles Interactivos**:
-     - **ESPACIO**: Pausar / reanudar la simulación del ecosistema.
-     - **1, 2, 3, 4**: Velocidad del tiempo ecológico (1x, 2x, 4x, 16x).
-     - **TAB**: Ciclar e inspeccionar criaturas vivas.
-     - **F**: Activar / desactivar modo seguimiento de cámara sobre la criatura seleccionada.
-     - **W, A, S, D**: Desplazar el centro de la cámara por el terreno.
-     - **Flechas IZQUIERDA / DERECHA**: Rotación orbital de la cámara.
-     - **Flechas ARRIBA / ABAJO (+ / -)**: Zoom ortogonal (acercar / alejar).
-     - **B**: Alternar líneas de depuración (visión cónica, objetivos y cinemática oral).
-     - **R**: Reiniciar escenario ecológico con sus condiciones iniciales.
+7. **Evolution Arena — Cerebros Neuronales Evolutivos (`demos/demo_evolution_arena`)**:
+   Laboratorio visual y simulador headless sobre el mismo núcleo autoritativo donde poblaciones de **Brumacerno** y **Velkar** operan con redes neuronales recurrentes independientes (`32 → 12 → 10`, 670 parámetros), heredan y mutan sus genomas neuronales por selección natural, y permiten exportar, importar, copiar e intercambiar cerebros (`*.brain.json`) entre especies sin alterar sus cuerpos ni su fisiología:
+   - **Documentación detallada:** [Cerebros Neuronales Evolutivos](docs/EVOLUTIONARY_NEURAL_BRAINS.md), [Evolution Arena](docs/EVOLUTION_ARENA.md) y [Formato `*.brain.json`](docs/NEURAL_BRAIN_FORMAT.md).
+   - **Controles interactivos:**
+     - **ESPACIO**: Pausar / reanudar la simulación (cámara e inspección siguen activas en pausa).
+     - **1, 2, 3, 4**: Velocidad solicitada (1x, 4x, 16x, 64x mediante ticks fijos de 1/60 s).
+     - **TAB / Clic izquierdo**: Seleccionar criatura viva.
+     - **F**: Seguir a la criatura seleccionada; **O**: Vista cenital; **Flechas / Rueda / Arrastre derecho**: Órbita y zoom; **W/S/J/L / Botón central**: Desplazamiento.
+     - **N**: Mostrar / ocultar el inspector en vivo de la red neuronal (clic en cualquier neurona para aislar sus conexiones; `[` / `]` o `W-` / `W+` para filtrar pesos débiles).
+     - **D**: Alternar overlays de depuración (objetivos, rutas A* y cadena oral).
+     - **E / I**: Exportar / importar archivo `*.brain.json` del individuo seleccionado.
+     - **C / V**: Copiar / pegar cerebro al portapapeles.
+     - **X**: Intercambio atómico de cerebros entre dos criaturas (incluso entre Brumacerno y Velkar).
+     - **B**: Reiniciar el cerebro seleccionado a un nuevo genoma aleatorio; **R**: Reiniciar experimento; **ESC**: Salir.
    ```bash
-   # Visor 3D interactivo con OpenGL y HUD:
-   ./demos/demo_ecosystem
-   # Ejecución con escenario específico (A..E) y velocidad inicial:
-   ./demos/demo_ecosystem --scenario=B --speed=4
-   # Modo headless de máximo rendimiento para experimentos:
-   ./demos/demo_ecosystem_headless --scenario=B --ticks=3600
-   # Validación automatizada de estabilidad biológica:
+   # Compilación y pruebas unitarias (sin dependencias gráficas para el núcleo):
+   make test
+   make demos/demo_evolution_arena
+   make demos/demo_evolution_arena_headless
+
+   # Laboratorio visual 3D (OpenGL/SDL2):
+   ./demos/demo_evolution_arena
+
+   # Simulador headless para experimentos evolutivos reproducibles:
+   ./demos/demo_evolution_arena_headless --help
+   ./demos/demo_evolution_arena_headless \
+     --seed=42 --days=30 --brumacernos=16 --velkares=6 --capacity=128 \
+     --controller=neural --founders=seeded \
+     --mutation-rate=0.05 --mutation-sigma=0.15 \
+     --summary=build/evolution/summary.json \
+     --history=build/evolution/history.csv \
+     --export-brains=build/evolution/brains
+
+   # Validación automatizada (escenarios ecológicos clásicos y experimentos evolutivos):
    python3 tools/validate_ecosystem.py
+   python3 tools/validate_evolution_arena.py --experiments --days=12 --seeds 42 101 202
    ```
 
 ---
@@ -269,6 +283,9 @@ make benchmark-ai
 
 # Benchmark de alcance anatómico cervical y bebida orillera
 make benchmark-interactions
+
+# Benchmark de inferencia neuronal (100 y 1000 RNN) y Evolution Arena completa
+make benchmark-neural
 
 # Benchmark de rendimiento y dinámica poblacional de ecosistema masivo
 make benchmarks/benchmark_ecosystem

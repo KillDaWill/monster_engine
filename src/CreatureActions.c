@@ -1,12 +1,16 @@
 #include "CreatureActions.h"
 #include <math.h>
+static CreatureAction fallbackAction(const CreatureMind *m) {
+    if (m && m->controllerType == CREATURE_CONTROLLER_NEURAL) return ACTION_IDLE;
+    return m && m->profile && m->profile->weights[ACTION_WANDER] > 0 ? ACTION_WANDER : ACTION_IDLE;
+}
 void CreatureActions_Cancel(CreatureMind *m) {
     if(!m)return;
     m->intakeRequested=0;
     m->retreating=false;m->navigation.count=0;
     m->target=0;m->contactTime=0;m->interactionStarted=0;m->destinationValid=false;
     m->interactionPhase=INTERACTION_CANCELLED;m->intent=(CreatureIntent){0};
-    m->action=m->profile&&m->profile->weights[ACTION_WANDER]>0?ACTION_WANDER:ACTION_IDLE;
+    m->action=fallbackAction(m);
     m->score=0;m->nextDecision=m->time;
 }
 void CreatureActions_Fail(CreatureMind *m) {
@@ -22,7 +26,7 @@ void CreatureActions_Fail(CreatureMind *m) {
     m->target = 0;
     m->retreating = false;
     m->goal = GOAL_RECOVER;
-    m->action = m->profile->weights[ACTION_WANDER] > 0 ? ACTION_WANDER : ACTION_IDLE;
+    m->action = fallbackAction(m);
     m->score = 0;
     m->destinationValid = false;
     m->interactionStarted = 0;
@@ -31,6 +35,9 @@ void CreatureActions_Fail(CreatureMind *m) {
     m->navigation.count = 0;
     m->navigation.progress = (NavigationProgress){0};
     ++m->actionFailures;
+    if (m->controllerType == CREATURE_CONTROLLER_NEURAL) {
+        CreatureMind_RecordFailure(m, NEURAL_OUTCOME_FAILED_ACTION);
+    }
     m->nextDecision = m->time + .5;
 }
 static bool explore(CreatureMind *m, const AIWorld *w, const CreatureBodyState *b) {
@@ -78,17 +85,20 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         }
     }
     const BrainProfile *p = m->profile;
+    bool neural = (m->controllerType == CREATURE_CONTROLLER_NEURAL);
     const PerceptionEntry *e = CreaturePerception_Find(&m->perception, m->target);
     if (m->action == ACTION_IDLE)
         return;
     if (m->action == ACTION_REST) {
         if (b->speed > .04f)
             return;
-        CreatureNeeds_Satisfy(&m->needs, p, NEED_REST, p->needs[NEED_REST].satisfactionRate * dt);
-        if (m->needs.urgency[NEED_REST] < p->needs[NEED_REST].desiredLevel) {
-            m->action = m->profile->weights[ACTION_WANDER] > 0 ? ACTION_WANDER : ACTION_IDLE;
-            m->score = 0;
-            m->nextDecision = m->time;
+        if (!neural) {
+            CreatureNeeds_Satisfy(&m->needs, p, NEED_REST, p->needs[NEED_REST].satisfactionRate * dt);
+            if (m->needs.urgency[NEED_REST] < p->needs[NEED_REST].desiredLevel) {
+                m->action = fallbackAction(m);
+                m->score = 0;
+                m->nextDecision = m->time;
+            }
         }
         return;
     }
@@ -97,8 +107,12 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
     if(resource) {
         CreatureNeed need=food?NEED_HUNGER:NEED_HYDRATION;
         CreatureAction consume=food?ACTION_EAT:ACTION_DRINK;
-        if(!e||!p->needs[need].enabled||p->weights[consume]<=0||p->needs[need].satisfactionRate<=0||
-           (!food&&!b->capabilities.waterInteraction)) { CreatureActions_Fail(m);return; }
+        /* Precondición física compartida (separada de los pesos legacy de utilidad). */
+        if(!e||(!food&&!b->capabilities.waterInteraction)) { CreatureActions_Fail(m);return; }
+        if(!neural&&(!p->needs[need].enabled||p->weights[consume]<=0||p->needs[need].satisfactionRate<=0)) {
+            CreatureActions_Fail(m);return;
+        }
+        float intakeRate=p->needs[need].satisfactionRate>0?p->needs[need].satisfactionRate:.15f;
         float tolerance=b->capabilities.contactTolerance;
         if(e->radius>0)tolerance=fminf(tolerance,e->radius*.25f);
         InteractionTarget target;
@@ -145,18 +159,21 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
                 m->contactTime+=dt;m->interactionPhase=INTERACTION_STABLE_CONTACT;
                 if(m->contactTime>=.25f) {
                     m->interactionPhase=INTERACTION_CONSUME;
+                    float desiredThreshold = neural ? .01f : p->needs[need].desiredLevel;
+                    float urgencyNow = neural ? (food ? (1.0f - b->energy) : (1.0f - b->hydration))
+                                              : m->needs.urgency[need];
                     if(m->transactionalIntake) {
                         m->intakeNeed=need;
-                        if(m->needs.urgency[need]>p->needs[need].desiredLevel)
-                            m->intakeRequested=p->needs[need].satisfactionRate*dt;
-                    } else CreatureNeeds_Satisfy(&m->needs,p,need,p->needs[need].satisfactionRate*dt);
-                    if(m->needs.urgency[need]<=p->needs[need].desiredLevel) {
+                        if(urgencyNow>desiredThreshold)
+                            m->intakeRequested=intakeRate*dt;
+                    } else CreatureNeeds_Satisfy(&m->needs,p,need,intakeRate*dt);
+                    if(urgencyNow<=desiredThreshold) {
                         if(food)++m->completedMeals;else ++m->completedDrinks;
                         m->interactionPhase=INTERACTION_WITHDRAW;m->intent.interact=false;
                         m->retreating=true;m->retreatStart=b->position;
                         m->retreatGoal=Vec3_Sub(b->position,Vec3_Scale(Vec3_Create(sinf(b->yaw),0,cosf(b->yaw)),2));
                         m->navigation.progress=(NavigationProgress){0};
-                        m->target=0;m->action=p->weights[ACTION_WANDER]>0?ACTION_WANDER:ACTION_IDLE;
+                        m->target=0;m->action=fallbackAction(m);
                         m->score=0;m->destinationValid=false;m->nextDecision=m->time;
                     }
                 }
@@ -191,7 +208,8 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         if(!escape&&!e->visible) {CreatureActions_Fail(m);return;}
         Vector3 delta=Vec3_Sub(e->position,b->position);delta.y=0;
         float distance=Vec3_Length(delta);
-        float stop=m->action==ACTION_APPROACH_MATE?b->capabilities.clearance+e->radius+.15f:b->attackRange;
+        float attackStop = b->attackRange > 0 ? b->attackRange : b->capabilities.clearance + e->radius + .15f;
+        float stop=m->action==ACTION_APPROACH_MATE?b->capabilities.clearance+e->radius+.15f:attackStop;
         if(!escape&&distance<=stop) {
             m->intent.lookAt=true;m->intent.lookTarget=e->position;
             if(m->action!=ACTION_APPROACH_MATE) {

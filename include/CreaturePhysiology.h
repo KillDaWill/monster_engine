@@ -10,6 +10,11 @@ typedef struct PhysiologyProfile {
     float basalCost, hydrationCost, movementCost, starvationDamage, dehydrationDamage;
     float recoveryRate, fatigueRate, restRate;
     double maturityAge, oldAge, maximumAge;
+    /* Restricciones físicas/biológicas separadas de las preferencias conductuales. */
+    unsigned dietMask;           /**< Categorías de alimento físicamente digeribles. */
+    unsigned preyMask;           /**< Categorías físicamente depredables por la anatomía. */
+    bool canAttackPhysically;    /**< Capacidad anatómica de ataque (mordisco/garras). */
+    bool waterInteraction;       /**< Capacidad física de beber agua. */
 } PhysiologyProfile;
 typedef struct CreaturePhysiology {
     float energy, hydration, fatigue, health;

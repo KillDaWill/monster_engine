@@ -1,5 +1,5 @@
 /** @file EcosystemWorld.h
- * @brief Propiedad de entidades, recursos, estadísticas y fases de simulación pura C. */
+ * @brief Propiedad de entidades, recursos, estadísticas, evolución neuronal y fases de simulación pura C. */
 #ifndef ECOSYSTEM_WORLD_H
 #define ECOSYSTEM_WORLD_H
 #include "SimulationClock.h"
@@ -7,8 +7,61 @@
 #include "CreaturePhysiology.h"
 #include "CreatureReproduction.h"
 #include "EcosystemResources.h"
+#include "NeuralBrainIO.h"
 #include <stdio.h>
 #include <stdint.h>
+
+#define ECOSYSTEM_MAX_OBSTACLES 32u
+#define ECOSYSTEM_MAX_GENERATION_BUCKETS 64u
+#define ECOSYSTEM_INTERVENTION_LOG_CAPACITY 64u
+#define ECOSYSTEM_MAX_LINEAGES 256u
+#define ECOSYSTEM_MAX_FOUNDERS 64u
+
+typedef struct EcosystemObstacle {
+    AIObjectId id;
+    Vector3 position;
+    float radius, height;
+} EcosystemObstacle;
+
+typedef struct EcosystemIntervention {
+    uint64_t tick;
+    double seconds;
+    char action[24];
+    AIObjectId actorA, actorB;
+    uint64_t oldFingerprintA, newFingerprintA;
+    uint64_t oldFingerprintB, newFingerprintB;
+} EcosystemIntervention;
+
+typedef struct EcosystemLineage {
+    uint64_t lineageId;
+    uint64_t founderFingerprint;
+    unsigned speciesId;
+    unsigned livingCount;
+    uint64_t totalMembers;
+    uint64_t totalOffspring;
+    unsigned maxGeneration;
+    double firstSeenSeconds;
+    double lastActiveSeconds;
+} EcosystemLineage;
+
+typedef struct EcosystemFounderRecord {
+    uint64_t lineageId;
+    uint64_t fingerprint;
+    NeuralGenome genome;
+} EcosystemFounderRecord;
+
+typedef struct EcosystemArchiveEntry {
+    bool valid;
+    bool stillLiving;
+    AIObjectId entityId;
+    unsigned speciesId;
+    unsigned generation;
+    unsigned offspringCount;
+    double survivalSeconds;
+    uint64_t lineageId;
+    NeuralGenome genome;
+} EcosystemArchiveEntry;
+
 typedef struct EcosystemSpecies {
     unsigned id, category;
     uint32_t recipeId; /**< Receta anatómica persistente asociada a la categoría. */
@@ -21,10 +74,13 @@ typedef struct EcosystemSpecies {
     float turnRate; /**< Velocidad angular máxima; cero conserva el valor genérico. */
     float edibleBiomass, nutrition;
 } EcosystemSpecies;
+
 typedef struct EcosystemEntity {
     AIObjectId id;
-    unsigned speciesIndex, generation;
+    unsigned speciesIndex, generation, offspringCount;
     uint32_t seed;
+    double bornAt;
+    float founderDistance;
     CreatureGenome genome;
     BrainProfile brain; /**< Perfil privado resuelto, dirección estable durante su vida. */
     CreatureMind mind;
@@ -37,20 +93,31 @@ typedef struct EcosystemEntity {
     void *visual; /**< Préstamo opcional; el núcleo nunca lo consulta ni libera. */
     struct EcosystemAnatomy* anatomicalBody; /**< Propiedad privada del cuerpo oral, sin recursos gráficos. */
 } EcosystemEntity;
+
 typedef struct EcosystemStatistics {
     uint64_t births, deaths, deathCauses[DEATH_CAUSE_COUNT], kills, attacks, matings;
-    uint64_t failedBirths, failedSpawns, actionFailures, navigationFailures;
+    uint64_t failedBirths, failedSpawns, actionFailures, navigationFailures, failedInteractions;
     uint64_t meals, drinks, escapes;
-    unsigned population, juveniles, maximumGeneration;
-    double foodConsumed, plantConsumed, meatConsumed, waterConsumed, plantBiomass, averageAge, averageHealth;
+    uint64_t birthsPerGeneration[ECOSYSTEM_MAX_GENERATION_BUCKETS];
+    uint64_t intentSelections[ACTION_INTENT_COUNT];
+    unsigned population, juveniles, maximumGeneration, activeLineages;
+    double foodConsumed, plantConsumed, meatConsumed, waterConsumed, plantBiomass;
+    double averageAge, averageHealth, averageEnergy, averageGeneration;
+    double survivalDurationSum, averageSurvivalDuration, maxObservedSurvival;
+    uint64_t completedLifetimes;
+    double neuralDiversity, averageFounderDistance, maxFounderDistance;
     uint64_t eventHash; /**< Firma de eventos ordenados para validación determinista. */
 } EcosystemStatistics;
+
 typedef struct EcosystemBirth {
     unsigned speciesIndex, generation;
     AIObjectId parents[2];
     CreatureGenome genome;
+    bool hasNeuralGenome;
+    NeuralGenome neuralGenome;
     Vector3 position;
 } EcosystemBirth;
+
 typedef struct EcosystemWorld {
     SimulationClock clock;
     AIWorld observations;
@@ -60,24 +127,51 @@ typedef struct EcosystemWorld {
     EcosystemResource *resources;
     EcosystemBirth *birthQueue;
     unsigned *order;
+    EcosystemObstacle obstacles[ECOSYSTEM_MAX_OBSTACLES];
+    unsigned obstacleCount;
     unsigned capacity, resourceCapacity, birthCount, count;
     uint32_t random, initialSeed;
     bool updating;
+    /* Configuración evolutiva neuronal. */
+    CreatureControllerType defaultController;
+    NeuralMutationConfig neuralMutation;
+    NeuralControllerConfig neuralController;
+    bool disablePhysicalMutation;
+    uint64_t nextLineageId;
+    char founderModeName[32];
+    /* Estadísticas, linajes, archivo observacional e historial de intervenciones acotados. */
     EcosystemStatistics statistics;
+    EcosystemLineage *lineages;
+    unsigned lineageCount;
+    EcosystemFounderRecord *founders;
+    unsigned founderCount;
+    EcosystemArchiveEntry archiveBestOffspring;
+    EcosystemArchiveEntry archiveLongestSurvival;
+    EcosystemArchiveEntry archiveHighestGeneration;
+    EcosystemIntervention interventions[ECOSYSTEM_INTERVENTION_LOG_CAPACITY];
+    uint64_t interventionCount;
     FILE *eventOutput; /**< Préstamo diagnóstico opcional, nunca se cierra desde el núcleo. */
 } EcosystemWorld;
+
 /** @brief Perfil declarativo de ejemplo; ninguna mecánica consulta nombres. */
 EcosystemSpecies EcosystemSpecies_Default(unsigned id,unsigned category,unsigned diet,unsigned prey,unsigned threats);
-/** @brief Reserva arrays acotados configurables. El mundo no se copia por valor. */
+/** @brief Reserva arrays acotados configurables (arena 48x48 por compatibilidad). No copiar por valor. */
 bool EcosystemWorld_Init(EcosystemWorld *,unsigned populationCap,unsigned resourceCap,unsigned speciesCap,uint32_t seed,double step,double day);
+/** @brief Reserva arrays acotados con semiancho de arena configurable (ej. halfSize=20 para 40x40). */
+bool EcosystemWorld_InitArena(EcosystemWorld *,unsigned populationCap,unsigned resourceCap,unsigned speciesCap,
+                              float arenaHalfSize,uint32_t seed,double step,double day);
 /** @brief Libera todos los arrays propios; visuales pertenecen al adaptador. */
 void EcosystemWorld_Free(EcosystemWorld *);
 /** @brief Copia y valida especie; cero indica error, devuelve id lógico de especie. */
 unsigned EcosystemWorld_AddSpecies(EcosystemWorld *,EcosystemSpecies);
+/** @brief Registra obstáculo cilíndrico estático físico y oclusor dentro de la arena. */
+AIObjectId EcosystemWorld_AddObstacle(EcosystemWorld *,Vector3 position,float radius,float height);
 /** @brief Crea individuo independiente fuera de actualización; cero si no hay capacidad/espacio. */
 AIObjectId EcosystemWorld_Spawn(EcosystemWorld *,unsigned speciesId,Vector3,double age,float energy,const CreatureGenome *);
 /** @brief Préstamo hasta siguiente mutación; nunca guardar este puntero en memoria de IA. */
 EcosystemEntity *EcosystemWorld_Get(EcosystemWorld *,AIObjectId);
+/** @brief Consulta de sólo lectura por ID estable. */
+const EcosystemEntity *EcosystemWorld_GetConst(const EcosystemWorld *,AIObjectId);
 /** @brief Solicita muerte idempotente; se retira al final del siguiente tick activo. */
 bool EcosystemWorld_RequestDeath(EcosystemWorld *,AIObjectId,CreatureDeathCause);
 /** @brief Registra recurso compatible con AIWorld, comprobando geometría y cantidades. */
@@ -90,13 +184,29 @@ EcosystemResource *EcosystemWorld_Resource(EcosystemWorld *,AIObjectId);
 void EcosystemWorld_Step(EcosystemWorld *);
 /** @brief Acumula presentación y procesa hasta presupuesto; conserva deuda. */
 unsigned EcosystemWorld_Advance(EcosystemWorld *,double realSeconds);
-/** @brief Ataque resuelto: verifica fase, dieta, vida, orientación, alcance y cooldown. */
+/** @brief Ataque resuelto: verifica fase, capacidad física, vida, orientación, alcance y cooldown. */
 bool EcosystemWorld_Attack(EcosystemWorld *,AIObjectId attacker,AIObjectId prey);
-/** @brief Transfiere sólo con solicitud, contacto estable y disponibilidad actuales. */
+/** @brief Transfiere sólo con solicitud, contacto estable, dieta física y disponibilidad actuales. */
 float EcosystemWorld_Consume(EcosystemWorld *,AIObjectId creature,AIObjectId resource,float requested);
+/** @brief Asigna un genoma neuronal validado a una criatura existente sin alterar su cuerpo. */
+bool EcosystemWorld_AssignBrain(EcosystemWorld *,AIObjectId id,const NeuralGenome *genome,const char *reason);
+/** @brief Copia independientemente el cerebro de sourceId a targetId. */
+bool EcosystemWorld_CloneBrain(EcosystemWorld *,AIObjectId sourceId,AIObjectId targetId);
+/** @brief Intercambia atómicamente los cerebros de dos criaturas sin alterar cuerpos ni fisiología. */
+bool EcosystemWorld_SwapBrains(EcosystemWorld *,AIObjectId idA,AIObjectId idB);
+/** @brief Reemplaza el cerebro del individuo por un nuevo genoma aleatorio determinista. */
+bool EcosystemWorld_ResetBrainRandom(EcosystemWorld *,AIObjectId id);
+/** @brief Exporta el cerebro de un individuo a un archivo *.brain.json. */
+bool EcosystemWorld_ExportBrain(const EcosystemWorld *,AIObjectId id,const char *path,bool overwrite,char *error,size_t errorSize);
+/** @brief Importa y valida un archivo *.brain.json asignándolo al individuo sin corromperlo si falla. */
+bool EcosystemWorld_ImportBrain(EcosystemWorld *,AIObjectId id,const char *path,char *error,size_t errorSize);
+/** @brief Exporta archivos observacionales de cerebros representativos y su manifiesto JSON. */
+bool EcosystemWorld_ExportArchiveBrains(const EcosystemWorld *,const char *directory,char *error,size_t errorSize);
+/** @brief Recalcula métricas de diversidad neuronal (costo acotado, bajo demanda o muestreo). */
+void EcosystemWorld_ComputeNeuralMetrics(EcosystemWorld *);
 /** @brief Habilita eventos CSV detallados; NULL desactiva. Archivo prestado por el llamador. */
 void EcosystemWorld_SetEventOutput(EcosystemWorld *,FILE *);
-/** @brief Estadísticas JSON finales con poblaciones por especie. No cierra el archivo. */
+/** @brief Estadísticas JSON finales con poblaciones, linajes y métricas evolutivas. No cierra el archivo. */
 bool EcosystemWorld_WriteJSON(const EcosystemWorld *,FILE *);
 /** @brief Fila CSV de historia; header controla la cabecera inicial. */
 bool EcosystemWorld_WriteCSV(const EcosystemWorld *,FILE *,bool header);

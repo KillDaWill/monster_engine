@@ -1,5 +1,7 @@
 # Simulación de ecosistemas
 
+> **Nota histórica:** Los ejecutables obsoletos `demos/demo_ecosystem` y `demos/demo_ecosystem_headless` descritos en este informe inicial han sido sustituidos y eliminados en favor de **Evolution Arena** (`demos/demo_evolution_arena` y `demos/demo_evolution_arena_headless`). Consulta [EVOLUTION_ARENA.md](EVOLUTION_ARENA.md) y [EVOLUTIONARY_NEURAL_BRAINS.md](EVOLUTIONARY_NEURAL_BRAINS.md) para los ejecutables, comandos y arquitectura vigentes.
+
 Implementación inicial de vida artificial, independiente del renderizado. Dos ejecutables comparten exactamente el mismo núcleo ecológico: `demos/demo_ecosystem_headless` y `demos/demo_ecosystem`. No hay horarios animales ni eventos ecológicos programados. Los escenarios sólo establecen condiciones iniciales y perfiles; los individuos deciden mediante percepción, memoria y utilidad.
 
 ## Auditoría de partida y dependencias
