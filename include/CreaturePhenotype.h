@@ -104,6 +104,16 @@ typedef enum LimbAnatomyProfile {
     LIMB_PROFILE_MARINE_FLIPPER /**< Aleta propulsora derivada de extremidad tetrápoda (tortugas marinas, cetáceos, pinnípedos). */
 } LimbAnatomyProfile;
 
+/**
+ * @enum FlipperSurfaceStyle
+ * @brief Perfil superficial semántico de aletas marinas (independiente del ID de especie).
+ */
+typedef enum FlipperSurfaceStyle {
+    FLIPPER_SURFACE_AUTO = 0,             /**< Retrocompatible: inferido del integumento. */
+    FLIPPER_SURFACE_SMOOTH = 1,           /**< Piel hidrodinámica lisa (p. ej. cetáceos). */
+    FLIPPER_SURFACE_REPTILIAN_SCALES = 2  /**< Mosaico poligonal reptiliano dorsal/ventral. */
+} FlipperSurfaceStyle;
+
 typedef struct LimbPhenotype {
     LimbArchetype archetype;
     LimbRole role;
@@ -137,6 +147,11 @@ typedef struct LimbPhenotype {
     float wingPointedness; /**< Opcional v1: apuntamiento distal del ala (p. ej. halcón vs búho) [0..1]. */
     float finSweep; /**< Opcional v1: flecha posterior de aleta pectoral/pélvica [-0.6..1.0]. */
     float finCamber; /**< Opcional v1: curvatura hidrodinámica/aerodinámica del perfil [0..0.4]. */
+    FlipperSurfaceStyle flipperSurface; /**< Opcional v1: estilo superficial de aleta marina (0=auto, 1=lisa, 2=escamas reptilianas). */
+    float flipperScaleSize; /**< Opcional v1: factor de escala/densidad de escamas en aleta [0=defecto, 0.3..3.0]. */
+    float flipperScaleIrregularity; /**< Opcional v1: irregularidad poligonal Voronoi de escamas [0..1]. */
+    float flipperBorderContrast; /**< Opcional v1: contraste de bordes claros entre escamas [0..1]. */
+    float flipperRoughness; /**< Opcional v1: rugosidad superficial de la aleta [0=defecto, 0.15..0.95]. */
 } LimbPhenotype;
 
 typedef enum TailArchetype {
@@ -250,6 +265,17 @@ typedef struct ShellPhenotype {
     Color carapaceColor;    /**< Color principal del espaldar dorsal. */
     Color scuteBorderColor; /**< Color de suturas y moteado de escudos. */
     Color plastronColor;    /**< Color pálido del plastrón ventral. */
+    Color carapaceDarkColor; /**< Opcional v1: tono pardo/oliva oscuro para moteado por escudo. */
+    Color carapaceAmberColor; /**< Opcional v1: tono ámbar/miel para estrías radiales por escudo. */
+    Color plastronSeamColor; /**< Opcional v1: tono suave de suturas del plastrón. */
+    float carapaceMottling; /**< Opcional v1: intensidad de moteado irregular por escudo [0..1]. */
+    float carapaceRadialStrength; /**< Opcional v1: intensidad de estrías radiales curvas [0..1]. */
+    float carapaceRoughness; /**< Opcional v1: rugosidad queratinosa del espaldar [0.15..0.95]. */
+    float sutureContrast; /**< Opcional v1: contraste/oscurecimiento de suturas dorsales [0..1]. */
+    float plastronSeamSoftness; /**< Opcional v1: suavidad de suturas ventrales del plastrón [0..1]. */
+    float plastronMottling; /**< Opcional v1: variación orgánica sutil del plastrón [0..1]. */
+    float plastronRoughness; /**< Opcional v1: rugosidad queratinosa del plastrón [0.15..0.95]. */
+    uint32_t patternSeed; /**< Opcional v1: semilla determinista por escudo. */
 } ShellPhenotype;
 
 typedef enum OrnamentArchetype {

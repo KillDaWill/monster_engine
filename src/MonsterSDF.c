@@ -780,9 +780,18 @@ bool MonsterSDF_Build(MonsterSDF* sdf, const Monster* monster, MonsterSDFConfig 
              * transición para conservar una malla conectada. Los soportes de
              * extremidades siguen siendo relaciones semánticas y no se
              * materializan como tejido adicional. */
-            bool ornamentSupport=candidate->kind==BODY_CONNECTION_SUPPORT &&
-                ((candidateFrom&&candidateFrom->region==ANATOMY_REGION_ORNAMENT) ||
-                 (candidateTo&&candidateTo->region==ANATOMY_REGION_ORNAMENT));
+            bool isFinModule = false;
+            if (monster->hasCreaturePhenotype) {
+                for (size_t mi = 0; mi < monster->recipe.bodyPlan.moduleCount; ++mi) {
+                    if (monster->recipe.bodyPlan.modules[mi].instanceId == candidate->moduleInstanceId) {
+                        isFinModule = (monster->recipe.bodyPlan.modules[mi].kind == CREATURE_MODULE_FIN);
+                        break;
+                    }
+                }
+            }
+            bool ornamentSupport = !isFinModule && candidate->kind == BODY_CONNECTION_SUPPORT &&
+                ((candidateFrom && candidateFrom->region == ANATOMY_REGION_ORNAMENT) ||
+                 (candidateTo && candidateTo->region == ANATOMY_REGION_ORNAMENT));
             if(monster->anatomyGraph.dormantConnections[i] ||
                ((candidate->kind == BODY_CONNECTION_SUPPORT && !ornamentSupport) || candidate->kind == BODY_CONNECTION_TUSK_ROOT))continue;
             const BodyConnection* edge=candidate;
@@ -3831,6 +3840,7 @@ size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf,float samples,
          * submuestreadas cuando el cráneo posterior es ancho o voluminoso. */
         float maxHeadVoxel=Math_Max(m->faceTipRadii.y*0.65f,0.05f);
         if(base>maxHeadVoxel)base=maxHeadVoxel;
+        float minDetailVoxel=Math_Max(base*0.04f, 0.0005f);
         regions[n++]=(SDFDetailRegion){.bounds=m->headBounds,.targetVoxelSize=base};
         float nasal=2*Math_Min(m->nostrilRadii.x,Math_Min(m->nostrilRadii.y,m->nostrilRadii.z))/samples;
         Vector3 radius=Vec3_Scale(m->nostrilRadii,1.8f);
@@ -3838,33 +3848,45 @@ size_t MonsterSDF_GetDetailRegions(const MonsterSDF* sdf,float samples,
             float r=Vec3_Length(radius);
             radius=Vec3_Create(r,r,r);
         }
-        if(nasal>0) {
-            regions[n++]=MonsterSDF_Detail(m,m->leftNostrilCenterLocal,radius,nasal);
-            regions[n++]=MonsterSDF_Detail(m,m->rightNostrilCenterLocal,radius,nasal);
+        /* Cavidades nasales vestigiales (p. ej. espiráculo cetáceo mezclado con mamífero)
+         * no deben pedir vóxeles submilimétricos que excedan la profundidad del octree. */
+        if(nasal>=minDetailVoxel*0.25f) {
+            float nasalVoxel=Math_Max(nasal, minDetailVoxel);
+            regions[n++]=MonsterSDF_Detail(m,m->leftNostrilCenterLocal,radius,nasalVoxel);
+            regions[n++]=MonsterSDF_Detail(m,m->rightNostrilCenterLocal,radius,nasalVoxel);
         }
         float orbital=2*Math_Min(m->orbitRadii.y,m->orbitRadii.z)/samples;
         radius=Vec3_Scale(m->orbitRadii,1.3f);
-        regions[n++]=MonsterSDF_Detail(m,m->leftOrbitCenterLocal,radius,orbital);
-        regions[n++]=MonsterSDF_Detail(m,m->rightOrbitCenterLocal,radius,orbital);
+        if(orbital>0) {
+            float orbitalVoxel=Math_Max(orbital, minDetailVoxel);
+            regions[n++]=MonsterSDF_Detail(m,m->leftOrbitCenterLocal,radius,orbitalVoxel);
+            regions[n++]=MonsterSDF_Detail(m,m->rightOrbitCenterLocal,radius,orbitalVoxel);
+        }
         if (m->hasEars && n+4<=capacity) {
             /* El espesor del pabellón, no el tamaño del cráneo, manda su muestreo. */
             /* El extremo del pabellón conserva aproximadamente el 28 % del
              * semiespesor basal. Muestrear el espesor basal podía separar
              * la punta al cambiar la retícula por otro apéndice más fino. */
-            float broadness=Math_Clamp01((m->earShape.x/m->earShape.y-.35f)/.05f);
+            float broadness=Math_Clamp01((m->earShape.x/fmaxf(m->earShape.y,1e-4f)-.35f)/.05f);
             float auricular=Math_Lerp(2*m->earShape.z/samples,
                 .56f*m->earShape.z/fmaxf(samples,2),broadness);
-            regions[n++]=MonsterSDF_Detail(m,m->leftEarCenterLocal,m->earRadii,auricular);
-            regions[n++]=MonsterSDF_Detail(m,m->rightEarCenterLocal,m->earRadii,auricular);
-            if(broadness>0) {
-                regions[n-2].localTarget=regions[n-1].localTarget=MonsterSDF_PinnaTarget;
-                regions[n-2].context=regions[n-1].context=m;
+            if(auricular>=minDetailVoxel*0.25f) {
+                float earVoxel=Math_Max(auricular, minDetailVoxel);
+                regions[n++]=MonsterSDF_Detail(m,m->leftEarCenterLocal,m->earRadii,earVoxel);
+                regions[n++]=MonsterSDF_Detail(m,m->rightEarCenterLocal,m->earRadii,earVoxel);
+                if(broadness>0) {
+                    regions[n-2].localTarget=regions[n-1].localTarget=MonsterSDF_PinnaTarget;
+                    regions[n-2].context=regions[n-1].context=m;
+                }
             }
         }
         float tym=2*Math_Min(m->tympanumRadii.y,m->tympanumRadii.z)/samples;
         radius=Vec3_Scale(m->tympanumRadii,1.5f);
-        regions[n++]=MonsterSDF_Detail(m,m->leftTympanumCenterLocal,radius,tym);
-        regions[n++]=MonsterSDF_Detail(m,m->rightTympanumCenterLocal,radius,tym);
+        if(tym>=minDetailVoxel*0.25f) {
+            float tymVoxel=Math_Max(tym, minDetailVoxel);
+            regions[n++]=MonsterSDF_Detail(m,m->leftTympanumCenterLocal,radius,tymVoxel);
+            regions[n++]=MonsterSDF_Detail(m,m->rightTympanumCenterLocal,radius,tymVoxel);
+        }
 
     }
     AABB3D ornaments = AABB_Empty();

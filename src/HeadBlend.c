@@ -681,9 +681,9 @@ static Vector3 OrbitSeat(const HeadSurfaceRecipe *s, Vector3 orbit, Vector3 norm
     if (distance>=-eyeRadius*.27f && distance<=depth) return orbit;
     /* Los volúmenes temporal y maxilar también pueden cubrir el globo.
      * Proyectar en la normal conserva la posición alrededor de la órbita. */
-    float step=eyeRadius*.40f*(distance>depth ? -1 : 1);
+    float step=fmaxf(eyeRadius*.40f, fabsf(distance-depth)*.28f)*(distance>depth ? -1 : 1);
     Vector3 start=orbit,end=orbit;
-    for (unsigned i=0; i<9; ++i) {
+    for (unsigned i=0; i<12; ++i) {
         start=end;
         end=Vec3_Add(end,Vec3_Scale(normal,step));
         float probe=OrbitSupport(s,sections,end);
@@ -694,6 +694,26 @@ static Vector3 OrbitSeat(const HeadSurfaceRecipe *s, Vector3 orbit, Vector3 norm
             else end=middle;
         }
         return end;
+    }
+    /* Respaldo robusto para cráneos híbridos muy dispares (p. ej. cefalofoil de tiburón
+     * martillo × cráneo estrecho mamífero): proyectar directamente hacia el eje craneal
+     * para garantizar soporte continuo sin ojos ni bordes orbitales flotantes. */
+    if (distance > depth) {
+        Vector3 targets[2] = {
+            Vec3_Create(s->craniumCenter.x, orbit.y, Math_Clamp(orbit.z, s->cranialCenters[5].z, s->cranialCenters[0].z)),
+            s->craniumCenter
+        };
+        for (unsigned ti = 0; ti < 2; ++ti) {
+            Vector3 target = targets[ti];
+            if (OrbitSupport(s, sections, target) > depth) continue;
+            Vector3 lo = orbit, hi = target;
+            for (unsigned j = 0; j < 14; ++j) {
+                Vector3 mid = Vec3_Lerp(lo, hi, 0.5f);
+                if (OrbitSupport(s, sections, mid) > depth) lo = mid;
+                else hi = mid;
+            }
+            return hi;
+        }
     }
     return orbit;
 }
@@ -868,10 +888,44 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     s->neckCollarPenetration = neck.surface.neckCollarPenetration;
     s->headBodySmoothness = neck.surface.headBodySmoothness;
 
+    /* Continuidad del cefalofoil en híbridos con elasmobranquios: mantener
+     * el lóbulo lateral acoplado y solapado con la sección rostral/craneal real
+     * a su misma coordenada Z, con espesor suficiente para impedir islas SDF desconectadas. */
+    if (a->archetype == HEAD_ARCHETYPE_ELASMOBRANCH || b->archetype == HEAD_ARCHETYPE_ELASMOBRANCH) {
+        float maxTempX = s->craniumRadii.x * 1.55f;
+        if (s->leftTemporalCenter.x > maxTempX) s->leftTemporalCenter.x = maxTempX;
+        /* Estimar la semianchura real del cráneo/rostro a la Z del lóbulo temporal. */
+        float localW = s->faceTipRadii.x;
+        float tz = s->leftTemporalCenter.z;
+        for (unsigned si = 0; si < 5; ++si) {
+            float z0 = s->cranialCenters[si].z, z1 = s->cranialCenters[si + 1].z;
+            if ((tz <= z0 && tz >= z1) || (tz >= z0 && tz <= z1)) {
+                float u = fabsf(z0 - z1) > 1e-5f ? Math_Clamp01((z0 - tz) / (z0 - z1)) : 0.0f;
+                localW = Math_Lerp(s->cranialRadii[si].x, s->cranialRadii[si + 1].x, u);
+                break;
+            }
+        }
+        /* Garantizar solapamiento sólido hasta el interior de la barra central (sin estrangulamiento). */
+        float neededRx = s->leftTemporalCenter.x - localW * 0.25f;
+        if (s->temporalRadii.x < neededRx) s->temporalRadii.x = neededRx;
+        float minRy = fmaxf(s->craniumRadii.y * 0.34f, s->faceTipRadii.y * 0.65f);
+        if (s->temporalRadii.y < minRy) s->temporalRadii.y = minRy;
+        float minRz = s->craniumRadii.z * 0.22f;
+        if (s->temporalRadii.z < minRz) s->temporalRadii.z = minRz;
+        s->leftTemporalCenter.z = Math_Clamp(s->leftTemporalCenter.z,
+            s->cranialCenters[4].z, s->cranialCenters[0].z);
+        s->rightTemporalCenter = Mirror(s->leftTemporalCenter);
+    }
+
     SKULL(leftOrbitRimCenter,orbit); SKULL(rightOrbitRimCenter,orbit);
     SKULL(leftBrowCenter,orbit); SKULL(rightBrowCenter,orbit);
 #undef SKULL
     l->leftOrbit = RelativeToSkull(orbit.landmarks.leftOrbit,&orbit.surface,s);
+    if (a->archetype == HEAD_ARCHETYPE_ELASMOBRANCH || b->archetype == HEAD_ARCHETYPE_ELASMOBRANCH) {
+        float maxSupportX = fmaxf(s->craniumRadii.x * 1.05f, s->leftTemporalCenter.x + s->temporalRadii.x * 0.88f);
+        if (l->leftOrbit.x > maxSupportX) l->leftOrbit.x = maxSupportX;
+        l->leftOrbit.z = Math_Clamp(l->leftOrbit.z, s->cranialCenters[4].z, s->cranialCenters[0].z);
+    }
     Vector3 orbitalNormal=Vec3_Normalize(orbit.landmarks.leftOrbitNormal);
     float orbitSkullScale = cbrtf(
         (s->craniumRadii.x / fmaxf(orbit.surface.craniumRadii.x, 1e-4f)) *
@@ -893,8 +947,21 @@ void HeadAnatomy_BlendRegional(const HeadAnatomy *a, const HeadAnatomy *b,
     Vector3 shift=Vec3_Sub(seat,l->leftOrbit);
     l->leftOrbit=seat;
     s->leftOrbitRimCenter=Vec3_Add(s->leftOrbitRimCenter,shift);
-    s->rightOrbitRimCenter=Mirror(s->leftOrbitRimCenter);
     s->leftBrowCenter=Vec3_Add(s->leftBrowCenter,shift);
+    /* Anclar reborde orbital y ceja cerca de la órbita asentada para impedir
+     * que formen una isla SDF separada del cráneo. */
+    {
+        float maxRimOffset = fmaxf(scaledEye.x * 1.6f, 0.04f);
+        Vector3 rimDelta = Vec3_Sub(s->leftOrbitRimCenter, seat);
+        float rimDist = Vec3_Length(rimDelta);
+        if (rimDist > maxRimOffset)
+            s->leftOrbitRimCenter = Vec3_Add(seat, Vec3_Scale(rimDelta, maxRimOffset / rimDist));
+        Vector3 browDelta = Vec3_Sub(s->leftBrowCenter, seat);
+        float browDist = Vec3_Length(browDelta);
+        if (browDist > maxRimOffset * 1.4f)
+            s->leftBrowCenter = Vec3_Add(seat, Vec3_Scale(browDelta, (maxRimOffset * 1.4f) / browDist));
+    }
+    s->rightOrbitRimCenter=Mirror(s->leftOrbitRimCenter);
     s->rightBrowCenter=Mirror(s->leftBrowCenter);
     l->rightOrbit = Mirror(l->leftOrbit);
     s->leftOrbitCenter = l->leftOrbit; s->rightOrbitCenter = l->rightOrbit;

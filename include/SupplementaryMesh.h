@@ -13,11 +13,38 @@
 #include "AnatomyDeformer.h"
 #include "Mesh.h"
 #include "Monster.h"
+#include "MonsterSDF.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @brief Métricas de ajuste anatómico del caparazón sobre el cuerpo receptor.
+ */
+typedef struct ShellFitDiagnostics {
+    bool hasShell;                /**< true si la criatura tiene caparazón activo. */
+    float carapacePenetration;    /**< Profundidad máxima del espaldar dentro del SDF corporal (>0 implica clipado). */
+    float visibleSurfaceFraction; /**< Fracción de muestras dorsales del espaldar fuera del SDF corporal [0..1]. */
+    float maxClearanceGap;        /**< Holgura máxima entre la cara interna del espaldar y el lomo. */
+    float trunkCoverageRatio;     /**< Longitud efectiva del espaldar respecto a la longitud troncal. */
+    float plastronPenetration;    /**< Profundidad máxima del plastrón dentro del SDF corporal. */
+    bool bridgeContinuous;        /**< true si existen puentes laterales continuos entre espaldar y plastrón. */
+    unsigned degenerateTriangles; /**< Triángulos degenerados detectados en el caparazón. */
+    unsigned invalidNormals;      /**< Vértices con normales nulas o no finitas. */
+} ShellFitDiagnostics;
+
+/**
+ * @brief Evalúa la calidad geométrica del ajuste del caparazón contra el SDF real del anfitrión.
+ * @param monster Criatura resuelta.
+ * @param sdf Campo SDF ya construido (si es NULL se construye internamente).
+ * @param out Diagnóstico resultante.
+ * @return true si la evaluación completó sin error.
+ */
+bool SupplementaryMesh_EvaluateShellFit(const Monster* monster,
+                                        const MonsterSDF* sdf,
+                                        ShellFitDiagnostics* out);
 
 /**
  * @brief Construye las mallas suplementarias opaca y semitransparente en pose de reposo.

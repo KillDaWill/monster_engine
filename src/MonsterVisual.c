@@ -535,6 +535,10 @@ void MonsterVisual_SetSurface(MonsterVisual* visual,const SurfacePhenotype* surf
     if(preservedUnit>1e-4f) recipe.data[11][2]=preservedUnit;
     visual->mesh.surfaceRecipe=visual->headMesh.surfaceRecipe=recipe;
     visual->mesh.hasSurface=visual->headMesh.hasSurface=surface!=NULL;
+    if(visual->detailMesh.hasSurface) {
+        visual->detailMesh.surfaceRecipe=recipe;
+        if(!surface) visual->detailMesh.hasSurface=false;
+    }
     bool trans=surface!=NULL&&(surface->integument.type==INTEGUMENT_GELATINOUS||surface->translucency>0.01f);
     visual->mesh.translucent=trans;
     visual->headMesh.translucent=trans;

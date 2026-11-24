@@ -145,7 +145,7 @@ typedef struct OpenGLRendererData {
     int forcedShells;
     bool disableShells,disableGuards;
     struct { GLint recipe,pigmentSeed,furSeed,debug,visibility,geometry,surface,coverage; } guard;
-    GLint surfaceRecipeLocation,pigmentSeedLocation,scaleSeedLocation,furSeedLocation,surfaceDebugLocation;
+    GLint surfaceRecipeLocation,detailMaterialLocation,pigmentSeedLocation,scaleSeedLocation,furSeedLocation,surfaceDebugLocation;
     GLint shellFractionLocation,furPassLocation,shellCountLocation;
     MorphHandoffSet handoffs;
     int handoffPass;
@@ -3254,6 +3254,7 @@ static bool InitSurfaceProgram(OpenGLRendererData* d) {
     d->shellSamplesLocation=glGetUniformLocation(p,"shellSamples");
     d->guardVisibilityLocation=glGetUniformLocation(p,"guardVisibility");
     d->surfaceRecipeLocation=glGetUniformLocation(p,"surfaceRecipe");
+    d->detailMaterialLocation=glGetUniformLocation(p,"detailMaterial");
     d->pigmentSeedLocation=glGetUniformLocation(p,"pigmentSeed");
     d->scaleSeedLocation=glGetUniformLocation(p,"scaleSeed");
     d->furSeedLocation=glGetUniformLocation(p,"furSeed");
@@ -3560,6 +3561,7 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     glBindVertexArray(cached->vao);
     glUseProgram(d->surfaceProgram);
     glUniform4fv(d->surfaceRecipeLocation,SURFACE_RECIPE_ROWS,&recipe->data[0][0]);
+    if(d->detailMaterialLocation>=0)glUniform4fv(d->detailMaterialLocation,MESH_DETAIL_MATERIAL_ROWS,&mesh->detailMaterial[0][0]);
     glUniform1ui(d->pigmentSeedLocation,recipe->pigmentSeed);
     glUniform1ui(d->scaleSeedLocation,recipe->scaleSeed);
     if(d->furSeedLocation>=0)glUniform1ui(d->furSeedLocation,recipe->furSeed);

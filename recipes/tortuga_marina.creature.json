@@ -474,7 +474,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -547,7 +552,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -620,7 +630,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -693,7 +708,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         }
       ],
       "limbCount": 4,
@@ -738,46 +758,67 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 54,
-            "g": 58,
-            "b": 38,
+            "r": 50,
+            "g": 54,
+            "b": 40,
             "a": 255
           },
           "secondaryColor": {
-            "r": 26,
-            "g": 20,
-            "b": 12,
+            "r": 30,
+            "g": 26,
+            "b": 20,
             "a": 255
           },
           "ventralColor": {
-            "r": 182,
-            "g": 168,
-            "b": 124,
+            "r": 168,
+            "g": 158,
+            "b": 126,
             "a": 255
           },
-          "dorsalDarkening": 0.34,
-          "ventralLightening": 0.76,
+          "dorsalDarkening": 0.24,
+          "ventralLightening": 0.72,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1024,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 1,
+              "color": {
+                "r": 30,
+                "g": 26,
+                "b": 20,
+                "a": 255
+              },
+              "scale": 3.2,
+              "sharpness": 0.34,
+              "strength": 0.24480000000000002,
+              "direction": {
+                "x": 0.0,
+                "y": -1.0,
+                "z": 0.0
+              },
+              "seed": 10241,
+              "regionMask": 0,
+              "patternRotation": 0.0
+            }
+          ],
+          "layerCount": 1
         },
         "integument": {
           "type": 1,
-          "coverage": 0.65,
+          "coverage": 0.3,
           "scales": {
-            "size": 0.022,
+            "size": 0.062,
             "aspectRatio": 1,
             "roundness": 0.649999976,
-            "irregularity": 0.300000012,
-            "relief": 0.04,
-            "edgeDepth": 0.150000006,
-            "edgeWidth": 0.075000003,
+            "irregularity": 0.74,
+            "relief": 0.011,
+            "edgeDepth": 0.13,
+            "edgeWidth": 0.08,
             "keelStrength": 0,
-            "roughness": 0.36,
-            "microColorVariation": 0,
+            "roughness": 0.52,
+            "microColorVariation": 0.14,
             "seed": 1024
           },
           "plates": {
@@ -1188,32 +1229,32 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.14,
+        "iridescence": 0.08,
         "subsurfaceGlow": 0.0
       },
       "development": {
         "appendages": 1.0,
         "cephalic": 1.0,
-        "pigmentation": 0.78,
+        "pigmentation": 0.72,
         "integument": 1.0,
-        "colorMaturity": 0.78
+        "colorMaturity": 0.72
       },
       "dorsalColor": {
-        "r": 54,
-        "g": 58,
-        "b": 38,
+        "r": 50,
+        "g": 54,
+        "b": 40,
         "a": 255
       },
       "ventralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 224,
+        "g": 215,
+        "b": 184,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 224,
+        "g": 215,
+        "b": 184,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -1235,27 +1276,53 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.48,
+        "scuteRelief": 0.46,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 68,
-          "g": 56,
-          "b": 34,
+          "r": 44,
+          "g": 46,
+          "b": 36,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 26,
-          "g": 20,
-          "b": 12,
+          "r": 28,
+          "g": 24,
+          "b": 18,
           "a": 255
         },
         "plastronColor": {
-          "r": 182,
-          "g": 168,
-          "b": 124,
+          "r": 224,
+          "g": 215,
+          "b": 184,
           "a": 255
-        }
+        },
+        "carapaceDarkColor": {
+          "r": 30,
+          "g": 26,
+          "b": 20,
+          "a": 255
+        },
+        "carapaceAmberColor": {
+          "r": 98,
+          "g": 76,
+          "b": 48,
+          "a": 255
+        },
+        "plastronSeamColor": {
+          "r": 172,
+          "g": 162,
+          "b": 134,
+          "a": 255
+        },
+        "carapaceMottling": 0.3,
+        "carapaceRadialStrength": 0.2,
+        "carapaceRoughness": 0.42,
+        "sutureContrast": 0.62,
+        "plastronSeamSoftness": 0.8,
+        "plastronMottling": 0.18,
+        "plastronRoughness": 0.48,
+        "patternSeed": 1024
       }
     },
     "larva": {
@@ -1580,7 +1647,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -1653,7 +1725,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -1726,7 +1803,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -1799,7 +1881,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         }
       ],
       "limbCount": 4,
@@ -1844,46 +1931,67 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 54,
-            "g": 58,
-            "b": 38,
+            "r": 60,
+            "g": 62,
+            "b": 44,
             "a": 255
           },
           "secondaryColor": {
-            "r": 26,
-            "g": 20,
-            "b": 12,
+            "r": 44,
+            "g": 34,
+            "b": 23,
             "a": 255
           },
           "ventralColor": {
-            "r": 182,
-            "g": 168,
-            "b": 124,
+            "r": 168,
+            "g": 158,
+            "b": 126,
             "a": 255
           },
-          "dorsalDarkening": 0.34,
-          "ventralLightening": 0.76,
+          "dorsalDarkening": 0.24,
+          "ventralLightening": 0.72,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1024,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 1,
+              "color": {
+                "r": 44,
+                "g": 34,
+                "b": 23,
+                "a": 255
+              },
+              "scale": 3.2,
+              "sharpness": 0.34,
+              "strength": 0.2788,
+              "direction": {
+                "x": 0.0,
+                "y": -1.0,
+                "z": 0.0
+              },
+              "seed": 10241,
+              "regionMask": 0,
+              "patternRotation": 0.0
+            }
+          ],
+          "layerCount": 1
         },
         "integument": {
           "type": 1,
-          "coverage": 0.65,
+          "coverage": 0.3,
           "scales": {
-            "size": 0.022,
+            "size": 0.062,
             "aspectRatio": 1,
             "roundness": 0.649999976,
-            "irregularity": 0.300000012,
-            "relief": 0.04,
-            "edgeDepth": 0.150000006,
-            "edgeWidth": 0.075000003,
+            "irregularity": 0.74,
+            "relief": 0.011,
+            "edgeDepth": 0.13,
+            "edgeWidth": 0.08,
             "keelStrength": 0,
-            "roughness": 0.36,
-            "microColorVariation": 0,
+            "roughness": 0.52,
+            "microColorVariation": 0.14,
             "seed": 1024
           },
           "plates": {
@@ -2294,32 +2402,32 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.14,
+        "iridescence": 0.08,
         "subsurfaceGlow": 0.0
       },
       "development": {
         "appendages": 1.0,
         "cephalic": 1.0,
-        "pigmentation": 0.86,
+        "pigmentation": 0.82,
         "integument": 1.0,
-        "colorMaturity": 0.86
+        "colorMaturity": 0.82
       },
       "dorsalColor": {
-        "r": 54,
-        "g": 58,
-        "b": 38,
+        "r": 60,
+        "g": 62,
+        "b": 44,
         "a": 255
       },
       "ventralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 220,
+        "g": 209,
+        "b": 174,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 220,
+        "g": 209,
+        "b": 174,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -2341,27 +2449,53 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.48,
+        "scuteRelief": 0.46,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 68,
+          "r": 60,
           "g": 56,
-          "b": 34,
+          "b": 38,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 26,
-          "g": 20,
-          "b": 12,
+          "r": 40,
+          "g": 34,
+          "b": 25,
           "a": 255
         },
         "plastronColor": {
-          "r": 182,
-          "g": 168,
+          "r": 220,
+          "g": 209,
+          "b": 174,
+          "a": 255
+        },
+        "carapaceDarkColor": {
+          "r": 44,
+          "g": 34,
+          "b": 23,
+          "a": 255
+        },
+        "carapaceAmberColor": {
+          "r": 136,
+          "g": 104,
+          "b": 60,
+          "a": 255
+        },
+        "plastronSeamColor": {
+          "r": 168,
+          "g": 156,
           "b": 124,
           "a": 255
-        }
+        },
+        "carapaceMottling": 0.48,
+        "carapaceRadialStrength": 0.42,
+        "carapaceRoughness": 0.42,
+        "sutureContrast": 0.62,
+        "plastronSeamSoftness": 0.8,
+        "plastronMottling": 0.18,
+        "plastronRoughness": 0.48,
+        "patternSeed": 1024
       }
     },
     "juvenile": {
@@ -2686,7 +2820,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -2759,7 +2898,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -2832,7 +2976,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -2905,7 +3054,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         }
       ],
       "limbCount": 4,
@@ -2950,46 +3104,67 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 54,
-            "g": 58,
-            "b": 38,
+            "r": 70,
+            "g": 72,
+            "b": 50,
             "a": 255
           },
           "secondaryColor": {
-            "r": 26,
-            "g": 20,
-            "b": 12,
+            "r": 60,
+            "g": 44,
+            "b": 28,
             "a": 255
           },
           "ventralColor": {
-            "r": 182,
-            "g": 168,
-            "b": 124,
+            "r": 168,
+            "g": 158,
+            "b": 126,
             "a": 255
           },
-          "dorsalDarkening": 0.34,
-          "ventralLightening": 0.76,
+          "dorsalDarkening": 0.24,
+          "ventralLightening": 0.72,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1024,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 1,
+              "color": {
+                "r": 60,
+                "g": 44,
+                "b": 28,
+                "a": 255
+              },
+              "scale": 3.2,
+              "sharpness": 0.34,
+              "strength": 0.31620000000000004,
+              "direction": {
+                "x": 0.0,
+                "y": -1.0,
+                "z": 0.0
+              },
+              "seed": 10241,
+              "regionMask": 0,
+              "patternRotation": 0.0
+            }
+          ],
+          "layerCount": 1
         },
         "integument": {
           "type": 1,
-          "coverage": 0.65,
+          "coverage": 0.3,
           "scales": {
-            "size": 0.022,
+            "size": 0.062,
             "aspectRatio": 1,
             "roundness": 0.649999976,
-            "irregularity": 0.300000012,
-            "relief": 0.04,
-            "edgeDepth": 0.150000006,
-            "edgeWidth": 0.075000003,
+            "irregularity": 0.74,
+            "relief": 0.011,
+            "edgeDepth": 0.13,
+            "edgeWidth": 0.08,
             "keelStrength": 0,
-            "roughness": 0.36,
-            "microColorVariation": 0,
+            "roughness": 0.52,
+            "microColorVariation": 0.14,
             "seed": 1024
           },
           "plates": {
@@ -3400,32 +3575,32 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.14,
+        "iridescence": 0.08,
         "subsurfaceGlow": 0.0
       },
       "development": {
         "appendages": 1.0,
         "cephalic": 1.0,
-        "pigmentation": 0.95,
+        "pigmentation": 0.93,
         "integument": 1.0,
-        "colorMaturity": 0.95
+        "colorMaturity": 0.93
       },
       "dorsalColor": {
-        "r": 54,
-        "g": 58,
-        "b": 38,
+        "r": 70,
+        "g": 72,
+        "b": 50,
         "a": 255
       },
       "ventralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 218,
+        "g": 206,
+        "b": 166,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 218,
+        "g": 206,
+        "b": 166,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -3447,27 +3622,53 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.48,
+        "scuteRelief": 0.46,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 68,
-          "g": 56,
-          "b": 34,
+          "r": 88,
+          "g": 74,
+          "b": 44,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 26,
-          "g": 20,
-          "b": 12,
+          "r": 52,
+          "g": 44,
+          "b": 31,
           "a": 255
         },
         "plastronColor": {
-          "r": 182,
-          "g": 168,
-          "b": 124,
+          "r": 218,
+          "g": 206,
+          "b": 166,
           "a": 255
-        }
+        },
+        "carapaceDarkColor": {
+          "r": 60,
+          "g": 44,
+          "b": 28,
+          "a": 255
+        },
+        "carapaceAmberColor": {
+          "r": 182,
+          "g": 140,
+          "b": 80,
+          "a": 255
+        },
+        "plastronSeamColor": {
+          "r": 164,
+          "g": 152,
+          "b": 118,
+          "a": 255
+        },
+        "carapaceMottling": 0.68,
+        "carapaceRadialStrength": 0.66,
+        "carapaceRoughness": 0.42,
+        "sutureContrast": 0.62,
+        "plastronSeamSoftness": 0.8,
+        "plastronMottling": 0.18,
+        "plastronRoughness": 0.48,
+        "patternSeed": 1024
       }
     },
     "adult": {
@@ -3792,7 +3993,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -3865,7 +4071,12 @@
           "wingAspect": 3.4,
           "wingPointedness": 0.65,
           "finSweep": 0.52,
-          "finCamber": 0.1
+          "finCamber": 0.1,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -3938,7 +4149,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         },
         {
           "archetype": 4,
@@ -4011,7 +4227,12 @@
           "wingAspect": 2.1,
           "wingPointedness": 0.65,
           "finSweep": 0.68,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 2,
+          "flipperScaleSize": 1.0,
+          "flipperScaleIrregularity": 0.72,
+          "flipperBorderContrast": 0.44,
+          "flipperRoughness": 0.52
         }
       ],
       "limbCount": 4,
@@ -4056,46 +4277,67 @@
       "surface": {
         "pigment": {
           "baseColor": {
-            "r": 54,
-            "g": 58,
-            "b": 38,
+            "r": 68,
+            "g": 72,
+            "b": 50,
             "a": 255
           },
           "secondaryColor": {
-            "r": 26,
-            "g": 20,
-            "b": 12,
+            "r": 58,
+            "g": 44,
+            "b": 29,
             "a": 255
           },
           "ventralColor": {
-            "r": 182,
-            "g": 168,
-            "b": 124,
+            "r": 168,
+            "g": 158,
+            "b": 126,
             "a": 255
           },
-          "dorsalDarkening": 0.34,
-          "ventralLightening": 0.76,
+          "dorsalDarkening": 0.24,
+          "ventralLightening": 0.72,
           "patternStrength": 0.3,
           "patternScale": 2.4,
           "bands": 0.0,
           "seed": 1024,
-          "layers": [],
-          "layerCount": 0
+          "layers": [
+            {
+              "pattern": 1,
+              "color": {
+                "r": 58,
+                "g": 44,
+                "b": 29,
+                "a": 255
+              },
+              "scale": 3.2,
+              "sharpness": 0.34,
+              "strength": 0.34,
+              "direction": {
+                "x": 0.0,
+                "y": -1.0,
+                "z": 0.0
+              },
+              "seed": 10241,
+              "regionMask": 0,
+              "patternRotation": 0.0
+            }
+          ],
+          "layerCount": 1
         },
         "integument": {
           "type": 1,
-          "coverage": 0.65,
+          "coverage": 0.3,
           "scales": {
-            "size": 0.022,
+            "size": 0.062,
             "aspectRatio": 1,
             "roundness": 0.649999976,
-            "irregularity": 0.300000012,
-            "relief": 0.04,
-            "edgeDepth": 0.150000006,
-            "edgeWidth": 0.075000003,
+            "irregularity": 0.74,
+            "relief": 0.011,
+            "edgeDepth": 0.13,
+            "edgeWidth": 0.08,
             "keelStrength": 0,
-            "roughness": 0.36,
-            "microColorVariation": 0,
+            "roughness": 0.52,
+            "microColorVariation": 0.14,
             "seed": 1024
           },
           "plates": {
@@ -4506,7 +4748,7 @@
         },
         "inheritedBlend": false,
         "translucency": 0.0,
-        "iridescence": 0.14,
+        "iridescence": 0.08,
         "subsurfaceGlow": 0.0
       },
       "development": {
@@ -4517,21 +4759,21 @@
         "colorMaturity": 1.0
       },
       "dorsalColor": {
-        "r": 54,
-        "g": 58,
-        "b": 38,
+        "r": 68,
+        "g": 72,
+        "b": 50,
         "a": 255
       },
       "ventralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 218,
+        "g": 206,
+        "b": 166,
         "a": 255
       },
       "unpigmentedVentralColor": {
-        "r": 182,
-        "g": 168,
-        "b": 124,
+        "r": 218,
+        "g": 206,
+        "b": 166,
         "a": 255
       },
       "repeatedAppendages": [],
@@ -4553,27 +4795,53 @@
         "costalScutePairs": 4,
         "vertebralScutes": 5,
         "marginalScutes": 11,
-        "scuteRelief": 0.48,
+        "scuteRelief": 0.46,
         "cervicalNotch": 0.14,
         "limbClearance": 0.28,
         "carapaceColor": {
-          "r": 68,
-          "g": 56,
-          "b": 34,
+          "r": 78,
+          "g": 74,
+          "b": 46,
           "a": 255
         },
         "scuteBorderColor": {
-          "r": 26,
-          "g": 20,
-          "b": 12,
+          "r": 50,
+          "g": 44,
+          "b": 32,
           "a": 255
         },
         "plastronColor": {
-          "r": 182,
-          "g": 168,
-          "b": 124,
+          "r": 218,
+          "g": 206,
+          "b": 166,
           "a": 255
-        }
+        },
+        "carapaceDarkColor": {
+          "r": 58,
+          "g": 44,
+          "b": 29,
+          "a": 255
+        },
+        "carapaceAmberColor": {
+          "r": 172,
+          "g": 134,
+          "b": 80,
+          "a": 255
+        },
+        "plastronSeamColor": {
+          "r": 162,
+          "g": 150,
+          "b": 116,
+          "a": 255
+        },
+        "carapaceMottling": 0.74,
+        "carapaceRadialStrength": 0.58,
+        "carapaceRoughness": 0.42,
+        "sutureContrast": 0.62,
+        "plastronSeamSoftness": 0.8,
+        "plastronMottling": 0.18,
+        "plastronRoughness": 0.48,
+        "patternSeed": 1024
       }
     },
     "gait": 15,

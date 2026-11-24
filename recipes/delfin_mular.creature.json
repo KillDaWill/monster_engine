@@ -454,7 +454,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         },
         {
           "archetype": 4,
@@ -527,7 +532,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         }
       ],
       "limbCount": 2,
@@ -1448,7 +1458,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         },
         {
           "archetype": 4,
@@ -1521,7 +1536,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         }
       ],
       "limbCount": 2,
@@ -2442,7 +2462,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         },
         {
           "archetype": 4,
@@ -2515,7 +2540,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         }
       ],
       "limbCount": 2,
@@ -3436,7 +3466,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         },
         {
           "archetype": 4,
@@ -3509,7 +3544,12 @@
           "wingAspect": 2.65,
           "wingPointedness": 0.65,
           "finSweep": 0.56,
-          "finCamber": 0.06
+          "finCamber": 0.06,
+          "flipperSurface": 1,
+          "flipperScaleSize": 0.0,
+          "flipperScaleIrregularity": 0.0,
+          "flipperBorderContrast": 0.0,
+          "flipperRoughness": 0.0
         }
       ],
       "limbCount": 2,

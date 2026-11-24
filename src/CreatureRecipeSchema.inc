@@ -407,6 +407,11 @@ static const Field LimbPhenotype_fields[] = {
     {"wingPointedness",offsetof(LimbPhenotype,wingPointedness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"finSweep",offsetof(LimbPhenotype,finSweep),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {"finCamber",offsetof(LimbPhenotype,finCamber),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"flipperSurface",offsetof(LimbPhenotype,flipperSurface),sizeof(FlipperSurfaceStyle),1,F_ENUM,FLIPPER_SURFACE_REPTILIAN_SCALES,NULL,NO_COUNT,"FLIPPER_SURFACE_AUTO|FLIPPER_SURFACE_SMOOTH|FLIPPER_SURFACE_REPTILIAN_SCALES",true},
+    {"flipperScaleSize",offsetof(LimbPhenotype,flipperScaleSize),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"flipperScaleIrregularity",offsetof(LimbPhenotype,flipperScaleIrregularity),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"flipperBorderContrast",offsetof(LimbPhenotype,flipperBorderContrast),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"flipperRoughness",offsetof(LimbPhenotype,flipperRoughness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field TailPhenotype_fields[] = {
@@ -554,6 +559,17 @@ static const Field ShellPhenotype_fields[] = {
     {"carapaceColor",offsetof(ShellPhenotype,carapaceColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {"scuteBorderColor",offsetof(ShellPhenotype,scuteBorderColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
     {"plastronColor",offsetof(ShellPhenotype,plastronColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,false},
+    {"carapaceDarkColor",offsetof(ShellPhenotype,carapaceDarkColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,true},
+    {"carapaceAmberColor",offsetof(ShellPhenotype,carapaceAmberColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,true},
+    {"plastronSeamColor",offsetof(ShellPhenotype,plastronSeamColor),sizeof(Color),1,F_OBJECT,0,Color_fields,NO_COUNT,NULL,true},
+    {"carapaceMottling",offsetof(ShellPhenotype,carapaceMottling),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"carapaceRadialStrength",offsetof(ShellPhenotype,carapaceRadialStrength),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"carapaceRoughness",offsetof(ShellPhenotype,carapaceRoughness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"sutureContrast",offsetof(ShellPhenotype,sutureContrast),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"plastronSeamSoftness",offsetof(ShellPhenotype,plastronSeamSoftness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"plastronMottling",offsetof(ShellPhenotype,plastronMottling),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"plastronRoughness",offsetof(ShellPhenotype,plastronRoughness),sizeof(float),1,F_FLOAT,0,NULL,NO_COUNT,NULL,true},
+    {"patternSeed",offsetof(ShellPhenotype,patternSeed),sizeof(uint32_t),1,F_U32,UINT32_MAX,NULL,NO_COUNT,NULL,true},
     {0}
 };
 static const Field PigmentDomain_fields[] = {

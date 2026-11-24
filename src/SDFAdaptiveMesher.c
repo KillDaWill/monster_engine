@@ -593,6 +593,10 @@ bool SDFAdaptiveMesher_Generate(SDFMesher* mesher, const SDFField* field,
     float minTarget=c.base,span=fmaxf(extent.x,fmaxf(extent.y,extent.z));
     for(size_t i=0;i<regionCount;++i)
         if(isfinite(regions[i].targetVoxelSize)&&regions[i].targetVoxelSize>0)minTarget=fminf(minTarget,regions[i].targetVoxelSize);
+    /* Garantizar que una región de detalle minúscula no exceda la profundidad
+     * máxima del octree y aborte la poligonización de toda la criatura. */
+    float minOctreeTarget = span / (float)(1u << 18);
+    if(minTarget < minOctreeTarget) minTarget = minOctreeTarget;
     unsigned depth=0;float step=minTarget;
     while(step<span && depth<19){step*=2.0f;depth++;}
     if(step<span){free(c.regionNodes);return false;}

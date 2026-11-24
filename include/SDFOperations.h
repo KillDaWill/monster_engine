@@ -29,7 +29,11 @@ typedef enum SDFMaterial {
     SDF_MATERIAL_UNKNOWN,
     SDF_MATERIAL_HORN, /**< Queratina de cuerno: sin integumento. */
     SDF_MATERIAL_HOOF, /**< Casco ungulado y placas ungueales: sin pelo ni escamas. */
-    SDF_MATERIAL_DENTINE /**< Incisivo expuesto. */
+    SDF_MATERIAL_DENTINE, /**< Incisivo expuesto. */
+    SDF_MATERIAL_CARAPACE, /**< Escudos dorsales queratinosos de caparazón. */
+    SDF_MATERIAL_PLASTRON, /**< Plastrón ventral y puente inframarginal. */
+    SDF_MATERIAL_REPTILIAN_FLIPPER, /**< Aleta marina con mosaico poligonal reptiliano. */
+    SDF_MATERIAL_CEPHALIC_PLATE /**< Placas cefálicas dérmicas/queratinosas proyectadas. */
 } SDFMaterial;
 
 /**

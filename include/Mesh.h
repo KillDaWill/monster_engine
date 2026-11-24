@@ -35,6 +35,9 @@ typedef struct MeshVertex {
     SurfaceCoordinate surface; /**< Dominio inmutable de reposo y mezcla regional. */
 } MeshVertex;
 
+/** Filas vec4 de parámetros de material procedural para mallas suplementarias (caparazón, plastrón, aletas, placas). */
+#define MESH_DETAIL_MATERIAL_ROWS 12
+
 /**
  * @struct Mesh
  * @brief Representación desacoplada de una malla poligonal 3D indexada.
@@ -42,6 +45,7 @@ typedef struct MeshVertex {
 typedef struct Mesh {
     uint64_t identity; /**< Identidad estable para cachés aunque el allocator reutilice una dirección. */
     SurfaceRecipe surfaceRecipe; /**< Apariencia separada de los buffers geométricos. */
+    float detailMaterial[MESH_DETAIL_MATERIAL_ROWS][4]; /**< Parámetros lineales de materiales anatómicos suplementarios. */
     bool hasSurface;
     bool translucent; /**< Activa mezclado alfa y ordenación por caras en el backend gráfico. */
     bool doubleSided; /**< Desactiva backface culling en superficies finas/abiertas. */

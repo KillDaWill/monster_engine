@@ -91,6 +91,11 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         l->wingPointedness = Unit(l->wingPointedness, 0.0f);
         l->finSweep = isfinite(l->finSweep) ? Math_Clamp(l->finSweep, -0.6f, 1.0f) : 0.0f;
         l->finCamber = isfinite(l->finCamber) ? Math_Clamp(l->finCamber, 0.0f, 0.45f) : 0.0f;
+        if (l->flipperSurface > FLIPPER_SURFACE_REPTILIAN_SCALES) l->flipperSurface = FLIPPER_SURFACE_AUTO;
+        l->flipperScaleSize = isfinite(l->flipperScaleSize) ? Math_Clamp(l->flipperScaleSize, 0.0f, 3.0f) : 0.0f;
+        l->flipperScaleIrregularity = isfinite(l->flipperScaleIrregularity) ? Math_Clamp(l->flipperScaleIrregularity, 0.0f, 1.0f) : 0.0f;
+        l->flipperBorderContrast = isfinite(l->flipperBorderContrast) ? Math_Clamp(l->flipperBorderContrast, 0.0f, 1.0f) : 0.0f;
+        l->flipperRoughness = isfinite(l->flipperRoughness) ? Math_Clamp(l->flipperRoughness, 0.0f, 0.95f) : 0.0f;
         l->dewclawSize=Unit(l->dewclawSize,0);
         l->proximalScale = Positive(l->proximalScale, 1);
         l->middleScale = Positive(l->middleScale, 1);
@@ -242,6 +247,13 @@ void CreaturePhenotype_Normalize(CreaturePhenotype* p) {
         p->shell.scuteRelief = Unit(p->shell.scuteRelief, 0.45f);
         p->shell.cervicalNotch = Math_Clamp(Unit(p->shell.cervicalNotch, 0.12f), 0.0f, 0.45f);
         p->shell.limbClearance = Math_Clamp(Unit(p->shell.limbClearance, 0.22f), 0.0f, 0.55f);
+        p->shell.carapaceMottling = isfinite(p->shell.carapaceMottling) ? Math_Clamp(p->shell.carapaceMottling, 0.0f, 1.0f) : 0.0f;
+        p->shell.carapaceRadialStrength = isfinite(p->shell.carapaceRadialStrength) ? Math_Clamp(p->shell.carapaceRadialStrength, 0.0f, 1.0f) : 0.0f;
+        p->shell.carapaceRoughness = isfinite(p->shell.carapaceRoughness) ? Math_Clamp(p->shell.carapaceRoughness, 0.0f, 0.95f) : 0.0f;
+        p->shell.sutureContrast = isfinite(p->shell.sutureContrast) ? Math_Clamp(p->shell.sutureContrast, 0.0f, 1.0f) : 0.0f;
+        p->shell.plastronSeamSoftness = isfinite(p->shell.plastronSeamSoftness) ? Math_Clamp(p->shell.plastronSeamSoftness, 0.0f, 1.0f) : 0.0f;
+        p->shell.plastronMottling = isfinite(p->shell.plastronMottling) ? Math_Clamp(p->shell.plastronMottling, 0.0f, 1.0f) : 0.0f;
+        p->shell.plastronRoughness = isfinite(p->shell.plastronRoughness) ? Math_Clamp(p->shell.plastronRoughness, 0.0f, 0.95f) : 0.0f;
     }
 
     p->eyes.size = isfinite(p->eyes.size) ? Math_Clamp(p->eyes.size, 0.0f, 4.0f) : 1.0f;
@@ -410,6 +422,11 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
         LERP_BODY(limbs[i].wingPointedness);
         LERP_BODY(limbs[i].finSweep);
         LERP_BODY(limbs[i].finCamber);
+        p.limbs[i].flipperSurface = t < 0.5f ? a->limbs[i].flipperSurface : b->limbs[i].flipperSurface;
+        LERP_BODY(limbs[i].flipperScaleSize);
+        LERP_BODY(limbs[i].flipperScaleIrregularity);
+        LERP_BODY(limbs[i].flipperBorderContrast);
+        LERP_BODY(limbs[i].flipperRoughness);
         for (unsigned j = 0; j < p.limbs[i].digitCount; ++j) {
             LERP_BODY(limbs[i].digitLengths[j]); LERP_BODY(limbs[i].digitAngles[j]);
         }
@@ -436,6 +453,17 @@ CreaturePhenotype CreaturePhenotype_Interpolate(const CreaturePhenotype* a,
     p.shell.carapaceColor = Color_Lerp(a->shell.carapaceColor, b->shell.carapaceColor, t);
     p.shell.scuteBorderColor = Color_Lerp(a->shell.scuteBorderColor, b->shell.scuteBorderColor, t);
     p.shell.plastronColor = Color_Lerp(a->shell.plastronColor, b->shell.plastronColor, t);
+    p.shell.carapaceDarkColor = Color_Lerp(a->shell.carapaceDarkColor, b->shell.carapaceDarkColor, t);
+    p.shell.carapaceAmberColor = Color_Lerp(a->shell.carapaceAmberColor, b->shell.carapaceAmberColor, t);
+    p.shell.plastronSeamColor = Color_Lerp(a->shell.plastronSeamColor, b->shell.plastronSeamColor, t);
+    LERP_BODY(shell.carapaceMottling);
+    LERP_BODY(shell.carapaceRadialStrength);
+    LERP_BODY(shell.carapaceRoughness);
+    LERP_BODY(shell.sutureContrast);
+    LERP_BODY(shell.plastronSeamSoftness);
+    LERP_BODY(shell.plastronMottling);
+    LERP_BODY(shell.plastronRoughness);
+    p.shell.patternSeed = a->shell.patternSeed ? a->shell.patternSeed : b->shell.patternSeed;
     for (size_t i = 0; i < p.flexibleAppendageCount; ++i)
         p.flexibleAppendages[i]=FlexibleAppendage_Interpolate(
             &a->flexibleAppendages[i],&b->flexibleAppendages[i],t,t);

@@ -13,11 +13,13 @@
 #include "CreatureMorph.h"
 #include "CreatureOffspring.h"
 #include "CreatureRecipeIO.h"
+#include "CreatureRecipes.h"
 #include "CreatureRecipeRegistry.h"
 #include "Monster.h"
 #include "MonsterAger.h"
 #include "MonsterAnimation.h"
 #include "MonsterSDF.h"
+#include "MonsterVisual.h"
 #include "SupplementaryMesh.h"
 #include "WorldInterface.h"
 #include <math.h>
@@ -500,13 +502,245 @@ static void test_aquatic_v3_anatomical_repairs(void) {
     printf("[PASS] test_aquatic_anatomy: reparaciones anatómicas V3 (cola, boca, SDF, cefalofoil, anillos, garras, pigmento)\n");
 }
 
+static void test_turtle_material_v4(void) {
+    CreatureRecipeDocument *dTur = calloc(1, sizeof(*dTur)), *dDol = calloc(1, sizeof(*dDol));
+    CreatureRecipeDocument *dPan = calloc(1, sizeof(*dPan)), *dPla = calloc(1, sizeof(*dPla));
+    Monster *mTur = calloc(1, sizeof(*mTur)), *mDol = calloc(1, sizeof(*mDol));
+    CHECK(dTur && dDol && dPan && dPla && mTur && mDol);
+    CHECK(LoadDoc("recipes/tortuga_marina.creature.json", dTur));
+    CHECK(LoadDoc("recipes/delfin_mular.creature.json", dDol));
+    CHECK(LoadDoc("recipes/pangolin.creature.json", dPan));
+    CHECK(LoadDoc("recipes/ornitorrinco.creature.json", dPla));
+    const CreatureRecipe *rLiz = CreatureRecipes_Lizard();
+    CHECK(rLiz != NULL);
+
+    /* 1. Campos de material V4 en ShellPhenotype y LimbPhenotype + roundtrip JSON. */
+    const ShellPhenotype *sh = &dTur->recipe.adult.shell;
+    CHECK(sh->carapaceDarkColor.a == 255 && sh->carapaceAmberColor.a == 255 && sh->plastronSeamColor.a == 255);
+    CHECK(sh->carapaceMottling > 0.5f && sh->carapaceRadialStrength > 0.4f && sh->plastronSeamSoftness > 0.6f);
+    CHECK(sh->patternSeed == 1024u);
+    CHECK(dTur->recipe.adult.limbs[0].flipperSurface == FLIPPER_SURFACE_REPTILIAN_SCALES);
+    CHECK(dDol->recipe.adult.limbs[0].flipperSurface == FLIPPER_SURFACE_SMOOTH);
+
+    /* 2. Materiales semánticos emitidos en SupplementaryMesh (tortuga vs delfín liso). */
+    *mTur = Monster_Create(); *mDol = Monster_Create();
+    CHECK(Creature_BuildMonster(mTur, &dTur->recipe, &dTur->recipe.adult));
+    CHECK(Creature_BuildMonster(mDol, &dDol->recipe, &dDol->recipe.adult));
+    Mesh opT = Mesh_Create(), trT = Mesh_Create();
+    Mesh opD = Mesh_Create(), trD = Mesh_Create();
+    CHECK(SupplementaryMesh_Build(mTur, &opT, &trT));
+    CHECK(SupplementaryMesh_Build(mDol, &opD, &trD));
+    CheckMeshValid(&opT); CheckMeshValid(&opD);
+    CHECK(opT.hasSurface);
+    CHECK(!opD.hasSurface);
+
+    size_t nCara = 0, nPlas = 0, nFlip = 0, nHead = 0, nHorn = 0;
+    for (size_t i = 0; i < opT.vertexCount; ++i) {
+        SDFMaterial mat = opT.vertices[i].material;
+        if (mat == SDF_MATERIAL_CARAPACE) ++nCara;
+        else if (mat == SDF_MATERIAL_PLASTRON) ++nPlas;
+        else if (mat == SDF_MATERIAL_REPTILIAN_FLIPPER) ++nFlip;
+        else if (mat == SDF_MATERIAL_CEPHALIC_PLATE) ++nHead;
+        else if (mat == SDF_MATERIAL_HORN) ++nHorn;
+    }
+    CHECK(nCara > 400 && nPlas > 400 && nFlip > 400 && nHead > 100 && nHorn > 20);
+    for (size_t i = 0; i < opD.vertexCount; ++i) {
+        CHECK(opD.vertices[i].material != SDF_MATERIAL_REPTILIAN_FLIPPER);
+    }
+    Mesh_Free(&opT); Mesh_Free(&trT);
+    Mesh_Free(&opD); Mesh_Free(&trD);
+
+    /* 3. Continuidad de desarrollo (seed -> larva -> juvenile -> adult) sin saltos de semilla. */
+    float prevMottle = -1.0f;
+    for (int k = 0; k <= 4; ++k) {
+        float age = (float)k * 0.25f;
+        CreaturePhenotype st = CreatureRecipe_EvaluateDevelopment(&dTur->recipe, age);
+        CHECK(st.shell.patternSeed == 1024u);
+        CHECK(st.shell.carapaceMottling >= prevMottle - 1e-4f);
+        prevMottle = st.shell.carapaceMottling;
+    }
+
+    /* 4. Morphing Tortuga -> Ornitorrinco / Pangolín / Delfín / Lagarto. */
+    const CreatureRecipe *targets[4] = {&dPla->recipe, &dPan->recipe, &dDol->recipe, rLiz};
+    for (int ti = 0; ti < 4; ++ti) {
+        Monster *mB = calloc(1, sizeof(*mB));
+        CHECK(mB != NULL);
+        *mB = Monster_Create();
+        CHECK(Creature_BuildMonster(mB, targets[ti], &targets[ti]->adult));
+        for (int s = 0; s <= 4; ++s) {
+            float t = (float)s * 0.25f;
+            Monster *mOut = calloc(1, sizeof(*mOut));
+            CHECK(mOut != NULL);
+            *mOut = Monster_Create();
+            CHECK(CreatureMorph_Interpolate(mTur, mB, t, mOut));
+            Mesh opM = Mesh_Create(), trM = Mesh_Create();
+            CHECK(SupplementaryMesh_Build(mOut, &opM, &trM));
+            CheckMeshValid(&opM);
+            Mesh_Free(&opM); Mesh_Free(&trM);
+            Monster_Free(mOut); free(mOut);
+        }
+        Monster_Free(mB); free(mB);
+    }
+
+    Monster_Free(mTur); Monster_Free(mDol);
+    free(mTur); free(mDol);
+    free(dTur); free(dDol); free(dPan); free(dPla);
+    printf("[PASS] test_aquatic_anatomy: materiales procedurales tortuga V4 (escudos, plastrón, aletas, placas, morph)\n");
+}
+
+static void test_aquatic_mammal_offspring_repairs(void) {
+    CreatureRecipeDocument *dTur = calloc(1, sizeof(*dTur));
+    CreatureRecipeDocument *dTun = calloc(1, sizeof(*dTun));
+    CreatureRecipeDocument *dHam = calloc(1, sizeof(*dHam));
+    CreatureRecipeDocument *dDol = calloc(1, sizeof(*dDol));
+    CreatureRecipeDocument *dEle = calloc(1, sizeof(*dEle));
+    CreatureRecipeDocument *dHor = calloc(1, sizeof(*dHor));
+    CreatureRecipeDocument *dKan = calloc(1, sizeof(*dKan));
+    CreatureRecipeDocument *dBat = calloc(1, sizeof(*dBat));
+    CreatureRecipeDocument *dPla = calloc(1, sizeof(*dPla));
+    CHECK(dTur && dTun && dHam && dDol && dEle && dHor && dKan && dBat && dPla);
+    CHECK(CreatureRecipeIO_LoadFile(dTur, "recipes/tortuga_marina.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dTun, "recipes/atun_rojo.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dHam, "recipes/tiburon_martillo.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dDol, "recipes/delfin_mular.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dEle, "recipes/elefante.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dHor, "recipes/caballo.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dKan, "recipes/canguro.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dBat, "recipes/murcielago.creature.json", NULL, 0));
+    CHECK(CreatureRecipeIO_LoadFile(dPla, "recipes/ornitorrinco.creature.json", NULL, 0));
+
+    char err[256] = {0};
+
+    /* 1. Regresión de malla vacía en delfin_mular x murcielago #0 (seed 47100). */
+    {
+        CreatureOffspringBatch *b = CreatureOffspring_Generate(
+            &dDol->recipe, &dBat->recipe, CreatureOffspring_Default(6, 47100u),
+            NULL, NULL, err, sizeof(err));
+        CHECK(b != NULL && CreatureOffspring_Count(b) == 6);
+        const OffspringReport *r = NULL;
+        const CreatureRecipe *rec = CreatureOffspring_Get(b, 0, &r);
+        CHECK(rec != NULL && r != NULL && !r->lastFailure.active);
+        Monster *m = calloc(1, sizeof(*m));
+        CHECK(m != NULL && Creature_BuildMonster(m, rec, &rec->adult));
+        SDFMesherConfig mcfg = SDFMesher_DefaultConfig();
+        mcfg.voxelSize = 0.08f;
+        mcfg.adaptiveDetail = true;
+        MonsterVisual vis = MonsterVisual_Create(mcfg);
+        CHECK(MonsterVisual_RebuildNow(&vis, m, MonsterSDF_DefaultConfig()));
+        CHECK(vis.mesh.vertexCount > 500);
+        CHECK(m->animation != NULL);
+        MonsterVisual_Free(&vis);
+        Monster_Free(m); free(m);
+        CreatureOffspring_Destroy(b);
+    }
+
+    /* 2. Caparazón conformado al cuerpo en tortuga_marina x elefante #5 (seed 42500). */
+    {
+        CreatureOffspringBatch *b = CreatureOffspring_Generate(
+            &dTur->recipe, &dEle->recipe, CreatureOffspring_Default(6, 42500u),
+            NULL, NULL, err, sizeof(err));
+        CHECK(b != NULL && CreatureOffspring_Count(b) == 6);
+        unsigned checkedShells = 0;
+        for (size_t i = 0; i < CreatureOffspring_Count(b); ++i) {
+            const OffspringReport *r = NULL;
+            const CreatureRecipe *rec = CreatureOffspring_Get(b, i, &r);
+            CHECK(rec != NULL && r != NULL && !r->lastFailure.active);
+            if (rec->adult.shell.development <= 0.05f) continue;
+            Monster *m = calloc(1, sizeof(*m));
+            CHECK(m != NULL && Creature_BuildMonster(m, rec, &rec->adult));
+            ShellFitDiagnostics sd = {0};
+            CHECK(SupplementaryMesh_EvaluateShellFit(m, NULL, &sd) && sd.hasShell);
+            CHECK(sd.visibleSurfaceFraction >= 0.90f);
+            CHECK(sd.bridgeContinuous);
+            CHECK(sd.degenerateTriangles == 0 && sd.invalidNormals == 0);
+            ++checkedShells;
+            Monster_Free(m); free(m);
+        }
+        CHECK(checkedShells >= 1);
+        CreatureOffspring_Destroy(b);
+    }
+
+    /* 3. Supresión de pelo largo en colas hidrodinámicas (atun_rojo x caballo, seed 43500). */
+    {
+        CreatureOffspringBatch *b = CreatureOffspring_Generate(
+            &dTun->recipe, &dHor->recipe, CreatureOffspring_Default(6, 43500u),
+            NULL, NULL, err, sizeof(err));
+        CHECK(b != NULL && CreatureOffspring_Count(b) == 6);
+        for (size_t i = 0; i < CreatureOffspring_Count(b); ++i) {
+            const OffspringReport *r = NULL;
+            const CreatureRecipe *rec = CreatureOffspring_Get(b, i, &r);
+            CHECK(rec != NULL && r != NULL && !r->lastFailure.active);
+            for (size_t hi = 0; hi < rec->adult.surface.longHairCount; ++hi) {
+                uint32_t hostId = rec->adult.surface.longHair[hi].domain.hostModuleId;
+                for (size_t mi = 0; mi < rec->bodyPlan.moduleCount; ++mi) {
+                    if (rec->bodyPlan.modules[mi].instanceId == hostId &&
+                        rec->bodyPlan.modules[mi].kind == CREATURE_MODULE_TAIL) {
+                        const TailPhenotype *tp = &rec->adult.tails[rec->bodyPlan.modules[mi].phenotypeIndex];
+                        CHECK(rec->adult.axial.archetype == AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD &&
+                              tp->caudalFinType == CAUDAL_FIN_NONE);
+                    }
+                }
+            }
+        }
+        CreatureOffspring_Destroy(b);
+    }
+
+    /* 4. Continuidad cefálica/orbital sin ojos flotantes (tiburon_martillo x canguro, seed 45700). */
+    {
+        CreatureOffspringBatch *b = CreatureOffspring_Generate(
+            &dHam->recipe, &dKan->recipe, CreatureOffspring_Default(6, 45700u),
+            NULL, NULL, err, sizeof(err));
+        CHECK(b != NULL && CreatureOffspring_Count(b) == 6);
+        for (size_t i = 0; i < CreatureOffspring_Count(b); ++i) {
+            const OffspringReport *r = NULL;
+            const CreatureRecipe *rec = CreatureOffspring_Get(b, i, &r);
+            CHECK(rec != NULL && r != NULL && !r->lastFailure.active);
+            Monster *m = calloc(1, sizeof(*m));
+            CHECK(m != NULL && Creature_BuildMonster(m, rec, &rec->adult));
+            MonsterSDF sdf = MonsterSDF_Create();
+            CHECK(MonsterSDF_Build(&sdf, m, MonsterSDF_DefaultConfig()));
+            Vector3 origin = m->bodyParts[m->head.anatomy.attachmentBodyPartIndex].positionRender;
+            for (size_t ei = 0; ei < m->eyeCount; ++ei) {
+                const Eye *eye = &m->eyes[ei];
+                float rad = fmaxf(eye->scale.x, eye->scale.z);
+                Vector3 seat = Vec3_Sub(eye->offset, Vec3_Scale(eye->forward, rad * 0.90f));
+                float dSeat = MonsterSDF_EvaluateDistance(&sdf, Vec3_Add(origin, seat));
+                CHECK(isfinite(dSeat) && dSeat <= rad * 0.25f);
+            }
+            MonsterSDF_Free(&sdf);
+            Monster_Free(m); free(m);
+        }
+        CreatureOffspring_Destroy(b);
+    }
+
+    /* 5. Sin falsos positivos de LOW_EAR_EXPOSURE en híbridos sin orejas externas (ornitorrinco). */
+    {
+        CreatureOffspringBatch *b = CreatureOffspring_Generate(
+            &dTur->recipe, &dPla->recipe, CreatureOffspring_Default(6, 42900u),
+            NULL, NULL, err, sizeof(err));
+        CHECK(b != NULL && CreatureOffspring_Count(b) == 6);
+        for (size_t i = 0; i < CreatureOffspring_Count(b); ++i) {
+            const OffspringReport *r = NULL;
+            CHECK(CreatureOffspring_Get(b, i, &r) != NULL && r != NULL);
+            CHECK(r->earExposedFraction >= 0.99f);
+        }
+        CreatureOffspring_Destroy(b);
+    }
+
+    free(dTur); free(dTun); free(dHam); free(dDol);
+    free(dEle); free(dHor); free(dKan); free(dBat); free(dPla);
+    printf("[PASS] test_aquatic_anatomy: reparaciones acuático × mamífero (malla, caparazón, pelo, cefalofoil, orejas)\n");
+}
+
 void run_aquatic_anatomy_tests(void) {
     printf("\n--- Suite: Expansión Anatómica Acuática (1021..1025) ---\n");
     test_aquatic_recipes_and_roundtrip();
     test_aquatic_anatomy_and_geometry();
     test_aquatic_swimming_animation();
     test_aquatic_v3_anatomical_repairs();
+    test_turtle_material_v4();
     test_aquatic_morph_matrix();
     test_aquatic_offspring_v4_matrix();
+    test_aquatic_mammal_offspring_repairs();
     printf("[PASS] run_aquatic_anatomy_tests: TODAS LAS PRUEBAS PASARON\n");
 }

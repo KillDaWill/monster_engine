@@ -26,6 +26,7 @@ typedef struct BuildTarget {
     SkinBuffer* skin;
     const Skeleton* skeleton;
     const AnatomyGraph* graph;
+    bool hasProceduralMaterial;
 } BuildTarget;
 
 typedef struct SurfaceProjection {
@@ -110,6 +111,8 @@ static SurfaceProjection ProjectOntoSDFSurface(const MonsterSDF* sdf,
 static bool NeedsAquaticSDFProjection(const Monster* m) {
     if (!m || !m->hasCreaturePhenotype) return false;
     const CreaturePhenotype* p = &m->phenotype;
+    if (p->shell.development > 0.02f || p->finCount > 0)
+        return true;
     if (p->axial.archetype == AXIAL_ARCHETYPE_CURVED_VERTICAL && p->axial.abdomenSegments > 0)
         return true;
     if (m->hasHead) {
@@ -181,20 +184,24 @@ static float Hash01(uint64_t h) {
     return (float)(h & 0xffffffu) / (float)0x1000000u;
 }
 
-static bool EmitVertex(BuildTarget* t, Vector3 pos, Vector3 nrm, Color col,
-                       SurfaceRegion region, float ventral, AnatomySkinBinding skin,
-                       MeshIndex* outIdx) {
+static bool EmitMaterialVertex(BuildTarget* t, Vector3 pos, Vector3 nrm, Color col,
+                               SurfaceRegion region, float ventral,
+                               SDFMaterial material, Vector3 materialCoord,
+                               AnatomySkinBinding skin, MeshIndex* outIdx) {
     if (!isfinite(pos.x) || !isfinite(pos.y) || !isfinite(pos.z)) return false;
     float nl = Vec3_Length(nrm);
     nrm = nl > 1e-6f ? Vec3_Scale(nrm, 1.0f / nl) : Vec3_Create(0, 1, 0);
+    if (material >= SDF_MATERIAL_CARAPACE && material <= SDF_MATERIAL_CEPHALIC_PLATE) {
+        t->hasProceduralMaterial = true;
+    }
     if (t->mesh) {
         MeshVertex v;
         memset(&v, 0, sizeof(v));
         v.position = pos;
         v.normal = nrm;
         v.color = col;
-        v.material = SDF_MATERIAL_SKIN;
-        v.surface.position = pos;
+        v.material = material;
+        v.surface.position = materialCoord;
         v.surface.normal = nrm;
         v.surface.flowDirection = Vec3_Create(0, 0, -1);
         v.surface.region = (float)region;
@@ -207,6 +214,13 @@ static bool EmitVertex(BuildTarget* t, Vector3 pos, Vector3 nrm, Color col,
         *outIdx = (MeshIndex)(t->skin ? t->skin->count : 0);
     }
     return SkinBuffer_Push(t->skin, skin);
+}
+
+static bool EmitVertex(BuildTarget* t, Vector3 pos, Vector3 nrm, Color col,
+                       SurfaceRegion region, float ventral, AnatomySkinBinding skin,
+                       MeshIndex* outIdx) {
+    return EmitMaterialVertex(t, pos, nrm, col, region, ventral,
+                              SDF_MATERIAL_SKIN, pos, skin, outIdx);
 }
 
 static bool EmitTri(BuildTarget* t, MeshIndex a, MeshIndex b, MeshIndex c) {
@@ -1477,9 +1491,30 @@ static bool BuildGenericFins(const Monster* m, const MonsterSDF* sdf, BuildTarge
             Vector3 normalDir = Vec3_Normalize(Vec3_Cross(axisDir, spanDir));
             if (Vec3_LengthSq(normalDir) < 1e-5f) normalDir = Vec3_Create(1, 0, 0);
 
-            /* Centro de la columna posterior para proyectar cada pínula sobre la curva real del tronco/pedúnculo. */
-            const AnatomyNode* pelNode = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PELVIS);
-            float spineY = pelNode ? pelNode->center.y : p->axial.withersHeight * s;
+            /* Recolectar la línea central real (tronco posterior + cola) ordenada de +Z a -Z
+             * para proyectar cada pínula sobre la curva real y omitir cualquiera que quede en el aire. */
+            Vector3 clPos[24];
+            float clRad[24];
+            size_t clCount = 0;
+            uint32_t rootId = m->recipe.bodyPlan.root.moduleInstanceId ? m->recipe.bodyPlan.root.moduleInstanceId : 1u;
+            for (size_t ni = 0; ni < g->nodeCount && clCount < 24; ++ni) {
+                const AnatomyNode* n = &g->nodes[ni];
+                bool isTrunk = (n->moduleInstanceId == rootId &&
+                                (n->region == ANATOMY_REGION_TRUNK || n->region == ANATOMY_REGION_PELVIS));
+                bool isTail = (n->region == ANATOMY_REGION_TAIL);
+                if (!isTrunk && !isTail) continue;
+                clPos[clCount] = n->center;
+                clRad[clCount] = fmaxf(n->widthRadius, n->heightRadius);
+                ++clCount;
+            }
+            for (size_t i = 0; i < clCount; ++i) {
+                for (size_t j = i + 1; j < clCount; ++j) {
+                    if (clPos[j].z > clPos[i].z) {
+                        Vector3 tp = clPos[i]; clPos[i] = clPos[j]; clPos[j] = tp;
+                        float tr = clRad[i]; clRad[i] = clRad[j]; clRad[j] = tr;
+                    }
+                }
+            }
 
             float seriesDist = Vec3_Length(Vec3_Sub(endP, startP));
             float singleChord = fmaxf(0.015f * s, (seriesDist / (float)count) * 0.72f);
@@ -1489,18 +1524,42 @@ static bool BuildGenericFins(const Monster* m, const MonsterSDF* sdf, BuildTarge
                 float u = count > 1 ? (float)k / (float)(count - 1) : 0.5f;
                 float env = 0.55f + 0.55f * sinf(u * 3.14159265f);
                 Vector3 pos = Vec3_Lerp(startP, endP, u);
-                if (sdf) {
-                    /* Proyectar desde el eje espinal hacia spanDir sobre el SDF real para que ninguna pínula flote. */
-                    Vector3 spineAnchor = Vec3_Create(0.0f, spineY, pos.z);
-                    float maxR = fmaxf(0.25f * s, p->axial.abdomenHeight * 0.75f * s);
-                    SurfaceProjection sp = ProjectOntoSDFSurface(sdf, spineAnchor, spanDir, maxR, -0.014f * s);
-                    if (sp.hit) {
-                        pos = sp.point;
+                Vector3 localAxis = axisDir;
+                Vector3 spineAnchor = Vec3_Create(0.0f, p->axial.withersHeight * s, pos.z);
+                float localR = p->axial.abdomenHeight * 0.5f * s;
+                bool inRange = false;
+                if (clCount >= 2 && pos.z <= clPos[0].z + 0.05f * s && pos.z >= clPos[clCount - 1].z - 0.02f * s) {
+                    for (size_t ci = 0; ci + 1 < clCount; ++ci) {
+                        if (pos.z <= clPos[ci].z + 1e-4f && pos.z >= clPos[ci + 1].z - 1e-4f) {
+                            float dz = fmaxf(1e-5f, clPos[ci].z - clPos[ci + 1].z);
+                            float tt = Math_Clamp01((clPos[ci].z - pos.z) / dz);
+                            spineAnchor = Vec3_Lerp(clPos[ci], clPos[ci + 1], tt);
+                            localR = Math_Lerp(clRad[ci], clRad[ci + 1], tt);
+                            Vector3 segDir = Vec3_Sub(clPos[ci], clPos[ci + 1]);
+                            if (Vec3_LengthSq(segDir) > 1e-6f) localAxis = Vec3_Normalize(segDir);
+                            inRange = true;
+                            break;
+                        }
                     }
                 }
+                /* Si la pínula sobrepasa el cuerpo/cola o el radio local es demasiado fino, omitirla. */
+                if (clCount >= 2 && (!inRange || localR < singleThick * 0.65f)) continue;
+                if (sdf) {
+                    float dSpine = MonsterSDF_EvaluateDistance(sdf, spineAnchor);
+                    if (!isfinite(dSpine) || dSpine > 0.03f * s) continue;
+                    float maxR = fmaxf(0.18f * s, localR * 1.95f);
+                    float embed = -fmaxf(singleThick * 0.85f, 0.016f * s);
+                    SurfaceProjection sp = ProjectOntoSDFSurface(sdf, spineAnchor, spanDir, maxR, embed);
+                    if (!sp.hit) continue;
+                    float dRoot = MonsterSDF_EvaluateDistance(sdf, sp.point);
+                    if (!isfinite(dRoot) || dRoot > 0.012f * s) continue;
+                    pos = sp.point;
+                }
+                Vector3 locNorm = Vec3_Normalize(Vec3_Cross(localAxis, spanDir));
+                if (Vec3_LengthSq(locNorm) < 1e-5f) locNorm = normalDir;
                 int jA = (u < 0.5f) ? jRoot : jMid;
                 int jB = (u < 0.5f) ? jMid : jTip;
-                if (!EmitHydrofoilBlade(opaque, pos, spanDir, axisDir, normalDir,
+                if (!EmitHydrofoilBlade(opaque, pos, spanDir, localAxis, locNorm,
                                         singleChord * (0.75f + 0.25f * env), singleSpan * env,
                                         singleThick, singleThick * 1.2f,
                                         0.78f, 0.20f, 0.35f, 0.0f, 0.12f, 0.0f, 0,
@@ -1522,6 +1581,45 @@ static bool BuildGenericFins(const Monster* m, const MonsterSDF* sdf, BuildTarge
 
         float rootW = fmaxf(0.006f * s, fin->rootWidth * s * dev);
         Vector3 origin = Vec3_Add(nRoot->center, Vec3_Scale(spanDir, rootW * 0.45f));
+        /* Proyectar la raíz de aletas medianas y pareadas sobre la superficie SDF real del anfitrión
+         * con empotramiento controlado y respaldo hacia el eje central para evitar aletas flotantes. */
+        if (sdf) {
+            const AnatomyNode* hostNode = NULL;
+            for (size_t ci = 0; ci < g->connectionCount; ++ci) {
+                if (g->connections[ci].moduleInstanceId == mod->instanceId &&
+                    g->connections[ci].toId == nRoot->id) {
+                    hostNode = AnatomyGraph_FindNode(g, g->connections[ci].fromId);
+                    break;
+                }
+            }
+            if (hostNode) {
+                Vector3 anchor = Vec3_Create(hostNode->center.x, hostNode->center.y, origin.z);
+                float localR = fmaxf(hostNode->widthRadius, hostNode->heightRadius);
+                float maxProbe = fmaxf(0.25f * s, localR * 2.10f);
+                float embed = -fmaxf(rootW * 0.45f, 0.018f * s);
+                SurfaceProjection sp = ProjectOntoSDFSurface(sdf, anchor, spanDir, maxProbe, embed);
+                if (sp.hit) {
+                    origin = sp.point;
+                } else {
+                    /* Respaldo: si la raíz quedó fuera del cuerpo, arrastrar hacia el eje anfitrión. */
+                    float dCur = MonsterSDF_EvaluateDistance(sdf, origin);
+                    if (isfinite(dCur) && dCur > 0.0f) {
+                        Vector3 toAxis = Vec3_Sub(anchor, origin);
+                        float distAxis = Vec3_Length(toAxis);
+                        if (distAxis > 1e-4f) {
+                            Vector3 inDir = Vec3_Scale(toAxis, 1.0f / distAxis);
+                            for (unsigned step = 1; step <= 12; ++step) {
+                                Vector3 q = Vec3_Add(origin, Vec3_Scale(inDir, distAxis * ((float)step / 12.0f)));
+                                if (MonsterSDF_EvaluateDistance(sdf, q) <= embed) {
+                                    origin = q;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (!EmitHydrofoilBlade(opaque, origin, spanDir, chordDir, normalDir,
                                 fin->baseChord * s * dev, fin->span * s * dev,
                                 fin->thickness * s * dev, rootW,
@@ -1825,9 +1923,11 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
 
         const unsigned nu = 20, nv = 12;
         MeshIndex topG[21][13], botG[21][13];
-        bool scaledFlipper = (p->surface.integument.type == INTEGUMENT_SCALES);
-        Color scaleSeamCol = Color_Lerp(p->surface.pigment.ventralColor, Color_FromRGB(168, 160, 126), 0.40f);
-        Color scaleDarkCol = Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.55f);
+        bool scaledFlipper = (limb->flipperSurface == FLIPPER_SURFACE_REPTILIAN_SCALES) ||
+                             (limb->flipperSurface == FLIPPER_SURFACE_AUTO &&
+                              p->surface.integument.type == INTEGUMENT_SCALES);
+        Color scaleSeamCol = Color_Lerp(p->surface.pigment.ventralColor, Color_FromRGB(154, 148, 115), 0.55f);
+        Color scaleDarkCol = Color_Lerp(dorsal, p->surface.pigment.secondaryColor, 0.50f);
         Vector3 clawAnchor = n[1]->center;
         Vector3 clawFwd = Vec3_Create(0, 0, 1);
         Vector3 clawOut = Vec3_Create(side, 0, 0);
@@ -1870,26 +1970,17 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
 
                 Color cD, cV;
                 Vector3 nT = upAxis, nB = Vec3_Scale(upAxis, -1.0f);
+                SDFMaterial flipMat = SDF_MATERIAL_UNKNOWN;
+                Vector3 matCoord = Vec3_Create(u, v, fore ? 1.0f : 0.0f);
                 if (scaledFlipper) {
-                    /* Escamas reptilianas poligonales oscuras de Chelonia mydas con suturas crema-ocre. */
-                    float su = u * (fore ? 13.0f : 8.0f);
-                    float sv = v * (fore ? 7.0f : 5.5f) + 0.5f * ((int)floorf(su) & 1);
-                    float fu = su - floorf(su) - 0.5f;
-                    float fv = sv - floorf(sv) - 0.5f;
-                    float cellDist = fmaxf(fabsf(fu), fabsf(fv));
-                    float scaleMask = 1.0f - ShellSmoothstep(0.30f, 0.46f, cellDist);
-                    float var = SuppNoise2D(su * 0.9f, sv * 0.9f, 521u);
-                    float bump = thickU * 0.14f * scaleMask * foil;
-                    h += bump;
-                    Color darkScale = Color_Lerp(scaleDarkCol, Color_FromRGB(34, 34, 22), 0.38f);
-                    Color plateCol = Color_Lerp(darkScale, dorsal, 0.30f + 0.50f * var);
-                    Color seamCol = Color_Lerp(scaleSeamCol, Color_FromRGB(142, 132, 96), 0.55f);
-                    cD = Color_Lerp(seamCol, plateCol, scaleMask * 0.94f);
-                    Color vWarm = Color_Lerp(ventral, Color_FromRGB(168, 154, 112), 0.35f);
-                    Color vPlate = Color_Lerp(vWarm, seamCol, 0.30f + 0.35f * var);
-                    cV = Color_Lerp(Color_Lerp(vWarm, dorsal, 0.24f), vPlate, scaleMask * 0.88f);
-                    nT = Vec3_Normalize(Vec3_Add(upAxis, Vec3_Add(Vec3_Scale(tanDir, fu * 0.42f), Vec3_Scale(chordAxis, fv * 0.42f))));
-                    nB = Vec3_Normalize(Vec3_Add(Vec3_Scale(upAxis, -1.0f), Vec3_Add(Vec3_Scale(tanDir, fu * 0.28f), Vec3_Scale(chordAxis, fv * 0.28f))));
+                    /* Escamas reptilianas poligonales evaluadas en shader en espacio local de la aleta;
+                     * colores de vértice coherentes como respaldo CPU sin relieve geométrico artificial. */
+                    flipMat = SDF_MATERIAL_REPTILIAN_FLIPPER;
+                    float var = SuppNoise2D(u * (fore ? 12.0f : 8.0f), v * (fore ? 6.0f : 4.5f), 521u);
+                    Color darkScale = Color_Lerp(scaleDarkCol, Color_FromRGB(52, 59, 45), 0.45f);
+                    cD = Color_Lerp(darkScale, Color_Lerp(dorsal, scaleSeamCol, 0.22f), 0.30f + 0.45f * var);
+                    Color vSoft = Color_Lerp(ventral, Color_FromRGB(172, 164, 134), 0.50f);
+                    cV = Color_Lerp(vSoft, Color_Lerp(vSoft, darkScale, 0.30f), 0.18f + 0.24f * var);
                 } else {
                     /* Piel hidrodinámica suave con contracoloración natural (cetáceos). */
                     float grain = SuppNoise2D(u * 12.0f, v * 8.0f, 809u);
@@ -1899,17 +1990,24 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
 
                 Vector3 pT = Vec3_Add(bp, Vec3_Scale(upAxis,  h));
                 Vector3 pB = Vec3_Add(bp, Vec3_Scale(upAxis, -h));
-                if (!EmitVertex(opaque, pT, nT, cD, region, 0.0f, sk, &topG[iu][iv]) ||
-                    !EmitVertex(opaque, pB, nB, cV, region, 1.0f, sk, &botG[iu][iv])) {
+                if (!EmitMaterialVertex(opaque, pT, nT, cD, region, 0.0f, flipMat, matCoord, sk, &topG[iu][iv]) ||
+                    !EmitMaterialVertex(opaque, pB, nB, cV, region, 1.0f, flipMat, matCoord, sk, &botG[iu][iv])) {
                     return false;
                 }
             }
         }
         for (unsigned iu = 0; iu < nu; ++iu) {
             for (unsigned iv = 0; iv < nv; ++iv) {
-                if (!EmitQuad(opaque, topG[iu][iv], topG[iu + 1][iv], topG[iu + 1][iv + 1], topG[iu][iv + 1]) ||
-                    !EmitQuad(opaque, botG[iu][iv], botG[iu][iv + 1], botG[iu + 1][iv + 1], botG[iu + 1][iv])) {
-                    return false;
+                if (side >= 0.0f) {
+                    if (!EmitQuad(opaque, topG[iu][iv], topG[iu + 1][iv], topG[iu + 1][iv + 1], topG[iu][iv + 1]) ||
+                        !EmitQuad(opaque, botG[iu][iv], botG[iu][iv + 1], botG[iu + 1][iv + 1], botG[iu + 1][iv])) {
+                        return false;
+                    }
+                } else {
+                    if (!EmitQuad(opaque, topG[iu][iv], topG[iu][iv + 1], topG[iu + 1][iv + 1], topG[iu + 1][iv]) ||
+                        !EmitQuad(opaque, botG[iu][iv], botG[iu + 1][iv], botG[iu + 1][iv + 1], botG[iu][iv + 1])) {
+                        return false;
+                    }
                 }
             }
         }
@@ -1921,21 +2019,21 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
             Vector3 cDir = Vec3_Normalize(Vec3_Add(Vec3_Scale(clawFwd, 0.72f), Vec3_Scale(clawOut, 0.68f)));
             Vector3 cSide = Vec3_Normalize(Vec3_Cross(clawUp, cDir));
             if (Vec3_LengthSq(cSide) < 1e-5f) cSide = clawOut;
-            Color clawCol = Color_FromRGB(46, 40, 30);
+            Color clawCol = Color_FromRGB(56, 48, 36);
             AnatomySkinBinding skClaw = MakeSkin2(clawJointA, 0.55f, clawJointB, 0.45f);
             const unsigned nRing = 6;
             MeshIndex baseR[7], midR[7], tipIdx = 0;
             Vector3 baseC = Vec3_Sub(clawAnchor, Vec3_Scale(cDir, clLen * 0.22f));
             Vector3 midC  = Vec3_Add(clawAnchor, Vec3_Add(Vec3_Scale(cDir, clLen * 0.45f), Vec3_Scale(clawUp, -clLen * 0.08f)));
             Vector3 tipP  = Vec3_Add(clawAnchor, Vec3_Add(Vec3_Scale(cDir, clLen), Vec3_Scale(clawUp, -clLen * 0.22f)));
-            if (!EmitVertex(opaque, tipP, cDir, clawCol, region, 0.2f, skClaw, &tipIdx)) return false;
+            if (!EmitMaterialVertex(opaque, tipP, cDir, clawCol, region, 0.2f, SDF_MATERIAL_HORN, tipP, skClaw, &tipIdx)) return false;
             for (unsigned k = 0; k <= nRing; ++k) {
                 float ang = (float)k / (float)nRing * 6.2831853f;
                 Vector3 rad = Vec3_Add(Vec3_Scale(cSide, cosf(ang)), Vec3_Scale(clawUp, sinf(ang)));
                 Vector3 p0 = Vec3_Add(baseC, Vec3_Scale(rad, clRad));
                 Vector3 p1 = Vec3_Add(midC,  Vec3_Scale(rad, clRad * 0.58f));
-                if (!EmitVertex(opaque, p0, rad, clawCol, region, 0.2f, skClaw, &baseR[k]) ||
-                    !EmitVertex(opaque, p1, rad, clawCol, region, 0.2f, skClaw, &midR[k]))
+                if (!EmitMaterialVertex(opaque, p0, rad, clawCol, region, 0.2f, SDF_MATERIAL_HORN, p0, skClaw, &baseR[k]) ||
+                    !EmitMaterialVertex(opaque, p1, rad, clawCol, region, 0.2f, SDF_MATERIAL_HORN, p1, skClaw, &midR[k]))
                     return false;
             }
             for (unsigned k = 0; k < nRing; ++k) {
@@ -1952,48 +2050,271 @@ static bool BuildMarineFlippers(const Monster* m, BuildTarget* opaque) {
  * 10. CAPARAZÓN ANATÓMICO REUTILIZABLE (ESPALDAR LISO + PUENTE CURVO + PLASTRÓN CON SUTURAS)
  * ============================================================================ */
 
-static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
+typedef struct ShellSpineStation {
+    Vector3 center;
+    float rx;
+    float ry;
+    int jointIndex;
+} ShellSpineStation;
+
+static size_t CollectShellSpineStations(const Monster* m, const Skeleton* skel,
+                                        ShellSpineStation out[8]) {
+    const AnatomyGraph* g = &m->anatomyGraph;
+    uint32_t rootId = m->recipe.bodyPlan.root.moduleInstanceId;
+    if (!rootId) rootId = 1u;
+
+    static const unsigned nodeIds[] = {
+        AXIAL_NODE_PECTORAL,
+        AXIAL_NODE_THORAX_ANTERIOR,
+        AXIAL_NODE_THORAX_POSTERIOR,
+        AXIAL_NODE_ABDOMEN,
+        AXIAL_NODE_PELVIS
+    };
+    size_t count = 0;
+    for (size_t i = 0; i < sizeof(nodeIds) / sizeof(nodeIds[0]) && count < 8; ++i) {
+        const AnatomyNode* n = AnatomyGraph_FindModuleNode(g, rootId, nodeIds[i]);
+        if (!n) continue;
+        out[count++] = (ShellSpineStation){
+            .center = n->center,
+            .rx = fmaxf(0.02f, n->widthRadius),
+            .ry = fmaxf(0.02f, n->heightRadius),
+            .jointIndex = FindJointSafe(g, skel, n->id)
+        };
+    }
+    if (count == 0) {
+        for (size_t i = 0; i < g->nodeCount && count < 8; ++i) {
+            const AnatomyNode* n = &g->nodes[i];
+            if (n->moduleInstanceId != rootId) continue;
+            if (n->region != ANATOMY_REGION_TRUNK && n->region != ANATOMY_REGION_PELVIS) continue;
+            out[count++] = (ShellSpineStation){
+                .center = n->center,
+                .rx = fmaxf(0.02f, n->widthRadius),
+                .ry = fmaxf(0.02f, n->heightRadius),
+                .jointIndex = FindJointSafe(g, skel, n->id)
+            };
+        }
+    }
+    /* Ordenar de anterior (+Z) a posterior (-Z). */
+    for (size_t i = 0; i < count; ++i) {
+        for (size_t j = i + 1; j < count; ++j) {
+            if (out[j].center.z > out[i].center.z) {
+                ShellSpineStation tmp = out[i];
+                out[i] = out[j];
+                out[j] = tmp;
+            }
+        }
+    }
+    return count;
+}
+
+static void SampleShellSpine(const ShellSpineStation* st, size_t count, float z,
+                             Vector3* outCenter, float* outRx, float* outRy,
+                             AnatomySkinBinding* outSkin) {
+    if (count == 0) {
+        *outCenter = Vec3_Create(0, 0, z);
+        *outRx = 0.25f;
+        *outRy = 0.25f;
+        *outSkin = MakeSkin1(-1);
+        return;
+    }
+    if (count == 1 || z >= st[0].center.z) {
+        *outCenter = Vec3_Create(st[0].center.x, st[0].center.y, z);
+        *outRx = st[0].rx;
+        *outRy = st[0].ry;
+        *outSkin = MakeSkin1(st[0].jointIndex);
+        return;
+    }
+    if (z <= st[count - 1].center.z) {
+        *outCenter = Vec3_Create(st[count - 1].center.x, st[count - 1].center.y, z);
+        *outRx = st[count - 1].rx;
+        *outRy = st[count - 1].ry;
+        *outSkin = MakeSkin1(st[count - 1].jointIndex);
+        return;
+    }
+    for (size_t i = 0; i + 1 < count; ++i) {
+        float z0 = st[i].center.z, z1 = st[i + 1].center.z;
+        if (z <= z0 && z >= z1) {
+            float span = fmaxf(1e-5f, z0 - z1);
+            float t = Math_Clamp01((z0 - z) / span);
+            Vector3 c = Vec3_Lerp(st[i].center, st[i + 1].center, t);
+            c.z = z;
+            *outCenter = c;
+            *outRx = Math_Lerp(st[i].rx, st[i + 1].rx, t);
+            *outRy = Math_Lerp(st[i].ry, st[i + 1].ry, t);
+            *outSkin = MakeSkin2(st[i].jointIndex, 1.0f - t, st[i + 1].jointIndex, t);
+            return;
+        }
+    }
+    *outCenter = Vec3_Create(st[count - 1].center.x, st[count - 1].center.y, z);
+    *outRx = st[count - 1].rx;
+    *outRy = st[count - 1].ry;
+    *outSkin = MakeSkin1(st[count - 1].jointIndex);
+}
+
+static float EllipseRadius2D(float rx, float ry, float sinA, float cosA) {
+    float a = sinA / fmaxf(rx, 1e-4f);
+    float b = cosA / fmaxf(ry, 1e-4f);
+    float denom = sqrtf(a * a + b * b);
+    return denom > 1e-5f ? (1.0f / denom) : fminf(rx, ry);
+}
+
+static void SmoothSymmetrizeGrid(float* grid, unsigned nZ, unsigned nX, unsigned passes) {
+    float tmp[37 * 29];
+    unsigned rows = nZ + 1u, cols = nX + 1u;
+    for (unsigned pass = 0; pass < passes; ++pass) {
+        for (unsigned iz = 0; iz < rows; ++iz) {
+            for (unsigned ix = 0; ix < cols; ++ix) {
+                float sum = grid[iz * cols + ix] * 4.0f;
+                float w = 4.0f;
+                if (iz > 0)         { sum += grid[(iz - 1) * cols + ix]; w += 1.0f; }
+                if (iz + 1 < rows)  { sum += grid[(iz + 1) * cols + ix]; w += 1.0f; }
+                if (ix > 0)         { sum += grid[iz * cols + (ix - 1)]; w += 1.0f; }
+                if (ix + 1 < cols)  { sum += grid[iz * cols + (ix + 1)]; w += 1.0f; }
+                tmp[iz * cols + ix] = sum / w;
+            }
+        }
+        for (unsigned iz = 0; iz < rows; ++iz) {
+            for (unsigned ix = 0; ix <= nX / 2; ++ix) {
+                unsigned opp = nX - ix;
+                float avg = 0.5f * (tmp[iz * cols + ix] + tmp[iz * cols + opp]);
+                grid[iz * cols + ix] = avg;
+                grid[iz * cols + opp] = avg;
+            }
+        }
+    }
+}
+
+static bool BuildAnatomicalShell(const Monster* m, const MonsterSDF* sdf, BuildTarget* opaque) {
     const CreaturePhenotype* p = &m->phenotype;
     const ShellPhenotype* sh = &p->shell;
     if (sh->development <= 0.02f) return true;
 
-    const AnatomyGraph* g = &m->anatomyGraph;
     float s = p->axial.totalScale;
     float dev = Math_Clamp01(sh->development);
 
-    const AnatomyNode* pec = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PECTORAL);
-    const AnatomyNode* thx = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_THORAX_POSTERIOR);
-    const AnatomyNode* pel = AnatomyGraph_FindModuleNode(g, 1, AXIAL_NODE_PELVIS);
-    if (!thx) thx = AnatomyGraph_FindFirstRegion(g, ANATOMY_REGION_TRUNK);
-    if (!thx) return true;
+    ShellSpineStation spine[8];
+    size_t spineCount = CollectShellSpineStations(m, opaque->skeleton, spine);
+    if (spineCount == 0) return true;
 
-    Vector3 center = (pec && pel) ? Vec3_Lerp(pec->center, pel->center, 0.48f) : thx->center;
-    int jTrunk = FindJointSafe(g, opaque->skeleton, thx->id);
-    AnatomySkinBinding rigidSkin = MakeSkin1(jTrunk);
+    float zPec = spine[0].center.z;
+    float zPel = spine[spineCount - 1].center.z;
+    float trunkSpanZ = fmaxf(0.05f * s, zPec - zPel);
+    float maxHostRx = 0.0f, maxHostRy = 0.0f;
+    for (size_t i = 0; i < spineCount; ++i) {
+        if (spine[i].rx > maxHostRx) maxHostRx = spine[i].rx;
+        if (spine[i].ry > maxHostRy) maxHostRy = spine[i].ry;
+    }
+
+    Vector3 center = Vec3_Lerp(spine[0].center, spine[spineCount - 1].center, 0.48f);
 
     float halfL = sh->length * 0.50f * s * dev;
     float halfW = sh->width  * 0.50f * s * dev;
     float domeH = sh->height * s * dev;
     float plastD = sh->plastronDepth * s * dev;
+    float shellThick = fmaxf(0.012f * s, (sh->shellThickness > 1e-4f ? sh->shellThickness : 0.045f) * s * dev);
     float convex = Math_Clamp(sh->dorsalConvexity, 0.15f, 1.0f);
     float heart = Math_Clamp01(sh->heartTaper);
     float relief = Math_Clamp01(sh->scuteRelief);
     unsigned costals = sh->costalScutePairs ? sh->costalScutePairs : 4u;
     unsigned vertebrals = sh->vertebralScutes ? sh->vertebralScutes : 5u;
 
-    Color cCara = sh->carapaceColor.a > 0 ? sh->carapaceColor : p->dorsalColor;
-    Color cBord = sh->scuteBorderColor.a > 0 ? sh->scuteBorderColor : Color_FromRGB(26, 20, 12);
-    Color cPlasRaw = sh->plastronColor.a > 0 ? sh->plastronColor : p->ventralColor;
-    /* Plastrón crema-amarillento cálido natural sin sobreexposición. */
-    Color cPlas = Color_Lerp(cPlasRaw, Color_FromRGB(168, 152, 108), 0.36f);
-    Color cPlasSeam = Color_Lerp(cPlas, cBord, 0.55f);
+    /* Detectar si el anfitrión requiere ajuste conformado al lomo (mamíferos, erguidos,
+     * fusiformes o troncos más altos/anchos que la cúpula nominal del donante). */
+    bool hostConforming = (p->axial.archetype != AXIAL_ARCHETYPE_SPRAWLING_TETRAPOD) ||
+                          (maxHostRy > domeH * 0.85f) ||
+                          (maxHostRx > halfW * 0.92f);
 
-    /* 1. Espaldar dorsal (carapace): caparazón queratinoso rígido con perímetro liso,
-     * surcos incisivos nítidos, biseles de escudo y patrón radial castaño/ámbar/oliva (Chelonia mydas). */
+    if (hostConforming) {
+        float targetHalfL = Math_Clamp(halfL, trunkSpanZ * 0.44f, trunkSpanZ * 0.58f);
+        halfL = targetHalfL;
+        halfW = Math_Clamp(halfW, maxHostRx * 1.06f, maxHostRx * 1.42f);
+        domeH = Math_Clamp(domeH, maxHostRy * 0.30f, maxHostRy * 0.72f);
+        plastD = Math_Clamp(plastD, maxHostRy * 0.85f, maxHostRy * 1.25f);
+    }
+
+    /* Impedir que el borde anterior del caparazón engulla cabezas pequeñas o cuellos cortos
+     * (p. ej. andamiaje de tortuga con cabeza de murciélago o rata). */
+    {
+        const AnatomyNode* headNode = AnatomyGraph_FindFirstRegion(&m->anatomyGraph, ANATOMY_REGION_HEAD);
+        if (headNode && m->hasHead) {
+            float headRearZ = headNode->center.z - fmaxf(headNode->envelopeRadii.z * 0.55f, headNode->widthRadius * 0.65f);
+            float cervicalMargin = 0.04f * s;
+            float maxFrontZ = headRearZ - cervicalMargin;
+            float curFrontZ = center.z + halfL * (1.0f - sh->cervicalNotch * 0.42f);
+            if (curFrontZ > maxFrontZ && maxFrontZ > zPel + trunkSpanZ * 0.35f) {
+                float curRearZ = center.z - halfL;
+                float newFrontZ = maxFrontZ;
+                float newHalfL = 0.5f * (newFrontZ - curRearZ);
+                if (newHalfL >= trunkSpanZ * 0.30f) {
+                    float shrink = Math_Clamp(newHalfL / fmaxf(halfL, 1e-4f), 0.65f, 1.0f);
+                    center.z = 0.5f * (newFrontZ + curRearZ);
+                    halfL = newHalfL;
+                    if (!hostConforming) {
+                        halfW *= Math_Lerp(1.0f, shrink, 0.45f);
+                        domeH *= Math_Lerp(1.0f, shrink, 0.35f);
+                    }
+                }
+            }
+        }
+    }
+
+    Color cCara = sh->carapaceColor.a > 0 ? sh->carapaceColor : p->dorsalColor;
+    Color cDark = sh->carapaceDarkColor.a > 0 ? sh->carapaceDarkColor : Color_FromRGB(64, 48, 32);
+    Color cAmber = sh->carapaceAmberColor.a > 0 ? sh->carapaceAmberColor : Color_FromRGB(172, 134, 80);
+    Color cBord = sh->scuteBorderColor.a > 0 ? sh->scuteBorderColor : Color_FromRGB(57, 51, 38);
+    Color cPlasRaw = sh->plastronColor.a > 0 ? sh->plastronColor : p->ventralColor;
+    Color cPlas = Color_Lerp(cPlasRaw, Color_FromRGB(209, 196, 155), 0.25f);
+    Color cPlasSeam = sh->plastronSeamColor.a > 0 ? sh->plastronSeamColor : Color_FromRGB(159, 147, 111);
+
+    /* 1. Espaldar dorsal (carapace): conformado al SDF real del lomo receptor. */
     const unsigned nZ = 36, nX = 28;
-    MeshIndex caraTop[37][29], caraRim[37][29];
-    Color cAmber = Color_FromRGB(138, 104, 52);
-    Color cOliveDark = Color_FromRGB(46, 50, 30);
+    Vector3 topPos[37][29], botPos[37][29];
+    AnatomySkinBinding caraSkin[37][29];
+    float rHitGrid[37 * 29];
+    float domeGrid[37][29];
+    bool doSdfProbe = (sdf != NULL && opaque->mesh != NULL);
+    float clearance = fmaxf(shellThick * 0.55f, 0.015f * s);
+
+    for (unsigned iz = 0; iz <= nZ; ++iz) {
+        float u = (float)iz / (float)nZ;
+        float zNorm = 1.0f - 2.0f * u;
+        float oval = sqrtf(fmaxf(0.0f, 1.0f - zNorm * zNorm));
+        float heartMul = 1.0f - heart * 0.34f * Math_Clamp01((u - 0.35f) / 0.65f);
+        float notch = (u < 0.12f) ? (sh->cervicalNotch * 0.42f * (1.0f - u / 0.12f)) : 0.0f;
+        float zPos = center.z + (zNorm - notch) * halfL;
+        float ovalSmooth = powf(fmaxf(0.0f, oval), 0.58f);
+        float wrapSpan = Math_Lerp(0.18f, 1.48f, ovalSmooth) * Math_Lerp(1.0f, heartMul, 0.65f);
+
+        Vector3 spCenter;
+        float locRx, locRy;
+        AnatomySkinBinding rowSkin;
+        SampleShellSpine(spine, spineCount, zPos, &spCenter, &locRx, &locRy, &rowSkin);
+
+        for (unsigned ix = 0; ix <= nX; ++ix) {
+            float v = (float)ix / (float)nX;
+            float xNorm = 2.0f * v - 1.0f;
+            float angle = xNorm * wrapSpan;
+            float sinA = sinf(angle), cosA = cosf(angle);
+            float rEll = EllipseRadius2D(locRx, locRy, sinA, cosA);
+            float rHit = rEll;
+
+            if (doSdfProbe && hostConforming) {
+                Vector3 rayDir = Vec3_Create(sinA, cosA, 0.0f);
+                float maxProbe = rEll * 1.65f + 0.08f * s;
+                SurfaceProjection sp = ProjectOntoSDFSurface(sdf, spCenter, rayDir, maxProbe, 0.0f);
+                if (sp.hit) {
+                    float dHit = Vec3_Dot(Vec3_Sub(sp.point, spCenter), rayDir);
+                    rHit = Math_Clamp(dHit, rEll * 0.55f, rEll * 1.32f);
+                }
+            }
+            rHitGrid[iz * (nX + 1u) + ix] = rHit;
+            caraSkin[iz][ix] = rowSkin;
+        }
+    }
+    if (hostConforming && doSdfProbe) {
+        SmoothSymmetrizeGrid(rHitGrid, nZ, nX, 2u);
+    }
+
     for (unsigned iz = 0; iz <= nZ; ++iz) {
         float u = (float)iz / (float)nZ;
         float zNorm = 1.0f - 2.0f * u;
@@ -2003,120 +2324,307 @@ static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
         float rowW = halfW * oval * heartMul;
         float zPos = center.z + (zNorm - notch) * halfL;
 
+        Vector3 spCenter;
+        float locRx, locRy;
+        AnatomySkinBinding dummySkin;
+        SampleShellSpine(spine, spineCount, zPos, &spCenter, &locRx, &locRy, &dummySkin);
+
         for (unsigned ix = 0; ix <= nX; ++ix) {
             float v = (float)ix / (float)nX;
             float xNorm = 2.0f * v - 1.0f;
             float ax = fabsf(xNorm);
-            float xPos = center.x + xNorm * rowW;
             float domeProfile = powf(fmaxf(0.0f, 1.0f - xNorm * xNorm), 0.56f * convex + 0.26f) *
                                 powf(fmaxf(0.0f, 1.0f - zNorm * zNorm), 0.48f);
-
-            /* Patrón de escudos (5 vertebrales, 4 pares costales, 11 marginales) con surcos nítidos y bisel duro. */
-            float suture = 0.0f;
-            float localU = 0.0f, localV = 0.0f;
-            if (ax < 0.30f) {
-                float uz = u * (float)vertebrals;
-                float seamZ = fabsf(sinf(uz * 3.14159265f));
-                float seamX = Math_Clamp01((0.30f - ax) / 0.025f);
-                suture = fmaxf(1.0f - ShellSmoothstep(0.0f, 0.09f, seamZ), 1.0f - seamX);
-                localU = uz - floorf(uz) - 0.5f;
-                localV = xNorm / 0.30f * 0.5f;
-            } else if (ax < 0.80f) {
-                float uz = u * (float)costals + 0.14f;
-                float seamZ = fabsf(sinf(uz * 3.14159265f));
-                float seamX = fminf(Math_Clamp01((ax - 0.30f) / 0.025f), Math_Clamp01((0.80f - ax) / 0.025f));
-                suture = fmaxf(1.0f - ShellSmoothstep(0.0f, 0.09f, seamZ), 1.0f - seamX);
-                localU = uz - floorf(uz) - 0.5f;
-                localV = (ax - 0.55f) / 0.25f * 0.5f;
-            } else {
-                float uz = u * 11.0f;
-                float seamZ = fabsf(sinf(uz * 3.14159265f));
-                suture = (1.0f - ShellSmoothstep(0.0f, 0.08f, seamZ)) * 0.78f;
-                localU = uz - floorf(uz) - 0.5f;
-                localV = (ax - 0.90f) / 0.10f * 0.5f;
-            }
-            /* Estrías radiales queratinosas de alto contraste + anillos de crecimiento rígidos por escudo. */
-            float radAng = atan2f(localV, localU);
-            float radDist = sqrtf(localU * localU + localV * localV);
-            float rays = 0.5f + 0.5f * sinf(radAng * 13.0f + SuppNoise2D(u * 16.0f, v * 16.0f, 911u) * 2.8f);
-            float rings = 0.5f + 0.5f * sinf(radDist * 28.0f);
-            float mottle = SuppNoise2D(u * 20.0f, v * 15.0f, 947u);
-
+            domeGrid[iz][ix] = domeProfile;
             float edgeFade = ShellSmoothstep(0.96f, 0.76f, ax) * ShellSmoothstep(0.96f, 0.78f, fabsf(zNorm));
-            /* Placas córneas ligeramente convexas separadas por surcos incisivos (sensación de coraza rígida). */
-            float scuteCrown = (1.0f - Math_Clamp01(radDist * 1.45f)) * 0.45f;
-            float scuteBump = relief * domeH * 0.032f * edgeFade * (scuteCrown - suture * 1.15f + 0.08f * rings);
-            float yTop = center.y + domeH * domeProfile + scuteBump;
-            float yBot = center.y - plastD * 0.24f * (1.0f - ax * 0.88f);
+            float subtleCrown = relief * domeH * 0.012f * edgeFade;
 
-            /* Normales biseladas por escudo para que la luz especular marque las placas duras de queratina. */
-            float bevelX = localV * 0.38f * edgeFade + (rays - 0.5f) * 0.12f * edgeFade;
-            float bevelZ = -localU * 0.38f * edgeFade + (rings - 0.5f) * 0.10f * edgeFade;
-            Vector3 nrm = Vec3_Normalize(Vec3_Create(xNorm * 0.65f + bevelX, 1.0f, zNorm * 0.45f + bevelZ));
+            if (hostConforming) {
+                /* Envolver el lomo real mediante coordenadas radiales sobre la columna,
+                 * estrechando suavemente a cero en los polos para lograr una silueta ovalada
+                 * genuina de caparazón de tortuga en lugar de una montura rectangular. */
+                float ovalSmooth = powf(fmaxf(0.0f, oval), 0.58f);
+                float wrapSpan = Math_Lerp(0.18f, 1.48f, ovalSmooth) * Math_Lerp(1.0f, heartMul, 0.65f);
+                float angle = xNorm * wrapSpan;
+                float sinA = sinf(angle), cosA = cosf(angle);
+                Vector3 rayDir = Vec3_Create(sinA, cosA, 0.0f);
+                float rBase = rHitGrid[iz * (nX + 1u) + ix];
+                float archBoost = domeH * 0.52f * domeProfile + subtleCrown;
+                float rimTaper = 0.25f + 0.75f * edgeFade;
+                float rOuter = rBase + clearance + archBoost + shellThick * 0.45f * rimTaper;
+                float rInner = rBase + clearance * 0.30f;
+                topPos[iz][ix] = Vec3_Add(spCenter, Vec3_Scale(rayDir, rOuter));
+                botPos[iz][ix] = Vec3_Add(spCenter, Vec3_Scale(rayDir, rInner));
+            } else {
+                float xPos = center.x + xNorm * rowW;
+                float yTop = center.y + domeH * domeProfile + subtleCrown;
+                float yBot = center.y - plastD * 0.24f * (1.0f - ax * 0.88f);
+                /* En tortuga nativa, asegurar holgura positiva si el SDF sobresale localmente. */
+                if (doSdfProbe) {
+                    float dAtTop = MonsterSDF_EvaluateDistance(sdf, Vec3_Create(xPos, yTop, zPos));
+                    if (isfinite(dAtTop) && dAtTop < clearance * 0.5f) {
+                        yTop += (clearance * 0.5f - dAtTop);
+                    }
+                }
+                topPos[iz][ix] = Vec3_Create(xPos, yTop, zPos);
+                botPos[iz][ix] = Vec3_Create(xPos, yBot, zPos);
+            }
+        }
+    }
 
-            Color scuteTint = Color_Lerp(cCara, cAmber, 0.48f * rays * (0.45f + 0.55f * mottle));
-            scuteTint = Color_Lerp(scuteTint, cOliveDark, 0.42f * (1.0f - rays));
-            scuteTint = Color_Lerp(scuteTint, cBord, 0.35f * mottle * (1.0f - rays));
-            Color col = Color_Lerp(scuteTint, cBord, Math_Clamp01(suture * 0.88f + (ax > 0.82f ? 0.16f : 0.0f)));
-            if (!EmitVertex(opaque, Vec3_Create(xPos, yTop, zPos), nrm, col,
-                            SURFACE_REGION_DORSAL_TRUNK, 0.0f, rigidSkin, &caraTop[iz][ix]) ||
-                !EmitVertex(opaque, Vec3_Create(xPos, yBot, zPos), Vec3_Scale(nrm, -1.0f), cPlas,
-                            SURFACE_REGION_VENTRAL_TRUNK, 1.0f, rigidSkin, &caraRim[iz][ix])) {
+    MeshIndex caraTop[37][29], caraRim[37][29];
+    uint32_t patSeed = sh->patternSeed ? sh->patternSeed : 1024u;
+    for (unsigned iz = 0; iz <= nZ; ++iz) {
+        float u = (float)iz / (float)nZ;
+        unsigned izPrev = iz > 0 ? iz - 1 : 0;
+        unsigned izNext = iz < nZ ? iz + 1 : nZ;
+        for (unsigned ix = 0; ix <= nX; ++ix) {
+            float v = (float)ix / (float)nX;
+            float xNorm = 2.0f * v - 1.0f;
+            float ax = fabsf(xNorm);
+            unsigned ixPrev = ix > 0 ? ix - 1 : 0;
+            unsigned ixNext = ix < nX ? ix + 1 : nX;
+
+            Vector3 dU = Vec3_Sub(topPos[izNext][ix], topPos[izPrev][ix]);
+            Vector3 dV = Vec3_Sub(topPos[iz][ixNext], topPos[iz][ixPrev]);
+            Vector3 nrm = Vec3_Cross(dU, dV);
+            if (Vec3_LengthSq(nrm) < 1e-8f) {
+                nrm = Vec3_Normalize(Vec3_Create(xNorm * 0.72f, 1.0f, (1.0f - 2.0f * u) * 0.50f));
+            } else {
+                nrm = Vec3_Normalize(nrm);
+                /* Orientar siempre hacia fuera/arriba respecto al espaldar. */
+                Vector3 hint = Vec3_Create(xNorm * 0.8f, 1.0f, 0.0f);
+                if (Vec3_Dot(nrm, hint) < 0.0f) nrm = Vec3_Scale(nrm, -1.0f);
+            }
+
+            unsigned scId = ax < 0.29f ? (unsigned)(u * (float)vertebrals) + 10u
+                          : ax < 0.82f ? (unsigned)(u * (float)costals) + (xNorm >= 0.0f ? 20u : 30u)
+                                       : (unsigned)(u * 11.0f) + 40u;
+            float scVar = Hash01((uint64_t)scId * 2654435761u ^ (uint64_t)patSeed);
+            float mottle = SuppNoise2D(u * 11.0f + scVar * 5.0f, v * 9.0f, patSeed ^ scId);
+            Color col = Color_Lerp(cCara, cDark, 0.22f + 0.35f * mottle);
+            col = Color_Lerp(col, cAmber, 0.25f * scVar * (1.0f - mottle * 0.5f));
+            if (ax > 0.83f) col = Color_Lerp(col, cBord, 0.18f);
+
+            Vector3 caraCoord = Vec3_Create(xNorm, u, domeGrid[iz][ix]);
+            Vector3 rimCoord  = Vec3_Create(xNorm, u, 0.90f);
+            if (!EmitMaterialVertex(opaque, topPos[iz][ix], nrm, col,
+                                    SURFACE_REGION_DORSAL_TRUNK, 0.0f, SDF_MATERIAL_CARAPACE, caraCoord,
+                                    caraSkin[iz][ix], &caraTop[iz][ix]) ||
+                !EmitMaterialVertex(opaque, botPos[iz][ix], Vec3_Scale(nrm, -1.0f), cPlas,
+                                    SURFACE_REGION_VENTRAL_TRUNK, 1.0f, SDF_MATERIAL_PLASTRON, rimCoord,
+                                    caraSkin[iz][ix], &caraRim[iz][ix])) {
                 return false;
             }
         }
     }
     for (unsigned iz = 0; iz < nZ; ++iz) {
         for (unsigned ix = 0; ix < nX; ++ix) {
-            if (!EmitQuad(opaque, caraTop[iz][ix], caraTop[iz + 1][ix], caraTop[iz + 1][ix + 1], caraTop[iz][ix + 1]) ||
-                !EmitQuad(opaque, caraRim[iz][ix], caraRim[iz][ix + 1], caraRim[iz + 1][ix + 1], caraRim[iz + 1][ix])) {
+            if (!EmitQuad(opaque, caraTop[iz][ix], caraTop[iz][ix + 1], caraTop[iz + 1][ix + 1], caraTop[iz + 1][ix]) ||
+                !EmitQuad(opaque, caraRim[iz][ix], caraRim[iz + 1][ix], caraRim[iz + 1][ix + 1], caraRim[iz][ix + 1])) {
                 return false;
             }
         }
     }
-    /* 2. Plastrón ventral contorneado + puente lateral inframarginal con suturas y textura ósea/queratinosa. */
-    float pHalfL = sh->plastronLength * 0.50f * s * dev;
-    float pHalfW = sh->plastronWidth  * 0.50f * s * dev;
+    /* Cerrar el borde perimetral entre la cara dorsal e interna para espesor real sin aristas abiertas. */
+    for (unsigned iz = 0; iz < nZ; ++iz) {
+        if (!EmitQuad(opaque, caraTop[iz][0], caraTop[iz + 1][0], caraRim[iz + 1][0], caraRim[iz][0]) ||
+            !EmitQuad(opaque, caraTop[iz][nX], caraRim[iz][nX], caraRim[iz + 1][nX], caraTop[iz + 1][nX])) {
+            return false;
+        }
+    }
+    for (unsigned ix = 0; ix < nX; ++ix) {
+        if (!EmitQuad(opaque, caraTop[0][ix], caraRim[0][ix], caraRim[0][ix + 1], caraTop[0][ix + 1]) ||
+            !EmitQuad(opaque, caraTop[nZ][ix], caraTop[nZ][ix + 1], caraRim[nZ][ix + 1], caraRim[nZ][ix])) {
+            return false;
+        }
+    }
+
+    /* 2. Plastrón ventral contorneado y conformado al vientre receptor (SDF_MATERIAL_PLASTRON). */
+    float pHalfL = hostConforming ? (halfL * 0.72f) : (sh->plastronLength * 0.50f * s * dev);
+    float pHalfW = hostConforming ? (halfW * 0.62f) : (sh->plastronWidth  * 0.50f * s * dev);
     const unsigned pnZ = 24, pnX = 20;
+    Vector3 plasPos[25][21];
+    AnatomySkinBinding plasSkin[25][21];
+    float plasRGrid[25 * 21];
+
+    float bridgeHalfSpan = hostConforming
+        ? Math_Clamp((sh->bridgeWidth > 0.05f ? sh->bridgeWidth : 0.36f) * 0.38f, 0.12f, 0.20f)
+        : Math_Clamp((sh->bridgeWidth > 0.05f ? sh->bridgeWidth : 0.48f) * 0.50f, 0.16f, 0.30f);
+    float bridgeU0 = 0.50f - bridgeHalfSpan;
+    float bridgeU1 = 0.50f + bridgeHalfSpan;
+
+    for (unsigned iz = 0; iz <= pnZ; ++iz) {
+        float u = (float)iz / (float)pnZ;
+        float zn = 1.0f - 2.0f * u;
+        float zPos = center.z + zn * pHalfL;
+        Vector3 spCenter;
+        float locRx, locRy;
+        AnatomySkinBinding rowSkin;
+        SampleShellSpine(spine, spineCount, zPos, &spCenter, &locRx, &locRy, &rowSkin);
+
+        for (unsigned ix = 0; ix <= pnX; ++ix) {
+            float v = (float)ix / (float)pnX;
+            float xn = 2.0f * v - 1.0f;
+            float angle = xn * 0.88f;
+            float sinA = sinf(angle), cosA = cosf(angle);
+            float rEll = EllipseRadius2D(locRx, locRy, sinA, cosA);
+            float rHit = rEll;
+            if (doSdfProbe && hostConforming) {
+                Vector3 rayDir = Vec3_Create(sinA, -cosA, 0.0f);
+                float maxProbe = rEll * 1.55f + 0.06f * s;
+                SurfaceProjection sp = ProjectOntoSDFSurface(sdf, spCenter, rayDir, maxProbe, 0.0f);
+                if (sp.hit) {
+                    float dHit = Vec3_Dot(Vec3_Sub(sp.point, spCenter), rayDir);
+                    rHit = Math_Clamp(dHit, rEll * 0.55f, rEll * 1.25f);
+                }
+            }
+            plasRGrid[iz * (pnX + 1u) + ix] = rHit;
+            plasSkin[iz][ix] = rowSkin;
+        }
+    }
+    if (hostConforming && doSdfProbe) {
+        SmoothSymmetrizeGrid(plasRGrid, pnZ, pnX, 2u);
+    }
+
     MeshIndex plasG[25][21];
     for (unsigned iz = 0; iz <= pnZ; ++iz) {
         float u = (float)iz / (float)pnZ;
         float zn = 1.0f - 2.0f * u;
         float oval = sqrtf(fmaxf(0.04f, 1.0f - zn * zn * 0.96f));
-        float bridge = (u > 0.24f && u < 0.74f) ? sinf((u - 0.24f) / 0.50f * 3.14159265f) : 0.0f;
+        float bridge = (u > bridgeU0 && u < bridgeU1)
+            ? sinf((u - bridgeU0) / fmaxf(bridgeU1 - bridgeU0, 1e-4f) * 3.14159265f) : 0.0f;
         float rw = Math_Lerp(pHalfW * oval, halfW * 0.86f, bridge * 0.62f);
         float zPos = center.z + zn * pHalfL;
         float endLift = powf(fabsf(zn), 2.8f) * plastD * 0.22f;
+
+        Vector3 spCenter;
+        float locRx, locRy;
+        AnatomySkinBinding dummySkin;
+        SampleShellSpine(spine, spineCount, zPos, &spCenter, &locRx, &locRy, &dummySkin);
+
         for (unsigned ix = 0; ix <= pnX; ++ix) {
             float v = (float)ix / (float)pnX;
             float xn = 2.0f * v - 1.0f;
             float ax = fabsf(xn);
-            float sideLift = bridge * powf(ax, 1.8f) * plastD * 0.62f + (1.0f - bridge) * powf(ax, 2.2f) * plastD * 0.34f;
-            float yPos = center.y - plastD * 0.72f * (1.0f - 0.12f * ax * ax) + sideLift + endLift;
-
-            float midSeam = 1.0f - ShellSmoothstep(0.0f, 0.055f, ax);
-            float transWave = fabsf(sinf(u * 6.0f * 3.14159265f));
-            float transSeam = (1.0f - ShellSmoothstep(0.0f, 0.11f, transWave)) * ShellSmoothstep(0.95f, 0.78f, ax);
-            float bridgeSeam = bridge * (1.0f - ShellSmoothstep(0.0f, 0.055f, fabsf(ax - 0.72f)));
-            float pSuture = fmaxf(midSeam * 0.78f, fmaxf(transSeam * 0.85f, bridgeSeam * 0.68f));
-            float pGrain = SuppNoise2D(u * 18.0f, v * 14.0f, 1013u);
-            yPos += pSuture * plastD * 0.015f;
-
-            Vector3 nrm = Vec3_Normalize(Vec3_Create(xn * (0.28f + 0.35f * bridge) + (pGrain - 0.5f) * 0.06f,
-                                                     -1.0f,
-                                                     zn * 0.25f));
-            Color pcBase = ShadeColor(cPlas, 0.92f + 0.14f * pGrain);
-            Color pc = Color_Lerp(pcBase, cPlasSeam, Math_Clamp01(pSuture));
-            if (!EmitVertex(opaque, Vec3_Create(center.x + xn * rw, yPos, zPos), nrm, pc,
-                            SURFACE_REGION_VENTRAL_TRUNK, 1.0f, rigidSkin, &plasG[iz][ix])) {
+            if (hostConforming) {
+                float angleSpan = Math_Lerp(0.22f * oval, 0.82f, bridge * 0.65f);
+                float angle = xn * angleSpan;
+                Vector3 rayDir = Vec3_Create(sinf(angle), -cosf(angle), 0.0f);
+                float rVentral = plasRGrid[iz * (pnX + 1u) + ix] + clearance * 0.45f;
+                plasPos[iz][ix] = Vec3_Add(spCenter, Vec3_Scale(rayDir, rVentral));
+            } else {
+                float sideLift = bridge * powf(ax, 1.8f) * plastD * 0.62f + (1.0f - bridge) * powf(ax, 2.2f) * plastD * 0.34f;
+                float yPos = center.y - plastD * 0.72f * (1.0f - 0.12f * ax * ax) + sideLift + endLift;
+                plasPos[iz][ix] = Vec3_Create(center.x + xn * rw, yPos, zPos);
+            }
+        }
+    }
+    for (unsigned iz = 0; iz <= pnZ; ++iz) {
+        float u = (float)iz / (float)pnZ;
+        float zn = 1.0f - 2.0f * u;
+        float bridge = (u > bridgeU0 && u < bridgeU1)
+            ? sinf((u - bridgeU0) / fmaxf(bridgeU1 - bridgeU0, 1e-4f) * 3.14159265f) : 0.0f;
+        for (unsigned ix = 0; ix <= pnX; ++ix) {
+            float v = (float)ix / (float)pnX;
+            float xn = 2.0f * v - 1.0f;
+            float ax = fabsf(xn);
+            float pGrain = SuppNoise2D(u * 10.0f, v * 8.0f, patSeed ^ 1013u);
+            Vector3 nrm = Vec3_Normalize(Vec3_Create(xn * (0.28f + 0.35f * bridge), -1.0f, zn * 0.25f));
+            Color pc = ShadeColor(cPlas, 0.96f + 0.06f * pGrain);
+            if (ax > 0.70f) pc = Color_Lerp(pc, cPlasSeam, 0.22f * bridge);
+            Vector3 plasCoord = Vec3_Create(xn, u, bridge);
+            if (!EmitMaterialVertex(opaque, plasPos[iz][ix], nrm, pc,
+                                    SURFACE_REGION_VENTRAL_TRUNK, 1.0f, SDF_MATERIAL_PLASTRON, plasCoord,
+                                    plasSkin[iz][ix], &plasG[iz][ix])) {
                 return false;
             }
         }
     }
     for (unsigned iz = 0; iz < pnZ; ++iz) {
         for (unsigned ix = 0; ix < pnX; ++ix) {
-            if (!EmitQuad(opaque, plasG[iz][ix], plasG[iz][ix + 1], plasG[iz + 1][ix + 1], plasG[iz + 1][ix])) {
+            if (!EmitQuad(opaque, plasG[iz][ix], plasG[iz + 1][ix], plasG[iz + 1][ix + 1], plasG[iz][ix + 1])) {
                 return false;
+            }
+        }
+    }
+
+    /* 3. Puentes laterales reales conectando el margen del espaldar con el plastrón
+     * en la zona central del tronco (respetando aberturas anterior y posterior para extremidades). */
+    const unsigned bZ = 10, bV = 5;
+    for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
+        float sgn = (sideIdx == 0) ? -1.0f : 1.0f;
+        unsigned cIx = (sideIdx == 0) ? 0u : nX;
+        unsigned pIx = (sideIdx == 0) ? 0u : pnX;
+        MeshIndex brG[11][6];
+        for (unsigned iz = 0; iz <= bZ; ++iz) {
+            float tu = (float)iz / (float)bZ;
+            float uBridge = Math_Lerp(bridgeU0, bridgeU1, tu);
+            float cFz = uBridge * (float)nZ;
+            unsigned cIz0 = (unsigned)fminf((float)nZ, floorf(cFz));
+            unsigned cIz1 = cIz0 < nZ ? cIz0 + 1u : nZ;
+            float cFrac = cFz - (float)cIz0;
+            Vector3 pTopEdge = Vec3_Lerp(topPos[cIz0][cIx], topPos[cIz1][cIx], cFrac);
+
+            float pFz = uBridge * (float)pnZ;
+            unsigned pIz0 = (unsigned)fminf((float)pnZ, floorf(pFz));
+            unsigned pIz1 = pIz0 < pnZ ? pIz0 + 1u : pnZ;
+            float pFrac = pFz - (float)pIz0;
+            Vector3 pBotEdge = Vec3_Lerp(plasPos[pIz0][pIx], plasPos[pIz1][pIx], pFrac);
+
+            float zMid = 0.5f * (pTopEdge.z + pBotEdge.z);
+            Vector3 spCenter;
+            float locRx, locRy;
+            AnatomySkinBinding bSkin;
+            SampleShellSpine(spine, spineCount, zMid, &spCenter, &locRx, &locRy, &bSkin);
+
+            Vector3 dirTop = Vec3_Normalize(Vec3_Sub(pTopEdge, spCenter));
+            Vector3 dirBot = Vec3_Normalize(Vec3_Sub(pBotEdge, spCenter));
+            float rTop = Vec3_Length(Vec3_Sub(pTopEdge, spCenter));
+            float rBot = Vec3_Length(Vec3_Sub(pBotEdge, spCenter));
+
+            for (unsigned iv = 0; iv <= bV; ++iv) {
+                float tv = (float)iv / (float)bV;
+                Vector3 pos;
+                Vector3 nrm;
+                if (iv == 0) {
+                    pos = pTopEdge;
+                    nrm = dirTop;
+                } else if (iv == bV) {
+                    pos = pBotEdge;
+                    nrm = dirBot;
+                } else {
+                    Vector3 rayDir = Vec3_Normalize(Vec3_Lerp(dirTop, dirBot, tv));
+                    rayDir.z = 0.0f;
+                    rayDir = Vec3_Normalize(rayDir);
+                    float rInterp = Math_Lerp(rTop, rBot, tv);
+                    if (doSdfProbe && hostConforming) {
+                        float maxProbe = rInterp * 1.45f + 0.06f * s;
+                        SurfaceProjection sp = ProjectOntoSDFSurface(sdf, spCenter, rayDir, maxProbe, 0.0f);
+                        if (sp.hit) {
+                            float dHit = Vec3_Dot(Vec3_Sub(sp.point, spCenter), rayDir);
+                            rInterp = fmaxf(rInterp, dHit + clearance * 0.70f);
+                        }
+                    }
+                    pos = Vec3_Add(spCenter, Vec3_Scale(rayDir, rInterp));
+                    pos.z = Math_Lerp(pTopEdge.z, pBotEdge.z, tv);
+                    nrm = rayDir;
+                }
+                Color bc = Color_Lerp(cBord, cPlas, tv * 0.80f);
+                Vector3 brCoord = Vec3_Create(sgn * 0.92f, uBridge, 0.85f);
+                if (!EmitMaterialVertex(opaque, pos, nrm, bc,
+                                        SURFACE_REGION_VENTRAL_TRUNK, tv, SDF_MATERIAL_PLASTRON, brCoord,
+                                        bSkin, &brG[iz][iv])) {
+                    return false;
+                }
+            }
+        }
+        for (unsigned iz = 0; iz < bZ; ++iz) {
+            for (unsigned iv = 0; iv < bV; ++iv) {
+                bool qOk = (sideIdx == 0)
+                    ? EmitQuad(opaque, brG[iz][iv], brG[iz][iv + 1], brG[iz + 1][iv + 1], brG[iz + 1][iv])
+                    : EmitQuad(opaque, brG[iz][iv], brG[iz + 1][iv], brG[iz + 1][iv + 1], brG[iz][iv + 1]);
+                if (!qOk) return false;
             }
         }
     }
@@ -2130,11 +2638,12 @@ static bool BuildAnatomicalShell(const Monster* m, BuildTarget* opaque) {
 static bool EmitProjectedQuadPatch(BuildTarget* opaque, const MonsterSDF* sdf,
                                    Vector3 anchor, Vector3 dir, Vector3 tanU, Vector3 tanV,
                                    float halfU, float halfV, float maxDist, float offset,
-                                   Color cCenter, Color cEdge, SurfaceRegion region,
+                                   Color cCenter, Color cEdge, int plateId, SurfaceRegion region,
                                    AnatomySkinBinding sk) {
-    /* Emite una placa orgánica proyectada punto por punto sobre el SDF resuelto. */
-    const unsigned nu = 4, nv = 4;
-    MeshIndex grid[5][5];
+    /* Emite una placa orgánica proyectada punto por punto sobre el SDF resuelto,
+     * con coordenadas locales (eu, ev, plateId) para sombreado coherente en shader. */
+    const unsigned nu = 6, nv = 6;
+    MeshIndex grid[7][7];
     for (unsigned iu = 0; iu <= nu; ++iu) {
         float fu = 2.0f * ((float)iu / (float)nu) - 1.0f;
         for (unsigned iv = 0; iv <= nv; ++iv) {
@@ -2142,25 +2651,33 @@ static bool EmitProjectedQuadPatch(BuildTarget* opaque, const MonsterSDF* sdf,
             /* Recorte elíptico suave de esquinas para placas cefálicas orgánicas. */
             float r = sqrtf(fu * fu + fv * fv);
             float scale = r > 1.0f ? (1.0f / r) : 1.0f;
-            float eu = fu * Math_Lerp(1.0f, scale, 0.42f);
-            float ev = fv * Math_Lerp(1.0f, scale, 0.42f);
+            float eu = fu * Math_Lerp(1.0f, scale, 0.44f);
+            float ev = fv * Math_Lerp(1.0f, scale, 0.44f);
             Vector3 pA = Vec3_Add(anchor, Vec3_Add(Vec3_Scale(tanU, eu * halfU), Vec3_Scale(tanV, ev * halfV)));
             float edge = fmaxf(fabsf(fu), fabsf(fv));
-            float bump = offset * (1.0f - 0.55f * edge * edge);
+            float bump = offset * (1.0f - 0.65f * edge * edge);
             SurfaceProjection sp = ProjectOntoSDFSurface(sdf, pA, dir, maxDist, bump);
             if (!sp.hit) {
                 sp.point = Vec3_Add(pA, Vec3_Scale(dir, maxDist * 0.5f + bump));
                 sp.normal = dir;
             }
-            Color col = Color_Lerp(cCenter, cEdge, edge * edge);
-            if (!EmitVertex(opaque, sp.point, sp.normal, col, region, 0.08f, sk, &grid[iu][iv]))
+            Color col = Color_Lerp(cCenter, cEdge, edge * edge * 0.65f);
+            Vector3 plateCoord = Vec3_Create(eu, ev, (float)plateId);
+            if (!EmitMaterialVertex(opaque, sp.point, sp.normal, col, region, 0.08f,
+                                    SDF_MATERIAL_CEPHALIC_PLATE, plateCoord, sk, &grid[iu][iv]))
                 return false;
         }
     }
+    bool flipWinding = Vec3_Dot(Vec3_Cross(tanU, tanV), dir) < 0.0f;
     for (unsigned iu = 0; iu < nu; ++iu) {
         for (unsigned iv = 0; iv < nv; ++iv) {
-            if (!EmitQuad(opaque, grid[iu][iv], grid[iu + 1][iv], grid[iu + 1][iv + 1], grid[iu][iv + 1]))
-                return false;
+            if (flipWinding) {
+                if (!EmitQuad(opaque, grid[iu][iv], grid[iu][iv + 1], grid[iu + 1][iv + 1], grid[iu + 1][iv]))
+                    return false;
+            } else {
+                if (!EmitQuad(opaque, grid[iu][iv], grid[iu + 1][iv], grid[iu + 1][iv + 1], grid[iu][iv + 1]))
+                    return false;
+            }
         }
     }
     return true;
@@ -2300,10 +2817,10 @@ static bool BuildAquaticHeadAndArmorDetails(const Monster* m, const MonsterSDF* 
         } else if (p->head.archetype == HEAD_ARCHETYPE_TESTUDINE) {
             /* Placas cefálicas grandes y planas de Chelonia mydas ajustadas al cráneo (C02):
              * 1 PAR de escamas prefrontales diagnósticas entre los ojos, placa frontal,
-             * placas supraoculares y parietales/postorbitales con suturas oscuras estrechas. */
-            Color plateCenter = Color_Lerp(p->dorsalColor, Color_FromRGB(84, 88, 60), 0.45f);
-            Color plateEdge   = Color_FromRGB(30, 30, 20);
-            float off = fmaxf(0.009f * s, hr->craniumRadii.y * 0.032f);
+             * placas supraoculares y parietales/postorbitales integradas con la piel cefálica. */
+            Color plateCenter = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(74, 72, 52), 0.35f);
+            Color plateEdge   = Color_FromRGB(46, 44, 32);
+            float off = fmaxf(0.0065f * s, hr->craniumRadii.y * 0.022f);
             Vector3 cMid = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[1], hr->cranialCenters[2], 0.55f));
             Vector3 cRear = Vec3_Add(headNode->center, Vec3_Lerp(hr->cranialCenters[3], hr->cranialCenters[4], 0.42f));
             float rx = hr->craniumRadii.x;
@@ -2317,14 +2834,14 @@ static bool BuildAquaticHeadAndArmorDetails(const Monster* m, const MonsterSDF* 
                 if (!EmitProjectedQuadPatch(opaque, sdf, pfAnchor, pfDir,
                                             Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
                                             rx * 0.24f, rz * 0.34f, maxProbe, off,
-                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                                            plateCenter, plateEdge, 1 + sideIdx, SURFACE_REGION_HEAD, skHead))
                     return false;
             }
             /* 2) Placa frontal central detrás de las prefrontales. */
             if (!EmitProjectedQuadPatch(opaque, sdf, Vec3_Add(cRear, Vec3_Create(0.0f, 0.0f, rz * 0.20f)),
                                         Vec3_Create(0, 1, 0), Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
                                         rx * 0.34f, rz * 0.28f, maxProbe, off,
-                                        plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                                        plateCenter, plateEdge, 3, SURFACE_REGION_HEAD, skHead))
                 return false;
             /* 3) Placas supraoculares, parietales y postorbitales bilaterales ajustadas. */
             for (int sideIdx = 0; sideIdx < 2; ++sideIdx) {
@@ -2334,21 +2851,21 @@ static bool BuildAquaticHeadAndArmorDetails(const Monster* m, const MonsterSDF* 
                 if (!EmitProjectedQuadPatch(opaque, sdf, supAnchor, supDir,
                                             Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
                                             rx * 0.22f, rz * 0.28f, maxProbe, off,
-                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                                            plateCenter, plateEdge, 4 + sideIdx, SURFACE_REGION_HEAD, skHead))
                     return false;
                 Vector3 parAnchor = Vec3_Add(cRear, Vec3_Create(sgn * rx * 0.44f, 0.0f, -rz * 0.20f));
                 Vector3 parDir = Vec3_Normalize(Vec3_Create(sgn * 0.40f, 0.91f, -0.06f));
                 if (!EmitProjectedQuadPatch(opaque, sdf, parAnchor, parDir,
                                             Vec3_Create(1, 0, 0), Vec3_Create(0, 0, 1),
                                             rx * 0.32f, rz * 0.30f, maxProbe, off,
-                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                                            plateCenter, plateEdge, 6 + sideIdx, SURFACE_REGION_HEAD, skHead))
                     return false;
                 Vector3 poAnchor = Vec3_Add(cRear, Vec3_Create(sgn * rx * 0.68f, -hr->craniumRadii.y * 0.04f, -rz * 0.04f));
                 Vector3 poDir = Vec3_Normalize(Vec3_Create(sgn * 0.94f, 0.20f, 0.0f));
                 if (!EmitProjectedQuadPatch(opaque, sdf, poAnchor, poDir,
                                             Vec3_Create(0, 1, 0), Vec3_Create(0, 0, 1),
                                             hr->craniumRadii.y * 0.34f, rz * 0.28f, maxProbe, off,
-                                            plateCenter, plateEdge, SURFACE_REGION_HEAD, skHead))
+                                            plateCenter, plateEdge, 8 + sideIdx, SURFACE_REGION_HEAD, skHead))
                     return false;
             }
         } else if (p->head.archetype == HEAD_ARCHETYPE_SYNGNATHID) {
@@ -2529,11 +3046,85 @@ static bool BuildAquaticHeadAndArmorDetails(const Monster* m, const MonsterSDF* 
     return true;
 }
 
+static void PackDetailColor(float dst[4], Color c, float w) {
+    dst[0] = (float)c.r / 255.0f;
+    dst[1] = (float)c.g / 255.0f;
+    dst[2] = (float)c.b / 255.0f;
+    dst[3] = w;
+}
+
+static void PopulateDetailMaterialUniforms(const Monster* m, Mesh* opaqueOut) {
+    if (!m || !opaqueOut) return;
+    const CreaturePhenotype* p = &m->phenotype;
+    const ShellPhenotype* sh = &p->shell;
+
+    Color cCara = sh->carapaceColor.a > 0 ? sh->carapaceColor : p->dorsalColor;
+    Color cDark = sh->carapaceDarkColor.a > 0 ? sh->carapaceDarkColor : Color_FromRGB(64, 48, 32);
+    Color cAmber = sh->carapaceAmberColor.a > 0 ? sh->carapaceAmberColor : Color_FromRGB(172, 134, 80);
+    Color cBord = sh->scuteBorderColor.a > 0 ? sh->scuteBorderColor : Color_FromRGB(57, 51, 38);
+    Color cPlas = sh->plastronColor.a > 0 ? sh->plastronColor : Color_FromRGB(209, 196, 155);
+    Color cPlasSeam = sh->plastronSeamColor.a > 0 ? sh->plastronSeamColor : Color_FromRGB(159, 147, 111);
+
+    float caraRough = sh->carapaceRoughness > 0.01f ? sh->carapaceRoughness : 0.42f;
+    float caraMottle = sh->carapaceMottling > 0.001f ? sh->carapaceMottling : 0.68f;
+    float caraRadial = sh->carapaceRadialStrength > 0.001f ? sh->carapaceRadialStrength : 0.54f;
+    float sutContr = sh->sutureContrast > 0.001f ? sh->sutureContrast : 0.62f;
+    float plasRough = sh->plastronRoughness > 0.01f ? sh->plastronRoughness : 0.48f;
+    float plasSoft = sh->plastronSeamSoftness > 0.001f ? sh->plastronSeamSoftness : 0.78f;
+    float plasMottle = sh->plastronMottling > 0.001f ? sh->plastronMottling : 0.20f;
+
+    float flipSize = 1.0f, flipIrreg = 0.70f, flipContr = 0.46f, flipRough = 0.52f;
+    for (size_t i = 0; i < p->limbCount; ++i) {
+        const LimbPhenotype* l = &p->limbs[i];
+        if (l->archetype == LIMB_ARCHETYPE_FLIPPER && l->anatomyProfile == LIMB_PROFILE_MARINE_FLIPPER) {
+            if (l->flipperScaleSize > 0.01f) flipSize = l->flipperScaleSize;
+            if (l->flipperScaleIrregularity > 0.01f) flipIrreg = l->flipperScaleIrregularity;
+            if (l->flipperBorderContrast > 0.001f) flipContr = l->flipperBorderContrast;
+            if (l->flipperRoughness > 0.01f) flipRough = l->flipperRoughness;
+            break;
+        }
+    }
+
+    Color cFlipDorsal = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(56, 60, 44), 0.35f);
+    Color cFlipVentral = Color_Lerp(p->surface.pigment.ventralColor, Color_FromRGB(168, 160, 128), 0.58f);
+    Color cFlipBorder = Color_Lerp(cFlipVentral, Color_FromRGB(134, 128, 98), 0.55f);
+    Color cHeadPlate = Color_Lerp(p->surface.pigment.baseColor, Color_FromRGB(74, 76, 54), 0.25f);
+
+    uint32_t seed = sh->patternSeed ? sh->patternSeed
+                  : (p->surface.pigment.seed ? p->surface.pigment.seed : 1024u);
+
+    PackDetailColor(opaqueOut->detailMaterial[0], cCara, caraRough);
+    PackDetailColor(opaqueOut->detailMaterial[1], cDark, caraMottle);
+    PackDetailColor(opaqueOut->detailMaterial[2], cAmber, caraRadial);
+    PackDetailColor(opaqueOut->detailMaterial[3], cBord, sutContr);
+    PackDetailColor(opaqueOut->detailMaterial[4], cPlas, plasRough);
+    PackDetailColor(opaqueOut->detailMaterial[5], cPlasSeam, plasSoft);
+    opaqueOut->detailMaterial[6][0] = (float)(sh->costalScutePairs ? sh->costalScutePairs : 4u);
+    opaqueOut->detailMaterial[6][1] = (float)(sh->vertebralScutes ? sh->vertebralScutes : 5u);
+    opaqueOut->detailMaterial[6][2] = (float)(sh->marginalScutes ? sh->marginalScutes : 11u);
+    opaqueOut->detailMaterial[6][3] = plasMottle;
+    PackDetailColor(opaqueOut->detailMaterial[7], cFlipDorsal, flipRough);
+    PackDetailColor(opaqueOut->detailMaterial[8], cFlipVentral, flipSize);
+    PackDetailColor(opaqueOut->detailMaterial[9], cFlipBorder, flipIrreg);
+    opaqueOut->detailMaterial[10][0] = flipContr;
+    opaqueOut->detailMaterial[10][1] = (float)(seed & 0xffffu);
+    opaqueOut->detailMaterial[10][2] = (float)((seed >> 16) & 0xffffu);
+    opaqueOut->detailMaterial[10][3] = Math_Clamp01(sh->scuteRelief);
+    PackDetailColor(opaqueOut->detailMaterial[11], cHeadPlate, 0.72f);
+
+    if (m->hasSurface) {
+        opaqueOut->surfaceRecipe = SurfaceRecipe_Compile(&m->surface);
+    }
+    opaqueOut->hasSurface = true;
+    Mesh_MarkSurfaceChanged(opaqueOut);
+}
+
 static bool RunBuild(const Monster* m, const Skeleton* skel,
                      Mesh* opaqueMesh, SkinBuffer* opaqueSkin,
-                     Mesh* translucentMesh, SkinBuffer* translucentSkin) {
-    BuildTarget op = {opaqueMesh, opaqueSkin, skel, &m->anatomyGraph};
-    BuildTarget tr = {translucentMesh, translucentSkin, skel, &m->anatomyGraph};
+                     Mesh* translucentMesh, SkinBuffer* translucentSkin,
+                     bool* outHasProceduralMaterial) {
+    BuildTarget op = {opaqueMesh, opaqueSkin, skel, &m->anatomyGraph, false};
+    BuildTarget tr = {translucentMesh, translucentSkin, skel, &m->anatomyGraph, false};
 
     if (!BuildAvianWingFeathers(m, &op)) return false;
     if (!BuildAvianTailFan(m, &op)) return false;
@@ -2543,16 +3134,18 @@ static bool RunBuild(const Monster* m, const Skeleton* skel,
     if (!BuildRepeatedAppendages(m, &op, &tr)) return false;
     MonsterSDF tempSdf = MonsterSDF_Create();
     const MonsterSDF* sdfPtr = NULL;
-    if (NeedsAquaticSDFProjection(m) && MonsterSDF_Build(&tempSdf, m, MonsterSDF_DefaultConfig())) {
+    if (NeedsAquaticSDFProjection(m) &&
+        MonsterSDF_Build(&tempSdf, m, MonsterSDF_DefaultConfig())) {
         sdfPtr = &tempSdf;
     }
     bool ok = BuildGenericFins(m, sdfPtr, &op) &&
               BuildCaudalPropulsors(m, &op) &&
               BuildMarineFlippers(m, &op) &&
-              BuildAnatomicalShell(m, &op) &&
+              BuildAnatomicalShell(m, sdfPtr, &op) &&
               BuildAquaticHeadAndArmorDetails(m, sdfPtr, &op);
     MonsterSDF_Free(&tempSdf);
     if (!ok) return false;
+    if (outHasProceduralMaterial) *outHasProceduralMaterial = op.hasProceduralMaterial;
     return true;
 }
 
@@ -2560,21 +3153,27 @@ bool SupplementaryMesh_Build(const Monster* monster, Mesh* opaqueOut, Mesh* tran
     if (!monster) return false;
     if (opaqueOut) {
         Mesh_Clear(opaqueOut);
+        memset(opaqueOut->detailMaterial, 0, sizeof(opaqueOut->detailMaterial));
         opaqueOut->hasSurface = false;
         opaqueOut->translucent = false;
         opaqueOut->doubleSided = false;
     }
     if (translucentOut) {
         Mesh_Clear(translucentOut);
+        memset(translucentOut->detailMaterial, 0, sizeof(translucentOut->detailMaterial));
         translucentOut->hasSurface = false;
         translucentOut->translucent = true;
         translucentOut->doubleSided = true;
     }
     if (!monster->hasCreaturePhenotype || !monster->hasAnatomyGraph) return true;
-    bool ok = RunBuild(monster, NULL, opaqueOut, NULL, translucentOut, NULL);
+    bool hasProcedural = false;
+    bool ok = RunBuild(monster, NULL, opaqueOut, NULL, translucentOut, NULL, &hasProcedural);
     if (ok) {
         if (opaqueOut && opaqueOut->vertexCount > 0) {
             opaqueOut->doubleSided = true;
+            if (hasProcedural) {
+                PopulateDetailMaterialUniforms(monster, opaqueOut);
+            }
             Mesh_MarkGeometryChanged(opaqueOut);
         }
         if (translucentOut && translucentOut->vertexCount > 0) {
@@ -2600,7 +3199,8 @@ bool SupplementaryMesh_BindDeformers(const Monster* monster,
     SkinBuffer opSkin = {0}, trSkin = {0};
     bool ok = RunBuild(monster, skeleton,
                        NULL, needOp ? &opSkin : NULL,
-                       NULL, needTr ? &trSkin : NULL);
+                       NULL, needTr ? &trSkin : NULL,
+                       NULL);
     if (ok && needOp) {
         ok = (opSkin.count == opaqueMesh->vertexCount) &&
              AnatomyDeformer_BindExplicitSkin(opaqueDeformer, opaqueMesh, &monster->anatomyGraph, skeleton, opSkin.items);
@@ -2612,4 +3212,81 @@ bool SupplementaryMesh_BindDeformers(const Monster* monster,
     free(opSkin.items);
     free(trSkin.items);
     return ok;
+}
+
+bool SupplementaryMesh_EvaluateShellFit(const Monster* monster,
+                                        const MonsterSDF* sdf,
+                                        ShellFitDiagnostics* out) {
+    if (!monster || !out) return false;
+    memset(out, 0, sizeof(*out));
+    if (!monster->hasCreaturePhenotype || !monster->hasAnatomyGraph ||
+        monster->phenotype.shell.development <= 0.02f) {
+        return true;
+    }
+
+    MonsterSDF localSdf = MonsterSDF_Create();
+    const MonsterSDF* sdfPtr = sdf;
+    if (!sdfPtr) {
+        if (!MonsterSDF_Build(&localSdf, monster, MonsterSDF_DefaultConfig())) {
+            MonsterSDF_Free(&localSdf);
+            return false;
+        }
+        sdfPtr = &localSdf;
+    }
+
+    Mesh shellMesh = Mesh_Create();
+    BuildTarget op = {&shellMesh, NULL, NULL, &monster->anatomyGraph, false};
+    bool ok = BuildAnatomicalShell(monster, sdfPtr, &op);
+    if (!ok || shellMesh.vertexCount == 0) {
+        Mesh_Free(&shellMesh);
+        MonsterSDF_Free(&localSdf);
+        return ok;
+    }
+
+    out->hasShell = true;
+    out->bridgeContinuous = true;
+    float s = fmaxf(1e-4f, monster->phenotype.axial.totalScale);
+    float trunkLen = fmaxf(1e-4f, monster->phenotype.axial.trunkLength * s);
+
+    float minCaraZ = INFINITY, maxCaraZ = -INFINITY;
+    unsigned caraSamples = 0, caraVisible = 0;
+    for (size_t i = 0; i < shellMesh.vertexCount; ++i) {
+        const MeshVertex* v = &shellMesh.vertices[i];
+        float nLen = Vec3_Length(v->normal);
+        if (!isfinite(v->position.x) || !isfinite(v->position.y) || !isfinite(v->position.z) ||
+            !isfinite(nLen) || nLen < 0.25f) {
+            ++out->invalidNormals;
+            continue;
+        }
+        float d = MonsterSDF_EvaluateDistance(sdfPtr, v->position);
+        if (!isfinite(d)) continue;
+
+        if (v->material == SDF_MATERIAL_CARAPACE) {
+            ++caraSamples;
+            if (d > -0.005f * s) ++caraVisible;
+            if (d < 0.0f && -d > out->carapacePenetration) out->carapacePenetration = -d;
+            if (d > out->maxClearanceGap) out->maxClearanceGap = d;
+            if (v->position.z < minCaraZ) minCaraZ = v->position.z;
+            if (v->position.z > maxCaraZ) maxCaraZ = v->position.z;
+        } else if (v->material == SDF_MATERIAL_PLASTRON) {
+            if (d < 0.0f && -d > out->plastronPenetration) out->plastronPenetration = -d;
+        }
+    }
+
+    for (size_t i = 0; i + 2 < shellMesh.indexCount; i += 3) {
+        Vector3 a = shellMesh.vertices[shellMesh.indices[i]].position;
+        Vector3 b = shellMesh.vertices[shellMesh.indices[i + 1]].position;
+        Vector3 c = shellMesh.vertices[shellMesh.indices[i + 2]].position;
+        Vector3 cross = Vec3_Cross(Vec3_Sub(b, a), Vec3_Sub(c, a));
+        if (Vec3_LengthSq(cross) <= 1e-12f) {
+            ++out->degenerateTriangles;
+        }
+    }
+
+    out->visibleSurfaceFraction = caraSamples > 0 ? (float)caraVisible / (float)caraSamples : 0.0f;
+    out->trunkCoverageRatio = (maxCaraZ > minCaraZ) ? (maxCaraZ - minCaraZ) / trunkLen : 0.0f;
+
+    Mesh_Free(&shellMesh);
+    MonsterSDF_Free(&localSdf);
+    return true;
 }

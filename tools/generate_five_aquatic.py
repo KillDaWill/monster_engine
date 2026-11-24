@@ -98,7 +98,8 @@ def blank_shell():
     }
 
 
-def blank_marine_flipper(template, role, side, length, thickness, aspect, sweep, camber=0.08, sprawl=0.85, dev=1.0, claw_scale=0.0):
+def blank_marine_flipper(template, role, side, length, thickness, aspect, sweep, camber=0.08, sprawl=0.85, dev=1.0, claw_scale=0.0,
+                         flipper_surface=0, scale_size=0.0, scale_irreg=0.0, border_contrast=0.0, roughness=0.0):
     l = copy.deepcopy(template)
     l["archetype"] = 4   # LIMB_ARCHETYPE_FLIPPER
     l["anatomyProfile"] = 6  # LIMB_PROFILE_MARINE_FLIPPER
@@ -144,6 +145,11 @@ def blank_marine_flipper(template, role, side, length, thickness, aspect, sweep,
     l["wingPointedness"] = 0.65
     l["finSweep"] = float(sweep)
     l["finCamber"] = float(camber)
+    l["flipperSurface"] = int(flipper_surface)
+    l["flipperScaleSize"] = float(scale_size)
+    l["flipperScaleIrregularity"] = float(scale_irreg)
+    l["flipperBorderContrast"] = float(border_contrast)
+    l["flipperRoughness"] = float(roughness)
     return l
 
 
@@ -706,19 +712,24 @@ def build_sea_turtle(base):
     }
 
     stage_cfg = [
-        ("seed",     0.28, 1.18, 0.85, 0.78),
-        ("larva",    0.46, 1.10, 0.90, 0.86),
-        ("juvenile", 0.74, 1.04, 0.96, 0.95),
-        ("adult",    1.00, 1.00, 1.00, 1.00),
+        # (name, scale, flip_m, shell_m, col_m, cara_base, cara_dark, cara_amber, suture, plas_base, plas_seam, skin_base, mottle, radial)
+        ("seed",     0.28, 1.18, 0.85, 0.72,
+         rgba(44, 46, 36), rgba(30, 26, 20), rgba(98, 76, 48), rgba(28, 24, 18),
+         rgba(224, 215, 184), rgba(172, 162, 134), rgba(50, 54, 40), 0.30, 0.20),
+        ("larva",    0.46, 1.10, 0.90, 0.82,
+         rgba(60, 56, 38), rgba(44, 34, 23), rgba(136, 104, 60), rgba(40, 34, 25),
+         rgba(220, 209, 174), rgba(168, 156, 124), rgba(60, 62, 44), 0.48, 0.42),
+        ("juvenile", 0.74, 1.04, 0.96, 0.93,
+         rgba(88, 74, 44), rgba(60, 44, 28), rgba(182, 140, 80), rgba(52, 44, 31),
+         rgba(218, 206, 166), rgba(164, 152, 118), rgba(70, 72, 50), 0.68, 0.66),
+        ("adult",    1.00, 1.00, 1.00, 1.00,
+         rgba(78, 74, 46), rgba(58, 44, 29), rgba(172, 134, 80), rgba(50, 44, 32),
+         rgba(218, 206, 166), rgba(162, 150, 116), rgba(68, 72, 50), 0.74, 0.58),
     ]
-    # Paleta real de Chelonia mydas (NOAA/USFWS): espaldar pardo-oliva/castaño oscuro con
-    # estrías ámbar, aletas pardo-oliva oscuras con suturas claras y plastrón crema-amarillento cálido.
-    olive = rgba(68, 56, 34)
-    brown = rgba(26, 20, 12)
-    cream = rgba(182, 168, 124)
-    skin_ol = rgba(54, 58, 38)
 
-    for sname, scale, flip_m, shell_m, col_m in stage_cfg:
+    for (sname, scale, flip_m, shell_m, col_m,
+         cara_base, cara_dark, cara_amber, suture_col,
+         plas_base, plas_seam, skin_ol, mottle_str, radial_str) in stage_cfg:
         st = r[sname]
         clear_optional_arrays(st)
         ax = st["axial"]
@@ -763,11 +774,16 @@ def build_sea_turtle(base):
         st["eyes"]["scleraColor"] = rgba(186, 178, 152)
         st["eyes"]["pupilShape"] = 0
 
+        # Aletas marinas con mosaico poligonal reptiliano explícito (flipperSurface=2)
         st["limbs"] = [
-            blank_marine_flipper(tmpl_limb, 0, 0, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88, claw_scale=0.85),
-            blank_marine_flipper(tmpl_limb, 0, 1, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88, claw_scale=0.85),
-            blank_marine_flipper(tmpl_limb, 1, 0, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85, claw_scale=0.55),
-            blank_marine_flipper(tmpl_limb, 1, 1, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85, claw_scale=0.55),
+            blank_marine_flipper(tmpl_limb, 0, 0, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88, claw_scale=0.85,
+                                 flipper_surface=2, scale_size=1.0, scale_irreg=0.72, border_contrast=0.44, roughness=0.52),
+            blank_marine_flipper(tmpl_limb, 0, 1, 2.15 * flip_m, 0.085, aspect=3.4, sweep=0.52, camber=0.10, sprawl=0.88, claw_scale=0.85,
+                                 flipper_surface=2, scale_size=1.0, scale_irreg=0.72, border_contrast=0.44, roughness=0.52),
+            blank_marine_flipper(tmpl_limb, 1, 0, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85, claw_scale=0.55,
+                                 flipper_surface=2, scale_size=1.0, scale_irreg=0.72, border_contrast=0.44, roughness=0.52),
+            blank_marine_flipper(tmpl_limb, 1, 1, 1.06 * flip_m, 0.062, aspect=2.1, sweep=0.68, camber=0.06, sprawl=0.85, claw_scale=0.55,
+                                 flipper_surface=2, scale_size=1.0, scale_irreg=0.72, border_contrast=0.44, roughness=0.52),
         ]
         st["limbCount"] = 4
 
@@ -792,24 +808,46 @@ def build_sea_turtle(base):
             "costalScutePairs": 4,  # Chelonia mydas: exactamente 4 pares de escudos costales
             "vertebralScutes": 5,
             "marginalScutes": 11,
-            "scuteRelief": 0.48,
+            "scuteRelief": 0.46,
             "cervicalNotch": 0.14,
             "limbClearance": 0.28,
-            "carapaceColor": olive,
-            "scuteBorderColor": brown,
-            "plastronColor": cream,
+            "carapaceColor": cara_base,
+            "scuteBorderColor": suture_col,
+            "plastronColor": plas_base,
+            "carapaceDarkColor": cara_dark,
+            "carapaceAmberColor": cara_amber,
+            "plastronSeamColor": plas_seam,
+            "carapaceMottling": mottle_str,
+            "carapaceRadialStrength": radial_str,
+            "carapaceRoughness": 0.42,
+            "sutureContrast": 0.62,
+            "plastronSeamSoftness": 0.80,
+            "plastronMottling": 0.18,
+            "plastronRoughness": 0.48,
+            "patternSeed": 1024,
         }
 
         st["dorsalColor"] = skin_ol
-        st["ventralColor"] = cream
-        st["unpigmentedVentralColor"] = cream
+        st["ventralColor"] = plas_base
+        st["unpigmentedVentralColor"] = plas_base
         st["development"] = {
             "appendages": 1.0, "cephalic": 1.0, "pigmentation": col_m,
             "integument": 1.0, "colorMaturity": col_m,
         }
-        clean_surface(st["surface"], 1, skin_ol, brown, cream, seed=1024,
-                      coverage=0.65, roughness=0.36, sheen=0.14, scale_size=0.022, scale_relief=0.04)
-        st["surface"]["pigment"]["ventralLightening"] = 0.76
+        # Piel cefálica/cervical coherente con placas y aletas: escamas más amplias y suaves,
+        # sin patrón diminuto repetitivo de alto contraste.
+        tur_layers = [
+            make_pigment_layer(1, cara_dark, scale=3.2, sharpness=0.34, strength=0.34 * col_m, seed=10241),
+        ]
+        clean_surface(st["surface"], 1, skin_ol, cara_dark, rgba(168, 158, 126), seed=1024,
+                      coverage=0.30, roughness=0.52, sheen=0.08, scale_size=0.062, scale_relief=0.011,
+                      layers=tur_layers)
+        st["surface"]["integument"]["scales"]["irregularity"] = 0.74
+        st["surface"]["integument"]["scales"]["edgeDepth"] = 0.13
+        st["surface"]["integument"]["scales"]["edgeWidth"] = 0.08
+        st["surface"]["integument"]["scales"]["microColorVariation"] = 0.14
+        st["surface"]["pigment"]["dorsalDarkening"] = 0.24
+        st["surface"]["pigment"]["ventralLightening"] = 0.72
     return doc
 
 
@@ -898,8 +936,8 @@ def build_dolphin(base):
         st["eyes"]["pupilShape"] = 0
 
         st["limbs"] = [
-            blank_marine_flipper(tmpl_limb, 0, 0, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72, claw_scale=0.0),
-            blank_marine_flipper(tmpl_limb, 0, 1, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72, claw_scale=0.0),
+            blank_marine_flipper(tmpl_limb, 0, 0, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72, claw_scale=0.0, flipper_surface=1),
+            blank_marine_flipper(tmpl_limb, 0, 1, 1.32 * fin_m, 0.085, aspect=2.65, sweep=0.56, camber=0.06, sprawl=0.72, claw_scale=0.0, flipper_surface=1),
         ]
         st["limbCount"] = 2
 

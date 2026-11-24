@@ -1,5 +1,6 @@
 #version 330 compatibility
 uniform vec4 surfaceRecipe[154];
+uniform vec4 detailMaterial[12];
 uniform uint pigmentSeed,scaleSeed,furSeed;
 uniform int surfaceDebug;
 uniform float shellFraction;
@@ -30,6 +31,7 @@ out vec4 fragColor;
 #include "surface/bump.glsl"
 #include "surface/lighting.glsl"
 #include "surface/evaluate.glsl"
+#include "surface/reptile_materials.glsl"
 
 void main() {
     wrinkleCoverage=wrinkleCoverageOut;
@@ -78,7 +80,21 @@ void main() {
     if(tissueMaterial==8||tissueMaterial==9||tissueMaterial==10){
         if(furPass==1)discard;
         SurfaceResponse keratin=SurfaceResponse(vertexColor.rgb,n,tissueMaterial==8?.38:tissueMaterial==9?.55:.43,tissueMaterial==10?.23:.30);
+        if(surfaceDebug==6){fragColor=vec4(keratin.albedo,vertexColor.a);return;}
+        if(surfaceDebug==10){keratin.albedo=vec3(0.57);keratin.roughness=0.65;keratin.specular=0.12;}
         fragColor=vec4(SurfaceLighting(keratin,viewPosition),vertexColor.a);return;
+    }
+    if(tissueMaterial>=11&&tissueMaterial<=14){
+        if(furPass==1)discard;
+        SurfaceResponse rep = (tissueMaterial==11) ? EvaluateCarapaceMaterial(mappedCoord,n,viewPosition)
+                            : (tissueMaterial==12) ? EvaluatePlastronMaterial(mappedCoord,n,viewPosition)
+                            : (tissueMaterial==13) ? EvaluateReptilianFlipperMaterial(mappedCoord,clamp(mappedVentral,0.0,1.0),n,viewPosition)
+                                                   : EvaluateCephalicPlateMaterial(mappedCoord,n,viewPosition);
+        if(surfaceDebug==6){fragColor=vec4(rep.albedo,vertexColor.a);return;}
+        if(surfaceDebug==7){fragColor=vec4(n*0.5+0.5,vertexColor.a);return;}
+        if(surfaceDebug==8){fragColor=vec4(rep.normal*0.5+0.5,vertexColor.a);return;}
+        if(surfaceDebug==10){rep.albedo=vec3(0.57);rep.roughness=0.65;rep.specular=0.12;}
+        fragColor=vec4(SurfaceLighting(rep,viewPosition),vertexColor.a);return;
     }
 
 

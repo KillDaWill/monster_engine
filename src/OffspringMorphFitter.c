@@ -141,6 +141,17 @@ static const CreatureModuleInstance *FindLimb(const CreatureRecipe *recipe, cons
     return result;
 }
 
+static bool HasMarineFlippers(const CreaturePhenotype *p)
+{
+    if (!p || !p->limbCount) return false;
+    for (size_t i = 0; i < p->limbCount; ++i) {
+        if (p->limbs[i].archetype == LIMB_ARCHETYPE_FLIPPER ||
+            p->limbs[i].anatomyProfile == LIMB_PROFILE_MARINE_FLIPPER)
+            return true;
+    }
+    return false;
+}
+
 static bool ReadLimb(const AnatomyGraph *g, const CreatureModuleInstance *m, float scale, LimbShape *out)
 {
     if (!m) return false;
@@ -183,9 +194,15 @@ static void FitLimbs(CreatureRecipe *recipe, const Monster parents[2], Offspring
     bool fitted[CREATURE_MAX_LIMBS] = {0};
     for (size_t i=0; i<adult->limbCount; ++i) {
         LimbPhenotype *l = &adult->limbs[i];
+        if (l->archetype == LIMB_ARCHETYPE_FLIPPER || l->anatomyProfile == LIMB_PROFILE_MARINE_FLIPPER)
+            continue;
         const CreatureModuleInstance *own = FindLimb(recipe,adult,l->role,l->side);
         const CreatureModuleInstance *a = FindLimb(&parents[0].recipe,&parents[0].phenotype,l->role,l->side);
         const CreatureModuleInstance *b = FindLimb(&parents[1].recipe,&parents[1].phenotype,l->role,l->side);
+        if (!a || !b ||
+            parents[0].phenotype.limbs[a->phenotypeIndex].archetype == LIMB_ARCHETYPE_FLIPPER ||
+            parents[1].phenotype.limbs[b->phenotypeIndex].archetype == LIMB_ARCHETYPE_FLIPPER)
+            continue;
         LimbShape first, second;
         if (!ReadLimb(graph,own,adult->axial.totalScale,&original[i]) ||
             !ReadLimb(&parents[0].anatomyGraph,a,parents[0].phenotype.axial.totalScale,&first) ||
@@ -357,16 +374,38 @@ void OffspringMorph_MeasureCandidate(const Monster *candidate, const Monster *re
     bool sameLimbs = parents[0].phenotype.limbCount > 0 && parents[1].phenotype.limbCount > 0 &&
         candidate->phenotype.limbCount > 0;
     if (sameLimbs) {
+        bool flipA = HasMarineFlippers(&parents[0].phenotype);
+        bool flipB = HasMarineFlippers(&parents[1].phenotype);
+        bool flipCand = HasMarineFlippers(&candidate->phenotype);
         MorphologicalSignature a=Creature_MorphologicalSignature(&parents[0]);
         MorphologicalSignature b=Creature_MorphologicalSignature(&parents[1]);
-        MorphologicalSignature wanted={
-            .forelimbBodyRatio=Math_Lerp(a.forelimbBodyRatio,b.forelimbBodyRatio,report->limbs),
-            .hindlimbBodyRatio=Math_Lerp(a.hindlimbBodyRatio,b.hindlimbBodyRatio,report->limbs),
-            .footBodyRatio=Math_Lerp(a.footBodyRatio,b.footBodyRatio,report->foot),
-            .forelimbThicknessBodyRatio=Math_Lerp(a.forelimbThicknessBodyRatio,b.forelimbThicknessBodyRatio,report->limbMass)
-        };
-        report->limbError=SignatureError(report->signature,wanted);
-        report->limbErrorAvailable=true;
+        if (flipA != flipB) {
+            /* Modo funcional diferenciado: una aleta marina no se evalúa como una pata terrestre.
+             * Medir respecto al progenitor funcionalmente homólogo con influencia acotada del donante. */
+            const MorphologicalSignature *primary = (flipCand == flipA) ? &a : &b;
+            const MorphologicalSignature *secondary = (flipCand == flipA) ? &b : &a;
+            float w = 0.22f * ((flipCand == flipA) ? report->limbs : (1.0f - report->limbs));
+            MorphologicalSignature wanted = {
+                .forelimbBodyRatio = Math_Lerp(primary->forelimbBodyRatio, secondary->forelimbBodyRatio, w),
+                .hindlimbBodyRatio = (primary->hindlimbBodyRatio > 0.01f && secondary->hindlimbBodyRatio > 0.01f)
+                    ? Math_Lerp(primary->hindlimbBodyRatio, secondary->hindlimbBodyRatio, w)
+                    : primary->hindlimbBodyRatio,
+                .footBodyRatio = Math_Lerp(primary->footBodyRatio, secondary->footBodyRatio, w * 0.5f),
+                .forelimbThicknessBodyRatio = Math_Lerp(primary->forelimbThicknessBodyRatio,
+                    secondary->forelimbThicknessBodyRatio, w)
+            };
+            report->limbError = SignatureError(report->signature, wanted);
+            report->limbErrorAvailable = true;
+        } else {
+            MorphologicalSignature wanted={
+                .forelimbBodyRatio=Math_Lerp(a.forelimbBodyRatio,b.forelimbBodyRatio,report->limbs),
+                .hindlimbBodyRatio=Math_Lerp(a.hindlimbBodyRatio,b.hindlimbBodyRatio,report->limbs),
+                .footBodyRatio=Math_Lerp(a.footBodyRatio,b.footBodyRatio,report->foot),
+                .forelimbThicknessBodyRatio=Math_Lerp(a.forelimbThicknessBodyRatio,b.forelimbThicknessBodyRatio,report->limbMass)
+            };
+            report->limbError=SignatureError(report->signature,wanted);
+            report->limbErrorAvailable=true;
+        }
     } else {
         report->limbError=0.0f;
         report->limbErrorAvailable=false;

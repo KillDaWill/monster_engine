@@ -758,7 +758,19 @@ static void Morph_SyncModules(const Monster* a,const Monster* b,float t,float u,
             out->phenotype.shell.width = Math_Lerp(sa->width, sb->width, u);
             out->phenotype.shell.height = Math_Lerp(sa->height, sb->height, u);
             out->phenotype.shell.carapaceColor = Color_Lerp(sa->carapaceColor, sb->carapaceColor, u);
+            out->phenotype.shell.scuteBorderColor = Color_Lerp(sa->scuteBorderColor, sb->scuteBorderColor, u);
             out->phenotype.shell.plastronColor = Color_Lerp(sa->plastronColor, sb->plastronColor, u);
+            out->phenotype.shell.carapaceDarkColor = Color_Lerp(sa->carapaceDarkColor, sb->carapaceDarkColor, u);
+            out->phenotype.shell.carapaceAmberColor = Color_Lerp(sa->carapaceAmberColor, sb->carapaceAmberColor, u);
+            out->phenotype.shell.plastronSeamColor = Color_Lerp(sa->plastronSeamColor, sb->plastronSeamColor, u);
+            out->phenotype.shell.carapaceMottling = Math_Lerp(sa->carapaceMottling, sb->carapaceMottling, u);
+            out->phenotype.shell.carapaceRadialStrength = Math_Lerp(sa->carapaceRadialStrength, sb->carapaceRadialStrength, u);
+            out->phenotype.shell.carapaceRoughness = Math_Lerp(sa->carapaceRoughness, sb->carapaceRoughness, u);
+            out->phenotype.shell.sutureContrast = Math_Lerp(sa->sutureContrast, sb->sutureContrast, u);
+            out->phenotype.shell.plastronSeamSoftness = Math_Lerp(sa->plastronSeamSoftness, sb->plastronSeamSoftness, u);
+            out->phenotype.shell.plastronMottling = Math_Lerp(sa->plastronMottling, sb->plastronMottling, u);
+            out->phenotype.shell.plastronRoughness = Math_Lerp(sa->plastronRoughness, sb->plastronRoughness, u);
+            out->phenotype.shell.patternSeed = sa->patternSeed ? sa->patternSeed : sb->patternSeed;
         } else if(sa->development>0.01f) {
             out->phenotype.shell = *sa;
             out->phenotype.shell.development = sa->development * Math_Clamp01(1.0f - u * 1.6f);

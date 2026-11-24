@@ -221,8 +221,16 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
     bool weightBearing = false;
     bool hasMacropodHind = false;
     for (size_t i=0; i<p->limbCount; ++i) {
-        weightBearing |= p->limbs[i].development*p->development.appendages >= .65f;
-        if (p->limbs[i].role == LIMB_HIND && p->limbs[i].anatomyProfile == LIMB_PROFILE_MACROPOD)
+        const LimbPhenotype *lp = &p->limbs[i];
+        bool aquaticOrAerial = (lp->role == LIMB_WING ||
+                                lp->archetype == LIMB_ARCHETYPE_WING ||
+                                lp->archetype == LIMB_ARCHETYPE_INSECT_WING ||
+                                lp->archetype == LIMB_ARCHETYPE_FLIPPER ||
+                                lp->anatomyProfile == LIMB_PROFILE_MARINE_FLIPPER ||
+                                lp->archetype == LIMB_ARCHETYPE_ARTHROPOD_LEG);
+        if (!aquaticOrAerial && lp->development * p->development.appendages >= .65f)
+            weightBearing = true;
+        if (lp->role == LIMB_HIND && lp->anatomyProfile == LIMB_PROFILE_MACROPOD)
             hasMacropodHind = true;
     }
     if (!p->headHybrid.active && p->head.archetype == ref->head.archetype) {
@@ -283,6 +291,7 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
                 limb->archetype != LIMB_ARCHETYPE_WING &&
                 limb->archetype != LIMB_ARCHETYPE_INSECT_WING &&
                 limb->archetype != LIMB_ARCHETYPE_FLIPPER &&
+                limb->anatomyProfile != LIMB_PROFILE_MARINE_FLIPPER &&
                 limb->archetype != LIMB_ARCHETYPE_ARTHROPOD_LEG &&
                 !(hasMacropodHind && limb->role == LIMB_FORE) &&
                 limb->development*p->development.appendages >= .65f) {
@@ -351,9 +360,18 @@ static unsigned Proportions(CreaturePhenotype *p, const CreaturePhenotype *ref, 
             }
         } else if (m->kind == CREATURE_MODULE_FIN) {
             FinPhenotype *fin = &p->fins[at];
-            issues += ClampDiag(&fin->span, trunk * 0.03f, trunk * 1.45f, repair,
+            float minSpan = trunk * 0.025f, maxSpan = trunk * 1.45f;
+            float minChord = trunk * 0.025f, maxChord = trunk * 1.10f;
+            if (fin->role == FIN_ROLE_FINLET_SERIES) {
+                minSpan = trunk * 0.005f; maxSpan = trunk * 0.22f;
+                minChord = trunk * 0.005f; maxChord = trunk * 0.25f;
+            } else if (fin->role == FIN_ROLE_PELVIC || fin->role == FIN_ROLE_ANAL) {
+                minSpan = trunk * 0.015f; maxSpan = trunk * 0.90f;
+                minChord = trunk * 0.015f; maxChord = trunk * 0.85f;
+            }
+            issues += ClampDiag(&fin->span, minSpan, maxSpan, repair,
                 report, stage, (unsigned)i, m->kind, "fin.span", repairAttempt);
-            issues += ClampDiag(&fin->baseChord, trunk * 0.03f, trunk * 1.10f, repair,
+            issues += ClampDiag(&fin->baseChord, minChord, maxChord, repair,
                 report, stage, (unsigned)i, m->kind, "fin.baseChord", repairAttempt);
         }
     }
@@ -372,8 +390,11 @@ static bool RepairGeometry(CreaturePhenotype *p, const CreatureRecipe *recipe,
         }
     }
     if (errors & 8) {
-        for (size_t i=0; i<p->tailCount; ++i)
-            p->tails[i].rootMatchStrength = Math_Lerp(p->tails[i].rootMatchStrength,1,.5f);
+        for (size_t i=0; i<p->tailCount; ++i) {
+            float cap = (p->tails[i].caudalFinType != CAUDAL_FIN_NONE &&
+                         p->axial.archetype != AXIAL_ARCHETYPE_AQUATIC_FUSIFORM) ? 0.18f : 1.0f;
+            p->tails[i].rootMatchStrength = fminf(cap, Math_Lerp(p->tails[i].rootMatchStrength, 1.0f, 0.5f));
+        }
         changed = p->tailCount > 0 || changed;
     }
     if (!(errors & 16) || p->axial.archetype != AXIAL_ARCHETYPE_UPRIGHT_TETRAPOD) return changed;
@@ -569,6 +590,17 @@ static bool SupportedHead(MonsterSDF *field, const Monster *monster, bool adult,
             Vector3 seat=Vec3_Sub(eye->offset,Vec3_Scale(eye->forward,radius*.90f));
             float distance=core.evaluateDistance(core.context,Vec3_Add(origin,seat));
             if (!isfinite(distance) || distance>radius*.20f) return false;
+            /* Verificar continuidad entre el asiento orbital y el cráneo central para impedir
+             * que un reborde orbital desconectado (isla SDF) enmascare un ojo flotante. */
+            Vector3 bridgeTarget = Vec3_Create(s->craniumCenter.x, seat.y,
+                Math_Clamp(seat.z, s->cranialCenters[5].z, s->cranialCenters[0].z));
+            if (fabsf(seat.x - bridgeTarget.x) > radius * 2.5f) {
+                for (unsigned b = 1; b <= 3; ++b) {
+                    Vector3 mid = Vec3_Lerp(seat, bridgeTarget, (float)b / 4.0f);
+                    float bd = core.evaluateDistance(core.context, Vec3_Add(origin, mid));
+                    if (!isfinite(bd) || bd > radius * 0.65f) return false;
+                }
+            }
             /* Una cavidad interna también da distancia positiva. La abertura
              * debe comunicar con el exterior en la dirección de la mirada. */
             unsigned samples=adult ? 5 : 1;
@@ -753,9 +785,14 @@ bool OffspringRepair_Validate(CreatureRecipe *recipe, const CreatureRecipe *refe
         bool head = built && SupportedHead(&field,monster,i==CREATURE_STAGE_ADULT,&earClearance);
         bool roots = built && FacialRoots(recipe,monster,&field,&coherencePenalty);
         MonsterSDF_Free(&field);
-        if (built && earClearance.checked && i == CREATURE_STAGE_ADULT) {
-            report->earExposedFraction = earClearance.exposedFraction;
-            report->earMaxBodyPenetration = earClearance.maxBodyPenetration;
+        if (built && i == CREATURE_STAGE_ADULT && report) {
+            if (earClearance.checked) {
+                report->earExposedFraction = earClearance.exposedFraction;
+                report->earMaxBodyPenetration = earClearance.maxBodyPenetration;
+            } else {
+                report->earExposedFraction = 1.0f;
+                report->earMaxBodyPenetration = 0.0f;
+            }
         }
         if (built && !head && earClearance.needsRepair && repair && RepairEarClearance(recipe)) {
             report->earRepaired = true;
@@ -823,7 +860,11 @@ bool OffspringRepair_Validate(CreatureRecipe *recipe, const CreatureRecipe *refe
         }
     }
     valid = !corrected;
-    if (valid) report->anatomicalCoherence = 1-coherencePenalty;
+    if (valid && report) {
+        report->anatomicalCoherence = 1 - coherencePenalty;
+        /* Limpiar cualquier fallo transitorio que haya sido resuelto en iteraciones previas. */
+        report->lastFailure.active = false;
+    }
 done:
     report->repairs = corrected;
     Monster_Free(monster);
