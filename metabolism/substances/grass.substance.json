@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "grass",
+  "name": "Grass",
+  "composition": {
+    "water": 0.62,
+    "cellulose": 0.24,
+    "indigestible_fiber": 0.08,
+    "simple_carbohydrates": 0.03,
+    "proteins": 0.02,
+    "minerals": 0.01
+  },
+  "physical_properties": {
+    "phase": "solid",
+    "hardness": 0.18
+  },
+  "presentation": {
+    "model": "vegetation",
+    "color": [0.32, 0.62, 0.22]
+  }
+}

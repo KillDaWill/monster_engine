@@ -342,7 +342,374 @@ static Color activationFill(float val) {
                           (unsigned char)(32 + 54 * mag), 245);
 }
 
-static void drawNeuralInspector(const EvolutionSelectedSnapshot *sel, float edgeThreshold,
+static Color colorFromRgbFloat(const float rgb[3]) {
+    unsigned char r = (unsigned char)fmaxf(0.0f, fminf(255.0f, rgb[0] * 255.0f));
+    unsigned char g = (unsigned char)fmaxf(0.0f, fminf(255.0f, rgb[1] * 255.0f));
+    unsigned char b = (unsigned char)fmaxf(0.0f, fminf(255.0f, rgb[2] * 255.0f));
+    return Color_Create(r, g, b, 255);
+}
+
+static Color moleculeBarColor(const char *name) {
+    if (!name) return Color_Create(120, 178, 198, 235);
+    if (strstr(name, "water") || strstr(name, "Water")) return Color_Create(72, 170, 240, 235);
+    if (strstr(name, "toxin") || strstr(name, "Toxin")) return Color_Create(228, 72, 138, 240);
+    if (strstr(name, "decay") || strstr(name, "Decay")) return Color_Create(184, 108, 196, 235);
+    if (strstr(name, "protein") || strstr(name, "Protein")) return Color_Create(236, 118, 92, 235);
+    if (strstr(name, "lipid") || strstr(name, "Lipid")) return Color_Create(240, 196, 78, 235);
+    if (strstr(name, "carb") || strstr(name, "Carb")) return Color_Create(158, 224, 96, 235);
+    if (strstr(name, "cellul") || strstr(name, "Cellul")) return Color_Create(92, 198, 126, 235);
+    if (strstr(name, "fiber") || strstr(name, "Fiber")) return Color_Create(154, 134, 98, 235);
+    return Color_Create(120, 206, 214, 235);
+}
+
+static const char *phaseLabel(SubstancePhase p) {
+    switch (p) {
+    case SUBSTANCE_PHASE_SOLID: return "SOLID";
+    case SUBSTANCE_PHASE_LIQUID: return "LIQUID";
+    case SUBSTANCE_PHASE_SEMI_SOLID: return "SEMI-SOLID";
+    default: return "UNKNOWN";
+    }
+}
+
+static const char *regenPolicyLabel(ResourceRegenPolicy p) {
+    switch (p) {
+    case RESOURCE_REGEN_NONE: return "NONE";
+    case RESOURCE_REGEN_LINEAR: return "LINEAR";
+    case RESOURCE_REGEN_INFINITE: return "INFINITE";
+    case RESOURCE_REGEN_DEPLETE_RELOCATE: return "RELOCATE";
+    default: return "NONE";
+    }
+}
+
+static const char *decayPolicyLabel(ResourceDecayPolicy p) {
+    switch (p) {
+    case RESOURCE_DECAY_NONE: return "STATIC";
+    case RESOURCE_DECAY_MASS_LOSS: return "MASS_LOSS";
+    case RESOURCE_DECAY_DECOMPOSE: return "DECOMPOSE";
+    default: return "STATIC";
+    }
+}
+
+static const EvolutionResourceSnapshot *findSnapResource(const EvolutionRenderSnapshot *snap, AIObjectId id) {
+    if (!snap || !id) return NULL;
+    for (unsigned i = 0; i < snap->resourceCount; ++i) {
+        if (snap->resources[i].id == id) return &snap->resources[i];
+    }
+    return NULL;
+}
+
+static void drawNeuralInspectorV2(const EvolutionRenderSnapshot *snap,
+                                  const EvolutionSelectedSnapshot *sel) {
+    const float px = 330.0f, py = 12.0f, pw = 616.0f;
+    const NeuralGenome *g = &sel->genome;
+    const NeuralBrainV2Runtime *rt = &sel->runtime.v2;
+    const NeuralV2InspectorState *v2 = &sel->neuralState.v2;
+
+    char header[160];
+    snprintf(header, sizeof(header), "NEURAL V2 CANDIDATE POLICY  #%u  FP:%08llX  STEPS:%llu",
+             sel->entityId, (unsigned long long)(g->metadata.fingerprint & 0xFFFFFFFFu),
+             (unsigned long long)sel->runtime.stepCount);
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 8.0f, 1.30f, Color_Create(78, 226, 240, 255), header);
+
+    /* 1) Memoria recurrente de contexto (16 neuronas) */
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 36.0f, 1.18f, Color_Create(142, 214, 228, 255),
+                              "RECURRENT CONTEXT (16 HIDDEN)");
+    for (unsigned h = 0; h < NEURAL_V2_CONTEXT_HIDDEN; ++h) {
+        unsigned col = h % 8u, row = h / 8u;
+        float cx = px + 26.0f + (float)col * 36.0f;
+        float cy = py + 62.0f + (float)row * 30.0f;
+        float v = rt->context[h];
+        Color border = v >= 0.0f ? Color_Create(78, 224, 240, 235) : Color_Create(238, 102, 92, 235);
+        OpenGLRenderer_DrawCircle2D(cx, cy, 10.0f, activationFill(v), border);
+        char lbl[12];
+        snprintf(lbl, sizeof(lbl), "C%u", h);
+        OpenGLRenderer_DrawText2D(cx - 8.0f, cy - 3.5f, 0.95f, Color_Create(240, 250, 255, 255), lbl);
+    }
+
+    /* 2) Acciones globales + decisión seleccionada */
+    float gx = px + 324.0f;
+    OpenGLRenderer_DrawText2D(gx, py + 36.0f, 1.18f, Color_Create(142, 214, 228, 255),
+                              "GLOBAL ACTIONS & SELECTED DECISION");
+    static const char *gNames[NEURAL_V2_GLOBAL_ACTIONS] = {"IDLE", "EXPLORE", "REST"};
+    for (unsigned i = 0; i < NEURAL_V2_GLOBAL_ACTIONS; ++i) {
+        float sc = v2->globalScores[i];
+        bool win = (v2->selectedAction == (NeuralV2ActionType)i);
+        float norm = 0.5f + 0.5f * tanhf(sc * 0.5f);
+        float ry = py + 54.0f + (float)i * 20.0f;
+        OpenGLRenderer_DrawRect2D(gx, ry, 280.0f, 16.0f,
+                                  win ? Color_Create(24, 72, 86, 235) : Color_Create(13, 22, 30, 220),
+                                  win ? Color_Create(84, 236, 250, 245) : Color_Create(40, 74, 88, 165));
+        OpenGLRenderer_DrawRect2D(gx + 1.0f, ry + 1.0f, 278.0f * norm, 14.0f,
+                                  win ? Color_Create(44, 174, 196, 175) : Color_Create(36, 98, 118, 125),
+                                  Color_Create(0, 0, 0, 0));
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%-8s %+6.2f %s", gNames[i], sc, win ? "<-- WIN" : "");
+        OpenGLRenderer_DrawText2D(gx + 6.0f, ry + 3.0f, 1.10f,
+                                  win ? Color_Create(242, 255, 255, 255) : Color_Create(194, 220, 230, 240), buf);
+    }
+
+    /* Banner de decisión ganadora */
+    OpenGLRenderer_DrawRect2D(px + 10.0f, py + 120.0f, pw - 20.0f, 26.0f,
+                              Color_Create(18, 44, 56, 235), Color_Create(76, 212, 232, 225));
+    char decBuf[160];
+    snprintf(decBuf, sizeof(decBuf), "SELECTED: %-14s  TARGET:#%-4u  SCORE:%+6.2f  OUTCOME:%s",
+             NeuralV2Action_Name(v2->selectedAction), v2->selectedTargetId, v2->selectedScore,
+             NeuralInteractionOutcome_Name(sel->neuralState.lastOutcome));
+    OpenGLRenderer_DrawText2D(px + 18.0f, py + 128.0f, 1.15f, Color_Create(232, 252, 255, 255), decBuf);
+
+    /* 3) Candidatos de recursos percibidos (hasta 8) */
+    float midY = py + 156.0f;
+    OpenGLRenderer_DrawRect2D(px + 10.0f, midY, 294.0f, 246.0f,
+                              Color_Create(10, 18, 26, 228), Color_Create(42, 118, 138, 190));
+    char rTitle[64];
+    snprintf(rTitle, sizeof(rTitle), "RESOURCE CANDIDATES (%u/8) CONSUME", v2->resourceCount);
+    OpenGLRenderer_DrawText2D(px + 16.0f, midY + 6.0f, 1.10f, Color_Create(116, 226, 178, 255), rTitle);
+    for (unsigned i = 0; i < v2->resourceCount && i < NEURAL_V2_MAX_RESOURCE_CANDIDATES; ++i) {
+        AIObjectId rid = v2->resourceIds[i];
+        float sc = v2->resourceScores[i];
+        bool win = (v2->selectedAction == NEURAL_V2_ACTION_CONSUME_TARGET && v2->selectedTargetId == rid);
+        const EvolutionResourceSnapshot *rs = findSnapResource(snap, rid);
+        const char *sname = (rs && rs->substanceName[0]) ? rs->substanceName : "resource";
+        float ry = midY + 26.0f + (float)i * 26.0f;
+        float norm = 0.5f + 0.5f * tanhf(sc * 0.5f);
+        OpenGLRenderer_DrawRect2D(px + 16.0f, ry, 282.0f, 22.0f,
+                                  win ? Color_Create(24, 78, 66, 235) : Color_Create(14, 24, 32, 220),
+                                  win ? Color_Create(104, 246, 188, 245) : Color_Create(38, 72, 86, 160));
+        OpenGLRenderer_DrawRect2D(px + 17.0f, ry + 1.0f, 280.0f * norm, 20.0f,
+                                  win ? Color_Create(54, 176, 132, 165) : Color_Create(36, 106, 98, 115),
+                                  Color_Create(0, 0, 0, 0));
+        if (rs && rs->molecular) {
+            OpenGLRenderer_DrawRect2D(px + 20.0f, ry + 5.0f, 10.0f, 12.0f,
+                                      colorFromRgbFloat(rs->color), Color_Create(220, 236, 244, 160));
+        }
+        char row[80];
+        snprintf(row, sizeof(row), "#%-4u %-14.14s %+6.2f", rid, sname, sc);
+        OpenGLRenderer_DrawText2D(px + 34.0f, ry + 6.0f, 1.05f,
+                                  win ? Color_Create(242, 255, 248, 255) : Color_Create(198, 224, 234, 240), row);
+    }
+    if (v2->resourceCount == 0u) {
+        OpenGLRenderer_DrawText2D(px + 20.0f, midY + 38.0f, 1.10f, Color_Create(136, 166, 178, 220),
+                                  "(NO RESOURCES IN MEMORY)");
+    }
+
+    /* 4) Candidatos de criaturas percibidas (hasta 6) */
+    float cx0 = px + 312.0f;
+    OpenGLRenderer_DrawRect2D(cx0, midY, 294.0f, 246.0f,
+                              Color_Create(10, 18, 26, 228), Color_Create(42, 118, 138, 190));
+    char cTitle[64];
+    snprintf(cTitle, sizeof(cTitle), "CREATURE CANDIDATES (%u/6)", v2->creatureCount);
+    OpenGLRenderer_DrawText2D(cx0 + 8.0f, midY + 6.0f, 1.10f, Color_Create(246, 164, 128, 255), cTitle);
+    OpenGLRenderer_DrawText2D(cx0 + 8.0f, midY + 22.0f, 0.98f, Color_Create(146, 182, 196, 230),
+                              "ID   SP    ATT    FLE    FOL    MAT");
+    for (unsigned i = 0; i < v2->creatureCount && i < NEURAL_V2_MAX_CREATURE_CANDIDATES; ++i) {
+        AIObjectId cid = v2->creatureIds[i];
+        const EvolutionEntitySnapshot *ce = findSnapEntity(snap, cid);
+        const char *spTag = ce ? (ce->speciesIndex == 0u ? "BRUM" : "VELK") : "CRE ";
+        bool winRow = (v2->selectedTargetId == cid &&
+                       v2->selectedAction >= NEURAL_V2_ACTION_ATTACK_TARGET &&
+                       v2->selectedAction <= NEURAL_V2_ACTION_MATE_TARGET);
+        float ry = midY + 38.0f + (float)i * 32.0f;
+        OpenGLRenderer_DrawRect2D(cx0 + 6.0f, ry, 282.0f, 28.0f,
+                                  winRow ? Color_Create(76, 36, 34, 235) : Color_Create(14, 24, 32, 220),
+                                  winRow ? Color_Create(250, 146, 112, 245) : Color_Create(38, 72, 86, 160));
+        char row[96];
+        snprintf(row, sizeof(row), "#%-3u %s %+5.1f %+5.1f %+5.1f %+5.1f",
+                 cid, spTag,
+                 v2->creatureScores[i][0], v2->creatureScores[i][1],
+                 v2->creatureScores[i][2], v2->creatureScores[i][3]);
+        OpenGLRenderer_DrawText2D(cx0 + 10.0f, ry + 8.0f, 1.02f,
+                                  winRow ? Color_Create(255, 238, 228, 255) : Color_Create(198, 224, 234, 240), row);
+    }
+    if (v2->creatureCount == 0u) {
+        OpenGLRenderer_DrawText2D(cx0 + 14.0f, midY + 48.0f, 1.10f, Color_Create(136, 166, 178, 220),
+                                  "(NO CREATURES IN MEMORY)");
+    }
+
+    /* 5) Retroalimentación metabólica desagregada y conteo de decisiones v2 */
+    float botY = py + 412.0f;
+    OpenGLRenderer_DrawRect2D(px + 10.0f, botY, pw - 20.0f, 144.0f,
+                              Color_Create(11, 20, 28, 235), Color_Create(44, 128, 148, 195));
+    OpenGLRenderer_DrawText2D(px + 18.0f, botY + 8.0f, 1.15f, Color_Create(88, 226, 240, 255),
+                              "DISAGGREGATED METABOLIC & INTERACTION FEEDBACK (LAST STEP)");
+    const NeuralMetabolicFeedback *fb = &v2->lastFeedback;
+    char fbTxt[256];
+    snprintf(fbTxt, sizeof(fbTxt),
+             "INGESTED_MASS: %+.3f   E_ABSORBED: %+.3f   W_ABSORBED: %+.3f\n"
+             "NUTRIENTS_ABS: %+.3f   TOX_DELTA : %+.3f   DAMAGE    : %+.3f\n"
+             "INTERACT_FAIL: %+.3f   NO PRIVILEGED DIET / COMPATIBILITY SENSORS",
+             fb->ingestedMass, fb->energyAbsorbed, fb->waterAbsorbed,
+             fb->nutrientsAbsorbed, fb->toxicityDelta, fb->damageReceived,
+             fb->interactionFailure);
+    OpenGLRenderer_DrawText2D(px + 18.0f, botY + 28.0f, 1.10f, Color_Create(210, 234, 242, 255), fbTxt);
+
+    char cntTxt[220];
+    snprintf(cntTxt, sizeof(cntTxt),
+             "COUNTS  IDL:%llu  EXP:%llu  RST:%llu  CON:%llu\n"
+             "        ATT:%llu  FLE:%llu  FOL:%llu  MAT:%llu",
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_IDLE],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_EXPLORE],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_REST],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_CONSUME_TARGET],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_ATTACK_TARGET],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_FLEE_TARGET],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_FOLLOW_TARGET],
+             (unsigned long long)v2->actionCounts[NEURAL_V2_ACTION_MATE_TARGET]);
+    OpenGLRenderer_DrawText2D(px + 18.0f, botY + 92.0f, 1.08f, Color_Create(156, 206, 222, 245), cntTxt);
+}
+
+static void drawDigestiveInspector(int winW, int winH, bool showMinimap,
+                                   const EvolutionSelectedSnapshot *ds) {
+    const float pw = 312.0f, ph = 248.0f;
+    const float px = showMinimap ? ((float)winW - 324.0f - 200.0f) : ((float)winW - 324.0f);
+    const float py = (float)winH - ph - 44.0f;
+    OpenGLRenderer_DrawRect2D(px, py, pw, ph, Color_Create(9, 15, 22, 234), Color_Create(88, 198, 158, 220));
+    OpenGLRenderer_DrawRect2D(px, py, pw, 24.0f, Color_Create(15, 34, 36, 245), Color_Create(88, 198, 158, 220));
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 6.0f, 1.22f, Color_Create(118, 238, 186, 255),
+                              "DIGESTIVE & METABOLIC [G]");
+    if (!ds || !ds->valid || !ds->hasMetabolism) {
+        OpenGLRenderer_DrawText2D(px + 10.0f, py + 36.0f, 1.15f, Color_Create(168, 196, 206, 230),
+                                  "LEGACY MODE / NO METABOLIC STATE");
+        return;
+    }
+
+    char metaHdr[160];
+    snprintf(metaHdr, sizeof(metaHdr), "PROFILE: %.28s\nLAST   : %.28s",
+             ds->metabolicProfileName[0] ? ds->metabolicProfileName : "none",
+             ds->lastSubstanceName[0] ? ds->lastSubstanceName : "(none)");
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 30.0f, 1.12f, Color_Create(212, 236, 242, 255), metaHdr);
+
+    drawPhysBar(px + 10.0f, py + 62.0f, pw - 20.0f, 14.0f, "FULL  ", ds->digestiveFullness, Color_Create(116, 206, 134, 235));
+    drawPhysBar(px + 10.0f, py + 78.0f, pw - 20.0f, 14.0f, "NUTR  ", ds->nutrientReserve, Color_Create(236, 198, 86, 235));
+    drawPhysBar(px + 10.0f, py + 94.0f, pw - 20.0f, 14.0f, "TOXIC ", ds->toxicity, Color_Create(232, 74, 136, 240));
+    drawPhysBar(px + 10.0f, py + 110.0f, pw - 20.0f, 14.0f, "DISCM ", ds->digestiveDiscomfort, Color_Create(224, 134, 72, 235));
+
+    char rates[160];
+    snprintf(rates, sizeof(rates),
+             "MASS %.2f/%.2f  WASTE %.2f  ING %.1f\n"
+             "ABS E:%+.3f W:%+.3f DMG:%.3f",
+             ds->digestiveMass, ds->digestiveCapacity, ds->wasteMass, ds->totalIngestedMass,
+             ds->recentEnergyAbsorbed, ds->recentHydrationAbsorbed, ds->recentMetabolicDamage);
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 128.0f, 1.04f, Color_Create(188, 220, 230, 245), rates);
+
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 158.0f, 1.05f, Color_Create(136, 214, 188, 255),
+                              "STOMACH MOLECULES:");
+    if (ds->digestiveEntryCount == 0u) {
+        OpenGLRenderer_DrawText2D(px + 14.0f, py + 174.0f, 1.05f, Color_Create(140, 166, 178, 220),
+                                  "(EMPTY DIGESTIVE TRACT)");
+    } else {
+        float maxM = 0.05f;
+        for (unsigned i = 0; i < ds->digestiveEntryCount; ++i) {
+            if (ds->digestiveMoleculeMasses[i] > maxM) maxM = ds->digestiveMoleculeMasses[i];
+        }
+        unsigned shown = ds->digestiveEntryCount < 5u ? ds->digestiveEntryCount : 5u;
+        for (unsigned i = 0; i < shown; ++i) {
+            float ry = py + 173.0f + (float)i * 14.0f;
+            float frac = fminf(1.0f, ds->digestiveMoleculeMasses[i] / maxM);
+            char mLbl[24];
+            snprintf(mLbl, sizeof(mLbl), "%-11.11s", ds->digestiveMoleculeNames[i]);
+            OpenGLRenderer_DrawText2D(px + 10.0f, ry + 1.0f, 0.98f, Color_Create(202, 226, 236, 245), mLbl);
+            float bx = px + 98.0f, bw = 152.0f;
+            OpenGLRenderer_DrawRect2D(bx, ry + 1.0f, bw, 11.0f, Color_Create(14, 24, 32, 230), Color_Create(40, 74, 88, 160));
+            OpenGLRenderer_DrawRect2D(bx + 1.0f, ry + 2.0f, (bw - 2.0f) * frac, 9.0f,
+                                      moleculeBarColor(ds->digestiveMoleculeNames[i]), Color_Create(0, 0, 0, 0));
+            char mVal[20];
+            snprintf(mVal, sizeof(mVal), "%.2f", ds->digestiveMoleculeMasses[i]);
+            OpenGLRenderer_DrawText2D(bx + bw + 6.0f, ry + 1.0f, 0.98f, Color_Create(220, 238, 244, 255), mVal);
+        }
+    }
+}
+
+static void drawSubstanceInspector(int winH, bool showPerf,
+                                   const EvolutionRenderSnapshot *snap,
+                                   const EvolutionResourceSnapshot *res,
+                                   UiButton *btnPrev, UiButton *btnNext) {
+    const float pw = 308.0f, ph = 336.0f;
+    const float px = showPerf ? 330.0f : 12.0f;
+    const float py = (float)winH - ph - 44.0f;
+    OpenGLRenderer_DrawRect2D(px, py, pw, ph, Color_Create(9, 15, 22, 234), Color_Create(214, 174, 78, 220));
+    OpenGLRenderer_DrawRect2D(px, py, pw, 24.0f, Color_Create(28, 26, 18, 245), Color_Create(214, 174, 78, 220));
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 6.0f, 1.20f, Color_Create(248, 214, 108, 255),
+                              "SUBSTANCE INSPECTOR [T]");
+
+    *btnPrev = (UiButton){px + pw - 62.0f, py + 3.0f, 26.0f, 18.0f, "<"};
+    *btnNext = (UiButton){px + pw - 32.0f, py + 3.0f, 26.0f, 18.0f, ">"};
+    drawButton(btnPrev, false, false);
+    drawButton(btnNext, false, false);
+
+    if (!res) {
+        OpenGLRenderer_DrawText2D(px + 10.0f, py + 38.0f, 1.15f, Color_Create(170, 196, 206, 230),
+                                  "NO RESOURCE SELECTED");
+        return;
+    }
+
+    if (res->molecular) {
+        OpenGLRenderer_DrawRect2D(px + 10.0f, py + 32.0f, 16.0f, 16.0f,
+                                  colorFromRgbFloat(res->color), Color_Create(230, 240, 244, 200));
+    }
+    char hdr[96];
+    snprintf(hdr, sizeof(hdr), "#%u  %.22s", res->id,
+             res->substanceName[0] ? res->substanceName : "legacy_resource");
+    OpenGLRenderer_DrawText2D(px + 32.0f, py + 34.0f, 1.22f, Color_Create(240, 248, 252, 255), hdr);
+
+    char info[256];
+    snprintf(info, sizeof(info),
+             "ID    : %.24s\n"
+             "PHASE : %-10s HARD: %.2f\n"
+             "MASS  : %5.1f / %-5.1f (R:%.1f)\n"
+             "REGEN : %-9s DECAY: %s",
+             res->substanceId[0] ? res->substanceId : "legacy",
+             phaseLabel(res->phase), res->hardness,
+             res->mass, res->maxMass, res->radius,
+             regenPolicyLabel(res->regenPolicy), decayPolicyLabel(res->decayPolicy));
+    OpenGLRenderer_DrawText2D(px + 10.0f, py + 54.0f, 1.06f, Color_Create(206, 228, 238, 245), info);
+
+    float yCur = py + 114.0f;
+    if (res->sourceCreatureId != 0u) {
+        char carc[96];
+        snprintf(carc, sizeof(carc), "CARCASS SRC:#%u  KILLER:#%u  TTL:%.0fS",
+                 res->sourceCreatureId, res->killerCreatureId, res->remainingLifetime);
+        OpenGLRenderer_DrawText2D(px + 10.0f, yCur, 1.02f, Color_Create(246, 152, 128, 255), carc);
+        yCur += 16.0f;
+    }
+
+    OpenGLRenderer_DrawText2D(px + 10.0f, yCur, 1.06f, Color_Create(242, 210, 114, 255),
+                              "MOLECULAR COMPOSITION:");
+    yCur += 15.0f;
+    unsigned shown = res->componentCount < 7u ? res->componentCount : 7u;
+    for (unsigned i = 0; i < shown; ++i) {
+        char cLbl[24];
+        snprintf(cLbl, sizeof(cLbl), "%-11.11s", res->compNames[i]);
+        OpenGLRenderer_DrawText2D(px + 10.0f, yCur + 1.0f, 0.98f, Color_Create(204, 228, 238, 245), cLbl);
+        float bx = px + 98.0f, bw = 148.0f;
+        float frac = fmaxf(0.0f, fminf(1.0f, res->compFractions[i]));
+        OpenGLRenderer_DrawRect2D(bx, yCur + 1.0f, bw, 11.0f, Color_Create(14, 24, 32, 230), Color_Create(44, 78, 92, 165));
+        OpenGLRenderer_DrawRect2D(bx + 1.0f, yCur + 2.0f, (bw - 2.0f) * frac, 9.0f,
+                                  moleculeBarColor(res->compNames[i]), Color_Create(0, 0, 0, 0));
+        char pBuf[16];
+        snprintf(pBuf, sizeof(pBuf), "%4.1f%%", frac * 100.0f);
+        OpenGLRenderer_DrawText2D(bx + bw + 5.0f, yCur + 1.0f, 0.98f, Color_Create(228, 240, 246, 255), pBuf);
+        yCur += 15.0f;
+    }
+
+    float sigY = py + ph - 48.0f;
+    OpenGLRenderer_DrawRect2D(px + 8.0f, sigY, pw - 16.0f, 40.0f,
+                              Color_Create(12, 20, 28, 230), Color_Create(56, 98, 116, 175));
+    char sigTxt[160];
+    snprintf(sigTxt, sizeof(sigTxt),
+             "SENSORY  MOIST:%.2f PLANT:%.2f ORG:%.2f\n"
+             "         LIPID:%.2f SWEET:%.2f DEC:%.2f",
+             res->sensorySignature.channels[SENSORY_MOISTURE],
+             res->sensorySignature.channels[SENSORY_PLANT_AROMA],
+             res->sensorySignature.channels[SENSORY_ORGANIC_AROMA],
+             res->sensorySignature.channels[SENSORY_LIPID_AROMA],
+             res->sensorySignature.channels[SENSORY_SWEETNESS],
+             res->sensorySignature.channels[SENSORY_DECAY_AROMA]);
+    OpenGLRenderer_DrawText2D(px + 14.0f, sigY + 7.0f, 0.96f, Color_Create(174, 214, 228, 245), sigTxt);
+    (void)snap;
+}
+
+static void drawNeuralInspector(const EvolutionRenderSnapshot *snap,
+                                const EvolutionSelectedSnapshot *sel, float edgeThreshold,
                                 int inspectedLayer, int inspectedIndex,
                                 UiButton *btnThMinus, UiButton *btnThPlus, UiButton *btnClearSel,
                                 float inPos[NEURAL_RNN_INPUTS][2],
@@ -355,6 +722,11 @@ static void drawNeuralInspector(const EvolutionSelectedSnapshot *sel, float edge
     if (!sel || !sel->valid || sel->controllerType != CREATURE_CONTROLLER_NEURAL || !sel->hasNeuralBrain || !sel->genome.valid) {
         OpenGLRenderer_DrawText2D(px + 12.0f, py + 8.0f, 1.4f, Color_Create(78, 216, 232, 255),
                                   "NEURAL INSPECTOR  (UTILITY CONTROLLER / NO NEURAL BRAIN)");
+        return;
+    }
+
+    if (sel->genome.architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        drawNeuralInspectorV2(snap, sel);
         return;
     }
 
@@ -536,12 +908,25 @@ static void drawMinimap(int winW, int winH, const EvolutionRenderSnapshot *snap,
     OpenGLRenderer_DrawRect2D(mapX, mapY, mapS, mapS, Color_Create(14, 22, 24, 240), Color_Create(44, 96, 108, 190));
 
     float invSpan = 1.0f / (2.0f * snap->arenaHalfSize);
-    /* Estanques */
+    /* Estanques y recursos moleculares destacados */
     for (unsigned i = 0; i < snap->resourceCount; ++i) {
-        if (snap->resources[i].category != ECO_WATER) continue;
-        float ux = (snap->resources[i].position.x + snap->arenaHalfSize) * invSpan;
-        float uz = (snap->resources[i].position.z + snap->arenaHalfSize) * invSpan;
-        float r = fmaxf(2.0f, snap->resources[i].radius * invSpan * mapS);
+        const EvolutionResourceSnapshot *rs = &snap->resources[i];
+        float ux = (rs->position.x + snap->arenaHalfSize) * invSpan;
+        float uz = (rs->position.z + snap->arenaHalfSize) * invSpan;
+        if (rs->molecular) {
+            if (rs->presentationModel == SUBSTANCE_MODEL_WATER) {
+                float r = fmaxf(2.0f, rs->radius * invSpan * mapS);
+                Color c = colorFromRgbFloat(rs->color);
+                OpenGLRenderer_DrawCircle2D(mapX + ux * mapS, mapY + uz * mapS, r,
+                                            Color_Create(c.r, c.g, c.b, 195), Color_Create(180, 224, 240, 190));
+            } else if (rs->presentationModel == SUBSTANCE_MODEL_CARCASS && rs->biomassFraction > 0.01f) {
+                OpenGLRenderer_DrawRect2D(mapX + ux * mapS - 1.5f, mapY + uz * mapS - 1.5f, 3.0f, 3.0f,
+                                          Color_Create(226, 110, 96, 230), Color_Create(0, 0, 0, 0));
+            }
+            continue;
+        }
+        if (rs->category != ECO_WATER) continue;
+        float r = fmaxf(2.0f, rs->radius * invSpan * mapS);
         OpenGLRenderer_DrawCircle2D(mapX + ux * mapS, mapY + uz * mapS, r,
                                     Color_Create(42, 128, 178, 190), Color_Create(82, 194, 230, 210));
     }
@@ -581,6 +966,7 @@ static void drawMinimap(int winW, int winH, const EvolutionRenderSnapshot *snap,
 static void printHelp(void) {
     puts("Uso: ./demos/demo_evolution_arena [OPCIONES]\n"
          "  --preset=small|medium|large|stress  --workers=N\n"
+         "  --metabolism=molecular|legacy  --metabolism-dir=DIR  --mixed-substances  --no-mixed-substances\n"
          "  --seed=N  --arena-size=N  --brumacernos=N (--herbivores=N)  --velkares=N (--carnivores=N)\n"
          "  --plants=N  --ponds=N  --obstacles=N  --capacity=N  --speed=1|2|4|16|64|max\n"
          "  --quality=low|medium|high  --width=W  --height=H  --show-perf  --minimap  --realtime\n"
@@ -588,7 +974,8 @@ static void printHelp(void) {
          "  --brain=PATH  --brumacerno-brain=PATH  --velkar-brain=PATH\n"
          "  --mutation-rate=N  --mutation-sigma=N  --replace-rate=N  --crossover=neuron|uniform|mutation-only\n"
          "  --no-physical-mutation  --scenario=reference|A|B|C|D|E  --recipes-dir=DIR\n"
-         "  --show-neural  --import-brain=PATH  --export-brain=PATH  --swap-brains=A:B\n"
+         "  --show-neural  --show-digestive  --show-substance  --inspect-resource=ID  --inspect-substance=SUB_ID\n"
+         "  --import-brain=PATH  --export-brain=PATH  --swap-brains=A:B\n"
          "  --frames=N  --capture=IMG.ppm  --profile=METRICS.json  --view=side|front|three-quarter|overview\n"
          "  --focus=ID  --capture-species=1|2  --capture-state=overview|adult|juvenile|newborn|walking|turning|drinking|feeding|hunting|attacking|fleeing|resting|mating\n"
          "  --zoom=N  --no-hud  --initial-age=S  --inspect=body|head|feet|neck  --validate-mouth=N  --validate-skinning  --cpu-skinning  --focus-lod=near|mid|far  --lod-cycle");
@@ -600,10 +987,13 @@ int main(int argc, char **argv) {
     unsigned frames = 0, validateMouthFrames = 0;
     const char *capture = NULL, *profile = NULL;
     const char *cliImportBrain = NULL, *cliExportBrain = NULL;
+    const char *cliInspectSubstance = NULL;
+    AIObjectId cliInspectResourceId = 0;
     AIObjectId cliSwapA = 0, cliSwapB = 0;
     double initialSpeed = 1.0, initialZoom = 26.0, initialAge = -1.0;
     bool initialMaxSpeed = false, zoomExplicit = false, qualityExplicit = false;
-    bool showHud = true, showNeural = false, showPerf = false, showMinimap = false, minimapExplicit = false;
+    bool showHud = true, showNeural = false, showDigestive = false, showSubstance = false;
+    bool showPerf = false, showMinimap = false, minimapExplicit = false;
     bool forceRealtime = false, forceStepLock = false;
     bool captured = false, validateSkin = false, forceCpu = false;
     int winW = ARENA_DEFAULT_W, winH = ARENA_DEFAULT_H;
@@ -634,6 +1024,28 @@ int main(int argc, char **argv) {
         const char *a = argv[i];
         if (!strcmp(a, "--help")) { printHelp(); return 0; }
         else if (!strncmp(a, "--scenario=", 11) || !strncmp(a, "--preset=", 9)) continue;
+        else if (!strncmp(a, "--metabolism=", 13)) {
+            if (!strcmp(a + 13, "molecular")) {
+                config.metabolismMode = ECOSYSTEM_METABOLISM_MOLECULAR;
+                config.includeMixedSubstances = true;
+            } else if (!strcmp(a + 13, "legacy")) {
+                config.metabolismMode = ECOSYSTEM_METABOLISM_LEGACY;
+                config.includeMixedSubstances = false;
+            } else return 2;
+        }
+        else if (!strncmp(a, "--metabolism-dir=", 17)) config.metabolismDir = a + 17;
+        else if (!strcmp(a, "--mixed-substances")) config.includeMixedSubstances = true;
+        else if (!strcmp(a, "--no-mixed-substances")) config.includeMixedSubstances = false;
+        else if (!strcmp(a, "--show-digestive")) showDigestive = true;
+        else if (!strcmp(a, "--show-substance")) showSubstance = true;
+        else if (!strncmp(a, "--inspect-resource=", 19)) {
+            cliInspectResourceId = (AIObjectId)strtoul(a + 19, NULL, 10);
+            showSubstance = true;
+        }
+        else if (!strncmp(a, "--inspect-substance=", 20)) {
+            cliInspectSubstance = a + 20;
+            showSubstance = true;
+        }
         else if (!strncmp(a, "--workers=", 10)) config.workers = (unsigned)strtoul(a + 10, NULL, 10);
         else if (!strncmp(a, "--seed=", 7)) config.seed = (uint32_t)strtoul(a + 7, NULL, 10);
         else if (!strncmp(a, "--arena-size=", 13)) config.arenaSize = strtof(a + 13, NULL);
@@ -943,11 +1355,13 @@ int main(int argc, char **argv) {
     char promptPath[256] = {0};
     uint64_t pendingExportCmd = 0, pendingImportCmd = 0;
 
-    /* Estado del inspector de red neuronal. */
+    /* Estado del inspector de red neuronal y sustancias. */
     float edgeThreshold = 0.35f;
     int inspectedLayer = -1, inspectedIndex = -1;
+    AIObjectId inspectedResourceId = cliInspectResourceId;
     UiButton btnExport = {0}, btnImport = {0}, btnCopy = {0}, btnPaste = {0}, btnSwap = {0}, btnReset = {0};
     UiButton btnThMinus = {0}, btnThPlus = {0}, btnClearSel = {0};
+    UiButton btnResPrev = {0}, btnResNext = {0};
     float inPos[NEURAL_RNN_INPUTS][2] = {{0}};
     float hidPos[NEURAL_RNN_HIDDEN][2] = {{0}};
     float outPos[NEURAL_RNN_OUTPUTS][2] = {{0}};
@@ -1048,7 +1462,7 @@ int main(int argc, char **argv) {
             }
             input.togglePause = input.toggleDebug = input.keyR = input.keyF = input.keyN = false;
             input.keyE = input.keyI = input.keyC = input.keyV = input.keyX = input.keyB = input.keyO = false;
-            input.keyP = input.keyQ = input.keyM = false;
+            input.keyP = input.keyQ = input.keyM = input.keyG = input.keyT = false;
             input.digitKey = -1;
             input.surfaceDebugNext = false;
             input.panForward = input.panRight = 0;
@@ -1113,6 +1527,24 @@ int main(int argc, char **argv) {
                 input.keyX = true; uiConsumedClick = true;
             } else if (hitRect(input.mouseX, input.mouseY, btnReset.x, btnReset.y, btnReset.w, btnReset.h)) {
                 input.keyB = true; uiConsumedClick = true;
+            } else if (showSubstance && hitRect(input.mouseX, input.mouseY, btnResPrev.x, btnResPrev.y, btnResPrev.w, btnResPrev.h)) {
+                uiConsumedClick = true;
+                if (snap->resourceCount > 0u) {
+                    unsigned curR = 0u;
+                    for (unsigned r = 0u; r < snap->resourceCount; ++r) {
+                        if (snap->resources[r].id == inspectedResourceId) { curR = r; break; }
+                    }
+                    inspectedResourceId = snap->resources[(curR + snap->resourceCount - 1u) % snap->resourceCount].id;
+                }
+            } else if (showSubstance && hitRect(input.mouseX, input.mouseY, btnResNext.x, btnResNext.y, btnResNext.w, btnResNext.h)) {
+                uiConsumedClick = true;
+                if (snap->resourceCount > 0u) {
+                    unsigned curR = 0u;
+                    for (unsigned r = 0u; r < snap->resourceCount; ++r) {
+                        if (snap->resources[r].id == inspectedResourceId) { curR = r; break; }
+                    }
+                    inspectedResourceId = snap->resources[(curR + 1u) % snap->resourceCount].id;
+                }
             } else if (showNeural && hitRect(input.mouseX, input.mouseY, 330.0f, 12.0f, 616.0f, 568.0f)) {
                 uiConsumedClick = true;
                 if (hitRect(input.mouseX, input.mouseY, btnThMinus.x, btnThMinus.y, btnThMinus.w, btnThMinus.h)) {
@@ -1164,8 +1596,21 @@ int main(int argc, char **argv) {
         if (input.togglePause) EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_TOGGLE_PAUSE);
         if (input.toggleDebug) debug = !debug;
         if (input.keyN) showNeural = !showNeural;
+        if (input.keyG) showDigestive = !showDigestive;
+        if (input.keyT) showSubstance = !showSubstance;
         if (input.keyP) showPerf = !showPerf;
         if (input.keyM) showMinimap = !showMinimap;
+        if (input.furDensityAdjust != 0 && snap->resourceCount > 0u) {
+            unsigned curR = 0u;
+            for (unsigned r = 0u; r < snap->resourceCount; ++r) {
+                if (snap->resources[r].id == inspectedResourceId) { curR = r; break; }
+            }
+            unsigned nextR = input.furDensityAdjust > 0
+                ? (curR + 1u) % snap->resourceCount
+                : (curR + snap->resourceCount - 1u) % snap->resourceCount;
+            inspectedResourceId = snap->resources[nextR].id;
+            showSubstance = true;
+        }
         if (input.keyQ) {
             quality = (QualityPreset)(((int)quality + 1) % 3);
             applyQualityBudget(&visual, quality);
@@ -1484,50 +1929,96 @@ int main(int argc, char **argv) {
             OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[4], envInstances.items, envInstances.count, false);
         }
 
-        /* Estanques de agua (1 llamada instanciada). */
+        /* Resolver recurso inspeccionado para el inspector de sustancias (T). */
+        const EvolutionResourceSnapshot *inspectedRes = findSnapResource(snap, inspectedResourceId);
+        if (cliInspectSubstance && (!inspectedRes || !strstr(inspectedRes->substanceId, cliInspectSubstance))) {
+            for (unsigned i = 0; i < snap->resourceCount; ++i) {
+                if (strstr(snap->resources[i].substanceId, cliInspectSubstance)) {
+                    inspectedRes = &snap->resources[i];
+                    inspectedResourceId = inspectedRes->id;
+                    break;
+                }
+            }
+        }
+        if (!inspectedRes && snap->resourceCount > 0u) {
+            inspectedRes = &snap->resources[0];
+            inspectedResourceId = inspectedRes->id;
+        }
+
+        /* Estanques de agua / sustancias de tipo WATER (1 llamada instanciada). */
         envInstances.count = 0;
+        bool anyMolecularPool = false;
         for (unsigned i = 0; i < snap->resourceCount; ++i) {
             const EvolutionResourceSnapshot *res = &snap->resources[i];
-            if (res->category != ECO_WATER) continue;
+            bool isPool = res->molecular ? (res->presentationModel == SUBSTANCE_MODEL_WATER)
+                                         : (res->category == ECO_WATER);
+            if (!isPool) continue;
+            if (res->molecular) anyMolecularPool = true;
+            Color tint = res->molecular ? colorFromRgbFloat(res->color) : decorColors[1];
             instanceBatchPush(&envInstances, (OpenGLMeshInstance){
                 .position = Vec3_Create(res->position.x, -0.02f, res->position.z),
                 .yaw = 0.0f, .scale = res->radius, .scaleY = fminf(res->radius, 1.5f),
-                .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[1]
+                .bobY = 0.0f, .leanPitch = 0.0f, .tint = tint
             });
-            lineBatchPushRing(&dynamicLines, res->position, res->radius, 0.03f, 20u, Color_FromRGB(74, 188, 224));
+            Color ringCol = res->molecular
+                ? Color_Create((unsigned char)fminf(255.0f, tint.r + 36.0f),
+                               (unsigned char)fminf(255.0f, tint.g + 46.0f),
+                               (unsigned char)fminf(255.0f, tint.b + 46.0f), 255)
+                : Color_FromRGB(74, 188, 224);
+            lineBatchPushRing(&dynamicLines, res->position, res->radius, 0.03f, 20u, ringCol);
         }
         if (envInstances.count > 0) {
-            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[1], envInstances.items, envInstances.count, false);
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[1], envInstances.items, envInstances.count, anyMolecularPool);
         }
 
-        /* Plantas (1 llamada instanciada). */
+        /* Plantas / frutos (1 llamada instanciada). */
         envInstances.count = 0;
+        bool anyMolecularPlant = false;
         for (unsigned i = 0; i < snap->resourceCount; ++i) {
             const EvolutionResourceSnapshot *res = &snap->resources[i];
-            if (res->category != ECO_PLANT || res->biomassFraction <= 0.001f) continue;
+            bool isPlantLike = res->molecular
+                ? (res->presentationModel == SUBSTANCE_MODEL_VEGETATION ||
+                   res->presentationModel == SUBSTANCE_MODEL_FRUIT)
+                : (res->category == ECO_PLANT);
+            if (!isPlantLike || res->biomassFraction <= 0.001f) continue;
+            if (res->molecular) anyMolecularPlant = true;
             float s = 0.3f + 1.4f * sqrtf(res->biomassFraction);
+            Color tint = res->molecular ? colorFromRgbFloat(res->color) : decorColors[2];
             instanceBatchPush(&envInstances, (OpenGLMeshInstance){
                 .position = res->position, .yaw = (float)(res->id % 17u) * 0.37f,
-                .scale = s, .scaleY = s, .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[2]
+                .scale = s, .scaleY = (res->molecular && res->presentationModel == SUBSTANCE_MODEL_FRUIT) ? s * 1.18f : s,
+                .bobY = 0.0f, .leanPitch = 0.0f, .tint = tint
             });
         }
         if (envInstances.count > 0) {
-            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[2], envInstances.items, envInstances.count, false);
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[2], envInstances.items, envInstances.count, anyMolecularPlant);
         }
 
-        /* Cadáveres/carne (1 llamada instanciada). */
+        /* Cadáveres/carne/genéricos (1 llamada instanciada). */
         envInstances.count = 0;
+        bool anyMolecularMeat = false;
         for (unsigned i = 0; i < snap->resourceCount; ++i) {
             const EvolutionResourceSnapshot *res = &snap->resources[i];
-            if (res->category == ECO_WATER || res->category == ECO_PLANT || res->biomassFraction <= 0.001f) continue;
+            bool isCarcassLike = res->molecular
+                ? (res->presentationModel == SUBSTANCE_MODEL_CARCASS ||
+                   res->presentationModel == SUBSTANCE_MODEL_GENERIC)
+                : (res->category != ECO_WATER && res->category != ECO_PLANT);
+            if (!isCarcassLike || res->biomassFraction <= 0.001f) continue;
+            if (res->molecular) anyMolecularMeat = true;
             float s = 0.3f + 1.4f * sqrtf(res->biomassFraction);
+            Color tint = res->molecular ? colorFromRgbFloat(res->color) : decorColors[3];
             instanceBatchPush(&envInstances, (OpenGLMeshInstance){
                 .position = res->position, .yaw = (float)(res->id % 13u) * 0.48f,
-                .scale = s, .scaleY = s, .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[3]
+                .scale = s, .scaleY = s, .bobY = 0.0f, .leanPitch = 0.0f, .tint = tint
             });
         }
         if (envInstances.count > 0) {
-            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[3], envInstances.items, envInstances.count, false);
+            OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[3], envInstances.items, envInstances.count, anyMolecularMeat);
+        }
+        if (showSubstance && inspectedRes && showHud) {
+            lineBatchPushRing(&dynamicLines, inspectedRes->position,
+                              fmaxf(0.85f, inspectedRes->radius + 0.35f), 0.09f, 24u,
+                              Color_FromRGB(252, 214, 96));
         }
 
         /* Obtener paquetes de dibujo de criaturas. */
@@ -1774,35 +2265,60 @@ int main(int argc, char **argv) {
             OpenGLRenderer_DrawRect2D(lx, ly, lw, lh, Color_Create(9, 15, 22, 226), Color_Create(42, 138, 158, 205));
             OpenGLRenderer_DrawRect2D(lx, ly, lw, 26.0f, Color_Create(14, 28, 39, 240), Color_Create(42, 138, 158, 205));
             char hdr[96];
-            snprintf(hdr, sizeof(hdr), "EVOLUTION ARENA  [%s]",
-                     snap->controller == CREATURE_CONTROLLER_NEURAL ? snap->founderModeName : "UTILITY");
-            OpenGLRenderer_DrawText2D(lx + 10.0f, ly + 7.0f, 1.35f, Color_Create(78, 222, 236, 255), hdr);
+            snprintf(hdr, sizeof(hdr), "EVOLUTION ARENA [%s%s]",
+                     snap->controller == CREATURE_CONTROLLER_NEURAL ? snap->founderModeName : "UTILITY",
+                     snap->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR ? "/MOL" : "");
+            OpenGLRenderer_DrawText2D(lx + 10.0f, ly + 7.0f, 1.32f, Color_Create(78, 222, 236, 255), hdr);
 
             unsigned minute = (unsigned)(snap->timeOfDay * 1440.0);
             char reqBuf[16];
             if (snap->maxSpeedMode) snprintf(reqBuf, sizeof(reqBuf), "MAX");
             else snprintf(reqBuf, sizeof(reqBuf), "%2.0fX", snap->requestedSpeed);
             char statsTxt[512];
-            snprintf(statsTxt, sizeof(statsTxt),
-                     "SEED %-6u  DAY %3.0f %02u:%02u\n"
-                     "REQ %-3s  ACH %5.1fX  %s%s\n"
-                     "POP %4u/%-4u GEN MAX %-2u\n"
-                     "BIRTHS %-4llu  DEATHS %-4llu\n"
-                     "STARV %-3llu DEHYD %-3llu PRED %-3llu\n"
-                     "AVG HP %.2f  AVG ENG %.2f\n"
-                     "BIOMASS %5.0f  DIV %.3f\n"
-                     "LINEAGES %-3u  W:%u Q:%s",
-                     config.seed, floor(snap->days), minute / 60, minute % 60,
-                     reqBuf, snap->achievedSpeed, snap->paused ? "PAUSE" : "RUN",
-                     snap->behind ? " LIM" : "",
-                     snap->entityCount, snap->capacity, snap->statistics.maximumGeneration,
-                     (unsigned long long)snap->statistics.births, (unsigned long long)snap->statistics.deaths,
-                     (unsigned long long)snap->statistics.deathCauses[DEATH_STARVATION],
-                     (unsigned long long)snap->statistics.deathCauses[DEATH_DEHYDRATION],
-                     (unsigned long long)snap->statistics.deathCauses[DEATH_PREDATION],
-                     snap->statistics.averageHealth, snap->statistics.averageEnergy,
-                     snap->statistics.plantBiomass, snap->statistics.neuralDiversity,
-                     snap->statistics.activeLineages, snap->workerCount, qualityName(quality));
+            if (snap->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
+                snprintf(statsTxt, sizeof(statsTxt),
+                         "SEED %-6u  DAY %3.0f %02u:%02u\n"
+                         "REQ %-3s  ACH %5.1fX  %s%s\n"
+                         "POP %4u/%-4u GEN MAX %-2u\n"
+                         "BIRTHS %-4llu  DEATHS %-4llu\n"
+                         "STV %-3llu DHY %-3llu PRD %-3llu TOX %-3llu\n"
+                         "AVG HP %.2f  AVG ENG %.2f\n"
+                         "INGEST %5.0f  DIV %.3f\n"
+                         "LINEAGES %-3u  W:%u Q:%s",
+                         config.seed, floor(snap->days), minute / 60, minute % 60,
+                         reqBuf, snap->achievedSpeed, snap->paused ? "PAUSE" : "RUN",
+                         snap->behind ? " LIM" : "",
+                         snap->entityCount, snap->capacity, snap->statistics.maximumGeneration,
+                         (unsigned long long)snap->statistics.births, (unsigned long long)snap->statistics.deaths,
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_STARVATION],
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_DEHYDRATION],
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_PREDATION],
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_TOXICITY],
+                         snap->statistics.averageHealth, snap->statistics.averageEnergy,
+                         snap->statistics.totalIngestedMass, snap->statistics.neuralDiversity,
+                         snap->statistics.activeLineages, snap->workerCount, qualityName(quality));
+            } else {
+                snprintf(statsTxt, sizeof(statsTxt),
+                         "SEED %-6u  DAY %3.0f %02u:%02u\n"
+                         "REQ %-3s  ACH %5.1fX  %s%s\n"
+                         "POP %4u/%-4u GEN MAX %-2u\n"
+                         "BIRTHS %-4llu  DEATHS %-4llu\n"
+                         "STARV %-3llu DEHYD %-3llu PRED %-3llu\n"
+                         "AVG HP %.2f  AVG ENG %.2f\n"
+                         "BIOMASS %5.0f  DIV %.3f\n"
+                         "LINEAGES %-3u  W:%u Q:%s",
+                         config.seed, floor(snap->days), minute / 60, minute % 60,
+                         reqBuf, snap->achievedSpeed, snap->paused ? "PAUSE" : "RUN",
+                         snap->behind ? " LIM" : "",
+                         snap->entityCount, snap->capacity, snap->statistics.maximumGeneration,
+                         (unsigned long long)snap->statistics.births, (unsigned long long)snap->statistics.deaths,
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_STARVATION],
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_DEHYDRATION],
+                         (unsigned long long)snap->statistics.deathCauses[DEATH_PREDATION],
+                         snap->statistics.averageHealth, snap->statistics.averageEnergy,
+                         snap->statistics.plantBiomass, snap->statistics.neuralDiversity,
+                         snap->statistics.activeLineages, snap->workerCount, qualityName(quality));
+            }
             OpenGLRenderer_DrawText2D(lx + 10.0f, ly + 36.0f, 1.35f, Color_Create(218, 234, 240, 255), statsTxt);
 
             float gy = ly + 258.0f;
@@ -1911,25 +2427,51 @@ int main(int argc, char **argv) {
 
                 const char *reproStr = selected->gestating ? "GESTATING"
                                        : selected->mateReady ? "READY" : "WAIT";
+                const char *intentStr = "UTILITY";
+                const char *archStr = "LEGACY_UTILITY";
+                if (ds && ds->controllerType == CREATURE_CONTROLLER_NEURAL) {
+                    if (ng && ng->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+                        intentStr = NeuralV2Action_Name(ds->neuralState.v2.selectedAction);
+                        archStr = "CAND_POLICY_V2 1416P";
+                    } else {
+                        intentStr = NeuralActionIntent_Name(ds->neuralState.selectedIntent);
+                        archStr = "FIXED_RNN 32-12-10";
+                    }
+                }
                 char mindTxt[384];
-                snprintf(mindTxt, sizeof(mindTxt),
-                         "INTENT  %s\n"
-                         "ACTION  %s\n"
-                         "TARGET  #%u  REPRO %s\n"
-                         "OUTCOME %s\n"
-                         "FB F:%.1f I:%.1f D:%.1f\n"
-                         "ARCH    %s\n"
-                         "FP      %016llX",
-                         (ds && ds->controllerType == CREATURE_CONTROLLER_NEURAL)
-                             ? NeuralActionIntent_Name(ds->neuralState.selectedIntent) : "UTILITY",
-                         CreatureAction_Name(selected->action),
-                         selected->targetId, reproStr,
-                         ds ? NeuralInteractionOutcome_Name(ds->neuralState.lastOutcome) : "NONE",
-                         ds ? ds->neuralState.lastFeedback[0] : 0.0f,
-                         ds ? ds->neuralState.lastFeedback[1] : 0.0f,
-                         ds ? ds->neuralState.lastFeedback[2] : 0.0f,
-                         ng ? "FIXED_RNN 32-12-10" : "LEGACY_UTILITY",
-                         (unsigned long long)(ng ? ng->metadata.fingerprint : 0u));
+                if (ds && ds->hasMetabolism) {
+                    snprintf(mindTxt, sizeof(mindTxt),
+                             "INTENT  %s\n"
+                             "ACTION  %s\n"
+                             "TARGET  #%u  REPRO %s\n"
+                             "OUTCOME %s\n"
+                             "FULL %.0f%% TOX %.0f%% NUT %.0f%%\n"
+                             "ARCH    %s\n"
+                             "FP      %016llX",
+                             intentStr, CreatureAction_Name(selected->action),
+                             selected->targetId, reproStr,
+                             NeuralInteractionOutcome_Name(ds->neuralState.lastOutcome),
+                             ds->digestiveFullness * 100.0f, ds->toxicity * 100.0f, ds->nutrientReserve * 100.0f,
+                             archStr,
+                             (unsigned long long)(ng ? ng->metadata.fingerprint : 0u));
+                } else {
+                    snprintf(mindTxt, sizeof(mindTxt),
+                             "INTENT  %s\n"
+                             "ACTION  %s\n"
+                             "TARGET  #%u  REPRO %s\n"
+                             "OUTCOME %s\n"
+                             "FB F:%.1f I:%.1f D:%.1f\n"
+                             "ARCH    %s\n"
+                             "FP      %016llX",
+                             intentStr, CreatureAction_Name(selected->action),
+                             selected->targetId, reproStr,
+                             ds ? NeuralInteractionOutcome_Name(ds->neuralState.lastOutcome) : "NONE",
+                             ds ? ds->neuralState.lastFeedback[0] : 0.0f,
+                             ds ? ds->neuralState.lastFeedback[1] : 0.0f,
+                             ds ? ds->neuralState.lastFeedback[2] : 0.0f,
+                             archStr,
+                             (unsigned long long)(ng ? ng->metadata.fingerprint : 0u));
+                }
                 OpenGLRenderer_DrawText2D(rx + 10.0f, ry + 172.0f, 1.3f, Color_Create(212, 232, 240, 255), mindTxt);
 
                 float by1 = ry + 322.0f, by2 = ry + 350.0f, bw = 92.0f, bh = 24.0f;
@@ -1973,8 +2515,18 @@ int main(int argc, char **argv) {
 
             /* 3) Inspector de Red Neuronal en vivo (N). */
             if (showNeural) {
-                drawNeuralInspector(&snap->selected, edgeThreshold, inspectedLayer, inspectedIndex,
+                drawNeuralInspector(snap, &snap->selected, edgeThreshold, inspectedLayer, inspectedIndex,
                                     &btnThMinus, &btnThPlus, &btnClearSel, inPos, hidPos, outPos);
+            }
+
+            /* 3b) Inspector Digestivo y Metabólico en vivo (G). */
+            if (showDigestive) {
+                drawDigestiveInspector(winW, winH, showMinimap, &snap->selected);
+            }
+
+            /* 3c) Inspector de Sustancias y Composición Molecular (T). */
+            if (showSubstance) {
+                drawSubstanceInspector(winH, showPerf, snap, inspectedRes, &btnResPrev, &btnResNext);
             }
 
             /* 4) Minimapa cenital de densidad poblacional (M). */
@@ -1999,8 +2551,8 @@ int main(int argc, char **argv) {
             /* 6) Barra inferior de controles y rendimiento. */
             OpenGLRenderer_DrawRect2D(12.0f, (float)winH - 36.0f, (float)winW - 24.0f, 26.0f,
                                       Color_Create(9, 15, 22, 220), Color_Create(38, 108, 126, 175));
-            OpenGLRenderer_DrawText2D(20.0f, (float)winH - 28.0f, 1.15f, Color_Create(168, 206, 218, 255),
-                                      "SPACE:PAUSE 1-5:1X/4X/16X/64X/MAX P:PERF Q:QLT M:MAP N:RNN O:TOP F:FOL D:DBG E/I/C/V/X/B:BRAIN R:RST");
+            OpenGLRenderer_DrawText2D(20.0f, (float)winH - 28.0f, 1.12f, Color_Create(168, 206, 218, 255),
+                                      "SPC:PAUSE 1-5:SPD P:PERF Q:QLT M:MAP N:RNN G:DIG T:SUB O:TOP F:FOL D:DBG E/I/C/V/X/B:BRAIN R:RST");
             double renderCpu = (OpenGLDemoWindow_Time() - start) * 1000.0;
             char fpsBuf[64];
             snprintf(fpsBuf, sizeof(fpsBuf), "FPS %2.0f  %.1fMS", displayedFps, renderCpu);

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "fruit",
+  "name": "Wild Fruit",
+  "composition": {
+    "water": 0.72,
+    "simple_carbohydrates": 0.18,
+    "cellulose": 0.05,
+    "proteins": 0.02,
+    "minerals": 0.03
+  },
+  "physical_properties": {
+    "phase": "solid",
+    "hardness": 0.12
+  },
+  "presentation": {
+    "model": "fruit",
+    "color": [0.85, 0.42, 0.16]
+  }
+}

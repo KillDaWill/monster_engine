@@ -11,10 +11,17 @@ typedef struct PerceptionEntry {
     unsigned group, species, category, foodCategory;
     bool available, reproductiveReady;
     Vector3 position;
+    Vector3 velocity;
     float radius, maximumSpeed;
     double observed;
     bool visible, drinkable;
     double unreachableUntil;
+    /* Instantánea observable capturada únicamente en el último evento de percepción válido. */
+    bool molecularResource;
+    uint8_t substancePhase;
+    float hardness;
+    float availabilityFraction;
+    SensorySignature sensorySignature;
 } PerceptionEntry;
 typedef struct CreaturePerception {
     PerceptionEntry entries[CREATURE_MEMORY_CAPACITY];

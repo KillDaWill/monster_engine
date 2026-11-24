@@ -118,6 +118,12 @@ La geometría de los monstruos se define mediante **Signed Distance Fields (SDF)
 - **`CreatureNavigation` (`include/CreatureNavigation.h`)**: Navegación en plano XZ mediante búsqueda A*, reutilización de trayectorias, llegada suave y detección de estancamiento.
 - **`CreatureMotor` (`include/CreatureMotor.h`)**: Conversión continua de intenciones a rumbo angular, aceleración y maniobras de marcha atrás.
 - **`CreatureActions` (`include/CreatureActions.h`)**: Máquina de estados persistente para búsqueda, aproximación, bebida en orilla, descanso y evasión.
+
+### ⚗️ Metabolismo Molecular, Controlador Neuronal V2 y Brain Evolution Lab
+
+- **Metabolismo molecular basado en datos (`metabolism/`, `MoleculeRegistry`, `SubstanceRegistry`, `MetabolicProfile`, `MetabolicState`, `CreatureMetabolism`, `MetabolismIO`)**: sustancias compuestas por mezclas moleculares extensibles vía JSON sin recompilar, digestión progresiva acotada, residuos, toxicidad y `DEATH_TOXICITY`, con ingestión física y ataque completamente desacoplados de la compatibilidad metabólica. Ver [docs/MOLECULAR_METABOLISM.md](docs/MOLECULAR_METABOLISM.md).
+- **Controlador neuronal genérico v2 (`NeuralControllerV2`, `recurrent_candidate_policy`)**: red recurrente equivariante a permutaciones (`1.416` parámetros) con evaluadores compartidos de recursos y criaturas percibidos, retroalimentación metabólica desagregada y cero neuronas específicas por dieta. Ver [docs/NEURAL_CONTROLLER_V2.md](docs/NEURAL_CONTROLLER_V2.md).
+- **Brain Evolution Lab (`demos/demo_brain_evolution_lab`, `demos/demo_brain_evolution_lab_headless`, `species/`, `environments/`)**: entrenamiento evolutivo paralelo determinista con aptitud fisiológica pura, currículo progresivo, checkpoints atómicos verificados por huellas, validación ciega y viewport 3D independiente de replay. Ver [docs/BRAIN_EVOLUTION_LAB.md](docs/BRAIN_EVOLUTION_LAB.md).
 - **`AnatomicalReach` (`include/AnatomicalReach.h`)**: Cinemática inversa cervical (CCD acotado) que orienta el landmark oral exacto al recurso sin desplazar los apoyos plantares ni el tórax.
 - **`CreatureBoundary` (`include/CreatureBoundary.h`)**: Contención y colisión volumétrica continua contra los límites del escenario y obstáculos.
 

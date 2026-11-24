@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "id": "omnivore_test",
+  "name": "Omnivore Test Species",
+  "recipe": "recipes/brumacerno.creature.json",
+  "recipe_id": 3,
+  "metabolism": "omnivore_test",
+  "tissue_substance": "brumacerno_tissue",
+  "tissue_mass": 4.2,
+  "starting_brain": null,
+  "physical": {
+    "speed": 2.45,
+    "radius": 0.88,
+    "oral_reach": 1.65,
+    "attack_range": 1.45,
+    "damage": 0.18,
+    "attack_cooldown": 1.1,
+    "attack_cost": 0.009,
+    "turn_rate": 1.7,
+    "can_attack": true,
+    "water_interaction": true,
+    "anatomical_oral": true
+  },
+  "physiology": {
+    "basal_cost": 0.0022,
+    "hydration_cost": 0.0030,
+    "movement_cost": 0.0007,
+    "starvation_damage": 0.018,
+    "dehydration_damage": 0.025,
+    "recovery_rate": 0.002,
+    "fatigue_rate": 0.0015,
+    "rest_rate": 0.04,
+    "maturity_age": 120.0,
+    "old_age": 1300.0,
+    "maximum_age": 1800.0
+  },
+  "reproduction": {
+    "cooldown": 100.0,
+    "gestation": 45.0,
+    "maximum_age": 1400.0,
+    "offspring": 1,
+    "minimum_energy": 0.65,
+    "minimum_health": 0.80,
+    "energy_cost": 0.14
+  },
+  "perception": {
+    "range": 14.0,
+    "horizontal_fov": 5.5,
+    "vertical_fov": 3.14,
+    "interval": 0.2,
+    "memory_duration": 30.0
+  }
+}

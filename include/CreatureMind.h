@@ -31,8 +31,9 @@ typedef struct CreatureMind {
     float contactTime;
     unsigned completedMeals, repositionAttempts;
     unsigned drinks, completedDrinks, actionFailures;
-    bool externalPhysiology, transactionalIntake;
+    bool externalPhysiology, transactionalIntake, molecularMode;
     float intakeRequested;
+    float intakeMassRequested; /**< Solicitud física de masa (u_m) en modo molecular. */
     CreatureNeed intakeNeed;
     CreatureIntent intent;
 } CreatureMind;
@@ -79,4 +80,12 @@ void CreatureMind_RecordDamage(CreatureMind *, float damage);
 
 /** @brief Registra el resultado de la última interacción física para inspección. */
 void CreatureMind_RecordOutcome(CreatureMind *, NeuralInteractionOutcome);
+
+/** @brief Registra masa física ingerida confirmada (separada del beneficio nutricional). */
+void CreatureMind_RecordIngestion(CreatureMind *, float confirmedMass);
+
+/** @brief Enclava consecuencias metabólicas reales entre pasos de inferencia neural. */
+void CreatureMind_RecordMetabolicEffects(CreatureMind *, float energyAbsorbed, float waterAbsorbed,
+                                         float nutrientsAbsorbed, float toxicityDelta,
+                                         float metabolicDamage);
 #endif

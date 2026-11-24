@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "id": "molecular_generalization",
+  "name": "Molecular Generalization Test Arena",
+  "description": "Stage 6 unseen layout with fruit, mixed substances, obstacles, and background competition.",
+  "arena_size": 38.0,
+  "episode_seconds": 300.0,
+  "focal_initial": {
+    "energy_min": 0.42,
+    "energy_max": 0.50,
+    "hydration_min": 0.48,
+    "hydration_max": 0.56,
+    "nutrients": 0.50,
+    "age": 240.0,
+    "spawn_radius": 3.0
+  },
+  "obstacles": {
+    "count": 4,
+    "min_radius": 0.95,
+    "max_radius": 1.35,
+    "height": 2.2
+  },
+  "resources": [
+    {
+      "substance": "fruit",
+      "count": 3,
+      "initial_mass": 1.6,
+      "max_mass": 1.6,
+      "radius": 0.75,
+      "regen_policy": "deplete_relocate",
+      "respawn_delay": 65.0,
+      "rarity": 0.45,
+      "min_relocate_dist": 10.0,
+      "distribution": "scattered",
+      "min_spacing": 8.0,
+      "decay_policy": "none",
+      "min_dist": 4.0,
+      "max_dist": 13.5
+    },
+    {
+      "substance": "grass",
+      "count": 7,
+      "initial_mass": 2.4,
+      "max_mass": 2.4,
+      "radius": 0.85,
+      "regen_policy": "deplete_relocate",
+      "respawn_delay": 15.0,
+      "rarity": 0.90,
+      "min_relocate_dist": 8.0,
+      "distribution": "clustered",
+      "cluster_count": 3,
+      "cluster_radius": 3.5,
+      "decay_policy": "none",
+      "min_dist": 3.5,
+      "max_dist": 13.5
+    },
+    {
+      "substance": "fresh_meat",
+      "count": 4,
+      "initial_mass": 4.2,
+      "max_mass": 4.2,
+      "radius": 0.80,
+      "regen_policy": "none",
+      "regen_rate": 0.0,
+      "decay_policy": "decompose",
+      "lifetime": 320.0,
+      "decay_rate": 0.003,
+      "min_dist": 3.5,
+      "max_dist": 12.5
+    },
+    {
+      "substance": "toxic_plant",
+      "count": 3,
+      "initial_mass": 3.5,
+      "max_mass": 3.5,
+      "radius": 0.75,
+      "regen_policy": "linear",
+      "regen_rate": 0.01,
+      "decay_policy": "none",
+      "min_dist": 4.0,
+      "max_dist": 13.0
+    },
+    {
+      "substance": "deadly_nightshade",
+      "count": 2,
+      "initial_mass": 1.8,
+      "max_mass": 1.8,
+      "radius": 0.68,
+      "regen_policy": "deplete_relocate",
+      "respawn_delay": 45.0,
+      "rarity": 0.60,
+      "min_relocate_dist": 9.0,
+      "distribution": "scattered",
+      "min_spacing": 8.0,
+      "decay_policy": "none",
+      "min_dist": 4.0,
+      "max_dist": 13.0
+    },
+    {
+      "substance": "woody_bark",
+      "count": 2,
+      "initial_mass": 4.0,
+      "max_mass": 4.0,
+      "radius": 0.75,
+      "regen_policy": "none",
+      "regen_rate": 0.0,
+      "decay_policy": "none",
+      "min_dist": 4.0,
+      "max_dist": 13.0
+    },
+    {
+      "substance": "clean_water",
+      "count": 2,
+      "initial_mass": 0.0,
+      "max_mass": 0.0,
+      "radius": 1.45,
+      "regen_policy": "infinite",
+      "regen_rate": 0.0,
+      "decay_policy": "none",
+      "min_dist": 5.0,
+      "max_dist": 11.5
+    },
+    {
+      "substance": "contaminated_water",
+      "count": 1,
+      "initial_mass": 0.0,
+      "max_mass": 0.0,
+      "radius": 1.35,
+      "regen_policy": "infinite",
+      "regen_rate": 0.0,
+      "decay_policy": "none",
+      "min_dist": 6.0,
+      "max_dist": 12.5
+    }
+  ],
+  "background_creatures": [
+    {
+      "species": "species/brumacerno.species.json",
+      "count": 2,
+      "policy": "wander",
+      "brain": null,
+      "initial_energy": 0.90,
+      "initial_hydration": 0.90,
+      "initial_health": 1.0,
+      "speed_scale": 0.85,
+      "min_dist": 5.5,
+      "max_dist": 12.0
+    }
+  ]
+}

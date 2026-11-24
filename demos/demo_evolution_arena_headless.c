@@ -53,6 +53,9 @@ static void printHelp(void) {
          "  --fixed-dt=N                 Paso fijo en segundos (defecto 1/60)\n"
          "  --day-duration=N             Segundos simulados por día (defecto 120)\n"
          "  --controller=neural|utility  Controlador conductual (defecto neural)\n"
+         "  --metabolism=molecular|legacy Modo metabólico (molecular usa cerebros v2)\n"
+         "  --metabolism-dir=DIR         Directorio molecular (defecto metabolism)\n"
+         "  --mixed-substances           Incluye fruta, plantas tóxicas, carroña y agua contaminada\n"
          "  --founders=random|seeded|imported  Inicialización de fundadores (defecto seeded)\n"
          "  --brain=ARCHIVO              Archivo *.brain.json común para fundadores\n"
          "  --brumacerno-brain=ARCHIVO   Archivo *.brain.json para fundadores Brumacerno\n"
@@ -105,6 +108,18 @@ int main(int argc, char **argv) {
         if (strcmp(a, "--help") == 0) { printHelp(); return 0; }
         if (strcmp(a, "--trace") == 0) { trace = true; continue; }
         if (strcmp(a, "--no-physical-mutation") == 0) { cfg.disablePhysicalMutation = true; continue; }
+        if (strcmp(a, "--mixed-substances") == 0) { cfg.includeMixedSubstances = true; continue; }
+        if (strncmp(a, "--metabolism-dir=", 17) == 0) { cfg.metabolismDir = a + 17; continue; }
+        if (strncmp(a, "--metabolism=", 13) == 0) {
+            const char *v = a + 13;
+            if (strcmp(v, "molecular") == 0) {
+                cfg.metabolismMode = ECOSYSTEM_METABOLISM_MOLECULAR;
+                if (cfg.founderMode == EVOLUTION_FOUNDERS_SEEDED) cfg.founderMode = EVOLUTION_FOUNDERS_RANDOM;
+            } else if (strcmp(v, "legacy") == 0) {
+                cfg.metabolismMode = ECOSYSTEM_METABOLISM_LEGACY;
+            } else goto invalid;
+            continue;
+        }
         if (strncmp(a, "--preset=", 9) == 0) continue;
         if (strncmp(a, "--scenario=", 11) == 0) continue;
         if (strncmp(a, "--summary=", 10) == 0) { summaryPath = a + 10; continue; }

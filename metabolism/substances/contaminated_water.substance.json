@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "contaminated_water",
+  "name": "Contaminated Water",
+  "composition": {
+    "water": 0.88,
+    "minerals": 0.02,
+    "organic_toxins": 0.10
+  },
+  "physical_properties": {
+    "phase": "liquid",
+    "hardness": 0.0
+  },
+  "presentation": {
+    "model": "water",
+    "color": [0.30, 0.50, 0.36]
+  }
+}

@@ -112,3 +112,26 @@ Todas las semillas sostienen una población activa de 235–254 individuos tras 
 - `make evolution-tsan` (ThreadSanitizer sobre paralelismo determinista y `EvolutionSimulationRunner`): **PASS (0 advertencias de carreras de datos)**.
 - `python3 tools/validate_evolution_arena.py --visual`: **13 / 13 capturas visuales PASS**.
 - `make validate-ecosystem`: verificado compatible con la simulación autoritativa.
+
+---
+
+## 7. Rendimiento con Metabolismo Molecular y Controlador V2
+
+Medido con `make benchmark-molecular-evolution` (GCC `-O2`, 6 hilos auto, RTX 3050 Laptop GPU):
+
+### Escalabilidad sostenida: Legado v1 vs. Molecular v2 (`22..1.000` criaturas)
+
+| Caso | Criaturas | Hilos | Media/tick | P95 | P99 | Ticks/s | Metabolismo | RSS |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `legacy_v1_22` | 22 | 1 | `0,129 ms` | `0,563 ms` | `0,736 ms` | `7.725` | — | `506 MB` |
+| `molecular_v2_22` | 22 | 1 | `0,110 ms` | `0,238 ms` | `0,844 ms` | `9.100` | `0,000 ms` | `506 MB` |
+| `legacy_v1_100` | 100 | 6 | `0,203 ms` | `0,531 ms` | `0,627 ms` | `4.922` | — | `506 MB` |
+| `molecular_v2_100` | 100 | 6 | `0,134 ms` | `0,234 ms` | `0,945 ms` | `7.453` | `0,000 ms` | `506 MB` |
+| `legacy_v1_500` | 500 | 6 | `0,394 ms` | `0,522 ms` | `1,028 ms` | `2.535` | — | `506 MB` |
+| `molecular_v2_500` | 500 | 6 | `0,558 ms` | `1,123 ms` | `1,829 ms` | `1.792` | `0,001 ms` | `506 MB` |
+| `legacy_v1_1000` | 1.000 | 6 | `0,889 ms` | `1,088 ms` | `1,752 ms` | `1.125` | — | `506 MB` |
+| `molecular_v2_1000` | 1.000 | 6 | `1,188 ms` | `2,195 ms` | `2,378 ms` | `842` | `0,002 ms` | `506 MB` |
+
+- **Desglose metabólico a 500 criaturas:** tracto vacío `0,530 ms/tick` (`1.887 ticks/s`) vs. digestión activa simultánea + sustancias mixtas + 20 cadáveres descomponiéndose `0,610 ms/tick` (`1.640 ticks/s`, sobrecoste total `+0,08 ms/tick`).
+- **Presentación visual 500 criaturas en modo molecular (`--preset=large --metabolism=molecular --mixed-substances --realtime`):** `mean_ms = 3,59 ms`, `P95 = 4,07 ms`, `P99 = 4,96 ms`, `render_mean_ms = 1,81 ms`, `gpu_mean_ms = 2,37 ms`, `8` draw calls totales (`5` instanciadas para ~1.312 objetos), RSS pico `190 MB`.
+- **Escalado Brain Evolution Lab (`144` episodios):** `1` hilo `2,665 s` (`54,0 eps/s`) -> `6` hilos `0,601 s` (`4,44×`, `239,7 eps/s`, `2,83 M ticks/s`) -> `8` hilos `0,540 s` (`4,94×`, `266,7 eps/s`, `3,15 M ticks/s`), con determinismo bit a bit exacto.

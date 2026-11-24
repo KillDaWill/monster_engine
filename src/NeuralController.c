@@ -80,6 +80,9 @@ const char *NeuralInteractionOutcome_Name(NeuralInteractionOutcome outcome) {
     case NEURAL_OUTCOME_FAILED_ATTACK:  return "FAILED_ATTACK";
     case NEURAL_OUTCOME_FAILED_MATE:    return "FAILED_MATE";
     case NEURAL_OUTCOME_TOOK_DAMAGE:    return "TOOK_DAMAGE";
+    case NEURAL_OUTCOME_INGESTED_SUBSTANCE: return "INGESTED";
+    case NEURAL_OUTCOME_STOMACH_FULL:   return "STOMACH_FULL";
+    case NEURAL_OUTCOME_METABOLIC_DAMAGE: return "METABOLIC_DMG";
     default:                            return "UNKNOWN";
     }
 }

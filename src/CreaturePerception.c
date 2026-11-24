@@ -64,12 +64,18 @@ static void processCandidate(CreaturePerception *p, const PerceptionProfile *cfg
         .available = o->available,
         .reproductiveReady = o->reproductiveReady,
         .position = o->position,
+        .velocity = o->velocity,
         .radius = o->radius,
         .maximumSpeed = o->maximumSpeed,
         .observed = time,
         .visible = true,
         .drinkable = o->drinkable,
-        .unreachableUntil = unreachable
+        .unreachableUntil = unreachable,
+        .molecularResource = o->molecularResource,
+        .substancePhase = o->substancePhase,
+        .hardness = o->hardness,
+        .availabilityFraction = o->availabilityFraction,
+        .sensorySignature = o->sensorySignature
     };
 }
 

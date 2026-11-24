@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "toxic_plant",
+  "name": "Bitter Toxic Plant",
+  "composition": {
+    "water": 0.58,
+    "cellulose": 0.16,
+    "indigestible_fiber": 0.12,
+    "organic_toxins": 0.12,
+    "minerals": 0.02
+  },
+  "physical_properties": {
+    "phase": "solid",
+    "hardness": 0.22
+  },
+  "presentation": {
+    "model": "vegetation",
+    "color": [0.46, 0.24, 0.54]
+  }
+}

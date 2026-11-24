@@ -114,25 +114,71 @@ bool NeuralBrain_SerializeJSON(const NeuralGenome *genome, char *out, size_t out
     jwAppendf(&w, "  \"recurrent_update\": \"simultaneous\",\n");
     jwAppendf(&w, "  \"matrix_layout\": \"row_major\",\n");
     jwAppendf(&w, "  \"precision\": \"float32\",\n");
-    jwAppendf(&w, "  \"topology\": {\n");
-    jwAppendf(&w, "    \"inputs\": %u,\n", genome->inputCount);
-    jwAppendf(&w, "    \"hidden\": %u,\n", genome->hiddenCount);
-    jwAppendf(&w, "    \"outputs\": %u\n", genome->outputCount);
-    jwAppendf(&w, "  },\n");
-    jwAppendf(&w, "  \"weights\": {\n");
-    jwAppendf(&w, "    \"w_xh\": ");
-    jwFloatArray(&w, genome->w_xh, NEURAL_RNN_W_XH_COUNT, 16u);
-    jwAppendf(&w, ",\n    \"w_hh\": ");
-    jwFloatArray(&w, genome->w_hh, NEURAL_RNN_W_HH_COUNT, 12u);
-    jwAppendf(&w, ",\n    \"w_hy\": ");
-    jwFloatArray(&w, genome->w_hy, NEURAL_RNN_W_HY_COUNT, 12u);
-    jwAppendf(&w, "\n  },\n");
-    jwAppendf(&w, "  \"biases\": {\n");
-    jwAppendf(&w, "    \"b_h\": ");
-    jwFloatArray(&w, genome->b_h, NEURAL_RNN_B_H_COUNT, 12u);
-    jwAppendf(&w, ",\n    \"b_y\": ");
-    jwFloatArray(&w, genome->b_y, NEURAL_RNN_B_Y_COUNT, 10u);
-    jwAppendf(&w, "\n  },\n");
+    if (genome->architecture == NEURAL_ARCH_FIXED_RNN) {
+        jwAppendf(&w, "  \"topology\": {\n");
+        jwAppendf(&w, "    \"inputs\": %u,\n", genome->inputCount);
+        jwAppendf(&w, "    \"hidden\": %u,\n", genome->hiddenCount);
+        jwAppendf(&w, "    \"outputs\": %u\n", genome->outputCount);
+        jwAppendf(&w, "  },\n");
+        jwAppendf(&w, "  \"weights\": {\n");
+        jwAppendf(&w, "    \"w_xh\": ");
+        jwFloatArray(&w, genome->w_xh, NEURAL_RNN_W_XH_COUNT, 16u);
+        jwAppendf(&w, ",\n    \"w_hh\": ");
+        jwFloatArray(&w, genome->w_hh, NEURAL_RNN_W_HH_COUNT, 12u);
+        jwAppendf(&w, ",\n    \"w_hy\": ");
+        jwFloatArray(&w, genome->w_hy, NEURAL_RNN_W_HY_COUNT, 12u);
+        jwAppendf(&w, "\n  },\n");
+        jwAppendf(&w, "  \"biases\": {\n");
+        jwAppendf(&w, "    \"b_h\": ");
+        jwFloatArray(&w, genome->b_h, NEURAL_RNN_B_H_COUNT, 12u);
+        jwAppendf(&w, ",\n    \"b_y\": ");
+        jwFloatArray(&w, genome->b_y, NEURAL_RNN_B_Y_COUNT, 10u);
+        jwAppendf(&w, "\n  },\n");
+    } else if (genome->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        const NeuralCandidatePolicyParams *p = &genome->v2;
+        jwAppendf(&w, "  \"topology\": {\n");
+        jwAppendf(&w, "    \"context_inputs\": %u,\n", NEURAL_V2_CONTEXT_INPUTS);
+        jwAppendf(&w, "    \"context_hidden\": %u,\n", NEURAL_V2_CONTEXT_HIDDEN);
+        jwAppendf(&w, "    \"global_actions\": %u,\n", NEURAL_V2_GLOBAL_ACTIONS);
+        jwAppendf(&w, "    \"resource_features\": %u,\n", NEURAL_V2_RES_FEAT);
+        jwAppendf(&w, "    \"resource_hidden\": %u,\n", NEURAL_V2_RES_HIDDEN);
+        jwAppendf(&w, "    \"max_resource_candidates\": %u,\n", NEURAL_V2_MAX_RESOURCE_CANDIDATES);
+        jwAppendf(&w, "    \"creature_features\": %u,\n", NEURAL_V2_CRE_FEAT);
+        jwAppendf(&w, "    \"creature_hidden\": %u,\n", NEURAL_V2_CRE_HIDDEN);
+        jwAppendf(&w, "    \"creature_actions\": %u,\n", NEURAL_V2_CRE_ACTIONS);
+        jwAppendf(&w, "    \"max_creature_candidates\": %u\n", NEURAL_V2_MAX_CREATURE_CANDIDATES);
+        jwAppendf(&w, "  },\n");
+        jwAppendf(&w, "  \"weights\": {\n");
+        jwAppendf(&w, "    \"ctx_w_xh\": ");
+        jwFloatArray(&w, p->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT, 16u);
+        jwAppendf(&w, ",\n    \"ctx_w_hh\": ");
+        jwFloatArray(&w, p->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT, 16u);
+        jwAppendf(&w, ",\n    \"global_w\": ");
+        jwFloatArray(&w, p->global_w, NEURAL_V2_GLB_W_COUNT, 16u);
+        jwAppendf(&w, ",\n    \"res_w1\": ");
+        jwFloatArray(&w, p->res_w1, NEURAL_V2_RES_W1_COUNT, 15u);
+        jwAppendf(&w, ",\n    \"res_w2\": ");
+        jwFloatArray(&w, p->res_w2, NEURAL_V2_RES_W2_COUNT, 12u);
+        jwAppendf(&w, ",\n    \"cre_w1\": ");
+        jwFloatArray(&w, p->cre_w1, NEURAL_V2_CRE_W1_COUNT, 15u);
+        jwAppendf(&w, ",\n    \"cre_w2\": ");
+        jwFloatArray(&w, p->cre_w2, NEURAL_V2_CRE_W2_COUNT, 10u);
+        jwAppendf(&w, "\n  },\n");
+        jwAppendf(&w, "  \"biases\": {\n");
+        jwAppendf(&w, "    \"ctx_b_h\": ");
+        jwFloatArray(&w, p->ctx_b_h, NEURAL_V2_CTX_BH_COUNT, 16u);
+        jwAppendf(&w, ",\n    \"global_b\": ");
+        jwFloatArray(&w, p->global_b, NEURAL_V2_GLB_B_COUNT, 3u);
+        jwAppendf(&w, ",\n    \"res_b1\": ");
+        jwFloatArray(&w, p->res_b1, NEURAL_V2_RES_B1_COUNT, 12u);
+        jwAppendf(&w, ",\n    \"res_b2\": ");
+        jwFloatArray(&w, p->res_b2, NEURAL_V2_RES_B2_COUNT, 1u);
+        jwAppendf(&w, ",\n    \"cre_b1\": ");
+        jwFloatArray(&w, p->cre_b1, NEURAL_V2_CRE_B1_COUNT, 10u);
+        jwAppendf(&w, ",\n    \"cre_b2\": ");
+        jwFloatArray(&w, p->cre_b2, NEURAL_V2_CRE_B2_COUNT, 4u);
+        jwAppendf(&w, "\n  },\n");
+    }
     jwAppendf(&w, "  \"metadata\": {\n");
     jwAppendf(&w, "    \"label\": ");
     jwEscapedString(&w, genome->metadata.label);
@@ -142,6 +188,21 @@ bool NeuralBrain_SerializeJSON(const NeuralGenome *genome, char *out, size_t out
     jwAppendf(&w, "    \"generation\": %u,\n", genome->metadata.generation);
     jwAppendf(&w, "    \"parent_ids\": [%u, %u],\n",
               genome->metadata.parentIds[0], genome->metadata.parentIds[1]);
+    if (genome->metadata.trainedSpecies[0]) {
+        jwAppendf(&w, "    \"trained_species\": ");
+        jwEscapedString(&w, genome->metadata.trainedSpecies);
+        jwAppendf(&w, ",\n");
+    }
+    if (genome->metadata.trainedEnvironment[0]) {
+        jwAppendf(&w, "    \"trained_environment\": ");
+        jwEscapedString(&w, genome->metadata.trainedEnvironment);
+        jwAppendf(&w, ",\n");
+    }
+    if (genome->metadata.trainerGeneration > 0u || genome->metadata.validationFitness > 0.0f) {
+        jwAppendf(&w, "    \"trainer_generation\": %u,\n", genome->metadata.trainerGeneration);
+        jwAppendf(&w, "    \"validation_fitness\": %.6f,\n", (double)genome->metadata.validationFitness);
+        jwAppendf(&w, "    \"validation_survival\": %.6f,\n", (double)genome->metadata.validationSurvival);
+    }
     jwAppendf(&w, "    \"fingerprint\": \"%s\",\n", fpHex);
     jwAppendf(&w, "    \"founder_fingerprint\": \"%s\"\n", founderHex);
     jwAppendf(&w, "  }\n");
@@ -342,31 +403,65 @@ static bool parseHexU64(const char *s, uint64_t *out) {
     return true;
 }
 
-static bool parseTopology(JsonReader *r, NeuralGenome *g) {
+static bool parseTopology(JsonReader *r, NeuralGenome *g, unsigned *outTopoKind) {
     if (!jrTake(r, '{')) {
         setError(r->error, r->errorSize, "Se esperaba objeto 'topology'");
         return false;
     }
     bool seenInputs = false, seenHidden = false, seenOutputs = false;
+    bool seenV2CtxIn = false, seenV2CtxHid = false, seenV2Glb = false;
+    bool seenV2ResF = false, seenV2ResH = false, seenV2CreF = false, seenV2CreH = false, seenV2CreA = false;
+    uint32_t v2CtxIn = 0, v2CtxHid = 0, v2Glb = 0, v2ResF = 0, v2ResH = 0, v2CreF = 0, v2CreH = 0, v2CreA = 0;
     jrSpace(r);
     if (r->p < r->end && *r->p != '}') {
         for (;;) {
-            char key[32];
+            char key[48];
             if (!jrParseString(r, key, sizeof(key)) || !jrTake(r, ':')) return false;
             uint64_t val = 0;
             if (!jrParseU64(r, &val, 4096u)) return false;
             if (strcmp(key, "inputs") == 0) {
                 if (seenInputs) { setError(r->error, r->errorSize, "Clave duplicada 'inputs'"); return false; }
-                g->inputCount = (uint32_t)val;
-                seenInputs = true;
+                g->inputCount = (uint32_t)val; seenInputs = true;
             } else if (strcmp(key, "hidden") == 0) {
                 if (seenHidden) { setError(r->error, r->errorSize, "Clave duplicada 'hidden'"); return false; }
-                g->hiddenCount = (uint32_t)val;
-                seenHidden = true;
+                g->hiddenCount = (uint32_t)val; seenHidden = true;
             } else if (strcmp(key, "outputs") == 0) {
                 if (seenOutputs) { setError(r->error, r->errorSize, "Clave duplicada 'outputs'"); return false; }
-                g->outputCount = (uint32_t)val;
-                seenOutputs = true;
+                g->outputCount = (uint32_t)val; seenOutputs = true;
+            } else if (strcmp(key, "context_inputs") == 0) {
+                if (seenV2CtxIn) { setError(r->error, r->errorSize, "Clave duplicada 'context_inputs'"); return false; }
+                v2CtxIn = (uint32_t)val; seenV2CtxIn = true;
+            } else if (strcmp(key, "context_hidden") == 0) {
+                if (seenV2CtxHid) { setError(r->error, r->errorSize, "Clave duplicada 'context_hidden'"); return false; }
+                v2CtxHid = (uint32_t)val; seenV2CtxHid = true;
+            } else if (strcmp(key, "global_actions") == 0) {
+                if (seenV2Glb) { setError(r->error, r->errorSize, "Clave duplicada 'global_actions'"); return false; }
+                v2Glb = (uint32_t)val; seenV2Glb = true;
+            } else if (strcmp(key, "resource_features") == 0) {
+                if (seenV2ResF) { setError(r->error, r->errorSize, "Clave duplicada 'resource_features'"); return false; }
+                v2ResF = (uint32_t)val; seenV2ResF = true;
+            } else if (strcmp(key, "resource_hidden") == 0) {
+                if (seenV2ResH) { setError(r->error, r->errorSize, "Clave duplicada 'resource_hidden'"); return false; }
+                v2ResH = (uint32_t)val; seenV2ResH = true;
+            } else if (strcmp(key, "max_resource_candidates") == 0) {
+                if (val != NEURAL_V2_MAX_RESOURCE_CANDIDATES) {
+                    setError(r->error, r->errorSize, "max_resource_candidates incompatible: %llu", (unsigned long long)val);
+                    return false;
+                }
+            } else if (strcmp(key, "creature_features") == 0) {
+                if (seenV2CreF) { setError(r->error, r->errorSize, "Clave duplicada 'creature_features'"); return false; }
+                v2CreF = (uint32_t)val; seenV2CreF = true;
+            } else if (strcmp(key, "creature_hidden") == 0) {
+                if (seenV2CreH) { setError(r->error, r->errorSize, "Clave duplicada 'creature_hidden'"); return false; }
+                v2CreH = (uint32_t)val; seenV2CreH = true;
+            } else if (strcmp(key, "creature_actions") == 0) {
+                if (seenV2CreA) { setError(r->error, r->errorSize, "Clave duplicada 'creature_actions'"); return false; }
+                v2CreA = (uint32_t)val; seenV2CreA = true;
+            } else if (strcmp(key, "max_creature_candidates") == 0) {
+                if (val != NEURAL_V2_MAX_CREATURE_CANDIDATES) {
+                    setError(r->error, r->errorSize, "max_creature_candidates incompatible: %llu", (unsigned long long)val);
+                    return false;
+                }
             } else {
                 setError(r->error, r->errorSize, "Clave desconocida en 'topology': '%s'", key);
                 return false;
@@ -378,27 +473,52 @@ static bool parseTopology(JsonReader *r, NeuralGenome *g) {
         setError(r->error, r->errorSize, "Falta '}' en 'topology'");
         return false;
     }
-    if (!seenInputs || !seenHidden || !seenOutputs) {
-        setError(r->error, r->errorSize, "Faltan dimensiones obligatorias en 'topology'");
+    if (seenInputs || seenHidden || seenOutputs) {
+        if (seenV2CtxIn || seenV2CtxHid || seenV2Glb) {
+            setError(r->error, r->errorSize, "Mezcla inválida de topología v1 y v2");
+            return false;
+        }
+        if (!seenInputs || !seenHidden || !seenOutputs) {
+            setError(r->error, r->errorSize, "Faltan dimensiones obligatorias en 'topology' v1");
+            return false;
+        }
+        if (g->inputCount != NEURAL_RNN_INPUTS || g->hiddenCount != NEURAL_RNN_HIDDEN ||
+            g->outputCount != NEURAL_RNN_OUTPUTS) {
+            setError(r->error, r->errorSize,
+                     "Topología v1 incompatible: %u->%u->%u (se requiere %u->%u->%u)",
+                     g->inputCount, g->hiddenCount, g->outputCount,
+                     NEURAL_RNN_INPUTS, NEURAL_RNN_HIDDEN, NEURAL_RNN_OUTPUTS);
+            return false;
+        }
+        *outTopoKind = 1u;
+        return true;
+    }
+    if (!seenV2CtxIn || !seenV2CtxHid || !seenV2Glb ||
+        !seenV2ResF || !seenV2ResH || !seenV2CreF || !seenV2CreH || !seenV2CreA) {
+        setError(r->error, r->errorSize, "Faltan dimensiones obligatorias en 'topology' v2");
         return false;
     }
-    if (g->inputCount != NEURAL_RNN_INPUTS || g->hiddenCount != NEURAL_RNN_HIDDEN ||
-        g->outputCount != NEURAL_RNN_OUTPUTS) {
-        setError(r->error, r->errorSize,
-                 "Topología incompatible: %u->%u->%u (se requiere %u->%u->%u)",
-                 g->inputCount, g->hiddenCount, g->outputCount,
-                 NEURAL_RNN_INPUTS, NEURAL_RNN_HIDDEN, NEURAL_RNN_OUTPUTS);
+    if (v2CtxIn != NEURAL_V2_CONTEXT_INPUTS || v2CtxHid != NEURAL_V2_CONTEXT_HIDDEN ||
+        v2Glb != NEURAL_V2_GLOBAL_ACTIONS || v2ResF != NEURAL_V2_RES_FEAT ||
+        v2ResH != NEURAL_V2_RES_HIDDEN || v2CreF != NEURAL_V2_CRE_FEAT ||
+        v2CreH != NEURAL_V2_CRE_HIDDEN || v2CreA != NEURAL_V2_CRE_ACTIONS) {
+        setError(r->error, r->errorSize, "Topología v2 incompatible con recurrent_candidate_policy");
         return false;
     }
+    g->inputCount = v2CtxIn;
+    g->hiddenCount = v2CtxHid;
+    g->outputCount = v2Glb;
+    *outTopoKind = 2u;
     return true;
 }
 
-static bool parseWeights(JsonReader *r, NeuralGenome *g) {
+static bool parseWeights(JsonReader *r, NeuralGenome *g, unsigned *outWeightsKind) {
     if (!jrTake(r, '{')) {
         setError(r->error, r->errorSize, "Se esperaba objeto 'weights'");
         return false;
     }
     bool seenXh = false, seenHh = false, seenHy = false;
+    bool sCtxXh = false, sCtxHh = false, sGlbW = false, sResW1 = false, sResW2 = false, sCreW1 = false, sCreW2 = false;
     jrSpace(r);
     if (r->p < r->end && *r->p != '}') {
         for (;;) {
@@ -416,6 +536,34 @@ static bool parseWeights(JsonReader *r, NeuralGenome *g) {
                 if (seenHy) { setError(r->error, r->errorSize, "Clave duplicada 'w_hy'"); return false; }
                 if (!jrParseFloatArray(r, g->w_hy, NEURAL_RNN_W_HY_COUNT, "w_hy")) return false;
                 seenHy = true;
+            } else if (strcmp(key, "ctx_w_xh") == 0) {
+                if (sCtxXh) { setError(r->error, r->errorSize, "Clave duplicada 'ctx_w_xh'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT, "ctx_w_xh")) return false;
+                sCtxXh = true;
+            } else if (strcmp(key, "ctx_w_hh") == 0) {
+                if (sCtxHh) { setError(r->error, r->errorSize, "Clave duplicada 'ctx_w_hh'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT, "ctx_w_hh")) return false;
+                sCtxHh = true;
+            } else if (strcmp(key, "global_w") == 0) {
+                if (sGlbW) { setError(r->error, r->errorSize, "Clave duplicada 'global_w'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.global_w, NEURAL_V2_GLB_W_COUNT, "global_w")) return false;
+                sGlbW = true;
+            } else if (strcmp(key, "res_w1") == 0) {
+                if (sResW1) { setError(r->error, r->errorSize, "Clave duplicada 'res_w1'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.res_w1, NEURAL_V2_RES_W1_COUNT, "res_w1")) return false;
+                sResW1 = true;
+            } else if (strcmp(key, "res_w2") == 0) {
+                if (sResW2) { setError(r->error, r->errorSize, "Clave duplicada 'res_w2'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.res_w2, NEURAL_V2_RES_W2_COUNT, "res_w2")) return false;
+                sResW2 = true;
+            } else if (strcmp(key, "cre_w1") == 0) {
+                if (sCreW1) { setError(r->error, r->errorSize, "Clave duplicada 'cre_w1'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.cre_w1, NEURAL_V2_CRE_W1_COUNT, "cre_w1")) return false;
+                sCreW1 = true;
+            } else if (strcmp(key, "cre_w2") == 0) {
+                if (sCreW2) { setError(r->error, r->errorSize, "Clave duplicada 'cre_w2'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.cre_w2, NEURAL_V2_CRE_W2_COUNT, "cre_w2")) return false;
+                sCreW2 = true;
             } else {
                 setError(r->error, r->errorSize, "Clave desconocida en 'weights': '%s'", key);
                 return false;
@@ -427,19 +575,35 @@ static bool parseWeights(JsonReader *r, NeuralGenome *g) {
         setError(r->error, r->errorSize, "Falta '}' en 'weights'");
         return false;
     }
-    if (!seenXh || !seenHh || !seenHy) {
-        setError(r->error, r->errorSize, "Faltan matrices obligatorias en 'weights'");
+    bool anyV1 = seenXh || seenHh || seenHy;
+    bool anyV2 = sCtxXh || sCtxHh || sGlbW || sResW1 || sResW2 || sCreW1 || sCreW2;
+    if (anyV1 && anyV2) {
+        setError(r->error, r->errorSize, "Mezcla inválida de pesos v1 y v2");
         return false;
     }
+    if (anyV1) {
+        if (!seenXh || !seenHh || !seenHy) {
+            setError(r->error, r->errorSize, "Faltan matrices obligatorias en 'weights' v1");
+            return false;
+        }
+        *outWeightsKind = 1u;
+        return true;
+    }
+    if (!sCtxXh || !sCtxHh || !sGlbW || !sResW1 || !sResW2 || !sCreW1 || !sCreW2) {
+        setError(r->error, r->errorSize, "Faltan matrices obligatorias en 'weights' v2");
+        return false;
+    }
+    *outWeightsKind = 2u;
     return true;
 }
 
-static bool parseBiases(JsonReader *r, NeuralGenome *g) {
+static bool parseBiases(JsonReader *r, NeuralGenome *g, unsigned *outBiasesKind) {
     if (!jrTake(r, '{')) {
         setError(r->error, r->errorSize, "Se esperaba objeto 'biases'");
         return false;
     }
     bool seenH = false, seenY = false;
+    bool sCtxB = false, sGlbB = false, sResB1 = false, sResB2 = false, sCreB1 = false, sCreB2 = false;
     jrSpace(r);
     if (r->p < r->end && *r->p != '}') {
         for (;;) {
@@ -453,6 +617,30 @@ static bool parseBiases(JsonReader *r, NeuralGenome *g) {
                 if (seenY) { setError(r->error, r->errorSize, "Clave duplicada 'b_y'"); return false; }
                 if (!jrParseFloatArray(r, g->b_y, NEURAL_RNN_B_Y_COUNT, "b_y")) return false;
                 seenY = true;
+            } else if (strcmp(key, "ctx_b_h") == 0) {
+                if (sCtxB) { setError(r->error, r->errorSize, "Clave duplicada 'ctx_b_h'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.ctx_b_h, NEURAL_V2_CTX_BH_COUNT, "ctx_b_h")) return false;
+                sCtxB = true;
+            } else if (strcmp(key, "global_b") == 0) {
+                if (sGlbB) { setError(r->error, r->errorSize, "Clave duplicada 'global_b'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.global_b, NEURAL_V2_GLB_B_COUNT, "global_b")) return false;
+                sGlbB = true;
+            } else if (strcmp(key, "res_b1") == 0) {
+                if (sResB1) { setError(r->error, r->errorSize, "Clave duplicada 'res_b1'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.res_b1, NEURAL_V2_RES_B1_COUNT, "res_b1")) return false;
+                sResB1 = true;
+            } else if (strcmp(key, "res_b2") == 0) {
+                if (sResB2) { setError(r->error, r->errorSize, "Clave duplicada 'res_b2'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.res_b2, NEURAL_V2_RES_B2_COUNT, "res_b2")) return false;
+                sResB2 = true;
+            } else if (strcmp(key, "cre_b1") == 0) {
+                if (sCreB1) { setError(r->error, r->errorSize, "Clave duplicada 'cre_b1'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.cre_b1, NEURAL_V2_CRE_B1_COUNT, "cre_b1")) return false;
+                sCreB1 = true;
+            } else if (strcmp(key, "cre_b2") == 0) {
+                if (sCreB2) { setError(r->error, r->errorSize, "Clave duplicada 'cre_b2'"); return false; }
+                if (!jrParseFloatArray(r, g->v2.cre_b2, NEURAL_V2_CRE_B2_COUNT, "cre_b2")) return false;
+                sCreB2 = true;
             } else {
                 setError(r->error, r->errorSize, "Clave desconocida en 'biases': '%s'", key);
                 return false;
@@ -464,10 +652,25 @@ static bool parseBiases(JsonReader *r, NeuralGenome *g) {
         setError(r->error, r->errorSize, "Falta '}' en 'biases'");
         return false;
     }
-    if (!seenH || !seenY) {
-        setError(r->error, r->errorSize, "Faltan vectores obligatorios en 'biases'");
+    bool anyV1 = seenH || seenY;
+    bool anyV2 = sCtxB || sGlbB || sResB1 || sResB2 || sCreB1 || sCreB2;
+    if (anyV1 && anyV2) {
+        setError(r->error, r->errorSize, "Mezcla inválida de sesgos v1 y v2");
         return false;
     }
+    if (anyV1) {
+        if (!seenH || !seenY) {
+            setError(r->error, r->errorSize, "Faltan vectores obligatorios en 'biases' v1");
+            return false;
+        }
+        *outBiasesKind = 1u;
+        return true;
+    }
+    if (!sCtxB || !sGlbB || !sResB1 || !sResB2 || !sCreB1 || !sCreB2) {
+        setError(r->error, r->errorSize, "Faltan vectores obligatorios en 'biases' v2");
+        return false;
+    }
+    *outBiasesKind = 2u;
     return true;
 }
 
@@ -535,6 +738,22 @@ static bool parseMetadata(JsonReader *r, NeuralGenome *g) {
                 }
                 g->metadata.founderFingerprint = parsed;
                 seenFounderFp = true;
+            } else if (strcmp(key, "trained_species") == 0) {
+                if (!jrParseString(r, g->metadata.trainedSpecies, sizeof(g->metadata.trainedSpecies))) return false;
+            } else if (strcmp(key, "trained_environment") == 0) {
+                if (!jrParseString(r, g->metadata.trainedEnvironment, sizeof(g->metadata.trainedEnvironment))) return false;
+            } else if (strcmp(key, "trainer_generation") == 0) {
+                uint64_t val = 0;
+                if (!jrParseU64(r, &val, UINT32_MAX)) return false;
+                g->metadata.trainerGeneration = (uint32_t)val;
+            } else if (strcmp(key, "validation_fitness") == 0) {
+                double val = 0.0;
+                if (!jrParseNumber(r, &val)) return false;
+                g->metadata.validationFitness = (float)val;
+            } else if (strcmp(key, "validation_survival") == 0) {
+                double val = 0.0;
+                if (!jrParseNumber(r, &val)) return false;
+                g->metadata.validationSurvival = (float)val;
             } else {
                 setError(r->error, r->errorSize, "Clave desconocida en 'metadata': '%s'", key);
                 return false;
@@ -575,6 +794,7 @@ bool NeuralBrain_DeserializeJSON(const char *json, size_t length, NeuralGenome *
     bool seenVersion = false, seenArch = false, seenSensor = false, seenAction = false;
     bool seenTopology = false, seenWeights = false, seenBiases = false, seenMetadata = false;
     bool seenActivation = false, seenRecurrent = false, seenLayout = false, seenPrecision = false;
+    unsigned topoKind = 0u, weightsKind = 0u, biasesKind = 0u;
 
     jrSpace(&r);
     if (r.p < r.end && *r.p != '}') {
@@ -585,16 +805,16 @@ bool NeuralBrain_DeserializeJSON(const char *json, size_t length, NeuralGenome *
                 if (seenVersion) { setError(error, errorSize, "Clave duplicada 'version'"); return false; }
                 uint64_t ver = 0;
                 if (!jrParseU64(&r, &ver, 1000u)) return false;
-                if (ver != NEURAL_BRAIN_FORMAT_VERSION) {
-                    setError(error, errorSize, "Versión no soportada: %llu (esperada %u)",
-                             (unsigned long long)ver, NEURAL_BRAIN_FORMAT_VERSION);
+                if (ver != NEURAL_BRAIN_FORMAT_VERSION && ver != NEURAL_BRAIN_FORMAT_VERSION_V2) {
+                    setError(error, errorSize, "Versión no soportada: %llu (esperada 1 o 2)",
+                             (unsigned long long)ver);
                     return false;
                 }
                 temp.formatVersion = (uint32_t)ver;
                 seenVersion = true;
             } else if (strcmp(key, "architecture") == 0) {
                 if (seenArch) { setError(error, errorSize, "Clave duplicada 'architecture'"); return false; }
-                char archName[32];
+                char archName[48];
                 if (!jrParseString(&r, archName, sizeof(archName))) return false;
                 if (!NeuralArchitecture_FromName(archName, &temp.architecture)) {
                     setError(error, errorSize, "Arquitectura no soportada: '%s'", archName);
@@ -604,7 +824,8 @@ bool NeuralBrain_DeserializeJSON(const char *json, size_t length, NeuralGenome *
             } else if (strcmp(key, "sensor_schema") == 0) {
                 if (seenSensor) { setError(error, errorSize, "Clave duplicada 'sensor_schema'"); return false; }
                 if (!jrParseString(&r, temp.sensorSchema, sizeof(temp.sensorSchema))) return false;
-                if (strcmp(temp.sensorSchema, NEURAL_SENSOR_SCHEMA_V1) != 0) {
+                if (strcmp(temp.sensorSchema, NEURAL_SENSOR_SCHEMA_V1) != 0 &&
+                    strcmp(temp.sensorSchema, NEURAL_SENSOR_SCHEMA_V2) != 0) {
                     setError(error, errorSize, "Esquema de sensores desconocido: '%s'", temp.sensorSchema);
                     return false;
                 }
@@ -612,7 +833,8 @@ bool NeuralBrain_DeserializeJSON(const char *json, size_t length, NeuralGenome *
             } else if (strcmp(key, "action_schema") == 0) {
                 if (seenAction) { setError(error, errorSize, "Clave duplicada 'action_schema'"); return false; }
                 if (!jrParseString(&r, temp.actionSchema, sizeof(temp.actionSchema))) return false;
-                if (strcmp(temp.actionSchema, NEURAL_ACTION_SCHEMA_V1) != 0) {
+                if (strcmp(temp.actionSchema, NEURAL_ACTION_SCHEMA_V1) != 0 &&
+                    strcmp(temp.actionSchema, NEURAL_ACTION_SCHEMA_V2) != 0) {
                     setError(error, errorSize, "Esquema de acciones desconocido: '%s'", temp.actionSchema);
                     return false;
                 }
@@ -655,15 +877,15 @@ bool NeuralBrain_DeserializeJSON(const char *json, size_t length, NeuralGenome *
                 seenPrecision = true;
             } else if (strcmp(key, "topology") == 0) {
                 if (seenTopology) { setError(error, errorSize, "Clave duplicada 'topology'"); return false; }
-                if (!parseTopology(&r, &temp)) return false;
+                if (!parseTopology(&r, &temp, &topoKind)) return false;
                 seenTopology = true;
             } else if (strcmp(key, "weights") == 0) {
                 if (seenWeights) { setError(error, errorSize, "Clave duplicada 'weights'"); return false; }
-                if (!parseWeights(&r, &temp)) return false;
+                if (!parseWeights(&r, &temp, &weightsKind)) return false;
                 seenWeights = true;
             } else if (strcmp(key, "biases") == 0) {
                 if (seenBiases) { setError(error, errorSize, "Clave duplicada 'biases'"); return false; }
-                if (!parseBiases(&r, &temp)) return false;
+                if (!parseBiases(&r, &temp, &biasesKind)) return false;
                 seenBiases = true;
             } else if (strcmp(key, "metadata") == 0) {
                 if (seenMetadata) { setError(error, errorSize, "Clave duplicada 'metadata'"); return false; }
@@ -689,6 +911,11 @@ bool NeuralBrain_DeserializeJSON(const char *json, size_t length, NeuralGenome *
     if (!seenVersion || !seenArch || !seenSensor || !seenAction ||
         !seenTopology || !seenWeights || !seenBiases || !seenMetadata) {
         setError(error, errorSize, "Faltan campos obligatorios en *.brain.json");
+        return false;
+    }
+    unsigned expectedKind = (temp.architecture == NEURAL_ARCH_FIXED_RNN) ? 1u : 2u;
+    if (topoKind != expectedKind || weightsKind != expectedKind || biasesKind != expectedKind) {
+        setError(error, errorSize, "Inconsistencia entre arquitectura declarada y topología/pesos/sesgos");
         return false;
     }
 

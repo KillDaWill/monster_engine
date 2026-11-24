@@ -79,6 +79,7 @@ const char *EvolutionProfiler_SectionName(EvolutionProfileSection section) {
     static const char *names[EVO_PROF_SECTION_COUNT] = {
         "sim_tick",
         "physiology",
+        "metabolism",
         "resources",
         "entity_lookup",
         "obs_publish",

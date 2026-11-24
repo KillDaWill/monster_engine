@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "id": "brumacerno",
+  "name": "Brumacerno Fibrous Fermenter",
+  "description": "Ruminant-inspired cellulose-fermenting metabolism adapted to fibrous vegetation and clean water.",
+  "digestive_capacity": 4.0,
+  "maximum_ingestion_rate": 0.45,
+  "water_absorption_rate": 1.0,
+  "waste_elimination_rate": 0.30,
+  "unprocessable_passage_rate": 0.14,
+  "unprocessable_discomfort_factor": 0.20,
+  "toxin_sensitivity": 1.15,
+  "detoxification_rate": 0.014,
+  "detoxification_energy_cost": 0.08,
+  "toxicity_threshold": 0.20,
+  "toxicity_damage_rate": 0.055,
+  "discomfort_decay_rate": 0.05,
+  "nutrient_maintenance_rate": 0.0007,
+  "nutrient_recovery_bonus": 0.003,
+  "minimum_reproduction_nutrients": 0.20,
+  "processing_rules": [
+    {
+      "molecule": "water",
+      "rate": 0.65,
+      "efficiency": 0.95,
+      "energy_cost": 0.005,
+      "waste_fraction": 0.05,
+      "effects": {
+        "hydration": 0.55
+      }
+    },
+    {
+      "molecule": "cellulose",
+      "rate": 0.18,
+      "efficiency": 0.88,
+      "energy_cost": 0.05,
+      "waste_fraction": 0.22,
+      "effects": {
+        "energy": 0.90,
+        "nutrients": 0.28
+      }
+    },
+    {
+      "molecule": "simple_carbohydrates",
+      "rate": 0.24,
+      "efficiency": 0.82,
+      "energy_cost": 0.03,
+      "waste_fraction": 0.12,
+      "effects": {
+        "energy": 0.80,
+        "nutrients": 0.12
+      }
+    },
+    {
+      "molecule": "proteins",
+      "rate": 0.06,
+      "efficiency": 0.22,
+      "energy_cost": 0.12,
+      "waste_fraction": 0.70,
+      "effects": {
+        "energy": 0.24,
+        "nutrients": 0.18,
+        "discomfort": 0.35
+      }
+    },
+    {
+      "molecule": "lipids",
+      "rate": 0.04,
+      "efficiency": 0.16,
+      "energy_cost": 0.14,
+      "waste_fraction": 0.78,
+      "effects": {
+        "energy": 0.28,
+        "discomfort": 0.45
+      }
+    },
+    {
+      "molecule": "minerals",
+      "rate": 0.20,
+      "efficiency": 0.85,
+      "energy_cost": 0.01,
+      "waste_fraction": 0.15,
+      "effects": {
+        "nutrients": 0.85
+      }
+    },
+    {
+      "molecule": "indigestible_fiber",
+      "rate": 0.12,
+      "efficiency": 0.0,
+      "energy_cost": 0.04,
+      "waste_fraction": 1.0,
+      "effects": {
+        "discomfort": 0.15
+      }
+    },
+    {
+      "molecule": "organic_toxins",
+      "rate": 0.20,
+      "efficiency": 0.85,
+      "energy_cost": 0.05,
+      "waste_fraction": 0.30,
+      "effects": {
+        "toxicity": 2.80,
+        "discomfort": 0.90
+      }
+    },
+    {
+      "molecule": "decay_products",
+      "rate": 0.16,
+      "efficiency": 0.75,
+      "energy_cost": 0.06,
+      "waste_fraction": 0.50,
+      "effects": {
+        "toxicity": 1.45,
+        "discomfort": 0.75
+      }
+    },
+    {
+      "molecule": "acute_neurotoxin",
+      "rate": 0.75,
+      "efficiency": 1.0,
+      "energy_cost": 0.20,
+      "waste_fraction": 0.0,
+      "effects": {
+        "toxicity": 18.0,
+        "discomfort": 1.20
+      }
+    }
+  ]
+}

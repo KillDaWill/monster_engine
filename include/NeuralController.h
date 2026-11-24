@@ -13,6 +13,7 @@
 #include "CreatureMotor.h"
 #include "CreaturePerception.h"
 #include "NeuralBrain.h"
+#include "NeuralControllerV2.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -55,7 +56,10 @@ typedef enum NeuralInteractionOutcome {
     NEURAL_OUTCOME_FAILED_DIET,
     NEURAL_OUTCOME_FAILED_ATTACK,
     NEURAL_OUTCOME_FAILED_MATE,
-    NEURAL_OUTCOME_TOOK_DAMAGE
+    NEURAL_OUTCOME_TOOK_DAMAGE,
+    NEURAL_OUTCOME_INGESTED_SUBSTANCE,
+    NEURAL_OUTCOME_STOMACH_FULL,
+    NEURAL_OUTCOME_METABOLIC_DAMAGE
 } NeuralInteractionOutcome;
 
 /** @brief Configuración genérica del ciclo de decisión neuronal (sin prioridades de especie). */
@@ -93,6 +97,8 @@ typedef struct NeuralControllerState {
     float lastFeedback[3]; /**< [failure, intake, damage] leídos en el último paso. */
     NeuralInteractionOutcome lastOutcome;
     double lastOutcomeTime;
+    /* Estado e inspector específico del controlador genérico v2. */
+    NeuralV2InspectorState v2;
 } NeuralControllerState;
 
 /** @brief Configuración por defecto del controlador neuronal (5 Hz, determinista). */

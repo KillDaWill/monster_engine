@@ -234,6 +234,33 @@ bool AIWorld_PublishResource(AIWorld *w, AIObjectId id, unsigned species,
     return true;
 }
 
+bool AIWorld_PublishMolecularResource(AIWorld *w, AIObjectId id, unsigned species,
+                                      unsigned foodCategory, bool available,
+                                      uint8_t substancePhase, float hardness,
+                                      float availabilityFraction,
+                                      const SensorySignature *signature) {
+    int slot = findSlot(w, id);
+    if (slot < 0) return false;
+    AIWorldObject *o = &objects(w)[slot];
+    bool layerMayChange = (o->foodCategory != foodCategory);
+    o->species = species;
+    o->foodCategory = foodCategory;
+    if (o->available != available) ++o->revision;
+    o->available = available;
+    o->reproductiveReady = false;
+    o->molecularResource = true;
+    o->substancePhase = substancePhase;
+    o->hardness = hardness;
+    o->availabilityFraction = availabilityFraction;
+    if (signature) o->sensorySignature = *signature;
+    if (o->type == AI_WATER) o->drinkable = available;
+    if (w->spatial && layerMayChange) {
+        AISpatialIndex_Update(w->spatial, (uint32_t)slot,
+                              AISpatialIndex_LayerForObject(o), o->position, o->radius);
+    }
+    return true;
+}
+
 unsigned AIWorld_QuerySlotsRadius(const AIWorld *w, uint32_t layerMask, Vector3 center, float radius,
                                   uint32_t *outSlots, unsigned capacity, bool *overflowed) {
     if (overflowed) *overflowed = false;

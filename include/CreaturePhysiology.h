@@ -4,7 +4,7 @@
 #define CREATURE_PHYSIOLOGY_H
 #include <stdbool.h>
 typedef enum CreatureDeathCause { DEATH_NONE, DEATH_STARVATION, DEATH_DEHYDRATION,
-    DEATH_PREDATION, DEATH_AGE, DEATH_REMOVED, DEATH_CAUSE_COUNT } CreatureDeathCause;
+    DEATH_PREDATION, DEATH_AGE, DEATH_REMOVED, DEATH_TOXICITY, DEATH_CAUSE_COUNT } CreatureDeathCause;
 typedef enum CreatureLifeStage { LIFE_JUVENILE, LIFE_ADULT, LIFE_OLD, LIFE_DEAD } CreatureLifeStage;
 typedef struct PhysiologyProfile {
     float basalCost, hydrationCost, movementCost, starvationDamage, dehydrationDamage;

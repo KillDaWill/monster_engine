@@ -129,3 +129,18 @@ Se eliminaron `demos/demo_ecosystem.c` y `demos/demo_ecosystem_headless.c` junto
 - `tools/validate_ecosystem.py` → apunta a `demos/demo_evolution_arena_headless`
 - `tools/capture_ecosystem_creatures.py`, `tools/capture_editor_bull.py`, `tools/validate_bovine_body.py` → apuntan a `demos/demo_evolution_arena`
 - Nuevo validador `tools/validate_evolution_arena.py` para experimentos multisemilla (`--experiments`) y las 13 capturas visuales de laboratorio (`--visual`).
+
+## 7. Modo Molecular e Inspectores en Vivo
+
+`EvolutionArena` (tanto visual como headless) admite el modo molecular completo mediante `--metabolism=molecular` (con `--metabolism-dir=DIR` y `--mixed-substances`), preservando `--metabolism=legacy` como comportamiento compatible por defecto para las suites heredadas:
+
+```sh
+./demos/demo_evolution_arena --metabolism=molecular --mixed-substances \
+  --founders=imported \
+  --brumacerno-brain=brains/brumacerno_forager_v2.brain.json \
+  --velkar-brain=brains/velkar_hunter_v2.brain.json \
+  --show-digestive --show-substance --show-neural
+```
+
+- **Atajos adicionales en modo visual:** `G` abre el **Inspector Digestivo y Metabólico** (perfil, última sustancia, llenado, nutrientes, toxicidad, malestar y barras de moléculas activas en el tracto); `T` abre el **Inspector de Sustancias** (`[` / `]` o `;` / `'` o `<`/`>` ciclan recursos, mostrando composición molecular, fase, dureza, políticas de regeneración/descomposición, metadatos de cadáver y firma sensorial); `N` detecta automáticamente cerebros v2 mostrando el **Inspector V2 de Evaluación de Candidatos**.
+- **Exportación JSON headless:** añade bloque `metabolism` con masa ingerida, procesada, absorbida, rechazada, residuo eliminado, energía/hidratación/nutrientes absorbidos, exposición a toxinas, detoxificación, daño metabólico y `toxicity_deaths`.

@@ -76,6 +76,23 @@ typedef struct EvolutionResourceSnapshot {
     Vector3 position;
     float radius;
     float biomassFraction;
+    /* Información diagnóstica molecular para visualización e inspector de sustancias. */
+    bool molecular;
+    char substanceId[32];
+    char substanceName[40];
+    SubstancePhase phase;
+    SubstancePresentationModel presentationModel;
+    float color[3];
+    float mass, maxMass, hardness;
+    ResourceRegenPolicy regenPolicy;
+    ResourceDecayPolicy decayPolicy;
+    double remainingLifetime;
+    unsigned componentCount;
+    char compNames[8][28];
+    float compFractions[8];
+    SensorySignature sensorySignature;
+    AIObjectId sourceCreatureId;
+    AIObjectId killerCreatureId;
 } EvolutionResourceSnapshot;
 
 typedef struct EvolutionObstacleSnapshot {
@@ -109,6 +126,17 @@ typedef struct EvolutionSelectedSnapshot {
     unsigned navPointCount;
     unsigned navPointIndex;
     Vector3 navPoints[32];
+    /* Diagnóstico digestivo y metabólico del individuo seleccionado (Sección 34). */
+    bool hasMetabolism;
+    char metabolicProfileName[48];
+    char lastSubstanceName[40];
+    float digestiveMass, digestiveCapacity, digestiveFullness, wasteMass;
+    float nutrientReserve, toxicity, digestiveDiscomfort;
+    float recentEnergyAbsorbed, recentHydrationAbsorbed, recentMetabolicDamage;
+    double totalIngestedMass, totalEnergyGenerated, totalHydrationGenerated, totalToxinExposure;
+    unsigned digestiveEntryCount;
+    char digestiveMoleculeNames[METABOLIC_STATE_MAX_ACTIVE][32];
+    float digestiveMoleculeMasses[METABOLIC_STATE_MAX_ACTIVE];
 } EvolutionSelectedSnapshot;
 
 typedef struct EvolutionRenderSnapshot {
@@ -143,6 +171,7 @@ typedef struct EvolutionRenderSnapshot {
     EcosystemStatistics statistics;
     uint64_t interventionCount;
     CreatureControllerType controller;
+    EcosystemMetabolismMode metabolismMode;
     char founderModeName[32];
     unsigned speciesCount;
     char speciesNames[EVO_RUNNER_MAX_SPECIES][32];

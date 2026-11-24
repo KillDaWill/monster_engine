@@ -73,6 +73,8 @@ const char *NeuralArchitecture_Name(NeuralArchitectureType arch) {
     switch (arch) {
     case NEURAL_ARCH_FIXED_RNN:
         return "fixed_rnn";
+    case NEURAL_ARCH_CANDIDATE_POLICY:
+        return "recurrent_candidate_policy";
     default:
         return "unknown";
     }
@@ -84,7 +86,26 @@ bool NeuralArchitecture_FromName(const char *name, NeuralArchitectureType *out) 
         *out = NEURAL_ARCH_FIXED_RNN;
         return true;
     }
+    if (strcmp(name, "recurrent_candidate_policy") == 0) {
+        *out = NEURAL_ARCH_CANDIDATE_POLICY;
+        return true;
+    }
     return false;
+}
+
+uint32_t NeuralGenome_ParamCount(const NeuralGenome *genome) {
+    if (!genome || !genome->valid) return 0u;
+    if (genome->architecture == NEURAL_ARCH_FIXED_RNN) return NEURAL_RNN_PARAM_COUNT;
+    if (genome->architecture == NEURAL_ARCH_CANDIDATE_POLICY) return NEURAL_V2_PARAM_COUNT;
+    return 0u;
+}
+
+bool NeuralGenome_Compatible(const NeuralGenome *a, const NeuralGenome *b) {
+    if (!NeuralGenome_Validate(a) || !NeuralGenome_Validate(b)) return false;
+    return a->architecture == b->architecture &&
+           a->formatVersion == b->formatVersion &&
+           strcmp(a->sensorSchema, b->sensorSchema) == 0 &&
+           strcmp(a->actionSchema, b->actionSchema) == 0;
 }
 
 const char *NeuralCrossoverMode_Name(NeuralCrossoverMode mode) {
@@ -136,6 +157,23 @@ void NeuralGenome_Init(NeuralGenome *genome) {
     genome->metadata.founderFingerprint = genome->metadata.fingerprint;
 }
 
+void NeuralGenome_InitV2(NeuralGenome *genome) {
+    if (!genome) return;
+    memset(genome, 0, sizeof(*genome));
+    genome->formatVersion = NEURAL_BRAIN_FORMAT_VERSION_V2;
+    genome->architecture = NEURAL_ARCH_CANDIDATE_POLICY;
+    snprintf(genome->sensorSchema, sizeof(genome->sensorSchema), "%s", NEURAL_SENSOR_SCHEMA_V2);
+    snprintf(genome->actionSchema, sizeof(genome->actionSchema), "%s", NEURAL_ACTION_SCHEMA_V2);
+    genome->inputCount = NEURAL_V2_CONTEXT_INPUTS;
+    genome->hiddenCount = NEURAL_V2_CONTEXT_HIDDEN;
+    genome->outputCount = NEURAL_V2_GLOBAL_ACTIONS;
+    snprintf(genome->metadata.label, sizeof(genome->metadata.label), "zero_candidate_policy");
+    snprintf(genome->metadata.origin, sizeof(genome->metadata.origin), "zero");
+    genome->valid = true;
+    NeuralGenome_UpdateFingerprint(genome);
+    genome->metadata.founderFingerprint = genome->metadata.fingerprint;
+}
+
 void NeuralGenome_Destroy(NeuralGenome *genome) {
     if (!genome) return;
     memset(genome, 0, sizeof(*genome));
@@ -150,25 +188,50 @@ static bool validateFloatArray(const float *arr, size_t count, float limit) {
 
 bool NeuralGenome_Validate(const NeuralGenome *genome) {
     if (!genome || !genome->valid) return false;
-    if (genome->formatVersion != NEURAL_BRAIN_FORMAT_VERSION) return false;
-    if (genome->architecture != NEURAL_ARCH_FIXED_RNN) return false;
-    if (strcmp(genome->sensorSchema, NEURAL_SENSOR_SCHEMA_V1) != 0) return false;
-    if (strcmp(genome->actionSchema, NEURAL_ACTION_SCHEMA_V1) != 0) return false;
-    if (genome->inputCount != NEURAL_RNN_INPUTS ||
-        genome->hiddenCount != NEURAL_RNN_HIDDEN ||
-        genome->outputCount != NEURAL_RNN_OUTPUTS)
-        return false;
-    if (!validateFloatArray(genome->w_xh, NEURAL_RNN_W_XH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
-        return false;
-    if (!validateFloatArray(genome->w_hh, NEURAL_RNN_W_HH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
-        return false;
-    if (!validateFloatArray(genome->w_hy, NEURAL_RNN_W_HY_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
-        return false;
-    if (!validateFloatArray(genome->b_h, NEURAL_RNN_B_H_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
-        return false;
-    if (!validateFloatArray(genome->b_y, NEURAL_RNN_B_Y_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
-        return false;
-    return true;
+    if (genome->architecture == NEURAL_ARCH_FIXED_RNN) {
+        if (genome->formatVersion != NEURAL_BRAIN_FORMAT_VERSION) return false;
+        if (strcmp(genome->sensorSchema, NEURAL_SENSOR_SCHEMA_V1) != 0) return false;
+        if (strcmp(genome->actionSchema, NEURAL_ACTION_SCHEMA_V1) != 0) return false;
+        if (genome->inputCount != NEURAL_RNN_INPUTS ||
+            genome->hiddenCount != NEURAL_RNN_HIDDEN ||
+            genome->outputCount != NEURAL_RNN_OUTPUTS)
+            return false;
+        if (!validateFloatArray(genome->w_xh, NEURAL_RNN_W_XH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
+            return false;
+        if (!validateFloatArray(genome->w_hh, NEURAL_RNN_W_HH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
+            return false;
+        if (!validateFloatArray(genome->w_hy, NEURAL_RNN_W_HY_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
+            return false;
+        if (!validateFloatArray(genome->b_h, NEURAL_RNN_B_H_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
+            return false;
+        if (!validateFloatArray(genome->b_y, NEURAL_RNN_B_Y_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT))
+            return false;
+        return true;
+    }
+    if (genome->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        if (genome->formatVersion != NEURAL_BRAIN_FORMAT_VERSION_V2) return false;
+        if (strcmp(genome->sensorSchema, NEURAL_SENSOR_SCHEMA_V2) != 0) return false;
+        if (strcmp(genome->actionSchema, NEURAL_ACTION_SCHEMA_V2) != 0) return false;
+        if (genome->inputCount != NEURAL_V2_CONTEXT_INPUTS ||
+            genome->hiddenCount != NEURAL_V2_CONTEXT_HIDDEN ||
+            genome->outputCount != NEURAL_V2_GLOBAL_ACTIONS)
+            return false;
+        const NeuralCandidatePolicyParams *p = &genome->v2;
+        return validateFloatArray(p->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->ctx_b_h, NEURAL_V2_CTX_BH_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->global_w, NEURAL_V2_GLB_W_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->global_b, NEURAL_V2_GLB_B_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->res_w1, NEURAL_V2_RES_W1_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->res_b1, NEURAL_V2_RES_B1_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->res_w2, NEURAL_V2_RES_W2_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->res_b2, NEURAL_V2_RES_B2_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->cre_w1, NEURAL_V2_CRE_W1_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->cre_b1, NEURAL_V2_CRE_B1_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->cre_w2, NEURAL_V2_CRE_W2_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT) &&
+               validateFloatArray(p->cre_b2, NEURAL_V2_CRE_B2_COUNT, NEURAL_GENOME_MAX_WEIGHT_LIMIT);
+    }
+    return false;
 }
 
 bool NeuralGenome_Clone(NeuralGenome *dst, const NeuralGenome *src) {
@@ -178,6 +241,10 @@ bool NeuralGenome_Clone(NeuralGenome *dst, const NeuralGenome *src) {
     }
     NeuralGenome_UpdateFingerprint(dst);
     return true;
+}
+
+static void hashFloatArray(uint64_t *hash, const float *arr, size_t count) {
+    for (size_t i = 0; i < count; ++i) fnv1aFloat(hash, arr[i]);
 }
 
 uint64_t NeuralGenome_Fingerprint(const NeuralGenome *genome) {
@@ -190,11 +257,33 @@ uint64_t NeuralGenome_Fingerprint(const NeuralGenome *genome) {
     fnv1aU32(&hash, genome->inputCount);
     fnv1aU32(&hash, genome->hiddenCount);
     fnv1aU32(&hash, genome->outputCount);
-    for (size_t i = 0; i < NEURAL_RNN_W_XH_COUNT; ++i) fnv1aFloat(&hash, genome->w_xh[i]);
-    for (size_t i = 0; i < NEURAL_RNN_W_HH_COUNT; ++i) fnv1aFloat(&hash, genome->w_hh[i]);
-    for (size_t i = 0; i < NEURAL_RNN_W_HY_COUNT; ++i) fnv1aFloat(&hash, genome->w_hy[i]);
-    for (size_t i = 0; i < NEURAL_RNN_B_H_COUNT; ++i) fnv1aFloat(&hash, genome->b_h[i]);
-    for (size_t i = 0; i < NEURAL_RNN_B_Y_COUNT; ++i) fnv1aFloat(&hash, genome->b_y[i]);
+    if (genome->architecture == NEURAL_ARCH_FIXED_RNN) {
+        hashFloatArray(&hash, genome->w_xh, NEURAL_RNN_W_XH_COUNT);
+        hashFloatArray(&hash, genome->w_hh, NEURAL_RNN_W_HH_COUNT);
+        hashFloatArray(&hash, genome->w_hy, NEURAL_RNN_W_HY_COUNT);
+        hashFloatArray(&hash, genome->b_h, NEURAL_RNN_B_H_COUNT);
+        hashFloatArray(&hash, genome->b_y, NEURAL_RNN_B_Y_COUNT);
+    } else if (genome->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        const NeuralCandidatePolicyParams *p = &genome->v2;
+        fnv1aU32(&hash, NEURAL_V2_RES_FEAT);
+        fnv1aU32(&hash, NEURAL_V2_RES_HIDDEN);
+        fnv1aU32(&hash, NEURAL_V2_CRE_FEAT);
+        fnv1aU32(&hash, NEURAL_V2_CRE_HIDDEN);
+        fnv1aU32(&hash, NEURAL_V2_CRE_ACTIONS);
+        hashFloatArray(&hash, p->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT);
+        hashFloatArray(&hash, p->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT);
+        hashFloatArray(&hash, p->ctx_b_h, NEURAL_V2_CTX_BH_COUNT);
+        hashFloatArray(&hash, p->global_w, NEURAL_V2_GLB_W_COUNT);
+        hashFloatArray(&hash, p->global_b, NEURAL_V2_GLB_B_COUNT);
+        hashFloatArray(&hash, p->res_w1, NEURAL_V2_RES_W1_COUNT);
+        hashFloatArray(&hash, p->res_b1, NEURAL_V2_RES_B1_COUNT);
+        hashFloatArray(&hash, p->res_w2, NEURAL_V2_RES_W2_COUNT);
+        hashFloatArray(&hash, p->res_b2, NEURAL_V2_RES_B2_COUNT);
+        hashFloatArray(&hash, p->cre_w1, NEURAL_V2_CRE_W1_COUNT);
+        hashFloatArray(&hash, p->cre_b1, NEURAL_V2_CRE_B1_COUNT);
+        hashFloatArray(&hash, p->cre_w2, NEURAL_V2_CRE_W2_COUNT);
+        hashFloatArray(&hash, p->cre_b2, NEURAL_V2_CRE_B2_COUNT);
+    }
     return hash;
 }
 
@@ -205,30 +294,112 @@ uint64_t NeuralGenome_UpdateFingerprint(NeuralGenome *genome) {
     return fp;
 }
 
+uint32_t NeuralGenome_CopyFlatParams(const NeuralGenome *genome, float *out, uint32_t capacity) {
+    if (!genome || !genome->valid || !out) return 0u;
+    uint32_t n = NeuralGenome_ParamCount(genome);
+    if (n == 0u || capacity < n) return 0u;
+    uint32_t off = 0u;
+    if (genome->architecture == NEURAL_ARCH_FIXED_RNN) {
+        memcpy(out + off, genome->w_xh, sizeof(genome->w_xh)); off += NEURAL_RNN_W_XH_COUNT;
+        memcpy(out + off, genome->w_hh, sizeof(genome->w_hh)); off += NEURAL_RNN_W_HH_COUNT;
+        memcpy(out + off, genome->w_hy, sizeof(genome->w_hy)); off += NEURAL_RNN_W_HY_COUNT;
+        memcpy(out + off, genome->b_h, sizeof(genome->b_h));   off += NEURAL_RNN_B_H_COUNT;
+        memcpy(out + off, genome->b_y, sizeof(genome->b_y));   off += NEURAL_RNN_B_Y_COUNT;
+    } else if (genome->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        const NeuralCandidatePolicyParams *p = &genome->v2;
+        memcpy(out + off, p->ctx_w_xh, sizeof(p->ctx_w_xh)); off += NEURAL_V2_CTX_WXH_COUNT;
+        memcpy(out + off, p->ctx_w_hh, sizeof(p->ctx_w_hh)); off += NEURAL_V2_CTX_WHH_COUNT;
+        memcpy(out + off, p->ctx_b_h, sizeof(p->ctx_b_h));   off += NEURAL_V2_CTX_BH_COUNT;
+        memcpy(out + off, p->global_w, sizeof(p->global_w)); off += NEURAL_V2_GLB_W_COUNT;
+        memcpy(out + off, p->global_b, sizeof(p->global_b)); off += NEURAL_V2_GLB_B_COUNT;
+        memcpy(out + off, p->res_w1, sizeof(p->res_w1));     off += NEURAL_V2_RES_W1_COUNT;
+        memcpy(out + off, p->res_b1, sizeof(p->res_b1));     off += NEURAL_V2_RES_B1_COUNT;
+        memcpy(out + off, p->res_w2, sizeof(p->res_w2));     off += NEURAL_V2_RES_W2_COUNT;
+        memcpy(out + off, p->res_b2, sizeof(p->res_b2));     off += NEURAL_V2_RES_B2_COUNT;
+        memcpy(out + off, p->cre_w1, sizeof(p->cre_w1));     off += NEURAL_V2_CRE_W1_COUNT;
+        memcpy(out + off, p->cre_b1, sizeof(p->cre_b1));     off += NEURAL_V2_CRE_B1_COUNT;
+        memcpy(out + off, p->cre_w2, sizeof(p->cre_w2));     off += NEURAL_V2_CRE_W2_COUNT;
+        memcpy(out + off, p->cre_b2, sizeof(p->cre_b2));     off += NEURAL_V2_CRE_B2_COUNT;
+    }
+    return off;
+}
+
 float NeuralGenome_Distance(const NeuralGenome *a, const NeuralGenome *b) {
-    if (!NeuralGenome_Validate(a) || !NeuralGenome_Validate(b)) return 0.0f;
+    if (!NeuralGenome_Compatible(a, b)) return 0.0f;
+    float pa[NEURAL_MAX_PARAM_COUNT];
+    float pb[NEURAL_MAX_PARAM_COUNT];
+    uint32_t n = NeuralGenome_CopyFlatParams(a, pa, NEURAL_MAX_PARAM_COUNT);
+    if (n == 0u || NeuralGenome_CopyFlatParams(b, pb, NEURAL_MAX_PARAM_COUNT) != n) return 0.0f;
     double sumSq = 0.0;
-    for (size_t i = 0; i < NEURAL_RNN_W_XH_COUNT; ++i) {
-        double d = (double)a->w_xh[i] - (double)b->w_xh[i];
+    for (uint32_t i = 0; i < n; ++i) {
+        double d = (double)pa[i] - (double)pb[i];
         sumSq += d * d;
     }
-    for (size_t i = 0; i < NEURAL_RNN_W_HH_COUNT; ++i) {
-        double d = (double)a->w_hh[i] - (double)b->w_hh[i];
-        sumSq += d * d;
+    return (float)sqrt(sumSq / (double)n);
+}
+
+static void initGaussArray(float *arr, size_t count, float stdDev, float limit, uint32_t *rng) {
+    for (size_t i = 0; i < count; ++i) {
+        arr[i] = clampf(canonicalFloat(NeuralGenome_RandomGaussian(rng) * stdDev), -limit, limit);
     }
-    for (size_t i = 0; i < NEURAL_RNN_W_HY_COUNT; ++i) {
-        double d = (double)a->w_hy[i] - (double)b->w_hy[i];
-        sumSq += d * d;
+}
+
+static void initBiasArray(float *arr, size_t count, float scale, float limit, uint32_t *rng) {
+    for (size_t i = 0; i < count; ++i) {
+        arr[i] = clampf(canonicalFloat((NeuralGenome_RandomUnit(rng) * 2.0f - 1.0f) * scale), -limit, limit);
     }
-    for (size_t i = 0; i < NEURAL_RNN_B_H_COUNT; ++i) {
-        double d = (double)a->b_h[i] - (double)b->b_h[i];
-        sumSq += d * d;
-    }
-    for (size_t i = 0; i < NEURAL_RNN_B_Y_COUNT; ++i) {
-        double d = (double)a->b_y[i] - (double)b->b_y[i];
-        sumSq += d * d;
-    }
-    return (float)sqrt(sumSq / (double)NEURAL_RNN_PARAM_COUNT);
+}
+
+bool NeuralGenome_InitRandomV2(NeuralGenome *genome, uint32_t *randomState, float scale,
+                               float weightLimit, uint64_t lineageId) {
+    if (!genome || !randomState) return false;
+    if (!isfinite(scale) || scale <= 0.0f || scale > NEURAL_GENOME_MAX_WEIGHT_LIMIT)
+        scale = 0.7f;
+    if (!isfinite(weightLimit) || weightLimit <= 0.0f || weightLimit > NEURAL_GENOME_MAX_WEIGHT_LIMIT)
+        weightLimit = NEURAL_GENOME_DEFAULT_WEIGHT_LIMIT;
+
+    NeuralGenome_InitV2(genome);
+    NeuralCandidatePolicyParams *p = &genome->v2;
+
+    initGaussArray(p->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT,
+                   scale * sqrtf(2.0f / (float)(NEURAL_V2_CONTEXT_INPUTS + NEURAL_V2_CONTEXT_HIDDEN)),
+                   weightLimit, randomState);
+    initGaussArray(p->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT,
+                   scale * sqrtf(1.0f / (float)NEURAL_V2_CONTEXT_HIDDEN),
+                   weightLimit, randomState);
+    initBiasArray(p->ctx_b_h, NEURAL_V2_CTX_BH_COUNT, 0.25f, weightLimit, randomState);
+
+    initGaussArray(p->global_w, NEURAL_V2_GLB_W_COUNT,
+                   scale * sqrtf(2.0f / (float)(NEURAL_V2_CONTEXT_HIDDEN + NEURAL_V2_GLOBAL_ACTIONS)),
+                   weightLimit, randomState);
+    initBiasArray(p->global_b, NEURAL_V2_GLB_B_COUNT, 0.25f, weightLimit, randomState);
+
+    initGaussArray(p->res_w1, NEURAL_V2_RES_W1_COUNT,
+                   scale * sqrtf(2.0f / (float)(NEURAL_V2_RES_IN + NEURAL_V2_RES_HIDDEN)),
+                   weightLimit, randomState);
+    initBiasArray(p->res_b1, NEURAL_V2_RES_B1_COUNT, 0.25f, weightLimit, randomState);
+    initGaussArray(p->res_w2, NEURAL_V2_RES_W2_COUNT,
+                   scale * sqrtf(2.0f / (float)(NEURAL_V2_RES_HIDDEN + 1u)),
+                   weightLimit, randomState);
+    initBiasArray(p->res_b2, NEURAL_V2_RES_B2_COUNT, 0.25f, weightLimit, randomState);
+
+    initGaussArray(p->cre_w1, NEURAL_V2_CRE_W1_COUNT,
+                   scale * sqrtf(2.0f / (float)(NEURAL_V2_CRE_IN + NEURAL_V2_CRE_HIDDEN)),
+                   weightLimit, randomState);
+    initBiasArray(p->cre_b1, NEURAL_V2_CRE_B1_COUNT, 0.25f, weightLimit, randomState);
+    initGaussArray(p->cre_w2, NEURAL_V2_CRE_W2_COUNT,
+                   scale * sqrtf(2.0f / (float)(NEURAL_V2_CRE_HIDDEN + NEURAL_V2_CRE_ACTIONS)),
+                   weightLimit, randomState);
+    initBiasArray(p->cre_b2, NEURAL_V2_CRE_B2_COUNT, 0.25f, weightLimit, randomState);
+
+    snprintf(genome->metadata.label, sizeof(genome->metadata.label), "random_candidate_policy");
+    snprintf(genome->metadata.origin, sizeof(genome->metadata.origin), "random");
+    genome->metadata.lineageId = lineageId ? lineageId : 1u;
+    genome->metadata.generation = 0u;
+    genome->valid = true;
+    NeuralGenome_UpdateFingerprint(genome);
+    genome->metadata.founderFingerprint = genome->metadata.fingerprint;
+    return NeuralGenome_Validate(genome);
 }
 
 bool NeuralGenome_InitRandom(NeuralGenome *genome, uint32_t *randomState, float scale,
@@ -462,14 +633,64 @@ static void mutateArray(float *arr, size_t count, NeuralMutationConfig cfg, uint
     }
 }
 
+static void clampArray(float *arr, size_t count, float limit) {
+    for (size_t i = 0; i < count; ++i) {
+        arr[i] = clampf(canonicalFloat(arr[i]), -limit, limit);
+    }
+}
+
+static void uniformCrossArray(float *dst, const float *a, const float *b, size_t count, uint32_t *rng) {
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = NeuralGenome_RandomUnit(rng) < 0.5f ? a[i] : b[i];
+    }
+}
+
+static void mutateV2Params(NeuralCandidatePolicyParams *p, NeuralMutationConfig cfg, uint32_t *rng) {
+    mutateArray(p->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT, cfg, rng);
+    mutateArray(p->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT, cfg, rng);
+    mutateArray(p->ctx_b_h, NEURAL_V2_CTX_BH_COUNT, cfg, rng);
+    mutateArray(p->global_w, NEURAL_V2_GLB_W_COUNT, cfg, rng);
+    mutateArray(p->global_b, NEURAL_V2_GLB_B_COUNT, cfg, rng);
+    mutateArray(p->res_w1, NEURAL_V2_RES_W1_COUNT, cfg, rng);
+    mutateArray(p->res_b1, NEURAL_V2_RES_B1_COUNT, cfg, rng);
+    mutateArray(p->res_w2, NEURAL_V2_RES_W2_COUNT, cfg, rng);
+    mutateArray(p->res_b2, NEURAL_V2_RES_B2_COUNT, cfg, rng);
+    mutateArray(p->cre_w1, NEURAL_V2_CRE_W1_COUNT, cfg, rng);
+    mutateArray(p->cre_b1, NEURAL_V2_CRE_B1_COUNT, cfg, rng);
+    mutateArray(p->cre_w2, NEURAL_V2_CRE_W2_COUNT, cfg, rng);
+    mutateArray(p->cre_b2, NEURAL_V2_CRE_B2_COUNT, cfg, rng);
+}
+
+static void clampV2Params(NeuralCandidatePolicyParams *p, float limit) {
+    clampArray(p->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT, limit);
+    clampArray(p->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT, limit);
+    clampArray(p->ctx_b_h, NEURAL_V2_CTX_BH_COUNT, limit);
+    clampArray(p->global_w, NEURAL_V2_GLB_W_COUNT, limit);
+    clampArray(p->global_b, NEURAL_V2_GLB_B_COUNT, limit);
+    clampArray(p->res_w1, NEURAL_V2_RES_W1_COUNT, limit);
+    clampArray(p->res_b1, NEURAL_V2_RES_B1_COUNT, limit);
+    clampArray(p->res_w2, NEURAL_V2_RES_W2_COUNT, limit);
+    clampArray(p->res_b2, NEURAL_V2_RES_B2_COUNT, limit);
+    clampArray(p->cre_w1, NEURAL_V2_CRE_W1_COUNT, limit);
+    clampArray(p->cre_b1, NEURAL_V2_CRE_B1_COUNT, limit);
+    clampArray(p->cre_w2, NEURAL_V2_CRE_W2_COUNT, limit);
+    clampArray(p->cre_b2, NEURAL_V2_CRE_B2_COUNT, limit);
+}
+
 bool NeuralGenome_Mutate(NeuralGenome *genome, NeuralMutationConfig config, uint32_t *randomState) {
     if (!NeuralGenome_Validate(genome) || !NeuralMutationConfig_Validate(&config) || !randomState)
         return false;
-    mutateArray(genome->w_xh, NEURAL_RNN_W_XH_COUNT, config, randomState);
-    mutateArray(genome->w_hh, NEURAL_RNN_W_HH_COUNT, config, randomState);
-    mutateArray(genome->w_hy, NEURAL_RNN_W_HY_COUNT, config, randomState);
-    mutateArray(genome->b_h, NEURAL_RNN_B_H_COUNT, config, randomState);
-    mutateArray(genome->b_y, NEURAL_RNN_B_Y_COUNT, config, randomState);
+    if (genome->architecture == NEURAL_ARCH_FIXED_RNN) {
+        mutateArray(genome->w_xh, NEURAL_RNN_W_XH_COUNT, config, randomState);
+        mutateArray(genome->w_hh, NEURAL_RNN_W_HH_COUNT, config, randomState);
+        mutateArray(genome->w_hy, NEURAL_RNN_W_HY_COUNT, config, randomState);
+        mutateArray(genome->b_h, NEURAL_RNN_B_H_COUNT, config, randomState);
+        mutateArray(genome->b_y, NEURAL_RNN_B_Y_COUNT, config, randomState);
+    } else if (genome->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        mutateV2Params(&genome->v2, config, randomState);
+    } else {
+        return false;
+    }
     NeuralGenome_UpdateFingerprint(genome);
     return NeuralGenome_Validate(genome);
 }
@@ -477,69 +698,123 @@ bool NeuralGenome_Mutate(NeuralGenome *genome, NeuralMutationConfig config, uint
 bool NeuralGenome_Inherit(NeuralGenome *child, const NeuralGenome *parentA,
                           const NeuralGenome *parentB, NeuralMutationConfig config,
                           uint32_t *randomState) {
-    if (!child || !NeuralGenome_Validate(parentA) || !NeuralGenome_Validate(parentB) ||
+    if (!child || !NeuralGenome_Compatible(parentA, parentB) ||
         !NeuralMutationConfig_Validate(&config) || !randomState)
         return false;
 
     NeuralGenome temp;
-    NeuralGenome_Init(&temp);
-
-    if (config.crossoverMode == NEURAL_CROSSOVER_MUTATION_ONLY) {
-        memcpy(temp.w_xh, parentA->w_xh, sizeof(temp.w_xh));
-        memcpy(temp.w_hh, parentA->w_hh, sizeof(temp.w_hh));
-        memcpy(temp.w_hy, parentA->w_hy, sizeof(temp.w_hy));
-        memcpy(temp.b_h, parentA->b_h, sizeof(temp.b_h));
-        memcpy(temp.b_y, parentA->b_y, sizeof(temp.b_y));
-    } else if (config.crossoverMode == NEURAL_CROSSOVER_UNIFORM) {
-        for (size_t i = 0; i < NEURAL_RNN_W_XH_COUNT; ++i)
-            temp.w_xh[i] = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA->w_xh[i] : parentB->w_xh[i];
-        for (size_t i = 0; i < NEURAL_RNN_W_HH_COUNT; ++i)
-            temp.w_hh[i] = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA->w_hh[i] : parentB->w_hh[i];
-        for (size_t i = 0; i < NEURAL_RNN_W_HY_COUNT; ++i)
-            temp.w_hy[i] = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA->w_hy[i] : parentB->w_hy[i];
-        for (size_t i = 0; i < NEURAL_RNN_B_H_COUNT; ++i)
-            temp.b_h[i] = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA->b_h[i] : parentB->b_h[i];
-        for (size_t i = 0; i < NEURAL_RNN_B_Y_COUNT; ++i)
-            temp.b_y[i] = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA->b_y[i] : parentB->b_y[i];
+    if (parentA->architecture == NEURAL_ARCH_FIXED_RNN) {
+        NeuralGenome_Init(&temp);
+        if (config.crossoverMode == NEURAL_CROSSOVER_MUTATION_ONLY) {
+            memcpy(temp.w_xh, parentA->w_xh, sizeof(temp.w_xh));
+            memcpy(temp.w_hh, parentA->w_hh, sizeof(temp.w_hh));
+            memcpy(temp.w_hy, parentA->w_hy, sizeof(temp.w_hy));
+            memcpy(temp.b_h, parentA->b_h, sizeof(temp.b_h));
+            memcpy(temp.b_y, parentA->b_y, sizeof(temp.b_y));
+        } else if (config.crossoverMode == NEURAL_CROSSOVER_UNIFORM) {
+            uniformCrossArray(temp.w_xh, parentA->w_xh, parentB->w_xh, NEURAL_RNN_W_XH_COUNT, randomState);
+            uniformCrossArray(temp.w_hh, parentA->w_hh, parentB->w_hh, NEURAL_RNN_W_HH_COUNT, randomState);
+            uniformCrossArray(temp.w_hy, parentA->w_hy, parentB->w_hy, NEURAL_RNN_W_HY_COUNT, randomState);
+            uniformCrossArray(temp.b_h, parentA->b_h, parentB->b_h, NEURAL_RNN_B_H_COUNT, randomState);
+            uniformCrossArray(temp.b_y, parentA->b_y, parentB->b_y, NEURAL_RNN_B_Y_COUNT, randomState);
+        } else {
+            for (uint32_t h = 0; h < NEURAL_RNN_HIDDEN; ++h) {
+                const NeuralGenome *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA : parentB;
+                memcpy(&temp.w_xh[h * NEURAL_RNN_INPUTS], &src->w_xh[h * NEURAL_RNN_INPUTS],
+                       NEURAL_RNN_INPUTS * sizeof(float));
+                memcpy(&temp.w_hh[h * NEURAL_RNN_HIDDEN], &src->w_hh[h * NEURAL_RNN_HIDDEN],
+                       NEURAL_RNN_HIDDEN * sizeof(float));
+                temp.b_h[h] = src->b_h[h];
+            }
+            for (uint32_t o = 0; o < NEURAL_RNN_OUTPUTS; ++o) {
+                const NeuralGenome *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA : parentB;
+                memcpy(&temp.w_hy[o * NEURAL_RNN_HIDDEN], &src->w_hy[o * NEURAL_RNN_HIDDEN],
+                       NEURAL_RNN_HIDDEN * sizeof(float));
+                temp.b_y[o] = src->b_y[o];
+            }
+        }
+        if (config.mutationRate > 0.0f || config.replaceRate > 0.0f) {
+            mutateArray(temp.w_xh, NEURAL_RNN_W_XH_COUNT, config, randomState);
+            mutateArray(temp.w_hh, NEURAL_RNN_W_HH_COUNT, config, randomState);
+            mutateArray(temp.w_hy, NEURAL_RNN_W_HY_COUNT, config, randomState);
+            mutateArray(temp.b_h, NEURAL_RNN_B_H_COUNT, config, randomState);
+            mutateArray(temp.b_y, NEURAL_RNN_B_Y_COUNT, config, randomState);
+        } else {
+            clampArray(temp.w_xh, NEURAL_RNN_W_XH_COUNT, config.weightLimit);
+            clampArray(temp.w_hh, NEURAL_RNN_W_HH_COUNT, config.weightLimit);
+            clampArray(temp.w_hy, NEURAL_RNN_W_HY_COUNT, config.weightLimit);
+            clampArray(temp.b_h, NEURAL_RNN_B_H_COUNT, config.weightLimit);
+            clampArray(temp.b_y, NEURAL_RNN_B_Y_COUNT, config.weightLimit);
+        }
+        snprintf(temp.metadata.label, sizeof(temp.metadata.label), "evolved_rnn");
+    } else if (parentA->architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+        NeuralGenome_InitV2(&temp);
+        const NeuralCandidatePolicyParams *a = &parentA->v2;
+        const NeuralCandidatePolicyParams *b = &parentB->v2;
+        NeuralCandidatePolicyParams *d = &temp.v2;
+        if (config.crossoverMode == NEURAL_CROSSOVER_MUTATION_ONLY) {
+            *d = *a;
+        } else if (config.crossoverMode == NEURAL_CROSSOVER_UNIFORM) {
+            uniformCrossArray(d->ctx_w_xh, a->ctx_w_xh, b->ctx_w_xh, NEURAL_V2_CTX_WXH_COUNT, randomState);
+            uniformCrossArray(d->ctx_w_hh, a->ctx_w_hh, b->ctx_w_hh, NEURAL_V2_CTX_WHH_COUNT, randomState);
+            uniformCrossArray(d->ctx_b_h, a->ctx_b_h, b->ctx_b_h, NEURAL_V2_CTX_BH_COUNT, randomState);
+            uniformCrossArray(d->global_w, a->global_w, b->global_w, NEURAL_V2_GLB_W_COUNT, randomState);
+            uniformCrossArray(d->global_b, a->global_b, b->global_b, NEURAL_V2_GLB_B_COUNT, randomState);
+            uniformCrossArray(d->res_w1, a->res_w1, b->res_w1, NEURAL_V2_RES_W1_COUNT, randomState);
+            uniformCrossArray(d->res_b1, a->res_b1, b->res_b1, NEURAL_V2_RES_B1_COUNT, randomState);
+            uniformCrossArray(d->res_w2, a->res_w2, b->res_w2, NEURAL_V2_RES_W2_COUNT, randomState);
+            uniformCrossArray(d->res_b2, a->res_b2, b->res_b2, NEURAL_V2_RES_B2_COUNT, randomState);
+            uniformCrossArray(d->cre_w1, a->cre_w1, b->cre_w1, NEURAL_V2_CRE_W1_COUNT, randomState);
+            uniformCrossArray(d->cre_b1, a->cre_b1, b->cre_b1, NEURAL_V2_CRE_B1_COUNT, randomState);
+            uniformCrossArray(d->cre_w2, a->cre_w2, b->cre_w2, NEURAL_V2_CRE_W2_COUNT, randomState);
+            uniformCrossArray(d->cre_b2, a->cre_b2, b->cre_b2, NEURAL_V2_CRE_B2_COUNT, randomState);
+        } else {
+            /* Cruce por neurona/módulo preservando circuitos recurrentes y evaluadores coherentes. */
+            for (uint32_t h = 0; h < NEURAL_V2_CONTEXT_HIDDEN; ++h) {
+                const NeuralCandidatePolicyParams *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? a : b;
+                memcpy(&d->ctx_w_xh[h * NEURAL_V2_CONTEXT_INPUTS], &src->ctx_w_xh[h * NEURAL_V2_CONTEXT_INPUTS],
+                       NEURAL_V2_CONTEXT_INPUTS * sizeof(float));
+                memcpy(&d->ctx_w_hh[h * NEURAL_V2_CONTEXT_HIDDEN], &src->ctx_w_hh[h * NEURAL_V2_CONTEXT_HIDDEN],
+                       NEURAL_V2_CONTEXT_HIDDEN * sizeof(float));
+                d->ctx_b_h[h] = src->ctx_b_h[h];
+            }
+            for (uint32_t g = 0; g < NEURAL_V2_GLOBAL_ACTIONS; ++g) {
+                const NeuralCandidatePolicyParams *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? a : b;
+                memcpy(&d->global_w[g * NEURAL_V2_CONTEXT_HIDDEN], &src->global_w[g * NEURAL_V2_CONTEXT_HIDDEN],
+                       NEURAL_V2_CONTEXT_HIDDEN * sizeof(float));
+                d->global_b[g] = src->global_b[g];
+            }
+            for (uint32_t h = 0; h < NEURAL_V2_RES_HIDDEN; ++h) {
+                const NeuralCandidatePolicyParams *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? a : b;
+                memcpy(&d->res_w1[h * NEURAL_V2_RES_IN], &src->res_w1[h * NEURAL_V2_RES_IN],
+                       NEURAL_V2_RES_IN * sizeof(float));
+                d->res_b1[h] = src->res_b1[h];
+                d->res_w2[h] = src->res_w2[h];
+            }
+            d->res_b2[0] = (NeuralGenome_RandomUnit(randomState) < 0.5f ? a : b)->res_b2[0];
+            for (uint32_t h = 0; h < NEURAL_V2_CRE_HIDDEN; ++h) {
+                const NeuralCandidatePolicyParams *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? a : b;
+                memcpy(&d->cre_w1[h * NEURAL_V2_CRE_IN], &src->cre_w1[h * NEURAL_V2_CRE_IN],
+                       NEURAL_V2_CRE_IN * sizeof(float));
+                d->cre_b1[h] = src->cre_b1[h];
+            }
+            for (uint32_t act = 0; act < NEURAL_V2_CRE_ACTIONS; ++act) {
+                const NeuralCandidatePolicyParams *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? a : b;
+                memcpy(&d->cre_w2[act * NEURAL_V2_CRE_HIDDEN], &src->cre_w2[act * NEURAL_V2_CRE_HIDDEN],
+                       NEURAL_V2_CRE_HIDDEN * sizeof(float));
+                d->cre_b2[act] = src->cre_b2[act];
+            }
+        }
+        if (config.mutationRate > 0.0f || config.replaceRate > 0.0f) {
+            mutateV2Params(d, config, randomState);
+        } else {
+            clampV2Params(d, config.weightLimit);
+        }
+        snprintf(temp.metadata.label, sizeof(temp.metadata.label), "evolved_candidate_policy");
     } else {
-        /* NEURAL_CROSSOVER_NEURON_WISE: conserva unidades ocultas y filas de salida coherentes. */
-        for (uint32_t h = 0; h < NEURAL_RNN_HIDDEN; ++h) {
-            const NeuralGenome *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA : parentB;
-            memcpy(&temp.w_xh[h * NEURAL_RNN_INPUTS], &src->w_xh[h * NEURAL_RNN_INPUTS],
-                   NEURAL_RNN_INPUTS * sizeof(float));
-            memcpy(&temp.w_hh[h * NEURAL_RNN_HIDDEN], &src->w_hh[h * NEURAL_RNN_HIDDEN],
-                   NEURAL_RNN_HIDDEN * sizeof(float));
-            temp.b_h[h] = src->b_h[h];
-        }
-        for (uint32_t o = 0; o < NEURAL_RNN_OUTPUTS; ++o) {
-            const NeuralGenome *src = NeuralGenome_RandomUnit(randomState) < 0.5f ? parentA : parentB;
-            memcpy(&temp.w_hy[o * NEURAL_RNN_HIDDEN], &src->w_hy[o * NEURAL_RNN_HIDDEN],
-                   NEURAL_RNN_HIDDEN * sizeof(float));
-            temp.b_y[o] = src->b_y[o];
-        }
+        return false;
     }
 
-    if (config.mutationRate > 0.0f || config.replaceRate > 0.0f) {
-        mutateArray(temp.w_xh, NEURAL_RNN_W_XH_COUNT, config, randomState);
-        mutateArray(temp.w_hh, NEURAL_RNN_W_HH_COUNT, config, randomState);
-        mutateArray(temp.w_hy, NEURAL_RNN_W_HY_COUNT, config, randomState);
-        mutateArray(temp.b_h, NEURAL_RNN_B_H_COUNT, config, randomState);
-        mutateArray(temp.b_y, NEURAL_RNN_B_Y_COUNT, config, randomState);
-    } else {
-        /* Incluso sin mutación, respetar la cota absoluta configurada. */
-        for (size_t i = 0; i < NEURAL_RNN_W_XH_COUNT; ++i)
-            temp.w_xh[i] = clampf(canonicalFloat(temp.w_xh[i]), -config.weightLimit, config.weightLimit);
-        for (size_t i = 0; i < NEURAL_RNN_W_HH_COUNT; ++i)
-            temp.w_hh[i] = clampf(canonicalFloat(temp.w_hh[i]), -config.weightLimit, config.weightLimit);
-        for (size_t i = 0; i < NEURAL_RNN_W_HY_COUNT; ++i)
-            temp.w_hy[i] = clampf(canonicalFloat(temp.w_hy[i]), -config.weightLimit, config.weightLimit);
-        for (size_t i = 0; i < NEURAL_RNN_B_H_COUNT; ++i)
-            temp.b_h[i] = clampf(canonicalFloat(temp.b_h[i]), -config.weightLimit, config.weightLimit);
-        for (size_t i = 0; i < NEURAL_RNN_B_Y_COUNT; ++i)
-            temp.b_y[i] = clampf(canonicalFloat(temp.b_y[i]), -config.weightLimit, config.weightLimit);
-    }
-
-    snprintf(temp.metadata.label, sizeof(temp.metadata.label), "evolved_rnn");
     snprintf(temp.metadata.origin, sizeof(temp.metadata.origin), "inherited");
     temp.metadata.lineageId = parentA->metadata.lineageId ? parentA->metadata.lineageId : 1u;
     temp.metadata.founderFingerprint = parentA->metadata.founderFingerprint;

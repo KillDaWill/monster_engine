@@ -23,6 +23,7 @@ extern "C" {
 typedef enum EvolutionProfileSection {
     EVO_PROF_SIM_TICK = 0,
     EVO_PROF_PHYSIOLOGY,
+    EVO_PROF_METABOLISM,
     EVO_PROF_RESOURCES,
     EVO_PROF_ENTITY_LOOKUP,
     EVO_PROF_OBS_PUBLISH,

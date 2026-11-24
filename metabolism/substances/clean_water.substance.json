@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "clean_water",
+  "name": "Clean Water",
+  "composition": {
+    "water": 0.99,
+    "minerals": 0.01
+  },
+  "physical_properties": {
+    "phase": "liquid",
+    "hardness": 0.0
+  },
+  "presentation": {
+    "model": "water",
+    "color": [0.16, 0.48, 0.78]
+  }
+}

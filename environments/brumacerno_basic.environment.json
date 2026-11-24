@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "id": "brumacerno_basic",
+  "name": "Brumacerno Basic Ingestion",
+  "description": "Stage 1 environment with accessible cellulose vegetation and clean water.",
+  "arena_size": 28.0,
+  "episode_seconds": 240.0,
+  "focal_initial": {
+    "energy_min": 0.40,
+    "energy_max": 0.48,
+    "hydration_min": 0.48,
+    "hydration_max": 0.56,
+    "nutrients": 0.50,
+    "age": 240.0,
+    "spawn_radius": 1.8
+  },
+  "obstacles": {
+    "count": 0,
+    "min_radius": 0.9,
+    "max_radius": 1.2,
+    "height": 2.2
+  },
+  "resources": [
+    {
+      "substance": "grass",
+      "count": 8,
+      "initial_mass": 5.5,
+      "max_mass": 5.5,
+      "radius": 0.85,
+      "regen_policy": "linear",
+      "regen_rate": 0.025,
+      "decay_policy": "none",
+      "min_dist": 2.5,
+      "max_dist": 7.5
+    },
+    {
+      "substance": "clean_water",
+      "count": 2,
+      "initial_mass": 0.0,
+      "max_mass": 0.0,
+      "radius": 1.4,
+      "regen_policy": "infinite",
+      "regen_rate": 0.0,
+      "decay_policy": "none",
+      "min_dist": 4.2,
+      "max_dist": 7.2
+    }
+  ],
+  "background_creatures": []
+}

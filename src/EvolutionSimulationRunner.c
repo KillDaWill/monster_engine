@@ -164,6 +164,42 @@ static void fillSelectedSnapshot(const EcosystemWorld *w, AIObjectId targetId,
     for (unsigned i = 0; i < navN; ++i) {
         out->navPoints[i] = e->mind.navigation.points[i];
     }
+
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && e->metabolism.initialized && w->metabolismDb) {
+        out->hasMetabolism = true;
+        const EcosystemSpecies *sp = &w->species[e->speciesIndex];
+        const MetabolicProfile *mp = MetabolicProfileRegistry_Get(&w->metabolismDb->profiles, sp->metabolicProfile);
+        snprintf(out->metabolicProfileName, sizeof(out->metabolicProfileName), "%.47s",
+                 mp ? mp->name : "unknown");
+        const SubstanceDef *lastSub = SubstanceRegistry_Get(&w->metabolismDb->substances,
+                                                            e->metabolism.lastIngestedSubstance);
+        snprintf(out->lastSubstanceName, sizeof(out->lastSubstanceName), "%.39s",
+                 lastSub ? lastSub->name : "none");
+        out->digestiveMass = e->metabolism.digestiveMass;
+        out->digestiveCapacity = e->metabolism.digestiveCapacity;
+        out->digestiveFullness = MetabolicState_Fullness(&e->metabolism);
+        out->wasteMass = e->metabolism.wasteMass;
+        out->nutrientReserve = e->metabolism.nutrientReserve;
+        out->toxicity = e->metabolism.toxicity;
+        out->digestiveDiscomfort = e->metabolism.digestiveDiscomfort;
+        out->recentEnergyAbsorbed = e->metabolism.recentEnergyAbsorbed;
+        out->recentHydrationAbsorbed = e->metabolism.recentHydrationAbsorbed;
+        out->recentMetabolicDamage = e->metabolism.recentMetabolicDamage;
+        out->totalIngestedMass = e->metabolism.totalIngestedMass;
+        out->totalEnergyGenerated = e->metabolism.totalEnergyGenerated;
+        out->totalHydrationGenerated = e->metabolism.totalHydrationGenerated;
+        out->totalToxinExposure = e->metabolism.totalToxinExposure;
+        unsigned ec = e->metabolism.activeCount;
+        if (ec > METABOLIC_STATE_MAX_ACTIVE) ec = METABOLIC_STATE_MAX_ACTIVE;
+        out->digestiveEntryCount = ec;
+        for (unsigned i = 0; i < ec; ++i) {
+            const MoleculeDef *md = MoleculeRegistry_Get(&w->metabolismDb->molecules,
+                                                         e->metabolism.entries[i].molecule);
+            snprintf(out->digestiveMoleculeNames[i], sizeof(out->digestiveMoleculeNames[i]), "%.31s",
+                     md ? md->id : "?");
+            out->digestiveMoleculeMasses[i] = e->metabolism.entries[i].mass;
+        }
+    }
 }
 
 static void publishSnapshot(EvolutionSimulationRunner *r) {
@@ -205,6 +241,7 @@ static void publishSnapshot(EvolutionSimulationRunner *r) {
     dst->statistics = w->statistics;
     dst->interventionCount = w->interventionCount;
     dst->controller = w->defaultController;
+    dst->metabolismMode = w->metabolismMode;
     snprintf(dst->founderModeName, sizeof(dst->founderModeName), "%s", w->founderModeName);
     dst->speciesCount = w->speciesCount < EVO_RUNNER_MAX_SPECIES ? w->speciesCount : EVO_RUNNER_MAX_SPECIES;
     for (unsigned s = 0; s < dst->speciesCount; ++s) {
@@ -309,11 +346,40 @@ static void publishSnapshot(EvolutionSimulationRunner *r) {
         const AIWorldObject *obj = AIWorld_Get(&w->observations, res->id);
         if (!obj) continue;
         EvolutionResourceSnapshot *rs = &dst->resources[outRes++];
+        memset(rs, 0, sizeof(*rs));
         rs->id = res->id;
         rs->category = res->category;
         rs->position = obj->position;
         rs->radius = obj->radius;
         rs->biomassFraction = res->maximumBiomass > 0.0f ? (res->biomass / res->maximumBiomass) : 1.0f;
+        rs->molecular = res->molecular;
+        rs->mass = res->biomass;
+        rs->maxMass = res->maximumBiomass;
+        if (res->molecular) {
+            rs->phase = res->phase;
+            rs->presentationModel = res->presentationModel;
+            rs->color[0] = res->color[0]; rs->color[1] = res->color[1]; rs->color[2] = res->color[2];
+            rs->hardness = res->hardness;
+            rs->regenPolicy = res->regenPolicy;
+            rs->decayPolicy = res->decayPolicy;
+            rs->remainingLifetime = res->remainingLifetime;
+            rs->sensorySignature = res->sensorySignature;
+            rs->sourceCreatureId = res->sourceCreatureId;
+            rs->killerCreatureId = res->killerCreatureId;
+            if (w->metabolismDb) {
+                const SubstanceDef *sd = SubstanceRegistry_Get(&w->metabolismDb->substances, res->substanceHandle);
+                snprintf(rs->substanceId, sizeof(rs->substanceId), "%.31s", sd ? sd->id : "custom");
+                snprintf(rs->substanceName, sizeof(rs->substanceName), "%.39s", sd ? sd->name : "Custom");
+                unsigned cc = res->componentCount < 8u ? res->componentCount : 8u;
+                rs->componentCount = cc;
+                for (unsigned ci = 0; ci < cc; ++ci) {
+                    const MoleculeDef *md = MoleculeRegistry_Get(&w->metabolismDb->molecules,
+                                                                 res->composition[ci].molecule);
+                    snprintf(rs->compNames[ci], sizeof(rs->compNames[ci]), "%.27s", md ? md->id : "?");
+                    rs->compFractions[ci] = res->composition[ci].fraction;
+                }
+            }
+        }
     }
     dst->resourceCount = outRes;
 

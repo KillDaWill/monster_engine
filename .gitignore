@@ -69,11 +69,15 @@ benchmarks/benchmark_interactions
 # Directorio temporal de trabajo
 scratch/
 
-# Ejecutables de Evolution Arena y benchmarks (fuentes en demos/ y benchmarks/).
+# Ejecutables de Evolution Arena, Brain Evolution Lab y benchmarks (fuentes en demos/ y benchmarks/).
 /demos/demo_evolution_arena
 /demos/demo_evolution_arena_headless
+/demos/demo_brain_evolution_lab
+/demos/demo_brain_evolution_lab_headless
 /benchmarks/benchmark_neural
 /benchmarks/benchmark_ecosystem
 /benchmarks/benchmark_evolution_scalability
+/benchmarks/benchmark_molecular_evolution
+/benchmarks/verify_molecular_experiments
 
 /demos/interface_demo

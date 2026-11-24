@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "rotten_meat",
+  "name": "Rotten Meat",
+  "composition": {
+    "water": 0.45,
+    "proteins": 0.14,
+    "lipids": 0.08,
+    "decay_products": 0.25,
+    "organic_toxins": 0.06,
+    "minerals": 0.02
+  },
+  "physical_properties": {
+    "phase": "semi_solid",
+    "hardness": 0.15
+  },
+  "presentation": {
+    "model": "carcass",
+    "color": [0.44, 0.36, 0.22]
+  }
+}

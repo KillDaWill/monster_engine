@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "velkar_tissue",
+  "name": "Velkar Carcass Tissue",
+  "composition": {
+    "water": 0.57,
+    "proteins": 0.28,
+    "lipids": 0.10,
+    "simple_carbohydrates": 0.01,
+    "minerals": 0.03,
+    "indigestible_fiber": 0.01
+  },
+  "physical_properties": {
+    "phase": "semi_solid",
+    "hardness": 0.28
+  },
+  "presentation": {
+    "model": "carcass",
+    "color": [0.58, 0.20, 0.22]
+  }
+}

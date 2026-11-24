@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "velkar_hunting",
+  "name": "Velkar Hunting-Dependent Survival",
+  "description": "Scenario B: water, vegetation, and living prey with zero initial carcasses.",
+  "arena_size": 32.0,
+  "episode_seconds": 300.0,
+  "focal_initial": {
+    "energy_min": 0.42,
+    "energy_max": 0.48,
+    "hydration_min": 0.50,
+    "hydration_max": 0.58,
+    "nutrients": 0.50,
+    "age": 240.0,
+    "spawn_radius": 2.0
+  },
+  "obstacles": {
+    "count": 2,
+    "min_radius": 0.9,
+    "max_radius": 1.15,
+    "height": 2.2
+  },
+  "resources": [
+    {
+      "substance": "grass",
+      "count": 5,
+      "initial_mass": 4.5,
+      "max_mass": 4.5,
+      "radius": 0.80,
+      "regen_policy": "linear",
+      "regen_rate": 0.02,
+      "decay_policy": "none",
+      "min_dist": 3.5,
+      "max_dist": 10.5
+    },
+    {
+      "substance": "clean_water",
+      "count": 2,
+      "initial_mass": 0.0,
+      "max_mass": 0.0,
+      "radius": 1.4,
+      "regen_policy": "infinite",
+      "regen_rate": 0.0,
+      "decay_policy": "none",
+      "min_dist": 4.8,
+      "max_dist": 9.0
+    }
+  ],
+  "background_creatures": [
+    {
+      "species": "species/brumacerno.species.json",
+      "count": 3,
+      "policy": "wander",
+      "brain": null,
+      "initial_energy": 0.95,
+      "initial_hydration": 0.95,
+      "initial_health": 0.85,
+      "speed_scale": 0.72,
+      "min_dist": 3.8,
+      "max_dist": 9.5
+    }
+  ]
+}

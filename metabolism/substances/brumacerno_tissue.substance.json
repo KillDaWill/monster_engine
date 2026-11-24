@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "brumacerno_tissue",
+  "name": "Brumacerno Carcass Tissue",
+  "composition": {
+    "water": 0.55,
+    "proteins": 0.25,
+    "lipids": 0.14,
+    "simple_carbohydrates": 0.02,
+    "minerals": 0.03,
+    "indigestible_fiber": 0.01
+  },
+  "physical_properties": {
+    "phase": "semi_solid",
+    "hardness": 0.30
+  },
+  "presentation": {
+    "model": "carcass",
+    "color": [0.64, 0.23, 0.20]
+  }
+}

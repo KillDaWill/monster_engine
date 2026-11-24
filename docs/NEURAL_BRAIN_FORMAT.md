@@ -110,3 +110,18 @@ Al exportar, `NeuralBrain_SaveFile(..., overwrite=false, ...)` rechaza sobrescri
 - [brains/forager_herbivore.brain.json](../brains/forager_herbivore.brain.json): variante orientada a forrajeo vegetal y huida (útil también para pruebas de transferencia entre especies).
 - [brains/hunter_carnivore.brain.json](../brains/hunter_carnivore.brain.json): variante orientada a caza y carroña (asignable a un Brumacerno para verificar que el cuerpo rechaza ataques y carne sin corromper la simulación).
 - [brains/random_founder_seed42.brain.json](../brains/random_founder_seed42.brain.json): fundador aleatorio acotado determinista (semilla 42).
+- [brains/brumacerno_forager_v2.brain.json](../brains/brumacerno_forager_v2.brain.json): cerebro v2 evolucionado para Brumacerno en `brumacerno_mixed` (100 % supervivencia ciega).
+- [brains/velkar_scavenger.brain.json](../brains/velkar_scavenger.brain.json): cerebro v2 evolucionado para Velkar en `velkar_scavenging` (100 % supervivencia ciega).
+- [brains/velkar_hunter_v2.brain.json](../brains/velkar_hunter_v2.brain.json): cerebro v2 evolucionado mediante currículo completo desde fundadores aleatorios en `velkar_hunting` (0 cadáveres iniciales, 100 % supervivencia ciega, caza y consumo independiente de cadáveres).
+
+## 7. Esquema versión 2 (`recurrent_candidate_policy`)
+
+El formato versión `2` extiende `*.brain.json` manteniendo compatibilidad completa con archivos versión `1`:
+- `"version": 2`
+- `"architecture": "recurrent_candidate_policy"`
+- `"sensor_schema": "monster_sensor_v2"`, `"action_schema": "monster_action_v2"`
+- `"topology"`: `context_inputs: 24`, `context_hidden: 16`, `global_actions: 3`, `resource_features: 14`, `resource_hidden: 12`, `creature_features: 11`, `creature_hidden: 10`, `creature_actions: 4` (`1,416` parámetros totales).
+- `"weights"` y `"biases"` divididos por subred (`ctx_w_xh`, `ctx_w_hh`, `ctx_b_h`, `glob_w`, `glob_b`, `res_w1`, `res_b1`, `res_w2`, `res_b2`, `cre_w1`, `cre_b1`, `cre_w2`, `cre_b2`).
+- Metadatos opcionales de procedencia de entrenamiento en `metadata` (`trainer`, `trainer_generation`, `species_id`, `environment_id`, `validation_fitness`, `validation_survival`).
+
+Ver [Controlador Neuronal V2](NEURAL_CONTROLLER_V2.md) para las ecuaciones completas.

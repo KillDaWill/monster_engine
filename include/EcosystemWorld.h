@@ -6,12 +6,20 @@
 #include "CreatureMind.h"
 #include "CreaturePhysiology.h"
 #include "CreatureReproduction.h"
+#include "CreatureMetabolism.h"
+#include "MetabolismIO.h"
 #include "EcosystemResources.h"
 #include "EvolutionJobSystem.h"
 #include "EvolutionProfiler.h"
 #include "NeuralBrainIO.h"
 #include <stdio.h>
 #include <stdint.h>
+
+/** @brief Modo de metabolismo del mundo: legado categórico o molecular guiado por datos. */
+typedef enum EcosystemMetabolismMode {
+    ECOSYSTEM_METABOLISM_LEGACY = 0,
+    ECOSYSTEM_METABOLISM_MOLECULAR = 1
+} EcosystemMetabolismMode;
 
 #define ECOSYSTEM_DEFAULT_OBSTACLE_CAPACITY 64u
 #define ECOSYSTEM_MAX_GENERATION_BUCKETS 64u
@@ -86,6 +94,10 @@ typedef struct EcosystemSpecies {
     float speed, radius, oralReach, attackRange, damage, attackCooldown, attackCost;
     float turnRate; /**< Velocidad angular máxima; cero conserva el valor genérico. */
     float edibleBiomass, nutrition;
+    /* Configuración molecular opcional por especie (modo ECOSYSTEM_METABOLISM_MOLECULAR). */
+    MetabolicProfileHandle metabolicProfile;
+    SubstanceHandle tissueSubstance;
+    float tissueMass;
 } EcosystemSpecies;
 
 typedef struct EcosystemEntity {
@@ -101,8 +113,10 @@ typedef struct EcosystemEntity {
     BrainProfile brain; /**< Perfil privado resuelto, dirección estable durante su vida. */
     CreatureMind mind;
     CreaturePhysiology physiology;
+    MetabolicState metabolism; /**< Estado digestivo individual, independiente del cerebro. */
     CreatureReproduction reproduction;
     CreatureBodyState body;
+    AIObjectId lastAttackerId; /**< Diagnóstico causal de depredación; nunca visible a IA. */
     Vector3 previousPosition, velocity, oralLocal, oralPivot, oralElbow;
     double nextAttack;
     float developmentScale, oralMotion;
@@ -117,9 +131,18 @@ typedef struct EcosystemStatistics {
     uint64_t meals, drinks, escapes;
     uint64_t birthsPerGeneration[ECOSYSTEM_MAX_GENERATION_BUCKETS];
     uint64_t intentSelections[ACTION_INTENT_COUNT];
+    uint64_t v2ActionSelections[NEURAL_V2_ACTION_COUNT];
     unsigned population, juveniles, maximumGeneration, activeLineages;
     unsigned missingFounderCount;
     double foodConsumed, plantConsumed, meatConsumed, waterConsumed, plantBiomass;
+    /* Estadísticas metabólicas detalladas (modo molecular). */
+    double ingestedBySubstance[SUBSTANCE_MAX_COUNT];
+    double ingestedByMolecule[MOLECULE_MAX_COUNT];
+    double totalIngestedMass, totalProcessedMass, totalAbsorbedMass;
+    double totalRejectedMass, totalWasteEliminated;
+    double totalMetabolicEnergy, totalMetabolicHydration, totalMetabolicNutrients;
+    double totalDigestiveEnergyCost, totalToxinExposure, totalDetoxified, totalMetabolicDamage;
+    uint64_t toxicityDeaths;
     double averageAge, averageHealth, averageEnergy, averageGeneration;
     double survivalDurationSum, averageSurvivalDuration, maxObservedSurvival;
     uint64_t completedLifetimes;
@@ -181,8 +204,13 @@ typedef struct EcosystemWorld {
     unsigned capacity, resourceCapacity, birthCount, count;
     uint32_t random, initialSeed;
     bool updating;
-    /* Configuración evolutiva neuronal. */
+    /* Configuración evolutiva neuronal y metabólica. */
+    EcosystemMetabolismMode metabolismMode;
+    const MetabolismDatabase *metabolismDb; /**< Base congelada prestada o apuntando a ownedMetabolismDb. */
+    MetabolismDatabase *ownedMetabolismDb;  /**< Propiedad opcional liberada en EcosystemWorld_Free. */
+    MoleculeHandle decayTargetMolecule;     /**< Handle pre-resuelto de decay_products. */
     CreatureControllerType defaultController;
+    NeuralArchitectureType defaultArchitecture;
     NeuralMutationConfig neuralMutation;
     NeuralControllerConfig neuralController;
     bool disablePhysicalMutation;
@@ -220,6 +248,13 @@ bool EcosystemWorld_InitArena(EcosystemWorld *,unsigned populationCap,unsigned r
 bool EcosystemWorld_SetWorkerCount(EcosystemWorld *, unsigned workerCount);
 /** @brief Consulta el número efectivo de trabajadores activos (1 si serial). */
 unsigned EcosystemWorld_WorkerCount(const EcosystemWorld *);
+/** @brief Habilita modo molecular asociando una base metabólica congelada (prestada). */
+bool EcosystemWorld_EnableMolecularMetabolism(EcosystemWorld *, const MetabolismDatabase *db);
+/** @brief Carga y toma propiedad de una base metabólica desde disco para este mundo. */
+bool EcosystemWorld_LoadMolecularMetabolism(EcosystemWorld *, const char *rootDir,
+                                            char *error, size_t errorSize);
+/** @brief Registra un recurso molecular validando sustancia y propiedades físicas. */
+AIObjectId EcosystemWorld_AddMolecularResource(EcosystemWorld *, EcosystemResource, Vector3, float radius);
 /** @brief Asocia un perfilador opcional (NULL desactiva). */
 void EcosystemWorld_SetProfiler(EcosystemWorld *, EvolutionProfiler *);
 /** @brief Libera todos los arrays propios; visuales pertenecen al adaptador. */

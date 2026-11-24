@@ -57,6 +57,9 @@ typedef struct EvolutionArenaConfig {
     const char *velkarBrainPath;      /**< Archivo *.brain.json específico para Velkar. */
     const char *legacyScenario;       /**< NULL para Evolution Arena; "A".."E"/"reference" compat. */
     const char *presetName;           /**< "small" | "medium" | "large" | "stress" | NULL. */
+    EcosystemMetabolismMode metabolismMode; /**< LEGACY o MOLECULAR. */
+    const char *metabolismDir;        /**< Directorio de moléculas/sustancias/perfiles (defecto "metabolism"). */
+    bool includeMixedSubstances;      /**< Añade fruta, carne, plantas tóxicas y agua contaminada en modo molecular. */
 } EvolutionArenaConfig;
 
 /** @brief Nombre textual del modo de fundadores. */
@@ -71,8 +74,11 @@ const char *EvolutionArenaPreset_Name(EvolutionArenaPreset preset);
 /** @brief Aplica uno de los presets ("small", "medium", "large", "stress"). */
 bool EvolutionArenaConfig_ApplyPreset(EvolutionArenaConfig *cfg, const char *name);
 
-/** @brief Configuración por defecto de Evolution Arena (40x40, 16 Brumacernos, 6 Velkares, 5 Hz). */
+/** @brief Configuración por defecto de Evolution Arena (compatibilidad v1). */
 EvolutionArenaConfig EvolutionArenaConfig_Default(void);
+
+/** @brief Configuración por defecto en modo molecular con cerebros genéricos v2. */
+EvolutionArenaConfig EvolutionArenaConfig_DefaultMolecular(void);
 
 /** @brief Aplica un escenario ecológico clásico (A..E o reference) para validación de regresión. */
 bool EvolutionArenaConfig_ApplyLegacyScenario(EvolutionArenaConfig *cfg, const char *name);

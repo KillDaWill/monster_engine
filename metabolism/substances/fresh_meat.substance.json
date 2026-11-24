@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "fresh_meat",
+  "name": "Fresh Meat",
+  "composition": {
+    "water": 0.56,
+    "proteins": 0.26,
+    "lipids": 0.13,
+    "simple_carbohydrates": 0.02,
+    "minerals": 0.03
+  },
+  "physical_properties": {
+    "phase": "semi_solid",
+    "hardness": 0.25
+  },
+  "presentation": {
+    "model": "carcass",
+    "color": [0.68, 0.22, 0.20]
+  }
+}

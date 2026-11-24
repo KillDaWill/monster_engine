@@ -124,8 +124,19 @@ EvolutionArenaConfig EvolutionArenaConfig_Default(void) {
         .brumacernoBrainPath = NULL,
         .velkarBrainPath = NULL,
         .legacyScenario = NULL,
-        .presetName = "small"
+        .presetName = "small",
+        .metabolismMode = ECOSYSTEM_METABOLISM_LEGACY,
+        .metabolismDir = "metabolism",
+        .includeMixedSubstances = false
     };
+}
+
+EvolutionArenaConfig EvolutionArenaConfig_DefaultMolecular(void) {
+    EvolutionArenaConfig cfg = EvolutionArenaConfig_Default();
+    cfg.metabolismMode = ECOSYSTEM_METABOLISM_MOLECULAR;
+    cfg.founderMode = EVOLUTION_FOUNDERS_RANDOM;
+    cfg.includeMixedSubstances = true;
+    return cfg;
 }
 
 bool EvolutionArenaConfig_ApplyLegacyScenario(EvolutionArenaConfig *cfg, const char *name) {
@@ -237,6 +248,11 @@ static bool initializeFounderBrain(EcosystemWorld *w, AIObjectId id, unsigned sp
         if (cfg->founderMode == EVOLUTION_FOUNDERS_IMPORTED) {
             snprintf(genome.metadata.origin, sizeof(genome.metadata.origin), "imported");
         }
+    } else if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
+        if (!NeuralGenome_InitRandomV2(&genome, &w->random, 0.75f, cfg->mutation.weightLimit, lineageId)) {
+            setErr(error, errorSize, "No se pudo inicializar cerebro aleatorio v2");
+            return false;
+        }
     } else if (cfg->founderMode == EVOLUTION_FOUNDERS_RANDOM) {
         if (!NeuralGenome_InitRandom(&genome, &w->random, 0.8f, cfg->mutation.weightLimit, lineageId)) {
             setErr(error, errorSize, "No se pudo inicializar cerebro aleatorio");
@@ -333,10 +349,34 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
     }
 
     float halfSize = cfg->arenaSize * 0.5f;
-    unsigned resCap = cfg->plants + cfg->ponds + cfg->capacity + 64u;
+    unsigned extraMixed = (cfg->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && cfg->includeMixedSubstances)
+                              ? (cfg->plants / 3u + 16u) : 0u;
+    unsigned resCap = cfg->plants + cfg->ponds + cfg->capacity + extraMixed + 64u;
     if (!EcosystemWorld_InitArena(w, cfg->capacity, resCap, 2u, halfSize, cfg->seed, cfg->step, cfg->day)) {
         setErr(error, errorSize, "No se pudo reservar memoria para Evolution Arena");
         return false;
+    }
+
+    if (cfg->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
+        const char *mDir = (cfg->metabolismDir && cfg->metabolismDir[0]) ? cfg->metabolismDir : "metabolism";
+        if (!EcosystemWorld_LoadMolecularMetabolism(w, mDir, error, errorSize)) {
+            goto failure;
+        }
+        if ((hasCommon && importedCommon.architecture != NEURAL_ARCH_CANDIDATE_POLICY) ||
+            (hasBrum && importedBrum.architecture != NEURAL_ARCH_CANDIDATE_POLICY) ||
+            (hasVelk && importedVelk.architecture != NEURAL_ARCH_CANDIDATE_POLICY)) {
+            setErr(error, errorSize,
+                   "Configuración incompatible: modo molecular requiere cerebros v2 (recurrent_candidate_policy)");
+            goto failure;
+        }
+    } else {
+        if ((hasCommon && importedCommon.architecture != NEURAL_ARCH_FIXED_RNN) ||
+            (hasBrum && importedBrum.architecture != NEURAL_ARCH_FIXED_RNN) ||
+            (hasVelk && importedVelk.architecture != NEURAL_ARCH_FIXED_RNN)) {
+            setErr(error, errorSize,
+                   "Configuración incompatible: modo legado requiere cerebros v1 (fixed_rnn)");
+            goto failure;
+        }
     }
 
     /* Configurar pool de trabajadores paralelos (0 = auto sólo en poblaciones grandes si no se pidió 1). */
@@ -359,12 +399,46 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
 
     EcosystemSpecies brum, velk;
     if (!buildSpecies(&brum, &velk, cfg, error, errorSize)) goto failure;
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb) {
+        brum.metabolicProfile = MetabolicProfileRegistry_Find(&w->metabolismDb->profiles, "brumacerno");
+        brum.tissueSubstance = SubstanceRegistry_Find(&w->metabolismDb->substances, "brumacerno_tissue");
+        brum.tissueMass = 5.5f;
+        brum.physiology.dietMask = 0u;
+        brum.physiology.preyMask = 0u;
+        velk.metabolicProfile = MetabolicProfileRegistry_Find(&w->metabolismDb->profiles, "velkar");
+        velk.tissueSubstance = SubstanceRegistry_Find(&w->metabolismDb->substances, "velkar_tissue");
+        velk.tissueMass = 2.8f;
+        velk.physiology.dietMask = 0u;
+        velk.physiology.preyMask = 0u;
+    }
     if (!EcosystemWorld_AddSpecies(w, brum) || !EcosystemWorld_AddSpecies(w, velk)) {
         setErr(error, errorSize, "Fallo al registrar especies Brumacerno y Velkar");
         goto failure;
     }
 
     bool distributedLayout = (cfg->ponds > 2u || cfg->arenaSize > 50.0f);
+    bool molecular = (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb != NULL);
+    const SubstanceDef *cleanWaterSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "clean_water"))
+        : NULL;
+    const SubstanceDef *contWaterSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "contaminated_water"))
+        : NULL;
+    const SubstanceDef *grassSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "grass"))
+        : NULL;
+    const SubstanceDef *fruitSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "fruit"))
+        : NULL;
+    const SubstanceDef *toxicSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "toxic_plant"))
+        : NULL;
+    const SubstanceDef *rottenSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "rotten_meat"))
+        : NULL;
+    const SubstanceDef *lethalSub = molecular
+        ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "deadly_nightshade"))
+        : NULL;
 
     /* 1) Estanques de agua: distribución estratificada en arenas grandes, simétrica en arena pequeña. */
     if (!distributedLayout) {
@@ -375,9 +449,11 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
             Vector3 pos = (cfg->ponds == 1u)
                               ? Vec3_Zero()
                               : Vec3_Create(sinf(angle) * pondOffset, 0.0f, cosf(angle) * pondOffset);
-            if (!EcosystemWorld_AddResource(w, (EcosystemResource){
-                    .category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f
-                }, pos, 1.5f)) {
+            EcosystemResource pondRes = molecular && cleanWaterSub
+                ? EcosystemResource_FromSubstance(cleanWaterSub, 0.0f, 0.0f, RESOURCE_REGEN_INFINITE, 0.0f,
+                                                  RESOURCE_DECAY_NONE, 0.0, 0.0f, MOLECULE_INVALID_HANDLE)
+                : (EcosystemResource){.category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f};
+            if (!EcosystemWorld_AddResource(w, pondRes, pos, 1.5f)) {
                 setErr(error, errorSize, "No se pudo colocar estanque en la arena");
                 goto failure;
             }
@@ -394,14 +470,26 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
                                                 0.0f,
                                                 -pondSpan + CreatureGenome_Random(&w->random) * 2.0f * pondSpan);
                 if (!AIWorld_Walkable(&w->observations, pos, pondRadius + 3.0f, false)) continue;
-                placed = EcosystemWorld_AddResource(w, (EcosystemResource){
-                    .category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f
-                }, pos, pondRadius) != 0;
+                EcosystemResource pondRes = molecular && cleanWaterSub
+                    ? EcosystemResource_FromSubstance(cleanWaterSub, 0.0f, 0.0f, RESOURCE_REGEN_INFINITE, 0.0f,
+                                                      RESOURCE_DECAY_NONE, 0.0, 0.0f, MOLECULE_INVALID_HANDLE)
+                    : (EcosystemResource){.category = ECO_WATER, .infinite = true, .accessible = true, .nutritionalValue = 1.0f};
+                placed = EcosystemWorld_AddResource(w, pondRes, pos, pondRadius) != 0;
             }
             if (!placed) {
                 setErr(error, errorSize, "No se pudo colocar estanque distribuido en la arena");
                 goto failure;
             }
+        }
+    }
+
+    if (molecular && cfg->includeMixedSubstances && contWaterSub && halfSize >= 14.0f) {
+        Vector3 cwPos = Vec3_Create(0.0f, 0.0f, fminf(halfSize * 0.48f, 9.5f));
+        if (AIWorld_Walkable(&w->observations, cwPos, 2.2f, false)) {
+            EcosystemResource cw = EcosystemResource_FromSubstance(
+                contWaterSub, 0.0f, 0.0f, RESOURCE_REGEN_INFINITE, 0.0f,
+                RESOURCE_DECAY_NONE, 0.0, 0.0f, MOLECULE_INVALID_HANDLE);
+            EcosystemWorld_AddMolecularResource(w, cw, cwPos, 1.3f);
         }
     }
 
@@ -455,10 +543,58 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
             if (!AIWorld_Walkable(&w->observations, p, 1.0f, false)) continue;
             float biomass = scarce ? 0.15f : 5.5f;
             float regen = scarce ? 0.0001f : 0.022f;
-            placed = EcosystemWorld_AddResource(w, (EcosystemResource){
-                .category = ECO_PLANT, .accessible = true, .biomass = biomass,
-                .maximumBiomass = biomass, .regenerationRate = regen, .nutritionalValue = 0.30f
-            }, p, 0.8f) != 0;
+            EcosystemResource plantRes;
+            if (molecular && grassSub) {
+                const SubstanceDef *chosenSub = grassSub;
+                ResourceRegenPolicy rp = RESOURCE_REGEN_DEPLETE_RELOCATE;
+                ResourceDecayPolicy dp = RESOURCE_DECAY_NONE;
+                double life = 0.0;
+                float dec = 0.0f;
+                float subMass = fminf(biomass, 2.8f);
+                float respawnDelay = 18.0f;
+                float rarity = 0.90f;
+                float minReloc = fminf(halfSize * 0.45f, 8.0f);
+                if (cfg->includeMixedSubstances) {
+                    if (fruitSub && (i % 8u == 1u)) {
+                        chosenSub = fruitSub;
+                        subMass = 1.6f;
+                        respawnDelay = 65.0f;
+                        rarity = 0.45f;
+                        minReloc = fminf(halfSize * 0.60f, 11.0f);
+                    } else if (toxicSub && (i % 9u == 4u)) {
+                        chosenSub = toxicSub;
+                        subMass = 3.2f;
+                        respawnDelay = 28.0f;
+                        rarity = 0.75f;
+                    } else if (lethalSub && (i % 13u == 10u)) {
+                        chosenSub = lethalSub;
+                        subMass = 1.8f;
+                        respawnDelay = 45.0f;
+                        rarity = 0.60f;
+                        minReloc = fminf(halfSize * 0.55f, 10.0f);
+                    } else if (rottenSub && (i % 12u == 7u)) {
+                        chosenSub = rottenSub;
+                        subMass = biomass;
+                        rp = RESOURCE_REGEN_NONE;
+                        dp = RESOURCE_DECAY_DECOMPOSE;
+                        life = 360.0;
+                        dec = 0.003f;
+                    }
+                }
+                plantRes = EcosystemResource_FromSubstance(chosenSub, subMass, subMass, rp, regen,
+                                                           dp, life, dec, w->decayTargetMolecule);
+                plantRes.respawnDelaySeconds = respawnDelay;
+                plantRes.rarityWeight = rarity;
+                plantRes.minRelocateDistance = minReloc;
+                plantRes.spawnMinDist = 2.5f;
+                plantRes.spawnMaxDist = fmaxf(4.0f, halfSize - 2.5f);
+            } else {
+                plantRes = (EcosystemResource){
+                    .category = ECO_PLANT, .accessible = true, .biomass = biomass,
+                    .maximumBiomass = biomass, .regenerationRate = regen, .nutritionalValue = 0.30f
+                };
+            }
+            placed = EcosystemWorld_AddResource(w, plantRes, p, 0.8f) != 0;
         }
         if (!placed) {
             setErr(error, errorSize, "No se pudo colocar vegetación en la arena");

@@ -7,6 +7,7 @@ static CreatureAction fallbackAction(const CreatureMind *m) {
 void CreatureActions_Cancel(CreatureMind *m) {
     if(!m)return;
     m->intakeRequested=0;
+    m->intakeMassRequested=0;
     m->retreating=false;m->navigation.count=0;
     m->target=0;m->contactTime=0;m->interactionStarted=0;m->destinationValid=false;
     m->interactionPhase=INTERACTION_CANCELLED;m->intent=(CreatureIntent){0};
@@ -14,7 +15,7 @@ void CreatureActions_Cancel(CreatureMind *m) {
     m->score=0;m->nextDecision=m->time;
 }
 void CreatureActions_Fail(CreatureMind *m) {
-    m->intakeRequested=0;m->intent=(CreatureIntent){0};
+    m->intakeRequested=0;m->intakeMassRequested=0;m->intent=(CreatureIntent){0};
     if (m->target) {
         m->failedTarget = m->target;
         m->cooldownUntil = m->time + 8;
@@ -56,6 +57,7 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
                             float dt) {
     m->intent = (CreatureIntent){0};
     m->intakeRequested=0;
+    m->intakeMassRequested=0;
     if (m->time < m->recoveryUntil)
         return;
     if (m->retreating) {
@@ -159,22 +161,34 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
                 m->contactTime+=dt;m->interactionPhase=INTERACTION_STABLE_CONTACT;
                 if(m->contactTime>=.25f) {
                     m->interactionPhase=INTERACTION_CONSUME;
-                    float desiredThreshold = neural ? .01f : p->needs[need].desiredLevel;
-                    float urgencyNow = neural ? (food ? (1.0f - b->energy) : (1.0f - b->hydration))
-                                              : m->needs.urgency[need];
-                    if(m->transactionalIntake) {
-                        m->intakeNeed=need;
-                        if(urgencyNow>desiredThreshold)
-                            m->intakeRequested=intakeRate*dt;
-                    } else CreatureNeeds_Satisfy(&m->needs,p,need,intakeRate*dt);
-                    if(urgencyNow<=desiredThreshold) {
-                        if(food)++m->completedMeals;else ++m->completedDrinks;
-                        m->interactionPhase=INTERACTION_WITHDRAW;m->intent.interact=false;
-                        m->retreating=true;m->retreatStart=b->position;
-                        m->retreatGoal=Vec3_Sub(b->position,Vec3_Scale(Vec3_Create(sinf(b->yaw),0,cosf(b->yaw)),2));
-                        m->navigation.progress=(NavigationProgress){0};
-                        m->target=0;m->action=fallbackAction(m);
-                        m->score=0;m->destinationValid=false;m->nextDecision=m->time;
+                    if (m->molecularMode) {
+                        /* Modo molecular: solicitar masa física sin umbrales codificados de hambre/sed.
+                         * La decisión de continuar o cesar pertenece al controlador neuronal; el límite
+                         * físico de capacidad estomacal detiene la transferencia sin forzar retirada. */
+                        if (b->digestiveFullness < 0.995f) {
+                            float massRate = b->maximumIngestionRate > 0.0f ? b->maximumIngestionRate : 0.40f;
+                            m->intakeMassRequested = massRate * dt;
+                        } else if (neural) {
+                            CreatureMind_RecordOutcome(m, NEURAL_OUTCOME_STOMACH_FULL);
+                        }
+                    } else {
+                        float desiredThreshold = neural ? .01f : p->needs[need].desiredLevel;
+                        float urgencyNow = neural ? (food ? (1.0f - b->energy) : (1.0f - b->hydration))
+                                                  : m->needs.urgency[need];
+                        if(m->transactionalIntake) {
+                            m->intakeNeed=need;
+                            if(urgencyNow>desiredThreshold)
+                                m->intakeRequested=intakeRate*dt;
+                        } else CreatureNeeds_Satisfy(&m->needs,p,need,intakeRate*dt);
+                        if(urgencyNow<=desiredThreshold) {
+                            if(food)++m->completedMeals;else ++m->completedDrinks;
+                            m->interactionPhase=INTERACTION_WITHDRAW;m->intent.interact=false;
+                            m->retreating=true;m->retreatStart=b->position;
+                            m->retreatGoal=Vec3_Sub(b->position,Vec3_Scale(Vec3_Create(sinf(b->yaw),0,cosf(b->yaw)),2));
+                            m->navigation.progress=(NavigationProgress){0};
+                            m->target=0;m->action=fallbackAction(m);
+                            m->score=0;m->destinationValid=false;m->nextDecision=m->time;
+                        }
                     }
                 }
             } else m->contactTime=0;

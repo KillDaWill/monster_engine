@@ -69,7 +69,11 @@ void CreatureMind_Update(CreatureMind *m, const AIWorld *w, const CreatureBodySt
         (!AIWorld_Get(w, m->target) || !CreaturePerception_Find(&m->perception, m->target)))
         CreatureActions_Fail(m);
     if (m->controllerType == CREATURE_CONTROLLER_NEURAL) {
-        NeuralController_Update(m, w, b);
+        if (m->neuralBrain.genome.architecture == NEURAL_ARCH_CANDIDATE_POLICY) {
+            NeuralControllerV2_Update(m, w, b);
+        } else {
+            NeuralController_Update(m, w, b);
+        }
     } else {
         CreatureDecision_Update(m, w, b);
     }
@@ -111,7 +115,9 @@ bool CreatureMind_AssignNeuralGenome(CreatureMind *m, const NeuralGenome *genome
 
     /* Cancelar acciones, rutas y solicitudes de interacción previas sin transferir memoria ajena. */
     m->intakeRequested = 0.0f;
+    m->intakeMassRequested = 0.0f;
     m->desiredFoodCategory = 0u;
+    m->neuralState.v2.active = (m->neuralBrain.genome.architecture == NEURAL_ARCH_CANDIDATE_POLICY);
     m->target = 0u;
     m->failedTarget = 0u;
     m->cooldownUntil = 0.0;
@@ -152,14 +158,18 @@ void CreatureMind_SetNeuralConfig(CreatureMind *m, NeuralControllerConfig config
 void CreatureMind_RecordFailure(CreatureMind *m, NeuralInteractionOutcome outcome) {
     if (!m) return;
     m->neuralState.pendingActionFailure = 1.0f;
+    m->neuralState.v2.pendingFeedback.interactionFailure = 1.0f;
     m->neuralState.lastOutcome = outcome;
     m->neuralState.lastOutcomeTime = m->time;
 }
 
 void CreatureMind_RecordDamage(CreatureMind *m, float damage) {
     if (!m || !isfinite(damage) || damage <= 0.0f) return;
+    float scaled = damage * 2.5f;
     m->neuralState.pendingDamageReceived =
-        fminf(1.0f, m->neuralState.pendingDamageReceived + damage * 2.5f);
+        fminf(1.0f, m->neuralState.pendingDamageReceived + scaled);
+    m->neuralState.v2.pendingFeedback.damageReceived =
+        fminf(1.0f, m->neuralState.v2.pendingFeedback.damageReceived + scaled);
     m->neuralState.lastOutcome = NEURAL_OUTCOME_TOOK_DAMAGE;
     m->neuralState.lastOutcomeTime = m->time;
 }
@@ -168,4 +178,40 @@ void CreatureMind_RecordOutcome(CreatureMind *m, NeuralInteractionOutcome outcom
     if (!m) return;
     m->neuralState.lastOutcome = outcome;
     m->neuralState.lastOutcomeTime = m->time;
+}
+
+void CreatureMind_RecordIngestion(CreatureMind *m, float confirmedMass) {
+    if (!m) return;
+    if (isfinite(confirmedMass) && confirmedMass > 0.0f) {
+        m->neuralState.v2.pendingFeedback.ingestedMass =
+            fminf(1.0f, m->neuralState.v2.pendingFeedback.ingestedMass + confirmedMass * 4.0f);
+        m->neuralState.lastOutcome = NEURAL_OUTCOME_INGESTED_SUBSTANCE;
+        m->neuralState.lastOutcomeTime = m->time;
+    }
+    m->intakeMassRequested = 0.0f;
+}
+
+void CreatureMind_RecordMetabolicEffects(CreatureMind *m, float energyAbsorbed, float waterAbsorbed,
+                                         float nutrientsAbsorbed, float toxicityDelta,
+                                         float metabolicDamage) {
+    if (!m || m->controllerType != CREATURE_CONTROLLER_NEURAL) return;
+    NeuralMetabolicFeedback *fb = &m->neuralState.v2.pendingFeedback;
+    if (isfinite(energyAbsorbed) && energyAbsorbed > 0.0f) {
+        fb->energyAbsorbed = fminf(1.0f, fb->energyAbsorbed + energyAbsorbed * 10.0f);
+    }
+    if (isfinite(waterAbsorbed) && waterAbsorbed > 0.0f) {
+        fb->waterAbsorbed = fminf(1.0f, fb->waterAbsorbed + waterAbsorbed * 10.0f);
+    }
+    if (isfinite(nutrientsAbsorbed) && nutrientsAbsorbed > 0.0f) {
+        fb->nutrientsAbsorbed = fminf(1.0f, fb->nutrientsAbsorbed + nutrientsAbsorbed * 10.0f);
+    }
+    if (isfinite(toxicityDelta) && toxicityDelta != 0.0f) {
+        float next = fb->toxicityDelta + toxicityDelta * 5.0f;
+        fb->toxicityDelta = fmaxf(-1.0f, fminf(1.0f, next));
+    }
+    if (isfinite(metabolicDamage) && metabolicDamage > 0.0f) {
+        fb->damageReceived = fminf(1.0f, fb->damageReceived + metabolicDamage * 4.0f);
+        m->neuralState.lastOutcome = NEURAL_OUTCOME_METABOLIC_DAMAGE;
+        m->neuralState.lastOutcomeTime = m->time;
+    }
 }

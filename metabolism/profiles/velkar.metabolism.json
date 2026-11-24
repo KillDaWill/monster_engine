@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "id": "velkar",
+  "name": "Velkar Protein-Lipid Metabolism",
+  "description": "Predator/scavenger-adapted metabolism with efficient protein and lipid digestion and minimal cellulose yield.",
+  "digestive_capacity": 3.5,
+  "maximum_ingestion_rate": 0.50,
+  "water_absorption_rate": 1.0,
+  "waste_elimination_rate": 0.28,
+  "unprocessable_passage_rate": 0.12,
+  "unprocessable_discomfort_factor": 0.22,
+  "toxin_sensitivity": 0.95,
+  "detoxification_rate": 0.020,
+  "detoxification_energy_cost": 0.06,
+  "toxicity_threshold": 0.24,
+  "toxicity_damage_rate": 0.050,
+  "discomfort_decay_rate": 0.05,
+  "nutrient_maintenance_rate": 0.0008,
+  "nutrient_recovery_bonus": 0.003,
+  "minimum_reproduction_nutrients": 0.20,
+  "processing_rules": [
+    {
+      "molecule": "water",
+      "rate": 0.70,
+      "efficiency": 0.95,
+      "energy_cost": 0.005,
+      "waste_fraction": 0.05,
+      "effects": {
+        "hydration": 0.55
+      }
+    },
+    {
+      "molecule": "proteins",
+      "rate": 0.28,
+      "efficiency": 0.92,
+      "energy_cost": 0.04,
+      "waste_fraction": 0.15,
+      "effects": {
+        "energy": 0.90,
+        "nutrients": 0.55
+      }
+    },
+    {
+      "molecule": "lipids",
+      "rate": 0.22,
+      "efficiency": 0.90,
+      "energy_cost": 0.04,
+      "waste_fraction": 0.12,
+      "effects": {
+        "energy": 1.25,
+        "nutrients": 0.25
+      }
+    },
+    {
+      "molecule": "simple_carbohydrates",
+      "rate": 0.16,
+      "efficiency": 0.45,
+      "energy_cost": 0.05,
+      "waste_fraction": 0.35,
+      "effects": {
+        "energy": 0.40,
+        "nutrients": 0.08
+      }
+    },
+    {
+      "molecule": "cellulose",
+      "rate": 0.06,
+      "efficiency": 0.02,
+      "energy_cost": 0.14,
+      "waste_fraction": 0.96,
+      "effects": {
+        "energy": 0.04,
+        "discomfort": 0.28
+      }
+    },
+    {
+      "molecule": "minerals",
+      "rate": 0.20,
+      "efficiency": 0.85,
+      "energy_cost": 0.01,
+      "waste_fraction": 0.15,
+      "effects": {
+        "nutrients": 0.85
+      }
+    },
+    {
+      "molecule": "indigestible_fiber",
+      "rate": 0.08,
+      "efficiency": 0.0,
+      "energy_cost": 0.12,
+      "waste_fraction": 1.0,
+      "effects": {
+        "discomfort": 0.25
+      }
+    },
+    {
+      "molecule": "organic_toxins",
+      "rate": 0.20,
+      "efficiency": 0.80,
+      "energy_cost": 0.05,
+      "waste_fraction": 0.35,
+      "effects": {
+        "toxicity": 2.40,
+        "discomfort": 0.70
+      }
+    },
+    {
+      "molecule": "decay_products",
+      "rate": 0.20,
+      "efficiency": 0.60,
+      "energy_cost": 0.04,
+      "waste_fraction": 0.45,
+      "effects": {
+        "energy": 0.16,
+        "toxicity": 0.48,
+        "discomfort": 0.32
+      }
+    },
+    {
+      "molecule": "acute_neurotoxin",
+      "rate": 0.75,
+      "efficiency": 1.0,
+      "energy_cost": 0.20,
+      "waste_fraction": 0.0,
+      "effects": {
+        "toxicity": 18.0,
+        "discomfort": 1.20
+      }
+    }
+  ]
+}

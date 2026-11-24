@@ -15,8 +15,11 @@ typedef struct CreatureBodyState {
     Vector3 mouthDirection;
     float yaw, visionYaw, speed;
     unsigned group, species, reproductiveRole;
-    bool mateReady, canAttack;
+    bool mateReady, canAttack, molecularMode;
     float energy, hydration, fatigue, health, normalizedAge, attackRange;
+    /* Señales internas observables del estado metabólico (cero información externa privilegiada). */
+    float digestiveFullness, nutrientReserve, toxicity, digestiveDiscomfort;
+    float maximumIngestionRate;
     CreatureCapabilities capabilities;
 } CreatureBodyState;
 typedef struct CreatureIntent {

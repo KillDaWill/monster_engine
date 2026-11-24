@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "id": "woody_bark",
+  "name": "Woody Bark",
+  "composition": {
+    "water": 0.15,
+    "cellulose": 0.15,
+    "indigestible_fiber": 0.68,
+    "minerals": 0.02
+  },
+  "physical_properties": {
+    "phase": "solid",
+    "hardness": 0.85
+  },
+  "presentation": {
+    "model": "generic",
+    "color": [0.42, 0.31, 0.20]
+  }
+}

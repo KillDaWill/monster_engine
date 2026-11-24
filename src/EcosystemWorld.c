@@ -328,7 +328,10 @@ EcosystemSpecies EcosystemSpecies_Default(unsigned id, unsigned category, unsign
         .attackRange = carnivore ? 0.69f : 1.398f,
         .damage = 0.36f, .attackCooldown = 0.8f, .attackCost = 0.008f,
         .edibleBiomass = carnivore ? 2.332f : 5.515f,
-        .nutrition = carnivore ? 0.480f : 0.203f
+        .nutrition = carnivore ? 0.480f : 0.203f,
+        .metabolicProfile = METABOLIC_PROFILE_INVALID_HANDLE,
+        .tissueSubstance = SUBSTANCE_INVALID_HANDLE,
+        .tissueMass = carnivore ? 2.8f : 5.5f
     };
     snprintf(s.name, sizeof(s.name), "perfil_%u", id);
     s.physiology.dietMask = diet;
@@ -414,6 +417,9 @@ bool EcosystemWorld_InitArena(EcosystemWorld *w, unsigned cap, unsigned resource
     w->initialSeed = seed;
     w->statistics.eventHash = UINT64_C(1469598103934665603);
     w->defaultController = CREATURE_CONTROLLER_UTILITY;
+    w->defaultArchitecture = NEURAL_ARCH_FIXED_RNN;
+    w->metabolismMode = ECOSYSTEM_METABOLISM_LEGACY;
+    w->decayTargetMolecule = MOLECULE_INVALID_HANDLE;
     w->neuralMutation = NeuralMutationConfig_Default();
     w->neuralController = NeuralControllerConfig_Default();
     w->nextLineageId = 1u;
@@ -455,12 +461,41 @@ void EcosystemWorld_SetProfiler(EcosystemWorld *w, EvolutionProfiler *profiler) 
     if (w) w->profiler = profiler;
 }
 
+bool EcosystemWorld_EnableMolecularMetabolism(EcosystemWorld *w, const MetabolismDatabase *db) {
+    if (!w || w->updating || !db || !db->loaded || !db->frozen) return false;
+    w->metabolismDb = db;
+    w->metabolismMode = ECOSYSTEM_METABOLISM_MOLECULAR;
+    w->defaultArchitecture = NEURAL_ARCH_CANDIDATE_POLICY;
+    w->decayTargetMolecule = MoleculeRegistry_Find(&db->molecules, "decay_products");
+    return true;
+}
+
+bool EcosystemWorld_LoadMolecularMetabolism(EcosystemWorld *w, const char *rootDir,
+                                            char *error, size_t errorSize) {
+    if (!w || w->updating || !rootDir || !rootDir[0]) return false;
+    MetabolismDatabase *db = calloc(1, sizeof(*db));
+    if (!db) {
+        if (error && errorSize) snprintf(error, errorSize, "Sin memoria para base metabólica");
+        return false;
+    }
+    if (!MetabolismIO_LoadDatabase(rootDir, db, error, errorSize)) {
+        free(db);
+        return false;
+    }
+    free(w->ownedMetabolismDb);
+    w->ownedMetabolismDb = db;
+    return EcosystemWorld_EnableMolecularMetabolism(w, db);
+}
+
 void EcosystemWorld_Free(EcosystemWorld *w) {
     if (!w) return;
     if (w->jobs) {
         EvolutionJobSystem_Destroy(w->jobs);
         w->jobs = NULL;
     }
+    free(w->ownedMetabolismDb);
+    w->ownedMetabolismDb = NULL;
+    w->metabolismDb = NULL;
     if (w->entities) {
         for (unsigned i = 0; i < w->capacity; ++i) {
             NeuralBrain_Destroy(&w->entities[i].mind.neuralBrain);
@@ -583,10 +618,32 @@ static void prepareBody(const EcosystemWorld *w, EcosystemEntity *e) {
     e->body.fatigue = e->physiology.fatigue;
     e->body.health = e->physiology.health;
     e->body.normalizedAge = p.maximumAge > 0 ? clamp((float)(e->physiology.age / p.maximumAge), 0, 1) : 0;
+    e->body.molecularMode = (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR);
+    if (e->body.molecularMode && e->metabolism.initialized) {
+        const MetabolicProfile *mp = w->metabolismDb
+            ? MetabolicProfileRegistry_Get(&w->metabolismDb->profiles, s->metabolicProfile)
+            : NULL;
+        e->body.digestiveFullness = MetabolicState_Fullness(&e->metabolism);
+        e->body.nutrientReserve = e->metabolism.nutrientReserve;
+        e->body.toxicity = clamp(e->metabolism.toxicity, 0.0f, 1.0f);
+        e->body.digestiveDiscomfort = e->metabolism.digestiveDiscomfort;
+        e->body.maximumIngestionRate = mp ? mp->maximumIngestionRate : 0.40f;
+    } else {
+        e->body.digestiveFullness = 0.0f;
+        e->body.nutrientReserve = 1.0f;
+        e->body.toxicity = 0.0f;
+        e->body.digestiveDiscomfort = 0.0f;
+        e->body.maximumIngestionRate = 0.0f;
+    }
     e->body.canAttack = s->physiology.canAttackPhysically && e->physiology.energy > 0.03f;
     e->body.attackRange = s->attackRange * size;
-    e->body.mateReady = CreatureReproduction_Ready(&e->reproduction, &s->reproduction,
-                                                   &e->physiology, w->clock.seconds);
+    bool reproReady = CreatureReproduction_Ready(&e->reproduction, &s->reproduction,
+                                                 &e->physiology, w->clock.seconds);
+    if (reproReady && e->body.molecularMode && e->metabolism.initialized && w->metabolismDb) {
+        const MetabolicProfile *mp = MetabolicProfileRegistry_Get(&w->metabolismDb->profiles, s->metabolicProfile);
+        if (mp && e->metabolism.nutrientReserve < mp->minimumReproductionNutrients) reproReady = false;
+    }
+    e->body.mateReady = reproReady;
     e->body.capabilities = (CreatureCapabilities){
         .ground = true, .waterInteraction = s->physiology.waterInteraction,
         .contactTolerance = 0.09f * size,
@@ -699,6 +756,14 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w, unsigned species, Vector3 pos
     CreatureMind_Init(&e->mind, &e->brain, id, e->seed);
     e->mind.externalPhysiology = true;
     e->mind.transactionalIntake = true;
+    e->mind.molecularMode = (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR);
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb) {
+        const MetabolicProfile *mp =
+            MetabolicProfileRegistry_Get(&w->metabolismDb->profiles, w->species[si].metabolicProfile);
+        CreatureMetabolism_Init(&e->metabolism, mp, 0.55f);
+    } else {
+        MetabolicState_Reset(&e->metabolism);
+    }
     CreatureMind_SetNeuralConfig(&e->mind, w->neuralController);
     e->mind.time = w->clock.seconds;
     e->mind.nextDecision += w->clock.seconds;
@@ -733,7 +798,48 @@ bool EcosystemWorld_RequestDeath(EcosystemWorld *w, AIObjectId id, CreatureDeath
     return true;
 }
 
+AIObjectId EcosystemWorld_AddMolecularResource(EcosystemWorld *w, EcosystemResource r, Vector3 p, float radius) {
+    if (!w || !finitePosition(p) || !isfinite(radius) || radius <= 0.0f ||
+        !isfinite(r.biomass) || r.biomass < 0.0f ||
+        !isfinite(r.maximumBiomass) || r.maximumBiomass < r.biomass ||
+        !isfinite(r.regenerationRate) || r.regenerationRate < 0.0f ||
+        r.componentCount == 0u || r.componentCount > SUBSTANCE_MAX_COMPONENTS)
+        return 0u;
+    if (w->freeResourceCount == 0u) return 0u;
+    r.molecular = true;
+    bool liquid = (r.phase == SUBSTANCE_PHASE_LIQUID);
+    unsigned slot = w->freeResourceSlots[--w->freeResourceCount];
+    r.id = AIWorld_Add(&w->observations, (AIWorldObject){
+        .type = liquid ? AI_WATER : AI_FOOD,
+        .position = p, .radius = radius, .height = liquid ? 0.0f : 0.04f,
+        .foodCategory = r.category,
+        .visible = true, .walkable = !liquid,
+        .drinkable = liquid && r.accessible,
+        .molecularResource = true,
+        .substancePhase = (uint8_t)r.phase,
+        .hardness = r.hardness,
+        .availabilityFraction = EcosystemResource_AvailabilityFraction(&r),
+        .sensorySignature = r.sensorySignature
+    });
+    if (!r.id) {
+        w->freeResourceSlots[w->freeResourceCount++] = slot;
+        return 0u;
+    }
+    w->resources[slot] = r;
+    unsigned aIdx = w->activeResourceCount++;
+    w->activeResourceSlots[aIdx] = slot;
+    w->resourceSlotToActive[slot] = aIdx;
+    idMapPut(&w->resourceMap, r.id, slot);
+    AIWorld_PublishMolecularResource(&w->observations, r.id, r.originalSpecies, r.category,
+                                     EcosystemResource_Available(&r), (uint8_t)r.phase,
+                                     r.hardness, EcosystemResource_AvailabilityFraction(&r),
+                                     &r.sensorySignature);
+    if (!w->updating) statistics(w);
+    return r.id;
+}
+
 AIObjectId EcosystemWorld_AddResource(EcosystemWorld *w, EcosystemResource r, Vector3 p, float radius) {
+    if (r.molecular) return EcosystemWorld_AddMolecularResource(w, r, p, radius);
     if (!w || !finitePosition(p) || !isfinite(radius) || radius <= 0 || !isfinite(r.biomass) ||
         r.biomass < 0 || !isfinite(r.maximumBiomass) || r.maximumBiomass < r.biomass ||
         !isfinite(r.regenerationRate) || r.regenerationRate < 0 ||
@@ -809,11 +915,90 @@ static void invalidate(EcosystemWorld *w, AIObjectId id) {
 float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resource, float requested) {
     EcosystemEntity *e = EcosystemWorld_Get(w, id);
     EcosystemResource *r = EcosystemWorld_Resource(w, resource);
-    if (!e || !r || e->physiology.cause || !isfinite(requested) || requested <= 0) return 0;
+    if (!e || !r || e->physiology.cause || !isfinite(requested) || requested <= 0.0f) return 0.0f;
     const EcosystemSpecies *sp = &w->species[e->speciesIndex];
     CreatureMind *m = &e->mind;
     CreatureBodyState *b = &e->body;
     InteractionTarget target;
+
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR || r->molecular) {
+        bool liquid = (r->phase == SUBSTANCE_PHASE_LIQUID);
+        if (m->target != resource || m->contactTime < 0.25f ||
+            m->interactionPhase != INTERACTION_CONSUME ||
+            m->action != (liquid ? ACTION_DRINK : ACTION_EAT) ||
+            !EcosystemResource_Available(r) ||
+            (liquid && !b->capabilities.waterInteraction) ||
+            !AIWorld_InteractionTarget(&w->observations, resource, b->mouth,
+                                       b->capabilities.contactTolerance, &target) ||
+            target.blocked || b->speed > 0.04f || b->reach.objectId != resource ||
+            b->reach.status != REACH_REACHED ||
+            Vec3_Distance(b->mouth, target.position) > target.positionTolerance ||
+            Vec3_Dot(b->mouthDirection, m->interaction.approach) < cosf(m->interaction.orientationTolerance))
+            return 0.0f;
+
+        const MetabolicProfile *mp = w->metabolismDb
+            ? MetabolicProfileRegistry_Get(&w->metabolismDb->profiles, sp->metabolicProfile)
+            : NULL;
+        if (!mp || !e->metabolism.initialized) return 0.0f;
+
+        float dt = (float)w->clock.fixedStep;
+        float reqMass = requested;
+        if (m->intakeMassRequested > 0.0f) reqMass = fminf(reqMass, m->intakeMassRequested);
+        float maxAccept = CreatureMetabolism_MaxAcceptableMass(&e->metabolism, mp, reqMass, dt);
+        if (maxAccept <= 1e-7f) {
+            m->intakeMassRequested = 0.0f;
+            /* Penalización fisiológica real por intentar seguir comiendo con el estómago lleno. */
+            e->metabolism.digestiveDiscomfort = fminf(1.0f, e->metabolism.digestiveDiscomfort + 0.14f * dt);
+            e->physiology.fatigue = fminf(1.0f, e->physiology.fatigue + 0.05f * dt);
+            e->physiology.energy = fmaxf(0.0f, e->physiology.energy - 0.012f * dt);
+            if (m->controllerType == CREATURE_CONTROLLER_NEURAL)
+                CreatureMind_RecordOutcome(m, NEURAL_OUTCOME_STOMACH_FULL);
+            return 0.0f;
+        }
+
+        /* Retirar exactamente la masa aceptada; jamás desechar masa retirada del recurso. */
+        float actual = EcosystemResource_Consume(r, maxAccept);
+        if (actual > 0.0f) {
+            if (CreatureMetabolism_Ingest(&e->metabolism, mp, r->substanceHandle,
+                                          r->composition, r->componentCount, actual, w->clock.seconds)) {
+                /* Malestar progresivo al forzar ingesta cerca de saturación o ya saciado al máximo. */
+                float fullnessNow = MetabolicState_Fullness(&e->metabolism);
+                if (fullnessNow > 0.78f) {
+                    e->metabolism.digestiveDiscomfort = fminf(1.0f,
+                        e->metabolism.digestiveDiscomfort + (fullnessNow - 0.78f) * actual * 0.45f);
+                } else if (e->physiology.energy > 0.96f && e->physiology.hydration > 0.96f && fullnessNow > 0.45f) {
+                    e->metabolism.digestiveDiscomfort = fminf(1.0f,
+                        e->metabolism.digestiveDiscomfort + actual * 0.08f);
+                }
+                w->statistics.totalIngestedMass += (double)actual;
+                if (r->substanceHandle < SUBSTANCE_MAX_COUNT) {
+                    w->statistics.ingestedBySubstance[r->substanceHandle] += (double)actual;
+                }
+                for (uint16_t ci = 0; ci < r->componentCount; ++ci) {
+                    MoleculeHandle mh = r->composition[ci].molecule;
+                    if (mh < MOLECULE_MAX_COUNT) {
+                        w->statistics.ingestedByMolecule[mh] += (double)(actual * r->composition[ci].fraction);
+                    }
+                }
+                if (liquid) {
+                    w->statistics.waterConsumed += (double)actual;
+                    ++w->statistics.drinks;
+                } else {
+                    w->statistics.foodConsumed += (double)actual;
+                    ++w->statistics.meals;
+                }
+                /* Informar únicamente la masa física ingerida (no beneficio nutricional). */
+                CreatureMind_RecordIngestion(m, actual);
+                event(w, liquid ? 4 : 3, id, resource);
+            }
+        }
+        AIWorld_PublishMolecularResource(&w->observations, r->id, r->originalSpecies, r->category,
+                                         EcosystemResource_Available(r), (uint8_t)r->phase,
+                                         r->hardness, EcosystemResource_AvailabilityFraction(r),
+                                         &r->sensorySignature);
+        return actual;
+    }
+
     bool water = r->category == ECO_WATER;
     if (m->target != resource || m->intakeRequested <= 0 || m->contactTime < 0.25f ||
         m->interactionPhase != INTERACTION_CONSUME ||
@@ -878,14 +1063,26 @@ bool EcosystemWorld_Attack(EcosystemWorld *w, AIObjectId attacker, AIObjectId pr
     Vector3 delta = Vec3_Sub(b->body.position, a->body.position);
     Vector3 front = Vec3_Create(sinf(a->body.yaw), 0, cosf(a->body.yaw));
     if (a->mind.action != ACTION_ATTACK || a->mind.target != prey) return false;
-    if (!a->body.canAttack || !s->physiology.canAttackPhysically ||
-        !(s->physiology.preyMask & t->category) || !(s->physiology.dietMask & ECO_MEAT)) {
-        ++w->statistics.failedInteractions;
-        if (a->mind.controllerType == CREATURE_CONTROLLER_NEURAL) {
-            CreatureActions_Fail(&a->mind);
-            CreatureMind_RecordFailure(&a->mind, NEURAL_OUTCOME_FAILED_ATTACK);
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
+        /* Modo molecular: sólo restricciones físicas/mecánicas, desacoplado de dieta y metabolismo. */
+        if (!a->body.canAttack || !s->physiology.canAttackPhysically || s->damage <= 0.0f || s->attackRange <= 0.0f) {
+            ++w->statistics.failedInteractions;
+            if (a->mind.controllerType == CREATURE_CONTROLLER_NEURAL) {
+                CreatureActions_Fail(&a->mind);
+                CreatureMind_RecordFailure(&a->mind, NEURAL_OUTCOME_FAILED_ATTACK);
+            }
+            return false;
         }
-        return false;
+    } else {
+        if (!a->body.canAttack || !s->physiology.canAttackPhysically ||
+            !(s->physiology.preyMask & t->category) || !(s->physiology.dietMask & ECO_MEAT)) {
+            ++w->statistics.failedInteractions;
+            if (a->mind.controllerType == CREATURE_CONTROLLER_NEURAL) {
+                CreatureActions_Fail(&a->mind);
+                CreatureMind_RecordFailure(&a->mind, NEURAL_OUTCOME_FAILED_ATTACK);
+            }
+            return false;
+        }
     }
     if (w->clock.seconds < a->nextAttack || a->physiology.energy < s->attackCost ||
         Vec3_Length(delta) > fminf(a->body.attackRange, a->body.capabilities.maximumOralReach) ||
@@ -901,6 +1098,7 @@ bool EcosystemWorld_Attack(EcosystemWorld *w, AIObjectId attacker, AIObjectId pr
     a->nextAttack = w->clock.seconds + s->attackCooldown;
     a->physiology.energy -= s->attackCost;
     b->physiology.health = fmaxf(0, b->physiology.health - s->damage);
+    b->lastAttackerId = a->id;
     if (a->mind.controllerType == CREATURE_CONTROLLER_NEURAL)
         CreatureMind_RecordOutcome(&a->mind, NEURAL_OUTCOME_ATTACK_HIT);
     if (b->mind.controllerType == CREATURE_CONTROLLER_NEURAL)
@@ -1345,38 +1543,44 @@ void EcosystemWorld_ComputeNeuralMetrics(EcosystemWorld *w) {
         return;
     }
 
-    /* 1) Dispersión RMS exacta por momentos O(N * P) cubriendo el 100% de la población viva:
-     * sqrt( (2 / (N*(N-1)*P)) * sum_{i<j} ||g_i - g_j||^2 ) = sqrt( (2 / ((N-1)*P)) * sum_p (N*sumSq_p - sum_p^2) / N ) */
-    double sumW[NEURAL_RNN_PARAM_COUNT] = {0};
-    double sumSqW[NEURAL_RNN_PARAM_COUNT] = {0};
+    /* 1) Dispersión RMS exacta por momentos O(N * P) cubriendo la arquitectura dominante (v1 o v2). */
+    NeuralArchitectureType refArch = living[0]->architecture;
+    uint32_t paramCount = NeuralGenome_ParamCount(living[0]);
+    if (paramCount == 0u || paramCount > NEURAL_MAX_PARAM_COUNT) {
+        w->statistics.neuralDiversity = 0.0;
+        w->statistics.neuralDispersionRms = 0.0;
+        free(living);
+        return;
+    }
+    double sumW[NEURAL_MAX_PARAM_COUNT];
+    double sumSqW[NEURAL_MAX_PARAM_COUNT];
+    float flat[NEURAL_MAX_PARAM_COUNT];
+    memset(sumW, 0, sizeof(double) * paramCount);
+    memset(sumSqW, 0, sizeof(double) * paramCount);
+    unsigned compatCount = 0u;
     for (unsigned i = 0; i < n; ++i) {
-        const NeuralGenome *g = living[i];
-        unsigned idx = 0;
-        for (size_t j = 0; j < NEURAL_RNN_W_XH_COUNT; ++j, ++idx) {
-            double v = (double)g->w_xh[j]; sumW[idx] += v; sumSqW[idx] += v * v;
-        }
-        for (size_t j = 0; j < NEURAL_RNN_W_HH_COUNT; ++j, ++idx) {
-            double v = (double)g->w_hh[j]; sumW[idx] += v; sumSqW[idx] += v * v;
-        }
-        for (size_t j = 0; j < NEURAL_RNN_W_HY_COUNT; ++j, ++idx) {
-            double v = (double)g->w_hy[j]; sumW[idx] += v; sumSqW[idx] += v * v;
-        }
-        for (size_t j = 0; j < NEURAL_RNN_B_H_COUNT; ++j, ++idx) {
-            double v = (double)g->b_h[j]; sumW[idx] += v; sumSqW[idx] += v * v;
-        }
-        for (size_t j = 0; j < NEURAL_RNN_B_Y_COUNT; ++j, ++idx) {
-            double v = (double)g->b_y[j]; sumW[idx] += v; sumSqW[idx] += v * v;
+        if (living[i]->architecture != refArch) continue;
+        if (NeuralGenome_CopyFlatParams(living[i], flat, paramCount) != paramCount) continue;
+        ++compatCount;
+        for (uint32_t p = 0; p < paramCount; ++p) {
+            double v = (double)flat[p];
+            sumW[p] += v;
+            sumSqW[p] += v * v;
         }
     }
-    double totalVarSum = 0.0;
-    double dn = (double)n;
-    for (unsigned p = 0; p < NEURAL_RNN_PARAM_COUNT; ++p) {
-        double mean = sumW[p] / dn;
-        double diff = sumSqW[p] - dn * mean * mean;
-        if (diff > 0.0) totalVarSum += diff;
+    if (compatCount >= 2u) {
+        double totalVarSum = 0.0;
+        double dn = (double)compatCount;
+        for (uint32_t p = 0; p < paramCount; ++p) {
+            double mean = sumW[p] / dn;
+            double diff = sumSqW[p] - dn * mean * mean;
+            if (diff > 0.0) totalVarSum += diff;
+        }
+        double meanPairwiseSq = (2.0 * totalVarSum) / ((dn - 1.0) * (double)paramCount);
+        w->statistics.neuralDispersionRms = meanPairwiseSq > 0.0 ? sqrt(meanPairwiseSq) : 0.0;
+    } else {
+        w->statistics.neuralDispersionRms = 0.0;
     }
-    double meanPairwiseSq = (2.0 * totalVarSum) / ((dn - 1.0) * (double)NEURAL_RNN_PARAM_COUNT);
-    w->statistics.neuralDispersionRms = meanPairwiseSq > 0.0 ? sqrt(meanPairwiseSq) : 0.0;
 
     /* 2) Media de distancias RMS individuales por pares (exacta para N<=48, muestreo determinista
      * uniforme que cubre el 100% de la población viva para N>48). */
@@ -1418,7 +1622,9 @@ typedef struct TickParallelCtx {
     unsigned *actionFailDelta;
     unsigned *navFailDelta;
     uint8_t *decisionIntent; /* 255 = sin decisión nueva */
+    uint8_t *v2ActionOut;    /* 255 = sin decisión v2 nueva */
     uint8_t *escapedFlag;
+    MetabolicStepOutcome *metOutcomes;
 } TickParallelCtx;
 
 static void phasePhysiologyWorker(void *opaque, unsigned start, unsigned end, unsigned workerIdx) {
@@ -1426,16 +1632,37 @@ static void phasePhysiologyWorker(void *opaque, unsigned start, unsigned end, un
     TickParallelCtx *ctx = (TickParallelCtx *)opaque;
     EcosystemWorld *w = ctx->w;
     float dt = ctx->dt;
+    bool molecular = (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb != NULL);
     for (unsigned k = start; k < end; ++k) {
         EcosystemEntity *e = &w->entities[w->order[k]];
         PhysiologyProfile p = physiologicalProfile(w, e);
         p.basalCost *= powf(e->genome.size, 0.75f) * (e->reproduction.gestating ? 1.2f : 1.0f);
         float healthBefore = e->physiology.health;
+
+        if (molecular && e->metabolism.initialized && e->physiology.cause == DEATH_NONE) {
+            const MetabolicProfile *mp = MetabolicProfileRegistry_Get(
+                &w->metabolismDb->profiles, w->species[e->speciesIndex].metabolicProfile);
+            MetabolicStepOutcome mOut = {0};
+            if (mp) {
+                CreatureMetabolism_Step(&e->metabolism, mp, &e->physiology, &p, dt, &mOut);
+                if (e->mind.controllerType == CREATURE_CONTROLLER_NEURAL) {
+                    CreatureMind_RecordMetabolicEffects(&e->mind, mOut.energyGenerated,
+                                                        mOut.hydrationGenerated, mOut.nutrientsAbsorbed,
+                                                        mOut.toxicityDelta, mOut.metabolicDamage);
+                }
+            }
+            if (ctx->metOutcomes) ctx->metOutcomes[k] = mOut;
+        } else if (ctx->metOutcomes) {
+            memset(&ctx->metOutcomes[k], 0, sizeof(ctx->metOutcomes[k]));
+        }
+
+        float healthAfterMet = e->physiology.health;
         CreaturePhysiology_Update(&e->physiology, &p, dt, e->body.speed, e->genome.efficiency,
                                   e->mind.action == ACTION_REST && e->body.speed < 0.04f);
-        if (e->mind.controllerType == CREATURE_CONTROLLER_NEURAL && e->physiology.health < healthBefore) {
-            CreatureMind_RecordDamage(&e->mind, healthBefore - e->physiology.health);
+        if (e->mind.controllerType == CREATURE_CONTROLLER_NEURAL && e->physiology.health < healthAfterMet) {
+            CreatureMind_RecordDamage(&e->mind, healthAfterMet - e->physiology.health);
         }
+        (void)healthBefore;
         needs(e);
         prepareBody(w, e);
     }
@@ -1453,6 +1680,7 @@ static void phaseMindWorker(void *opaque, unsigned start, unsigned end, unsigned
         ctx->actionFailDelta[k] = 0u;
         ctx->navFailDelta[k] = 0u;
         ctx->decisionIntent[k] = 255u;
+        if (ctx->v2ActionOut) ctx->v2ActionOut[k] = 255u;
         ctx->escapedFlag[k] = 0u;
         if (e->physiology.cause) continue;
 
@@ -1477,6 +1705,12 @@ static void phaseMindWorker(void *opaque, unsigned start, unsigned end, unsigned
             NeuralActionIntent intent = e->mind.neuralState.selectedIntent;
             if (intent >= 0 && intent < ACTION_INTENT_COUNT) {
                 ctx->decisionIntent[k] = (uint8_t)intent;
+            }
+            if (ctx->v2ActionOut && e->mind.neuralState.v2.active) {
+                NeuralV2ActionType v2a = e->mind.neuralState.v2.selectedAction;
+                if (v2a >= 0 && v2a < NEURAL_V2_ACTION_COUNT) {
+                    ctx->v2ActionOut[k] = (uint8_t)v2a;
+                }
             }
         }
         if (old != ACTION_ESCAPE && e->mind.action == ACTION_ESCAPE) {
@@ -1574,7 +1808,9 @@ static void commit(EcosystemWorld *w) {
         if (!e->id || !e->physiology.cause) continue;
         const EcosystemSpecies *s = &w->species[e->speciesIndex];
         AIObjectId id = e->id;
+        AIObjectId killerId = e->lastAttackerId;
         Vector3 position = e->body.position;
+        float bodyScale = e->genome.size * e->developmentScale;
         CreatureDeathCause cause = e->physiology.cause;
 
         considerForArchives(w, e, false);
@@ -1601,6 +1837,7 @@ static void commit(EcosystemWorld *w) {
         invalidate(w, id);
         ++w->statistics.deaths;
         ++w->statistics.deathCauses[cause];
+        if (cause == DEATH_TOXICITY) ++w->statistics.toxicityDeaths;
         event(w, 2, id, cause);
 
         NeuralBrain_Destroy(&e->mind.neuralBrain);
@@ -1610,13 +1847,32 @@ static void commit(EcosystemWorld *w) {
         memset(e, 0, sizeof(*e));
         w->freeEntitySlots[w->freeEntityCount++] = slot;
 
-        if (cause != DEATH_REMOVED && s->edibleBiomass > 0) {
-            AIObjectId carcass = EcosystemWorld_AddResource(w, (EcosystemResource){
-                .category = ECO_MEAT, .originalSpecies = s->id,
-                .biomass = s->edibleBiomass, .maximumBiomass = s->edibleBiomass,
-                .nutritionalValue = s->nutrition, .remainingLifetime = 180, .accessible = true
-            }, position, s->radius * 1.5f);
-            if (!carcass) event(w, 9, id, 0);
+        if (cause != DEATH_REMOVED) {
+            if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb &&
+                s->tissueSubstance != SUBSTANCE_INVALID_HANDLE) {
+                const SubstanceDef *tissue =
+                    SubstanceRegistry_Get(&w->metabolismDb->substances, s->tissueSubstance);
+                float mass = fmaxf(0.5f, (s->tissueMass > 0.0f ? s->tissueMass : s->edibleBiomass) * bodyScale);
+                if (tissue && mass > 0.0f) {
+                    EcosystemResource cr = EcosystemResource_FromSubstance(
+                        tissue, mass, mass, RESOURCE_REGEN_NONE, 0.0f,
+                        RESOURCE_DECAY_DECOMPOSE, 180.0, 0.008f, w->decayTargetMolecule);
+                    cr.originalSpecies = s->id;
+                    cr.sourceCreatureId = id;
+                    cr.killerCreatureId = (cause == DEATH_PREDATION) ? killerId : 0u;
+                    cr.deathTime = w->clock.seconds;
+                    cr.sourceDeathCause = cause;
+                    AIObjectId carcass = EcosystemWorld_AddMolecularResource(w, cr, position, s->radius * 1.5f);
+                    if (!carcass) event(w, 9, id, 0);
+                }
+            } else if (s->edibleBiomass > 0) {
+                AIObjectId carcass = EcosystemWorld_AddResource(w, (EcosystemResource){
+                    .category = ECO_MEAT, .originalSpecies = s->id,
+                    .biomass = s->edibleBiomass, .maximumBiomass = s->edibleBiomass,
+                    .nutritionalValue = s->nutrition, .remainingLifetime = 180, .accessible = true
+                }, position, s->radius * 1.5f);
+                if (!carcass) event(w, 9, id, 0);
+            }
         }
     }
 
@@ -1700,6 +1956,51 @@ static void sortOrderById(EcosystemWorld *w, unsigned count) {
     }
 }
 
+static void relocateDepletedResource(EcosystemWorld *w, EcosystemResource *r) {
+    if (!w || !r || !r->needsRelocation) return;
+    r->needsRelocation = false;
+
+    /* Tirada determinista de rareza: alimentos raros pueden tardar ciclos extra en brotar. */
+    if (r->rarityWeight > 0.0f && r->rarityWeight < 0.9999f) {
+        float roll = CreatureGenome_Random(&w->random);
+        if (roll > r->rarityWeight) {
+            r->respawnTimer = fmaxf(4.0f, r->respawnDelaySeconds * 0.5f);
+            return;
+        }
+    }
+
+    const AIWorldObject *oldObj = AIWorld_Get(&w->observations, r->id);
+    Vector3 oldPos = oldObj ? oldObj->position : Vec3_Zero();
+    float objRadius = oldObj ? oldObj->radius : 0.8f;
+    float bound = fmaxf(2.0f, w->observations.halfSize - objRadius - 1.5f);
+    float maxR = (r->spawnMaxDist > 0.1f && r->spawnMaxDist < bound) ? r->spawnMaxDist : bound;
+    float minR = fminf(fmaxf(0.0f, r->spawnMinDist), maxR);
+    float minSep = fmaxf(0.0f, r->minRelocateDistance);
+
+    bool moved = false;
+    Vector3 chosen = oldPos;
+    for (unsigned attempt = 0; attempt < 48u; ++attempt) {
+        float ang = CreatureGenome_Random(&w->random) * 6.2831853f;
+        /* Distribución uniforme en área dentro del anillo [minR, maxR]. */
+        float u = CreatureGenome_Random(&w->random);
+        float dist = sqrtf(minR * minR + u * (maxR * maxR - minR * minR));
+        Vector3 cand = Vec3_Create(sinf(ang) * dist, 0.0f, cosf(ang) * dist);
+        float reqSep = (attempt < 32u) ? minSep : (minSep * 0.5f);
+        if (Vec3_Distance(cand, oldPos) < reqSep) continue;
+        if (!AIWorld_Walkable(&w->observations, cand, objRadius + 0.45f, false)) continue;
+        chosen = cand;
+        moved = true;
+        break;
+    }
+
+    if (moved) {
+        AIWorld_Move(&w->observations, r->id, chosen);
+    }
+    r->biomass = r->maximumBiomass;
+    r->depleted = false;
+    r->respawnTimer = 0.0f;
+}
+
 static void tick(EcosystemWorld *w) {
     EvolutionProfiler *prof = w->profiler;
     double tTick = EvolutionProfiler_Begin(prof);
@@ -1708,18 +2009,33 @@ static void tick(EcosystemWorld *w) {
 
     /* 1) Actualizar recursos ambientales activos y caché estática de navegación. */
     double tRes = EvolutionProfiler_Begin(prof);
+    const MoleculeRegistry *molReg = (w->metabolismDb) ? &w->metabolismDb->molecules : NULL;
     for (unsigned k = 0; k < w->activeResourceCount;) {
         unsigned rSlot = w->activeResourceSlots[k];
         EcosystemResource *r = &w->resources[rSlot];
         if (!r->id) { ++k; continue; }
-        EcosystemResource_Update(r, dt);
-        if (r->category == ECO_MEAT && r->biomass <= 0) {
+        if (r->molecular) {
+            EcosystemResource_UpdateMolecular(r, molReg, dt);
+            if (r->needsRelocation) {
+                relocateDepletedResource(w, r);
+            }
+        } else {
+            EcosystemResource_Update(r, dt);
+        }
+        if (EcosystemResource_ShouldRemove(r)) {
             AIObjectId id = r->id;
             EcosystemWorld_RemoveResource(w, id);
             continue; /* RemoveResource intercambia el último elemento en k */
         }
-        AIWorld_PublishResource(&w->observations, r->id, r->originalSpecies, r->category,
-                                EcosystemResource_Available(r));
+        if (r->molecular) {
+            AIWorld_PublishMolecularResource(&w->observations, r->id, r->originalSpecies, r->category,
+                                             EcosystemResource_Available(r), (uint8_t)r->phase,
+                                             r->hardness, EcosystemResource_AvailabilityFraction(r),
+                                             &r->sensorySignature);
+        } else {
+            AIWorld_PublishResource(&w->observations, r->id, r->originalSpecies, r->category,
+                                    EcosystemResource_Available(r));
+        }
         ++k;
     }
     CreatureNavigation_EnsureCache(&w->observations);
@@ -1731,21 +2047,46 @@ static void tick(EcosystemWorld *w) {
 
     /* Reservar scratch compacto en pila o dinámico para reducción determinista de estadísticas. */
     unsigned stackFail[1024], stackNav[1024];
-    uint8_t stackIntent[1024], stackEsc[1024];
+    uint8_t stackIntent[1024], stackV2Act[1024], stackEsc[1024];
+    MetabolicStepOutcome stackMet[1024];
     unsigned *failDelta = count <= 1024u ? stackFail : calloc(count, sizeof(unsigned));
     unsigned *navDelta = count <= 1024u ? stackNav : calloc(count, sizeof(unsigned));
     uint8_t *intentOut = count <= 1024u ? stackIntent : calloc(count, sizeof(uint8_t));
+    uint8_t *v2ActOut = count <= 1024u ? stackV2Act : calloc(count, sizeof(uint8_t));
     uint8_t *escOut = count <= 1024u ? stackEsc : calloc(count, sizeof(uint8_t));
+    MetabolicStepOutcome *metOutcomes =
+        (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR)
+            ? (count <= 1024u ? stackMet : calloc(count, sizeof(MetabolicStepOutcome)))
+            : NULL;
 
     TickParallelCtx ctx = {
         .w = w, .count = count, .dt = dt,
         .actionFailDelta = failDelta, .navFailDelta = navDelta,
-        .decisionIntent = intentOut, .escapedFlag = escOut
+        .decisionIntent = intentOut, .v2ActionOut = v2ActOut,
+        .escapedFlag = escOut, .metOutcomes = metOutcomes
     };
 
-    /* 3) Fisiología y configuración anatómica en paralelo. */
+    /* 3) Digestión molecular, fisiología y configuración anatómica en paralelo. */
     double tPhys = EvolutionProfiler_Begin(prof);
     EvolutionJobSystem_ParallelFor(w->jobs, count, 32u, phasePhysiologyWorker, &ctx);
+    if (metOutcomes) {
+        double tMet = EvolutionProfiler_Begin(prof);
+        for (unsigned k = 0; k < count; ++k) {
+            const MetabolicStepOutcome *mo = &metOutcomes[k];
+            w->statistics.totalProcessedMass += (double)mo->processedMass;
+            w->statistics.totalAbsorbedMass += (double)mo->absorbedMass;
+            w->statistics.totalRejectedMass += (double)mo->rejectedMass;
+            w->statistics.totalWasteEliminated += (double)mo->wasteEliminated;
+            w->statistics.totalMetabolicEnergy += (double)mo->energyGenerated;
+            w->statistics.totalMetabolicHydration += (double)mo->hydrationGenerated;
+            w->statistics.totalMetabolicNutrients += (double)mo->nutrientsAbsorbed;
+            w->statistics.totalDigestiveEnergyCost += (double)mo->digestiveEnergyCost;
+            w->statistics.totalToxinExposure += (double)mo->toxicityAdded;
+            w->statistics.totalDetoxified += (double)mo->detoxified;
+            w->statistics.totalMetabolicDamage += (double)mo->metabolicDamage;
+        }
+        EvolutionProfiler_End(prof, EVO_PROF_METABOLISM, tMet);
+    }
     EvolutionProfiler_End(prof, EVO_PROF_PHYSIOLOGY, tPhys);
 
     /* 4) Publicación de observaciones inmutables pre-movimiento. */
@@ -1762,6 +2103,7 @@ static void tick(EcosystemWorld *w) {
         w->statistics.actionFailures += failDelta[k];
         w->statistics.navigationFailures += navDelta[k];
         if (intentOut[k] < ACTION_INTENT_COUNT) ++w->statistics.intentSelections[intentOut[k]];
+        if (v2ActOut[k] < NEURAL_V2_ACTION_COUNT) ++w->statistics.v2ActionSelections[v2ActOut[k]];
         if (escOut[k]) ++w->statistics.escapes;
     }
     EvolutionProfiler_End(prof, EVO_PROF_PERCEPTION, tMind);
@@ -1794,7 +2136,13 @@ static void tick(EcosystemWorld *w) {
     for (unsigned k = 0; k < count; ++k) {
         EcosystemEntity *e = &w->entities[w->order[k]];
         if (e->physiology.cause) continue;
-        if (e->mind.intakeRequested > 0) {
+        if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
+            if (e->mind.intakeMassRequested > 0.0f) {
+                EcosystemResource *r = EcosystemWorld_Resource(w, e->mind.target);
+                if (r) EcosystemWorld_Consume(w, e->id, r->id, e->mind.intakeMassRequested);
+                if (!r || !EcosystemResource_Available(r)) CreatureActions_Fail(&e->mind);
+            }
+        } else if (e->mind.intakeRequested > 0) {
             EcosystemResource *r = EcosystemWorld_Resource(w, e->mind.target);
             if (r) EcosystemWorld_Consume(w, e->id, r->id,
                                           e->mind.intakeRequested / (r->category == ECO_WATER ? 1.0f : r->nutritionalValue));
@@ -1816,7 +2164,8 @@ static void tick(EcosystemWorld *w) {
     EvolutionProfiler_End(prof, EVO_PROF_STATISTICS, tStats);
 
     if (count > 1024u) {
-        free(failDelta); free(navDelta); free(intentOut); free(escOut);
+        free(failDelta); free(navDelta); free(intentOut); free(v2ActOut); free(escOut);
+        free(metOutcomes);
     }
     EvolutionProfiler_End(prof, EVO_PROF_SIM_TICK, tTick);
 }
@@ -1850,6 +2199,11 @@ static void invalidateEntityAnatomyAfterBrainChange(EcosystemEntity *e) {
 bool EcosystemWorld_AssignBrain(EcosystemWorld *w, AIObjectId id, const NeuralGenome *genome,
                                 const char *reason) {
     if (!w || w->updating || !NeuralGenome_Validate(genome)) return false;
+    /* Validar compatibilidad explícita entre modo metabólico y arquitectura neuronal (Sección 19). */
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR &&
+        genome->architecture != NEURAL_ARCH_CANDIDATE_POLICY) {
+        return false;
+    }
     EcosystemEntity *e = EcosystemWorld_Get(w, id);
     if (!e || e->physiology.cause) return false;
     const NeuralGenome *prev = CreatureMind_GetNeuralGenome(&e->mind);
@@ -1956,8 +2310,11 @@ bool EcosystemWorld_ResetBrainRandom(EcosystemWorld *w, AIObjectId id) {
     if (!e || e->physiology.cause) return false;
     NeuralGenome fresh;
     uint64_t lid = w->nextLineageId++;
-    if (!NeuralGenome_InitRandom(&fresh, &w->random, 0.8f, w->neuralMutation.weightLimit, lid))
-        return false;
+    bool initOk = (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR ||
+                   w->defaultArchitecture == NEURAL_ARCH_CANDIDATE_POLICY)
+                      ? NeuralGenome_InitRandomV2(&fresh, &w->random, 0.75f, w->neuralMutation.weightLimit, lid)
+                      : NeuralGenome_InitRandom(&fresh, &w->random, 0.8f, w->neuralMutation.weightLimit, lid);
+    if (!initOk) return false;
     bool ok = EcosystemWorld_AssignBrain(w, id, &fresh, "reset_random");
     NeuralGenome_Destroy(&fresh);
     return ok;
@@ -2107,8 +2464,9 @@ bool EcosystemWorld_WriteJSON(const EcosystemWorld *w, FILE *f) {
     const EcosystemStatistics *s = &w->statistics;
     fprintf(f, "{\n  \"seed\":%u,\"tick\":%llu,\"seconds\":%.9f,\"days\":%.9f,\n", w->initialSeed,
             (unsigned long long)w->clock.tick, w->clock.seconds, SimulationClock_Days(&w->clock));
-    fprintf(f, "  \"controller\":\"%s\",\"founder_mode\":\"%s\",\"arena_width\":%.3f,\"arena_depth\":%.3f,\"obstacles\":%u,\n",
+    fprintf(f, "  \"controller\":\"%s\",\"metabolism_mode\":\"%s\",\"founder_mode\":\"%s\",\"arena_width\":%.3f,\"arena_depth\":%.3f,\"obstacles\":%u,\n",
             w->defaultController == CREATURE_CONTROLLER_NEURAL ? "neural" : "utility",
+            w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR ? "molecular" : "legacy",
             w->founderModeName, w->observations.halfSize * 2.0f, w->observations.halfSize * 2.0f, w->obstacleCount);
     fprintf(f, "  \"population\":%u,\"juveniles\":%u,\"conceptions\":%llu,\"births\":%llu,\"offspring_mature\":%llu,\"offspring_reproductive\":%llu,\"deaths\":%llu,\"kills\":%llu,\"attacks\":%llu,\"matings\":%llu,\n",
             w->count, s->juveniles, (unsigned long long)s->conceptions, (unsigned long long)s->births,
@@ -2124,6 +2482,17 @@ bool EcosystemWorld_WriteJSON(const EcosystemWorld *w, FILE *f) {
     for (unsigned i = 0; i < DEATH_CAUSE_COUNT; ++i)
         fprintf(f, "%s%llu", i ? "," : "", (unsigned long long)s->deathCauses[i]);
     fprintf(f, "],\n  \"plant_consumed\":%.9f,\"meat_consumed\":%.9f,\n", s->plantConsumed, s->meatConsumed);
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
+        fprintf(f, "  \"metabolism\":{\"ingested_mass\":%.6f,\"processed_mass\":%.6f,\"absorbed_mass\":%.6f,"
+                   "\"rejected_mass\":%.6f,\"waste_eliminated\":%.6f,\"energy_generated\":%.6f,"
+                   "\"hydration_generated\":%.6f,\"nutrients_absorbed\":%.6f,\"digestive_energy_cost\":%.6f,"
+                   "\"toxin_exposure\":%.6f,\"detoxified\":%.6f,\"metabolic_damage\":%.6f,\"toxicity_deaths\":%llu},\n",
+                s->totalIngestedMass, s->totalProcessedMass, s->totalAbsorbedMass,
+                s->totalRejectedMass, s->totalWasteEliminated, s->totalMetabolicEnergy,
+                s->totalMetabolicHydration, s->totalMetabolicNutrients, s->totalDigestiveEnergyCost,
+                s->totalToxinExposure, s->totalDetoxified, s->totalMetabolicDamage,
+                (unsigned long long)s->toxicityDeaths);
+    }
     fprintf(f, "  \"maximum_generation\":%u,\"average_generation\":%.6f,\"average_survival_seconds\":%.6f,\"max_survival_seconds\":%.6f,\n",
             s->maximumGeneration, s->averageGeneration, s->averageSurvivalDuration, s->maxObservedSurvival);
     fprintf(f, "  \"neural_diversity\":%.9f,\"neural_dispersion_rms\":%.9f,\"average_founder_distance\":%.9f,\"max_founder_distance\":%.9f,\"missing_founder_count\":%u,\"registered_founders\":%u,\"registered_lineages\":%u,\"active_lineages\":%u,\"interventions\":%llu,\n",

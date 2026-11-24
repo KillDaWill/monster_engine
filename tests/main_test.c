@@ -60,6 +60,9 @@ void run_creature_actions_tests(void);
 
 void run_anatomical_reach_tests(void);
 void run_ecosystem_tests(void);
+void run_molecular_metabolism_tests(void);
+void run_neural_v2_and_molecular_world_tests(void);
+void run_brain_evolution_lab_tests(void);
 void run_neural_brain_tests(void);
 void run_neural_genome_tests(void);
 void run_neural_brain_io_tests(void);
@@ -69,6 +72,9 @@ void run_evolution_scalability_tests(void);
 void run_creature_visual_variation_tests(void);
 void run_ecosystem_creatures_tests(void);
 int main(void) {
+    run_molecular_metabolism_tests();
+    run_neural_v2_and_molecular_world_tests();
+    run_brain_evolution_lab_tests();
     run_neural_brain_tests();
     run_neural_genome_tests();
     run_neural_brain_io_tests();

@@ -127,4 +127,11 @@ El diseño actual deja preparadas las fronteras para el siguiente hito (NEAT rec
 - Los esquemas `monster_sensor_v1` y `monster_action_v1` permanecen inalterados cuando se sustituya la RNN fija por redes con topología variable.
 - El ciclo de vida (`Init`/`Clone`/`Destroy`) ya existe en todas las rutas de creación, gestación, muerte y limpieza del mundo para soportar arreglos dinámicos de genes de nodos y conexiones con números de innovación.
 - Los linajes neuronales (`lineageId`) y las huellas (`fingerprint`) ya están separados de la especie biológica (`EcosystemSpecies.id`), garantizando que futuras especies de compatibilidad NEAT nunca alteren la especie biológica de una criatura.
-- **Trabajo pendiente para NEAT real:** representación de genes de nodos y conexiones con tabla global de innovaciones, mutaciones estructurales (añadir conexión, deshabilitar conexión, dividir conexión añadiendo nodo), cruce alineado por innovación, distancia de compatibilidad estructural y protección de innovaciones (especiación neuronal). En este hito no se afirma soporte NEAT estructural: la arquitectura implementada es explícitamente `fixed_rnn`.
+- **Trabajo pendiente para NEAT real:** representación de genes de nodos y conexiones con tabla global de innovaciones, mutaciones estructurales (añadir conexión, deshabilitar conexión, dividir conexión añadiendo nodo), cruce alineado por innovación, distancia de compatibilidad estructural y protección de innovaciones (especiación neuronal). En este hito no se afirma soporte NEAT estructural: las arquitecturas implementadas son explícitamente `fixed_rnn` (v1) y `recurrent_candidate_policy` (v2).
+
+## 9. Evolución con Metabolismo Molecular y Arquitectura V2
+
+Con la incorporación del metabolismo molecular basado en datos externos (`metabolism/`) y la arquitectura genérica `recurrent_candidate_policy` (v2, 1.416 parámetros), el sistema evoluciona estrategias de consumo y caza sin salidas cableadas por tipo de alimento (`FEED_PLANT`/`FEED_MEAT`/`HYDRATE`) ni conocimiento metabólico privilegiado:
+- Ver [Metabolismo Molecular](MOLECULAR_METABOLISM.md) para el modelo digestivo retardado, toxicidad y descomposición de cadáveres.
+- Ver [Controlador Neuronal V2](NEURAL_CONTROLLER_V2.md) para la evaluación equivariante de candidatos.
+- Ver [Brain Evolution Lab](BRAIN_EVOLUTION_LAB.md) para el entrenamiento evolutivo rápido separado de la selección natural de `EvolutionArena`.

@@ -5,6 +5,7 @@
 #include "Vector.h"
 #include "InteractionTarget.h"
 #include "AISpatialIndex.h"
+#include "MoleculeRegistry.h"
 #include <stdint.h>
 #define AI_WORLD_CAPACITY 128
 typedef uint32_t AIObjectId;
@@ -20,6 +21,12 @@ typedef struct AIWorldObject {
     bool moving;
     float radius, height, maximumSpeed;
     bool active, visible, occludes, walkable, drinkable;
+    /* Descriptor observable compacto de recursos moleculares (sin datos privilegiados). */
+    bool molecularResource;
+    uint8_t substancePhase;
+    float hardness;
+    float availabilityFraction;
+    SensorySignature sensorySignature;
 } AIWorldObject;
 typedef struct AIWorld {
     AIWorldObject objects[AI_WORLD_CAPACITY];
@@ -53,6 +60,10 @@ bool AIWorld_PublishAgent(AIWorld *, AIObjectId, unsigned role, float maximumSpe
     bool available, bool reproductiveReady);
 /** @brief Publicación O(1) del estado observable de un recurso sin búsquedas lineales. */
 bool AIWorld_PublishResource(AIWorld *, AIObjectId, unsigned species, unsigned foodCategory, bool available);
+/** @brief Publicación O(1) de propiedades observables de un recurso molecular (firma sensorial y disponibilidad). */
+bool AIWorld_PublishMolecularResource(AIWorld *, AIObjectId, unsigned species, unsigned foodCategory,
+    bool available, uint8_t substancePhase, float hardness, float availabilityFraction,
+    const SensorySignature *signature);
 /** @brief Registra objeto por valor; cero indica capacidad agotada. */
 AIObjectId AIWorld_Add(AIWorld *, AIWorldObject);
 /** @brief Consulta por identificador estable, NULL si fue retirado. */
