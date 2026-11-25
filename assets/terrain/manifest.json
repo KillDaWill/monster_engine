@@ -1,0 +1,46 @@
+{
+  "source": "Original procedural artwork, tools/generate_terrain_materials.py",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "size": 512,
+  "tile_world_units": {
+    "grass": 2.1,
+    "dry_soil": 3.0,
+    "rock": 4.4,
+    "wet_mud": 2.8
+  },
+  "layout": "Layer-major, rows in increasing UV v, unsigned normalized bytes",
+  "textures": {
+    "albedo": {
+      "layers": [
+        "grass",
+        "dry_soil",
+        "rock",
+        "wet_mud"
+      ],
+      "channels": "sRGB RGB and opaque alpha",
+      "sha256": "7ecc1433e53eceb0c1ab9e8ebec36d48ab5a935cbd86c13777e71c1362d163b9"
+    },
+    "normal": {
+      "layers": [
+        "grass",
+        "dry_soil",
+        "rock",
+        "wet_mud",
+        "water_ripple"
+      ],
+      "channels": "Linear XY OpenGL normals; reconstructed positive Z",
+      "sha256": "998bab5132089d9eb44bed4dd017d3ea752f4a77337e074ca3816d8cbadafe0e"
+    },
+    "masks": {
+      "layers": [
+        "grass",
+        "dry_soil",
+        "rock",
+        "wet_mud"
+      ],
+      "channels": "Linear roughness and ambient occlusion",
+      "sha256": "b46758dc84ab4530899e9548f0cdb7dcacff31be04f7269a7364e786d9dc2574"
+    }
+  }
+}

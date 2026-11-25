@@ -23,6 +23,11 @@
 extern "C" {
 #endif
 
+typedef struct EnvironmentPassStats {
+    double cpuMeanMs, gpuMeanMs;
+    size_t gpuSamples;
+} EnvironmentPassStats;
+
 typedef struct EnvironmentRenderStats {
     bool isProcedural;
     TerrainRenderStats terrain;
@@ -31,6 +36,9 @@ typedef struct EnvironmentRenderStats {
     uint64_t totalTriangles;
     uint64_t totalDrawCalls;
     size_t totalVramBytes;
+    size_t materialVramBytes;
+    double lastUploadMs;
+    EnvironmentPassStats terrainPass, waterPass, rockPass;
 } EnvironmentRenderStats;
 
 typedef struct EnvironmentRenderer {
@@ -51,10 +59,15 @@ const WorldStaticData *EnvironmentRenderer_GetWorld(const EnvironmentRenderer *e
 
 void EnvironmentRenderer_SetDebugMode(EnvironmentRenderer *er, TerrainDebugMode mode);
 TerrainDebugMode EnvironmentRenderer_GetDebugMode(const EnvironmentRenderer *er);
+/** @brief Fuerza la malla física completa para diagnóstico. */
+void EnvironmentRenderer_ForceTerrainLod0(EnvironmentRenderer *er, bool enabled);
 void EnvironmentRenderer_SetQuality(EnvironmentRenderer *er, float terrainLodScale,
                                     int waterQualityTier, bool wireframe);
 void EnvironmentRenderer_SetOverlays(EnvironmentRenderer *er, bool showShoreSites,
                                      bool showRockCollision, bool showTerrainGrid);
+
+/** @brief Activa consultas de GPU diferidas para cada pasada de entorno. */
+void EnvironmentRenderer_SetProfiling(EnvironmentRenderer *er, bool enabled);
 
 /** @brief Dibuja geometría opaca del entorno (terreno + rocas en procedural; suelo plano + rejilla en plano). */
 bool EnvironmentRenderer_RenderOpaque(EnvironmentRenderer *er, Renderer3D *renderer,
@@ -71,7 +84,7 @@ void EnvironmentRenderer_RenderOverlays(EnvironmentRenderer *er, const ICamera *
 /** @brief Dibuja el fondo topográfico/hidrológico del minimapa en coordenadas de pantalla 2D (ortho). */
 void EnvironmentRenderer_DrawMinimapBackground(const EnvironmentRenderer *er, float x, float y, float size);
 
-/** @brief Lanza un rayo contra el terreno (DDA + triángulos exactos en procedural, y=0 en plano). */
+/** @brief Intersecta terreno o, al pedir un cuerpo, la primera superficie visible de agua v2. */
 bool EnvironmentRenderer_PickGroundRay(const EnvironmentRenderer *er, Vector3 rayOrigin, Vector3 rayDir,
                                        float maxDist, Vector3 *outHitPos, uint16_t *outWaterBodyId);
 

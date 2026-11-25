@@ -89,6 +89,9 @@ bool PrimitiveMesh_GenerateQuadraticBezierTube(Mesh* out, Vector3 p0, Vector3 p1
  */
 bool PrimitiveMesh_GenerateDiamond(Mesh* out, Transform3D transform, Color color);
 
+/** @brief Hojas de doble cara ancladas al suelo para representar un recurso vegetal sin física adicional. */
+bool PrimitiveMesh_GeneratePlantTuft(Mesh *out, Color color);
+
 #ifdef __cplusplus
 }
 #endif

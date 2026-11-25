@@ -25,10 +25,11 @@ static EcosystemSpecies makeWaterTestSpecies(const MetabolismDatabase *db) {
     return sp;
 }
 
-static void test_shared_water_ledger_finite_and_infinite(void) {
+static void test_shared_water_ledger_finite_and_infinite(uint32_t generatorVersion) {
     /* Lago sintético con múltiples sitios de orilla accesibles y política FINITE_FIXED_VOLUME. */
     WorldRecipe rec = WorldRecipe_Flat(64.0f);
     rec.flat = false;
+    rec.generatorVersion = generatorVersion;
     rec.seed = 404u;
     rec.terrain.resolution = 65u;
     rec.hydrology.enabled = true;
@@ -80,7 +81,8 @@ static void test_shared_water_ledger_finite_and_infinite(void) {
     const EcosystemResource *proxyA = NULL, *proxyB = NULL;
     for (unsigned i = 0; i < w.activeResourceCount; ++i) {
         const EcosystemResource *r = &w.resources[w.activeResourceSlots[i]];
-        if (r->waterBodyId != 0u && r->shoreSiteIndex > 0u) {
+        const WorldWaterBody *body = WorldHydrology_GetBody(&wd->hydrology, r->waterBodyId);
+        if (body && body->type == WATER_BODY_LAKE && r->shoreSiteIndex > 0u) {
             if (!proxyA) proxyA = r;
             else if (r->waterBodyId == proxyA->waterBodyId && r->id != proxyA->id) {
                 proxyB = r;
@@ -238,7 +240,8 @@ static void test_contaminated_water_and_v2_brain_compatibility(void) {
 
 void run_world_water_access_tests(void) {
     printf("=== Pruebas de Orillas Irregulares, Libro Molecular Compartido y Compatibilidad v2 ===\n");
-    test_shared_water_ledger_finite_and_infinite();
+    test_shared_water_ledger_finite_and_infinite(WORLD_GENERATOR_VERSION_LEGACY);
+    test_shared_water_ledger_finite_and_infinite(WORLD_GENERATOR_VERSION);
     test_contaminated_water_and_v2_brain_compatibility();
     printf("Pruebas de hidrología interactiva y compatibilidad superadas.\n");
 }

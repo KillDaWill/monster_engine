@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "generator_version": 2,
+  "id": "mountain_lakes_v2",
+  "name": "Mountain Lakes v2",
+  "seed": 108,
+  "size": 256.0,
+  "flat": false,
+  "terrain": {
+    "resolution": 513,
+    "height_scale": 38.0,
+    "base_frequency": 0.013,
+    "octaves": 5,
+    "persistence": 0.52,
+    "lacunarity": 2.05,
+    "ridge_weight": 0.42,
+    "domain_warp_strength": 0.30,
+    "valley_shaping": 0.45
+  },
+  "erosion": {
+    "thermal_iterations": 34,
+    "talus_angle_degrees": 35.0,
+    "thermal_rate": 0.35
+  },
+  "hydrology": {
+    "enabled": true,
+    "outlet_policy": "open_boundary",
+    "river_density": 0.38,
+    "lake_density": 0.45,
+    "river_width_scale": 0.95,
+    "river_depth_scale": 1.05,
+    "water_substance": "clean_water",
+    "reservoir_policy": "infinite_external",
+    "finite_volume": 500.0
+  },
+  "geology": {
+    "rock_density": 0.50,
+    "rock_variants": 16,
+    "min_rock_scale": 0.8,
+    "max_rock_scale": 3.5
+  },
+  "vegetation": {
+    "density": 0.55,
+    "fertility_bias": 0.0,
+    "moisture_bias": 0.02
+  }
+}

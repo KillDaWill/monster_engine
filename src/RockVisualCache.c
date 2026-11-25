@@ -4,6 +4,7 @@
  */
 #define GL_GLEXT_PROTOTYPES
 #include "RockVisualCache.h"
+#include "environment_glsl.inc"
 #include "Quaternion.h"
 
 #include <GL/gl.h>
@@ -45,6 +46,8 @@ typedef struct RockVariantMesh {
 typedef struct RockVisualCacheImpl {
     GLuint program;
     GLint uCamPosLoc;
+    GLint uDetailLoc;
+    TerrainMaterialBindings materialBindings;
 
     RockVariantMesh *variants;
     uint32_t variantCount;
@@ -85,43 +88,28 @@ static const char *kRockVertSrc =
     "}\n";
 
 static const char *kRockFragSrc =
-    "#version 330 compatibility\n"
     "uniform vec3 uCamPos;\n"
+    "uniform bool uRockDetail;\n"
     "in vec3 vWorldPos;\n"
     "in vec3 vWorldNormal;\n"
     "in vec3 vTint;\n"
     "in float vShade;\n"
     "out vec4 FragColor;\n"
-    "float hash31(vec3 p) {\n"
-    "    p = fract(p * 0.1031);\n"
-    "    p += dot(p, p.yzx + 33.33);\n"
-    "    return fract((p.x + p.y) * p.z);\n"
-    "}\n"
     "void main() {\n"
     "    vec3 n = normalize(vWorldNormal);\n"
-    "    /* Estratos y grano mineral en coordenadas mundiales */\n"
-    "    float strata = 0.5 + 0.5 * sin(vWorldPos.y * 4.2 + sin(vWorldPos.x * 0.8 + vWorldPos.z * 0.6) * 1.4);\n"
-    "    float grain = hash31(floor(vWorldPos * 8.0));\n"
-    "    vec3 baseRock = mix(vec3(0.36, 0.35, 0.34), vec3(0.56, 0.53, 0.49), strata * 0.65 + grain * 0.25);\n"
-    "    /* Sutil musgo/liquen en caras superiores planas */\n"
-    "    float topMask = smoothstep(0.62, 0.92, n.y);\n"
-    "    vec3 mossCol = vec3(0.32, 0.39, 0.25);\n"
-    "    vec3 albedo = mix(baseRock * vTint, mossCol, topMask * 0.24) * vShade;\n"
-    "    vec3 sunDir = normalize(vec3(0.52, 0.78, 0.35));\n"
-    "    float ndl = max(dot(n, sunDir), 0.0);\n"
-    "    float hemi = 0.5 + 0.5 * n.y;\n"
-    "    vec3 lit = albedo * (vec3(0.24, 0.28, 0.34) * (0.45 + 0.55 * hemi) + vec3(0.95, 0.91, 0.84) * ndl * 0.88);\n"
-    "    /* Niebla atmosférica coherente con el terreno */\n"
-    "    float dist = length(vWorldPos - uCamPos);\n"
-    "    float fogF = clamp((dist - 180.0) / 520.0, 0.0, 0.68);\n"
-    "    vec3 fogCol = vec3(0.68, 0.78, 0.87);\n"
-    "    FragColor = vec4(mix(lit, fogCol, fogF), 1.0);\n"
+    "    GroundMaterial rock = GroundMaterial(vec3(.174,.151,.124), vec3(0), vec2(.75,.94));\n"
+    "    if (uHasMaterials) rock = rockMaterial(vWorldPos, n, dFdx(vWorldPos), dFdy(vWorldPos), uRockDetail);\n"
+    "    vec3 color = rock.color * mix(vec3(1), vTint * 1.8, .27) * vShade;\n"
+    "    n = materialNormal(n, rock.gradient * .8);\n"
+    "    vec3 lit = illuminateGround(color, n, normalize(uCamPos - vWorldPos), rock.masks.x, rock.masks.y);\n"
+    "    float fog = smoothstep(95.0, 460.0, length(vWorldPos - uCamPos)) * .45;\n"
+    "    FragColor = vec4(environmentOutput(mix(lit, worldHaze, fog)), 1.0);\n"
     "}\n";
 
-static GLuint compileShader(GLenum type, const char *src) {
+static GLuint compileShader(GLenum type, const char *const *src, GLsizei count) {
     GLuint sh = glCreateShader(type);
     if (!sh) return 0;
-    glShaderSource(sh, 1, &src, NULL);
+    glShaderSource(sh, count, src, NULL);
     glCompileShader(sh);
     GLint ok = 0;
     glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
@@ -137,8 +125,10 @@ static GLuint compileShader(GLenum type, const char *src) {
 
 static bool ensureShader(RockVisualCacheImpl *impl) {
     if (impl->program != 0) return true;
-    GLuint vs = compileShader(GL_VERTEX_SHADER, kRockVertSrc);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, kRockFragSrc);
+    const char *vsParts[] = {kRockVertSrc};
+    const char *fsParts[] = {"#version 330 compatibility\n", ENV_MATERIALS, kRockFragSrc};
+    GLuint vs = compileShader(GL_VERTEX_SHADER, vsParts, 1);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsParts, 3);
     if (!vs || !fs) {
         if (vs) glDeleteShader(vs);
         if (fs) glDeleteShader(fs);
@@ -160,6 +150,8 @@ static bool ensureShader(RockVisualCacheImpl *impl) {
         return false;
     }
     impl->program = prog;
+    impl->materialBindings = TerrainMaterials_GetBindings(prog);
+    impl->uDetailLoc = glGetUniformLocation(prog, "uRockDetail");
     impl->uCamPosLoc = glGetUniformLocation(prog, "uCamPos");
     return true;
 }
@@ -602,7 +594,8 @@ static bool sphereInFrustum(const RockFrustum *f, Vector3 c, float r) {
     return true;
 }
 
-bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera) {
+bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera,
+                            const TerrainMaterials *materials, bool materialDetail) {
     if (!cache || !cache->impl || !camera) return false;
     RockVisualCacheImpl *impl = (RockVisualCacheImpl *)cache->impl;
     impl->stats.renderedInstances = 0u;
@@ -621,6 +614,9 @@ bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera) {
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevBuf);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevEbo);
+    GLint cullMode;
+    glGetIntegerv(GL_CULL_FACE_MODE, &cullMode);
+    GLboolean prevDepth = glIsEnabled(GL_DEPTH_TEST);
     GLboolean prevCull = glIsEnabled(GL_CULL_FACE);
 
     glEnable(GL_DEPTH_TEST);
@@ -628,6 +624,8 @@ bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera) {
     glCullFace(GL_BACK);
 
     glUseProgram(impl->program);
+    TerrainMaterialState materialState = TerrainMaterials_Bind(materials, &impl->materialBindings);
+    glUniform1i(impl->uDetailLoc, materialDetail);
     if (impl->uCamPosLoc >= 0) {
         glUniform3f(impl->uCamPosLoc, camera->position.x, camera->position.y, camera->position.z);
     }
@@ -675,10 +673,13 @@ bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera) {
         impl->stats.drawCalls++;
     }
 
+    if (!prevDepth) glDisable(GL_DEPTH_TEST);
     if (!prevCull) glDisable(GL_CULL_FACE);
+    glCullFace((GLenum)cullMode);
     glBindVertexArray((GLuint)prevVao);
     glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevBuf);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevEbo);
+    TerrainMaterials_Restore(&materialState);
     glUseProgram((GLuint)prevProg);
     return true;
 }

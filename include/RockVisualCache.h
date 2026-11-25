@@ -11,6 +11,7 @@
 
 #include "WorldStaticData.h"
 #include "RenderInterfaces.h"
+#include "TerrainMaterials.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -43,7 +44,8 @@ void RockVisualCache_Destroy(RockVisualCache *cache);
 bool RockVisualCache_SyncWorld(RockVisualCache *cache, const WorldStaticData *world);
 
 /** @brief Renderiza todas las rocas visibles mediante instanciado GPU por variante. */
-bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera);
+bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera,
+                            const TerrainMaterials *materials, bool materialDetail);
 
 /** @brief Dibuja wireframes de los proxies conservadores de colisión de rocas en coordenadas mundiales. */
 void RockVisualCache_RenderCollisionDebug(const RockVisualCache *cache, const WorldStaticData *world,

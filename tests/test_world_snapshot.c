@@ -53,6 +53,12 @@ static void test_world_static_cache_parallel_single_flight(void) {
     for (int i = 1; i < NTHREADS; ++i) {
         TEST_ASSERT(args[i].result == first, "all threads share exact same single-flight instance");
     }
+    WorldRecipe newer = rec;
+    newer.generatorVersion = WORLD_GENERATOR_VERSION;
+    const WorldStaticData *version2 = WorldStaticCache_Acquire(&newer, err, sizeof(err));
+    TEST_ASSERT(version2 && version2 != first && version2->dataFingerprint != first->dataFingerprint,
+                "generator version distinguishes cache entries with the same seed and id");
+    WorldStaticData_Release(version2);
     for (int i = 0; i < NTHREADS; ++i) {
         WorldStaticData_Release(args[i].result);
     }
@@ -135,10 +141,10 @@ static void test_runner_repeated_world_resets_with_held_snapshots(void) {
     WorldStaticData_Release(retainedB);
 }
 
-static void test_lab_determinism_and_checkpoint_world_fingerprint(void) {
+static void test_lab_determinism_and_checkpoint_world_fingerprint(const char *environmentPath) {
     BrainLabConfig cfg = BrainLabConfig_Default();
     snprintf(cfg.speciesPath, sizeof(cfg.speciesPath), "species/brumacerno.species.json");
-    snprintf(cfg.environmentPath, sizeof(cfg.environmentPath), "environments/brumacerno_river_valley.environment.json");
+    snprintf(cfg.environmentPath, sizeof(cfg.environmentPath), "%s", environmentPath);
     snprintf(cfg.outputDir, sizeof(cfg.outputDir), "/tmp/monster_test_lab_world");
     cfg.seed = 314u;
     cfg.populationSize = 10u;
@@ -193,6 +199,7 @@ void run_world_snapshot_tests(void) {
     printf("=== Pruebas de Propiedad Inmutable, Caché Paralela, Resets y Checkpoints de Mundo ===\n");
     test_world_static_cache_parallel_single_flight();
     test_runner_repeated_world_resets_with_held_snapshots();
-    test_lab_determinism_and_checkpoint_world_fingerprint();
+    test_lab_determinism_and_checkpoint_world_fingerprint("environments/brumacerno_river_valley.environment.json");
+    test_lab_determinism_and_checkpoint_world_fingerprint("environments/brumacerno_river_valley_v2.environment.json");
     printf("Pruebas de snapshots, concurrencia y checkpoints superadas.\n");
 }

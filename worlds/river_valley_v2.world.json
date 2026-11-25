@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "generator_version": 2,
+  "id": "river_valley_v2",
+  "name": "River Valley v2",
+  "seed": 42,
+  "size": 256.0,
+  "flat": false,
+  "terrain": {
+    "resolution": 513,
+    "height_scale": 24.0,
+    "base_frequency": 0.011,
+    "octaves": 5,
+    "persistence": 0.50,
+    "lacunarity": 2.0,
+    "ridge_weight": 0.22,
+    "domain_warp_strength": 0.25,
+    "valley_shaping": 0.38
+  },
+  "erosion": {
+    "thermal_iterations": 26,
+    "talus_angle_degrees": 32.0,
+    "thermal_rate": 0.35
+  },
+  "hydrology": {
+    "enabled": true,
+    "outlet_policy": "open_boundary",
+    "river_density": 0.45,
+    "lake_density": 0.30,
+    "river_width_scale": 1.0,
+    "river_depth_scale": 1.0,
+    "water_substance": "clean_water",
+    "reservoir_policy": "infinite_external",
+    "finite_volume": 500.0
+  },
+  "geology": {
+    "rock_density": 0.35,
+    "rock_variants": 16,
+    "min_rock_scale": 0.7,
+    "max_rock_scale": 3.0
+  },
+  "vegetation": {
+    "density": 0.72,
+    "fertility_bias": 0.05,
+    "moisture_bias": 0.05
+  }
+}

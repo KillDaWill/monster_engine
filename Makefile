@@ -17,9 +17,11 @@ BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
 CORE_SRCS = $(SRC_DIR)/TerrainHeightfield.c \
+            $(SRC_DIR)/TerrainLodIndices.c \
             $(SRC_DIR)/WorldIO.c \
             $(SRC_DIR)/TerrainGenerator.c \
             $(SRC_DIR)/WorldHydrology.c \
+            $(SRC_DIR)/WorldWaterSurface.c \
             $(SRC_DIR)/WorldBiome.c \
             $(SRC_DIR)/WorldGeology.c \
             $(SRC_DIR)/WorldStaticData.c \
@@ -177,7 +179,7 @@ CORE_SRCS = $(SRC_DIR)/TerrainHeightfield.c \
 
 # Módulo de Renderizador OpenGL
 RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c $(SRC_DIR)/MorphViewCamera.c \
-              $(SRC_DIR)/TerrainRenderer.c $(SRC_DIR)/WaterRenderer.c \
+              $(SRC_DIR)/TerrainRenderer.c $(SRC_DIR)/TerrainMaterials.c $(SRC_DIR)/WaterRenderer.c \
               $(SRC_DIR)/RockVisualCache.c $(SRC_DIR)/EnvironmentRenderer.c
 
 CORE_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(CORE_SRCS))
@@ -704,3 +706,13 @@ validate-procedural-world: demos/demo_evolution_arena_headless
 .PHONY: validate-ecosystem
 validate-ecosystem: demos/demo_evolution_arena_headless
 	python3 tools/validate_ecosystem.py
+
+ENVIRONMENT_GLSL = $(wildcard shaders/environment/*.glsl)
+$(BUILD_DIR)/environment_glsl.inc: tools/embed_environment_shaders.py $(ENVIRONMENT_GLSL)
+	@mkdir -p $(BUILD_DIR)
+	python3 $< $@ $(ENVIRONMENT_GLSL)
+$(BUILD_DIR)/TerrainRenderer.o $(BUILD_DIR)/RockVisualCache.o $(BUILD_DIR)/WaterRenderer.o: $(BUILD_DIR)/environment_glsl.inc
+$(BUILD_DIR)/TerrainRenderer.o $(BUILD_DIR)/RockVisualCache.o $(BUILD_DIR)/WaterRenderer.o: CFLAGS += -I$(BUILD_DIR)
+
+$(BUILD_DIR)/audit_world_surface: $(CORE_OBJS) tools/audit_world_surface.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@

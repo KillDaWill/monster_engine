@@ -8,6 +8,7 @@
 
 #include "WorldStaticData.h"
 #include "RenderInterfaces.h"
+#include "TerrainMaterials.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -30,7 +31,8 @@ bool WaterRenderer_Init(WaterRenderer *wr);
 void WaterRenderer_Destroy(WaterRenderer *wr);
 bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world);
 void WaterRenderer_SetQuality(WaterRenderer *wr, int qualityTier);
-bool WaterRenderer_Render(WaterRenderer *wr, const ICamera *camera, float timeSeconds);
+bool WaterRenderer_Render(WaterRenderer *wr, const ICamera *camera,
+                          const TerrainMaterials *materials, float timeSeconds, bool showContour);
 WaterRenderStats WaterRenderer_GetStats(const WaterRenderer *wr);
 
 #ifdef __cplusplus

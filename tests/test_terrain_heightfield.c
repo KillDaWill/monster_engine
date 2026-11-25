@@ -1,3 +1,5 @@
+#include "TerrainLodIndices.h"
+#include <stdlib.h>
 /**
  * @file test_terrain_heightfield.c
  * @brief Pruebas unitarias de Phase 1: campo de alturas, interpolación baricéntrica exacta,
@@ -170,9 +172,74 @@ static void test_recipe_validation_and_determinism(void) {
     printf("[PASS] test_terrain_heightfield: recetas JSON, determinismo, erosión y marco corporal\n");
 }
 
+static int compareLodEdges(const void *a, const void *b) {
+    uint32_t lhs = *(const uint32_t *)a, rhs = *(const uint32_t *)b;
+    return lhs < rhs ? -1 : (lhs > rhs);
+}
+
+static void checkLodIndices(uint32_t width, uint32_t height, uint32_t lod, uint32_t mask) {
+    uint32_t *indices = NULL, count = 0;
+    TerrainLodIndices_Build(width, height, lod, mask, &indices, &count);
+    TEST_ASSERT(indices && count && count % 3 == 0, "índices de chunk completos");
+    uint32_t *edges = malloc(count * sizeof(*edges));
+    TEST_ASSERT(edges != NULL, "reservar aristas de verificación");
+    int area = 0;
+    uint32_t stride = width + 1u;
+    for (uint32_t i = 0; i < count; i += 3) {
+        int x[3], z[3];
+        for (unsigned k = 0; k < 3; ++k) {
+            uint32_t a = indices[i+k], b = indices[i+(k+1u)%3u];
+            TEST_ASSERT(a < stride * (height + 1u), "índice dentro del chunk");
+            x[k] = (int)(a % stride);
+            z[k] = (int)(a / stride);
+            edges[i+k] = a < b ? (a << 16) | b : (b << 16) | a;
+        }
+        int triArea = (z[1]-z[0]) * (x[2]-x[0]) - (x[1]-x[0]) * (z[2]-z[0]);
+        TEST_ASSERT(triArea > 0, "caras CCW sin degenerados ni solapes invertidos");
+        area += triArea;
+    }
+    TEST_ASSERT(area == (int)(2u * width * height), "malla LOD cubre toda el área del chunk");
+    qsort(edges, count, sizeof(*edges), compareLodEdges);
+    uint32_t cover[4] = {0};
+    for (uint32_t i = 0; i < count;) {
+        uint32_t next = i + 1u;
+        while (next < count && edges[next] == edges[i]) ++next;
+        uint32_t a = edges[i] >> 16, b = edges[i] & 65535u;
+        uint32_t ax = a % stride, az = a / stride, bx = b % stride, bz = b / stride;
+        int side = az == 0 && bz == 0 ? 0 : (az == height && bz == height ? 1 :
+                   (ax == 0 && bx == 0 ? 2 : (ax == width && bx == width ? 3 : -1)));
+        if (side < 0) {
+            TEST_ASSERT(next - i == 2, "arista interior sin T-junction ni solape");
+        } else {
+            TEST_ASSERT(next - i == 1, "arista de borde única");
+            uint32_t length = side < 2 ? width : height;
+            uint32_t low = side < 2 ? ax : az, high = side < 2 ? bx : bz;
+            uint32_t step = (1u << lod) * ((mask & (1u << side)) ? 2u : 1u);
+            TEST_ASSERT(low % step == 0 && high == (low + step < length ? low + step : length),
+                        "arista exterior coincide exactamente con vecino");
+            cover[side] += high - low;
+        }
+        i = next;
+    }
+    TEST_ASSERT(cover[0] == width && cover[1] == width && cover[2] == height && cover[3] == height,
+                "los cuatro bordes quedan cerrados");
+    free(edges);
+    free(indices);
+}
+
+static void test_lod_stitching_masks(void) {
+    for (uint32_t mask = 0; mask < 16; ++mask) {
+        for (uint32_t lod = 0; lod < 4; ++lod) checkLodIndices(32, 32, lod, mask);
+        checkLodIndices(32, 10, 0, mask);
+        checkLodIndices(17, 26, 0, mask);
+    }
+    printf("[PASS] TerrainLodIndices: 96 combinaciones de borde y esquina\n");
+}
+
 void run_terrain_heightfield_tests(void) {
     printf("\n--- Módulo TerrainHeightfield & WorldGenerator ---\n");
     test_flat_and_incline_triangles();
     test_ridge_raycast_and_occlusion();
     test_recipe_validation_and_determinism();
+    test_lod_stitching_masks();
 }

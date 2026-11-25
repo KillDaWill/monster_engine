@@ -116,8 +116,169 @@ static void test_procedural_valley_rivers_and_geology(void) {
     printf("[PASS] test_world_hydrology: valle procedural, ríos, rocas y coherencia física\n");
 }
 
+static bool sampleClippedTriangle(const WorldWaterVertex *a, const WorldWaterVertex *b,
+                                  const WorldWaterVertex *c, float x, float z, float *surface) {
+    double ax = a->position.x, az = a->position.z;
+    double ux = (double)b->position.x - ax, uz = (double)b->position.z - az;
+    double vx = (double)c->position.x - ax, vz = (double)c->position.z - az;
+    double dx = (double)x - ax, dz = (double)z - az;
+    double d = ux * vz - uz * vx;
+    if (d >= -1e-10) return false;
+    double u = (dx * vz - dz * vx) / d;
+    double v = (ux * dz - uz * dx) / d;
+    if (u < 0 || v < 0 || u + v > 1) return false;
+    *surface = (float)((1 - u - v) * a->position.y + u * b->position.y + v * c->position.y);
+    return true;
+}
+
+static void checkContinuousOccupancy(const WorldHydrology *hy, const TerrainHeightfield *tf,
+                                     uint32_t x, uint32_t z, unsigned numSamples, uint32_t *random) {
+    WorldWaterPatch patches[2][3];
+    WorldWaterVertex polygons[2][3][WORLD_WATER_PATCH_VERTICES];
+    unsigned patchCounts[2], vertices[2][3] = {{0}};
+    for (unsigned t = 0; t < 2; ++t) {
+        patchCounts[t] = WorldHydrology_GetWaterPatches(hy, tf, x, z, t, patches[t]);
+        for (unsigned p = 0; p < patchCounts[t]; ++p) {
+            WorldWaterVertex *polygon = polygons[t][p];
+            vertices[t][p] = WorldHydrology_ClipWaterPatch(tf, &patches[t][p], polygon);
+            const WorldWaterBody *body = WorldHydrology_GetBody(hy, patches[t][p].bodyId);
+            for (unsigned k = 0; k < vertices[t][p]; ++k) {
+                TEST_ASSERT(polygon[k].depth >= WORLD_WATER_DEPTH_EPSILON, "profundidad de vértice válida");
+                if (body->type == WATER_BODY_LAKE)
+                    CHECK_NEAR(polygon[k].position.y, body->surfaceY, 1e-5f, "plano de lago constante");
+            }
+        }
+    }
+    for (unsigned i = 0; i < numSamples; ++i) {
+        *random = *random * 1664525u + 1013904223u;
+        float u = (float)((*random >> 8) + 0.5) / 16777216.0f;
+        *random = *random * 1664525u + 1013904223u;
+        float v = (float)((*random >> 8) + 0.5) / 16777216.0f;
+        /* Evitar empates (< 2e-5 unidades de rejilla) en aristas cuantizadas. */
+        if (fabsf(u - v) < 2e-5f || fabsf(u - .5f) < 2e-5f || fabsf(v - .5f) < 2e-5f) continue;
+        float wx = tf->originX + (x + u) * tf->spacing;
+        float wz = tf->originZ + (z + v) * tf->spacing;
+        unsigned t = u >= v ? 0u : 1u;
+        uint16_t id = 0;
+        float y = 0.0f;
+        for (unsigned p = 0; p < patchCounts[t]; ++p) {
+            const WorldWaterVertex *poly = polygons[t][p];
+            for (unsigned k = 2; k < vertices[t][p]; ++k) {
+                float hit;
+                if (sampleClippedTriangle(&poly[0], &poly[k-1], &poly[k], wx, wz, &hit)) {
+                    TEST_ASSERT(id == 0 || id == patches[t][p].bodyId, "cuerpos ajenos sin áreas superpuestas");
+                    id = patches[t][p].bodyId;
+                    y = hit;
+                }
+            }
+        }
+        WaterSample water;
+        TEST_ASSERT(WorldHydrology_SampleWater(hy, tf, wx, wz, &water), "coordenada válida");
+        TEST_ASSERT(water.wet == (id != 0), "ocupación de agua coincide con malla");
+        if (id) {
+            TEST_ASSERT(water.waterBodyId == id, "malla y consulta seleccionan el mismo cuerpo");
+            CHECK_NEAR(water.surfaceY, y, 1e-4f, "cota de malla coincide con consulta");
+            CHECK_NEAR(water.surfaceY - water.groundY, water.depth, 1e-4f, "profundidad firmada coherente");
+        }
+    }
+}
+
+static void test_continuous_water_mesh_and_version(void) {
+    TerrainHeightfield tf = {0};
+    TEST_ASSERT(TerrainHeightfield_Init(&tf, 17u, 16.0f), "init malla mixta");
+    uint16_t owners[289] = {0};
+    float flow[289] = {0};
+    WorldWaterBody bodies[2] = {
+        {.id = 1, .type = WATER_BODY_LAKE, .surfaceY = 1.2f},
+        {.id = 2, .type = WATER_BODY_LAKE, .surfaceY = 2.7f},
+    };
+    uint32_t origin = 8u * 17u + 8u;
+    owners[origin] = 1;
+    owners[origin + 1u] = 2;
+    owners[origin + 17u] = 2;
+    owners[origin + 18u] = 1;
+    tf.heights[origin + 1u] = 1.3f;
+    tf.heights[origin + 17u] = 1.8f;
+    tf.heights[origin + 18u] = 0.6f;
+    TEST_ASSERT(TerrainHeightfield_RebuildDerived(&tf), "derivadas de malla mixta");
+    WorldHydrology mixed = {
+        .enabled = true, .waterBodyId = owners, .surfaceBodyId = owners,
+        .bodies = bodies, .bodyCount = 2, .flowX = flow, .flowZ = flow, .totalWetCells = 4,
+    };
+    uint32_t random = 410311u;
+    for (uint32_t z = 7; z < 10; ++z)
+        for (uint32_t x = 7; x < 10; ++x)
+            checkContinuousOccupancy(&mixed, &tf, x, z, 128u, &random);
+    owners[origin + 18u] = 0;
+    tf.heights[origin + 18u] = 2.1f;
+    TEST_ASSERT(TerrainHeightfield_RebuildDerived(&tf), "derivadas de borde compartido");
+    Vector3 diagonal[2] = {{0}};
+    bool crossing[2] = {false};
+    for (unsigned t = 0; t < 2; ++t) {
+        WorldWaterPatch patches[3];
+        unsigned n = WorldHydrology_GetWaterPatches(&mixed, &tf, 8, 8, t, patches);
+        for (unsigned k = 0; k < n; ++k) {
+            if (patches[k].bodyId != 1) continue;
+            WorldWaterVertex v[WORLD_WATER_PATCH_VERTICES];
+            unsigned count = WorldHydrology_ClipWaterPatch(&tf, &patches[k], v);
+            for (unsigned j = 0; j < count; ++j) {
+                if (v[j].position.x == v[j].position.z && v[j].position.x > .1f) {
+                    diagonal[t] = v[j].position;
+                    crossing[t] = true;
+                }
+            }
+        }
+    }
+    TEST_ASSERT(crossing[0] && crossing[1] && diagonal[0].x == diagonal[1].x &&
+                diagonal[0].z == diagonal[1].z && diagonal[0].y == diagonal[1].y,
+                "las intersecciones de arista coinciden exactamente entre triángulos");
+    uint16_t rayBody = 0;
+    Vector3 hit;
+    TEST_ASSERT(WorldHydrology_RaycastWater(&mixed, &tf, (Vector3){0.86f,4,0.14f},
+                                            (Vector3){0.90f,0,0.16f}, &hit, &rayBody) && rayBody == 2,
+                "picking oblicuo intercepta el lago propietario");
+    CHECK_NEAR(hit.y, 2.7f, 1e-5f, "picking sobre lámina de lago");
+    TEST_ASSERT(!WorldHydrology_RaycastWater(&mixed, &tf, (Vector3){4,4,4},
+                                             (Vector3){4,-1,4}, NULL, NULL),
+                "picking en tierra seca");
+    TerrainHeightfield_Free(&tf);
+
+    char err[256] = {0};
+    WorldRecipe recipe;
+    TEST_ASSERT(WorldRecipe_LoadFile("worlds/river_valley_v2.world.json", &recipe, err, sizeof(err)), "receta v2");
+    WorldStaticData *world = NULL, *repeat = NULL;
+    TEST_ASSERT(WorldGenerator_Generate(&recipe, &world, err, sizeof(err)), "generar valle v2");
+    TEST_ASSERT(WorldGenerator_Generate(&recipe, &repeat, err, sizeof(err)), "regenerar valle v2");
+    TEST_ASSERT(world->generatorVersion == 2 && world->dataFingerprint == repeat->dataFingerprint,
+                "determinismo de generación y huella v2");
+    TEST_ASSERT(world->hydrology.riverCount > 1, "redes con salidas independientes");
+    TEST_ASSERT(world->hydrology.shoreSiteCount > 100, "bancos accesibles v2");
+    for (unsigned i = 0; i < 10000; ++i) {
+        random = random * 1664525u + 1013904223u;
+        unsigned x = (random >> 8) % (world->terrain.resolution - 1u);
+        random = random * 1664525u + 1013904223u;
+        unsigned z = (random >> 8) % (world->terrain.resolution - 1u);
+        checkContinuousOccupancy(&world->hydrology, &world->terrain, x, z, 5, &random);
+    }
+    for (unsigned i = 0; i < world->hydrology.shoreSiteCount; ++i) {
+        const WorldShoreSite *site = &world->hydrology.shoreSites[i];
+        WaterSample contact;
+        TEST_ASSERT(WorldHydrology_SampleWater(&world->hydrology, &world->terrain,
+                                               site->wetContactPoint.x, site->wetContactPoint.z, &contact),
+                    "contacto v2 válido");
+        TEST_ASSERT(contact.wet && contact.waterBodyId == site->waterBodyId, "orilla toca el cuerpo v2");
+        CHECK_NEAR(contact.surfaceY, site->wetContactPoint.y, 1e-4f, "altura de orilla v2");
+    }
+    printf("  [hydro v2] fp=%016llx networks=%u lakes=%u banks=%u wet=%.2f%% (%u probes + mixed bodies)\n",
+           (unsigned long long)world->dataFingerprint, world->hydrology.riverCount, world->hydrology.lakeCount,
+           world->hydrology.shoreSiteCount, world->hydrology.wetAreaFraction * 100.0f, 50000u);
+    WorldStaticData_Release(repeat);
+    WorldStaticData_Release(world);
+}
+
 void run_world_hydrology_tests(void) {
     printf("\n--- Módulo WorldHydrology, WorldBiome & WorldGeology ---\n");
     test_synthetic_bowl_lake_and_plateau();
     test_procedural_valley_rivers_and_geology();
+    test_continuous_water_mesh_and_version();
 }

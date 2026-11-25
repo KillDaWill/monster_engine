@@ -848,7 +848,7 @@ static void printHelp(void) {
          "  --replay-seed=N             Semilla exacta de episodio para el replay 3D\n"
          "  --terrain-debug=MODE        Modo de depuración del terreno (natural|elevation|slope|hydrology|depth|biome|nav|collision)\n"
          "  --show-neural               Abrir el visualizador gráfico de la red neuronal V2 (tecla N)\n"
-         "  --width=W  --height=H  --frames=N  --capture=IMG.ppm");
+         "  --width=W  --height=H  --frames=N  --capture=IMG.ppm  --water-time=SECONDS --msaa=0|2|4|8");
 }
 
 int main(int argc, char **argv) {
@@ -863,6 +863,8 @@ int main(int argc, char **argv) {
     const char *recipesDir = "recipes";
     const char *resumePath = NULL;
     const char *capturePath = NULL;
+    float fixedWaterTime = -1.0f;
+    int msaa = 0;
     const char *actionSaveCkpt = NULL;
     const char *actionLoadCkpt = NULL;
     const char *actionExport = NULL;
@@ -939,6 +941,13 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--height=", 9)) winH = (int)strtol(a + 9, NULL, 10);
         else if (!strncmp(a, "--frames=", 9)) frames = (unsigned)strtoul(a + 9, NULL, 10);
         else if (!strncmp(a, "--capture=", 10)) capturePath = a + 10;
+        else if (!strncmp(a, "--water-time=", 13)) {
+            fixedWaterTime = strtof(a + 13, NULL);
+            if (!isfinite(fixedWaterTime) || fixedWaterTime < 0.0f) return 2;
+        } else if (!strncmp(a, "--msaa=", 7)) {
+            msaa = (int)strtol(a + 7, NULL, 10);
+            if (msaa != 0 && msaa != 2 && msaa != 4 && msaa != 8) return 2;
+        }
         else { fprintf(stderr, "Opción desconocida: %s\n", a); return 2; }
     }
 
@@ -1026,7 +1035,7 @@ int main(int argc, char **argv) {
         ctrl->threadStarted = true;
     }
 
-    OpenGLDemoWindow *window = OpenGLDemoWindow_Create("Monster Engine - Brain Evolution Lab", winW, winH);
+    OpenGLDemoWindow *window = OpenGLDemoWindow_CreateMSAA("Monster Engine - Brain Evolution Lab", winW, winH, msaa);
     if (!window) {
         ctrl->quitRequested = true;
         if (ctrl->threadStarted) pthread_join(ctrl->thread, NULL);
@@ -1067,7 +1076,7 @@ int main(int argc, char **argv) {
     bool ok = true;
     ok = PrimitiveMesh_GenerateEllipsoid(&meshes[0], (Transform3D){.position = {0, -0.0001f, 0}, .scale = {1, 0.0001f, 1}}, 16, 6, baseColors[0]) && ok;
     ok = PrimitiveMesh_GenerateEllipsoid(&meshes[1], (Transform3D){.position = {0, 0, 0}, .scale = {1, 0.03f, 1}}, 16, 6, baseColors[1]) && ok;
-    ok = PrimitiveMesh_GenerateEllipsoid(&meshes[2], (Transform3D){.position = {0, 0.25f, 0}, .scale = {0.28f, 0.24f, 0.48f}}, 12, 6, baseColors[2]) && ok;
+    ok = PrimitiveMesh_GeneratePlantTuft(&meshes[2], baseColors[2]) && ok;
     ok = PrimitiveMesh_GenerateEllipsoid(&meshes[3], (Transform3D){.position = {0, 0.22f, 0}, .scale = {0.30f, 0.22f, 0.48f}}, 12, 6, baseColors[3]) && ok;
     ok = PrimitiveMesh_GenerateEllipsoid(&meshes[4], (Transform3D){.position = {0, 0.65f, 0}, .scale = {1.0f, 0.95f, 1.0f}}, 14, 8, baseColors[4]) && ok;
 
@@ -1114,7 +1123,7 @@ int main(int argc, char **argv) {
     float neuralEdgeThreshold = 0.28f;
 
     unsigned frame = 0u;
-    double lastTime = OpenGLDemoWindow_Time(), displayedFps = 60.0;
+    double lastTime = OpenGLDemoWindow_Time(), displayedFps = 60.0, presentationTime = 0.0;
     bool captured = false;
 
     while (ok && (!frames || frame < frames)) {
@@ -1208,6 +1217,7 @@ int main(int argc, char **argv) {
         /* Avanzar mundo independiente de replay 3D usando world.clock.fixedStep exacto. */
         double effReplaySpeed = replaySpeeds[replaySpeedIdx];
         if (replay.initialized && !replay.paused) {
+            if (frame > 0) presentationTime += dt;
             double fixedStep = (replay.world.clock.fixedStep > 1e-4) ? replay.world.clock.fixedStep : 0.05;
             double frameWallDt = frames ? (1.0 / 60.0) : dt;
             replay.simAccumulator += frameWallDt * effReplaySpeed;
@@ -1343,7 +1353,8 @@ int main(int argc, char **argv) {
             }
 
             if (proceduralWorld) {
-                EnvironmentRenderer_RenderWater(&envRenderer, &camera, (float)replay.world.clock.seconds);
+                EnvironmentRenderer_RenderWater(&envRenderer, &camera,
+                                                 fixedWaterTime >= 0.0f ? fixedWaterTime : (float)fmod(presentationTime, 80.0));
                 EnvironmentRenderer_RenderOverlays(&envRenderer, &camera);
             }
         }

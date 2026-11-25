@@ -52,7 +52,7 @@ WorldRecipe WorldRecipe_Default(void) {
     WorldRecipe r;
     memset(&r, 0, sizeof(r));
     r.version = WORLD_RECIPE_SCHEMA_VERSION;
-    r.generatorVersion = WORLD_GENERATOR_VERSION;
+    r.generatorVersion = WORLD_GENERATOR_VERSION_LEGACY;
     snprintf(r.id, sizeof(r.id), "river_valley");
     snprintf(r.name, sizeof(r.name), "River Valley");
     r.seed = 42u;
@@ -121,6 +121,16 @@ bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
         *out = WorldRecipe_Flat(64.0f);
         return true;
     }
+    char legacyName[48];
+    size_t len = strlen(presetName);
+    bool continuous = len > 3u && len < sizeof(legacyName) &&
+                      strcmp(presetName + len - 3u, "_v2") == 0;
+    const char *requestedName = presetName;
+    if (continuous) {
+        memcpy(legacyName, presetName, len - 3u);
+        legacyName[len - 3u] = '\0';
+        presetName = legacyName;
+    }
     WorldRecipe r = WorldRecipe_Default();
     if (strcmp(presetName, "river_valley") == 0) {
         r.terrain.resolution = 513u;
@@ -184,6 +194,10 @@ bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
     } else {
         return false;
     }
+    if (continuous) {
+        r.generatorVersion = WORLD_GENERATOR_VERSION;
+        snprintf(r.id, sizeof(r.id), "%s", requestedName);
+    }
     r.recipeHash = WorldRecipe_Fingerprint(&r);
     r.valid = true;
     *out = r;
@@ -245,7 +259,8 @@ bool WorldRecipe_Validate(const WorldRecipe *r, char *error, size_t errorSize) {
         setErr(error, errorSize, "Versión de receta de mundo no soportada: %u", r->version);
         return false;
     }
-    if (r->generatorVersion != WORLD_GENERATOR_VERSION) {
+    if (r->generatorVersion != WORLD_GENERATOR_VERSION_LEGACY &&
+        r->generatorVersion != WORLD_GENERATOR_VERSION) {
         setErr(error, errorSize, "Versión de generador de mundo no soportada: %u", r->generatorVersion);
         return false;
     }

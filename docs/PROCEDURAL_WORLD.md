@@ -46,7 +46,7 @@ TerrainGenerator  WorldHydrology  WorldBiome
 | Módulo | Cabecera / Fuente | Responsabilidad |
 | --- | --- | --- |
 | `TerrainHeightfield` | `include/TerrainHeightfield.h`, `src/TerrainHeightfield.c` | Malla regular acotada, división diagonal autoritativa CCW `+Y`, altura/normal baricéntrica exacta, jerarquía min/max `8×8`, raycast 2D DDA + Möller–Trumbore, huella FNV-1a. |
-| `WorldIO` | `include/WorldIO.h`, `src/WorldIO.c` | Carga/serialización estricta `*.world.json` (`version: 1`, `generator_version: 1`), derivación SplitMix64 (`WorldSeed_Derive`), presets incorporados y límites de presupuesto de memoria. |
+| `WorldIO` | `include/WorldIO.h`, `src/WorldIO.c` | Carga/serialización estricta `*.world.json` (`version: 1`, generadores físicos `1` y `2`), derivación SplitMix64 (`WorldSeed_Derive`), presets incorporados y límites de presupuesto de memoria. |
 | `TerrainGenerator` | `include/TerrainGenerator.h`, `src/TerrainGenerator.c` | Ruido Simplex 2D determinista, fBm, multifractal en cresta (*ridged*), deformación de dominio, moldeado de valles/cuencas y erosión térmica con doble búfer. |
 | `WorldHydrology` | `include/WorldHydrology.h`, `src/WorldHydrology.c` | Priority-Flood con min-heap + cola FIFO acíclica, acumulación de flujo, cuencas de lagos con cota de desbordamiento exacta, ríos monotónicos tallados y extracción de `WorldShoreSite`. |
 | `WorldBiome` | `include/WorldBiome.h`, `src/WorldBiome.c` | Distancia al agua por EDT Chamfer de 2 pasadas, rugosidad, humedad, fertilidad, 4 canales materiales (`grass`, `drySoil`, `rock`, `wetMud`) y clasificación de bioma. |
@@ -61,8 +61,8 @@ TerrainGenerator  WorldHydrology  WorldBiome
 
 | Módulo | Cabecera / Fuente | Responsabilidad |
 | --- | --- | --- |
-| `TerrainRenderer` | `include/TerrainRenderer.h`, `src/TerrainRenderer.c` | Chunks `32×32`, 4 niveles LOD con cosido de bordes de 16 máscaras, relajación LOD vecina, protección de orillas, frustum culling exacto por MVP (ortográfico y perspectiva) y 8 modos de depuración. |
-| `WaterRenderer` | `include/WaterRenderer.h`, `src/WaterRenderer.c` | Malla indexada estática de celdas húmedas y shader GLSL 330 con absorción por profundidad, Fresnel, normales de onda alineadas al flujo y espuma costera. |
+| `TerrainRenderer` | `include/TerrainRenderer.h`, `src/TerrainRenderer.c` | Chunks `32×32`, 4 niveles LOD por error proyectado, 16 máscaras de borde, protección de orillas, culling por MVP y 8 vistas de diagnóstico. |
+| `WaterRenderer` | `include/WaterRenderer.h`, `src/WaterRenderer.c` | Malla estática recortada contra el contorno v2, con sombreado GLSL 330 de flujo, absorción y Fresnel. |
 | `RockVisualCache` | `include/RockVisualCache.h`, `src/RockVisualCache.c` | Mallas cerradas proyectadas desde SDF por variante geológica, renderizado instanciado GPU (escala 3D + cuaternión) y depuración wireframe de lóbulos de colisión. |
 | `EnvironmentRenderer` | `include/EnvironmentRenderer.h`, `src/EnvironmentRenderer.c` | Presentación unificada usada por `demo_evolution_arena` y `demo_brain_evolution_lab`, minimapa topográfico `256×256`, picking de rayo sobre terreno/agua y overlays conformes al relieve. |
 
@@ -74,10 +74,11 @@ Opciones CLI nuevas (soportadas por ambos ejecutables):
 - `--world=ARCHIVO.world.json`: carga una receta de mundo procedural (`worlds/river_valley.world.json`, `worlds/mountain_lakes.world.json`, `worlds/rocky_highlands.world.json`, `worlds/wetlands.world.json`, `worlds/flat.world.json`, etc.).
 - `--world-seed=N`: sobrescribe la semilla determinista del terreno independientemente de la semilla poblacional `--seed=N`.
 - `--terrain-debug=MODO` (solo visual): inicia en modo de visualización `natural`, `elevation`, `slope`, `hydrology`, `water_depth`, `biome`, `navigation` o `collision`.
-- `--show-shores` y `--show-rock-collision` (solo visual): activan marcadores de sitios de orilla accesibles (`WorldShoreSite`) y wireframes de lóbulos de colisión de rocas (`RockCollisionLobe`).
+- `--show-shores` muestra las estaciones accesibles y el contorno continuo en v2. `--show-rock-collision` activa los wireframes de los lóbulos de colisión de rocas.
+- `--terrain-lod0`, `--wireframe`, `--camera-position=X,Y,Z`, `--camera-target=X,Y,Z`, `--perspective=GRADOS`, `--water-time=SEGUNDOS` y `--msaa=N` permiten repetir capturas y comprobar costuras.
 
 Controles interactivos adicionales en la versión visual:
-- `A`: cicla entre los presets de mundo (`flat`, `river_valley`, `mountain_lakes`, `rocky_highlands`, `wetlands`) realizando un reinicio atómico del hilo de simulación.
+- `A`: cicla entre los presets de mundo (`flat`, `river_valley_v2`, `mountain_lakes_v2`, `rocky_highlands_v2`, `wetlands_v2`) realizando un reinicio atómico del hilo de simulación.
 - `Shift+D`: cicla los 8 modos de depuración del terreno (el modo `collision` activa también los wireframes de lóbulos de roca).
 - `Shift+Q`: alterna el modo wireframe de la malla de terreno.
 - `R` / `Shift+R`: reinicia el experimento / reinicia generando una nueva semilla de mundo.
@@ -89,6 +90,12 @@ Controles interactivos adicionales en la versión visual:
 - `EvolutionEvaluator` reutiliza `WorldStaticCache` entre todos los hilos trabajadores sin reconstruir el terreno cuando la semilla de mundo se repite.
 - `EvolutionCheckpointIO` valida la huella del mundo (`world_fingerprint`) y la versión del generador (`generator_version`) al reanudar checkpoints.
 - El viewport 3D de replay en `demo_brain_evolution_lab` usa el mismo `EnvironmentRenderer` y paso fijo real (`replay.world.clock.fixedStep`).
+
+## Generadores físicos v1 y v2
+
+Las recetas originales y los entornos de Brain Evolution Lab conservan `generator_version: 1`. Los archivos con sufijo `_v2` seleccionan el cauce continuo, el dominio por cuerpo y la profundidad firmada sobre el mismo triángulo que usa el terreno. El contorno, el picking y los contactos de orilla comparten ese campo. El entorno `brumacerno_river_valley_v2.environment.json` permite entrenar y reproducir en v2. Los checkpoints exigen el entorno, la versión y la huella correspondientes. Los activos de renderizado quedan fuera de la huella física.
+
+La comparación de captura y rendimiento se recoge en [Calidad visual de terreno y agua](TERRAIN_WATER_VISUAL_QUALITY.md).
 
 ## 5. Limitaciones conocidas y elementos fuera de alcance
 

@@ -15,7 +15,8 @@ extern "C" {
 #endif
 
 #define WORLD_RECIPE_SCHEMA_VERSION 1u
-#define WORLD_GENERATOR_VERSION 1u
+#define WORLD_GENERATOR_VERSION_LEGACY 1u
+#define WORLD_GENERATOR_VERSION 2u
 #define WORLD_MAX_MEMORY_BUDGET_BYTES (128u * 1024u * 1024u)
 
 /** @brief Etiquetas de dominio para separar flujos PRNG deterministas sin interferencia. */

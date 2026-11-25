@@ -5,6 +5,7 @@
  */
 #define GL_GLEXT_PROTOTYPES
 #include "WaterRenderer.h"
+#include "environment_glsl.inc"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <math.h>
@@ -16,7 +17,9 @@ typedef struct WaterGpuVertex {
     float pos[3];
     float depth;
     float flow[2];
-    float bodyTint[3];
+    float optics[4];
+    float normal[3];
+    uint32_t bodyId;
 } WaterGpuVertex;
 
 typedef struct WaterRendererImpl {
@@ -25,19 +28,21 @@ typedef struct WaterRendererImpl {
     GLint uCamPosLoc;
     GLint uTimeLoc;
     GLint uQualityLoc;
+    GLint uContourLoc;
+    TerrainMaterialBindings materialBindings;
 
     GLuint vao, vbo, ebo;
-    uint32_t indexCount;
+    uint32_t indexCount, lineCount;
     uint64_t worldEpoch;
     uint64_t worldFingerprint;
     int qualityTier;
     WaterRenderStats stats;
 } WaterRendererImpl;
 
-static GLuint compileWaterShader(GLenum type, const char *src) {
+static GLuint compileWaterShader(GLenum type, const char *const *src, GLsizei count) {
     GLuint s = glCreateShader(type);
     if (!s) return 0u;
-    glShaderSource(s, 1, &src, NULL);
+    glShaderSource(s, count, src, NULL);
     glCompileShader(s);
     GLint ok = 0;
     glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
@@ -60,77 +65,29 @@ static bool initWaterShader(WaterRendererImpl *impl) {
         "layout(location=0) in vec3 aPos;\n"
         "layout(location=1) in float aDepth;\n"
         "layout(location=2) in vec2 aFlow;\n"
-        "layout(location=3) in vec3 aTint;\n"
+        "layout(location=3) in vec4 aOptics;\n"
+        "layout(location=4) in vec3 aNormal;\n"
         "out vec3 vWorldPos;\n"
         "out float vDepth;\n"
         "out vec2 vFlow;\n"
-        "out vec3 vTint;\n"
+        "out vec3 vSurfaceNormal;\n"
+        "flat out vec4 vOptics;\n"
+        "flat out vec4 vParallelView;\n"
         "void main() {\n"
         "  vWorldPos = aPos;\n"
         "  vDepth = aDepth;\n"
         "  vFlow = aFlow;\n"
-        "  vTint = aTint;\n"
+        "  vSurfaceNormal = aNormal;\n"
+        "  vOptics = aOptics;\n"
+        "  vParallelView = vec4(gl_ModelViewMatrix[0][2], gl_ModelViewMatrix[1][2],\n"
+        "                      gl_ModelViewMatrix[2][2], gl_ProjectionMatrix[3][3]);\n"
         "  gl_Position = gl_ModelViewProjectionMatrix * vec4(aPos, 1.0);\n"
         "}\n";
 
-    const char *fs =
-        "#version 330 compatibility\n"
-        "uniform vec3 uCamPos;\n"
-        "uniform float uTime;\n"
-        "uniform int uQuality;\n"
-        "in vec3 vWorldPos;\n"
-        "in float vDepth;\n"
-        "in vec2 vFlow;\n"
-        "in vec3 vTint;\n"
-        "out vec4 fragColor;\n"
-        "float waveH(vec2 p) {\n"
-        "  float w = sin(p.x * 1.9 + p.y * 1.3) * 0.5;\n"
-        "  w += sin(p.x * 3.1 - p.y * 2.7) * 0.3;\n"
-        "  w += cos(p.x * 5.3 + p.y * 4.1) * 0.2;\n"
-        "  return w;\n"
-        "}\n"
-        "void main() {\n"
-        "  if (vDepth <= 0.002) discard;\n"
-        "  vec3 viewDir = normalize(uCamPos - vWorldPos);\n"
-        "  vec3 sunDir = normalize(vec3(-0.48, 0.76, 0.44));\n"
-        "  vec3 n = vec3(0.0, 1.0, 0.0);\n"
-        "  if (uQuality >= 1) {\n"
-        "    vec2 flowVel = length(vFlow) > 0.05 ? vFlow : vec2(0.18, 0.11);\n"
-        "    vec2 p1 = vWorldPos.xz * 0.75 - flowVel * uTime * 0.85;\n"
-        "    vec2 p2 = vWorldPos.xz * 1.25 - flowVel * uTime * 1.35 + vec2(3.7, -2.1);\n"
-        "    float eps = 0.08;\n"
-        "    float h0 = waveH(p1) + 0.65 * waveH(p2);\n"
-        "    float hx = waveH(p1 + vec2(eps, 0.0)) + 0.65 * waveH(p2 + vec2(eps, 0.0));\n"
-        "    float hz = waveH(p1 + vec2(0.0, eps)) + 0.65 * waveH(p2 + vec2(0.0, eps));\n"
-        "    float amp = mix(0.035, 0.085, clamp(length(vFlow), 0.0, 1.0));\n"
-        "    n = normalize(vec3((h0 - hx) / eps * amp, 1.0, (h0 - hz) / eps * amp));\n"
-        "  }\n"
-        "  float depthT = clamp(vDepth / 1.8, 0.0, 1.0);\n"
-        "  vec3 shallowCol = mix(vec3(0.28, 0.56, 0.58), vTint * 1.35, 0.55);\n"
-        "  vec3 deepCol    = vTint * vec3(0.32, 0.50, 0.68);\n"
-        "  vec3 waterCol   = mix(shallowCol, deepCol, smoothstep(0.0, 1.0, depthT));\n"
-        "  float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 4.0);\n"
-        "  fresnel = clamp(0.05 + 0.78 * fresnel, 0.05, 0.85);\n"
-        "  vec3 skyCol = vec3(0.58, 0.72, 0.84);\n"
-        "  vec3 col = mix(waterCol, skyCol, fresnel * (uQuality >= 1 ? 0.72 : 0.35));\n"
-        "  vec3 halfV = normalize(sunDir + viewDir);\n"
-        "  float spec = pow(max(dot(n, halfV), 0.0), 96.0) * 0.75;\n"
-        "  col += vec3(1.0, 0.96, 0.86) * spec;\n"
-        "  /* Espuma discreta únicamente en la línea de orilla somera. */\n"
-        "  if (uQuality >= 2) {\n"
-        "    float foamBand = (1.0 - smoothstep(0.02, 0.24, vDepth)) * smoothstep(0.003, 0.03, vDepth);\n"
-        "    float foamNoise = 0.5 + 0.5 * sin(vWorldPos.x * 3.8 + vWorldPos.z * 3.1 - uTime * 2.2);\n"
-        "    col = mix(col, vec3(0.86, 0.92, 0.94), foamBand * foamNoise * 0.42);\n"
-        "  }\n"
-        "  float alpha = clamp(mix(0.30, 0.90, smoothstep(0.0, 0.85, depthT)) + fresnel * 0.12, 0.22, 0.94);\n"
-        "  float dist = length(uCamPos - vWorldPos);\n"
-        "  float fog = smoothstep(95.0, 460.0, dist) * 0.45;\n"
-        "  col = mix(col, vec3(0.56, 0.66, 0.74), fog);\n"
-        "  fragColor = vec4(col, alpha);\n"
-        "}\n";
-
-    GLuint v = compileWaterShader(GL_VERTEX_SHADER, vs);
-    GLuint f = compileWaterShader(GL_FRAGMENT_SHADER, fs);
+    const char *vertexParts[] = {vs};
+    const char *fragParts[] = {"#version 330 compatibility\n", ENV_MATERIALS, ENV_WATER};
+    GLuint v = compileWaterShader(GL_VERTEX_SHADER, vertexParts, 1);
+    GLuint f = compileWaterShader(GL_FRAGMENT_SHADER, fragParts, 3);
     if (!v || !f) {
         if (v) glDeleteShader(v);
         if (f) glDeleteShader(f);
@@ -151,6 +108,8 @@ static bool initWaterShader(WaterRendererImpl *impl) {
         return false;
     }
     impl->program = p;
+    impl->uContourLoc = glGetUniformLocation(p, "uContour");
+    impl->materialBindings = TerrainMaterials_GetBindings(p);
     impl->uCamPosLoc = glGetUniformLocation(p, "uCamPos");
     impl->uTimeLoc = glGetUniformLocation(p, "uTime");
     impl->uQualityLoc = glGetUniformLocation(p, "uQuality");
@@ -163,6 +122,7 @@ static void freeWaterMesh(WaterRendererImpl *impl) {
     if (impl->vbo) { glDeleteBuffers(1, &impl->vbo); impl->vbo = 0; }
     if (impl->ebo) { glDeleteBuffers(1, &impl->ebo); impl->ebo = 0; }
     impl->indexCount = 0u;
+    impl->lineCount = 0u;
     impl->worldEpoch = 0u;
     impl->worldFingerprint = 0u;
     impl->stats = (WaterRenderStats){0};
@@ -192,25 +152,144 @@ void WaterRenderer_SetQuality(WaterRenderer *wr, int qualityTier) {
     ((WaterRendererImpl *)wr->impl)->qualityTier = qualityTier < 0 ? 0 : (qualityTier > 2 ? 2 : qualityTier);
 }
 
-bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world) {
-    if (!wr || !wr->impl) return false;
-    WaterRendererImpl *impl = (WaterRendererImpl *)wr->impl;
-    if (!world || world->isFlat || !world->hydrology.enabled || world->hydrology.totalWetCells == 0u) {
-        freeWaterMesh(impl);
-        return true;
-    }
-    if (impl->worldEpoch == world->epochId && impl->worldFingerprint == world->dataFingerprint &&
-        impl->vao != 0u) {
-        return true;
-    }
-    if (!initWaterShader(impl)) return false;
-    freeWaterMesh(impl);
+typedef struct WaterBuild {
+    WaterGpuVertex *vertices;
+    uint32_t *indices, *lines;
+    uint32_t vertexCount, indexCount, lineCount;
+    uint32_t vertexCap, indexCap, lineCap;
+    uint32_t *table;
+    uint32_t tableCap;
+} WaterBuild;
 
-    const TerrainHeightfield *tf = &world->terrain;
-    const WorldHydrology *hy = &world->hydrology;
+static uint32_t waterVertexHash(const WaterGpuVertex *v) {
+    uint32_t x, z;
+    memcpy(&x, &v->pos[0], sizeof(x));
+    memcpy(&z, &v->pos[2], sizeof(z));
+    uint32_t hash = x * 0x9e3779b9u ^ z * 0x85ebca6bu ^ v->bodyId * 0xc2b2ae35u;
+    return hash ^ (hash >> 16);
+}
+
+static uint32_t waterVertexSlot(const WaterBuild *m, const WaterGpuVertex *v) {
+    uint32_t slot = waterVertexHash(v) & (m->tableCap - 1u);
+    while (m->table[slot]) {
+        const WaterGpuVertex *other = &m->vertices[m->table[slot] - 1u];
+        if (other->bodyId == v->bodyId && other->pos[0] == v->pos[0] && other->pos[2] == v->pos[2])
+            break;
+        slot = (slot + 1u) & (m->tableCap - 1u);
+    }
+    return slot;
+}
+
+static bool reserveWaterVertices(WaterBuild *m) {
+    if (m->vertexCount >= m->vertexCap) {
+        uint32_t cap = m->vertexCap ? m->vertexCap * 2u : 256u;
+        WaterGpuVertex *p = realloc(m->vertices, (size_t)cap * sizeof(*p));
+        if (!p) return false;
+        m->vertices = p;
+        m->vertexCap = cap;
+    }
+    if (m->vertexCount >= m->tableCap / 2u) {
+        uint32_t cap = m->tableCap ? m->tableCap * 2u : 512u;
+        uint32_t *table = calloc(cap, sizeof(*table));
+        if (!table) return false;
+        free(m->table);
+        m->table = table;
+        m->tableCap = cap;
+        for (uint32_t i = 0; i < m->vertexCount; ++i)
+            m->table[waterVertexSlot(m, &m->vertices[i])] = i + 1u;
+    }
+    return true;
+}
+
+static bool appendWaterIndices(uint32_t **data, uint32_t *count, uint32_t *capacity,
+                               const uint32_t *values, unsigned n) {
+    if (*count + n > *capacity) {
+        uint32_t cap = *capacity ? *capacity * 2u : 512u;
+        uint32_t *p = realloc(*data, (size_t)cap * sizeof(*p));
+        if (!p) return false;
+        *data = p;
+        *capacity = cap;
+    }
+    memcpy(*data + *count, values, n * sizeof(*values));
+    *count += n;
+    return true;
+}
+
+static void waterOptics(const WorldWaterBody *body, float absorption[4]) {
+    /* Los perfiles de presentación no modifican la sustancia ni su contabilidad. */
+    typedef struct WaterOptics { const char *id; float sigma[3]; } WaterOptics;
+    static const WaterOptics profiles[] = {
+        {"clean_water", {1.04f, 0.54f, 0.31f}},
+        {"contaminated_water", {1.58f, 0.72f, 0.69f}},
+    };
+    const WaterOptics *profile = &profiles[0];
+    for (size_t i = 1; body && i < sizeof(profiles) / sizeof(profiles[0]); ++i) {
+        if (strcmp(profiles[i].id, body->substanceId) == 0) profile = &profiles[i];
+    }
+    memcpy(absorption, profile->sigma, sizeof(profile->sigma));
+    absorption[3] = body && body->type == WATER_BODY_RIVER ? 1.0f : 0.0f;
+}
+
+static bool appendWaterPatch(WaterBuild *m, const TerrainHeightfield *tf, const WorldHydrology *hy,
+                             const WorldWaterPatch *p) {
+    WorldWaterVertex polygon[WORLD_WATER_PATCH_VERTICES];
+    unsigned count = WorldHydrology_ClipWaterPatch(tf, p, polygon);
+    if (!count) return true;
+    uint32_t ids[WORLD_WATER_PATCH_VERTICES];
+    float optics[4];
+    waterOptics(WorldHydrology_GetBody(hy, p->bodyId), optics);
+    for (unsigned i = 0; i < count; ++i) {
+        const WorldWaterVertex *src = &polygon[i];
+        WaterGpuVertex gpu = {
+            .pos = {src->position.x, src->position.y, src->position.z},
+            .depth = src->depth,
+            .flow = {src->flowX, src->flowZ},
+            .bodyId = p->bodyId,
+        };
+        memcpy(gpu.optics, optics, sizeof(optics));
+        if (!reserveWaterVertices(m)) return false;
+        uint32_t slot = waterVertexSlot(m, &gpu);
+        if (!m->table[slot]) {
+            m->vertices[m->vertexCount++] = gpu;
+            m->table[slot] = m->vertexCount;
+        }
+        ids[i] = m->table[slot] - 1u;
+    }
+    for (unsigned i = 2; i < count; ++i) {
+        Vector3 a = Vec3_Sub(polygon[i - 1u].position, polygon[0].position);
+        Vector3 b = Vec3_Sub(polygon[i].position, polygon[0].position);
+        if (a.z * b.x - a.x * b.z <= tf->spacing * tf->spacing * 1e-9f) continue;
+        uint32_t tri[] = {ids[0], ids[i - 1u], ids[i]};
+        if (!appendWaterIndices(&m->indices, &m->indexCount, &m->indexCap, tri, 3)) return false;
+    }
+    for (unsigned i = 0; i < count; ++i) {
+        unsigned j = (i + 1u) % count;
+        if (!(polygon[i].boundary & polygon[j].boundary) || ids[i] == ids[j]) continue;
+        uint32_t line[] = {ids[i], ids[j]};
+        if (!appendWaterIndices(&m->lines, &m->lineCount, &m->lineCap, line, 2)) return false;
+    }
+    return true;
+}
+
+static bool buildContinuousWater(const TerrainHeightfield *tf, const WorldHydrology *hy, WaterBuild *m) {
+    for (uint32_t z = 0; z + 1u < tf->resolution; ++z) {
+        for (uint32_t x = 0; x + 1u < tf->resolution; ++x) {
+            for (unsigned t = 0; t < 2; ++t) {
+                WorldWaterPatch patches[3];
+                unsigned count = WorldHydrology_GetWaterPatches(hy, tf, x, z, t, patches);
+                for (unsigned k = 0; k < count; ++k) {
+                    if (!appendWaterPatch(m, tf, hy, &patches[k])) return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+/* Constructor de compatibilidad para la superficie racional histórica v1. */
+static bool buildLegacyWater(const TerrainHeightfield *tf, const WorldHydrology *hy, WaterBuild *mesh) {
     uint32_t res = tf->resolution;
     uint32_t cells = res - 1u;
-
     /* Construir malla estática únicamente sobre celdas con al menos 1 vértice húmedo.
      * Los vértices secos del borde de orilla toman la elevación de agua del vecino húmedo
      * con depth=0 para recortarse limpiamente contra el lecho del terreno por depth-test. */
@@ -263,7 +342,6 @@ bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world) {
                     float surfY = (bid != 0u) ? hy->waterSurfaceY[gi] : avgSurf;
                     float depth = (bid != 0u) ? hy->waterDepth[gi] : fmaxf(0.0f, surfY - tf->heights[gi]);
                     const WorldWaterBody *wb = WorldHydrology_GetBody(hy, bid ? bid : refBody);
-                    bool contaminated = (wb && strstr(wb->substanceId, "contaminated") != NULL);
 
                     WaterGpuVertex *v = &verts[vCount];
                     v->pos[0] = tf->originX + (float)gx * tf->spacing;
@@ -272,11 +350,8 @@ bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world) {
                     v->depth = depth;
                     v->flow[0] = hy->flowX ? hy->flowX[gi] : 0.0f;
                     v->flow[1] = hy->flowZ ? hy->flowZ[gi] : 0.0f;
-                    if (contaminated) {
-                        v->bodyTint[0] = 0.28f; v->bodyTint[1] = 0.52f; v->bodyTint[2] = 0.34f;
-                    } else {
-                        v->bodyTint[0] = 0.16f; v->bodyTint[1] = 0.46f; v->bodyTint[2] = 0.72f;
-                    }
+                    waterOptics(wb, v->optics);
+                    v->bodyId = bid ? bid : refBody;
                     remap[gi] = (int32_t)vCount++;
                 }
                 vi[c] = (uint32_t)remap[gi];
@@ -295,29 +370,95 @@ bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world) {
     }
     free(remap);
 
-    if (vCount == 0u || iCount == 0u) {
-        free(verts); free(indices);
+    mesh->vertices = verts;
+    mesh->indices = indices;
+    mesh->vertexCount = vCount;
+    mesh->indexCount = iCount;
+    return true;
+}
+
+static void buildWaterNormals(WaterBuild *mesh) {
+    for (uint32_t i = 0; i < mesh->vertexCount; ++i)
+        memset(mesh->vertices[i].normal, 0, sizeof(mesh->vertices[i].normal));
+    for (uint32_t i = 0; i < mesh->indexCount; i += 3u) {
+        const float *a = mesh->vertices[mesh->indices[i]].pos;
+        const float *b = mesh->vertices[mesh->indices[i + 1u]].pos;
+        const float *c = mesh->vertices[mesh->indices[i + 2u]].pos;
+        float ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+        float vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+        float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        for (unsigned k = 0; k < 3; ++k) {
+            float *normal = mesh->vertices[mesh->indices[i + k]].normal;
+            normal[0] += nx;
+            normal[1] += ny;
+            normal[2] += nz;
+        }
+    }
+    /* Cada normal promedia sólo triángulos reales que comparten vértice y
+     * cuerpo en v2. La posición y la pendiente física de cada cara se conservan. */
+    for (uint32_t i = 0; i < mesh->vertexCount; ++i) {
+        float *n = mesh->vertices[i].normal;
+        float length = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+        if (length >= 1e-10f) {
+            for (unsigned k = 0; k < 3; ++k) n[k] /= length;
+        } else {
+            n[1] = 1.0f;
+        }
+    }
+}
+
+bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world) {
+    if (!wr || !wr->impl) return false;
+    WaterRendererImpl *impl = (WaterRendererImpl *)wr->impl;
+    if (!world || world->isFlat || !world->hydrology.enabled || world->hydrology.totalWetCells == 0u) {
+        freeWaterMesh(impl);
+        return true;
+    }
+    if (impl->worldEpoch == world->epochId && impl->worldFingerprint == world->dataFingerprint) {
+        return true;
+    }
+    if (!initWaterShader(impl)) return false;
+    const TerrainHeightfield *tf = &world->terrain;
+    const WorldHydrology *hy = &world->hydrology;
+    WaterBuild mesh = {0};
+    bool ok = hy->surfaceBodyId ? buildContinuousWater(tf, hy, &mesh) : buildLegacyWater(tf, hy, &mesh);
+    free(mesh.table);
+    if (!ok) {
+        free(mesh.vertices); free(mesh.indices); free(mesh.lines);
+        return false;
+    }
+    if (!mesh.indexCount) {
+        free(mesh.vertices); free(mesh.indices); free(mesh.lines);
+        freeWaterMesh(impl);
         impl->worldEpoch = world->epochId;
         impl->worldFingerprint = world->dataFingerprint;
         return true;
     }
+    buildWaterNormals(&mesh);
+    GLuint vao, vbo, ebo;
 
     GLint prevVao = 0, prevBuf = 0, prevEbo = 0;
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevBuf);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevEbo);
 
-    glGenVertexArrays(1, &impl->vao);
-    glGenBuffers(1, &impl->vbo);
-    glGenBuffers(1, &impl->ebo);
-    glBindVertexArray(impl->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, impl->vbo);
-    size_t vBytes = (size_t)vCount * sizeof(WaterGpuVertex);
-    size_t iBytes = (size_t)iCount * sizeof(uint32_t);
-    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vBytes, verts, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, impl->ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)iBytes, indices, GL_STATIC_DRAW);
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    size_t vBytes = (size_t)mesh.vertexCount * sizeof(WaterGpuVertex);
+    size_t iBytes = (size_t)mesh.indexCount * sizeof(uint32_t);
+    size_t lineBytes = (size_t)mesh.lineCount * sizeof(uint32_t);
+    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)vBytes, mesh.vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)(iBytes + lineBytes), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, (GLsizeiptr)iBytes, mesh.indices);
+    if (lineBytes) glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, (GLintptr)iBytes, (GLsizeiptr)lineBytes, mesh.lines);
 
+    GLint vboSize = 0, eboSize = 0;
+    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vboSize);
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &eboSize);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(WaterGpuVertex), (const void *)offsetof(WaterGpuVertex, pos));
     glEnableVertexAttribArray(1);
@@ -325,23 +466,37 @@ bool WaterRenderer_SyncWorld(WaterRenderer *wr, const WorldStaticData *world) {
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(WaterGpuVertex), (const void *)offsetof(WaterGpuVertex, flow));
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(WaterGpuVertex), (const void *)offsetof(WaterGpuVertex, bodyTint));
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(WaterGpuVertex), (const void *)offsetof(WaterGpuVertex, optics));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(WaterGpuVertex), (const void *)offsetof(WaterGpuVertex, normal));
 
     glBindVertexArray((GLuint)prevVao);
     glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevBuf);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevEbo);
 
-    free(verts);
-    free(indices);
-    impl->indexCount = iCount;
+    free(mesh.vertices); free(mesh.indices); free(mesh.lines);
+    if (vboSize != (GLint)vBytes || eboSize != (GLint)(iBytes + lineBytes)) {
+        glDeleteVertexArrays(1, &vao);
+        glDeleteBuffers(1, &vbo);
+        glDeleteBuffers(1, &ebo);
+        fprintf(stderr, "[WaterRenderer] Fallo al subir la superficie estática.\n");
+        return false;
+    }
+    freeWaterMesh(impl);
+    impl->vao = vao;
+    impl->vbo = vbo;
+    impl->ebo = ebo;
+    impl->indexCount = mesh.indexCount;
+    impl->lineCount = mesh.lineCount;
     impl->worldEpoch = world->epochId;
     impl->worldFingerprint = world->dataFingerprint;
-    impl->stats.triangles = iCount / 3u;
-    impl->stats.vramBytes = vBytes + iBytes;
+    impl->stats.triangles = impl->indexCount / 3u;
+    impl->stats.vramBytes = vBytes + iBytes + lineBytes;
     return true;
 }
 
-bool WaterRenderer_Render(WaterRenderer *wr, const ICamera *camera, float timeSeconds) {
+bool WaterRenderer_Render(WaterRenderer *wr, const ICamera *camera,
+                          const TerrainMaterials *materials, float timeSeconds, bool showContour) {
     if (!wr || !wr->impl || !camera) return false;
     WaterRendererImpl *impl = (WaterRendererImpl *)wr->impl;
     impl->stats.drawCalls = 0u;
@@ -351,6 +506,15 @@ bool WaterRenderer_Render(WaterRenderer *wr, const ICamera *camera, float timeSe
     glGetIntegerv(GL_CURRENT_PROGRAM, &prevProg);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prevVao);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevEbo);
+    GLint blendSrcRGB, blendDstRGB, blendSrcAlpha, blendDstAlpha, equationRGB, equationAlpha, depthFunc;
+    glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRGB);
+    glGetIntegerv(GL_BLEND_DST_RGB, &blendDstRGB);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDstAlpha);
+    glGetIntegerv(GL_BLEND_EQUATION_RGB, &equationRGB);
+    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &equationAlpha);
+    glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+    GLboolean prevDepth = glIsEnabled(GL_DEPTH_TEST);
     GLboolean prevBlend = glIsEnabled(GL_BLEND);
     GLboolean prevCull = glIsEnabled(GL_CULL_FACE);
     GLboolean prevDepthMask = GL_TRUE;
@@ -358,26 +522,43 @@ bool WaterRenderer_Render(WaterRenderer *wr, const ICamera *camera, float timeSe
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthFunc(GL_LESS);
     glDepthMask(GL_FALSE);
     glDisable(GL_CULL_FACE);
 
     glUseProgram(impl->program);
+    TerrainMaterialState materialState = TerrainMaterials_Bind(materials, &impl->materialBindings);
+    glUniform1i(impl->uContourLoc, GL_FALSE);
     if (impl->uCamPosLoc >= 0) glUniform3f(impl->uCamPosLoc, camera->position.x, camera->position.y, camera->position.z);
-    if (impl->uTimeLoc >= 0) glUniform1f(impl->uTimeLoc, timeSeconds);
+    if (impl->uTimeLoc >= 0) glUniform1f(impl->uTimeLoc, fmodf(timeSeconds, 80.0f));
     if (impl->uQualityLoc >= 0) glUniform1i(impl->uQualityLoc, impl->qualityTier);
 
     glBindVertexArray(impl->vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, impl->ebo);
     glDrawElements(GL_TRIANGLES, (GLsizei)impl->indexCount, GL_UNSIGNED_INT, 0);
     impl->stats.drawCalls = 1u;
+    if (showContour && impl->lineCount) {
+        glUniform1i(impl->uContourLoc, GL_TRUE);
+        glDepthFunc(GL_LEQUAL);
+        glDrawElements(GL_LINES, (GLsizei)impl->lineCount, GL_UNSIGNED_INT,
+                       (const void *)((size_t)impl->indexCount * sizeof(uint32_t)));
+        ++impl->stats.drawCalls;
+    }
 
     /* Restaurar estado OpenGL completo para pasadas posteriores (HUD/overlays). */
     glDepthMask(prevDepthMask);
+    glDepthFunc((GLenum)depthFunc);
+    if (!prevDepth) glDisable(GL_DEPTH_TEST);
+    glBlendEquationSeparate((GLenum)equationRGB, (GLenum)equationAlpha);
+    glBlendFuncSeparate((GLenum)blendSrcRGB, (GLenum)blendDstRGB,
+                        (GLenum)blendSrcAlpha, (GLenum)blendDstAlpha);
     if (!prevBlend) glDisable(GL_BLEND);
     if (prevCull) glEnable(GL_CULL_FACE);
     glBindVertexArray((GLuint)prevVao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevEbo);
+    TerrainMaterials_Restore(&materialState);
     glUseProgram((GLuint)prevProg);
     return true;
 }

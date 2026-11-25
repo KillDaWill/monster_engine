@@ -8,6 +8,7 @@
 
 #include "WorldStaticData.h"
 #include "RenderInterfaces.h"
+#include "TerrainMaterials.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -60,11 +61,13 @@ void TerrainRenderer_SetDebugMode(TerrainRenderer *tr, TerrainDebugMode mode);
 TerrainDebugMode TerrainRenderer_GetDebugMode(const TerrainRenderer *tr);
 
 /** @brief Ajusta factor de calidad/distancia LOD (0.6 = bajo, 1.0 = medio, 1.35 = alto). */
+/** @brief Fuerza la malla física completa para diagnóstico. */
+void TerrainRenderer_ForceLod0(TerrainRenderer *tr, bool enabled);
 void TerrainRenderer_SetQuality(TerrainRenderer *tr, float lodQualityScale, bool wireframe);
 
 /** @brief Dibuja chunks visibles del terreno con LOD sin grietas y restaura estado OpenGL. */
 bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
-                            float maxSlopeNavRadians, float maxWadeNavDepth);
+                            const TerrainMaterials *materials, float maxSlopeNavRadians, float maxWadeNavDepth);
 
 /** @brief Métricas del último frame y memoria GPU estimada. */
 TerrainRenderStats TerrainRenderer_GetStats(const TerrainRenderer *tr);

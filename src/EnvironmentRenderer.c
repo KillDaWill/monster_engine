@@ -12,12 +12,71 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
+enum { ENV_TIMER_SLOTS = 8, ENV_TIMER_LAG = 3 };
+
+typedef struct EnvironmentPassTimer {
+    GLuint queries[ENV_TIMER_SLOTS * 2];
+    bool pending[ENV_TIMER_SLOTS];
+    unsigned cursor;
+    double gpuTotalMs, cpuTotalMs;
+    size_t gpuSamples, cpuSamples;
+} EnvironmentPassTimer;
+
+static double environmentNowMs(void) {
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return (double)time.tv_sec * 1000.0 + (double)time.tv_nsec * 1e-6;
+}
+
+static double beginPass(EnvironmentPassTimer *timer) {
+    if (!timer->queries[0]) glGenQueries(ENV_TIMER_SLOTS * 2, timer->queries);
+    unsigned i = (timer->cursor + ENV_TIMER_SLOTS - ENV_TIMER_LAG) % ENV_TIMER_SLOTS;
+    for (unsigned k = 0; k < ENV_TIMER_SLOTS - ENV_TIMER_LAG + 1u; ++k, i = (i + ENV_TIMER_SLOTS - 1u) % ENV_TIMER_SLOTS) {
+        if (!timer->pending[i]) continue;
+        GLint ready = 0;
+        glGetQueryObjectiv(timer->queries[2u * i + 1u], GL_QUERY_RESULT_AVAILABLE, &ready);
+        if (ready) {
+            GLuint64 begin, end;
+            glGetQueryObjectui64v(timer->queries[2u * i], GL_QUERY_RESULT, &begin);
+            glGetQueryObjectui64v(timer->queries[2u * i + 1u], GL_QUERY_RESULT, &end);
+            timer->gpuTotalMs += (double)(end - begin) * 1e-6;
+            ++timer->gpuSamples;
+            timer->pending[i] = false;
+        }
+    }
+    if (!timer->pending[timer->cursor]) glQueryCounter(timer->queries[2u * timer->cursor], GL_TIMESTAMP);
+    return environmentNowMs();
+}
+
+static void endPass(EnvironmentPassTimer *timer, double start) {
+    timer->cpuTotalMs += environmentNowMs() - start;
+    ++timer->cpuSamples;
+    if (!timer->pending[timer->cursor]) {
+        glQueryCounter(timer->queries[2u * timer->cursor + 1u], GL_TIMESTAMP);
+        timer->pending[timer->cursor] = true;
+    }
+    timer->cursor = (timer->cursor + 1u) % ENV_TIMER_SLOTS;
+}
+
+static EnvironmentPassStats passStats(const EnvironmentPassTimer *timer) {
+    return (EnvironmentPassStats){
+        .cpuMeanMs = timer->cpuSamples ? timer->cpuTotalMs / (double)timer->cpuSamples : 0.0,
+        .gpuMeanMs = timer->gpuSamples ? timer->gpuTotalMs / (double)timer->gpuSamples : 0.0,
+        .gpuSamples = timer->gpuSamples,
+    };
+}
+
 typedef struct EnvironmentRendererImpl {
+    TerrainMaterials materials;
+    EnvironmentPassTimer terrainTime, rockTime, waterTime;
+    bool profiling;
+    double uploadMs;
     TerrainRenderer terrain;
     WaterRenderer water;
     RockVisualCache rocks;
@@ -29,6 +88,7 @@ typedef struct EnvironmentRendererImpl {
     GLuint minimapTex;
     uint32_t minimapRes;
 
+    bool rockDetails;
     bool showShoreSites;
     bool showRockCollision;
     bool showTerrainGrid;
@@ -43,7 +103,6 @@ static void destroyMinimapTexture(EnvironmentRendererImpl *impl) {
 }
 
 static bool buildMinimapTexture(EnvironmentRendererImpl *impl, const WorldStaticData *world) {
-    destroyMinimapTexture(impl);
     if (!world || world->recipe.flat) return true;
 
     const uint32_t texSize = 256u;
@@ -77,8 +136,9 @@ static bool buildMinimapTexture(EnvironmentRendererImpl *impl, const WorldStatic
             float hillShade = 0.58f + 0.42f * fmaxf(0.0f, n.x * 0.5f + n.y * 0.8f + n.z * 0.3f);
 
             float r = 0.35f, g = 0.45f, b = 0.32f;
-            if (hy->waterBodyId && hy->waterBodyId[idx] != 0u && hy->waterDepth[idx] > 0.01f) {
-                float dF = fminf(1.0f, hy->waterDepth[idx] / 2.2f);
+            WaterSample water;
+            if (WorldHydrology_SampleWater(hy, tf, wx, wz, &water) && water.wet) {
+                float dF = fminf(1.0f, water.depth / 2.2f);
                 r = 0.24f * (1.0f - dF) + 0.08f * dF;
                 g = 0.56f * (1.0f - dF) + 0.28f * dF;
                 b = 0.78f * (1.0f - dF) + 0.58f * dF;
@@ -120,17 +180,25 @@ static bool buildMinimapTexture(EnvironmentRendererImpl *impl, const WorldStatic
 
     GLint prevTex = 0;
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex);
-    glGenTextures(1, &impl->minimapTex);
-    glBindTexture(GL_TEXTURE_2D, impl->minimapTex);
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)texSize, (GLsizei)texSize,
                  0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    GLint textureSize = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &textureSize);
     glBindTexture(GL_TEXTURE_2D, (GLuint)prevTex);
-
     free(rgba);
+    if (textureSize != (GLint)texSize) {
+        glDeleteTextures(1, &texture);
+        return false;
+    }
+    destroyMinimapTexture(impl);
+    impl->minimapTex = texture;
     impl->minimapRes = texSize;
     return true;
 }
@@ -149,6 +217,7 @@ bool EnvironmentRenderer_Init(EnvironmentRenderer *er) {
         free(impl);
         return false;
     }
+    impl->rockDetails = true;
     er->impl = impl;
     return true;
 }
@@ -157,6 +226,10 @@ void EnvironmentRenderer_Destroy(EnvironmentRenderer *er) {
     if (!er || !er->impl) return;
     EnvironmentRendererImpl *impl = (EnvironmentRendererImpl *)er->impl;
     destroyMinimapTexture(impl);
+    TerrainMaterials_Free(&impl->materials);
+    glDeleteQueries(ENV_TIMER_SLOTS * 2, impl->terrainTime.queries);
+    glDeleteQueries(ENV_TIMER_SLOTS * 2, impl->rockTime.queries);
+    glDeleteQueries(ENV_TIMER_SLOTS * 2, impl->waterTime.queries);
     TerrainRenderer_Destroy(&impl->terrain);
     WaterRenderer_Destroy(&impl->water);
     RockVisualCache_Destroy(&impl->rocks);
@@ -183,28 +256,35 @@ bool EnvironmentRenderer_SyncWorld(EnvironmentRenderer *er, const WorldStaticDat
         return true;
     }
 
-    if (impl->boundWorld != world) {
-        if (world) WorldStaticData_Retain(world);
-        if (impl->boundWorld) WorldStaticData_Release(impl->boundWorld);
-        impl->boundWorld = world;
-    }
-
-    impl->worldEpoch = newEpoch;
-    impl->worldFingerprint = newFp;
-    impl->isProcedural = wantProcedural;
-
-    if (!wantProcedural) {
+    const WorldStaticData *previous = impl->boundWorld;
+    double uploading = environmentNowMs();
+    if (wantProcedural) {
+        TerrainMaterials_Load(&impl->materials);
+        if (!TerrainRenderer_SyncWorld(&impl->terrain, world) ||
+            !WaterRenderer_SyncWorld(&impl->water, world) ||
+            !RockVisualCache_SyncWorld(&impl->rocks, world) ||
+            !buildMinimapTexture(impl, world)) {
+            /* El contexto sigue en este hilo. Volver a la época publicada. */
+            TerrainRenderer_SyncWorld(&impl->terrain, previous);
+            WaterRenderer_SyncWorld(&impl->water, previous);
+            RockVisualCache_SyncWorld(&impl->rocks, previous);
+            return false;
+        }
+    } else {
         TerrainRenderer_SyncWorld(&impl->terrain, NULL);
         WaterRenderer_SyncWorld(&impl->water, NULL);
         RockVisualCache_SyncWorld(&impl->rocks, NULL);
         destroyMinimapTexture(impl);
-        return true;
     }
-
-    if (!TerrainRenderer_SyncWorld(&impl->terrain, world)) return false;
-    if (!WaterRenderer_SyncWorld(&impl->water, world)) return false;
-    if (!RockVisualCache_SyncWorld(&impl->rocks, world)) return false;
-    if (!buildMinimapTexture(impl, world)) return false;
+    if (world != previous) {
+        if (world) WorldStaticData_Retain(world);
+        if (previous) WorldStaticData_Release(previous);
+        impl->boundWorld = world;
+    }
+    impl->worldEpoch = newEpoch;
+    impl->worldFingerprint = newFp;
+    impl->isProcedural = wantProcedural;
+    impl->uploadMs = environmentNowMs() - uploading;
     return true;
 }
 
@@ -228,11 +308,16 @@ TerrainDebugMode EnvironmentRenderer_GetDebugMode(const EnvironmentRenderer *er)
     return TerrainRenderer_GetDebugMode(&((const EnvironmentRendererImpl *)er->impl)->terrain);
 }
 
+void EnvironmentRenderer_ForceTerrainLod0(EnvironmentRenderer *er, bool enabled) {
+    if (er && er->impl) TerrainRenderer_ForceLod0(&((EnvironmentRendererImpl *)er->impl)->terrain, enabled);
+}
+
 void EnvironmentRenderer_SetQuality(EnvironmentRenderer *er, float terrainLodScale,
                                     int waterQualityTier, bool wireframe) {
     if (!er || !er->impl) return;
     EnvironmentRendererImpl *impl = (EnvironmentRendererImpl *)er->impl;
     TerrainRenderer_SetQuality(&impl->terrain, terrainLodScale, wireframe);
+    impl->rockDetails = terrainLodScale >= 0.85f;
     WaterRenderer_SetQuality(&impl->water, waterQualityTier);
 }
 
@@ -245,6 +330,56 @@ void EnvironmentRenderer_SetOverlays(EnvironmentRenderer *er, bool showShoreSite
     impl->showTerrainGrid = showTerrainGrid;
 }
 
+void EnvironmentRenderer_SetProfiling(EnvironmentRenderer *er, bool enabled) {
+    if (er && er->impl) ((EnvironmentRendererImpl *)er->impl)->profiling = enabled;
+}
+
+static void drawLowAngleSky(const ICamera *camera) {
+    if (camera->fov <= 0.0f) return;
+    Vector3 direction = Vec3_Normalize(Vec3_Sub(camera->target, camera->position));
+    float blend = fmaxf(0.0f, fminf(1.0f, (direction.y + 0.36f) / 0.16f));
+    if (blend <= 0.0f) return;
+    blend *= blend * (3.0f - 2.0f * blend);
+
+    GLint program = 0, matrixMode = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+    glGetIntegerv(GL_MATRIX_MODE, &matrixMode);
+    glUseProgram(0);
+    glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_DEPTH_BUFFER_BIT | GL_POLYGON_BIT |
+                 GL_COLOR_BUFFER_BIT | GL_LIGHTING_BIT);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_FOG);
+    glDepthMask(GL_FALSE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glShadeModel(GL_SMOOTH);
+    glBegin(GL_QUADS);
+    glColor4f(0.58f, 0.66f, 0.71f, blend);
+    glVertex2f(-1, -1);
+    glVertex2f(1, -1);
+    glColor4f(0.38f, 0.52f, 0.65f, blend);
+    glVertex2f(1, 1);
+    glVertex2f(-1, 1);
+    glEnd();
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode((GLenum)matrixMode);
+    glPopAttrib();
+    glUseProgram((GLuint)program);
+}
+
 bool EnvironmentRenderer_RenderOpaque(EnvironmentRenderer *er, Renderer3D *renderer,
                                       const ICamera *camera,
                                       float flatHalfSize, const Mesh *flatGroundMesh,
@@ -253,12 +388,16 @@ bool EnvironmentRenderer_RenderOpaque(EnvironmentRenderer *er, Renderer3D *rende
     EnvironmentRendererImpl *impl = (EnvironmentRendererImpl *)er->impl;
 
     if (impl->isProcedural && impl->boundWorld) {
-        if (!TerrainRenderer_Render(&impl->terrain, camera, maxSlopeNavRadians, maxWadeNavDepth)) {
-            return false;
-        }
-        if (!RockVisualCache_Render(&impl->rocks, camera)) {
-            return false;
-        }
+        if (TerrainRenderer_GetDebugMode(&impl->terrain) == TERRAIN_DEBUG_NATURAL) drawLowAngleSky(camera);
+        double start = impl->profiling ? beginPass(&impl->terrainTime) : 0.0;
+        bool ok = TerrainRenderer_Render(&impl->terrain, camera, &impl->materials,
+                                         maxSlopeNavRadians, maxWadeNavDepth);
+        if (impl->profiling) endPass(&impl->terrainTime, start);
+        if (!ok) return false;
+        start = impl->profiling ? beginPass(&impl->rockTime) : 0.0;
+        ok = RockVisualCache_Render(&impl->rocks, camera, &impl->materials, impl->rockDetails);
+        if (impl->profiling) endPass(&impl->rockTime, start);
+        if (!ok) return false;
         return true;
     }
 
@@ -288,7 +427,12 @@ bool EnvironmentRenderer_RenderWater(EnvironmentRenderer *er, const ICamera *cam
     if (!er || !er->impl || !camera) return false;
     EnvironmentRendererImpl *impl = (EnvironmentRendererImpl *)er->impl;
     if (!impl->isProcedural) return true;
-    return WaterRenderer_Render(&impl->water, camera, timeSeconds);
+    double start = impl->profiling ? beginPass(&impl->waterTime) : 0.0;
+    bool ok = WaterRenderer_Render(&impl->water, camera, &impl->materials, timeSeconds,
+                                impl->showShoreSites ||
+                                TerrainRenderer_GetDebugMode(&impl->terrain) == TERRAIN_DEBUG_HYDROLOGY);
+    if (impl->profiling) endPass(&impl->waterTime, start);
+    return ok;
 }
 
 void EnvironmentRenderer_RenderOverlays(EnvironmentRenderer *er, const ICamera *camera) {
@@ -401,13 +545,17 @@ bool EnvironmentRenderer_PickGroundRay(const EnvironmentRenderer *er, Vector3 ra
             rayOrigin.y + rayDir.y * maxDist,
             rayOrigin.z + rayDir.z * maxDist
         };
-        float tHit = 0.0f;
         Vector3 hitPos = {0};
-        if (!Terrain_RaycastSegment(&impl->boundWorld->terrain, rayOrigin, rayEnd, 0.005f, &tHit, &hitPos)) {
-            return false;
+        const WorldStaticData *world = impl->boundWorld;
+        bool hitGround = Terrain_RaycastSegment(&world->terrain, rayOrigin, rayEnd, 0.005f, NULL, &hitPos);
+        if (outWaterBodyId && world->hydrology.surfaceBodyId &&
+            WorldHydrology_RaycastWater(&world->hydrology, &world->terrain,
+                                         rayOrigin, hitGround ? hitPos : rayEnd, outHitPos, outWaterBodyId)) {
+            return true;
         }
+        if (!hitGround) return false;
         if (outHitPos) *outHitPos = hitPos;
-        if (outWaterBodyId) {
+        if (outWaterBodyId && !world->hydrology.surfaceBodyId) {
             WaterSample ws;
             if (WorldHydrology_SampleWater(&impl->boundWorld->hydrology, &impl->boundWorld->terrain,
                                            hitPos.x, hitPos.z, &ws) && ws.wet) {
@@ -476,7 +624,12 @@ EnvironmentRenderStats EnvironmentRenderer_GetStats(const EnvironmentRenderer *e
         st.rocks = RockVisualCache_GetStats(&impl->rocks);
         st.totalTriangles = st.terrain.renderedTriangles + st.water.triangles + st.rocks.renderedTriangles;
         st.totalDrawCalls = st.terrain.drawCalls + st.water.drawCalls + st.rocks.drawCalls;
-        st.totalVramBytes = st.terrain.vramBytes + st.water.vramBytes + st.rocks.vramBytes;
+        st.materialVramBytes = impl->materials.vramBytes;
+        st.lastUploadMs = impl->uploadMs;
+        st.terrainPass = passStats(&impl->terrainTime);
+        st.rockPass = passStats(&impl->rockTime);
+        st.waterPass = passStats(&impl->waterTime);
+        st.totalVramBytes = st.terrain.vramBytes + st.water.vramBytes + st.rocks.vramBytes + impl->materials.vramBytes;
         if (impl->minimapTex) {
             st.totalVramBytes += (size_t)impl->minimapRes * impl->minimapRes * 4u;
         }

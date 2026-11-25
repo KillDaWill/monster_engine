@@ -340,3 +340,44 @@ bool PrimitiveMesh_GenerateDiamond(Mesh* out, Transform3D transform, Color color
 }
 
 #undef RING_VERTEX
+
+bool PrimitiveMesh_GeneratePlantTuft(Mesh *out, Color color) {
+    if (!out) return false;
+    Mesh_Clear(out);
+    const unsigned blades = 9u;
+    if (!Mesh_ReserveVertices(out, 8u * blades) || !Mesh_ReserveIndices(out, 12u * blades)) return false;
+    for (unsigned i = 0; i < blades; ++i) {
+        float angle = (float)i * 2.39996323f;
+        Vector3 radial = Vec3_Create(cosf(angle), 0, sinf(angle));
+        Vector3 across = Vec3_Create(-radial.z, 0, radial.x);
+        float reach = 0.17f + 0.026f * (float)((i * 7u) % blades);
+        float height = 0.27f + 0.025f * (float)((i * 4u + 2u) % blades);
+        Vector3 root = Vec3_Add(Vec3_Scale(radial, 0.035f + 0.01f * (float)(i % 3u)),
+                                Vec3_Create(0, -0.015f, 0));
+        Vector3 mid = Vec3_Add(Vec3_Scale(radial, reach * 0.40f), Vec3_Create(0, height * 0.73f, 0));
+        Vector3 positions[4] = {
+            root, Vec3_Add(mid, Vec3_Scale(across, 0.024f + 0.004f * (float)(i % 3u))),
+            Vec3_Add(Vec3_Scale(radial, reach), Vec3_Create(0, height, 0)),
+            Vec3_Sub(mid, Vec3_Scale(across, 0.026f + 0.004f * (float)(i % 3u))),
+        };
+        Vector3 normal = Vec3_Normalize(Vec3_Cross(Vec3_Sub(positions[1], root), Vec3_Sub(positions[3], root)));
+        for (unsigned side = 0; side < 2; ++side) {
+            MeshIndex start = (MeshIndex)out->vertexCount;
+            for (unsigned j = 0; j < 4; ++j) {
+                float shade = j == 0 ? 0.60f : (j == 2 ? 1.0f : 0.83f);
+                MeshVertex vertex = {
+                    .position = positions[j],
+                    .normal = Vec3_Scale(normal, side ? -1.0f : 1.0f),
+                    .color = Color_Create((uint8_t)(color.r * shade), (uint8_t)(color.g * shade),
+                                          (uint8_t)(color.b * shade), color.a),
+                    .material = SDF_MATERIAL_SKIN,
+                };
+                if (!Mesh_AddVertex(out, vertex, NULL)) return false;
+            }
+            MeshIndex a = start + (side ? 3u : 1u), b = start + (side ? 1u : 3u);
+            if (!Mesh_AddTriangle(out, start, a, b) ||
+                !Mesh_AddTriangle(out, a, start + 2u, b)) return false;
+        }
+    }
+    return true;
+}

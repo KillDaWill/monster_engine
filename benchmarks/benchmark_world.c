@@ -46,12 +46,13 @@ static void benchWorldGeneration(const char *label, const WorldRecipe *rec) {
     double dt = nowMs() - t0;
     const WorldGenerationStats *st = &wd->stats;
     printf("  %-20s res=%4u size=%5.0f gen=%7.2fms (tf=%.1f hy=%.1f bm=%.1f geo=%.1f nav=%.1f) "
-           "ram=%5.2fMB lakes=%2u riv=%2u sh=%3u rk=%3u trav=%4.1f%% wet=%4.1f%%\n",
+           "ram=%5.2fMB lakes=%2u riv=%2u sh=%3u rk=%3u trav=%4.1f%% wet=%4.1f%% v=%u fp=%016llx\n",
            label, wd->terrain.resolution, rec->size, dt,
            st->terrainMs, st->hydrologyMs, st->biomeMs, st->geologyMs, st->navBaseMs,
            (double)st->totalStaticBytes / (1024.0 * 1024.0),
            st->lakeCount, st->riverCount, st->shoreSiteCount, st->rockCount,
-           st->traversableLandFraction * 100.0f, st->wetAreaFraction * 100.0f);
+           st->traversableLandFraction * 100.0f, st->wetAreaFraction * 100.0f,
+           wd->generatorVersion, (unsigned long long)wd->dataFingerprint);
     WorldStaticData_Release(wd);
 }
 
@@ -81,7 +82,7 @@ static void benchArenaScalability(const char *label, const char *worldPath,
     if (overrideRes > 0u) {
         /* Territorio grande 512 u.m., 1025x1025 generado directamente desde receta base. */
         WorldRecipe rec;
-        if (!WorldRecipe_LoadFile("worlds/river_valley.world.json", &rec, err, sizeof(err))) {
+        if (!WorldRecipe_LoadFile(worldPath, &rec, err, sizeof(err))) {
             printf("  [ERR] %s: %s\n", label, err);
             return;
         }
@@ -220,7 +221,11 @@ int main(void) {
         "worlds/river_valley.world.json",
         "worlds/mountain_lakes.world.json",
         "worlds/rocky_highlands.world.json",
-        "worlds/wetlands.world.json"
+        "worlds/wetlands.world.json",
+        "worlds/river_valley_v2.world.json",
+        "worlds/mountain_lakes_v2.world.json",
+        "worlds/rocky_highlands_v2.world.json",
+        "worlds/wetlands_v2.world.json"
     };
     for (size_t i = 0; i < sizeof(recipes) / sizeof(recipes[0]); ++i) {
         WorldRecipe rec;
@@ -236,6 +241,12 @@ int main(void) {
             big.terrain.resolution = 1025u;
             big.recipeHash = WorldRecipe_Fingerprint(&big);
             benchWorldGeneration("large_territory_512", &big);
+            big.size = 256.0f;
+            big.recipeHash = WorldRecipe_Fingerprint(&big);
+            benchWorldGeneration("fine_valley256_v1", &big);
+            big.generatorVersion = WORLD_GENERATOR_VERSION;
+            big.recipeHash = WorldRecipe_Fingerprint(&big);
+            benchWorldGeneration("fine_valley256_v2", &big);
         }
     }
 
@@ -252,6 +263,11 @@ int main(void) {
     benchArenaScalability("proc_valley256_500", "worlds/river_valley.world.json",     0.0f, 0u, 400u, 100u, 700u, 6u, 300u);
     benchArenaScalability("proc_valley256_1000","worlds/river_valley.world.json",     0.0f, 0u, 800u, 200u, 1100u, 6u, 240u);
     benchArenaScalability("proc_large512_500",  "worlds/river_valley.world.json",     512.0f, 1025u, 400u, 100u, 700u, 6u, 240u);
+
+    benchArenaScalability("proc_valley_v2_22",   "worlds/river_valley_v2.world.json", 0.0f, 0u, 18u, 4u, 40u, 6u, 300u);
+    benchArenaScalability("proc_valley_v2_100",  "worlds/river_valley_v2.world.json", 0.0f, 0u, 80u, 20u, 180u, 6u, 300u);
+    benchArenaScalability("proc_valley_v2_500",  "worlds/river_valley_v2.world.json", 0.0f, 0u, 400u, 100u, 700u, 6u, 300u);
+    benchArenaScalability("proc_valley_v2_1000", "worlds/river_valley_v2.world.json", 0.0f, 0u, 800u, 200u, 1100u, 6u, 240u);
 
     benchBrainLabScaling();
 
