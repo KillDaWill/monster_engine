@@ -39,6 +39,10 @@ static void ensureParentDir(const char *path) {
 
 static void printHelp(void) {
     puts("Uso: ./demos/demo_evolution_arena_headless [OPCIONES]\n"
+         "  --world=ARCHIVO|PRESET       Receta *.world.json o preset (flat|river_valley|mountain_lakes|rocky_highlands|wetlands)\n"
+         "  --world-seed=N               Sobrescribe la semilla del terreno procedural\n"
+         "  --allow-extra-ponds          Permite estanques circulares adicionales en mundos procedurales\n"
+         "  --validate-world-only        Genera y valida el mundo procedural e imprime diagnóstico sin simular\n"
          "  --preset=small|medium|large|stress  Preset de escala de arena (defecto small)\n"
          "  --workers=N                  Hilos CPU para simulación paralela (0=auto, 1=serial)\n"
          "  --seed=N                     Semilla PRNG determinista (defecto 42)\n"
@@ -86,6 +90,7 @@ int main(int argc, char **argv) {
     const char *exportDir = NULL;
     const char *recipesDirectory = "recipes";
     bool trace = false;
+    bool validateWorldOnly = false;
 
     /* Primero aplicar --preset y --scenario para que las banderas explícitas sobrescriban. */
     for (int i = 1; i < argc; ++i) {
@@ -107,6 +112,12 @@ int main(int argc, char **argv) {
         double n = 0.0;
         if (strcmp(a, "--help") == 0) { printHelp(); return 0; }
         if (strcmp(a, "--trace") == 0) { trace = true; continue; }
+        if (strcmp(a, "--validate-world-only") == 0) { validateWorldOnly = true; continue; }
+        if (strcmp(a, "--allow-extra-ponds") == 0) { cfg.allowExtraPonds = true; continue; }
+        if (strncmp(a, "--world=", 8) == 0) {
+            snprintf(cfg.worldRecipePath, sizeof(cfg.worldRecipePath), "%s", a + 8);
+            continue;
+        }
         if (strcmp(a, "--no-physical-mutation") == 0) { cfg.disablePhysicalMutation = true; continue; }
         if (strcmp(a, "--mixed-substances") == 0) { cfg.includeMixedSubstances = true; continue; }
         if (strncmp(a, "--metabolism-dir=", 17) == 0) { cfg.metabolismDir = a + 17; continue; }
@@ -158,7 +169,13 @@ int main(int argc, char **argv) {
         if (strncmp(a, "--days=", 7) == 0) { cfg.days = n; continue; }
         if (strncmp(a, "--fixed-dt=", 11) == 0) { cfg.step = n; continue; }
         if (strncmp(a, "--day-duration=", 15) == 0) { cfg.day = n; continue; }
-        if (strncmp(a, "--arena-size=", 13) == 0) { cfg.arenaSize = (float)n; continue; }
+        if (strncmp(a, "--arena-size=", 13) == 0) { cfg.arenaSize = (float)n; cfg.hasExplicitArenaSize = true; continue; }
+        if (strncmp(a, "--world-seed=", 13) == 0) {
+            if (n > (double)UINT32_MAX || floor(n) != n) goto invalid;
+            cfg.worldSeed = (uint32_t)n;
+            cfg.hasWorldSeedOverride = true;
+            continue;
+        }
         if (strncmp(a, "--mutation-rate=", 16) == 0) { cfg.mutation.mutationRate = (float)n; continue; }
         if (strncmp(a, "--mutation-sigma=", 17) == 0) { cfg.mutation.mutationSigma = (float)n; continue; }
         if (strncmp(a, "--replace-rate=", 15) == 0) { cfg.mutation.replaceRate = (float)n; continue; }
@@ -208,6 +225,11 @@ int main(int argc, char **argv) {
     if (!EvolutionArena_Create(&world, &cfg, errorBuf, sizeof(errorBuf))) {
         fprintf(stderr, "No se pudo crear Evolution Arena: %s\n", errorBuf);
         return 1;
+    }
+    if (validateWorldOnly) {
+        EcosystemWorld_WriteJSON(&world, stdout);
+        EcosystemWorld_Free(&world);
+        return 0;
     }
 
     FILE *csv = NULL;

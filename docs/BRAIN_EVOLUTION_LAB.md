@@ -54,15 +54,21 @@ La interfaz ejecuta el algoritmo genético en un hilo dedicado en segundo plano 
 - Panel de **Estadísticas de entrenamiento en vivo** (generación, episodios, fitness, validación, diversidad, `eps/s`, `ticks/s`, bajas y cadáveres consumidos).
 - **Gráficas históricas** de fitness (mejor, media, mediana, validación), tasa de supervivencia, diversidad neuronal y marcadores de cambio de etapa de currículo.
 - **Inspector de población de candidatos** (`[1..5]`: Champion, Best Train, Best Val, Elite #2, Mediana).
-- **Viewport 3D independiente de replay** (`[R]`) con anatomía procedural real, sin interferir nunca con la evaluación paralela.
-- Controles interactivos y por teclado: `SPACE` (iniciar/pausar), `G` (avanzar 1 gen), `X` (detener), `V` (validar), `SAVE CKPT`, `LOAD CKPT`, `E` (exportar campeón), `R` (replay 3D).
+- **Viewport 3D independiente de replay** (`[R]`) con anatomía procedural real, el renderizador de entorno compartido (`EnvironmentRenderer`) para mundos planos y procedurales 3D, y pacing autoritativo de paso fijo (`replay.world.clock.fixedStep`), sin interferir nunca con la evaluación paralela.
+- Controles interactivos y por teclado: `SPACE` (iniciar/pausar), `G` (avanzar 1 gen), `X` (detener), `V` (validar), `SAVE CKPT`, `LOAD CKPT`, `E` (exportar campeón), `R` (replay 3D), `Shift+D` (modos de depuración de terreno).
 
 ## 4. Artefactos exportados por sesión
 
 Cada directorio `--output=DIR` genera:
 - `champion.brain.json`, `best_training.brain.json`, `best_validation.brain.json`
-- `checkpoint.json` (guardado atómico `.tmp` + `rename` con verificación estricta de 6 huellas: moléculas, sustancias, perfil metabólico, especie, entorno y arquitectura)
+- `checkpoint.json` (guardado atómico `.tmp` + `rename` con verificación estricta de huellas: moléculas, sustancias, perfil metabólico, especie, entorno, mundo procedural / `generator_version` y arquitectura)
 - `training_history.csv`, `validation_results.json`, `experiment.json`, `report.json`
+
+### Integración con mundos procedurales
+
+Los entornos (`environments/brumacerno_river_valley.environment.json`, `brumacerno_mixed_terrain.environment.json`, `velkar_hunting_valley.environment.json`, `terrain_generalization.environment.json`) declaran recetas `worlds/*.world.json`. `EvolutionEvaluator` comparte un `WorldStaticCache` LRU seguro entre hilos para evitar regenerar el terreno entre episodios con la misma semilla:
+- En `brumacerno_river_valley` (16 pop × 2 semillas, 60 s): **226,5 eps/s** y **815.337 ticks/s** con 6 hilos (`3,93×` respecto a 1 hilo, `diff = 0.0e+00`, `138` aciertos / `4` fallos de caché).
+- Experimento acotado (15 generaciones, pop=24, 120 s, 6 hilos, 744 episodios en `6,52 s`): la validación sube de `0,7941` a `0,8208` (test ciego `0,8290 ± 0,0352`, `surv=100%`, `H=0,751`, `ing=27,65`), y en generalización ciega sobre `terrain_generalization` alcanza `0,8440 ± 0,0521` frente a `0,7658` de `always_idle`.
 
 ## 5. Escalado paralelo medido
 

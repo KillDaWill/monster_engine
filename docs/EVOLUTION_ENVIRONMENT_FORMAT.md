@@ -14,6 +14,13 @@ Los archivos `environments/*.environment.json` describen escenarios determinista
   "description": "Scenario B: water, vegetation, and living prey with zero initial carcasses.",
   "arena_size": 32.0,
   "episode_seconds": 300.0,
+  "world": "worlds/lab_valley_small.world.json",
+  "world_seed_policy": "episode_seed",
+  "resource_placement": {
+    "min_moisture": 0.20,
+    "max_slope_deg": 28.0,
+    "prefer_fertile": true
+  },
   "focal_initial": {
     "energy_min": 0.42,
     "energy_max": 0.48,
@@ -69,3 +76,13 @@ Los archivos `environments/*.environment.json` describen escenarios determinista
 | `velkar_scavenging.environment.json` | Escenario A: carroñeo e hidratación con `fresh_meat`, `rotten_meat`, `grass`, `clean_water` y `contaminated_water`. |
 | `velkar_hunting.environment.json` | Escenario B: **cero carne ni cadáveres iniciales**; agua, pasto y presas vivas (`Brumacerno`), obligando a descubrir la cadena causal ataque -> muerte -> cadáver -> consumo independiente. |
 | `molecular_generalization.environment.json` | Entorno no visto durante entrenamiento con combinaciones variadas de sustancias, obstáculos y criaturas de fondo para evaluar generalización. |
+| `brumacerno_river_valley.environment.json` | Forrajeo e hidratación en orillas reales de `worlds/lab_valley_small.world.json` con vegetación guiada por humedad/fertilidad. |
+| `brumacerno_mixed_terrain.environment.json` | Discriminación de sustancias beneficiosas y nocivas sobre relieve procedural 3D con rocas y pendientes. |
+| `velkar_hunting_valley.environment.json` | Caza dependiente de presas vivas en territorio con colinas y oclusión real de línea de visión. |
+| `terrain_generalization.environment.json` | Evaluación ciega en territorios y semillas de terreno no vistos durante el entrenamiento. |
+
+### Campos opcionales de mundo procedural
+
+- `"world"`: ruta a una receta `worlds/*.world.json`. Si se omite o es `null`, el episodio se construye en arena plana clásica de lado `arena_size`.
+- `"world_seed_policy"`: `"fixed"` (usa `base_seed` de la receta), `"episode_seed"` (deriva un terreno por semilla de episodio) o `"seed_bank"` (selecciona de un banco determinista con alta reutilización en `WorldStaticCache`).
+- `"resource_placement"`: restricciones ecológicas opcionales (`min_moisture`, `max_slope_deg`, `min_elevation`, `max_elevation`, `prefer_fertile`) aplicadas por `WorldPlacement`.

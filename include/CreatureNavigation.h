@@ -16,9 +16,12 @@ typedef struct CreatureNavigation {
 } CreatureNavigation;
 /** @brief Precomputa o refresca la caché estática de holgura en AIWorld (sólo cuando cambia revision). */
 bool CreatureNavigation_EnsureCache(AIWorld *);
-/** @brief A* XZ con montículo binario, resolución en espacio mundo y scratch por hilo sin heap por consulta. */
+/** @brief A* XZ/2.5D con montículo binario, resolución dinámica y scratch por hilo sin heap por consulta. */
 bool CreatureNavigation_Plan(CreatureNavigation *, const AIWorld *, Vector3 from, Vector3 goal,
                              float clearance, bool swimming);
+/** @brief A* topográfico completo respetando perfil de pendiente, escalón, vadeo y rocas. */
+bool CreatureNavigation_PlanWithProfile(CreatureNavigation *, const AIWorld *, Vector3 from, Vector3 goal,
+                                        const TraversalProfile *profile);
 /** @brief Reutiliza camino, detecta llegada/estancamiento y devuelve waypoint. */
 NavigationGoalStatus CreatureNavigation_Update(CreatureNavigation *, Vector3, float yaw,
                                                float speed, float turn, float dt,

@@ -12,6 +12,7 @@
 #include "EcosystemWorld.h"
 #include "EvolutionSpeciesRegistry.h"
 #include "MetabolismIO.h"
+#include "WorldIO.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -78,6 +79,12 @@ typedef struct EvolutionEnvBackgroundGroup {
     NeuralGenome loadedBrain;
 } EvolutionEnvBackgroundGroup;
 
+/** @brief Política de semilla del mundo procedural en episodios de entrenamiento/evaluación. */
+typedef enum WorldSeedPolicy {
+    WORLD_SEED_POLICY_FIXED = 0,       /**< Usa siempre la semilla fija declarada en la receta del mundo. */
+    WORLD_SEED_POLICY_PER_EPISODE = 1  /**< Deriva semilla determinista del terreno a partir de episodeSeed. */
+} WorldSeedPolicy;
+
 typedef struct EvolutionEnvironmentConfig {
     uint32_t schemaVersion;
     char id[64];
@@ -88,6 +95,13 @@ typedef struct EvolutionEnvironmentConfig {
     double episodeSeconds;
     double stepSeconds;
     double daySeconds;
+
+    /* Configuración opcional de mundo procedural (vacío = compatibilidad plana heredada). */
+    char worldPath[256];
+    bool hasWorld;
+    WorldSeedPolicy worldSeedPolicy;
+    bool terrainAwarePlacement;
+    WorldRecipe cachedWorldRecipe;
 
     /* Inicialización del individuo focal */
     float focalEnergyMin, focalEnergyMax;

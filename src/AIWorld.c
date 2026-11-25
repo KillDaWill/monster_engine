@@ -64,6 +64,15 @@ void AIWorld_Destroy(AIWorld *w) {
     memset(w, 0, sizeof(*w));
 }
 
+void AIWorld_SetStaticWorld(AIWorld *w, const WorldStaticData *worldStatic) {
+    if (!w) return;
+    w->worldStatic = worldStatic;
+    if (worldStatic && worldStatic->terrain.halfSize > 0.0f) {
+        w->halfSize = worldStatic->terrain.halfSize;
+    }
+    ++w->revision;
+}
+
 bool AIWorld_SetSpatialCellSize(AIWorld *w, float cellSize) {
     if (!w || !w->spatial) return false;
     return AISpatialIndex_SetCellSize(w->spatial, cellSize, objects(w));
@@ -374,6 +383,12 @@ static bool clearSegment(const AIWorld *w, Vector3 a, Vector3 b, AIObjectId igno
     if (!w || !isfinite(a.x) || !isfinite(a.y) || !isfinite(a.z) ||
         !isfinite(b.x) || !isfinite(b.y) || !isfinite(b.z))
         return false;
+    /* Nunca ignorar el terreno ni las rocas estáticas al ignorar el ID del objetivo. */
+    if (w->worldStatic && !w->worldStatic->isFlat) {
+        if (!World_ClearSightSegment(w->worldStatic, a, b, radius, 0.08f)) {
+            return false;
+        }
+    }
     const AIWorldObject *objs = objects(w);
     if (w->spatial) {
         if (w->spatial->layers[AI_SPATIAL_LAYER_STATIC].count == 0u) return true;
@@ -404,9 +419,7 @@ bool AIWorld_ClearSegment(const AIWorld *w, Vector3 a, Vector3 b, float radius, 
     return isfinite(radius) && radius >= 0.0f && clearSegment(w, a, b, ignore, radius, true);
 }
 
-bool AIWorld_Walkable(const AIWorld *w, Vector3 p, float r, bool swim) {
-    if (!w || fabsf(p.x) + r > w->halfSize || fabsf(p.z) + r > w->halfSize)
-        return false;
+static bool objectsWalkableDisc(const AIWorld *w, Vector3 p, float r, bool swim) {
     const AIWorldObject *objs = objects(w);
     if (w->spatial) {
         if (w->spatial->layers[AI_SPATIAL_LAYER_STATIC].count == 0u) return true;
@@ -438,10 +451,7 @@ bool AIWorld_Walkable(const AIWorld *w, Vector3 p, float r, bool swim) {
     return true;
 }
 
-bool AIWorld_SegmentWalkable(const AIWorld *w, Vector3 a, Vector3 b, float r, bool swim) {
-    if (!w || fabsf(a.x) + r > w->halfSize || fabsf(a.z) + r > w->halfSize ||
-        fabsf(b.x) + r > w->halfSize || fabsf(b.z) + r > w->halfSize)
-        return false;
+static bool objectsWalkableSegment(const AIWorld *w, Vector3 a, Vector3 b, float r, bool swim) {
     const AIWorldObject *objs = objects(w);
     if (w->spatial) {
         if (w->spatial->layers[AI_SPATIAL_LAYER_STATIC].count == 0u) return true;
@@ -462,7 +472,7 @@ bool AIWorld_SegmentWalkable(const AIWorld *w, Vector3 a, Vector3 b, float r, bo
             return true;
         }
     }
-    if (!AIWorld_Walkable(w, a, r, swim) || !AIWorld_Walkable(w, b, r, swim))
+    if (!objectsWalkableDisc(w, a, r, swim) || !objectsWalkableDisc(w, b, r, swim))
         return false;
     for (unsigned i = 0; i < w->capacity; ++i) {
         const AIWorldObject *o = &objs[i];
@@ -475,10 +485,77 @@ bool AIWorld_SegmentWalkable(const AIWorld *w, Vector3 a, Vector3 b, float r, bo
     return true;
 }
 
+bool AIWorld_CanTraverse(const AIWorld *w, Vector3 p, const TraversalProfile *profile) {
+    if (!w || !profile) return false;
+    float r = fmaxf(0.05f, profile->footprintRadius);
+    if (fabsf(p.x) + r > w->halfSize || fabsf(p.z) + r > w->halfSize) return false;
+    if (w->worldStatic && !w->worldStatic->isFlat) {
+        if (!World_CanTraverse(w->worldStatic, p, profile, NULL)) return false;
+    }
+    return objectsWalkableDisc(w, p, r, profile->canSwim);
+}
+
+bool AIWorld_SegmentTraversable(const AIWorld *w, Vector3 a, Vector3 b,
+                                const TraversalProfile *profile, TraversalResult *out) {
+    if (out) memset(out, 0, sizeof(*out));
+    if (!w || !profile) return false;
+    float r = fmaxf(0.05f, profile->footprintRadius);
+    if (fabsf(a.x) + r > w->halfSize || fabsf(a.z) + r > w->halfSize ||
+        fabsf(b.x) + r > w->halfSize || fabsf(b.z) + r > w->halfSize)
+        return false;
+    if (!objectsWalkableSegment(w, a, b, r, profile->canSwim)) {
+        if (out) out->reason = TRAVERSAL_ROCK_BLOCKED;
+        return false;
+    }
+    if (w->worldStatic && !w->worldStatic->isFlat) {
+        return World_CheckTraversalSegment(w->worldStatic, a, b, profile, out);
+    }
+    if (out) {
+        out->traversable = true;
+        out->reason = TRAVERSAL_OK;
+        out->speedMultiplier = 1.0f;
+        out->energyMultiplier = 1.0f;
+        out->resolvedEndPos = Vec3_Create(b.x, 0.0f, b.z);
+        out->endNormal = Vec3_Create(0.0f, 1.0f, 0.0f);
+    }
+    return true;
+}
+
+bool AIWorld_Walkable(const AIWorld *w, Vector3 p, float r, bool swim) {
+    if (!w || fabsf(p.x) + r > w->halfSize || fabsf(p.z) + r > w->halfSize)
+        return false;
+    if (w->worldStatic && !w->worldStatic->isFlat) {
+        TraversalProfile prof = TraversalProfile_DefaultLand(r);
+        prof.canSwim = swim;
+        if (!World_CanTraverse(w->worldStatic, p, &prof, NULL)) return false;
+    }
+    return objectsWalkableDisc(w, p, r, swim);
+}
+
+bool AIWorld_SegmentWalkable(const AIWorld *w, Vector3 a, Vector3 b, float r, bool swim) {
+    if (!w || fabsf(a.x) + r > w->halfSize || fabsf(a.z) + r > w->halfSize ||
+        fabsf(b.x) + r > w->halfSize || fabsf(b.z) + r > w->halfSize)
+        return false;
+    if (!objectsWalkableSegment(w, a, b, r, swim)) return false;
+    if (w->worldStatic && !w->worldStatic->isFlat) {
+        TraversalProfile prof = TraversalProfile_DefaultLand(r);
+        prof.canSwim = swim;
+        return World_CheckTraversalSegment(w->worldStatic, a, b, &prof, NULL);
+    }
+    return true;
+}
+
 bool AIWorld_CanDrink(const AIWorld *w, AIObjectId id, Vector3 mouth, float reach) {
     const AIWorldObject *o = AIWorld_Get(w, id);
     if (!o || o->type != AI_WATER || !o->drinkable)
         return false;
+    if (o->shoreSiteIndex > 0u && w->worldStatic &&
+        o->shoreSiteIndex <= w->worldStatic->hydrology.shoreSiteCount) {
+        const WorldShoreSite *site = &w->worldStatic->hydrology.shoreSites[o->shoreSiteIndex - 1u];
+        if (!site->accessible) return false;
+        return Vec3_Distance(mouth, site->wetContactPoint) <= reach &&
+               AIWorld_LineOfSight(w, mouth, site->wetContactPoint, id);
+    }
     Vector3 d = Vec3_Sub(mouth, o->position);
     d.y = 0;
     float length = Vec3_Length(d);
@@ -497,6 +574,29 @@ bool AIWorld_InteractionTarget(const AIWorld *w, AIObjectId id, Vector3 mouth, f
         (o->type != AI_WATER && o->type != AI_FOOD) ||
         (o->type == AI_WATER && !o->drinkable))
         return false;
+
+    /* Orilla natural procedural: contacto real sobre la lámina húmeda de la estación. */
+    if (o->type == AI_WATER && o->shoreSiteIndex > 0u && w->worldStatic &&
+        o->shoreSiteIndex <= w->worldStatic->hydrology.shoreSiteCount) {
+        const WorldShoreSite *site = &w->worldStatic->hydrology.shoreSites[o->shoreSiteIndex - 1u];
+        if (!site->accessible) return false;
+        Vector3 normal = Vec3_Create(0.0f, 1.0f, 0.0f);
+        Vector3 point = site->wetContactPoint;
+        Vector3 horiz = Vec3_Sub(point, mouth);
+        horiz.y = 0.0f;
+        if (Vec3_LengthSq(horiz) < 1e-6f) horiz = Vec3_Scale(site->bankNormal, -1.0f);
+        Vector3 approach = Vec3_Normalize(Vec3_Sub(Vec3_Normalize(horiz), normal));
+        *t = (InteractionTarget){
+            .objectId = id, .revision = o->revision,
+            .type = INTERACTION_DRINK,
+            .position = point, .normal = normal, .approach = approach,
+            .velocity = Vec3_Zero(), .moving = false, .positionTolerance = tolerance,
+            .orientationTolerance = 1.45f, .valid = true,
+            .blocked = !AIWorld_ClearSegment(w, mouth, point, 0.0f, id)
+        };
+        return InteractionTarget_Validate(t);
+    }
+
     Vector3 normal = Vec3_LengthSq(o->surfaceNormal) > 0.5f ? Vec3_Normalize(o->surfaceNormal) : Vec3_Create(0, 1, 0);
     Vector3 origin = Vec3_Add(o->position, Vec3_Scale(normal, o->type == AI_FOOD ? o->height : 0));
     Vector3 d = Vec3_Sub(mouth, origin);

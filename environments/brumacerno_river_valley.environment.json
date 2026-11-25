@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "id": "brumacerno_river_valley",
+  "name": "Brumacerno Gentle River Valley",
+  "description": "Procedural 3D valley with natural water shores, rocks, and ecologically placed grass and fruit.",
+  "arena_size": 64.0,
+  "episode_seconds": 300.0,
+  "world": "worlds/lab_valley_small.world.json",
+  "world_seed_policy": "fixed",
+  "resource_placement": "terrain_aware",
+  "focal_initial": {
+    "energy_min": 0.44,
+    "energy_max": 0.52,
+    "hydration_min": 0.48,
+    "hydration_max": 0.58,
+    "nutrients": 0.50,
+    "age": 240.0,
+    "spawn_radius": 6.0
+  },
+  "obstacles": {
+    "count": 0,
+    "min_radius": 0.8,
+    "max_radius": 1.2,
+    "height": 2.0
+  },
+  "resources": [
+    {
+      "substance": "grass",
+      "count": 16,
+      "initial_mass": 2.8,
+      "max_mass": 2.8,
+      "radius": 0.85,
+      "regen_policy": "deplete_relocate",
+      "respawn_delay": 16.0,
+      "rarity": 0.90,
+      "min_relocate_dist": 8.0,
+      "distribution": "clustered",
+      "cluster_count": 4,
+      "cluster_radius": 4.5,
+      "decay_policy": "none",
+      "min_dist": 3.5,
+      "max_dist": 24.0
+    },
+    {
+      "substance": "fruit",
+      "count": 5,
+      "initial_mass": 1.6,
+      "max_mass": 1.6,
+      "radius": 0.72,
+      "regen_policy": "deplete_relocate",
+      "respawn_delay": 45.0,
+      "rarity": 0.55,
+      "min_relocate_dist": 10.0,
+      "distribution": "scattered",
+      "min_spacing": 7.0,
+      "decay_policy": "none",
+      "min_dist": 4.5,
+      "max_dist": 24.0
+    }
+  ]
+}

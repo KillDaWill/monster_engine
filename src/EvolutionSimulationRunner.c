@@ -113,6 +113,7 @@ static bool ensureSnapshotBuffers(EvolutionRenderSnapshot *s, unsigned entCap, u
 
 static void freeSnapshot(EvolutionRenderSnapshot *s) {
     if (!s) return;
+    WorldStaticData_Release(s->staticWorld);
     free(s->entities);
     free(s->resources);
     free(s->obstacles);
@@ -220,6 +221,23 @@ static void publishSnapshot(EvolutionSimulationRunner *r) {
     dst->timeOfDay = SimulationClock_TimeOfDay(&w->clock);
     dst->publishedAtMs = nowMs();
     dst->arenaHalfSize = w->observations.halfSize;
+    /* Retener de forma segura la referencia inmutable al mundo estático sin copiar datos. */
+    const WorldStaticData *prevSw = dst->staticWorld;
+    dst->staticWorld = WorldStaticData_Retain(w->staticWorld);
+    WorldStaticData_Release(prevSw);
+    if (dst->staticWorld) {
+        dst->worldEpoch = dst->staticWorld->epochId;
+        dst->worldFingerprint = dst->staticWorld->dataFingerprint;
+        dst->worldRecipeHash = dst->staticWorld->recipeHash;
+        dst->worldSeed = dst->staticWorld->masterSeed;
+        dst->worldGeneratorVersion = dst->staticWorld->generatorVersion;
+    } else {
+        dst->worldEpoch = 0u;
+        dst->worldFingerprint = 0u;
+        dst->worldRecipeHash = 0u;
+        dst->worldSeed = w->initialSeed;
+        dst->worldGeneratorVersion = 0u;
+    }
     dst->capacity = w->capacity;
     dst->workerCount = EcosystemWorld_WorkerCount(w);
     dst->paused = w->clock.paused;
@@ -275,6 +293,8 @@ static void publishSnapshot(EvolutionSimulationRunner *r) {
         es->mouth = e->body.mouth;
         es->oralPivot = e->oralPivot;
         es->oralElbow = e->oralElbow;
+        es->groundNormal = e->body.groundNormal;
+        es->orientation = e->body.orientation;
         es->yaw = e->body.yaw;
         es->speed = e->body.speed;
         es->developmentScale = e->developmentScale;
@@ -342,41 +362,47 @@ static void publishSnapshot(EvolutionSimulationRunner *r) {
     unsigned outRes = 0u;
     for (unsigned k = 0; k < w->activeResourceCount; ++k) {
         const EcosystemResource *res = &w->resources[w->activeResourceSlots[k]];
-        if (!res->id) continue;
+        if (!res->id || res->isWaterLedger) continue;
         const AIWorldObject *obj = AIWorld_Get(&w->observations, res->id);
         if (!obj) continue;
+        const EcosystemResource *ledger = (res->sharedLedgerResourceId != 0u)
+                                              ? EcosystemWorld_Resource((EcosystemWorld *)w, res->sharedLedgerResourceId)
+                                              : res;
+        if (!ledger) ledger = res;
         EvolutionResourceSnapshot *rs = &dst->resources[outRes++];
         memset(rs, 0, sizeof(*rs));
         rs->id = res->id;
-        rs->category = res->category;
+        rs->category = ledger->category;
         rs->position = obj->position;
         rs->radius = obj->radius;
-        rs->biomassFraction = res->maximumBiomass > 0.0f ? (res->biomass / res->maximumBiomass) : 1.0f;
-        rs->molecular = res->molecular;
-        rs->mass = res->biomass;
-        rs->maxMass = res->maximumBiomass;
-        if (res->molecular) {
-            rs->phase = res->phase;
-            rs->presentationModel = res->presentationModel;
-            rs->color[0] = res->color[0]; rs->color[1] = res->color[1]; rs->color[2] = res->color[2];
-            rs->hardness = res->hardness;
-            rs->regenPolicy = res->regenPolicy;
-            rs->decayPolicy = res->decayPolicy;
-            rs->remainingLifetime = res->remainingLifetime;
-            rs->sensorySignature = res->sensorySignature;
-            rs->sourceCreatureId = res->sourceCreatureId;
-            rs->killerCreatureId = res->killerCreatureId;
+        rs->biomassFraction = EcosystemResource_AvailabilityFraction(ledger);
+        rs->molecular = ledger->molecular;
+        rs->mass = ledger->biomass;
+        rs->maxMass = ledger->maximumBiomass;
+        rs->waterBodyId = res->waterBodyId;
+        rs->shoreSiteIndex = res->shoreSiteIndex;
+        if (ledger->molecular) {
+            rs->phase = ledger->phase;
+            rs->presentationModel = ledger->presentationModel;
+            rs->color[0] = ledger->color[0]; rs->color[1] = ledger->color[1]; rs->color[2] = ledger->color[2];
+            rs->hardness = ledger->hardness;
+            rs->regenPolicy = ledger->regenPolicy;
+            rs->decayPolicy = ledger->decayPolicy;
+            rs->remainingLifetime = ledger->remainingLifetime;
+            rs->sensorySignature = ledger->sensorySignature;
+            rs->sourceCreatureId = ledger->sourceCreatureId;
+            rs->killerCreatureId = ledger->killerCreatureId;
             if (w->metabolismDb) {
-                const SubstanceDef *sd = SubstanceRegistry_Get(&w->metabolismDb->substances, res->substanceHandle);
+                const SubstanceDef *sd = SubstanceRegistry_Get(&w->metabolismDb->substances, ledger->substanceHandle);
                 snprintf(rs->substanceId, sizeof(rs->substanceId), "%.31s", sd ? sd->id : "custom");
                 snprintf(rs->substanceName, sizeof(rs->substanceName), "%.39s", sd ? sd->name : "Custom");
-                unsigned cc = res->componentCount < 8u ? res->componentCount : 8u;
+                unsigned cc = ledger->componentCount < 8u ? ledger->componentCount : 8u;
                 rs->componentCount = cc;
                 for (unsigned ci = 0; ci < cc; ++ci) {
                     const MoleculeDef *md = MoleculeRegistry_Get(&w->metabolismDb->molecules,
-                                                                 res->composition[ci].molecule);
+                                                                 ledger->composition[ci].molecule);
                     snprintf(rs->compNames[ci], sizeof(rs->compNames[ci]), "%.27s", md ? md->id : "?");
-                    rs->compFractions[ci] = res->composition[ci].fraction;
+                    rs->compFractions[ci] = ledger->composition[ci].fraction;
                 }
             }
         }

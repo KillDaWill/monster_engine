@@ -350,6 +350,7 @@ EcosystemSpecies EcosystemSpecies_Default(unsigned id, unsigned category, unsign
     s.brain.needs[NEED_HUNGER].satisfactionRate = 0.12f;
     s.brain.needs[NEED_HYDRATION].satisfactionRate = 0.15f;
     s.physiology.maximumAge = 1800; s.physiology.oldAge = 1300;
+    s.traversal = TraversalProfile_DefaultLand(s.radius);
     return s;
 }
 
@@ -358,7 +359,7 @@ bool EcosystemWorld_InitArena(EcosystemWorld *w, unsigned cap, unsigned resource
     if (!w) return false;
     memset(w, 0, sizeof(*w));
     if (!cap || cap > 100000 || !resources || resources > 100000 || !species || species > 1024 ||
-        !isfinite(arenaHalfSize) || arenaHalfSize < 4.0f || arenaHalfSize > 500.0f ||
+        !isfinite(arenaHalfSize) || arenaHalfSize < 4.0f || arenaHalfSize > 512.0f ||
         !SimulationClock_Init(&w->clock, step, day, 64))
         return false;
     unsigned aiCap = cap + resources + 256u;
@@ -514,7 +515,126 @@ void EcosystemWorld_Free(EcosystemWorld *w) {
     idMapFree(&w->resourceMap);
     idMapFree(&w->parentHistoryMap);
     AIWorld_Destroy(&w->observations);
+    WorldStaticData_Release(w->staticWorld);
     memset(w, 0, sizeof(*w));
+}
+
+bool EcosystemWorld_AttachStaticWorld(EcosystemWorld *w, const WorldStaticData *staticWorld) {
+    if (!w || w->updating) return false;
+    const WorldStaticData *prev = w->staticWorld;
+    w->staticWorld = WorldStaticData_Retain(staticWorld);
+    AIWorld_SetStaticWorld(&w->observations, w->staticWorld);
+    WorldStaticData_Release(prev);
+    return true;
+}
+
+bool EcosystemWorld_RegisterNaturalWaterBodies(EcosystemWorld *w) {
+    if (!w || w->updating || !w->staticWorld || w->staticWorld->isFlat) return true;
+    const WorldHydrology *hy = &w->staticWorld->hydrology;
+    if (!hy->enabled || hy->bodyCount == 0u || hy->shoreSiteCount == 0u) return true;
+
+    bool molecular = (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb != NULL);
+    AIObjectId bodyLedgerIds[WORLD_MAX_WATER_BODIES + 1u];
+    memset(bodyLedgerIds, 0, sizeof(bodyLedgerIds));
+
+    /* 1) Crear exactamente un libro molecular/recurso autoritativo por cuerpo de agua natural
+     *    sin añadir un disco circular falso en el centro del lago. */
+    for (uint32_t bi = 0; bi < hy->bodyCount; ++bi) {
+        const WorldWaterBody *wb = &hy->bodies[bi];
+        if (wb->wetCellCount == 0u || w->freeResourceCount == 0u) continue;
+        EcosystemResource ledger = {0};
+        if (molecular) {
+            SubstanceHandle sh = SubstanceRegistry_Find(&w->metabolismDb->substances, wb->substanceId);
+            if (sh == SUBSTANCE_INVALID_HANDLE) sh = SubstanceRegistry_Find(&w->metabolismDb->substances, "clean_water");
+            const SubstanceDef *sd = SubstanceRegistry_Get(&w->metabolismDb->substances, sh);
+            if (!sd) continue;
+            bool finiteVol = (wb->reservoirPolicy == WORLD_RESERVOIR_FINITE_FIXED_VOLUME && wb->initialVolume > 0.0f);
+            ledger = EcosystemResource_FromSubstance(
+                sd, finiteVol ? wb->initialVolume : 0.0f, finiteVol ? wb->initialVolume : 0.0f,
+                finiteVol ? RESOURCE_REGEN_NONE : RESOURCE_REGEN_INFINITE, 0.0f,
+                RESOURCE_DECAY_NONE, 0.0, 0.0f, w->decayTargetMolecule);
+            ledger.infinite = !finiteVol;
+            ledger.accessible = true;
+        } else {
+            bool finiteVol = (wb->reservoirPolicy == WORLD_RESERVOIR_FINITE_FIXED_VOLUME && wb->initialVolume > 0.0f);
+            ledger = (EcosystemResource){
+                .category = ECO_WATER, .infinite = !finiteVol, .accessible = true,
+                .biomass = finiteVol ? wb->initialVolume : 0.0f,
+                .maximumBiomass = finiteVol ? wb->initialVolume : 0.0f,
+                .nutritionalValue = 1.0f
+            };
+        }
+        ledger.waterBodyId = wb->id;
+        ledger.isWaterLedger = true;
+        unsigned slot = w->freeResourceSlots[--w->freeResourceCount];
+        AIObjectId ledgerId = w->observations.nextId++;
+        ledger.id = ledgerId;
+        w->resources[slot] = ledger;
+        unsigned aIdx = w->activeResourceCount++;
+        w->activeResourceSlots[aIdx] = slot;
+        w->resourceSlotToActive[slot] = aIdx;
+        idMapPut(&w->resourceMap, ledgerId, slot);
+        bodyLedgerIds[wb->id] = ledgerId;
+    }
+
+    /* 2) Registrar cada estación de orilla accesible como proxy ligero AI_WATER ligado en O(1)
+     *    al libro del cuerpo de agua propietario. */
+    for (uint32_t si = 0; si < hy->shoreSiteCount; ++si) {
+        const WorldShoreSite *site = &hy->shoreSites[si];
+        if (!site->accessible || site->waterBodyId == 0u || site->waterBodyId > WORLD_MAX_WATER_BODIES) continue;
+        AIObjectId ledgerId = bodyLedgerIds[site->waterBodyId];
+        EcosystemResource *ledger = EcosystemWorld_Resource(w, ledgerId);
+        if (!ledger || w->freeResourceCount == 0u) continue;
+
+        EcosystemResource proxy = *ledger;
+        proxy.isWaterLedger = false;
+        proxy.sharedLedgerResourceId = ledgerId;
+        proxy.waterBodyId = site->waterBodyId;
+        proxy.shoreSiteIndex = si + 1u;
+        proxy.biomass = 0.0f;
+        proxy.maximumBiomass = 0.0f;
+
+        unsigned slot = w->freeResourceSlots[--w->freeResourceCount];
+        AIWorldObject aiObj = {
+            .type = AI_WATER,
+            .position = site->wetContactPoint,
+            .surfaceNormal = Vec3_Create(0.0f, 1.0f, 0.0f),
+            .radius = 0.65f,
+            .height = 0.0f,
+            .foodCategory = proxy.category,
+            .visible = true,
+            .walkable = true, /* La profundidad física real controla el tránsito/vadeo, no un disco. */
+            .drinkable = EcosystemResource_Available(ledger),
+            .molecularResource = proxy.molecular,
+            .substancePhase = (uint8_t)proxy.phase,
+            .hardness = proxy.hardness,
+            .availabilityFraction = EcosystemResource_AvailabilityFraction(ledger),
+            .sensorySignature = ledger->sensorySignature,
+            .waterBodyId = site->waterBodyId,
+            .shoreSiteIndex = si + 1u,
+            .bankApproachPoint = site->bankApproachPoint
+        };
+        proxy.id = AIWorld_Add(&w->observations, aiObj);
+        if (!proxy.id) {
+            w->freeResourceSlots[w->freeResourceCount++] = slot;
+            continue;
+        }
+        w->resources[slot] = proxy;
+        unsigned aIdx = w->activeResourceCount++;
+        w->activeResourceSlots[aIdx] = slot;
+        w->resourceSlotToActive[slot] = aIdx;
+        idMapPut(&w->resourceMap, proxy.id, slot);
+        if (proxy.molecular) {
+            AIWorld_PublishMolecularResource(&w->observations, proxy.id, proxy.originalSpecies, proxy.category,
+                                             EcosystemResource_Available(ledger), (uint8_t)proxy.phase,
+                                             proxy.hardness, EcosystemResource_AvailabilityFraction(ledger),
+                                             &ledger->sensorySignature);
+        } else {
+            AIWorld_PublishResource(&w->observations, proxy.id, proxy.originalSpecies, proxy.category,
+                                    EcosystemResource_Available(ledger));
+        }
+    }
+    return true;
 }
 
 unsigned EcosystemWorld_AddSpecies(EcosystemWorld *w, EcosystemSpecies s) {
@@ -644,6 +764,9 @@ static void prepareBody(const EcosystemWorld *w, EcosystemEntity *e) {
         if (mp && e->metabolism.nutrientReserve < mp->minimumReproductionNutrients) reproReady = false;
     }
     e->body.mateReady = reproReady;
+    TraversalProfile spTrav = s->traversal;
+    if (spTrav.maxSlopeRadians <= 0.01f) spTrav = TraversalProfile_DefaultLand(s->radius);
+    spTrav.footprintRadius = s->radius * size;
     e->body.capabilities = (CreatureCapabilities){
         .ground = true, .waterInteraction = s->physiology.waterInteraction,
         .contactTolerance = 0.09f * size,
@@ -654,9 +777,16 @@ static void prepareBody(const EcosystemWorld *w, EcosystemEntity *e) {
         .mouthForward = 0.48f * size * e->genome.morphology,
         .maximumSpeed = s->speed * e->genome.speed * (0.6f + 0.4f * e->developmentScale) *
                         (1.0f - 0.45f * e->physiology.fatigue),
-        .maximumTurn = s->turnRate > 0 ? s->turnRate : 3.0f
+        .maximumTurn = s->turnRate > 0 ? s->turnRate : 3.0f,
+        .traversal = spTrav
     };
-    e->body.eye = Vec3_Add(e->body.position, Vec3_Create(0, 0.65f * size, 0));
+    if (Vec3_LengthSq(e->body.groundNormal) < 0.25f) {
+        e->body.groundNormal = Vec3_Create(0.0f, 1.0f, 0.0f);
+    }
+    e->body.orientation = World_BuildBodyFrame(e->body.yaw, e->body.groundNormal,
+                                               spTrav.maxBodyTiltRadians);
+    e->body.eye = World_LocalToWorld(Vec3_Create(0.0f, 0.65f * size, 0.0f), Vec3_Zero(), 1.0f,
+                                     e->body.orientation, e->body.position);
     e->body.visionYaw = e->body.yaw;
     if (s->anatomicalOral && EcosystemAnatomy_ConfigureProfiled(e, s, w->profiler) &&
         e->anatomicalBody && e->anatomicalBody->tmpl) {
@@ -681,8 +811,13 @@ static void updateBody(EcosystemWorld *w, EcosystemEntity *e) {
     publishBodyObservation(w, e);
 }
 
-static bool spawnPosition(EcosystemWorld *w, Vector3 p, float radius) {
-    if (!AIWorld_Walkable(&w->observations, p, radius, false)) return false;
+static bool spawnPositionWithProfile(EcosystemWorld *w, Vector3 p, const TraversalProfile *prof) {
+    float radius = prof ? prof->footprintRadius : 0.85f;
+    if (w->staticWorld && !w->staticWorld->isFlat && prof) {
+        if (!AIWorld_CanTraverse(&w->observations, p, prof)) return false;
+    } else {
+        if (!AIWorld_Walkable(&w->observations, p, radius, false)) return false;
+    }
     if (w->observations.spatial) {
         uint32_t slots[64];
         bool ov = false;
@@ -693,24 +828,60 @@ static bool spawnPosition(EcosystemWorld *w, Vector3 p, float radius) {
                 const AIWorldObject *o = AIWorld_At(&w->observations, slots[k]);
                 if (!o || !o->active) continue;
                 float sumR = radius + o->radius;
-                if (Vec3_LengthSq(Vec3_Sub(p, o->position)) < sumR * sumR) return false;
+                float dx = p.x - o->position.x, dz = p.z - o->position.z;
+                if (dx * dx + dz * dz < sumR * sumR) return false;
             }
             return true;
         }
     }
     for (unsigned k = 0; k < w->count; ++k) {
         EcosystemEntity *e = &w->entities[w->activeEntitySlots[k]];
-        if (e->id && Vec3_Distance(p, e->body.position) < radius + e->body.capabilities.clearance)
-            return false;
+        if (!e->id) continue;
+        float dx = p.x - e->body.position.x, dz = p.z - e->body.position.z;
+        float sumR = radius + e->body.capabilities.clearance;
+        if (dx * dx + dz * dz < sumR * sumR) return false;
     }
     return true;
 }
 
+AIObjectId EcosystemWorld_SpawnOnGround(EcosystemWorld *w, unsigned species, float x, float z,
+                                        double age, float energy, const CreatureGenome *genome) {
+    if (!w || !isfinite(x) || !isfinite(z)) return 0u;
+    Vector3 pos = Vec3_Create(x, 0.0f, z);
+    if (w->staticWorld && !w->staticWorld->isFlat) {
+        SurfaceHit hit;
+        if (!World_SampleSurface(w->staticWorld, pos, &hit)) {
+            ++w->statistics.failedSpawns;
+            return 0u;
+        }
+        pos = hit.position;
+    }
+    return EcosystemWorld_Spawn(w, species, pos, age, energy, genome);
+}
+
 AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w, unsigned species, Vector3 position,
                                 double age, float energy, const CreatureGenome *genome) {
-    if (!w || w->updating || !finitePosition(position) || fabsf(position.y) > 0.001f ||
+    if (!w || w->updating || !finitePosition(position) ||
         !isfinite(age) || age < 0 || !isfinite(energy) || energy < 0 || energy > 1)
         return 0;
+    bool procedural = (w->staticWorld != NULL && !w->staticWorld->isFlat);
+    Vector3 groundNormal = Vec3_Create(0.0f, 1.0f, 0.0f);
+    if (!procedural) {
+        if (fabsf(position.y) > 0.001f) return 0;
+    } else {
+        SurfaceHit hit;
+        if (!World_SampleSurface(w->staticWorld, position, &hit)) {
+            ++w->statistics.failedSpawns;
+            return 0;
+        }
+        /* Permitir y=0 como placeholder XZ o elevación coherente con el suelo autoritativo. */
+        if (fabsf(position.y) > 0.001f && fabsf(position.y - hit.position.y) > 2.5f) {
+            ++w->statistics.failedSpawns;
+            return 0;
+        }
+        position = hit.position;
+        groundNormal = hit.normal;
+    }
     CreatureGenome g = genome ? *genome : CreatureGenome_Default();
     if (!CreatureGenome_Validate(&g)) return 0;
     unsigned si = 0;
@@ -718,8 +889,11 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w, unsigned species, Vector3 pos
     if (si == w->speciesCount) return 0;
     double maturity = w->species[si].physiology.maturityAge * g.maturation;
     float development = age < maturity ? 0.55f + 0.45f * (float)(age / maturity) : 1.0f;
+    TraversalProfile spawnProf = w->species[si].traversal;
+    if (spawnProf.maxSlopeRadians <= 0.01f) spawnProf = TraversalProfile_DefaultLand(w->species[si].radius);
+    spawnProf.footprintRadius = w->species[si].radius * g.size * development;
     if (w->count >= w->capacity || w->freeEntityCount == 0u ||
-        !spawnPosition(w, position, w->species[si].radius * g.size * development)) {
+        !spawnPositionWithProfile(w, position, &spawnProf)) {
         ++w->statistics.failedSpawns;
         return 0;
     }
@@ -748,8 +922,11 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w, unsigned species, Vector3 pos
     e->physiology.stage = age < p.maturityAge ? LIFE_JUVENILE : age < p.oldAge ? LIFE_ADULT : LIFE_OLD;
     e->maturityRecorded = (e->physiology.stage != LIFE_JUVENILE);
     e->body.position = position;
+    e->body.groundNormal = groundNormal;
     e->previousPosition = position;
     e->body.yaw = CreatureGenome_Random(&w->random) * 6.2831853f;
+    e->body.orientation = World_BuildBodyFrame(e->body.yaw, groundNormal, spawnProf.maxBodyTiltRadians);
+    e->terrainEnergyMultiplier = 1.0f;
     e->oralLocal = Vec3_Create(0, 0.45f * g.size, 0.48f * g.size);
     e->body.mouth = Vec3_Add(position, e->oralLocal);
     e->body.mouthDirection = Vec3_Create(0, 0, 1);
@@ -779,10 +956,9 @@ AIObjectId EcosystemWorld_Spawn(EcosystemWorld *w, unsigned species, Vector3 pos
     updateBody(w, e);
     float size = e->genome.size * e->developmentScale;
     e->oralLocal = Vec3_Create(0, 0, 0.48f * size * e->genome.morphology);
-    e->body.mouth = Vec3_Add(position, Vec3_Create(sinf(e->body.yaw) * e->oralLocal.z,
-                                                   0.45f * size,
-                                                   cosf(e->body.yaw) * e->oralLocal.z));
-    e->body.mouthDirection = Vec3_Create(sinf(e->body.yaw), 0, cosf(e->body.yaw));
+    e->body.mouth = World_LocalToWorld(Vec3_Create(0.0f, 0.45f * size, e->oralLocal.z),
+                                       Vec3_Zero(), 1.0f, e->body.orientation, position);
+    e->body.mouthDirection = World_LocalDirToWorld(Vec3_Create(0.0f, 0.0f, 1.0f), e->body.orientation);
     if (e->anatomicalBody) EcosystemAnatomy_UpdateProfiled(e, 0.0f, w->profiler);
     event(w, 1, id, species);
     if (!w->updating) statistics(w);
@@ -916,17 +1092,22 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
     EcosystemEntity *e = EcosystemWorld_Get(w, id);
     EcosystemResource *r = EcosystemWorld_Resource(w, resource);
     if (!e || !r || e->physiology.cause || !isfinite(requested) || requested <= 0.0f) return 0.0f;
+    /* Resolver en O(1) el libro compartido si el objeto es una estación de orilla natural. */
+    EcosystemResource *ledger = (r->sharedLedgerResourceId != 0u)
+                                    ? EcosystemWorld_Resource(w, r->sharedLedgerResourceId)
+                                    : r;
+    if (!ledger) return 0.0f;
     const EcosystemSpecies *sp = &w->species[e->speciesIndex];
     CreatureMind *m = &e->mind;
     CreatureBodyState *b = &e->body;
     InteractionTarget target;
 
-    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR || r->molecular) {
-        bool liquid = (r->phase == SUBSTANCE_PHASE_LIQUID);
+    if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR || ledger->molecular) {
+        bool liquid = (ledger->phase == SUBSTANCE_PHASE_LIQUID);
         if (m->target != resource || m->contactTime < 0.25f ||
             m->interactionPhase != INTERACTION_CONSUME ||
             m->action != (liquid ? ACTION_DRINK : ACTION_EAT) ||
-            !EcosystemResource_Available(r) ||
+            !EcosystemResource_Available(ledger) ||
             (liquid && !b->capabilities.waterInteraction) ||
             !AIWorld_InteractionTarget(&w->observations, resource, b->mouth,
                                        b->capabilities.contactTolerance, &target) ||
@@ -956,11 +1137,11 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
             return 0.0f;
         }
 
-        /* Retirar exactamente la masa aceptada; jamás desechar masa retirada del recurso. */
-        float actual = EcosystemResource_Consume(r, maxAccept);
+        /* Retirar exactamente la masa aceptada del libro autoritativo (único para todo el lago/río). */
+        float actual = EcosystemResource_Consume(ledger, maxAccept);
         if (actual > 0.0f) {
-            if (CreatureMetabolism_Ingest(&e->metabolism, mp, r->substanceHandle,
-                                          r->composition, r->componentCount, actual, w->clock.seconds)) {
+            if (CreatureMetabolism_Ingest(&e->metabolism, mp, ledger->substanceHandle,
+                                          ledger->composition, ledger->componentCount, actual, w->clock.seconds)) {
                 /* Malestar progresivo al forzar ingesta cerca de saturación o ya saciado al máximo. */
                 float fullnessNow = MetabolicState_Fullness(&e->metabolism);
                 if (fullnessNow > 0.78f) {
@@ -971,13 +1152,13 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
                         e->metabolism.digestiveDiscomfort + actual * 0.08f);
                 }
                 w->statistics.totalIngestedMass += (double)actual;
-                if (r->substanceHandle < SUBSTANCE_MAX_COUNT) {
-                    w->statistics.ingestedBySubstance[r->substanceHandle] += (double)actual;
+                if (ledger->substanceHandle < SUBSTANCE_MAX_COUNT) {
+                    w->statistics.ingestedBySubstance[ledger->substanceHandle] += (double)actual;
                 }
-                for (uint16_t ci = 0; ci < r->componentCount; ++ci) {
-                    MoleculeHandle mh = r->composition[ci].molecule;
+                for (uint16_t ci = 0; ci < ledger->componentCount; ++ci) {
+                    MoleculeHandle mh = ledger->composition[ci].molecule;
                     if (mh < MOLECULE_MAX_COUNT) {
-                        w->statistics.ingestedByMolecule[mh] += (double)(actual * r->composition[ci].fraction);
+                        w->statistics.ingestedByMolecule[mh] += (double)(actual * ledger->composition[ci].fraction);
                     }
                 }
                 if (liquid) {
@@ -992,19 +1173,19 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
                 event(w, liquid ? 4 : 3, id, resource);
             }
         }
-        AIWorld_PublishMolecularResource(&w->observations, r->id, r->originalSpecies, r->category,
-                                         EcosystemResource_Available(r), (uint8_t)r->phase,
-                                         r->hardness, EcosystemResource_AvailabilityFraction(r),
-                                         &r->sensorySignature);
+        AIWorld_PublishMolecularResource(&w->observations, r->id, ledger->originalSpecies, ledger->category,
+                                         EcosystemResource_Available(ledger), (uint8_t)ledger->phase,
+                                         ledger->hardness, EcosystemResource_AvailabilityFraction(ledger),
+                                         &ledger->sensorySignature);
         return actual;
     }
 
-    bool water = r->category == ECO_WATER;
+    bool water = ledger->category == ECO_WATER;
     if (m->target != resource || m->intakeRequested <= 0 || m->contactTime < 0.25f ||
         m->interactionPhase != INTERACTION_CONSUME ||
         m->action != (water ? ACTION_DRINK : ACTION_EAT) ||
         m->intakeNeed != (water ? NEED_HYDRATION : NEED_HUNGER) ||
-        !EcosystemResource_Available(r) ||
+        !EcosystemResource_Available(ledger) ||
         (water && !b->capabilities.waterInteraction) ||
         !AIWorld_InteractionTarget(&w->observations, resource, b->mouth,
                                    b->capabilities.contactTolerance, &target) ||
@@ -1013,7 +1194,7 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
         Vec3_Distance(b->mouth, target.position) > target.positionTolerance ||
         Vec3_Dot(b->mouthDirection, m->interaction.approach) < cosf(m->interaction.orientationTolerance))
         return 0;
-    if (!water && !(sp->physiology.dietMask & r->category)) {
+    if (!water && !(sp->physiology.dietMask & ledger->category)) {
         ++w->statistics.failedInteractions;
         if (m->controllerType == CREATURE_CONTROLLER_NEURAL) {
             CreatureActions_Fail(m);
@@ -1021,10 +1202,10 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
         }
         return 0;
     }
-    float value = water ? 1.0f : r->nutritionalValue;
+    float value = water ? 1.0f : ledger->nutritionalValue;
     float deficit = 1.0f - (water ? e->physiology.hydration : e->physiology.energy);
     if (deficit <= 0) return 0;
-    float actual = EcosystemResource_Consume(r, fminf(requested, fminf(m->intakeRequested, deficit) / value));
+    float actual = EcosystemResource_Consume(ledger, fminf(requested, fminf(m->intakeRequested, deficit) / value));
     if (actual > 0) {
         if (water) {
             CreaturePhysiology_Drink(&e->physiology, actual);
@@ -1035,7 +1216,7 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
         } else {
             CreaturePhysiology_Feed(&e->physiology, actual * value);
             w->statistics.foodConsumed += actual;
-            if (r->category == ECO_PLANT) {
+            if (ledger->category == ECO_PLANT) {
                 w->statistics.plantConsumed += actual;
                 if (m->controllerType == CREATURE_CONTROLLER_NEURAL)
                     CreatureMind_RecordOutcome(m, NEURAL_OUTCOME_CONSUMED_PLANT);
@@ -1049,8 +1230,8 @@ float EcosystemWorld_Consume(EcosystemWorld *w, AIObjectId id, AIObjectId resour
         CreatureMind_ConfirmIntake(m, actual * value);
         event(w, water ? 4 : 3, id, resource);
     }
-    AIWorld_PublishResource(&w->observations, r->id, r->originalSpecies, r->category,
-                            EcosystemResource_Available(r));
+    AIWorld_PublishResource(&w->observations, r->id, ledger->originalSpecies, ledger->category,
+                            EcosystemResource_Available(ledger));
     return actual;
 }
 
@@ -1142,8 +1323,12 @@ static void mouth(const EcosystemWorld *w, EcosystemEntity *e, float dt) {
         return;
     }
     float size = e->genome.size * e->developmentScale;
-    Vector3 pivot = Vec3_Add(e->body.position, Vec3_Create(0, 0.45f * size, 0));
-    Vector3 front = Vec3_Create(sinf(e->body.yaw), 0, cosf(e->body.yaw));
+    Quaternion orient = e->body.orientation;
+    if (orient.x * orient.x + orient.y * orient.y + orient.z * orient.z + orient.w * orient.w < 0.5f) {
+        orient = Quat_FromAxisAngle(Vec3_Create(0.0f, 1.0f, 0.0f), e->body.yaw);
+    }
+    Vector3 pivot = World_LocalToWorld(Vec3_Create(0.0f, 0.45f * size, 0.0f), Vec3_Zero(), 1.0f, orient, e->body.position);
+    Vector3 front = World_LocalDirToWorld(Vec3_Create(0.0f, 0.0f, 1.0f), orient);
     Vector3 goal = Vec3_Add(pivot, Vec3_Scale(front, 0.48f * size * e->genome.morphology));
     InteractionTarget target = e->mind.intent.interaction;
     bool interacting = e->mind.intent.interact && target.valid;
@@ -1161,19 +1346,14 @@ static void mouth(const EcosystemWorld *w, EcosystemEntity *e, float dt) {
     float reach = e->body.capabilities.maximumOralReach;
     bool possible = Vec3_Length(radial) <= reach;
     if (!possible) goal = Vec3_Add(pivot, Vec3_Scale(Vec3_Normalize(radial), reach));
-    Vector3 old = Vec3_Add(pivot, Vec3_Create(
-        e->oralLocal.x * cosf(e->body.yaw) + e->oralLocal.z * sinf(e->body.yaw),
-        e->oralLocal.y,
-        -e->oralLocal.x * sinf(e->body.yaw) + e->oralLocal.z * cosf(e->body.yaw)));
+    Vector3 old = Vec3_Add(pivot, World_LocalDirToWorld(e->oralLocal, orient));
     Vector3 delta = Vec3_Sub(goal, old);
     float length = Vec3_Length(delta);
     Vector3 next = Vec3_Add(old, Vec3_Scale(Vec3_Normalize(delta), fminf(length, 0.9f * size * dt)));
     radial = Vec3_Sub(next, pivot);
     if (Vec3_Length(radial) > reach) next = Vec3_Add(pivot, Vec3_Scale(Vec3_Normalize(radial), reach));
     e->oralMotion = dt > 0 ? Vec3_Distance(old, next) / dt : 0;
-    Vector3 local = Vec3_Sub(next, pivot);
-    e->oralLocal = Vec3_Create(local.x * cosf(e->body.yaw) - local.z * sinf(e->body.yaw), local.y,
-                               local.x * sinf(e->body.yaw) + local.z * cosf(e->body.yaw));
+    e->oralLocal = World_WorldDirToLocal(Vec3_Sub(next, pivot), orient);
     e->oralPivot = pivot;
     Vector3 axis = Vec3_Sub(next, pivot);
     float distance = Vec3_Length(axis);
@@ -1321,10 +1501,39 @@ static void computeMovementProposal(const EcosystemWorld *w, const EcosystemEnti
     float curvature = 2.0f * fabsf(sinf(turn)) / fmaxf(b->capabilities.clearance, distance);
     if (curvature > 0.001f) speed = copysignf(fminf(fabsf(speed), b->capabilities.maximumTurn / curvature), speed);
     Vector3 nextPos = Vec3_Add(b->position, Vec3_Scale(Vec3_Create(sinf(nextYaw), 0, cosf(nextYaw)), speed * dt));
+    Vector3 nextNormal = Vec3_Create(0.0f, 1.0f, 0.0f);
+    float energyMult = 1.0f;
+
+    if (w->staticWorld && !w->staticWorld->isFlat && fabsf(speed) > 1e-6f) {
+        TraversalResult tr;
+        if (AIWorld_SegmentTraversable(&w->observations, b->position, nextPos,
+                                       &b->capabilities.traversal, &tr)) {
+            if (tr.speedMultiplier < 0.999f || tr.speedMultiplier > 1.001f) {
+                float adjSpeed = speed * tr.speedMultiplier;
+                Vector3 adjPos = Vec3_Add(b->position,
+                                          Vec3_Scale(Vec3_Create(sinf(nextYaw), 0, cosf(nextYaw)), adjSpeed * dt));
+                SurfaceHit adjHit;
+                if (World_SampleSurface(w->staticWorld, adjPos, &adjHit)) {
+                    nextPos = adjHit.position;
+                    nextNormal = adjHit.normal;
+                } else {
+                    nextPos = tr.resolvedEndPos;
+                    nextNormal = tr.endNormal;
+                }
+                speed = adjSpeed;
+            } else {
+                nextPos = tr.resolvedEndPos;
+                nextNormal = tr.endNormal;
+            }
+            energyMult = tr.energyMultiplier;
+        }
+    }
 
     out->nextPosition = nextPos;
+    out->groundNormal = nextNormal;
     out->nextYaw = nextYaw;
     out->desiredSpeed = speed;
+    out->energyMultiplier = energyMult;
     out->wantsMove = fabsf(speed) > 1e-6f;
 
     if (w->profiler) {
@@ -1342,45 +1551,68 @@ static void commitMovementProposal(EcosystemWorld *w, EcosystemEntity *e,
     b->yaw = prop->nextYaw;
     e->previousPosition = b->position;
 
+    bool procedural = (w->staticWorld != NULL && !w->staticWorld->isFlat);
     bool clear = false;
-    if (prop->wantsMove &&
-        AIWorld_SegmentWalkable(&w->observations, b->position, prop->nextPosition,
-                                b->capabilities.clearance, false)) {
-        clear = true;
-        uint32_t stackSlots[96];
-        bool ov = false;
-        unsigned cand = AIWorld_QuerySlotsSegment(&w->observations, AI_SPATIAL_MASK_CREATURES,
-                                                  b->position, prop->nextPosition,
-                                                  b->capabilities.clearance + 0.05f,
-                                                  stackSlots, 96u, &ov);
-        if (!ov) {
-            for (unsigned k = 0; k < cand; ++k) {
-                const AIWorldObject *other = AIWorld_At(&w->observations, stackSlots[k]);
-                if (!other || !other->active || !other->available || other->id == e->id) continue;
-                float radii = (b->capabilities.clearance + other->radius) * 0.98f;
-                if (segmentDistanceSqXZ(b->position, prop->nextPosition, other->position) < radii * radii) {
-                    clear = false;
-                    break;
+    TraversalResult tr = {0};
+    if (prop->wantsMove) {
+        bool segOk = procedural
+            ? AIWorld_SegmentTraversable(&w->observations, b->position, prop->nextPosition,
+                                         &b->capabilities.traversal, &tr)
+            : AIWorld_SegmentWalkable(&w->observations, b->position, prop->nextPosition,
+                                      b->capabilities.clearance, false);
+        if (segOk) {
+            clear = true;
+            uint32_t stackSlots[96];
+            bool ov = false;
+            unsigned cand = AIWorld_QuerySlotsSegment(&w->observations, AI_SPATIAL_MASK_CREATURES,
+                                                      b->position, prop->nextPosition,
+                                                      b->capabilities.clearance + 0.05f,
+                                                      stackSlots, 96u, &ov);
+            if (!ov) {
+                for (unsigned k = 0; k < cand; ++k) {
+                    const AIWorldObject *other = AIWorld_At(&w->observations, stackSlots[k]);
+                    if (!other || !other->active || !other->available || other->id == e->id) continue;
+                    float radii = (b->capabilities.clearance + other->radius) * 0.98f;
+                    if (segmentDistanceSqXZ(b->position, prop->nextPosition, other->position) < radii * radii) {
+                        clear = false;
+                        break;
+                    }
                 }
-            }
-        } else {
-            for (unsigned k = 0; clear && k < w->count; ++k) {
-                const EcosystemEntity *other = &w->entities[w->activeEntitySlots[k]];
-                if (!other->id || other == e || other->physiology.cause) continue;
-                float radii = (b->capabilities.clearance + other->body.capabilities.clearance) * 0.98f;
-                if (segmentDistanceSqXZ(b->position, prop->nextPosition, other->body.position) < radii * radii) {
-                    clear = false;
+            } else {
+                for (unsigned k = 0; clear && k < w->count; ++k) {
+                    const EcosystemEntity *other = &w->entities[w->activeEntitySlots[k]];
+                    if (!other->id || other == e || other->physiology.cause) continue;
+                    float radii = (b->capabilities.clearance + other->body.capabilities.clearance) * 0.98f;
+                    if (segmentDistanceSqXZ(b->position, prop->nextPosition, other->body.position) < radii * radii) {
+                        clear = false;
+                    }
                 }
             }
         }
     }
 
     if (clear) {
-        b->position = prop->nextPosition;
+        b->position = procedural ? tr.resolvedEndPos : prop->nextPosition;
+        if (procedural) {
+            /* Suavizado ligero de la normal corporal para estabilidad visual y cervical sin perder contacto. */
+            float blend = 1.0f - expf(-12.0f * dt);
+            b->groundNormal = Vec3_Normalize(Vec3_Lerp(b->groundNormal, tr.endNormal, blend));
+            e->terrainEnergyMultiplier = fmaxf(1.0f, prop->energyMultiplier);
+        } else {
+            b->groundNormal = Vec3_Create(0.0f, 1.0f, 0.0f);
+            e->terrainEnergyMultiplier = 1.0f;
+        }
+    } else {
+        e->terrainEnergyMultiplier = 1.0f;
     }
+    b->orientation = World_BuildBodyFrame(b->yaw, b->groundNormal,
+                                          b->capabilities.traversal.maxBodyTiltRadians);
     Vector3 disp = Vec3_Sub(b->position, e->previousPosition);
     e->velocity = dt > 0.0f ? Vec3_Scale(disp, 1.0f / dt) : Vec3_Zero();
-    b->speed = dt > 0.0f ? Vec3_Length(disp) / dt : 0.0f;
+    /* Velocidad física horizontal + desplazamiento 3D acotado; el coste de pendiente se aplica
+     * explícitamente vía terrainEnergyMultiplier para no duplicar la penalización. */
+    float horizDist = hypotf(disp.x, disp.z);
+    b->speed = dt > 0.0f ? (horizDist / dt) : 0.0f;
     /* Publicar posición actualizada en AIWorld para que los siguientes IDs vean el estado real. */
     publishBodyObservation(w, e);
 }
@@ -1637,6 +1869,9 @@ static void phasePhysiologyWorker(void *opaque, unsigned start, unsigned end, un
         EcosystemEntity *e = &w->entities[w->order[k]];
         PhysiologyProfile p = physiologicalProfile(w, e);
         p.basalCost *= powf(e->genome.size, 0.75f) * (e->reproduction.gestating ? 1.2f : 1.0f);
+        if (e->terrainEnergyMultiplier > 1.0f) {
+            p.movementCost *= e->terrainEnergyMultiplier;
+        }
         float healthBefore = e->physiology.health;
 
         if (molecular && e->metabolism.initialized && e->physiology.cause == DEATH_NONE) {
@@ -1848,7 +2083,14 @@ static void commit(EcosystemWorld *w) {
         w->freeEntitySlots[w->freeEntityCount++] = slot;
 
         if (cause != DEATH_REMOVED) {
-            if (w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb &&
+            Vector3 carcassPos = position;
+            Vector3 carcassNrm = Vec3_Create(0.0f, 1.0f, 0.0f);
+            bool carcassValid = true;
+            if (w->staticWorld && !w->staticWorld->isFlat) {
+                carcassValid = WorldPlacement_ResolveCarcass(w->staticWorld, position, s->radius * 1.2f,
+                                                             &carcassPos, &carcassNrm);
+            }
+            if (carcassValid && w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && w->metabolismDb &&
                 s->tissueSubstance != SUBSTANCE_INVALID_HANDLE) {
                 const SubstanceDef *tissue =
                     SubstanceRegistry_Get(&w->metabolismDb->substances, s->tissueSubstance);
@@ -1862,16 +2104,18 @@ static void commit(EcosystemWorld *w) {
                     cr.killerCreatureId = (cause == DEATH_PREDATION) ? killerId : 0u;
                     cr.deathTime = w->clock.seconds;
                     cr.sourceDeathCause = cause;
-                    AIObjectId carcass = EcosystemWorld_AddMolecularResource(w, cr, position, s->radius * 1.5f);
+                    AIObjectId carcass = EcosystemWorld_AddMolecularResource(w, cr, carcassPos, s->radius * 1.5f);
                     if (!carcass) event(w, 9, id, 0);
                 }
-            } else if (s->edibleBiomass > 0) {
+            } else if (carcassValid && s->edibleBiomass > 0) {
                 AIObjectId carcass = EcosystemWorld_AddResource(w, (EcosystemResource){
                     .category = ECO_MEAT, .originalSpecies = s->id,
                     .biomass = s->edibleBiomass, .maximumBiomass = s->edibleBiomass,
                     .nutritionalValue = s->nutrition, .remainingLifetime = 180, .accessible = true
-                }, position, s->radius * 1.5f);
+                }, carcassPos, s->radius * 1.5f);
                 if (!carcass) event(w, 9, id, 0);
+            } else if (!carcassValid) {
+                event(w, 9, id, 0);
             }
         }
     }
@@ -1880,11 +2124,21 @@ static void commit(EcosystemWorld *w) {
     for (unsigned i = 0; i < w->birthCount; ++i) {
         EcosystemBirth *birth = &w->birthQueue[i];
         AIObjectId id = 0;
+        TraversalProfile babyProf = w->species[birth->speciesIndex].traversal;
+        if (babyProf.maxSlopeRadians <= 0.01f) babyProf = TraversalProfile_DefaultLand(w->species[birth->speciesIndex].radius);
+        babyProf.footprintRadius = w->species[birth->speciesIndex].radius * birth->genome.size * 0.55f;
         for (unsigned j = 0; j < 24 && !id && w->count < w->capacity; ++j) {
             float angle = CreatureGenome_Random(&w->random) * 6.2831853f;
             float distance = 0.65f + CreatureGenome_Random(&w->random) * 2.0f;
             Vector3 p = Vec3_Add(birth->position, Vec3_Create(sinf(angle) * distance, 0, cosf(angle) * distance));
-            if (!spawnPosition(w, p, w->species[birth->speciesIndex].radius * birth->genome.size * 0.55f))
+            if (w->staticWorld && !w->staticWorld->isFlat) {
+                SurfaceHit gh;
+                if (!World_SampleSurface(w->staticWorld, p, &gh)) continue;
+                p = gh.position;
+            } else {
+                p.y = 0.0f;
+            }
+            if (!spawnPositionWithProfile(w, p, &babyProf))
                 continue;
             id = EcosystemWorld_Spawn(w, w->species[birth->speciesIndex].id, p, 0, 0.8f, &birth->genome);
         }
@@ -1979,18 +2233,29 @@ static void relocateDepletedResource(EcosystemWorld *w, EcosystemResource *r) {
 
     bool moved = false;
     Vector3 chosen = oldPos;
-    for (unsigned attempt = 0; attempt < 48u; ++attempt) {
-        float ang = CreatureGenome_Random(&w->random) * 6.2831853f;
-        /* Distribución uniforme en área dentro del anillo [minR, maxR]. */
-        float u = CreatureGenome_Random(&w->random);
-        float dist = sqrtf(minR * minR + u * (maxR * maxR - minR * minR));
-        Vector3 cand = Vec3_Create(sinf(ang) * dist, 0.0f, cosf(ang) * dist);
-        float reqSep = (attempt < 32u) ? minSep : (minSep * 0.5f);
-        if (Vec3_Distance(cand, oldPos) < reqSep) continue;
-        if (!AIWorld_Walkable(&w->observations, cand, objRadius + 0.45f, false)) continue;
-        chosen = cand;
-        moved = true;
-        break;
+    if (w->staticWorld && !w->staticWorld->isFlat) {
+        WorldHabitatFilter hf = WorldHabitatFilter_Vegetation(objRadius + 0.45f);
+        hf.minDistFromCenter = minR;
+        hf.maxDistFromCenter = maxR;
+        Vector3 nrm = Vec3_Create(0.0f, 1.0f, 0.0f);
+        if (WorldPlacement_SampleHabitat(w->staticWorld, &w->random, &hf,
+                                         true, oldPos, minSep, 64u, &chosen, &nrm)) {
+            moved = true;
+        }
+    } else {
+        for (unsigned attempt = 0; attempt < 48u; ++attempt) {
+            float ang = CreatureGenome_Random(&w->random) * 6.2831853f;
+            /* Distribución uniforme en área dentro del anillo [minR, maxR]. */
+            float u = CreatureGenome_Random(&w->random);
+            float dist = sqrtf(minR * minR + u * (maxR * maxR - minR * minR));
+            Vector3 cand = Vec3_Create(sinf(ang) * dist, 0.0f, cosf(ang) * dist);
+            float reqSep = (attempt < 32u) ? minSep : (minSep * 0.5f);
+            if (Vec3_Distance(cand, oldPos) < reqSep) continue;
+            if (!AIWorld_Walkable(&w->observations, cand, objRadius + 0.45f, false)) continue;
+            chosen = cand;
+            moved = true;
+            break;
+        }
     }
 
     if (moved) {
@@ -2014,6 +2279,23 @@ static void tick(EcosystemWorld *w) {
         unsigned rSlot = w->activeResourceSlots[k];
         EcosystemResource *r = &w->resources[rSlot];
         if (!r->id) { ++k; continue; }
+        /* Las estaciones de orilla delegan su inventario en el libro compartido del cuerpo de agua. */
+        if (r->sharedLedgerResourceId != 0u) {
+            const EcosystemResource *ledger = EcosystemWorld_Resource(w, r->sharedLedgerResourceId);
+            if (ledger) {
+                if (r->molecular) {
+                    AIWorld_PublishMolecularResource(&w->observations, r->id, ledger->originalSpecies, ledger->category,
+                                                     EcosystemResource_Available(ledger), (uint8_t)ledger->phase,
+                                                     ledger->hardness, EcosystemResource_AvailabilityFraction(ledger),
+                                                     &ledger->sensorySignature);
+                } else {
+                    AIWorld_PublishResource(&w->observations, r->id, ledger->originalSpecies, ledger->category,
+                                            EcosystemResource_Available(ledger));
+                }
+            }
+            ++k;
+            continue;
+        }
         if (r->molecular) {
             EcosystemResource_UpdateMolecular(r, molReg, dt);
             if (r->needsRelocation) {
@@ -2021,6 +2303,10 @@ static void tick(EcosystemWorld *w) {
             }
         } else {
             EcosystemResource_Update(r, dt);
+        }
+        if (r->isWaterLedger) {
+            ++k;
+            continue;
         }
         if (EcosystemResource_ShouldRemove(r)) {
             AIObjectId id = r->id;
@@ -2140,13 +2426,17 @@ static void tick(EcosystemWorld *w) {
             if (e->mind.intakeMassRequested > 0.0f) {
                 EcosystemResource *r = EcosystemWorld_Resource(w, e->mind.target);
                 if (r) EcosystemWorld_Consume(w, e->id, r->id, e->mind.intakeMassRequested);
-                if (!r || !EcosystemResource_Available(r)) CreatureActions_Fail(&e->mind);
+                const EcosystemResource *chk = (r && r->sharedLedgerResourceId)
+                                                   ? EcosystemWorld_Resource(w, r->sharedLedgerResourceId) : r;
+                if (!chk || !EcosystemResource_Available(chk)) CreatureActions_Fail(&e->mind);
             }
         } else if (e->mind.intakeRequested > 0) {
             EcosystemResource *r = EcosystemWorld_Resource(w, e->mind.target);
             if (r) EcosystemWorld_Consume(w, e->id, r->id,
                                           e->mind.intakeRequested / (r->category == ECO_WATER ? 1.0f : r->nutritionalValue));
-            if (!r || !EcosystemResource_Available(r)) CreatureActions_Fail(&e->mind);
+            const EcosystemResource *chk = (r && r->sharedLedgerResourceId)
+                                               ? EcosystemWorld_Resource(w, r->sharedLedgerResourceId) : r;
+            if (!chk || !EcosystemResource_Available(chk)) CreatureActions_Fail(&e->mind);
         }
         if (e->mind.action == ACTION_ATTACK) EcosystemWorld_Attack(w, e->id, e->mind.target);
         reproduce(w, e);
@@ -2468,6 +2758,19 @@ bool EcosystemWorld_WriteJSON(const EcosystemWorld *w, FILE *f) {
             w->defaultController == CREATURE_CONTROLLER_NEURAL ? "neural" : "utility",
             w->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR ? "molecular" : "legacy",
             w->founderModeName, w->observations.halfSize * 2.0f, w->observations.halfSize * 2.0f, w->obstacleCount);
+    if (w->staticWorld) {
+        const WorldStaticData *sw = w->staticWorld;
+        fprintf(f, "  \"world\":{\"id\":\"%s\",\"flat\":%s,\"seed\":%u,\"generator_version\":%u,"
+                   "\"recipe_hash\":\"%016llx\",\"fingerprint\":\"%016llx\","
+                   "\"resolution\":%u,\"size\":%.3f,\"generation_ms\":%.3f,"
+                   "\"lakes\":%u,\"rivers\":%u,\"shore_sites\":%u,\"rocks\":%u,"
+                   "\"traversable_fraction\":%.4f,\"wet_fraction\":%.4f},\n",
+                sw->recipe.id, sw->isFlat ? "true" : "false", sw->masterSeed, sw->generatorVersion,
+                (unsigned long long)sw->recipeHash, (unsigned long long)sw->dataFingerprint,
+                sw->terrain.resolution, sw->terrain.span, sw->stats.generationMs,
+                sw->stats.lakeCount, sw->stats.riverCount, sw->stats.shoreSiteCount, sw->stats.rockCount,
+                sw->stats.traversableLandFraction, sw->stats.wetAreaFraction);
+    }
     fprintf(f, "  \"population\":%u,\"juveniles\":%u,\"conceptions\":%llu,\"births\":%llu,\"offspring_mature\":%llu,\"offspring_reproductive\":%llu,\"deaths\":%llu,\"kills\":%llu,\"attacks\":%llu,\"matings\":%llu,\n",
             w->count, s->juveniles, (unsigned long long)s->conceptions, (unsigned long long)s->births,
             (unsigned long long)s->offspringReachingMaturity, (unsigned long long)s->reproductiveOffspring,

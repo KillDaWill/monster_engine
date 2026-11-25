@@ -12,6 +12,7 @@
 #include "GaitPresets.h"
 #include "EcosystemAnatomy.h"
 #include "EcosystemAnatomyCache.h"
+#include "TerrainAnimationAdapter.h"
 #include <math.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -29,6 +30,8 @@ typedef struct VisualSlot {
     VisualTier tier, requestedTier;
     EcosystemVisualProjection projection;
     Vector3 position;
+    Vector3 groundNormal;
+    Quaternion orientation;
     float yaw, scale, animationClock, poseAlpha;
     float speciesRadius, developmentScale, meshRadius, meshLength, calibrationLength, axialTotalScale;
     float maturity, crouch, speed;
@@ -83,6 +86,7 @@ typedef struct SlotHashMap {
 
 typedef struct VisualState {
     EcosystemWorld* world;
+    const WorldStaticData* staticWorld; /**< Referencia inmutable retenida para muestreo de patas 3D. */
     bool snapshotMode;
     VisualSlot* slots;
     size_t slotCapacity;
@@ -860,6 +864,8 @@ static void InitSlotCommon(VisualState* state, VisualSlot* slot, uint32_t visIdx
     if (!wasUsed) ++state->slotCount;
 }
 
+static void SetStateStaticWorld(VisualState* state, const WorldStaticData* sw);
+
 static void ReconcileWorld(VisualState* state) {
     for (size_t i = 0; i < state->slotCapacity; ++i) state->slots[i].seen = false;
     if (!state->world || !state->world->entities) {
@@ -904,6 +910,19 @@ static void ReconcileWorld(VisualState* state) {
             slot->maturity = entity->physiology.stage == LIFE_ADULT ? 1.0f : 0.65f;
         }
         slot->action = entity->mind.action;
+        bool isFlatWorld = (!state->world || !state->world->staticWorld || state->world->staticWorld->isFlat);
+        slot->groundNormal = (!isFlatWorld && Vec3_LengthSq(entity->body.groundNormal) > 0.25f)
+                                 ? entity->body.groundNormal : Vec3_Create(0.0f, 1.0f, 0.0f);
+        if (isFlatWorld) {
+            slot->orientation = Quat_FromAxisAngle(Vec3_Create(0.0f, 1.0f, 0.0f), entity->body.yaw);
+        } else {
+            slot->orientation = (entity->body.orientation.w * entity->body.orientation.w +
+                                 entity->body.orientation.x * entity->body.orientation.x +
+                                 entity->body.orientation.y * entity->body.orientation.y +
+                                 entity->body.orientation.z * entity->body.orientation.z > 0.5f)
+                                    ? entity->body.orientation
+                                    : World_BuildBodyFrame(entity->body.yaw, slot->groundNormal, 0.60f);
+        }
         slot->mouthTarget = entity->body.mouth;
         slot->oralActive = entity->mind.intent.interact || entity->mind.action == ACTION_ATTACK;
         slot->hasAnatomicalBody = (entity->anatomicalBody && entity->anatomicalBody->tmpl);
@@ -926,12 +945,14 @@ static void ReconcileWorld(VisualState* state) {
     for (size_t i = 0; i < state->slotCapacity; ++i) {
         if (state->slots[i].used && !state->slots[i].seen) TeardownSlot(state, &state->slots[i], i);
     }
+    SetStateStaticWorld(state, state->world ? state->world->staticWorld : NULL);
 }
 
 static void ReconcileSnapshot(VisualState* state, const EvolutionRenderSnapshot* snap) {
     double tRec = EvolutionProfiler_Begin(state->profiler);
     for (size_t i = 0; i < state->slotCapacity; ++i) state->slots[i].seen = false;
     if (!snap) return;
+    SetStateStaticWorld(state, snap->staticWorld);
     if (!EnsureSlotCapacity(state, snap->capacity > snap->entityCount ? snap->capacity : snap->entityCount + 16u))
         return;
 
@@ -965,6 +986,14 @@ static void ReconcileSnapshot(VisualState* state, const EvolutionRenderSnapshot*
         }
         slot->lifeStage = es->lifeStage;
         slot->action = es->action;
+        slot->groundNormal = Vec3_LengthSq(es->groundNormal) > 0.25f
+                                 ? es->groundNormal : Vec3_Create(0.0f, 1.0f, 0.0f);
+        slot->orientation = (es->orientation.w * es->orientation.w +
+                             es->orientation.x * es->orientation.x +
+                             es->orientation.y * es->orientation.y +
+                             es->orientation.z * es->orientation.z > 0.5f)
+                                ? es->orientation
+                                : Quat_FromAxisAngle(Vec3_Create(0.0f, 1.0f, 0.0f), es->yaw);
         slot->mouthTarget = es->mouth;
         slot->oralActive = es->oralActive;
         slot->hasAnatomicalBody = es->hasAnatomicalBody;
@@ -1192,6 +1221,19 @@ bool EcosystemVisual_SyncSnapshot(EcosystemVisual* visual, const EvolutionRender
 /* Animación con presupuesto acotado y LOD por distancia                      */
 /* ========================================================================== */
 
+static Quaternion SlotOrientation(const VisualSlot* slot) {
+    Quaternion q = slot->orientation;
+    if (q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w > 0.5f) return q;
+    return Quat_FromAxisAngle(Vec3_Create(0.0f, 1.0f, 0.0f), slot->yaw);
+}
+
+static void SetStateStaticWorld(VisualState* state, const WorldStaticData* sw) {
+    if (!state || state->staticWorld == sw) return;
+    const WorldStaticData* prev = state->staticWorld;
+    state->staticWorld = WorldStaticData_Retain(sw);
+    WorldStaticData_Release(prev);
+}
+
 static Vector3 RotateYaw(Vector3 v, float yaw) {
     float c = cosf(yaw), s = sinf(yaw);
     return Vec3_Create(c * v.x + s * v.z, v.y, -s * v.x + c * v.z);
@@ -1266,7 +1308,8 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
     const Rig* rig = &animation->rig;
     float scale = fmaxf(.001f, slot->scale);
 
-    Vector3 displacement = RotateYaw(Vec3_Sub(slot->position, slot->previousPosition), -slot->yaw);
+    Quaternion orient = SlotOrientation(slot);
+    Vector3 displacement = World_WorldDirToLocal(Vec3_Sub(slot->position, slot->previousPosition), orient);
     Vector3 velocity = Vec3_Scale(displacement, 1.0f / (scale * deltaSeconds));
     velocity.y = 0;
     /* Acotar velocidad visual en saltos de velocidad acelerada (16x/64x). */
@@ -1302,8 +1345,7 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
     if (slot->hasAnatomicalBody) a->gait.supportCompression += slot->crouch;
     for (size_t i = 0; i < rig->limbCount; ++i) a->locomotion.feet[i].phaseOffset = a->gait.limbPhase[i];
     a->oralReachActive = slot->oralActive && !slot->hasAnatomicalBody;
-    a->oralReachTarget = Vec3_Add(SlotCenter(slot), Vec3_Scale(
-        RotateYaw(Vec3_Sub(slot->mouthTarget, slot->position), -slot->yaw), 1.0f / scale));
+    a->oralReachTarget = World_WorldToLocal(slot->mouthTarget, SlotCenter(slot), scale, orient, slot->position);
     a->interactionTarget = (InteractionTarget){
         .valid = slot->oralActive, .position = a->oralReachTarget,
         .normal = {0, 1, 0}, .approach = {0, 0, 1}, .positionTolerance = .03f / scale, .orientationTolerance = 1.57f
@@ -1320,6 +1362,15 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
     }
     a->mouthOpen += (jaw - a->mouthOpen) * (1.0f - expf(-12.0f * deltaSeconds));
     if (slot->previousPose) *slot->previousPose = animation->pose;
+
+    /* Vincular adaptador de terreno local <-> mundial para IK de patas en relieve 3D. */
+    TerrainAnimationAdapter terrainAdapter;
+    World* prevWorld = monster->world;
+    if (state->staticWorld && !state->staticWorld->isFlat) {
+        TerrainAnimationAdapter_Init(&terrainAdapter, state->staticWorld,
+                                     slot->position, orient, SlotCenter(slot), scale);
+        monster->world = TerrainAnimationAdapter_AsWorld(&terrainAdapter);
+    }
 
     /* Acotar subpasos de animación de presentación (máx 2 subpasos por frame incluso a 64x). */
     float remaining = fminf(deltaSeconds, 1.0f / 30.0f);
@@ -1342,6 +1393,7 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
                 animation->pose.joints[j].localPosition = Vec3_Sub(animation->pose.joints[j].localPosition, travel);
         remaining -= dt;
     }
+    monster->world = prevWorld;
 
     float breath = .003f * monster->phenotype.axial.totalScale * sinf(slot->actionClock * 2.2f);
     float lower = slot->hasAnatomicalBody ? 0.0f : slot->restBlend * a->reachProfile.maximumCrouch * .45f;
@@ -1547,6 +1599,8 @@ void EcosystemVisual_Shutdown(EcosystemVisual* visual) {
     for (size_t i = 0; i < ECOSYSTEM_VISUAL_CACHE_CAPACITY; ++i) FreeCacheEntry(&state->cache[i]);
     Mesh_Free(&state->fallback);
     slotMapFree(&state->slotMap);
+    WorldStaticData_Release(state->staticWorld);
+    state->staticWorld = NULL;
     pthread_cond_destroy(&state->condition);
     pthread_mutex_destroy(&state->mutex);
     free(state->slots); free(state->freeSlots); free(state->cache); free(state->queue);
@@ -1743,13 +1797,17 @@ size_t EcosystemVisual_GetDrawPackets(const EcosystemVisual* visual, EcosystemVi
             packet->axialTotalScale = entry->axialTotalScale;
             packet->calibrationFactor = 2.05f / fmaxf(1e-4f, packet->calibrationLength);
             packet->scale = slot->profile.renderScale * packet->calibrationFactor * fmaxf(0.01f, slot->developmentScale);
-            packet->position = Vec3_Sub(slot->position, RotateYaw(Vec3_Scale(SlotCenter(slot), packet->scale), slot->yaw));
+            Quaternion qOrient = SlotOrientation(slot);
+            packet->orientation = qOrient;
+            packet->groundNormal = Vec3_LengthSq(slot->groundNormal) > 0.25f
+                                       ? slot->groundNormal : Vec3_Create(0.0f, 1.0f, 0.0f);
+            packet->position = Vec3_Sub(slot->position, Quat_RotateVector(qOrient, Vec3_Scale(SlotCenter(slot), packet->scale)));
             if (hasDetailedMonster && packet->pose && packet->headJoint >= 0) {
                 const JointPose* head = &packet->pose->joints[packet->headJoint];
                 Vector3 reference = entry->rig.oralPoint;
                 reference = (Vector3){reference.x * packet->headScale.x, reference.y * packet->headScale.y, reference.z * packet->headScale.z};
                 Vector3 oral = Vec3_Add(head->worldPosition, Quat_RotateVector(head->worldRotation, reference));
-                packet->renderedMouth = Vec3_Add(packet->position, RotateYaw(Vec3_Scale(oral, packet->scale), slot->yaw));
+                packet->renderedMouth = Vec3_Add(packet->position, Quat_RotateVector(qOrient, Vec3_Scale(oral, packet->scale)));
                 packet->mouthError = Vec3_Distance(packet->renderedMouth, slot->mouthTarget);
             }
             if (hasDetailedMonster) {
@@ -1764,6 +1822,9 @@ size_t EcosystemVisual_GetDrawPackets(const EcosystemVisual* visual, EcosystemVi
             }
         } else {
             packet->position = slot->position;
+            packet->orientation = SlotOrientation(slot);
+            packet->groundNormal = Vec3_LengthSq(slot->groundNormal) > 0.25f
+                                       ? slot->groundNormal : Vec3_Create(0.0f, 1.0f, 0.0f);
             packet->scale = slot->scale;
             packet->measuredMeshRadius = slot->meshRadius;
             packet->meshRadius = slot->calibrationLength > 1e-4f ? slot->speciesRadius * slot->calibrationLength / 2.05f : 0.0f;
@@ -1886,8 +1947,14 @@ AIObjectId EcosystemVisual_PickRay(const EcosystemVisualDrawPacket* packets, siz
         Vector3 closest = Vec3_Add(origin, Vec3_Scale(direction, proj));
         if (Vec3_LengthSq(Vec3_Sub(closest, p->position)) > boundR * boundR) continue;
 
-        Vector3 localOrigin = Vec3_Scale(RotateYaw(Vec3_Sub(origin, p->position), -p->yaw), 1.0f / p->scale);
-        Vector3 localDirection = RotateYaw(direction, -p->yaw);
+        Quaternion qP = p->orientation;
+        bool hasQ = (qP.x * qP.x + qP.y * qP.y + qP.z * qP.z + qP.w * qP.w) > 0.5f;
+        Vector3 localOrigin = hasQ
+            ? Vec3_Scale(Quat_RotateVector(Quat_Conjugate(qP), Vec3_Sub(origin, p->position)), 1.0f / p->scale)
+            : Vec3_Scale(RotateYaw(Vec3_Sub(origin, p->position), -p->yaw), 1.0f / p->scale);
+        Vector3 localDirection = hasQ
+            ? Quat_RotateVector(Quat_Conjugate(qP), direction)
+            : RotateYaw(direction, -p->yaw);
         float nearest = farDistance / p->scale, nearLocal = nearDistance / p->scale;
         const Mesh* body = p->bodyMesh;
         if (p->ready && p->deformer && p->pose && p->pose != p->restPose) {

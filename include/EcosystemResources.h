@@ -65,6 +65,12 @@ typedef struct EcosystemResource {
     double deathTime;
     CreatureDeathCause sourceDeathCause;
     double externalMassIntroduced; /**< Masa total introducida si es reservorio infinito. */
+
+    /* Vínculo O(1) a libro molecular compartido de cuerpo de agua natural (0 = libro propio). */
+    AIObjectId sharedLedgerResourceId;
+    uint16_t waterBodyId;
+    uint32_t shoreSiteIndex; /**< Índice 1-based en WorldHydrology.shoreSites (0 = recurso puntual). */
+    bool isWaterLedger;      /**< true si es el libro autoritativo sin proxy espacial en el centro del lago. */
 } EcosystemResource;
 
 /** @brief Inicializa un recurso molecular a partir de una sustancia compilada del registro. */

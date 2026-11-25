@@ -41,6 +41,20 @@ static uint64_t activeProfileFingerprint(const BrainEvolutionLab *lab) {
     return mp ? mp->fingerprint : 0u;
 }
 
+static uint64_t activeWorldRecipeHash(const BrainEvolutionLab *lab) {
+    if (lab->stageCount == 0u) return 0u;
+    unsigned idx = lab->currentStage < lab->stageCount ? lab->currentStage : 0u;
+    const EvolutionEnvironmentConfig *env = &lab->stages[idx].env;
+    return env->hasWorld ? env->cachedWorldRecipe.recipeHash : 0u;
+}
+
+static uint32_t activeWorldGeneratorVersion(const BrainEvolutionLab *lab) {
+    if (lab->stageCount == 0u) return 0u;
+    unsigned idx = lab->currentStage < lab->stageCount ? lab->currentStage : 0u;
+    const EvolutionEnvironmentConfig *env = &lab->stages[idx].env;
+    return env->hasWorld ? env->cachedWorldRecipe.generatorVersion : 0u;
+}
+
 static uint64_t activeEnvironmentFingerprint(const BrainEvolutionLab *lab) {
     if (lab->stageCount == 0u) return 0u;
     unsigned idx = lab->currentStage < lab->stageCount ? lab->currentStage : 0u;
@@ -78,6 +92,8 @@ bool EvolutionCheckpoint_Save(const BrainEvolutionLab *lab, const char *path,
     uint64_t fpProf = activeProfileFingerprint(lab);
     uint64_t fpSp = lab->species.fingerprint;
     uint64_t fpEnv = activeEnvironmentFingerprint(lab);
+    uint64_t fpWorld = activeWorldRecipeHash(lab);
+    uint32_t worldGenVer = activeWorldGeneratorVersion(lab);
 
     fprintf(f, "{\n  \"version\": %u,\n", EVOLUTION_CHECKPOINT_VERSION);
     fprintf(f, "  \"fingerprints\": {\n");
@@ -86,6 +102,8 @@ bool EvolutionCheckpoint_Save(const BrainEvolutionLab *lab, const char *path,
     fprintf(f, "    \"metabolic_profile\": \"%016llx\",\n", (unsigned long long)fpProf);
     fprintf(f, "    \"species\": \"%016llx\",\n", (unsigned long long)fpSp);
     fprintf(f, "    \"environment\": \"%016llx\",\n", (unsigned long long)fpEnv);
+    fprintf(f, "    \"world_recipe\": \"%016llx\",\n", (unsigned long long)fpWorld);
+    fprintf(f, "    \"world_generator_version\": %u,\n", worldGenVer);
     fprintf(f, "    \"architecture\": \"%s\"\n  },\n", NeuralArchitecture_Name(lab->config.architecture));
 
     fprintf(f, "  \"state\": {\n");
@@ -330,15 +348,22 @@ bool EvolutionCheckpoint_Load(BrainEvolutionLab *lab, const char *path, bool all
         setErr(error, errorSize, "Arquitectura del checkpoint ('%s') incompatible con la configuración actual", ckArch);
         return false;
     }
+    uint64_t ckWorld = 0;
+    double ckWorldGen = 0.0;
+    bool hasCkWorld = parseHexField(fpObj, fpEnd, "world_recipe", &ckWorld);
+    bool hasCkWorldGen = parseDoubleField(fpObj, fpEnd, "world_generator_version", &ckWorldGen);
+
     if (!allowBranch) {
         if (ckMol != lab->db.molecules.fingerprint ||
             ckSub != lab->db.substances.fingerprint ||
             ckProf != activeProfileFingerprint(lab) ||
             ckSp != lab->species.fingerprint ||
-            ckEnv != activeEnvironmentFingerprint(lab)) {
+            ckEnv != activeEnvironmentFingerprint(lab) ||
+            (hasCkWorld && ckWorld != activeWorldRecipeHash(lab)) ||
+            (hasCkWorldGen && (uint32_t)ckWorldGen != activeWorldGeneratorVersion(lab))) {
             free(buf);
             setErr(error, errorSize,
-                   "Checkpoint incompatible: cambiaron moléculas, sustancias, perfil metabólico, especie o entorno");
+                   "Checkpoint incompatible: cambiaron moléculas, sustancias, perfil metabólico, especie, entorno o mundo");
             return false;
         }
     }

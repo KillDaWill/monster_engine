@@ -8,6 +8,7 @@
 
 #include "EvolutionArena.h"
 #include "AnatomicalReach.h"
+#include "WorldStaticData.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -42,6 +43,8 @@ typedef struct EvolutionEntitySnapshot {
     Vector3 oralPivot;
     Vector3 oralElbow;
     Vector3 targetPos;
+    Vector3 groundNormal;
+    Quaternion orientation;
     float yaw;
     float speed;
     float developmentScale;
@@ -93,6 +96,8 @@ typedef struct EvolutionResourceSnapshot {
     SensorySignature sensorySignature;
     AIObjectId sourceCreatureId;
     AIObjectId killerCreatureId;
+    uint16_t waterBodyId;
+    uint32_t shoreSiteIndex;
 } EvolutionResourceSnapshot;
 
 typedef struct EvolutionObstacleSnapshot {
@@ -182,6 +187,14 @@ typedef struct EvolutionRenderSnapshot {
     EvolutionResourceSnapshot *resources;
     EvolutionObstacleSnapshot *obstacles;
     EvolutionSelectedSnapshot selected;
+
+    /* Identidad y referencia retenida segura al mundo estático inmutable (NULL = plano). */
+    uint64_t worldEpoch;
+    uint64_t worldFingerprint;
+    uint64_t worldRecipeHash;
+    uint32_t worldSeed;
+    uint32_t worldGeneratorVersion;
+    const WorldStaticData *staticWorld;
 } EvolutionRenderSnapshot;
 
 typedef enum EvolutionCommandType {

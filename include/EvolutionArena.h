@@ -60,6 +60,12 @@ typedef struct EvolutionArenaConfig {
     EcosystemMetabolismMode metabolismMode; /**< LEGACY o MOLECULAR. */
     const char *metabolismDir;        /**< Directorio de moléculas/sustancias/perfiles (defecto "metabolism"). */
     bool includeMixedSubstances;      /**< Añade fruta, carne, plantas tóxicas y agua contaminada en modo molecular. */
+    /* Configuración opcional de mundo procedural (propiedad por valor segura para comandos de reset). */
+    char worldRecipePath[256];        /**< Ruta *.world.json o preset ("river_valley", etc.); vacío = plano. */
+    bool hasWorldSeedOverride;        /**< true si se sobrescribe la semilla del terreno desde CLI/UI. */
+    uint32_t worldSeed;               /**< Semilla de terreno cuando hasWorldSeedOverride=true. */
+    bool hasExplicitArenaSize;        /**< true si el llamador fijó --arena-size explícitamente. */
+    bool allowExtraPonds;             /**< false por defecto: cuerpos naturales sustituyen estanques circulares. */
 } EvolutionArenaConfig;
 
 /** @brief Nombre textual del modo de fundadores. */

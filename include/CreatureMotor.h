@@ -3,16 +3,21 @@
 #ifndef CREATUREMOTOR_H
 #define CREATUREMOTOR_H
 #include "Vector.h"
+#include "Quaternion.h"
 #include "InteractionTarget.h"
+#include "WorldCollision.h"
 typedef struct CreatureCapabilities {
     bool ground, waterInteraction, swimming, flying, hasInteractionPoint;
     float contactTolerance, maximumOralReach;
     float clearance, bankClearance, drinkReach, mouthForward, maximumSpeed, maximumTurn;
+    TraversalProfile traversal;
 } CreatureCapabilities;
 typedef struct CreatureBodyState {
     Vector3 position, eye, mouth, interactionPoint;
     ReachResult reach;
     Vector3 mouthDirection;
+    Vector3 groundNormal;
+    Quaternion orientation;
     float yaw, visionYaw, speed;
     unsigned group, species, reproductiveRole;
     bool mateReady, canAttack, molecularMode;

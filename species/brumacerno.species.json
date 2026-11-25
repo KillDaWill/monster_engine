@@ -21,6 +21,18 @@
     "water_interaction": true,
     "anatomical_oral": true
   },
+  "traversal": {
+    "max_slope_degrees": 34.0,
+    "max_step_height": 0.52,
+    "max_wading_depth": 0.48,
+    "uphill_speed_factor": 0.56,
+    "downhill_speed_factor": 0.86,
+    "wading_speed_factor": 0.58,
+    "slope_energy_cost": 0.90,
+    "wading_energy_cost": 0.60,
+    "max_body_tilt_degrees": 26.0,
+    "can_wade": true
+  },
   "physiology": {
     "basal_cost": 0.0022,
     "hydration_cost": 0.0030,

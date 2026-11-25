@@ -301,11 +301,14 @@ typedef struct OpenGLMeshPerformanceStats {
 /** @brief Datos compactos por instancia para renderizado GPU instanciado (glDrawElementsInstanced). */
 typedef struct OpenGLMeshInstance {
     Vector3 position;
-    float yaw;       /**< Orientación Y en radianes. */
-    float scale;     /**< Escala XZ (y uniforme si scaleY <= 0). */
+    float yaw;       /**< Orientación Y en radianes (usado si useOrientation == false). */
+    float scale;     /**< Escala X (y uniforme si scaleY/scaleZ <= 0). */
     float scaleY;    /**< Escala Y opcional (0 => usa scale). */
+    float scaleZ;    /**< Escala Z opcional (0 => usa scale). */
     float bobY;      /**< Desplazamiento vertical analítico de marcha. */
     float leanPitch; /**< Inclinación axial analítica en radianes. */
+    Quaternion orientation; /**< Orientación 3D completa opcional (terreno/rocas). */
+    bool useOrientation;    /**< true para rotar mediante orientation en lugar de yaw. */
     Color tint;      /**< Pigmentación/tinte individual (alfa controla peso del tinte). */
 } OpenGLMeshInstance;
 
@@ -368,6 +371,8 @@ void OpenGLRenderer_DebugLine(Vector3 a,Vector3 b,Color color);
 void OpenGLRenderer_PushModelTranslation(float x, float y, float z);
 /** @brief Traslación, giro y escala uniforme de un espécimen completo. */
 void OpenGLRenderer_ModelTransform(Vector3 translation, float yawDegrees, float scale, Vector3 center);
+/** @brief Traslación, orientación 3D completa por cuaternión y escala uniforme. */
+void OpenGLRenderer_ModelTransformQuat(Vector3 translation, Quaternion orientation, float scale, Vector3 center);
 /** @brief Apila el movimiento rígido de una articulación desde su pose de reposo. */
 void OpenGLRenderer_PushJointTransform(const SkeletonPose* rest,const SkeletonPose* pose,int joint);
 /** @brief Movimiento articular con escala local de crecimiento anatómico. */

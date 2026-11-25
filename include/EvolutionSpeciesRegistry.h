@@ -46,6 +46,9 @@ typedef struct EvolutionSpeciesConfig {
     bool canAttackPhysically;
     bool waterInteraction;
     bool anatomicalOral;
+    bool groundLocomotion;
+    TraversalProfile traversal;
+    bool hasCustomTraversal;
 
     /* Fisiología, reproducción y percepción */
     PhysiologyProfile physiology;

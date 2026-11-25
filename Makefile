@@ -16,7 +16,18 @@ DEMO_DIR = demos
 BUILD_DIR = build
 
 # Archivos fuente del núcleo puro (Desacoplado de Render)
-CORE_SRCS = $(SRC_DIR)/MoleculeRegistry.c \
+CORE_SRCS = $(SRC_DIR)/TerrainHeightfield.c \
+            $(SRC_DIR)/WorldIO.c \
+            $(SRC_DIR)/TerrainGenerator.c \
+            $(SRC_DIR)/WorldHydrology.c \
+            $(SRC_DIR)/WorldBiome.c \
+            $(SRC_DIR)/WorldGeology.c \
+            $(SRC_DIR)/WorldStaticData.c \
+            $(SRC_DIR)/WorldGenerator.c \
+            $(SRC_DIR)/WorldCollision.c \
+            $(SRC_DIR)/WorldPlacement.c \
+            $(SRC_DIR)/TerrainAnimationAdapter.c \
+            $(SRC_DIR)/MoleculeRegistry.c \
             $(SRC_DIR)/SubstanceRegistry.c \
             $(SRC_DIR)/MetabolicProfile.c \
             $(SRC_DIR)/MetabolicState.c \
@@ -165,13 +176,20 @@ CORE_SRCS = $(SRC_DIR)/MoleculeRegistry.c \
             $(SRC_DIR)/LizardVariations.c
 
 # Módulo de Renderizador OpenGL
-RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c $(SRC_DIR)/MorphViewCamera.c
+RENDER_SRCS = $(SRC_DIR)/OpenGLRenderer.c $(SRC_DIR)/MorphViewCamera.c \
+              $(SRC_DIR)/TerrainRenderer.c $(SRC_DIR)/WaterRenderer.c \
+              $(SRC_DIR)/RockVisualCache.c $(SRC_DIR)/EnvironmentRenderer.c
 
 CORE_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(CORE_SRCS))
 RENDER_OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(RENDER_SRCS))
 
 # Archivos de Pruebas
-TEST_SRCS = $(TEST_DIR)/test_molecular_metabolism.c \
+TEST_SRCS = $(TEST_DIR)/test_terrain_heightfield.c \
+            $(TEST_DIR)/test_world_hydrology.c \
+            $(TEST_DIR)/test_world_traversal.c \
+            $(TEST_DIR)/test_world_water_access.c \
+            $(TEST_DIR)/test_world_snapshot.c \
+            $(TEST_DIR)/test_molecular_metabolism.c \
             $(TEST_DIR)/test_neural_v2_and_molecular_world.c \
             $(TEST_DIR)/test_brain_evolution_lab.c \
             $(TEST_DIR)/test_neural_brain.c \
@@ -643,23 +661,45 @@ benchmarks/benchmark_ecosystem: $(CORE_OBJS) benchmarks/benchmark_ecosystem.c
 
 # Diagnóstico de memoria de la simulación y cerebros neuronales, sin recompilar objetos de producción.
 ECOSYSTEM_SANITIZER_SRCS = $(CORE_SRCS)
-.PHONY: ecosystem-sanitize evolution-sanitize evolution-tsan
+.PHONY: ecosystem-sanitize evolution-sanitize evolution-tsan world-sanitize world-tsan
 ecosystem-sanitize:
 	@mkdir -p $(BUILD_DIR)
 	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) benchmarks/benchmark_ecosystem.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/ecosystem-sanitize
 	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/ecosystem-sanitize 100 3600 10000
 
+world-sanitize:
+	@mkdir -p $(BUILD_DIR)
+	printf 'void run_terrain_heightfield_tests(void); void run_world_hydrology_tests(void); void run_world_traversal_tests(void); void run_world_water_access_tests(void); void run_world_snapshot_tests(void); int main(void){ run_terrain_heightfield_tests(); run_world_hydrology_tests(); run_world_traversal_tests(); run_world_water_access_tests(); run_world_snapshot_tests(); return 0; }\n' > $(BUILD_DIR)/world_sanitize_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_terrain_heightfield.c tests/test_world_hydrology.c tests/test_world_traversal.c tests/test_world_water_access.c tests/test_world_snapshot.c $(BUILD_DIR)/world_sanitize_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/world-sanitize
+	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/world-sanitize
+
+world-tsan:
+	@mkdir -p $(BUILD_DIR)
+	printf 'void run_world_traversal_tests(void); void run_world_water_access_tests(void); void run_world_snapshot_tests(void); int main(void){ run_world_traversal_tests(); run_world_water_access_tests(); run_world_snapshot_tests(); return 0; }\n' > $(BUILD_DIR)/world_tsan_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=thread -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_world_traversal.c tests/test_world_water_access.c tests/test_world_snapshot.c $(BUILD_DIR)/world_tsan_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/world-tsan
+	setarch $$(uname -m) -R $(BUILD_DIR)/world-tsan
+
 evolution-sanitize:
 	@mkdir -p $(BUILD_DIR)
-	printf 'void run_neural_brain_tests(void); void run_neural_genome_tests(void); void run_neural_brain_io_tests(void); void run_neural_controller_tests(void); void run_evolution_arena_tests(void); void run_evolution_scalability_tests(void); void run_molecular_metabolism_tests(void); void run_neural_v2_and_molecular_world_tests(void); void run_brain_evolution_lab_tests(void); int main(void){ run_neural_brain_tests(); run_neural_genome_tests(); run_neural_brain_io_tests(); run_neural_controller_tests(); run_evolution_arena_tests(); run_evolution_scalability_tests(); run_molecular_metabolism_tests(); run_neural_v2_and_molecular_world_tests(); run_brain_evolution_lab_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_sanitize_main.c
-	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_neural_brain.c tests/test_neural_genome.c tests/test_neural_brain_io.c tests/test_neural_controller.c tests/test_evolution_arena.c tests/test_evolution_scalability.c tests/test_molecular_metabolism.c tests/test_neural_v2_and_molecular_world.c tests/test_brain_evolution_lab.c $(BUILD_DIR)/evolution_sanitize_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-sanitize
+	printf 'void run_terrain_heightfield_tests(void); void run_world_hydrology_tests(void); void run_world_traversal_tests(void); void run_world_water_access_tests(void); void run_world_snapshot_tests(void); void run_neural_brain_tests(void); void run_neural_genome_tests(void); void run_neural_brain_io_tests(void); void run_neural_controller_tests(void); void run_evolution_arena_tests(void); void run_evolution_scalability_tests(void); void run_molecular_metabolism_tests(void); void run_neural_v2_and_molecular_world_tests(void); void run_brain_evolution_lab_tests(void); int main(void){ run_terrain_heightfield_tests(); run_world_hydrology_tests(); run_world_traversal_tests(); run_world_water_access_tests(); run_world_snapshot_tests(); run_neural_brain_tests(); run_neural_genome_tests(); run_neural_brain_io_tests(); run_neural_controller_tests(); run_evolution_arena_tests(); run_evolution_scalability_tests(); run_molecular_metabolism_tests(); run_neural_v2_and_molecular_world_tests(); run_brain_evolution_lab_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_sanitize_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=address,undefined -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_terrain_heightfield.c tests/test_world_hydrology.c tests/test_world_traversal.c tests/test_world_water_access.c tests/test_world_snapshot.c tests/test_neural_brain.c tests/test_neural_genome.c tests/test_neural_brain_io.c tests/test_neural_controller.c tests/test_evolution_arena.c tests/test_evolution_scalability.c tests/test_molecular_metabolism.c tests/test_neural_v2_and_molecular_world.c tests/test_brain_evolution_lab.c $(BUILD_DIR)/evolution_sanitize_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-sanitize
 	ASAN_OPTIONS=detect_leaks=1 $(BUILD_DIR)/evolution-sanitize
 
 evolution-tsan:
 	@mkdir -p $(BUILD_DIR)
-	printf 'void run_evolution_scalability_tests(void); void run_neural_v2_and_molecular_world_tests(void); void run_brain_evolution_lab_tests(void); int main(void){ run_evolution_scalability_tests(); run_neural_v2_and_molecular_world_tests(); run_brain_evolution_lab_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_tsan_main.c
-	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=thread -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_evolution_scalability.c tests/test_neural_v2_and_molecular_world.c tests/test_brain_evolution_lab.c $(BUILD_DIR)/evolution_tsan_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-tsan
+	printf 'void run_world_snapshot_tests(void); void run_evolution_scalability_tests(void); void run_neural_v2_and_molecular_world_tests(void); void run_brain_evolution_lab_tests(void); int main(void){ run_world_snapshot_tests(); run_evolution_scalability_tests(); run_neural_v2_and_molecular_world_tests(); run_brain_evolution_lab_tests(); return 0; }\n' > $(BUILD_DIR)/evolution_tsan_main.c
+	$(CC) -Wall -Wextra -Wpedantic -O1 -g -Iinclude -Itests -fsanitize=thread -fno-omit-frame-pointer -ffunction-sections -fdata-sections $(ECOSYSTEM_SANITIZER_SRCS) tests/test_world_snapshot.c tests/test_evolution_scalability.c tests/test_neural_v2_and_molecular_world.c tests/test_brain_evolution_lab.c $(BUILD_DIR)/evolution_tsan_main.c -Wl,--gc-sections -lm -pthread -o $(BUILD_DIR)/evolution-tsan
 	setarch $$(uname -m) -R $(BUILD_DIR)/evolution-tsan
+
+benchmarks/benchmark_world: $(CORE_OBJS) benchmarks/benchmark_world.c
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+.PHONY: benchmark-world validate-procedural-world
+benchmark-world: benchmarks/benchmark_world
+	./benchmarks/benchmark_world
+
+validate-procedural-world: demos/demo_evolution_arena_headless
+	python3 tools/validate_procedural_world.py
 
 .PHONY: validate-ecosystem
 validate-ecosystem: demos/demo_evolution_arena_headless

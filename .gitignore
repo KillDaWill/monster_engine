@@ -78,6 +78,7 @@ scratch/
 /benchmarks/benchmark_ecosystem
 /benchmarks/benchmark_evolution_scalability
 /benchmarks/benchmark_molecular_evolution
+/benchmarks/benchmark_world
 /benchmarks/verify_molecular_experiments
 
 /demos/interface_demo

@@ -5,6 +5,9 @@
 #include "EvolutionArena.h"
 #include "CreatureRecipes.h"
 #include "EcosystemScenario.h"
+#include "WorldIO.h"
+#include "WorldStaticData.h"
+#include "WorldPlacement.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -158,7 +161,7 @@ bool EvolutionArenaConfig_ApplyLegacyScenario(EvolutionArenaConfig *cfg, const c
 
 bool EvolutionArenaConfig_Validate(const EvolutionArenaConfig *cfg) {
     if (!cfg) return false;
-    if (!isfinite(cfg->arenaSize) || cfg->arenaSize < 12.0f || cfg->arenaSize > 1000.0f) return false;
+    if (!isfinite(cfg->arenaSize) || cfg->arenaSize < 12.0f || cfg->arenaSize > 1024.0f) return false;
     if (cfg->capacity == 0 || cfg->capacity > 50000u) return false;
     if (cfg->brumacernos > cfg->capacity || cfg->velkares > cfg->capacity - cfg->brumacernos) return false;
     if (cfg->plants > 50000u || cfg->ponds > 512u || cfg->obstacles > 2048u) return false;
@@ -348,13 +351,51 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         }
     }
 
-    float halfSize = cfg->arenaSize * 0.5f;
+    /* 0) Resolver receta y datos estáticos del mundo procedural si se solicitó --world. */
+    const WorldStaticData *staticWorld = NULL;
+    float effectiveArenaSize = cfg->arenaSize;
+    if (cfg->worldRecipePath[0] != '\0') {
+        WorldRecipe wRec;
+        if (!WorldRecipe_Preset(cfg->worldRecipePath, &wRec)) {
+            if (!WorldRecipe_LoadFile(cfg->worldRecipePath, &wRec, error, errorSize)) {
+                return false;
+            }
+        }
+        if (cfg->hasWorldSeedOverride) {
+            wRec.seed = cfg->worldSeed;
+        }
+        if (cfg->hasExplicitArenaSize && fabsf(cfg->arenaSize - wRec.size) > 0.1f) {
+            if (error && errorSize > 0) {
+                snprintf(error, errorSize,
+                         "Conflicto de tamaño: --arena-size=%.1f no coincide con la receta de mundo '%s' (size=%.1f)",
+                         (double)cfg->arenaSize, wRec.id, (double)wRec.size);
+            }
+            return false;
+        }
+        effectiveArenaSize = wRec.size;
+        wRec.recipeHash = WorldRecipe_Fingerprint(&wRec);
+        staticWorld = WorldStaticCache_Acquire(&wRec, error, errorSize);
+        if (!staticWorld) {
+            return false;
+        }
+    }
+
+    bool procedural = (staticWorld != NULL && !staticWorld->isFlat);
+    float halfSize = effectiveArenaSize * 0.5f;
     unsigned extraMixed = (cfg->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR && cfg->includeMixedSubstances)
                               ? (cfg->plants / 3u + 16u) : 0u;
-    unsigned resCap = cfg->plants + cfg->ponds + cfg->capacity + extraMixed + 64u;
+    unsigned extraHydroRes = procedural
+                                 ? (staticWorld->hydrology.bodyCount + staticWorld->hydrology.shoreSiteCount + 32u)
+                                 : 0u;
+    unsigned resCap = cfg->plants + cfg->ponds + cfg->capacity + extraMixed + extraHydroRes + 64u;
     if (!EcosystemWorld_InitArena(w, cfg->capacity, resCap, 2u, halfSize, cfg->seed, cfg->step, cfg->day)) {
+        WorldStaticData_Release(staticWorld);
         setErr(error, errorSize, "No se pudo reservar memoria para Evolution Arena");
         return false;
+    }
+    if (staticWorld) {
+        EcosystemWorld_AttachStaticWorld(w, staticWorld);
+        WorldStaticData_Release(staticWorld); /* EcosystemWorld ahora retiene su propia referencia. */
     }
 
     if (cfg->metabolismMode == ECOSYSTEM_METABOLISM_MOLECULAR) {
@@ -440,7 +481,14 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         ? SubstanceRegistry_Get(&w->metabolismDb->substances, SubstanceRegistry_Find(&w->metabolismDb->substances, "deadly_nightshade"))
         : NULL;
 
-    /* 1) Estanques de agua: distribución estratificada en arenas grandes, simétrica en arena pequeña. */
+    /* 1) Agua: cuerpos naturales en modo procedural; estanques circulares sólo en modo plano o opt-in. */
+    if (procedural) {
+        if (!EcosystemWorld_RegisterNaturalWaterBodies(w)) {
+            setErr(error, errorSize, "No se pudieron registrar los cuerpos de agua naturales del territorio");
+            goto failure;
+        }
+    }
+    if (!procedural || cfg->allowExtraPonds) {
     if (!distributedLayout) {
         float pondOffset = fminf(halfSize * 0.42f, 8.5f);
         for (unsigned i = 0; i < cfg->ponds; ++i) {
@@ -483,7 +531,7 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
         }
     }
 
-    if (molecular && cfg->includeMixedSubstances && contWaterSub && halfSize >= 14.0f) {
+    if (molecular && cfg->includeMixedSubstances && contWaterSub && halfSize >= 14.0f && !procedural) {
         Vector3 cwPos = Vec3_Create(0.0f, 0.0f, fminf(halfSize * 0.48f, 9.5f));
         if (AIWorld_Walkable(&w->observations, cwPos, 2.2f, false)) {
             EcosystemResource cw = EcosystemResource_FromSubstance(
@@ -492,8 +540,10 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
             EcosystemWorld_AddMolecularResource(w, cw, cwPos, 1.3f);
         }
     }
+    } /* fin !procedural || allowExtraPonds */
 
-    /* 2) Obstáculos estáticos físicos (bloquean visión y navegación). */
+    /* 2) Obstáculos estáticos físicos (en procedural las rocas geológicas reemplazan cilindros artificiales). */
+    if (!procedural) {
     static const float obstaclePresets[5][3] = {
         {  0.0f,  0.0f, 1.35f },
         { -9.5f,  9.0f, 1.15f },
@@ -529,18 +579,29 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
             goto failure;
         }
     }
+    } /* fin !procedural obstacles */
 
-    /* 3) Plantas regenerables distribuidas sobre terreno transitable. */
+    /* 3) Plantas regenerables distribuidas sobre terreno transitable y hábitat fértil. */
     bool scarce = cfg->legacyScenario && strcmp(cfg->legacyScenario, "scarce") == 0;
     float plantSpan = fmaxf(2.0f, halfSize - 2.2f);
+    WorldHabitatFilter vegFilter = WorldHabitatFilter_Vegetation(0.95f);
     for (unsigned i = 0; i < cfg->plants; ++i) {
         bool placed = false;
         for (unsigned attempt = 0; attempt < 128u && !placed; ++attempt) {
-            Vector3 p = (distributedLayout && attempt < 12u)
-                            ? stratifiedCellPosition(i, cfg->plants, plantSpan, &w->random)
-                            : Vec3_Create(-plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan, 0.0f,
-                                          -plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan);
-            if (!AIWorld_Walkable(&w->observations, p, 1.0f, false)) continue;
+            Vector3 p;
+            if (procedural) {
+                Vector3 nrm;
+                if (!WorldPlacement_SampleHabitat(w->staticWorld, &w->random, &vegFilter,
+                                                  false, Vec3_Zero(), 0.0f, 16u, &p, &nrm)) {
+                    continue;
+                }
+            } else {
+                p = (distributedLayout && attempt < 12u)
+                        ? stratifiedCellPosition(i, cfg->plants, plantSpan, &w->random)
+                        : Vec3_Create(-plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan, 0.0f,
+                                      -plantSpan + CreatureGenome_Random(&w->random) * 2.0f * plantSpan);
+                if (!AIWorld_Walkable(&w->observations, p, 1.0f, false)) continue;
+            }
             float biomass = scarce ? 0.15f : 5.5f;
             float regen = scarce ? 0.0001f : 0.022f;
             EcosystemResource plantRes;
@@ -617,7 +678,11 @@ bool EvolutionArena_Create(EcosystemWorld *w, const EvolutionArenaConfig *cfg,
                                               -spawnSpan + CreatureGenome_Random(&w->random) * 2.0f * spawnSpan);
                 float energy = scarce ? 0.30f : (species == 2u ? 0.58f : 0.85f);
                 double age = 180.0 + CreatureGenome_Random(&w->random) * 180.0;
-                id = EcosystemWorld_Spawn(w, species, p, age, energy, NULL);
+                if (procedural) {
+                    id = EcosystemWorld_SpawnOnGround(w, species, p.x, p.z, age, energy, NULL);
+                } else {
+                    id = EcosystemWorld_Spawn(w, species, p, age, energy, NULL);
+                }
             }
             if (!id) {
                 setErr(error, errorSize, "Sin espacio libre para spawnear población inicial");

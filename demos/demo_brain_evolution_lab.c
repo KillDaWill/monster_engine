@@ -8,6 +8,7 @@
 #include "EvolutionCheckpointIO.h"
 #include "EvolutionEnvironment.h"
 #include "EcosystemVisual.h"
+#include "EnvironmentRenderer.h"
 #include "CreatureRecipeRegistry.h"
 #include "NeuralBrainIO.h"
 #include "OpenGLRenderer.h"
@@ -25,7 +26,6 @@
 #define LAB_WIN_DEFAULT_W 1440
 #define LAB_WIN_DEFAULT_H 860
 #define LAB_MAX_FPS 60.0
-#define LAB_REPLAY_DT 0.05
 
 typedef enum LabCandidateSlot {
     CAND_CHAMPION = 0,
@@ -116,6 +116,8 @@ typedef struct ReplayViewer {
     EcosystemVisual visual;
     AIObjectId focalId;
     uint32_t episodeSeed;
+    bool isRecordedEvalSeed;
+    double achievedSpeed;
     uint64_t loadedFingerprint;
     LabCandidateSlot loadedSlot;
     char loadedLabel[48];
@@ -680,6 +682,30 @@ static void replayShutdown(ReplayViewer *rv) {
     memset(rv, 0, sizeof(*rv));
 }
 
+static uint32_t labReplayMixSeed(uint32_t a, uint32_t b, uint32_t c) {
+    uint32_t x = a ^ (b * 2654435761u) ^ (c * 2246822519u);
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x ? x : 1u;
+}
+
+static bool parseLabTerrainDebug(const char *s, TerrainDebugMode *out) {
+    if (!s || !out) return false;
+    if (!strcmp(s, "natural")) *out = TERRAIN_DEBUG_NATURAL;
+    else if (!strcmp(s, "elevation") || !strcmp(s, "height")) *out = TERRAIN_DEBUG_ELEVATION;
+    else if (!strcmp(s, "slope")) *out = TERRAIN_DEBUG_SLOPE;
+    else if (!strcmp(s, "hydrology") || !strcmp(s, "hydro")) *out = TERRAIN_DEBUG_HYDROLOGY;
+    else if (!strcmp(s, "depth") || !strcmp(s, "water")) *out = TERRAIN_DEBUG_WATER_DEPTH;
+    else if (!strcmp(s, "biome") || !strcmp(s, "fertility")) *out = TERRAIN_DEBUG_BIOME;
+    else if (!strcmp(s, "nav") || !strcmp(s, "navigation")) *out = TERRAIN_DEBUG_NAVIGATION;
+    else if (!strcmp(s, "collision") || !strcmp(s, "rocks")) *out = TERRAIN_DEBUG_COLLISION;
+    else return false;
+    return true;
+}
+
 static bool replayLoadCandidate(ReplayViewer *rv,
                                 const EvolutionEnvironmentConfig *env,
                                 const EvolutionSpeciesConfig *species,
@@ -687,6 +713,7 @@ static bool replayLoadCandidate(ReplayViewer *rv,
                                 const LabCandidateSummary *cand,
                                 LabCandidateSlot slot,
                                 uint32_t seed,
+                                bool isRecordedEvalSeed,
                                 char *err, size_t errSize) {
     if (!rv || !env || !species || !db || !cand || !cand->valid) return false;
     replayShutdown(rv);
@@ -705,6 +732,8 @@ static bool replayLoadCandidate(ReplayViewer *rv,
     rv->initialized = true;
     rv->paused = false;
     rv->episodeSeed = seed;
+    rv->isRecordedEvalSeed = isRecordedEvalSeed;
+    rv->achievedSpeed = 0.0;
     rv->loadedFingerprint = cand->fingerprint;
     rv->loadedSlot = slot;
     snprintf(rv->loadedLabel, sizeof(rv->loadedLabel), "%s (%s)",
@@ -816,6 +845,8 @@ static void printHelp(void) {
          "  --action-export=PATH        Exportar campeón al inicio para verificación visual\n"
          "  --replay-ticks=N            Avanzar N ticks el viewport 3D de replay antes de capturar\n"
          "  --replay-speed=1|2|4|8|16|32 Velocidad inicial del viewport 3D de replay (tecla F / [ ])\n"
+         "  --replay-seed=N             Semilla exacta de episodio para el replay 3D\n"
+         "  --terrain-debug=MODE        Modo de depuración del terreno (natural|elevation|slope|hydrology|depth|biome|nav|collision)\n"
          "  --show-neural               Abrir el visualizador gráfico de la red neuronal V2 (tecla N)\n"
          "  --width=W  --height=H  --frames=N  --capture=IMG.ppm");
 }
@@ -837,6 +868,9 @@ int main(int argc, char **argv) {
     const char *actionExport = NULL;
     unsigned frames = 0u, pretrainGens = 0u, replayTicks = 0u;
     bool autoStart = false, showNeural = false;
+    bool hasCustomReplaySeed = false;
+    uint32_t customReplaySeed = 0u;
+    TerrainDebugMode terrainDebugMode = TERRAIN_DEBUG_NATURAL;
     double initialReplaySpeed = 1.0;
     int winW = LAB_WIN_DEFAULT_W, winH = LAB_WIN_DEFAULT_H;
 
@@ -890,6 +924,16 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--action-export=", 16)) actionExport = a + 16;
         else if (!strncmp(a, "--replay-ticks=", 15)) replayTicks = (unsigned)strtoul(a + 15, NULL, 10);
         else if (!strncmp(a, "--replay-speed=", 15)) initialReplaySpeed = strtod(a + 15, NULL);
+        else if (!strncmp(a, "--replay-seed=", 14)) {
+            customReplaySeed = (uint32_t)strtoul(a + 14, NULL, 10);
+            hasCustomReplaySeed = true;
+        }
+        else if (!strncmp(a, "--terrain-debug=", 16)) {
+            if (!parseLabTerrainDebug(a + 16, &terrainDebugMode)) {
+                fprintf(stderr, "Modo terrain-debug inválido: %s\n", a + 16);
+                return 2;
+            }
+        }
         else if (!strcmp(a, "--show-neural")) showNeural = true;
         else if (!strncmp(a, "--width=", 8)) winW = (int)strtol(a + 8, NULL, 10);
         else if (!strncmp(a, "--height=", 9)) winH = (int)strtol(a + 9, NULL, 10);
@@ -994,8 +1038,22 @@ int main(int argc, char **argv) {
 
     ICamera camera = {.position = {14, 14, 18}, .target = {0, 0, 0}, .up = {0, 1, 0},
                       .fov = 50.0f, .aspectRatio = (float)winW / (float)winH,
-                      .nearPlane = 0.1f, .farPlane = 240.0f};
+                      .nearPlane = 0.1f, .farPlane = 600.0f};
     Renderer3D renderer = OpenGLRenderer_Create(&camera);
+
+    EnvironmentRenderer envRenderer = {0};
+    if (!EnvironmentRenderer_Init(&envRenderer)) {
+        fprintf(stderr, "Error inicializando EnvironmentRenderer en Brain Evolution Lab\n");
+        ctrl->quitRequested = true;
+        if (ctrl->threadStarted) pthread_join(ctrl->thread, NULL);
+        OpenGLRenderer_Destroy(&renderer);
+        OpenGLDemoWindow_Free(window);
+        BrainEvolutionLab_Destroy(&ctrl->lab);
+        pthread_mutex_destroy(&ctrl->mutex);
+        free(ctrl);
+        return 1;
+    }
+    EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
 
     Mesh meshes[5];
     for (unsigned i = 0; i < 5u; ++i) meshes[i] = Mesh_Create();
@@ -1019,20 +1077,24 @@ int main(int argc, char **argv) {
     Mesh *cpuBodies = calloc(64u, sizeof(*cpuBodies));
     ReplayViewer replay = {0};
     LabCandidateSlot selectedSlot = CAND_CHAMPION;
-    double camAngle = 0.65, camZoom = 18.0;
-    uint32_t replaySeedCounter = cfg.seed + 555u;
-
-    /* Cargar candidato inicial en el viewport independiente de replay. */
+    double camAngle = 0.65, camZoom = 22.0;
+    /* Usar semilla exacta de evaluación registrada por defecto si existe, o semilla custom. */
     pthread_mutex_lock(&ctrl->mutex);
     *snap = ctrl->ui;
     const EvolutionEnvironmentConfig envCopy0 = ctrl->lab.stages[ctrl->lab.currentStage].env;
     const EvolutionSpeciesConfig spCopy0 = ctrl->lab.species;
+    uint32_t recordedValSeed = labReplayMixSeed(ctrl->lab.config.seed,
+                                                0x56414C00u + ctrl->lab.currentStage * 17u, 1u);
     pthread_mutex_unlock(&ctrl->mutex);
+
+    uint32_t initReplaySeed = hasCustomReplaySeed ? customReplaySeed : recordedValSeed;
+    bool initReplayIsEval = !hasCustomReplaySeed;
+    uint32_t replaySeedCounter = initReplaySeed;
 
     if (snap->candidates[CAND_CHAMPION].valid) {
         replayLoadCandidate(&replay, &envCopy0, &spCopy0, &ctrl->lab.db,
                             &snap->candidates[CAND_CHAMPION], CAND_CHAMPION,
-                            replaySeedCounter, errBuf, sizeof(errBuf));
+                            initReplaySeed, initReplayIsEval, errBuf, sizeof(errBuf));
         for (unsigned t = 0; t < replayTicks && replay.initialized; ++t) {
             EcosystemWorld_Step(&replay.world);
         }
@@ -1080,6 +1142,10 @@ int main(int argc, char **argv) {
         bool reqExport = input.keyE;
         bool reqReplay = input.keyR;
         if (input.keyN) showNeural = !showNeural;
+        if (input.toggleDebug && input.shiftHeld && EnvironmentRenderer_IsProcedural(&envRenderer)) {
+            terrainDebugMode = (TerrainDebugMode)(((int)terrainDebugMode + 1) % TERRAIN_DEBUG_MODE_COUNT);
+            EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
+        }
         if (input.keyF) replaySpeedIdx = (replaySpeedIdx + 1u) % replaySpeedCount;
         if (input.furLengthAdjust < 0 && replaySpeedIdx > 0u) --replaySpeedIdx;
         if (input.furLengthAdjust > 0 && replaySpeedIdx + 1u < replaySpeedCount) ++replaySpeedIdx;
@@ -1136,28 +1202,43 @@ int main(int argc, char **argv) {
             ++replaySeedCounter;
             replayLoadCandidate(&replay, &curEnv, &curSpecies, &ctrl->lab.db,
                                 &snap->candidates[selectedSlot], selectedSlot,
-                                replaySeedCounter, errBuf, sizeof(errBuf));
+                                replaySeedCounter, false, errBuf, sizeof(errBuf));
         }
 
-        /* Avanzar mundo independiente de replay 3D (jamás interfiere con evaluación paralela). */
+        /* Avanzar mundo independiente de replay 3D usando world.clock.fixedStep exacto. */
         double effReplaySpeed = replaySpeeds[replaySpeedIdx];
         if (replay.initialized && !replay.paused) {
-            replay.simAccumulator += (frames ? (1.0 / 60.0) : dt) * effReplaySpeed;
-            unsigned maxSteps = (unsigned)ceil(effReplaySpeed * 2.0) + 4u;
+            double fixedStep = (replay.world.clock.fixedStep > 1e-4) ? replay.world.clock.fixedStep : 0.05;
+            double frameWallDt = frames ? (1.0 / 60.0) : dt;
+            replay.simAccumulator += frameWallDt * effReplaySpeed;
+            unsigned maxSteps = (unsigned)ceil(effReplaySpeed * (frameWallDt / fixedStep) + 4.0);
             if (maxSteps > 80u) maxSteps = 80u;
             unsigned steps = 0u;
-            while (replay.simAccumulator >= LAB_REPLAY_DT && steps < maxSteps) {
+            double simBefore = replay.world.clock.seconds;
+            while (replay.simAccumulator >= fixedStep && steps < maxSteps) {
                 EcosystemWorld_Step(&replay.world);
-                replay.simAccumulator -= LAB_REPLAY_DT;
+                replay.simAccumulator -= fixedStep;
                 ++steps;
             }
+            double simDelta = replay.world.clock.seconds - simBefore;
+            double instSpeed = frameWallDt > 1e-5 ? (simDelta / frameWallDt) : effReplaySpeed;
+            replay.achievedSpeed = (frame == 0u) ? instSpeed : (replay.achievedSpeed * 0.85 + instSpeed * 0.15);
+
+            EnvironmentRenderer_SyncWorld(&envRenderer, replay.world.staticWorld);
             EcosystemVisual_Sync(&replay.visual);
             const EcosystemEntity *focal = EcosystemWorld_Get(&replay.world, replay.focalId);
             Vector3 target = focal ? focal->body.position : Vec3_Zero();
             camera.target = target;
+            float replayHalf = replay.world.observations.halfSize > 0.1f
+                               ? replay.world.observations.halfSize : (curEnv.arenaSize * 0.5f);
+            camera.farPlane = fmaxf(480.0f, replayHalf * 6.0f);
             camera.position = Vec3_Add(target, Vec3_Create(sinf((float)camAngle) * (float)camZoom,
                                                            (float)camZoom * 0.52f,
                                                            cosf((float)camAngle) * (float)camZoom));
+            if (EnvironmentRenderer_IsProcedural(&envRenderer)) {
+                float camGround = EnvironmentRenderer_SampleGroundHeight(&envRenderer, camera.position.x, camera.position.z);
+                if (camera.position.y < camGround + 1.25f) camera.position.y = camGround + 1.25f;
+            }
             for (unsigned i = 0; i < replay.world.count; ++i) {
                 unsigned slot = replay.world.activeEntitySlots[i];
                 EcosystemVisual_SetProjection(&replay.visual, replay.world.entities[slot].id,
@@ -1185,10 +1266,16 @@ int main(int argc, char **argv) {
         OpenGLRenderer_SetupCameraOrtho(&camera, (float)camZoom, winW, winH);
 
         if (replay.initialized) {
-            float limit = curEnv.arenaSize * 0.5f;
-            OpenGLRenderer_ModelTransform(Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f, Vec3_Zero());
-            renderer.renderMesh(&renderer, &meshes[0]);
-            OpenGLRenderer_PopModelMatrix();
+            bool proceduralWorld = EnvironmentRenderer_IsProcedural(&envRenderer);
+            float limit = replay.world.observations.halfSize > 0.1f
+                        ? replay.world.observations.halfSize : (curEnv.arenaSize * 0.5f);
+            if (proceduralWorld) {
+                EnvironmentRenderer_RenderOpaque(&envRenderer, &renderer, &camera, limit, &meshes[0], 0.65f, 0.72f);
+            } else {
+                OpenGLRenderer_ModelTransform(Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f, Vec3_Zero());
+                renderer.renderMesh(&renderer, &meshes[0]);
+                OpenGLRenderer_PopModelMatrix();
+            }
 
             /* Obstáculos y recursos moleculares del episodio de replay */
             for (unsigned i = 0; i < replay.world.obstacleCount; ++i) {
@@ -1201,6 +1288,8 @@ int main(int argc, char **argv) {
                 const EcosystemResource *res = &replay.world.resources[replay.world.activeResourceSlots[i]];
                 const AIWorldObject *obj = AIWorld_Get(&replay.world.observations, res->id);
                 if (!obj || res->biomass <= 0.001f) continue;
+                /* En modo procedural no dibujar discos artificiales para orillas naturales. */
+                if (proceduralWorld && obj->waterBodyId != 0u && obj->shoreSiteIndex > 0u) continue;
                 float frac = res->maximumBiomass > 1e-4f ? (res->biomass / res->maximumBiomass) : 1.0f;
                 Color tint = res->molecular ? colorFromFloat3(res->color) : baseColors[2];
                 OpenGLMeshInstance inst = {
@@ -1215,14 +1304,18 @@ int main(int argc, char **argv) {
                 OpenGLRenderer_RenderMeshInstanced(&renderer, rm, &inst, 1u, true);
             }
 
-            /* Criaturas con anatomía procedural real */
+            /* Criaturas con anatomía procedural real y orientación 3D completa sobre relieve */
             size_t pc = EcosystemVisual_GetDrawPackets(&replay.visual, packets, 64u);
             for (size_t i = 0; i < pc; ++i) {
                 EcosystemVisualDrawPacket *p = &packets[i];
                 const Mesh *body = p->bodyMesh ? p->bodyMesh : EcosystemVisual_FallbackMesh(&replay.visual);
                 if (!body) continue;
                 OpenGLRenderer_SetFurQuality(&renderer, true, true, 0);
-                OpenGLRenderer_ModelTransform(p->position, p->yaw * 57.29578f, p->scale, Vec3_Zero());
+                if (proceduralWorld) {
+                    OpenGLRenderer_ModelTransformQuat(p->position, p->orientation, p->scale, Vec3_Zero());
+                } else {
+                    OpenGLRenderer_ModelTransform(p->position, p->yaw * 57.29578f, p->scale, Vec3_Zero());
+                }
                 bool sk = p->deformer && p->skeleton && p->pose &&
                           OpenGLRenderer_SetMeshMorphSkinning(&renderer, body, p->deformer, p->skeleton,
                                                               p->pose, p->targetGraph, p->headJoint,
@@ -1247,6 +1340,11 @@ int main(int argc, char **argv) {
                 OpenGLRenderer_PopModelMatrix();
                 OpenGLRenderer_SetMeshSurfaceOverride(&renderer, NULL);
                 OpenGLRenderer_PopModelMatrix();
+            }
+
+            if (proceduralWorld) {
+                EnvironmentRenderer_RenderWater(&envRenderer, &camera, (float)replay.world.clock.seconds);
+                EnvironmentRenderer_RenderOverlays(&envRenderer, &camera);
             }
         }
 
@@ -1373,11 +1471,14 @@ int main(int argc, char **argv) {
             if (replay.initialized) {
                 const EcosystemEntity *fe = EcosystemWorld_Get(&replay.world, replay.focalId);
                 char rTxt[256];
-                snprintf(rTxt, sizeof(rTxt), "%.20s FP:%08llX %.0fX T:%.1fS",
-                         replay.loadedLabel,
-                         (unsigned long long)(replay.loadedFingerprint & 0xFFFFFFFFu),
-                         effReplaySpeed, replay.world.clock.seconds);
-                OpenGLRenderer_DrawText2D(lx + 10.0f, rpY + 30.0f, 1.00f, Color_Create(226, 240, 246, 255), rTxt);
+                const char *wTag = (replay.world.staticWorld && !replay.world.staticWorld->recipe.flat)
+                                   ? (replay.world.staticWorld->recipe.id[0] ? replay.world.staticWorld->recipe.id : "TERRAIN")
+                                   : "FLAT";
+                snprintf(rTxt, sizeof(rTxt), "%.12s %s S:%u(%s) %.1f/%.0fX",
+                         replay.loadedLabel, wTag, replay.episodeSeed,
+                         replay.isRecordedEvalSeed ? "VAL" : "DMO",
+                         replay.achievedSpeed, effReplaySpeed);
+                OpenGLRenderer_DrawText2D(lx + 10.0f, rpY + 28.0f, 0.90f, Color_Create(226, 240, 246, 255), rTxt);
                 if (fe) {
                     drawBar2D(lx + 10.0f, rpY + 48.0f, lw - 20.0f, 14.0f, "HP   ", fe->physiology.health, Color_Create(96, 214, 140, 235));
                     drawBar2D(lx + 10.0f, rpY + 64.0f, lw - 20.0f, 14.0f, "ENG  ", fe->physiology.energy, Color_Create(64, 210, 224, 235));
@@ -1487,6 +1588,7 @@ int main(int argc, char **argv) {
     if (ctrl->threadStarted) pthread_join(ctrl->thread, NULL);
 
     replayShutdown(&replay);
+    EnvironmentRenderer_Destroy(&envRenderer);
     for (unsigned i = 0; i < 64u; ++i) Mesh_Free(&cpuBodies[i]);
     free(cpuBodies);
     free(packets);

@@ -113,6 +113,9 @@ void EvolutionSpeciesConfig_InitDefault(EvolutionSpeciesConfig *cfg) {
     cfg->canAttackPhysically = false;
     cfg->waterInteraction = true;
     cfg->anatomicalOral = true;
+    cfg->groundLocomotion = true;
+    cfg->traversal = TraversalProfile_DefaultLand(cfg->radius);
+    cfg->hasCustomTraversal = false;
     cfg->tissueMass = 4.0f;
     cfg->physiology = CreaturePhysiology_Default();
     cfg->physiology.oldAge = 1300.0;
@@ -258,6 +261,58 @@ bool EvolutionSpeciesConfig_DeserializeJSON(const char *json, size_t length,
                     }
                 }
                 if (!sjTake(&r, '}')) return false;
+            } else if (strcmp(key, "traversal") == 0) {
+                if (!sjTake(&r, '{')) return false;
+                sjSpace(&r);
+                cfg.hasCustomTraversal = true;
+                if (r.p < r.end && *r.p != '}') {
+                    for (;;) {
+                        char tk[48]; double v = 0; bool bv = false;
+                        if (!sjString(&r, tk, sizeof(tk)) || !sjTake(&r, ':')) return false;
+                        if (strcmp(tk, "max_slope_degrees") == 0) {
+                            if (!sjNumber(&r, &v) || v < 5.0 || v > 75.0) return false;
+                            cfg.traversal.maxSlopeRadians = (float)(v * (3.14159265358979323846 / 180.0));
+                        } else if (strcmp(tk, "max_step_height") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.05 || v > 3.0) return false;
+                            cfg.traversal.maxStepHeight = (float)v;
+                        } else if (strcmp(tk, "max_wading_depth") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.0 || v > 3.0) return false;
+                            cfg.traversal.maxWadingDepth = (float)v;
+                        } else if (strcmp(tk, "uphill_speed_factor") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.2 || v > 1.0) return false;
+                            cfg.traversal.uphillSpeedFactor = (float)v;
+                        } else if (strcmp(tk, "downhill_speed_factor") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.4 || v > 1.2) return false;
+                            cfg.traversal.downhillSpeedFactor = (float)v;
+                        } else if (strcmp(tk, "wading_speed_factor") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.2 || v > 1.0) return false;
+                            cfg.traversal.wadingSpeedFactor = (float)v;
+                        } else if (strcmp(tk, "slope_energy_cost") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.0 || v > 4.0) return false;
+                            cfg.traversal.slopeEnergyCost = (float)v;
+                        } else if (strcmp(tk, "wading_energy_cost") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.0 || v > 4.0) return false;
+                            cfg.traversal.wadingEnergyCost = (float)v;
+                        } else if (strcmp(tk, "max_body_tilt_degrees") == 0) {
+                            if (!sjNumber(&r, &v) || v < 0.0 || v > 60.0) return false;
+                            cfg.traversal.maxBodyTiltRadians = (float)(v * (3.14159265358979323846 / 180.0));
+                        } else if (strcmp(tk, "can_wade") == 0) {
+                            if (!sjBool(&r, &bv)) return false;
+                            cfg.traversal.canWade = bv;
+                        } else if (strcmp(tk, "can_swim") == 0) {
+                            if (!sjBool(&r, &bv)) return false;
+                            cfg.traversal.canSwim = bv;
+                        } else if (strcmp(tk, "ground") == 0) {
+                            if (!sjBool(&r, &bv)) return false;
+                            cfg.groundLocomotion = bv;
+                        } else {
+                            setErr(error, errorSize, "Clave desconocida en traversal: '%s'", tk);
+                            return false;
+                        }
+                        if (!sjTake(&r, ',')) break;
+                    }
+                }
+                if (!sjTake(&r, '}')) return false;
             } else if (strcmp(key, "perception") == 0) {
                 if (!sjTake(&r, '{')) return false;
                 sjSpace(&r);
@@ -298,6 +353,12 @@ bool EvolutionSpeciesConfig_DeserializeJSON(const char *json, size_t length,
         setErr(error, errorSize, "Parámetros fisiológicos o reproductivos inválidos en especie '%s'", cfg.id);
         return false;
     }
+    if (!cfg.groundLocomotion) {
+        setErr(error, errorSize, "Especie '%s': locomoción puramente acuática/aérea no soportada en este hito", cfg.id);
+        return false;
+    }
+    cfg.traversal.footprintRadius = cfg.radius;
+    cfg.traversal.canSwim = false; /* V1: nado completo fuera de alcance; sólo vadeo somero. */
     cfg.valid = true;
     cfg.fingerprint = EvolutionSpeciesConfig_Fingerprint(&cfg);
     *out = cfg;
@@ -390,6 +451,8 @@ bool EvolutionSpeciesConfig_BuildEcosystemSpecies(const EvolutionSpeciesConfig *
     sp.brain.perception = cfg->perception;
     sp.metabolicProfile = mp;
     sp.tissueSubstance = ts;
+    sp.traversal = cfg->hasCustomTraversal ? cfg->traversal : TraversalProfile_DefaultLand(cfg->radius);
+    sp.traversal.footprintRadius = cfg->radius;
 
     *outSpecies = sp;
     return true;

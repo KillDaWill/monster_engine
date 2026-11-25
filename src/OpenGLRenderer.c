@@ -191,7 +191,7 @@ typedef struct OpenGLRendererData {
         GLuint program, vbo, vao;
         GLint useTintLocation, materialLocation;
         size_t capacity;
-        float (*packed)[12];
+        float (*packed)[16];
         bool failed;
     } instanced;
 } OpenGLRendererData;
@@ -2929,6 +2929,17 @@ void OpenGLRenderer_ModelTransform(Vector3 translation,float yawDegrees,float sc
     glScalef(scale,scale,scale);
     glTranslatef(-center.x,-center.y,-center.z);
 }
+void OpenGLRenderer_ModelTransformQuat(Vector3 translation,Quaternion orientation,float scale,Vector3 center) {
+    OpenGLRenderer_PushModelTranslation(translation.x,translation.y,translation.z);
+    Quaternion q=Quat_Normalize(orientation);
+    Vector3 x=Quat_RotateVector(q,Vec3_Create(1,0,0));
+    Vector3 y=Quat_RotateVector(q,Vec3_Create(0,1,0));
+    Vector3 z=Quat_RotateVector(q,Vec3_Create(0,0,1));
+    const GLfloat m[16]={x.x,x.y,x.z,0, y.x,y.y,y.z,0, z.x,z.y,z.z,0, 0,0,0,1};
+    glMultMatrixf(m);
+    glScalef(scale,scale,scale);
+    glTranslatef(-center.x,-center.y,-center.z);
+}
 void OpenGLRenderer_PopModelMatrix(void) {
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
@@ -3788,23 +3799,39 @@ static bool InitInstancedProgram(OpenGLRendererData* d) {
         "layout(location=3) in vec4 iPosScale;\n"
         "layout(location=4) in vec4 iYawBobLean;\n"
         "layout(location=5) in vec4 iTint;\n"
+        "layout(location=6) in vec4 iQuat;\n"
         "uniform int uUseTint;\n"
         "out vec3 vNormal;\n"
         "out vec3 vViewPos;\n"
         "out vec3 vColor;\n"
         "out float vSkinMask;\n"
+        "vec3 qrot(vec4 q, vec3 v) {\n"
+        "  vec3 t = 2.0 * cross(q.xyz, v);\n"
+        "  return v + q.w * t + cross(q.xyz, t);\n"
+        "}\n"
         "void main() {\n"
         "  float yaw = iYawBobLean.x;\n"
         "  float bob = iYawBobLean.y;\n"
         "  float lean = iYawBobLean.z;\n"
+        "  float sxScale = iPosScale.w;\n"
         "  float syScale = (iYawBobLean.w > 0.0) ? iYawBobLean.w : iPosScale.w;\n"
+        "  float szScale = (iQuat.w < -1.5) ? (-iQuat.w - 2.0) : iPosScale.w;\n"
         "  float cl = cos(lean), sl = sin(lean);\n"
         "  vec3 p = vec3(aPos.x, cl*aPos.y - sl*aPos.z, sl*aPos.y + cl*aPos.z);\n"
         "  vec3 n = vec3(aNormal.x, cl*aNormal.y - sl*aNormal.z, sl*aNormal.y + cl*aNormal.z);\n"
-        "  float cy = cos(yaw), sy = sin(yaw);\n"
-        "  vec3 pr = vec3(cy*p.x + sy*p.z, p.y, -sy*p.x + cy*p.z);\n"
-        "  vec3 pw = vec3(pr.x * iPosScale.w, pr.y * syScale, pr.z * iPosScale.w) + iPosScale.xyz + vec3(0.0, bob, 0.0);\n"
-        "  vec3 nw = normalize(vec3(cy*n.x + sy*n.z, n.y, -sy*n.x + cy*n.z));\n"
+        "  vec3 pw, nw;\n"
+        "  float qLen2 = dot(iQuat, iQuat);\n"
+        "  if (qLen2 > 0.25 && iQuat.w > -1.5) {\n"
+        "    vec4 qn = normalize(iQuat);\n"
+        "    vec3 ps = vec3(p.x * sxScale, p.y * syScale, p.z * szScale);\n"
+        "    pw = qrot(qn, ps) + iPosScale.xyz + vec3(0.0, bob, 0.0);\n"
+        "    nw = normalize(qrot(qn, vec3(n.x / max(sxScale, 1e-4), n.y / max(syScale, 1e-4), n.z / max(szScale, 1e-4))));\n"
+        "  } else {\n"
+        "    float cy = cos(yaw), sy = sin(yaw);\n"
+        "    vec3 pr = vec3(cy*p.x + sy*p.z, p.y, -sy*p.x + cy*p.z);\n"
+        "    pw = vec3(pr.x * sxScale, pr.y * syScale, pr.z * szScale) + iPosScale.xyz + vec3(0.0, bob, 0.0);\n"
+        "    nw = normalize(vec3(cy*n.x + sy*n.z, n.y, -sy*n.x + cy*n.z));\n"
+        "  }\n"
         "  vNormal = normalize(gl_NormalMatrix * nw);\n"
         "  vViewPos = (gl_ModelViewMatrix * vec4(pw, 1.0)).xyz;\n"
         "  vSkinMask = aColor.a;\n"
@@ -3934,7 +3961,7 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
     if(count>d->instanced.capacity) {
         size_t newCap=d->instanced.capacity?d->instanced.capacity*2:256;
         while(newCap<count)newCap*=2;
-        float (*p)[12]=realloc(d->instanced.packed,newCap*sizeof(*p));
+        float (*p)[16]=realloc(d->instanced.packed,newCap*sizeof(*p));
         if(!p){glBindBuffer(GL_ARRAY_BUFFER,(GLuint)prevBuf);glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,(GLuint)prevIdx);return false;}
         d->instanced.packed=p;d->instanced.capacity=newCap;
     }
@@ -3943,6 +3970,12 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
         row[0]=instances[i].position.x;row[1]=instances[i].position.y;row[2]=instances[i].position.z;row[3]=instances[i].scale;
         row[4]=instances[i].yaw;row[5]=instances[i].bobY;row[6]=instances[i].leanPitch;row[7]=instances[i].scaleY;
         row[8]=instances[i].tint.r/255.0f;row[9]=instances[i].tint.g/255.0f;row[10]=instances[i].tint.b/255.0f;row[11]=instances[i].tint.a/255.0f;
+        if(instances[i].useOrientation) {
+            Quaternion q=Quat_Normalize(instances[i].orientation);
+            row[12]=q.x;row[13]=q.y;row[14]=q.z;row[15]=q.w;
+        } else {
+            row[12]=0.0f;row[13]=0.0f;row[14]=0.0f;row[15]=0.0f;
+        }
     }
 
     glBindVertexArray(d->instanced.vao);
@@ -3991,16 +4024,19 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
     glVertexAttribDivisor(2,0);
 
     glBindBuffer(GL_ARRAY_BUFFER,d->instanced.vbo);
-    glBufferData(GL_ARRAY_BUFFER,count*12*sizeof(float),d->instanced.packed,GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,count*16*sizeof(float),d->instanced.packed,GL_STREAM_DRAW);
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3,4,GL_FLOAT,GL_FALSE,12*sizeof(float),(const void*)0);
+    glVertexAttribPointer(3,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)0);
     glVertexAttribDivisor(3,1);
     glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4,4,GL_FLOAT,GL_FALSE,12*sizeof(float),(const void*)(4*sizeof(float)));
+    glVertexAttribPointer(4,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)(4*sizeof(float)));
     glVertexAttribDivisor(4,1);
     glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5,4,GL_FLOAT,GL_FALSE,12*sizeof(float),(const void*)(8*sizeof(float)));
+    glVertexAttribPointer(5,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)(8*sizeof(float)));
     glVertexAttribDivisor(5,1);
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)(12*sizeof(float)));
+    glVertexAttribDivisor(6,1);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);
     glDrawElementsInstanced(GL_TRIANGLES,(GLsizei)mesh->indexCount,GL_UNSIGNED_INT,0,(GLsizei)count);

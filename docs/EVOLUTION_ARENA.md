@@ -30,6 +30,8 @@ make benchmark-neural
 # Simulador headless (ayuda completa y experimento ejemplo)
 ./demos/demo_evolution_arena_headless --help
 ./demos/demo_evolution_arena_headless \
+    --world=worlds/river_valley.world.json \
+    --world-seed=42 \
     --seed=42 \
     --days=12 \
     --brumacernos=16 \
@@ -42,7 +44,19 @@ make benchmark-neural
     --summary=build/evolution/summary.json \
     --history=build/evolution/history.csv \
     --export-brains=build/evolution/brains
+
+# Laboratorio visual 3D en mundo procedural con 500 criaturas y modo debug
+./demos/demo_evolution_arena \
+    --world=worlds/river_valley.world.json \
+    --world-seed=42 \
+    --brumacernos=400 --velkares=100 --plants=700 --capacity=640 \
+    --workers=6 --speed=4 --quality=medium
 ```
+
+Opciones de mundo procedural (disponibles en visual y headless):
+- `--world=ARCHIVO.world.json`: activa un territorio 3D (`river_valley`, `mountain_lakes`, `rocky_highlands`, `wetlands` o `flat`). Sin esta opción se conserva el modo plano compatible.
+- `--world-seed=N`: sobrescribe la semilla determinista del terreno independientemente de `--seed`.
+- `--terrain-debug=MODO` (visual): selecciona `natural`, `elevation`, `slope`, `hydrology`, `water_depth`, `biome`, `navigation` o `collision`.
 
 ## 3. Interfaz visual de laboratorio y controles
 
@@ -65,6 +79,7 @@ La interfaz visual (`demos/demo_evolution_arena`) reutiliza el renderizador Open
 | Flechas / Arrastre derecho / Rueda | Órbita y zoom de cámara |
 | `W`/`S`/`J`/`L` o Botón central | Desplazamiento (pan) de cámara |
 | `N` / `D` | Alternar inspector neuronal / overlays de depuración |
+| `A` / `Shift+D` / `Shift+Q` | Ciclar presets de mundo procedural / ciclar 8 modos de depuración de terreno / alternar wireframe del terreno |
 | `E` / `I` | Exportar / importar `*.brain.json` (con protección de sobrescritura) |
 | `C` / `V` | Copiar / pegar cerebro al portapapeles |
 | `X` | Intercambio atómico de cerebros entre dos criaturas (marca A, luego selecciona B y pulsa `X`) |

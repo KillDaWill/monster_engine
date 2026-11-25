@@ -46,7 +46,15 @@ static bool explore(CreatureMind *m, const AIWorld *w, const CreatureBodyState *
         float angle = CreatureMind_Random(m) * 6.2831853f,
               r = 4 + CreatureMind_Random(m) * m->profile->explorationRadius;
         Vector3 p = Vec3_Add(b->position, Vec3_Create(sinf(angle) * r, 0, cosf(angle) * r));
-        if (AIWorld_Walkable(w, p, b->capabilities.clearance, b->capabilities.swimming)) {
+        if (w->worldStatic && !w->worldStatic->isFlat) {
+            SurfaceHit hit;
+            if (!World_SampleSurface(w->worldStatic, p, &hit)) continue;
+            p = hit.position;
+            if (AIWorld_CanTraverse(w, p, &b->capabilities.traversal)) {
+                m->destination = p;
+                return true;
+            }
+        } else if (AIWorld_Walkable(w, p, b->capabilities.clearance, b->capabilities.swimming)) {
             m->destination = p;
             return true;
         }
@@ -205,43 +213,97 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         m->interactionPhase=INTERACTION_APPROACH;
         if(Vec3_Distance(e->position,m->approachResourcePosition)>.15f)m->destinationValid=false;
         if(!m->destinationValid) {
-            Vector3 d=Vec3_Sub(b->position,e->position);d.y=0;
-            if(Vec3_LengthSq(d)<.001f)d=Vec3_Create(0,0,1);
-            float baseAngle=atan2f(d.x,d.z)+(float)m->repositionAttempts*.6f;
-            float offset=object&&object->walkable?fmaxf(.1f,b->capabilities.mouthForward):
-                e->radius+(Vec3_Length(planar)<e->radius+b->capabilities.clearance+2?b->capabilities.bankClearance+.02f:b->capabilities.clearance+.08f);
-            Vector3 bestBank=Vec3_Add(e->position,Vec3_Scale(Vec3_Create(sinf(baseAngle),0,cosf(baseAngle)),offset));
-            bestBank.y=b->position.y;
-            if(w->spatial && !food) {
-                static const float angleOffsets[7]={0.f,.45f,-.45f,.90f,-.90f,1.40f,-1.40f};
-                float bestCost=1e30f;
-                float checkR=fminf(b->capabilities.clearance,fmaxf(.2f,b->capabilities.bankClearance));
+            Vector3 bestBank;
+            if (!food && object && object->shoreSiteIndex > 0u && w->worldStatic &&
+                object->shoreSiteIndex <= w->worldStatic->hydrology.shoreSiteCount) {
+                /* Orilla natural irregular: aproximarse al punto real de ribera y desplazar
+                 * lateralmente sobre el terreno real si hay congestión de bebedores. */
+                const WorldShoreSite *site = &w->worldStatic->hydrology.shoreSites[object->shoreSiteIndex - 1u];
+                bestBank = site->bankApproachPoint;
+                Vector3 tangent = Vec3_Create(-site->bankNormal.z, 0.0f, site->bankNormal.x);
+                static const float lateralOffsets[5] = {0.0f, 1.1f, -1.1f, 2.2f, -2.2f};
+                float bestCost = 1e30f;
                 uint32_t nearby[64];
-                bool ov=false;
-                unsigned nearCount=AIWorld_QuerySlotsRadius(w,AI_SPATIAL_MASK_CREATURES,e->position,
-                    offset+b->capabilities.clearance+2.0f,nearby,64u,&ov);
-                for(unsigned ci=0;ci<7u;++ci) {
-                    float a=baseAngle+angleOffsets[ci];
-                    Vector3 cand=Vec3_Add(e->position,Vec3_Create(sinf(a)*offset,0,cosf(a)*offset));
-                    cand.y=b->position.y;
-                    if(!AIWorld_Walkable(w,cand,checkR,b->capabilities.swimming))continue;
-                    if(ci>0u && !AIWorld_Walkable(w,cand,b->capabilities.clearance,b->capabilities.swimming))continue;
-                    float travelCost=Vec3_Distance(b->position,cand);
-                    float crowdCost=0.f;
-                    for(unsigned ni=0;ni<nearCount;++ni) {
-                        const AIWorldObject *other=AIWorld_At(w,nearby[ni]);
-                        if(!other||!other->active||other->id==m->self)continue;
-                        float sep=b->capabilities.clearance+other->radius+0.12f;
-                        float ox=cand.x-other->position.x,oz=cand.z-other->position.z;
-                        float d2=ox*ox+oz*oz;
-                        if(d2<sep*sep) {
-                            crowdCost+=3.5f*(1.0f-sqrtf(d2)/sep)+1.0f;
-                        }
+                bool ov = false;
+                unsigned nearCount = w->spatial
+                    ? AIWorld_QuerySlotsRadius(w, AI_SPATIAL_MASK_CREATURES, site->bankApproachPoint,
+                                               b->capabilities.clearance + 3.2f, nearby, 64u, &ov)
+                    : 0u;
+                TraversalProfile bankProf = b->capabilities.traversal;
+                bankProf.footprintRadius = fminf(b->capabilities.clearance, fmaxf(0.25f, b->capabilities.bankClearance));
+                for (unsigned ci = 0; ci < 5u; ++ci) {
+                    float lat = lateralOffsets[ci] + (float)m->repositionAttempts * 0.65f;
+                    Vector3 cand = Vec3_Add(site->bankApproachPoint, Vec3_Scale(tangent, lat));
+                    SurfaceHit gh;
+                    if (!World_SampleSurface(w->worldStatic, cand, &gh)) continue;
+                    cand = gh.position;
+                    if (!AIWorld_CanTraverse(w, cand, &bankProf)) continue;
+                    float travelCost = Vec3_Distance(b->position, cand);
+                    float crowdCost = 0.0f;
+                    for (unsigned ni = 0; ni < nearCount; ++ni) {
+                        const AIWorldObject *other = AIWorld_At(w, nearby[ni]);
+                        if (!other || !other->active || other->id == m->self) continue;
+                        float sep = b->capabilities.clearance + other->radius + 0.12f;
+                        float ox = cand.x - other->position.x, oz = cand.z - other->position.z;
+                        float d2 = ox * ox + oz * oz;
+                        if (d2 < sep * sep) crowdCost += 3.5f * (1.0f - sqrtf(d2) / sep) + 1.0f;
                     }
-                    float cost=travelCost+crowdCost;
-                    if(cost<bestCost) {
-                        bestCost=cost;
-                        bestBank=cand;
+                    float cost = travelCost + crowdCost;
+                    if (cost < bestCost) {
+                        bestCost = cost;
+                        bestBank = cand;
+                    }
+                }
+            } else {
+                Vector3 d=Vec3_Sub(b->position,e->position);d.y=0;
+                if(Vec3_LengthSq(d)<.001f)d=Vec3_Create(0,0,1);
+                float baseAngle=atan2f(d.x,d.z)+(float)m->repositionAttempts*.6f;
+                float offset=object&&object->walkable?fmaxf(.1f,b->capabilities.mouthForward):
+                    e->radius+(Vec3_Length(planar)<e->radius+b->capabilities.clearance+2?b->capabilities.bankClearance+.02f:b->capabilities.clearance+.08f);
+                bestBank=Vec3_Add(e->position,Vec3_Scale(Vec3_Create(sinf(baseAngle),0,cosf(baseAngle)),offset));
+                if (w->worldStatic && !w->worldStatic->isFlat) {
+                    SurfaceHit gh;
+                    if (World_SampleSurface(w->worldStatic, bestBank, &gh)) bestBank.y = gh.position.y;
+                } else {
+                    bestBank.y = b->position.y;
+                }
+                if(w->spatial && !food) {
+                    static const float angleOffsets[7]={0.f,.45f,-.45f,.90f,-.90f,1.40f,-1.40f};
+                    float bestCost=1e30f;
+                    float checkR=fminf(b->capabilities.clearance,fmaxf(.2f,b->capabilities.bankClearance));
+                    uint32_t nearby[64];
+                    bool ov=false;
+                    unsigned nearCount=AIWorld_QuerySlotsRadius(w,AI_SPATIAL_MASK_CREATURES,e->position,
+                        offset+b->capabilities.clearance+2.0f,nearby,64u,&ov);
+                    for(unsigned ci=0;ci<7u;++ci) {
+                        float a=baseAngle+angleOffsets[ci];
+                        Vector3 cand=Vec3_Add(e->position,Vec3_Create(sinf(a)*offset,0,cosf(a)*offset));
+                        if (w->worldStatic && !w->worldStatic->isFlat) {
+                            SurfaceHit gh;
+                            if (!World_SampleSurface(w->worldStatic, cand, &gh)) continue;
+                            cand.y = gh.position.y;
+                        } else {
+                            cand.y=b->position.y;
+                        }
+                        if(!AIWorld_Walkable(w,cand,checkR,b->capabilities.swimming))continue;
+                        if(ci>0u && !AIWorld_Walkable(w,cand,b->capabilities.clearance,b->capabilities.swimming))continue;
+                        float travelCost=Vec3_Distance(b->position,cand);
+                        float crowdCost=0.f;
+                        for(unsigned ni=0;ni<nearCount;++ni) {
+                            const AIWorldObject *other=AIWorld_At(w,nearby[ni]);
+                            if(!other||!other->active||other->id==m->self)continue;
+                            float sep=b->capabilities.clearance+other->radius+0.12f;
+                            float ox=cand.x-other->position.x,oz=cand.z-other->position.z;
+                            float d2=ox*ox+oz*oz;
+                            if(d2<sep*sep) {
+                                crowdCost+=3.5f*(1.0f-sqrtf(d2)/sep)+1.0f;
+                            }
+                        }
+                        float cost=travelCost+crowdCost;
+                        if(cost<bestCost) {
+                            bestCost=cost;
+                            bestBank=cand;
+                        }
                     }
                 }
             }
@@ -316,12 +378,15 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
         r = fminf(r, fmaxf(.2f, b->capabilities.bankClearance));
     if (!m->destinationValid || fabsf(m->navigation.clearance - r) > .3f ||
         m->navigation.revision != w->revision) {
-        if (!CreatureNavigation_Plan(&m->navigation, w, b->position, m->destination, r,
-                                     b->capabilities.swimming)) {
+        TraversalProfile navProf = b->capabilities.traversal;
+        if (navProf.maxSlopeRadians <= 0.01f) navProf = TraversalProfile_DefaultLand(r);
+        navProf.footprintRadius = r;
+        navProf.canSwim = b->capabilities.swimming;
+        if (!CreatureNavigation_PlanWithProfile(&m->navigation, w, b->position, m->destination, &navProf)) {
             CreatureActions_Fail(m);
             /* La huella direccional de una orilla puede ser menor que el disco
              * de planificación. Salir por la huella anterior antes de replantear. */
-            if(!AIWorld_Walkable(w,b->position,r,b->capabilities.swimming)) {
+            if(!AIWorld_CanTraverse(w,b->position,&navProf)) {
                 m->retreating=true;
                 m->retreatStart=b->position;
                 m->retreatGoal=Vec3_Sub(b->position,
@@ -350,10 +415,12 @@ void CreatureActions_Update(CreatureMind *m, const AIWorld *w, const CreatureBod
     }
     if (status == NAVIGATION_ARRIVED) {
         if (m->action == ACTION_APPROACH_WATER || m->action==ACTION_APPROACH_FOOD) {
+            const AIWorldObject *tgtObj = AIWorld_Get(w, m->target);
             m->intent.lookAt = true;
-            m->intent.lookTarget =
-                Vec3_Add(e->position,
-                         Vec3_Scale(Vec3_Normalize(Vec3_Sub(b->position, e->position)), e->radius));
+            m->intent.lookTarget = (m->interaction.valid && tgtObj && tgtObj->shoreSiteIndex > 0u)
+                ? m->interaction.position
+                : Vec3_Add(e->position,
+                           Vec3_Scale(Vec3_Normalize(Vec3_Sub(b->position, e->position)), e->radius));
             if(m->interactionStarted==0)m->interactionStarted=m->time;
             if (m->time - m->interactionStarted > 8)
                 CreatureActions_Fail(m);

@@ -6,6 +6,7 @@
 #include "InteractionTarget.h"
 #include "AISpatialIndex.h"
 #include "MoleculeRegistry.h"
+#include "WorldCollision.h"
 #include <stdint.h>
 #define AI_WORLD_CAPACITY 128
 typedef uint32_t AIObjectId;
@@ -27,12 +28,17 @@ typedef struct AIWorldObject {
     float hardness;
     float availabilityFraction;
     SensorySignature sensorySignature;
+    /* Metadatos de orilla natural procedural (0 si es recurso puntual/disco legado). */
+    uint16_t waterBodyId;
+    uint32_t shoreSiteIndex; /**< Índice 1-based en WorldStaticData->hydrology.shoreSites. */
+    Vector3 bankApproachPoint;
 } AIWorldObject;
 typedef struct AIWorld {
     AIWorldObject objects[AI_WORLD_CAPACITY];
     AIWorldObject *storage; /**< NULL usa almacenamiento heredado sin heap. */
     AISpatialIndex *spatial; /**< Índice espacial y hash O(1) cuando se usa InitCapacity. */
     void *navCache; /**< Caché compartida de ocupación estática para A* (propiedad de AIWorld). */
+    const WorldStaticData *worldStatic; /**< Préstamo inmutable propiedad del dueño de AIWorld (NULL = plano). */
     unsigned capacity;
     AIObjectId nextId;
     unsigned revision;
@@ -88,10 +94,16 @@ unsigned AIWorld_QuerySlotsSegment(const AIWorld *, uint32_t layerMask, Vector3 
 bool AIWorld_LineOfSight(const AIWorld *, Vector3, Vector3, AIObjectId ignore);
 /** @brief Barrido volumétrico contra obstáculos y oclusores cilíndricos. */
 bool AIWorld_ClearSegment(const AIWorld *,Vector3,Vector3,float radius,AIObjectId ignore);
-/** @brief Espacio libre para disco conservador XZ. */
+/** @brief Vincula datos estáticos del mundo procedural (préstamo garantizado por el propietario). */
+void AIWorld_SetStaticWorld(AIWorld *, const WorldStaticData *);
+/** @brief Espacio libre para disco conservador XZ (y terreno/rocas/agua si worldStatic != NULL). */
 bool AIWorld_Walkable(const AIWorld *, Vector3, float clearance, bool swimming);
 /** @brief Barrido conservador de segmento para navegación. */
 bool AIWorld_SegmentWalkable(const AIWorld *, Vector3, Vector3, float, bool);
+/** @brief Validación completa de huella con perfil declarativo de pendiente/vadeo/rocas. */
+bool AIWorld_CanTraverse(const AIWorld *, Vector3, const TraversalProfile *);
+/** @brief Barrido completo de segmento con perfil declarativo sobre terreno, agua y obstáculos. */
+bool AIWorld_SegmentTraversable(const AIWorld *, Vector3, Vector3, const TraversalProfile *, TraversalResult *);
 /** @brief Selecciona contacto sobre disco superficial a la altura real del recurso. */
 bool AIWorld_InteractionTarget(const AIWorld *, AIObjectId, Vector3 mouth, float tolerance, InteractionTarget *);
 /** @brief Valida interacción 3D desde boca, orilla cercana y visión sin

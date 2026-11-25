@@ -60,6 +60,11 @@ void run_creature_actions_tests(void);
 
 void run_anatomical_reach_tests(void);
 void run_ecosystem_tests(void);
+void run_terrain_heightfield_tests(void);
+void run_world_hydrology_tests(void);
+void run_world_traversal_tests(void);
+void run_world_water_access_tests(void);
+void run_world_snapshot_tests(void);
 void run_molecular_metabolism_tests(void);
 void run_neural_v2_and_molecular_world_tests(void);
 void run_brain_evolution_lab_tests(void);
@@ -72,6 +77,11 @@ void run_evolution_scalability_tests(void);
 void run_creature_visual_variation_tests(void);
 void run_ecosystem_creatures_tests(void);
 int main(void) {
+    run_terrain_heightfield_tests();
+    run_world_hydrology_tests();
+    run_world_traversal_tests();
+    run_world_water_access_tests();
+    run_world_snapshot_tests();
     run_molecular_metabolism_tests();
     run_neural_v2_and_molecular_world_tests();
     run_brain_evolution_lab_tests();

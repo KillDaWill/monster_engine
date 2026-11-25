@@ -4,6 +4,8 @@
  */
 #include "EvolutionEnvironment.h"
 #include "CreatureNavigation.h"
+#include "WorldStaticData.h"
+#include "WorldPlacement.h"
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -157,6 +159,16 @@ uint64_t EvolutionEnvironment_Fingerprint(const EvolutionEnvironmentConfig *cfg)
         fnv1aBytes(&h, b->speciesPath, strlen(b->speciesPath) + 1u);
         fnv1aBytes(&h, &b->count, sizeof(b->count));
     }
+    if (cfg->hasWorld) {
+        uint8_t hw = 1u;
+        uint32_t pol = (uint32_t)cfg->worldSeedPolicy;
+        uint8_t tap = cfg->terrainAwarePlacement ? 1u : 0u;
+        fnv1aBytes(&h, &hw, 1u);
+        fnv1aBytes(&h, &pol, sizeof(pol));
+        fnv1aBytes(&h, &tap, 1u);
+        fnv1aBytes(&h, &cfg->cachedWorldRecipe.generatorVersion, sizeof(cfg->cachedWorldRecipe.generatorVersion));
+        fnv1aBytes(&h, &cfg->cachedWorldRecipe.recipeHash, sizeof(cfg->cachedWorldRecipe.recipeHash));
+    }
     return h;
 }
 
@@ -188,8 +200,25 @@ bool EvolutionEnvironment_DeserializeJSON(const char *json, size_t length,
             } else if (strcmp(key, "description") == 0) {
                 if (!ejString(&r, cfg.description, sizeof(cfg.description))) return false;
             } else if (strcmp(key, "arena_size") == 0) {
-                double v = 0; if (!ejNumber(&r, &v) || v < 12.0 || v > 400.0) return false;
+                double v = 0; if (!ejNumber(&r, &v) || v < 12.0 || v > 1024.0) return false;
                 cfg.arenaSize = (float)v;
+            } else if (strcmp(key, "world") == 0) {
+                if (!ejNull(&r)) {
+                    if (!ejString(&r, cfg.worldPath, sizeof(cfg.worldPath))) return false;
+                    cfg.hasWorld = (cfg.worldPath[0] != '\0');
+                }
+            } else if (strcmp(key, "world_seed_policy") == 0) {
+                char pol[32];
+                if (!ejString(&r, pol, sizeof(pol))) return false;
+                if (strcmp(pol, "fixed") == 0) cfg.worldSeedPolicy = WORLD_SEED_POLICY_FIXED;
+                else if (strcmp(pol, "per_episode") == 0) cfg.worldSeedPolicy = WORLD_SEED_POLICY_PER_EPISODE;
+                else { setErr(error, errorSize, "world_seed_policy desconocida: '%s'", pol); return false; }
+            } else if (strcmp(key, "resource_placement") == 0) {
+                char mode[32];
+                if (!ejString(&r, mode, sizeof(mode))) return false;
+                if (strcmp(mode, "terrain_aware") == 0) cfg.terrainAwarePlacement = true;
+                else if (strcmp(mode, "flat") == 0 || strcmp(mode, "legacy") == 0) cfg.terrainAwarePlacement = false;
+                else { setErr(error, errorSize, "resource_placement desconocido: '%s'", mode); return false; }
             } else if (strcmp(key, "episode_seconds") == 0) {
                 double v = 0; if (!ejNumber(&r, &v) || v < 10.0 || v > 36000.0) return false;
                 cfg.episodeSeconds = v;
@@ -336,6 +365,17 @@ bool EvolutionEnvironment_DeserializeJSON(const char *json, size_t length,
         return false;
     }
     if (!cfg.name[0]) snprintf(cfg.name, sizeof(cfg.name), "%s", cfg.id);
+    if (cfg.hasWorld) {
+        if (!WorldRecipe_Preset(cfg.worldPath, &cfg.cachedWorldRecipe)) {
+            if (!WorldRecipe_LoadFile(cfg.worldPath, &cfg.cachedWorldRecipe, error, errorSize)) {
+                return false;
+            }
+        }
+        if (cfg.arenaSize <= 36.1f && cfg.cachedWorldRecipe.size > 0.0f) {
+            cfg.arenaSize = cfg.cachedWorldRecipe.size;
+        }
+        cfg.terrainAwarePlacement = !cfg.cachedWorldRecipe.flat;
+    }
     cfg.valid = true;
     cfg.fingerprint = EvolutionEnvironment_Fingerprint(&cfg);
     *out = cfg;
@@ -413,25 +453,53 @@ bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
         return false;
     }
 
+    /* Resolver y compartir el mundo estático procedural si el entorno lo define. */
+    const WorldStaticData *staticWorld = NULL;
+    float effectiveArenaSize = env->arenaSize;
+    if (env->hasWorld && env->cachedWorldRecipe.valid) {
+        WorldRecipe epRecipe = env->cachedWorldRecipe;
+        if (env->worldSeedPolicy == WORLD_SEED_POLICY_PER_EPISODE) {
+            epRecipe.seed = WorldSeed_Derive(episodeSeed ? episodeSeed : 1u, WORLD_SEED_TERRAIN, 1u);
+        }
+        epRecipe.recipeHash = WorldRecipe_Fingerprint(&epRecipe);
+        staticWorld = WorldStaticCache_Acquire(&epRecipe, error, errorSize);
+        if (!staticWorld) {
+            return false;
+        }
+        effectiveArenaSize = epRecipe.size;
+    }
+    bool procedural = (staticWorld != NULL && !staticWorld->isFlat);
+
     unsigned totalBg = 0u;
     for (unsigned i = 0; i < env->backgroundGroupCount; ++i) totalBg += env->backgrounds[i].count;
     unsigned totalRes = 0u;
     for (unsigned i = 0; i < env->resourceGroupCount; ++i) totalRes += env->resources[i].count;
 
+    unsigned extraHydroRes = procedural
+                                 ? (staticWorld->hydrology.bodyCount + staticWorld->hydrology.shoreSiteCount + 32u)
+                                 : 0u;
     unsigned popCap = 8u + totalBg * 2u;
-    unsigned resCap = 16u + totalRes + popCap;
+    unsigned resCap = 16u + totalRes + popCap + extraHydroRes;
     unsigned spCap = 2u + env->backgroundGroupCount;
-    float halfSize = env->arenaSize * 0.5f;
+    float halfSize = effectiveArenaSize * 0.5f;
 
     if (!EcosystemWorld_InitArena(w, popCap, resCap, spCap, halfSize,
                                   episodeSeed ? episodeSeed : 1u, env->stepSeconds, env->daySeconds)) {
+        WorldStaticData_Release(staticWorld);
         setErr(error, errorSize, "No se pudo inicializar mundo de episodio");
         return false;
+    }
+    if (staticWorld) {
+        EcosystemWorld_AttachStaticWorld(w, staticWorld);
+        WorldStaticData_Release(staticWorld);
     }
     if (!EcosystemWorld_EnableMolecularMetabolism(w, db)) {
         EcosystemWorld_Free(w);
         setErr(error, errorSize, "No se pudo habilitar metabolismo molecular en episodio");
         return false;
+    }
+    if (procedural) {
+        EcosystemWorld_RegisterNaturalWaterBodies(w);
     }
     w->defaultController = CREATURE_CONTROLLER_NEURAL;
     w->disablePhysicalMutation = true;
@@ -499,6 +567,12 @@ bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
             if (!sub) continue;
             bool isLiquid = (sub->phase == SUBSTANCE_PHASE_LIQUID);
             if ((pass == 0 && !isLiquid) || (pass == 1 && isLiquid)) continue;
+            /* En mundos procedurales con hidrología natural activa, el agua limpia natural
+             * proviene de los lagos y ríos (evitar discos artificiales superpuestos). */
+            if (procedural && isLiquid && strcmp(rg->substanceId, "clean_water") == 0 &&
+                w->staticWorld->hydrology.shoreSiteCount > 0u) {
+                continue;
+            }
 
             float maxD = fminf(rg->maxDistFromCenter, bound - rg->radius - 0.5f);
             float minD = fminf(rg->minDistFromCenter, maxD);
@@ -553,7 +627,15 @@ bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
                     }
 
                     float clearR = isLiquid ? (rg->radius + 1.4f) : (rg->radius + 0.4f);
-                    if (!AIWorld_Walkable(&w->observations, p, clearR, false)) continue;
+                    if (procedural) {
+                        WorldHabitatFilter hf = WorldHabitatFilter_Vegetation(clearR);
+                        hf.minFertility = (attempt < 48u) ? 0.12f : 0.0f;
+                        hf.minMoisture = 0.0f;
+                        Vector3 nrm;
+                        if (!WorldPlacement_ValidatePoint(w->staticWorld, p.x, p.z, &hf, &p, &nrm)) continue;
+                    } else {
+                        if (!AIWorld_Walkable(&w->observations, p, clearR, false)) continue;
+                    }
 
                     EcosystemResource res = EcosystemResource_FromSubstance(
                         sub, rg->initialMass, rg->maxMass, rg->regenPolicy, rg->regenRate,
@@ -570,7 +652,8 @@ bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
         }
     }
 
-    /* 2) Colocar obstáculos. */
+    /* 2) Colocar obstáculos adicionales (en plano; en procedural ya existen rocas geológicas). */
+    if (!procedural) {
     for (unsigned i = 0; i < env->obstacleCount; ++i) {
         for (unsigned attempt = 0; attempt < 64u; ++attempt) {
             float rad = randRange(&rng, env->obstacleMinRadius, env->obstacleMaxRadius);
@@ -581,17 +664,30 @@ bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
             if (EcosystemWorld_AddObstacle(w, p, rad, env->obstacleHeight)) break;
         }
     }
+    }
 
-    /* 3) Spawnear individuo focal cerca del centro con condiciones iniciales aleatorizadas. */
+    /* 3) Spawnear individuo focal cerca del centro o de una orilla accesible en terreno procedural. */
     AIObjectId focalId = 0u;
     Vector3 focalPos = Vec3_Zero();
+    Vector3 spawnAnchor = Vec3_Zero();
+    if (procedural && w->staticWorld->hydrology.shoreSiteCount > 0u) {
+        const WorldShoreSite *anchorShore = WorldHydrology_FindNearestShore(&w->staticWorld->hydrology,
+                                                                            Vec3_Zero(), halfSize, 0u);
+        if (anchorShore) spawnAnchor = anchorShore->bankApproachPoint;
+    }
     for (unsigned attempt = 0; attempt < 256u && !focalId; ++attempt) {
         float ang = randRange(&rng, 0.0f, 6.2831853f);
-        float dist = (attempt == 0u) ? 0.0f : randRange(&rng, 0.0f, env->focalSpawnRadius);
-        Vector3 p = Vec3_Create(sinf(ang) * dist, 0.0f, cosf(ang) * dist);
+        float spread = procedural ? fmaxf(env->focalSpawnRadius, 6.0f + (float)(attempt / 32u) * 6.0f)
+                                  : env->focalSpawnRadius;
+        float dist = (attempt == 0u) ? 0.0f : randRange(&rng, 0.0f, spread);
+        Vector3 p = Vec3_Create(spawnAnchor.x + sinf(ang) * dist, 0.0f, spawnAnchor.z + cosf(ang) * dist);
         float energy = randRange(&rng, env->focalEnergyMin, env->focalEnergyMax);
-        focalId = EcosystemWorld_Spawn(w, 1u, p, env->focalAge, energy, NULL);
-        if (focalId) focalPos = p;
+        focalId = procedural ? EcosystemWorld_SpawnOnGround(w, 1u, p.x, p.z, env->focalAge, energy, NULL)
+                             : EcosystemWorld_Spawn(w, 1u, p, env->focalAge, energy, NULL);
+        if (focalId) {
+            const EcosystemEntity *fe = EcosystemWorld_GetConst(w, focalId);
+            focalPos = fe ? fe->body.position : p;
+        }
     }
     if (!focalId) {
         EcosystemWorld_Free(w);
@@ -626,7 +722,8 @@ bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
                 float dist = randRange(&rng, minD, maxD);
                 Vector3 p = Vec3_Add(focalPos, Vec3_Create(sinf(ang) * dist, 0.0f, cosf(ang) * dist));
                 if (fabsf(p.x) > bound - 1.0f || fabsf(p.z) > bound - 1.0f) continue;
-                bgId = EcosystemWorld_Spawn(w, 2u + bi, p, 240.0, bg->initialEnergy, NULL);
+                bgId = procedural ? EcosystemWorld_SpawnOnGround(w, 2u + bi, p.x, p.z, 240.0, bg->initialEnergy, NULL)
+                                  : EcosystemWorld_Spawn(w, 2u + bi, p, 240.0, bg->initialEnergy, NULL);
             }
             if (bgId) {
                 EcosystemEntity *be = EcosystemWorld_Get(w, bgId);

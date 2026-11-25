@@ -6,9 +6,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Vector3 Yaw(Vector3 v, float a) {
+static Vector3 YawFlat(Vector3 v, float a) {
     float c = cosf(a), s = sinf(a);
     return Vec3_Create(c * v.x + s * v.z, v.y, -s * v.x + c * v.z);
+}
+
+static bool isFlatNormal(const EcosystemEntity *e) {
+    float nLenSq = Vec3_LengthSq(e->body.groundNormal);
+    return (nLenSq < 0.25f || e->body.groundNormal.y >= 0.9999f);
+}
+
+static Quaternion bodyFrame(const EcosystemEntity *e) {
+    if (isFlatNormal(e)) {
+        return Quat_FromAxisAngle(Vec3_Create(0.0f, 1.0f, 0.0f), e->body.yaw);
+    }
+    Quaternion q = e->body.orientation;
+    if (q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w > 0.5f) {
+        return q;
+    }
+    return World_BuildBodyFrame(e->body.yaw, e->body.groundNormal, 0.65f);
 }
 
 float EcosystemAnatomy_ModelLength(const CreaturePhenotype *p) {
@@ -137,26 +153,36 @@ void EcosystemAnatomy_UpdateProfiled(EcosystemEntity *e, float dt, EvolutionProf
         (e->mind.action == ACTION_EAT || e->mind.action == ACTION_DRINK) ? profile->maximumCrouch * 0.45f : 0.0f;
 
     /* Camino rápido sin interacción oral cuando la postura cervical ya está asentada en reposo. */
+    bool flat = isFlatNormal(e);
+    Quaternion orient = flat ? Quat_Identity() : bodyFrame(e);
     if (!active && a->settled && fabsf(desiredCrouch - a->crouch) < 1e-4f) {
         a->crouch = desiredCrouch;
         Vector3 crouchShift = Vec3_Create(0.0f, -a->crouch, 0.0f);
         Vector3 mouthModel = Vec3_Add(tmpl->neutralMouthLocal, crouchShift);
         Vector3 pivotModel = Vec3_Add(tmpl->neutralPivotLocal, crouchShift);
         Vector3 elbowModel = Vec3_Add(tmpl->neutralElbowLocal, crouchShift);
-        float c = cosf(e->body.yaw), s = sinf(e->body.yaw);
-        Vector3 mRel = Vec3_Scale(Vec3_Sub(mouthModel, a->center), scale);
-        Vector3 mouth = Vec3_Add(e->body.position,
-                                 Vec3_Create(c * mRel.x + s * mRel.z, mRel.y, -s * mRel.x + c * mRel.z));
+        Vector3 mouth, dir, pivot, elbow;
+        if (flat) {
+            float c = cosf(e->body.yaw), s = sinf(e->body.yaw);
+            Vector3 mRel = Vec3_Scale(Vec3_Sub(mouthModel, a->center), scale);
+            mouth = Vec3_Add(e->body.position, Vec3_Create(c * mRel.x + s * mRel.z, mRel.y, -s * mRel.x + c * mRel.z));
+            Vector3 d = tmpl->neutralMouthDir;
+            dir = Vec3_Create(c * d.x + s * d.z, d.y, -s * d.x + c * d.z);
+            Vector3 pRel = Vec3_Scale(Vec3_Sub(pivotModel, a->center), scale);
+            pivot = Vec3_Add(e->body.position, Vec3_Create(c * pRel.x + s * pRel.z, pRel.y, -s * pRel.x + c * pRel.z));
+            Vector3 eRel = Vec3_Scale(Vec3_Sub(elbowModel, a->center), scale);
+            elbow = Vec3_Add(e->body.position, Vec3_Create(c * eRel.x + s * eRel.z, eRel.y, -s * eRel.x + c * eRel.z));
+        } else {
+            mouth = World_LocalToWorld(mouthModel, a->center, scale, orient, e->body.position);
+            dir = World_LocalDirToWorld(tmpl->neutralMouthDir, orient);
+            pivot = World_LocalToWorld(pivotModel, a->center, scale, orient, e->body.position);
+            elbow = World_LocalToWorld(elbowModel, a->center, scale, orient, e->body.position);
+        }
         e->oralMotion = dt > 0.0f ? Vec3_Distance(mouth, e->body.mouth) / dt : 0.0f;
         e->body.mouth = mouth;
-        Vector3 d = tmpl->neutralMouthDir;
-        e->body.mouthDirection = Vec3_Create(c * d.x + s * d.z, d.y, -s * d.x + c * d.z);
-        Vector3 pRel = Vec3_Scale(Vec3_Sub(pivotModel, a->center), scale);
-        e->oralPivot = Vec3_Add(e->body.position,
-                                Vec3_Create(c * pRel.x + s * pRel.z, pRel.y, -s * pRel.x + c * pRel.z));
-        Vector3 eRel = Vec3_Scale(Vec3_Sub(elbowModel, a->center), scale);
-        e->oralElbow = Vec3_Add(e->body.position,
-                                Vec3_Create(c * eRel.x + s * eRel.z, eRel.y, -s * eRel.x + c * eRel.z));
+        e->body.mouthDirection = dir;
+        e->oralPivot = pivot;
+        e->oralElbow = elbow;
         e->body.reach = (ReachResult){
             .status = REACH_INVALID,
             .mouth = mouth,
@@ -166,11 +192,17 @@ void EcosystemAnatomy_UpdateProfiled(EcosystemEntity *e, float dt, EvolutionProf
     }
 
     if (active) {
-        target.position = Vec3_Add(a->center,
-                                   Vec3_Scale(Yaw(Vec3_Sub(target.position, e->body.position), -e->body.yaw),
-                                              1.0f / scale));
-        target.approach = Yaw(target.approach, -e->body.yaw);
-        target.normal = Yaw(target.normal, -e->body.yaw);
+        if (flat) {
+            target.position = Vec3_Add(a->center,
+                                       Vec3_Scale(YawFlat(Vec3_Sub(target.position, e->body.position), -e->body.yaw),
+                                                  1.0f / scale));
+            target.approach = YawFlat(target.approach, -e->body.yaw);
+            target.normal = YawFlat(target.normal, -e->body.yaw);
+        } else {
+            target.position = World_WorldToLocal(target.position, a->center, scale, orient, e->body.position);
+            target.approach = World_WorldDirToLocal(target.approach, orient);
+            target.normal = World_WorldDirToLocal(target.normal, orient);
+        }
         target.positionTolerance /= scale;
 
         /* Posición base cervical antes del agachamiento actual. */
@@ -220,11 +252,13 @@ void EcosystemAnatomy_UpdateProfiled(EcosystemEntity *e, float dt, EvolutionProf
         a->settled = false;
     }
 
-    Vector3 mouth = Vec3_Add(e->body.position,
-                             Yaw(Vec3_Scale(Vec3_Sub(reach.mouth, a->center), scale), e->body.yaw));
+    Vector3 mouth = flat
+        ? Vec3_Add(e->body.position, YawFlat(Vec3_Scale(Vec3_Sub(reach.mouth, a->center), scale), e->body.yaw))
+        : World_LocalToWorld(reach.mouth, a->center, scale, orient, e->body.position);
     e->oralMotion = dt > 0.0f ? Vec3_Distance(mouth, e->body.mouth) / dt : 0.0f;
     e->body.mouth = mouth;
-    e->body.mouthDirection = Yaw(reach.direction, e->body.yaw);
+    e->body.mouthDirection = flat ? YawFlat(reach.direction, e->body.yaw)
+                                  : World_LocalDirToWorld(reach.direction, orient);
 
     Vector3 pivotModel = (tmpl->pivotChainIndex >= 0)
                              ? a->cervicalWorldPos[tmpl->pivotChainIndex]
@@ -232,10 +266,12 @@ void EcosystemAnatomy_UpdateProfiled(EcosystemEntity *e, float dt, EvolutionProf
     Vector3 elbowModel = (tmpl->elbowChainIndex >= 0)
                              ? a->cervicalWorldPos[tmpl->elbowChainIndex]
                              : Vec3_Add(tmpl->neutralElbowLocal, Vec3_Create(0.0f, -a->crouch, 0.0f));
-    e->oralPivot = Vec3_Add(e->body.position,
-                            Yaw(Vec3_Scale(Vec3_Sub(pivotModel, a->center), scale), e->body.yaw));
-    e->oralElbow = Vec3_Add(e->body.position,
-                            Yaw(Vec3_Scale(Vec3_Sub(elbowModel, a->center), scale), e->body.yaw));
+    e->oralPivot = flat
+        ? Vec3_Add(e->body.position, YawFlat(Vec3_Scale(Vec3_Sub(pivotModel, a->center), scale), e->body.yaw))
+        : World_LocalToWorld(pivotModel, a->center, scale, orient, e->body.position);
+    e->oralElbow = flat
+        ? Vec3_Add(e->body.position, YawFlat(Vec3_Scale(Vec3_Sub(elbowModel, a->center), scale), e->body.yaw))
+        : World_LocalToWorld(elbowModel, a->center, scale, orient, e->body.position);
 
     reach.mouth = mouth;
     reach.direction = e->body.mouthDirection;

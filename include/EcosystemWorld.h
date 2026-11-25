@@ -12,6 +12,8 @@
 #include "EvolutionJobSystem.h"
 #include "EvolutionProfiler.h"
 #include "NeuralBrainIO.h"
+#include "WorldStaticData.h"
+#include "WorldPlacement.h"
 #include <stdio.h>
 #include <stdint.h>
 
@@ -98,6 +100,7 @@ typedef struct EcosystemSpecies {
     MetabolicProfileHandle metabolicProfile;
     SubstanceHandle tissueSubstance;
     float tissueMass;
+    TraversalProfile traversal;
 } EcosystemSpecies;
 
 typedef struct EcosystemEntity {
@@ -120,6 +123,7 @@ typedef struct EcosystemEntity {
     Vector3 previousPosition, velocity, oralLocal, oralPivot, oralElbow;
     double nextAttack;
     float developmentScale, oralMotion;
+    float terrainEnergyMultiplier; /**< Multiplicador energético por pendiente/vadeo del último paso (1.0 en plano). */
     void *visual; /**< Préstamo opcional; el núcleo nunca lo consulta ni libera. */
     struct EcosystemAnatomy *anatomicalBody; /**< Propiedad privada del cuerpo oral, sin recursos gráficos. */
 } EcosystemEntity;
@@ -170,14 +174,17 @@ typedef struct EcosystemIdMap {
 
 typedef struct EcosystemMoveProposal {
     Vector3 nextPosition;
+    Vector3 groundNormal;
     float nextYaw;
     float desiredSpeed;
+    float energyMultiplier;
     bool wantsMove;
 } EcosystemMoveProposal;
 
 typedef struct EcosystemWorld {
     SimulationClock clock;
     AIWorld observations;
+    const WorldStaticData *staticWorld; /**< Referencia inmutable retenida (NULL = plano heredado). */
     EcosystemSpecies *species;
     unsigned speciesCount, speciesCapacity;
     EcosystemEntity *entities;
@@ -263,6 +270,13 @@ void EcosystemWorld_Free(EcosystemWorld *);
 unsigned EcosystemWorld_AddSpecies(EcosystemWorld *,EcosystemSpecies);
 /** @brief Registra obstáculo cilíndrico estático físico y oclusor dentro de la arena. */
 AIObjectId EcosystemWorld_AddObstacle(EcosystemWorld *,Vector3 position,float radius,float height);
+/** @brief Vincula un WorldStaticData inmutable (retiene referencia) y lo enlaza a AIWorld. */
+bool EcosystemWorld_AttachStaticWorld(EcosystemWorld *, const WorldStaticData *staticWorld);
+/** @brief Registra libros compartidos de cuerpos de agua y estaciones de orilla del mundo estático. */
+bool EcosystemWorld_RegisterNaturalWaterBodies(EcosystemWorld *);
+/** @brief Crea individuo proyectando (x, z) sobre la altura autoritativa del terreno procedural. */
+AIObjectId EcosystemWorld_SpawnOnGround(EcosystemWorld *, unsigned speciesId, float x, float z,
+                                        double age, float energy, const CreatureGenome *);
 /** @brief Crea individuo independiente fuera de actualización; cero si no hay capacidad/espacio. */
 AIObjectId EcosystemWorld_Spawn(EcosystemWorld *,unsigned speciesId,Vector3,double age,float energy,const CreatureGenome *);
 /** @brief Préstamo hasta siguiente mutación; nunca guardar este puntero en memoria de IA. */

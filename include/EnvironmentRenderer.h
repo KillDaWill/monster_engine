@@ -1,0 +1,95 @@
+/**
+ * @file EnvironmentRenderer.h
+ * @brief Capa compartida de presentación ambiental para Evolution Arena y Brain Evolution Lab.
+ *
+ * Unifica el renderizado del terreno chunked, agua natural, rocas instanciadas,
+ * overlays conformes al relieve, minimapa topográfico y picking de rayos sobre el relieve.
+ * En modo plano (WORLD_MODE_FLAT o world==NULL) mantiene compatibilidad visual exacta.
+ */
+#ifndef MONSTER_ENVIRONMENT_RENDERER_H
+#define MONSTER_ENVIRONMENT_RENDERER_H
+
+#include "TerrainRenderer.h"
+#include "WaterRenderer.h"
+#include "RockVisualCache.h"
+#include "WorldStaticData.h"
+#include "RenderInterfaces.h"
+#include "Mesh.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct EnvironmentRenderStats {
+    bool isProcedural;
+    TerrainRenderStats terrain;
+    WaterRenderStats water;
+    RockRenderStats rocks;
+    uint64_t totalTriangles;
+    uint64_t totalDrawCalls;
+    size_t totalVramBytes;
+} EnvironmentRenderStats;
+
+typedef struct EnvironmentRenderer {
+    void *impl;
+} EnvironmentRenderer;
+
+bool EnvironmentRenderer_Init(EnvironmentRenderer *er);
+void EnvironmentRenderer_Destroy(EnvironmentRenderer *er);
+
+/** @brief Sincroniza recursos GPU con un WorldStaticData inmutable (solo reconstruye si cambia época/huella). */
+bool EnvironmentRenderer_SyncWorld(EnvironmentRenderer *er, const WorldStaticData *world);
+
+/** @brief Devuelve true si el mundo actualmente vinculado es procedural (no plano). */
+bool EnvironmentRenderer_IsProcedural(const EnvironmentRenderer *er);
+
+/** @brief Devuelve el puntero retenido al WorldStaticData actual (o NULL en modo plano). */
+const WorldStaticData *EnvironmentRenderer_GetWorld(const EnvironmentRenderer *er);
+
+void EnvironmentRenderer_SetDebugMode(EnvironmentRenderer *er, TerrainDebugMode mode);
+TerrainDebugMode EnvironmentRenderer_GetDebugMode(const EnvironmentRenderer *er);
+void EnvironmentRenderer_SetQuality(EnvironmentRenderer *er, float terrainLodScale,
+                                    int waterQualityTier, bool wireframe);
+void EnvironmentRenderer_SetOverlays(EnvironmentRenderer *er, bool showShoreSites,
+                                     bool showRockCollision, bool showTerrainGrid);
+
+/** @brief Dibuja geometría opaca del entorno (terreno + rocas en procedural; suelo plano + rejilla en plano). */
+bool EnvironmentRenderer_RenderOpaque(EnvironmentRenderer *er, Renderer3D *renderer,
+                                      const ICamera *camera,
+                                      float flatHalfSize, const Mesh *flatGroundMesh,
+                                      float maxSlopeNavRadians, float maxWadeNavDepth);
+
+/** @brief Dibuja superficie de agua natural (en modo plano es no-op). */
+bool EnvironmentRenderer_RenderWater(EnvironmentRenderer *er, const ICamera *camera, float timeSeconds);
+
+/** @brief Dibuja overlays de diagnóstico conformes al relieve (orillas, proxies de roca, rejilla). */
+void EnvironmentRenderer_RenderOverlays(EnvironmentRenderer *er, const ICamera *camera);
+
+/** @brief Dibuja el fondo topográfico/hidrológico del minimapa en coordenadas de pantalla 2D (ortho). */
+void EnvironmentRenderer_DrawMinimapBackground(const EnvironmentRenderer *er, float x, float y, float size);
+
+/** @brief Lanza un rayo contra el terreno (DDA + triángulos exactos en procedural, y=0 en plano). */
+bool EnvironmentRenderer_PickGroundRay(const EnvironmentRenderer *er, Vector3 rayOrigin, Vector3 rayDir,
+                                       float maxDist, Vector3 *outHitPos, uint16_t *outWaterBodyId);
+
+/** @brief Muestrea la altura del suelo (o 0.0 en modo plano) en (x, z). */
+float EnvironmentRenderer_SampleGroundHeight(const EnvironmentRenderer *er, float x, float z);
+
+/** @brief Dibuja un anillo de línea conforme a la altura real del terreno en (cx, cz). */
+void EnvironmentRenderer_DrawTerrainCircle(const EnvironmentRenderer *er, float cx, float cz,
+                                           float radius, float liftY, int segments);
+
+/** @brief Dibuja una polilínea conforme al relieve (rutas A*, objetivos). */
+void EnvironmentRenderer_DrawTerrainPath(const EnvironmentRenderer *er, const Vector3 *pts,
+                                         uint32_t count, float liftY);
+
+EnvironmentRenderStats EnvironmentRenderer_GetStats(const EnvironmentRenderer *er);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* MONSTER_ENVIRONMENT_RENDERER_H */

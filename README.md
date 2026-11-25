@@ -67,7 +67,15 @@ El motor está compuesto por los siguientes módulos principales:
 - **`Monster` (`include/Monster.h`)**: Entidad principal que engloba paleta cromática, partes corporales, ojos, bocas, traits polimórficos y física.
 - **`MonsterQueries` (`include/MonsterQueries.h`)**: Funciones de consulta pura (no mutadoras) sobre la entidad: centros de masa, direcciones, anchos/altos interpolados y caja envolvente.
 - **`MonsterAger` (`include/MonsterAger.h`)**: Módulo de interpolación continua entre fases ontogénicas (envejecimiento/evolución de un monstruo).
-- **`WorldInterface` (`include/WorldInterface.h`)**: Interfaz agnóstica de consulta del mundo/entorno (altura del terreno).
+- **`WorldInterface` (`include/WorldInterface.h`)**: Interfaz agnóstica de consulta del mundo/entorno (altura y normal del terreno).
+
+### 🏔️ Sistema de Mundos Procedurales, Hidrología y Geología
+
+- **`TerrainHeightfield` & `TerrainGenerator` (`include/TerrainHeightfield.h`, `include/TerrainGenerator.h`)**: Relieve determinista acotado con ruido Simplex/fBm/ridged, erosión térmica, interpolación baricéntrica exacta, jerarquía min/max `8×8` y raycast 2D DDA + Möller–Trumbore.
+- **`WorldHydrology` & `WorldBiome` (`include/WorldHydrology.h`, `include/WorldBiome.h`)**: Priority-Flood acíclico, acumulación de flujo, lagos de cuenca con cota uniforme, ríos monotónicos tallados, sitios accesibles de orilla (`WorldShoreSite`), humedad por EDT Chamfer y mapas de fertilidad/materiales.
+- **`WorldGeology`, `WorldCollision` & `WorldPlacement` (`include/WorldGeology.h`, `include/WorldCollision.h`, `include/WorldPlacement.h`)**: Cuatro familias de rocas SDF con proxies conservadores de 3 lóbulos y rejilla espacial CSR, perfiles declarativos `TraversalProfile` (pendientes, vadeo somero y línea de visión 3D) y colocación ecológica de flora y fauna.
+- **`WorldStaticData`, `WorldGenerator`, `WorldIO` & `TerrainAnimationAdapter`**: Propiedad inmutable con conteo de referencias atómico y caché LRU *single-flight*, recetas estrictas `worlds/*.world.json` y adaptador local↔mundo para IK de patas sobre pendientes.
+- **`EnvironmentRenderer`, `TerrainRenderer`, `WaterRenderer` & `RockVisualCache` (`RENDER_SRCS`)**: Chunks `32×32` con 4 niveles LOD y cosido de 16 máscaras, frustum culling por MVP, agua shader con profundidad/flujo/espuma, rocas instanciadas GPU, minimapa topográfico y 8 modos de depuración.
 
 ### 🧬 Arquitectura Fenotípica y Criaturas Modulares
 
@@ -300,6 +308,12 @@ make benchmark-neural
 make benchmarks/benchmark_ecosystem
 ./benchmarks/benchmark_ecosystem 100 3600 10000
 
+# Benchmark y validación del sistema de mundos procedurales (generación, 500-1000 criaturas, Lab)
+make benchmark-world
+make validate-procedural-world
+make world-sanitize
+make world-tsan
+
 # Benchmark de memoria y coste de animación procedural
 make benchmark-animation
 
@@ -381,3 +395,11 @@ El directorio `docs/` incluye informes exhaustivos de diseño, optimización y v
 
 - **Ecosistemas, Genética y Vida Artificial**:
   - [Arquitectura de Simulación de Ecosistemas](docs/ECOSYSTEM_SIMULATION.md): Auditoría, modelo fisiológico, genoma hereditario, reproducción y escenarios reproducibles.
+  - [Evolution Arena](docs/EVOLUTION_ARENA.md), [Brain Evolution Lab](docs/BRAIN_EVOLUTION_LAB.md) y [Metabolismo Molecular](docs/MOLECULAR_METABOLISM.md).
+
+- **Sistema de Mundos Procedurales**:
+  - [Arquitectura de Mundos Procedurales](docs/PROCEDURAL_WORLD.md): Pipeline híbrido heightfield + hidrología + geología SDF, propiedad inmutable e integración compartida.
+  - [Formato de Recetas `*.world.json`](docs/WORLD_RECIPE_FORMAT.md): Esquema estricto v1, semillas, huellas y territorios incluidos.
+  - [Hidrología y Acceso en Orilla](docs/WORLD_HYDROLOGY.md): Priority-Flood, lagos, ríos, `WorldShoreSite` y cuerpos de agua moleculares.
+  - [Locomoción, Navegación y Animación en Terreno](docs/TERRAIN_LOCOMOTION_AND_NAVIGATION.md): `TraversalProfile`, A* en relieve, línea de visión 3D y `TerrainAnimationAdapter`.
+  - [Renderizado de Mundo y Rendimiento](docs/WORLD_RENDERING_AND_PERFORMANCE.md): Chunks LOD, agua, rocas instanciadas, métricas 1080p con 500 criaturas y evidencia visual.

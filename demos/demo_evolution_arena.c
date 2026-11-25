@@ -9,6 +9,8 @@
 #include "EvolutionProfiler.h"
 #include "EcosystemVisual.h"
 #include "CreatureRecipeRegistry.h"
+#include "EnvironmentRenderer.h"
+#include "WorldCollision.h"
 #include "OpenGLRenderer.h"
 #include "PrimitiveMesh.h"
 #include <math.h>
@@ -128,6 +130,38 @@ static void lineBatchPushRing(LineBatch *b, Vector3 p, float radius, float yOffs
             Vec3_Add(p, Vec3_Create(sinf(a) * radius, yOffset, cosf(a) * radius)),
             Vec3_Add(p, Vec3_Create(sinf(bb) * radius, yOffset, cosf(bb) * radius)), c);
     }
+}
+
+static void lineBatchPushTerrainRing(LineBatch *b, const EnvironmentRenderer *env,
+                                     Vector3 p, float radius, float yOffset, unsigned segs, Color c) {
+    if (!env || !EnvironmentRenderer_IsProcedural(env)) {
+        lineBatchPushRing(b, p, radius, yOffset, segs, c);
+        return;
+    }
+    if (segs < 8u) segs = 8u;
+    float step = 6.2831853f / (float)segs;
+    for (unsigned i = 0; i < segs; ++i) {
+        float a = (float)i * step, bb = (float)(i + 1u) * step;
+        float ax = p.x + sinf(a) * radius, az = p.z + cosf(a) * radius;
+        float bx = p.x + sinf(bb) * radius, bz = p.z + cosf(bb) * radius;
+        float ay = EnvironmentRenderer_SampleGroundHeight(env, ax, az) + yOffset;
+        float by = EnvironmentRenderer_SampleGroundHeight(env, bx, bz) + yOffset;
+        lineBatchPush(b, Vec3_Create(ax, ay, az), Vec3_Create(bx, by, bz), c);
+    }
+}
+
+static bool parseTerrainDebugMode(const char *s, TerrainDebugMode *out) {
+    if (!s || !out) return false;
+    if (!strcmp(s, "natural")) *out = TERRAIN_DEBUG_NATURAL;
+    else if (!strcmp(s, "elevation") || !strcmp(s, "height")) *out = TERRAIN_DEBUG_ELEVATION;
+    else if (!strcmp(s, "slope")) *out = TERRAIN_DEBUG_SLOPE;
+    else if (!strcmp(s, "hydrology") || !strcmp(s, "hydro")) *out = TERRAIN_DEBUG_HYDROLOGY;
+    else if (!strcmp(s, "depth") || !strcmp(s, "water")) *out = TERRAIN_DEBUG_WATER_DEPTH;
+    else if (!strcmp(s, "biome") || !strcmp(s, "fertility")) *out = TERRAIN_DEBUG_BIOME;
+    else if (!strcmp(s, "nav") || !strcmp(s, "navigation")) *out = TERRAIN_DEBUG_NAVIGATION;
+    else if (!strcmp(s, "collision") || !strcmp(s, "rocks")) *out = TERRAIN_DEBUG_COLLISION;
+    else return false;
+    return true;
 }
 
 static void instanceBatchFree(InstanceBatch *b) {
@@ -896,21 +930,30 @@ static void drawNeuralInspector(const EvolutionRenderSnapshot *snap,
     OpenGLRenderer_DrawText2D(px + 14.0f, fy + 6.0f, 1.25f, Color_Create(198, 228, 238, 255), foot);
 }
 
-static void drawMinimap(int winW, int winH, const EvolutionRenderSnapshot *snap,
+static void drawMinimap(int winW, int winH, const EnvironmentRenderer *env,
+                        const EvolutionRenderSnapshot *snap,
                         AIObjectId selectedId, Vector3 camTarget, float zoom) {
     if (!snap || snap->arenaHalfSize <= 0.0f) return;
     const float sz = 186.0f;
     const float mx = (float)winW - sz - 14.0f;
     const float my = (float)winH - sz - 48.0f;
     OpenGLRenderer_DrawRect2D(mx, my, sz, sz + 20.0f, Color_Create(8, 14, 20, 224), Color_Create(46, 142, 164, 210));
-    OpenGLRenderer_DrawText2D(mx + 8.0f, my + 5.0f, 1.15f, Color_Create(92, 222, 236, 255), "ARENA MINIMAP [M]");
+    OpenGLRenderer_DrawText2D(mx + 8.0f, my + 5.0f, 1.15f, Color_Create(92, 222, 236, 255),
+                              (env && EnvironmentRenderer_IsProcedural(env)) ? "TERRAIN MINIMAP [M]" : "ARENA MINIMAP [M]");
     const float mapX = mx + 6.0f, mapY = my + 20.0f, mapS = sz - 12.0f;
-    OpenGLRenderer_DrawRect2D(mapX, mapY, mapS, mapS, Color_Create(14, 22, 24, 240), Color_Create(44, 96, 108, 190));
+    if (env && EnvironmentRenderer_IsProcedural(env)) {
+        EnvironmentRenderer_DrawMinimapBackground(env, mapX, mapY, mapS);
+        OpenGLRenderer_DrawRect2D(mapX, mapY, mapS, mapS, Color_Create(0, 0, 0, 0), Color_Create(44, 96, 108, 190));
+    } else {
+        OpenGLRenderer_DrawRect2D(mapX, mapY, mapS, mapS, Color_Create(14, 22, 24, 240), Color_Create(44, 96, 108, 190));
+    }
 
     float invSpan = 1.0f / (2.0f * snap->arenaHalfSize);
+    bool isProc = (env && EnvironmentRenderer_IsProcedural(env));
     /* Estanques y recursos moleculares destacados */
     for (unsigned i = 0; i < snap->resourceCount; ++i) {
         const EvolutionResourceSnapshot *rs = &snap->resources[i];
+        if (isProc && rs->waterBodyId != 0u && rs->shoreSiteIndex > 0u) continue;
         float ux = (rs->position.x + snap->arenaHalfSize) * invSpan;
         float uz = (rs->position.z + snap->arenaHalfSize) * invSpan;
         if (rs->molecular) {
@@ -976,6 +1019,9 @@ static void printHelp(void) {
          "  --no-physical-mutation  --scenario=reference|A|B|C|D|E  --recipes-dir=DIR\n"
          "  --show-neural  --show-digestive  --show-substance  --inspect-resource=ID  --inspect-substance=SUB_ID\n"
          "  --import-brain=PATH  --export-brain=PATH  --swap-brains=A:B\n"
+         "  --world=PATH  --world-seed=N  --allow-extra-ponds\n"
+         "  --terrain-debug=natural|elevation|slope|hydrology|depth|biome|nav|collision  --wireframe\n"
+         "  --show-shores  --show-rock-collision  --show-terrain-grid  --cam-x=X  --cam-z=Z  --angle=RAD\n"
          "  --frames=N  --capture=IMG.ppm  --profile=METRICS.json  --view=side|front|three-quarter|overview\n"
          "  --focus=ID  --capture-species=1|2  --capture-state=overview|adult|juvenile|newborn|walking|turning|drinking|feeding|hunting|attacking|fleeing|resting|mating\n"
          "  --zoom=N  --no-hud  --initial-age=S  --inspect=body|head|feet|neck  --validate-mouth=N  --validate-skinning  --cpu-skinning  --focus-lod=near|mid|far  --lod-cycle");
@@ -1006,6 +1052,20 @@ int main(int argc, char **argv) {
     const char *inspect = NULL;
     VisualTier captureTier = VISUAL_TIER_NEAR;
     bool lodCycle = false;
+    TerrainDebugMode terrainDebugMode = TERRAIN_DEBUG_NATURAL;
+    bool terrainWireframe = false;
+    bool showShoresOverlay = false, showRockCollisionOverlay = false, showTerrainGridOverlay = false;
+    bool hasCustomCam = false, hasCustomAngle = false;
+    float customCamX = 0.0f, customCamZ = 0.0f;
+    double customAngle = 0.65;
+    static const char *kWorldPresets[] = {
+        "worlds/flat.world.json",
+        "worlds/river_valley.world.json",
+        "worlds/mountain_lakes.world.json",
+        "worlds/rocky_highlands.world.json",
+        "worlds/wetlands.world.json"
+    };
+    unsigned worldPresetIdx = 0u;
 
     /* Primero aplicar presets/escenarios base para que los flags explícitos puedan sobrescribirlos. */
     for (int i = 1; i < argc; ++i) {
@@ -1048,7 +1108,25 @@ int main(int argc, char **argv) {
         }
         else if (!strncmp(a, "--workers=", 10)) config.workers = (unsigned)strtoul(a + 10, NULL, 10);
         else if (!strncmp(a, "--seed=", 7)) config.seed = (uint32_t)strtoul(a + 7, NULL, 10);
-        else if (!strncmp(a, "--arena-size=", 13)) config.arenaSize = strtof(a + 13, NULL);
+        else if (!strncmp(a, "--world=", 8)) {
+            snprintf(config.worldRecipePath, sizeof(config.worldRecipePath), "%s", a + 8);
+        }
+        else if (!strncmp(a, "--world-seed=", 13)) {
+            config.worldSeed = (uint32_t)strtoul(a + 13, NULL, 10);
+            config.hasWorldSeedOverride = true;
+        }
+        else if (!strcmp(a, "--allow-extra-ponds")) config.allowExtraPonds = true;
+        else if (!strncmp(a, "--terrain-debug=", 16)) {
+            if (!parseTerrainDebugMode(a + 16, &terrainDebugMode)) return 2;
+        }
+        else if (!strcmp(a, "--wireframe")) terrainWireframe = true;
+        else if (!strcmp(a, "--show-shores")) showShoresOverlay = true;
+        else if (!strcmp(a, "--show-rock-collision")) showRockCollisionOverlay = true;
+        else if (!strcmp(a, "--show-terrain-grid")) showTerrainGridOverlay = true;
+        else if (!strncmp(a, "--cam-x=", 8)) { customCamX = strtof(a + 8, NULL); hasCustomCam = true; }
+        else if (!strncmp(a, "--cam-z=", 8)) { customCamZ = strtof(a + 8, NULL); hasCustomCam = true; }
+        else if (!strncmp(a, "--angle=", 8)) { customAngle = strtod(a + 8, NULL); hasCustomAngle = true; }
+        else if (!strncmp(a, "--arena-size=", 13)) { config.arenaSize = strtof(a + 13, NULL); config.hasExplicitArenaSize = true; }
         else if (!strncmp(a, "--brumacernos=", 14)) config.brumacernos = (unsigned)strtoul(a + 14, NULL, 10);
         else if (!strncmp(a, "--herbivores=", 13)) config.brumacernos = (unsigned)strtoul(a + 13, NULL, 10);
         else if (!strncmp(a, "--velkares=", 11)) config.velkares = (unsigned)strtoul(a + 11, NULL, 10);
@@ -1133,7 +1211,15 @@ int main(int argc, char **argv) {
         else return 2;
     }
 
-    double maxZoom = fmax(110.0, (double)config.arenaSize * 1.45);
+    if (config.worldRecipePath[0] != '\0') {
+        WorldRecipe previewRec;
+        char werr[160] = {0};
+        if (WorldRecipe_LoadFile(config.worldRecipePath, &previewRec, werr, sizeof(werr))) {
+            if (!config.hasExplicitArenaSize) config.arenaSize = previewRec.size;
+            if (!minimapExplicit && !previewRec.flat && previewRec.size >= 120.0f) showMinimap = true;
+        }
+    }
+    double maxZoom = fmax(110.0, (double)config.arenaSize * 1.65);
     if (!zoomExplicit && config.arenaSize > 80.0f && initialZoom < 30.0) {
         initialZoom = fmin(maxZoom, (double)config.arenaSize * 0.58);
     }
@@ -1254,8 +1340,20 @@ int main(int argc, char **argv) {
 
     ICamera camera = {.position = {28, 28, 32}, .target = {0, 0, 0}, .up = {0, 1, 0},
                       .fov = 50, .aspectRatio = (float)winW / (float)winH,
-                      .nearPlane = 0.1f, .farPlane = fmaxf(260.0f, config.arenaSize * 3.5f)};
+                      .nearPlane = 0.1f, .farPlane = fmaxf(450.0f, config.arenaSize * 4.5f)};
     Renderer3D renderer = OpenGLRenderer_Create(&camera);
+
+    EnvironmentRenderer envRenderer = {0};
+    if (!EnvironmentRenderer_Init(&envRenderer)) {
+        fprintf(stderr, "[ADVERTENCIA] No se pudo inicializar EnvironmentRenderer.\n");
+        EcosystemVisual_Shutdown(&visual); OpenGLRenderer_Destroy(&renderer);
+        OpenGLDemoWindow_Free(window); EvolutionSimulationRunner_Destroy(runner); return 1;
+    }
+    EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
+    EnvironmentRenderer_SetQuality(&envRenderer,
+                                   quality == QUALITY_LOW ? 0.65f : (quality == QUALITY_MEDIUM ? 1.0f : 1.35f),
+                                   (int)quality, terrainWireframe);
+    EnvironmentRenderer_SetOverlays(&envRenderer, showShoresOverlay, showRockCollisionOverlay, showTerrainGridOverlay);
 
     Mesh meshes[5];
     for (unsigned i = 0; i < 5; ++i) meshes[i] = Mesh_Create();
@@ -1310,7 +1408,7 @@ int main(int argc, char **argv) {
     InstanceBatch envInstances = {0}, bodyInstances = {0}, headInstances = {0};
     MeshGroup bodyGroups[64], headGroups[64];
 
-    double last = OpenGLDemoWindow_Time(), angle = 0.65, zoom = initialZoom;
+    double last = OpenGLDemoWindow_Time(), angle = hasCustomAngle ? customAngle : 0.65, zoom = initialZoom;
     double gpuSum = 0.0, displayedFps = ARENA_MAX_FPS;
     unsigned gpuSamples = 0, gpuTimingGeneration = 0;
     OpenGLMeshPerformanceStats finalGpu = {0};
@@ -1322,7 +1420,7 @@ int main(int argc, char **argv) {
 
     unsigned frame = 0;
     bool debug = false, follow = hasFocus, overheadToggle = (view == VIEW_OVERVIEW);
-    Vector3 cameraCenter = Vec3_Zero();
+    Vector3 cameraCenter = hasCustomCam ? Vec3_Create(customCamX, 0.0f, customCamZ) : Vec3_Zero();
 
     float histBrum[ARENA_HISTORY_LEN] = {0}, histVelk[ARENA_HISTORY_LEN] = {0};
     unsigned historyCount = 0, historyIndex = 0;
@@ -1574,27 +1672,72 @@ int main(int argc, char **argv) {
             }
         }
 
-        /* Selección 3D por rayo sobre las criaturas dibujadas. */
-        if (input.mouseLeftPressed && !uiConsumedClick && displayedCount) {
+        /* Selección 3D por rayo sobre criaturas, cuerpos de agua naturales o terreno. */
+        if (input.mouseLeftPressed && !uiConsumedClick) {
             Vector3 forward = Vec3_Normalize(Vec3_Sub(camera.target, camera.position));
             Vector3 right = Vec3_Normalize(Vec3_Cross(forward, camera.up));
             Vector3 up = Vec3_Normalize(Vec3_Cross(right, forward));
             float x = ((input.mouseX + 0.5f) / (float)winW - 0.5f) * (float)zoom * camera.aspectRatio;
             float y = (0.5f - (input.mouseY + 0.5f) / (float)winH) * (float)zoom;
             Vector3 origin = Vec3_Add(camera.position, Vec3_Add(Vec3_Scale(right, x), Vec3_Scale(up, y)));
-            AIObjectId picked = EcosystemVisual_PickRay(displayedPackets, displayedCount, origin, forward,
-                                                        camera.nearPlane, camera.farPlane);
+            AIObjectId picked = displayedCount ? EcosystemVisual_PickRay(displayedPackets, displayedCount, origin, forward,
+                                                                         camera.nearPlane, camera.farPlane) : 0u;
             if (picked && findSnapEntity(snap, picked)) {
                 selectedEntityId = picked;
                 hasFocus = false; focusId = 0; follow = true;
                 selectedNow = findSnapEntity(snap, selectedEntityId);
                 printf("mouse_focus_entity=%u\n", picked);
+            } else {
+                Vector3 hitPos = {0};
+                uint16_t hitWaterBodyId = 0u;
+                if (EnvironmentRenderer_PickGroundRay(&envRenderer, origin, forward, camera.farPlane,
+                                                      &hitPos, &hitWaterBodyId)) {
+                    if (hitWaterBodyId != 0u) {
+                        for (unsigned ri = 0; ri < snap->resourceCount; ++ri) {
+                            if (snap->resources[ri].waterBodyId == hitWaterBodyId) {
+                                inspectedResourceId = snap->resources[ri].id;
+                                showSubstance = true;
+                                snprintf(statusMsg, sizeof(statusMsg), "WATER BODY #%u AT (%.1f, %.1f, %.1f)",
+                                         (unsigned)hitWaterBodyId, hitPos.x, hitPos.y, hitPos.z);
+                                statusError = false;
+                                break;
+                            }
+                        }
+                    } else if (snap->staticWorld && !snap->staticWorld->recipe.flat) {
+                        float slopeRad = 0.0f;
+                        Terrain_SampleSlopeAngle(&snap->staticWorld->terrain, hitPos.x, hitPos.z, &slopeRad);
+                        snprintf(statusMsg, sizeof(statusMsg), "TERRAIN (%.1f, %.1f) Y=%.2fM SLOPE=%.1fDEG",
+                                 hitPos.x, hitPos.z, hitPos.y, slopeRad * 57.29578f);
+                        statusError = false;
+                    }
+                }
             }
         }
 
-        /* Atajos de simulación, velocidad, calidad y laboratorio. */
+        /* Atajos de simulación, velocidad, calidad, terreno y laboratorio. */
         if (input.togglePause) EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_TOGGLE_PAUSE);
-        if (input.toggleDebug) debug = !debug;
+        if (input.toggleDebug) {
+            if (input.shiftHeld && EnvironmentRenderer_IsProcedural(&envRenderer)) {
+                terrainDebugMode = (TerrainDebugMode)(((int)terrainDebugMode + 1) % TERRAIN_DEBUG_MODE_COUNT);
+                EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
+                snprintf(statusMsg, sizeof(statusMsg), "TERRAIN DEBUG: %s", TerrainDebugMode_Name(terrainDebugMode));
+                statusError = false;
+            } else {
+                debug = !debug;
+            }
+        }
+        if (input.keyA) {
+            worldPresetIdx = (worldPresetIdx + 1u) % (unsigned)(sizeof(kWorldPresets) / sizeof(kWorldPresets[0]));
+            snprintf(config.worldRecipePath, sizeof(config.worldRecipePath), "%s", kWorldPresets[worldPresetIdx]);
+            config.hasExplicitArenaSize = false;
+            EvolutionSimulationRunner_PostReset(runner, &config);
+            nextSample = 0.0; historyCount = historyIndex = 0;
+            selectedEntityId = 0; selectedRequestId = 0; captureTargetId = 0;
+            displayedCount = 0; follow = false; swapPendingId = 0;
+            cameraCenter = Vec3_Zero();
+            snprintf(statusMsg, sizeof(statusMsg), "WORLD PRESET: %s", kWorldPresets[worldPresetIdx]);
+            statusError = false;
+        }
         if (input.keyN) showNeural = !showNeural;
         if (input.keyG) showDigestive = !showDigestive;
         if (input.keyT) showSubstance = !showSubstance;
@@ -1612,10 +1755,22 @@ int main(int argc, char **argv) {
             showSubstance = true;
         }
         if (input.keyQ) {
-            quality = (QualityPreset)(((int)quality + 1) % 3);
-            applyQualityBudget(&visual, quality);
-            snprintf(statusMsg, sizeof(statusMsg), "QUALITY PRESET: %s", qualityName(quality));
-            statusError = false;
+            if (input.shiftHeld) {
+                terrainWireframe = !terrainWireframe;
+                EnvironmentRenderer_SetQuality(&envRenderer,
+                    quality == QUALITY_LOW ? 0.65f : (quality == QUALITY_MEDIUM ? 1.0f : 1.35f),
+                    (int)quality, terrainWireframe);
+                snprintf(statusMsg, sizeof(statusMsg), "TERRAIN WIREFRAME: %s", terrainWireframe ? "ON" : "OFF");
+                statusError = false;
+            } else {
+                quality = (QualityPreset)(((int)quality + 1) % 3);
+                applyQualityBudget(&visual, quality);
+                EnvironmentRenderer_SetQuality(&envRenderer,
+                    quality == QUALITY_LOW ? 0.65f : (quality == QUALITY_MEDIUM ? 1.0f : 1.35f),
+                    (int)quality, terrainWireframe);
+                snprintf(statusMsg, sizeof(statusMsg), "QUALITY PRESET: %s", qualityName(quality));
+                statusError = false;
+            }
         }
         if (input.keyO) { overheadToggle = !overheadToggle; view = overheadToggle ? VIEW_OVERVIEW : VIEW_THREE_QUARTER; }
         if (input.furLengthAdjust < 0) edgeThreshold = fmaxf(0.05f, edgeThreshold - 0.10f);
@@ -1704,12 +1859,17 @@ int main(int argc, char **argv) {
             statusError = false;
         }
         if (input.keyR) {
+            if (input.shiftHeld) {
+                config.worldSeed = (config.hasWorldSeedOverride ? config.worldSeed : config.seed) + 1u;
+                config.hasWorldSeedOverride = true;
+            }
             EvolutionSimulationRunner_PostReset(runner, &config);
             nextSample = 0.0; historyCount = historyIndex = 0;
             selectedEntityId = 0; selectedRequestId = 0; captureTargetId = 0;
             displayedCount = 0; follow = false; swapPendingId = 0;
             cameraCenter = Vec3_Zero();
-            snprintf(statusMsg, sizeof(statusMsg), "RESETTING EXPERIMENT (SEED %u)...", config.seed);
+            snprintf(statusMsg, sizeof(statusMsg), "RESETTING WORLD (SIM %u / WORLD %u)...",
+                     config.seed, config.hasWorldSeedOverride ? config.worldSeed : config.seed);
             statusError = false;
         }
 
@@ -1787,6 +1947,11 @@ int main(int argc, char **argv) {
             inspectedTargetSent = desiredInspect;
         }
 
+        /* Sincronizar mundo estático con el renderizador de entorno (O(1) si no cambia época/huella). */
+        EnvironmentRenderer_SyncWorld(&envRenderer, snap->staticWorld);
+        bool proceduralWorld = EnvironmentRenderer_IsProcedural(&envRenderer);
+        camera.farPlane = fmaxf(480.0f, snap->arenaHalfSize * 6.0f);
+
         /* Reconciliación incremental primero para garantizar ranuras existentes antes de RequestTier. */
         if (!EcosystemVisual_SyncSnapshot(&visual, snap) && !projectionWarned) {
             fprintf(stderr, "[ADVERTENCIA] No se pudo sincronizar EcosystemVisual.\n");
@@ -1806,6 +1971,7 @@ int main(int argc, char **argv) {
             const EvolutionEntitySnapshot *ct = findSnapEntity(snap, captureTargetId);
             if (ct) camTarget = ct->position;
         } else if (follow && selected) camTarget = selected->position;
+        else camTarget.y = EnvironmentRenderer_SampleGroundHeight(&envRenderer, camTarget.x, camTarget.z);
         cameraCenter = camTarget;
 
         const EvolutionEntitySnapshot *cameraSubject = focus ? focus : findSnapEntity(snap, captureTargetId);
@@ -1832,6 +1998,12 @@ int main(int argc, char **argv) {
         }
 
         setCameraPose(&camera, camTarget, (float)zoom, cameraAngle, view, inspect != NULL);
+        if (proceduralWorld) {
+            float camGroundY = EnvironmentRenderer_SampleGroundHeight(&envRenderer, camera.position.x, camera.position.z);
+            if (camera.position.y < camGroundY + 1.25f) {
+                camera.position.y = camGroundY + 1.25f;
+            }
+        }
 
         for (unsigned i = 0; i < snap->entityCount; ++i) {
             EcosystemVisualProjection projection = {0};
@@ -1889,28 +2061,32 @@ int main(int argc, char **argv) {
         OpenGLRenderer_SetupCameraOrtho(&camera, (float)zoom, winW, winH);
 
         float limit = snap->arenaHalfSize;
-        drawMesh(&renderer, &meshes[0], Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f);
+        if (proceduralWorld) {
+            EnvironmentRenderer_RenderOpaque(&envRenderer, &renderer, &camera, limit, &meshes[0], 0.65f, 0.72f);
+        } else {
+            drawMesh(&renderer, &meshes[0], Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f);
 
-        /* Caché estática de perímetro y cuadrícula (1 única llamada batch por fotograma). */
-        if (fabsf(limit - cachedGridHalfSize) > 0.01f) {
-            lineBatchClear(&staticGrid);
-            Vector3 corners[4] = {{-limit, 0.04f, -limit}, {limit, 0.04f, -limit}, {limit, 0.04f, limit}, {-limit, 0.04f, limit}};
-            for (unsigned i = 0; i < 4; ++i) {
-                lineBatchPush(&staticGrid, corners[i], corners[(i + 1) % 4], Color_FromRGB(62, 198, 214));
-                Vector3 topA = Vec3_Add(corners[i], Vec3_Create(0, 0.45f, 0));
-                Vector3 topB = Vec3_Add(corners[(i + 1) % 4], Vec3_Create(0, 0.45f, 0));
-                lineBatchPush(&staticGrid, corners[i], topA, Color_FromRGB(62, 198, 214));
-                lineBatchPush(&staticGrid, topA, topB, Color_Create(46, 134, 150, 170));
+            /* Caché estática de perímetro y cuadrícula (1 única llamada batch por fotograma). */
+            if (fabsf(limit - cachedGridHalfSize) > 0.01f) {
+                lineBatchClear(&staticGrid);
+                Vector3 corners[4] = {{-limit, 0.04f, -limit}, {limit, 0.04f, -limit}, {limit, 0.04f, limit}, {-limit, 0.04f, limit}};
+                for (unsigned i = 0; i < 4; ++i) {
+                    lineBatchPush(&staticGrid, corners[i], corners[(i + 1) % 4], Color_FromRGB(62, 198, 214));
+                    Vector3 topA = Vec3_Add(corners[i], Vec3_Create(0, 0.45f, 0));
+                    Vector3 topB = Vec3_Add(corners[(i + 1) % 4], Vec3_Create(0, 0.45f, 0));
+                    lineBatchPush(&staticGrid, corners[i], topA, Color_FromRGB(62, 198, 214));
+                    lineBatchPush(&staticGrid, topA, topB, Color_Create(46, 134, 150, 170));
+                }
+                float gridStep = limit >= 80.0f ? 20.0f : (limit >= 35.0f ? 10.0f : 5.0f);
+                for (float g = -limit + gridStep; g < limit; g += gridStep) {
+                    lineBatchPush(&staticGrid, Vec3_Create(g, 0.01f, -limit), Vec3_Create(g, 0.01f, limit), Color_Create(42, 66, 74, 120));
+                    lineBatchPush(&staticGrid, Vec3_Create(-limit, 0.01f, g), Vec3_Create(limit, 0.01f, g), Color_Create(42, 66, 74, 120));
+                }
+                cachedGridHalfSize = limit;
             }
-            float gridStep = limit >= 80.0f ? 20.0f : (limit >= 35.0f ? 10.0f : 5.0f);
-            for (float g = -limit + gridStep; g < limit; g += gridStep) {
-                lineBatchPush(&staticGrid, Vec3_Create(g, 0.01f, -limit), Vec3_Create(g, 0.01f, limit), Color_Create(42, 66, 74, 120));
-                lineBatchPush(&staticGrid, Vec3_Create(-limit, 0.01f, g), Vec3_Create(limit, 0.01f, g), Color_Create(42, 66, 74, 120));
+            if (staticGrid.count > 0) {
+                OpenGLRenderer_BatchDebugLines(staticGrid.verts, staticGrid.cols, staticGrid.count, true);
             }
-            cachedGridHalfSize = limit;
-        }
-        if (staticGrid.count > 0) {
-            OpenGLRenderer_BatchDebugLines(staticGrid.verts, staticGrid.cols, staticGrid.count, true);
         }
 
         lineBatchClear(&dynamicLines);
@@ -1945,18 +2121,19 @@ int main(int argc, char **argv) {
             inspectedResourceId = inspectedRes->id;
         }
 
-        /* Estanques de agua / sustancias de tipo WATER (1 llamada instanciada). */
+        /* Estanques de agua planos o estanques explícitos adicionales (en modo procedural NO dibujar discos falsos para orillas naturales). */
         envInstances.count = 0;
         bool anyMolecularPool = false;
         for (unsigned i = 0; i < snap->resourceCount; ++i) {
             const EvolutionResourceSnapshot *res = &snap->resources[i];
+            if (proceduralWorld && res->waterBodyId != 0u && res->shoreSiteIndex > 0u) continue;
             bool isPool = res->molecular ? (res->presentationModel == SUBSTANCE_MODEL_WATER)
                                          : (res->category == ECO_WATER);
             if (!isPool) continue;
             if (res->molecular) anyMolecularPool = true;
             Color tint = res->molecular ? colorFromRgbFloat(res->color) : decorColors[1];
             instanceBatchPush(&envInstances, (OpenGLMeshInstance){
-                .position = Vec3_Create(res->position.x, -0.02f, res->position.z),
+                .position = Vec3_Create(res->position.x, proceduralWorld ? (res->position.y + 0.02f) : -0.02f, res->position.z),
                 .yaw = 0.0f, .scale = res->radius, .scaleY = fminf(res->radius, 1.5f),
                 .bobY = 0.0f, .leanPitch = 0.0f, .tint = tint
             });
@@ -1965,7 +2142,7 @@ int main(int argc, char **argv) {
                                (unsigned char)fminf(255.0f, tint.g + 46.0f),
                                (unsigned char)fminf(255.0f, tint.b + 46.0f), 255)
                 : Color_FromRGB(74, 188, 224);
-            lineBatchPushRing(&dynamicLines, res->position, res->radius, 0.03f, 20u, ringCol);
+            lineBatchPushTerrainRing(&dynamicLines, &envRenderer, res->position, res->radius, 0.03f, 20u, ringCol);
         }
         if (envInstances.count > 0) {
             OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[1], envInstances.items, envInstances.count, anyMolecularPool);
@@ -2016,9 +2193,9 @@ int main(int argc, char **argv) {
             OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[3], envInstances.items, envInstances.count, anyMolecularMeat);
         }
         if (showSubstance && inspectedRes && showHud) {
-            lineBatchPushRing(&dynamicLines, inspectedRes->position,
-                              fmaxf(0.85f, inspectedRes->radius + 0.35f), 0.09f, 24u,
-                              Color_FromRGB(252, 214, 96));
+            lineBatchPushTerrainRing(&dynamicLines, &envRenderer, inspectedRes->position,
+                                     fmaxf(0.85f, inspectedRes->radius + 0.35f), 0.09f, 24u,
+                                     Color_FromRGB(252, 214, 96));
         }
 
         /* Obtener paquetes de dibujo de criaturas. */
@@ -2074,7 +2251,9 @@ int main(int argc, char **argv) {
                 Color tint = p->tintColor; /* Variación tonal individual exacta respecto a la receta canónica. */
                 OpenGLMeshInstance inst = {
                     .position = p->position, .yaw = p->yaw, .scale = p->scale, .scaleY = p->scale,
-                    .bobY = p->bobY, .leanPitch = p->leanPitch, .tint = tint
+                    .bobY = p->bobY, .leanPitch = p->leanPitch,
+                    .orientation = p->orientation, .useOrientation = proceduralWorld,
+                    .tint = tint
                 };
                 const Mesh *bm = p->bodyMesh ? p->bodyMesh : EcosystemVisual_FallbackMesh(&visual);
                 if (bm && bm->vertexCount) {
@@ -2144,7 +2323,11 @@ int main(int argc, char **argv) {
                 bool enableFur = (packet->tier == VISUAL_TIER_NEAR) || (packet->entityId == selectedEntityId);
                 OpenGLRenderer_SetFurQuality(&renderer, enableFur, enableFur, 0);
 
-                OpenGLRenderer_ModelTransform(packet->position, packet->yaw * 57.29578f, packet->scale, Vec3_Zero());
+                if (proceduralWorld) {
+                    OpenGLRenderer_ModelTransformQuat(packet->position, packet->orientation, packet->scale, Vec3_Zero());
+                } else {
+                    OpenGLRenderer_ModelTransform(packet->position, packet->yaw * 57.29578f, packet->scale, Vec3_Zero());
+                }
                 bool skinning = !forceCpu && packet->deformer && packet->skeleton && packet->pose &&
                                 OpenGLRenderer_SetMeshMorphSkinning(&renderer, body, packet->deformer, packet->skeleton,
                                                                     packet->pose, packet->targetGraph, packet->headJoint,
@@ -2202,6 +2385,12 @@ int main(int argc, char **argv) {
         }
         OpenGLRenderer_SetFurQuality(&renderer, true, true, 0);
 
+        /* Pasada translúcida de agua natural y overlays conformes al relieve. */
+        if (proceduralWorld) {
+            EnvironmentRenderer_RenderWater(&envRenderer, &camera, (float)snap->seconds);
+            EnvironmentRenderer_RenderOverlays(&envRenderer, &camera);
+        }
+
         if (validateMouthFrames && frameHasMouth) {
             mouthWindow[mouthWindowIndex] = frameMouthError;
             mouthWindowIndex = (mouthWindowIndex + 1) % validateMouthFrames;
@@ -2215,7 +2404,7 @@ int main(int argc, char **argv) {
             const EvolutionEntitySnapshot *entity = &snap->entities[i];
             if (drawAllRings) {
                 Color spMark = entity->speciesIndex == 0 ? Color_Create(110, 216, 152, 160) : Color_Create(238, 118, 92, 160);
-                lineBatchPushRing(&dynamicLines, entity->position, entity->clearance * 0.92f, 0.02f, ringSegs, spMark);
+                lineBatchPushTerrainRing(&dynamicLines, &envRenderer, entity->position, entity->clearance * 0.92f, 0.04f, ringSegs, spMark);
             }
             if (debug) {
                 lineBatchPush(&dynamicLines, entity->oralPivot, entity->oralElbow, Color_FromRGB(245, 200, 100));
@@ -2234,10 +2423,10 @@ int main(int argc, char **argv) {
             }
         }
         if (selected && showHud) {
-            lineBatchPushRing(&dynamicLines, selected->position, selected->clearance + 0.28f, 0.06f, 28u, Color_FromRGB(74, 236, 250));
+            lineBatchPushTerrainRing(&dynamicLines, &envRenderer, selected->position, selected->clearance + 0.28f, 0.08f, 28u, Color_FromRGB(74, 236, 250));
             if (swapPendingId && swapPendingId != selected->id) {
                 const EvolutionEntitySnapshot *sw = findSnapEntity(snap, swapPendingId);
-                if (sw) lineBatchPushRing(&dynamicLines, sw->position, sw->clearance + 0.34f, 0.07f, 28u, Color_FromRGB(252, 206, 82));
+                if (sw) lineBatchPushTerrainRing(&dynamicLines, &envRenderer, sw->position, sw->clearance + 0.34f, 0.09f, 28u, Color_FromRGB(252, 206, 82));
             }
         }
         if (dynamicLines.count > 0) {
@@ -2360,31 +2549,67 @@ int main(int argc, char **argv) {
                     struct rusage ru; getrusage(RUSAGE_SELF, &ru);
                     double rssMb = (double)ru.ru_maxrss / 1024.0;
                     double cacheMb = (double)vStats.cacheBytes / (1024.0 * 1024.0);
-                    snprintf(perfPanelBuf, sizeof(perfPanelBuf),
-                             "FPS %5.1f  FRM %.1f P95 %.1f P99 %.1f\n"
-                             "SIM %.2fMS (P95 %.2f)  TPS %5.0f\n"
-                             "SPEED REQ %-3s  ACH %5.1fX  CPU %2.0f%%\n"
-                             "BACKLOG %.3fS  SNAP AGE %4.1fMS\n"
-                             "POP %4u/%-4u  WORKERS %u  QLT %s\n"
-                             "VIS %4zu  N:%2zu M:%2zu F:%3zu CUL:%3zu\n"
-                             "ANIM %3zu  MONSTERS %2zu  BUILD %zu\n"
-                             "DRAWS %3llu  INST %2llu (%4llu OBJ)\n"
-                             "REACH %llu  NAV %llu  CAND %llu\n"
-                             "CACHE %zu (%.1fMB)  RSS %.1fMB",
-                             displayedFps, fMean, fP95, fP99,
-                             snap->meanTickMs, snap->p95TickMs, snap->ticksPerSecond,
-                             reqBuf, snap->achievedSpeed, snap->simCpuUtilization,
-                             snap->backlogSeconds, snapAgeMs,
-                             snap->entityCount, snap->capacity, snap->workerCount, qualityName(quality),
-                             vStats.visibleCount, vStats.nearCount, vStats.midCount, vStats.farCount, vStats.culledCount,
-                             vStats.animatedCount, vStats.monsterInstances, vStats.buildCount,
-                             (unsigned long long)drawStatsNow.drawCalls,
-                             (unsigned long long)drawStatsNow.instancedDrawCalls,
-                             (unsigned long long)drawStatsNow.instancedCount,
-                             (unsigned long long)snap->simCounters.anatomicalSolverInvocations,
-                             (unsigned long long)snap->simCounters.navigationRequests,
-                             (unsigned long long)snap->simCounters.spatialQueryCandidates,
-                             vStats.cacheEntries, cacheMb, rssMb);
+                    EnvironmentRenderStats envSt = EnvironmentRenderer_GetStats(&envRenderer);
+                    if (envSt.isProcedural && snap->staticWorld) {
+                        const WorldStaticData *sw = snap->staticWorld;
+                        snprintf(perfPanelBuf, sizeof(perfPanelBuf),
+                                 "FPS %5.1f  FRM %.1f P95 %.1f P99 %.1f\n"
+                                 "SIM %.2fMS (P95 %.2f)  TPS %5.0f\n"
+                                 "SPEED REQ %-3s  ACH %5.1fX  CPU %2.0f%%\n"
+                                 "WORLD %.16s S:%u V%u\n"
+                                 "WFP %08llX  L:%u R:%u SH:%u RK:%u\n"
+                                 "CHK %u/%u L0:%u L1:%u L2:%u L3:%u\n"
+                                 "ENV TRI %llu  DC %llu  VRAM %.1fMB\n"
+                                 "POP %4u/%-4u VIS:%4zu N:%2zu M:%2zu F:%3zu\n"
+                                 "DRAWS %3llu INST %2llu (%4llu OBJ)\n"
+                                 "DBG:%s  RSS %.1fMB",
+                                 displayedFps, fMean, fP95, fP99,
+                                 snap->meanTickMs, snap->p95TickMs, snap->ticksPerSecond,
+                                 reqBuf, snap->achievedSpeed, snap->simCpuUtilization,
+                                 sw->recipe.id[0] ? sw->recipe.id : "procedural",
+                                 sw->masterSeed, sw->generatorVersion,
+                                 (unsigned long long)(sw->dataFingerprint & 0xFFFFFFFFu),
+                                 sw->hydrology.lakeCount, sw->hydrology.riverCount,
+                                 sw->hydrology.shoreSiteCount, sw->geology.rockCount,
+                                 envSt.terrain.renderedChunks, envSt.terrain.totalChunks,
+                                 envSt.terrain.lodCounts[0], envSt.terrain.lodCounts[1],
+                                 envSt.terrain.lodCounts[2], envSt.terrain.lodCounts[3],
+                                 (unsigned long long)envSt.totalTriangles,
+                                 (unsigned long long)envSt.totalDrawCalls,
+                                 (double)envSt.totalVramBytes / (1024.0 * 1024.0),
+                                 snap->entityCount, snap->capacity,
+                                 vStats.visibleCount, vStats.nearCount, vStats.midCount, vStats.farCount,
+                                 (unsigned long long)drawStatsNow.drawCalls,
+                                 (unsigned long long)drawStatsNow.instancedDrawCalls,
+                                 (unsigned long long)drawStatsNow.instancedCount,
+                                 TerrainDebugMode_Name(terrainDebugMode), rssMb);
+                    } else {
+                        snprintf(perfPanelBuf, sizeof(perfPanelBuf),
+                                 "FPS %5.1f  FRM %.1f P95 %.1f P99 %.1f\n"
+                                 "SIM %.2fMS (P95 %.2f)  TPS %5.0f\n"
+                                 "SPEED REQ %-3s  ACH %5.1fX  CPU %2.0f%%\n"
+                                 "BACKLOG %.3fS  SNAP AGE %4.1fMS\n"
+                                 "POP %4u/%-4u  WORKERS %u  QLT %s\n"
+                                 "VIS %4zu  N:%2zu M:%2zu F:%3zu CUL:%3zu\n"
+                                 "ANIM %3zu  MONSTERS %2zu  BUILD %zu\n"
+                                 "DRAWS %3llu  INST %2llu (%4llu OBJ)\n"
+                                 "REACH %llu  NAV %llu  CAND %llu\n"
+                                 "CACHE %zu (%.1fMB)  RSS %.1fMB",
+                                 displayedFps, fMean, fP95, fP99,
+                                 snap->meanTickMs, snap->p95TickMs, snap->ticksPerSecond,
+                                 reqBuf, snap->achievedSpeed, snap->simCpuUtilization,
+                                 snap->backlogSeconds, snapAgeMs,
+                                 snap->entityCount, snap->capacity, snap->workerCount, qualityName(quality),
+                                 vStats.visibleCount, vStats.nearCount, vStats.midCount, vStats.farCount, vStats.culledCount,
+                                 vStats.animatedCount, vStats.monsterInstances, vStats.buildCount,
+                                 (unsigned long long)drawStatsNow.drawCalls,
+                                 (unsigned long long)drawStatsNow.instancedDrawCalls,
+                                 (unsigned long long)drawStatsNow.instancedCount,
+                                 (unsigned long long)snap->simCounters.anatomicalSolverInvocations,
+                                 (unsigned long long)snap->simCounters.navigationRequests,
+                                 (unsigned long long)snap->simCounters.spatialQueryCandidates,
+                                 vStats.cacheEntries, cacheMb, rssMb);
+                    }
                 }
                 const float px = 12.0f, py = ly + lh + 10.0f, pw = 308.0f, ph = 248.0f;
                 OpenGLRenderer_DrawRect2D(px, py, pw, ph, Color_Create(8, 14, 21, 232), Color_Create(58, 172, 192, 220));
@@ -2529,9 +2754,9 @@ int main(int argc, char **argv) {
                 drawSubstanceInspector(winH, showPerf, snap, inspectedRes, &btnResPrev, &btnResNext);
             }
 
-            /* 4) Minimapa cenital de densidad poblacional (M). */
+            /* 4) Minimapa cenital topográfico / densidad poblacional (M). */
             if (showMinimap) {
-                drawMinimap(winW, winH, snap, selectedEntityId, camTarget, (float)zoom);
+                drawMinimap(winW, winH, &envRenderer, snap, selectedEntityId, camTarget, (float)zoom);
             }
 
             /* 5) Modal de entrada de ruta de archivo (Export / Import). */
@@ -2551,8 +2776,8 @@ int main(int argc, char **argv) {
             /* 6) Barra inferior de controles y rendimiento. */
             OpenGLRenderer_DrawRect2D(12.0f, (float)winH - 36.0f, (float)winW - 24.0f, 26.0f,
                                       Color_Create(9, 15, 22, 220), Color_Create(38, 108, 126, 175));
-            OpenGLRenderer_DrawText2D(20.0f, (float)winH - 28.0f, 1.12f, Color_Create(168, 206, 218, 255),
-                                      "SPC:PAUSE 1-5:SPD P:PERF Q:QLT M:MAP N:RNN G:DIG T:SUB O:TOP F:FOL D:DBG E/I/C/V/X/B:BRAIN R:RST");
+            OpenGLRenderer_DrawText2D(20.0f, (float)winH - 28.0f, 1.08f, Color_Create(168, 206, 218, 255),
+                                      "SPC:PAUSE 1-5:SPD P:PERF Q:QLT M:MAP N:RNN G:DIG T:SUB A:WORLD SH+D:TDBG SH+Q:WIRE R/SH+R:RST");
             double renderCpu = (OpenGLDemoWindow_Time() - start) * 1000.0;
             char fpsBuf[64];
             snprintf(fpsBuf, sizeof(fpsBuf), "FPS %2.0f  %.1fMS", displayedFps, renderCpu);
@@ -2717,6 +2942,7 @@ int main(int argc, char **argv) {
     free(packets); free(displayedPackets); free(cpuBodies); free(validatedSkin); free(validatedSkinMesh);
     free(times); free(simulationTimes); free(mouthWindow);
     for (unsigned i = 0; i < 5; ++i) Mesh_Free(&meshes[i]);
+    EnvironmentRenderer_Destroy(&envRenderer);
     EcosystemVisual_Shutdown(&visual);
     OpenGLRenderer_Destroy(&renderer);
     OpenGLDemoWindow_Free(window);

@@ -83,6 +83,8 @@ typedef struct EcosystemVisualDrawPacket {
     float stanceFootError; /**< Residuo real de los pies que permanecen plantados. */
     float poseAlpha;
     Vector3 position;
+    Vector3 groundNormal;
+    Quaternion orientation;
     float yaw;
     float scale;
     float bobY;       /**< Oscilación vertical analítica para instancias FAR. */
