@@ -11,12 +11,13 @@ typedef struct TerrainMaterials {
     unsigned int textures[3]; /* Albedo sRGB, normal XY, rugosidad/AO. */
     size_t vramBytes;
     bool attempted;
+    int packVersion;
 } TerrainMaterials;
 
 typedef struct TerrainMaterialBindings {
     int enabled;
     int sampler[3];
-    int encodeSRGB;
+    int packVersion;
 } TerrainMaterialBindings;
 
 typedef struct TerrainMaterialState {

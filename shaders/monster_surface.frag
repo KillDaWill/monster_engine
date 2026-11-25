@@ -28,8 +28,10 @@ out vec4 fragColor;
 #include "surface/scales.glsl"
 #include "surface/pigment.glsl"
 #include "surface/fur.glsl"
+#include "surface/scene_fur.glsl"
 #include "surface/bump.glsl"
 #include "surface/lighting.glsl"
+#include "surface/scene_surface.glsl"
 #include "surface/evaluate.glsl"
 #include "surface/reptile_materials.glsl"
 
@@ -113,7 +115,7 @@ void main() {
                 surfaceRecipe[9] * vec4(1.0, mappedB.z, mappedB.w, mappedB.x),
                 surfaceRecipe[10] * vec4(1.0,mappedB.y,1.0,1.0), furSeed);
 
-            float cosine=abs(dot(n,normalize(-viewPosition)));
+            float cosine=abs(dot(n,sceneEyeDirection(viewPosition)));
             float occupancy=fur.undercoat+fur.guard*(1.0-guardVisibility);
             float tau=32.0*surfaceRecipe[8].y*mappedA.y*occupancy*shellDelta/max(.25,cosine);
             float furAlpha=(1.0-exp(-tau))*localFurMask*skinMask*surfaceRecipe[11].w;
@@ -199,7 +201,7 @@ void main() {
     SurfaceResponse response = Surface_Evaluate(surfaceInput, surfaceDebug == 6 || surfaceDebug == 7, s, pigment);
     response.roughness=mix(response.roughness,localMaterial.y,localMaterial.z);
 
-    vec3 viewDir = normalize(-viewPosition);
+    vec3 viewDir = sceneEyeDirection(viewPosition);
     float ndv = abs(dot(n, viewDir));
     float fresnel = pow(1.0 - clamp(ndv, 0.0, 1.0), 2.4);
     float translucency = clamp(surfaceRecipe[153].x, 0.0, 1.0);

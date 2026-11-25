@@ -113,3 +113,11 @@ Quedan explícitamente fuera de este hito (con puntos de extensión previstos en
 - [Locomoción, navegación y animación en terreno](TERRAIN_LOCOMOTION_AND_NAVIGATION.md)
 - [Renderizado de mundo y rendimiento medido](WORLD_RENDERING_AND_PERFORMANCE.md)
 - [Evolution Arena](EVOLUTION_ARENA.md) y [Brain Evolution Lab](BRAIN_EVOLUTION_LAB.md)
+
+
+## Presentación natural
+
+Los renderizadores utilizan los campos de mundo, mallas y consultas físicas descritos aquí.
+La presentación natural añade un campo visual macro, detalle ambiental y sombras direccionales
+comunes a Arena y Lab. Véanse [Iluminación de escena](SCENE_LIGHTING.md) y
+[Entorno natural](NATURAL_ENVIRONMENT_VISUALS.md).

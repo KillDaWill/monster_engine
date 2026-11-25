@@ -6,6 +6,7 @@
 #define GL_GLEXT_PROTOTYPES
 #include "WaterRenderer.h"
 #include "environment_glsl.inc"
+#include "SceneLighting.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <math.h>
@@ -85,9 +86,9 @@ static bool initWaterShader(WaterRendererImpl *impl) {
         "}\n";
 
     const char *vertexParts[] = {vs};
-    const char *fragParts[] = {"#version 330 compatibility\n", ENV_MATERIALS, ENV_WATER};
+    const char *fragParts[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_WATER};
     GLuint v = compileWaterShader(GL_VERTEX_SHADER, vertexParts, 1);
-    GLuint f = compileWaterShader(GL_FRAGMENT_SHADER, fragParts, 3);
+    GLuint f = compileWaterShader(GL_FRAGMENT_SHADER, fragParts, 4);
     if (!v || !f) {
         if (v) glDeleteShader(v);
         if (f) glDeleteShader(f);
@@ -107,6 +108,7 @@ static bool initWaterShader(WaterRendererImpl *impl) {
         impl->programFailed = true;
         return false;
     }
+    SceneLighting_LinkProgram(p);
     impl->program = p;
     impl->uContourLoc = glGetUniformLocation(p, "uContour");
     impl->materialBindings = TerrainMaterials_GetBindings(p);

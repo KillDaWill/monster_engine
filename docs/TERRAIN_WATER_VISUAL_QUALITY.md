@@ -118,3 +118,10 @@ El Brumacerno juvenil alcanzó el objetivo húmedo dentro de la tolerancia del s
 - [Meandro, confluencia, lago, criaturas, LOD y Lab](validation/terrain-water/evidencia-v2.png)
 
 Los PNG originales y perfiles se guardan en `build/terrain-water/`. El archivo de evidencia reúne las comparaciones, las fases de agua, las capturas de acción y las mediciones.
+
+
+## Revisión de presentación natural
+
+El siguiente hito retiene la geometría y la hidrología v1/v2 de esta revisión y cambia
+materiales, iluminación, sombras y óptica en presentación. Las series comparables con la
+revisión integrada se describen en [Entorno natural](NATURAL_ENVIRONMENT_VISUALS.md).

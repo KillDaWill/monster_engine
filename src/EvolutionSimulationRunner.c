@@ -287,6 +287,11 @@ static void publishSnapshot(EvolutionSimulationRunner *r) {
         es->action = e->mind.action;
         es->goal = e->mind.goal;
         es->reachStatus = e->body.reach.status;
+        es->oralContactTarget = e->mind.intent.interaction.position;
+        es->oralContactTolerance = e->mind.intent.interact ? e->mind.intent.interaction.positionTolerance : 0.0f;
+        es->oralContactTime = e->mind.contactTime;
+        es->lastIngestionTime = e->metabolism.lastIngestionTime;
+        es->lastIngestedMass = e->metabolism.lastIngestedMass;
         es->position = e->body.position;
         es->velocity = e->velocity;
         es->eyePos = e->body.eye;

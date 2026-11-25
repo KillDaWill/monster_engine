@@ -26,6 +26,7 @@ typedef struct Locomotion {
     float phase;
     float angularVelocity;
     bool initialized;
+    bool externalBodyFrame; /**< La posición proviene de un snapshot mundial de presentación. */
 } Locomotion;
 /** @brief Inicializa contactos desde reposo, proyección al suelo y perfil. */
 bool Locomotion_Init(Locomotion* state,const Rig* rig,const GaitProfile* gait,World* world,Vector3 bodyPosition);

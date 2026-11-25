@@ -1,46 +1,59 @@
-uniform int uMaterialTier;
+vec3 terrainPalette(vec3 p, vec3 n, vec3 viewDir, vec4 physical, float depth,
+                    vec3 dpdx, vec3 dpdy, int debugMode) {
+    if (debugMode == 12) return sceneDiagnostic(vec3(sceneVisibility(p, n)));
+    vec2 fieldUV = (p.xz - uLandscapeMapping.xy) * uLandscapeMapping.z;
+    vec4 climate = textureGrad(uLandscape, fieldUV, dpdx.xz * uLandscapeMapping.z, dpdy.xz * uLandscapeMapping.z);
+    float patch = climate.a;
+    float damp = max(smoothstep(.012,.25,depth), climate.z * physical.w * .88);
+    float rock = smoothstep(.25, .92, physical.z + (patch - .48) * .28);
+    float meadow = smoothstep(.29, .68, climate.x + (patch - .50) * .43);
+    float dry = smoothstep(.12,.46, climate.y + (patch - .50) * .25);
+    float ground = (1.0 - rock) * (1.0 - damp);
+    float sediment = (1.0 - rock) * damp;
+    float gravel = sediment * smoothstep(.13,.78,depth) * .77;
+    vec4 a = vec4(ground * meadow, ground * (1.0 - meadow) * (1.0 - dry), rock, sediment - gravel);
+    vec2 b = vec2(ground * (1.0 - meadow) * dry, gravel);
+    // Se adelgazan sólo los pesos pequeños, sin seleccionar un ID discontinuo.
+    a = max(a - .047, vec4(0));
+    b = max(b - .047, vec2(0));
+    float sum = dot(a, vec4(1)) + dot(b, vec2(1));
+    a /= sum; b /= sum;
+    if (debugMode == 11)
+        return sceneDiagnostic(vec3(a.z + .45 * a.y, a.x + .55 * b.x, a.w + .6 * b.y));
 
-vec3 naturalTerrain(vec3 p, vec3 n, vec3 viewDir, vec4 weights, float depth, float fertility,
-                    vec3 dpdx, vec3 dpdy) {
-    // Evita muestreos de peso despreciable y mantiene las transiciones continuas.
-    float cutoff = .035;
-    if (uMaterialTier < 2) {
-        vec2 nearPair = vec2(max(weights.x, weights.y), min(weights.x, weights.y));
-        vec2 farPair = vec2(max(weights.z, weights.w), min(weights.z, weights.w));
-        float third = max(min(min(nearPair.x, farPair.x), max(nearPair.y, farPair.y)), min(nearPair.y, farPair.y));
-        float peak = max(nearPair.x, farPair.x);
-        cutoff = mix(cutoff, max(cutoff, third), smoothstep(.09,.19,peak - third));
-    }
-    vec4 w = max(vec4(0), weights - cutoff);
-    w /= max(dot(w, vec4(1)), 0.001);
-    vec3 base[4] = vec3[4](vec3(.100,.160,.043), vec3(.214,.132,.067),
-                          vec3(.168,.143,.116), vec3(.125,.100,.065));
-    float tile[4] = float[4](2.1, 3.0, 4.4, 2.8);
-    vec3 color = vec3(0), gradient = vec3(0);
-    vec2 masks = vec2(0);
+    vec3 color = a.x * materialMean(0) + a.y * materialMean(1) + a.z * materialMean(2) +
+                 a.w * materialMean(3) + b.x * materialMean(4) + b.y * materialMean(5);
+    vec3 gradient = vec3(0);
+    vec2 masks = vec2(.84,.96);
     float pixelSpan = max(length(dpdx), length(dpdy));
-    for (int i = 0; i < 4; ++i) {
-        if (w[i] <= 0.0) continue;
-        GroundMaterial m = GroundMaterial(base[i], vec3(0), vec2(.8,.94));
-        float footprint = pixelSpan / tile[i];
-        float textureWeight = 1.0 - smoothstep(.065, .19, footprint);
-        if (uHasMaterials && textureWeight > 0.0) {
-            bool details = uMaterialTier > 0 && footprint < .14;
-            if (i == 2 && details) m = rockMaterial(p, n, dpdx, dpdy, true);
-            else m = sampleProjection(p, dpdx, dpdy, vec3(1,0,0), vec3(0,0,1),
-                                      float(i), 1.0 / tile[i], details);
-            m.color = mix(base[i], m.color, textureWeight);
-            m.gradient *= textureWeight * (1.0 - smoothstep(.06, .14, footprint));
+    // En la vista panorámica el ancho del píxel hace desaparecer el relieve
+    // fino. El valor límite es exactamente la media lineal de cada mapa.
+    float textureEnd = uMaterialTier == 2 ? .19 : .134;
+    float textureFade = 1.0 - smoothstep(.049, textureEnd, pixelSpan);
+    if (uHasMaterials && textureFade > .001) {
+        float weights[6] = float[6](a.x, a.y, a.z, a.w, b.x, b.y);
+        float largest = 0.0, runnerUp = 0.0;
+        int layer = 0;
+        for (int i = 0; i < 6; ++i) {
+            float w = weights[i];
+            if (w > largest) layer = i;
+            runnerUp = max(runnerUp, min(largest, w));
+            largest = max(largest, w);
         }
-        color += w[i] * m.color;
-        gradient += w[i] * m.gradient;
-        masks += w[i] * m.masks;
+        float response = largest * textureFade * smoothstep(.02, .24, largest - runnerUp);
+        if (response > .002) {
+            float normalFade = 1.0 - smoothstep(.017, .069, pixelSpan);
+            bool details = uMaterialTier > 0 && normalFade > .002;
+            bool randomize = uMaterialTier > 0 && sceneExtras.x > .5;
+            GroundMaterial tile;
+            if (layer == 2 && n.y < .78 && uMaterialTier == 2)
+                tile = rockMaterial(p, n, dpdx, dpdy, details, randomize);
+            else
+                tile = sampleProjection(p, dpdx, dpdy, vec3(1,0,0), vec3(0,0,1), layer, details, randomize);
+            color += (tile.color - materialMean(layer)) * response;
+            gradient = tile.gradient * (response * normalFade);
+            masks += (tile.masks - vec2(.84,.96)) * response;
+        }
     }
-    float macro = vnoise(p.xz * 0.057) * 0.65
-                + vnoise(vec2(p.z, -p.x) * 0.129) * 0.35;
-    color *= mix(.76, 1.23, macro) * (1.0 - .12 * w.x * fertility);
-    float soaked = smoothstep(0.015, 0.48, depth);
-    color *= 1.0 - 0.23 * soaked;
-    return illuminateGround(color, materialNormal(n, gradient * .72), viewDir,
-                            masks.x - .14 * soaked, masks.y);
+    return finishTerrain(p, n, viewDir, color, gradient, masks, depth, patch, damp, debugMode);
 }

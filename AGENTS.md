@@ -37,6 +37,7 @@ make codegraph                     # Optional: sync/init CodeGraph if installed
 
 # Only with SDL2/OpenGL development libs and a working graphics environment:
 make demos                         # Build visual and console demos
+make test-scene-lighting            # GL fixtures for world-space sun, depth, color and normal orientation
 make visual-morph-ownership        # Delayed mesh vs exact SDF visual check
 make visual-morph-gpu-regressions  # GPU morph regressions
 make visual-ager-sparse            # Sparse-field anatomy checks
@@ -58,7 +59,7 @@ make creature-editor               # Local editor: http://127.0.0.1:8765
 | SDF and meshing | `src/MonsterSDF.c`, `src/SDFPrimitives.c`, `src/SDFInterval.c`, `src/SDFMesher.c`, `src/SDFAdaptiveMesher.c`, `src/MeshPatch.c` |
 | Morph and asynchronous mesh | `src/CreatureMorph.c`, `src/MonsterVisualAsync.c`, `src/MorphHandoff.c`, `src/MorphSpatialCache.c`, `src/MorphChunkManager.c`, `src/MorphSurfaceTracker.c` |
 | Surfaces and fur | `src/Surface.c`, `src/SurfaceMapper.c`, `src/Fur.c`, `src/SurfacePresets.c`, `shaders/surface/`, `shaders/fur_guard.*` |
-| Graphics/GPU | `src/OpenGLRenderer.c`, `src/GpuSDFSurfaceCache.c`, `src/TerrainRenderer.c`, `src/WaterRenderer.c`, `src/RockVisualCache.c`, `src/EnvironmentRenderer.c`, `shaders/`, `tools/generate_sdf_shader.py`, `tools/generate_surface_shader.py` |
+| Graphics/GPU | `src/OpenGLRenderer.c`, `src/GpuSDFSurfaceCache.c`, `src/TerrainRenderer.c`, `src/WaterRenderer.c`, `src/RockVisualCache.c`, `src/EnvironmentRenderer.c`, `src/SceneLighting.c`, `src/EnvironmentDetailRenderer.c`, `shaders/`, `tools/generate_sdf_shader.py`, `tools/generate_surface_shader.py` |
 | Procedural worlds | `src/TerrainHeightfield.c`, `src/TerrainGenerator.c`, `src/WorldHydrology.c`, `src/WorldBiome.c`, `src/WorldGeology.c`, `src/WorldStaticData.c`, `src/WorldGenerator.c`, `src/WorldCollision.c`, `src/WorldIO.c`, `src/WorldPlacement.c`, `src/TerrainAnimationAdapter.c`, `worlds/` |
 | Animation and IK | `src/CreatureRig.c`, `src/RigBuilder.c`, `src/IK.c`, `src/ProceduralAnimator.c`, `src/AnatomicalReach.c` |
 | AI/ecosystem | `src/CreatureMind.c`, `src/CreatureActions.c`, `src/CreatureNavigation.c`, `src/AISpatialIndex.c`, `src/EcosystemAnatomyCache.c`, `src/EcosystemWorld.c`, `src/EvolutionJobSystem.c`, `src/EvolutionSimulationRunner.c`, `src/EvolutionProfiler.c`, `src/EcosystemScenario.c` |

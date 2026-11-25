@@ -268,6 +268,27 @@ static void test_terrain_animation_adapter_on_slope(void) {
     TEST_ASSERT(fabsf(localHit.position.y) < 0.08f, "slope-aligned local ground height near 0");
     TEST_ASSERT(localHit.normal.y > 0.95f, "slope-aligned local normal near +Y");
 
+    Rig rig = {.limbCount = 1};
+    rig.limbs[0].walking = true;
+    rig.limbs[0].soleHeight = .12f;
+    Vector3 point = Vec3_Add(localHit.position, Vec3_Scale(localHit.normal, rig.limbs[0].soleHeight));
+    Locomotion locomotion = {.initialized = true};
+    locomotion.feet[0] = (FootState){.phase = FOOT_STANCE, .normal = localHit.normal,
+        .plantedPosition = point, .targetPosition = point, .swingStart = point, .swingTarget = point};
+    TerrainAnimationAdapter moved;
+    Quaternion rotated = Quat_Multiply(orient, Quat_FromAxisAngle(Vec3_Create(0, 0, 1), .22f));
+    TerrainAnimationAdapter_Init(&moved, wd, Vec3_Add(g.position, Vec3_Create(.34f,.09f,.29f)),
+                                 rotated, Vec3_Create(.03f,0,.08f), 1.3f);
+    TerrainAnimationAdapter_RebaseFeet(&locomotion, &rig, &adapter, &moved);
+    FootState foot = locomotion.feet[0];
+    Vector3 sole = Vec3_Sub(foot.plantedPosition, Vec3_Scale(foot.normal, rig.limbs[0].soleHeight));
+    Vector3 worldSole = World_LocalToWorld(sole, moved.modelCenter, moved.scale, moved.bodyOrientation, moved.worldOrigin);
+    Vector3 beforeSole = World_LocalToWorld(localHit.position, adapter.modelCenter, adapter.scale,
+                                           adapter.bodyOrientation, adapter.worldOrigin);
+    TEST_ASSERT(Vec3_Distance(worldSole, beforeSole) < 1e-5f, "planted sole stays fixed under roll, growth and translation");
+    TEST_ASSERT(Vec3_Distance(foot.targetPosition, foot.plantedPosition) < 1e-5f, "stance target stays consistent");
+
+
     WorldStaticData_Release(wd);
 }
 

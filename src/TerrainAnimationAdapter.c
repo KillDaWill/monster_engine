@@ -51,3 +51,22 @@ void TerrainAnimationAdapter_Init(TerrainAnimationAdapter *adapter,
     adapter->modelCenter = modelCenter;
     adapter->scale = (isfinite(scale) && scale > 1e-5f) ? scale : 1.0f;
 }
+
+void TerrainAnimationAdapter_RebaseFeet(Locomotion *locomotion, const Rig *rig,
+                                        const TerrainAnimationAdapter *before,
+                                        const TerrainAnimationAdapter *after) {
+    for (size_t i = 0; i < rig->limbCount; ++i) {
+        if (!rig->limbs[i].walking) continue;
+        FootState *foot = &locomotion->feet[i];
+        Vector3 worldNormal = World_LocalDirToWorld(foot->normal, before->bodyOrientation);
+        Vector3 soleDelta = Vec3_Scale(worldNormal, (after->scale - before->scale) * rig->limbs[i].soleHeight);
+        Vector3 *points[] = {&foot->plantedPosition, &foot->targetPosition, &foot->swingStart, &foot->swingTarget};
+        for (size_t k = 0; k < sizeof(points) / sizeof(points[0]); ++k) {
+            Vector3 world = World_LocalToWorld(*points[k], before->modelCenter, before->scale,
+                                               before->bodyOrientation, before->worldOrigin);
+            *points[k] = World_WorldToLocal(Vec3_Add(world, soleDelta), after->modelCenter, after->scale,
+                                          after->bodyOrientation, after->worldOrigin);
+        }
+        foot->normal = World_WorldDirToLocal(worldNormal, after->bodyOrientation);
+    }
+}

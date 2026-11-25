@@ -36,6 +36,9 @@ typedef struct VisualSlot {
     float speciesRadius, developmentScale, meshRadius, meshLength, calibrationLength, axialTotalScale;
     float maturity, crouch, speed;
     Vector3 previousPosition, mouthTarget, supportCenter;
+    Vector3 lastContactOrigin, lastContactCenter;
+    Quaternion lastContactOrientation;
+    float lastContactScale;
     float previousYaw, runBlend, actionClock, restBlend;
     float gaitPhase, bobY, leanPitch;
     float midAnimAccumulator;
@@ -717,6 +720,7 @@ static void ReleaseSlotMonster(VisualState* state, VisualSlot* slot) {
     free(slot->previousPose);
     slot->previousPose = NULL;
     slot->monsterReady = false;
+    slot->lastContactScale = 0;
     slot->anatomyGeneration = 0u;
     if (state->monsterInstances > 0u) --state->monsterInstances;
 }
@@ -1319,7 +1323,8 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
 
     float yawDelta = slot->yaw - slot->previousYaw;
     yawDelta = atan2f(sinf(yawDelta), cosf(yawDelta));
-    Locomotion_TurnFrame(&a->locomotion, yawDelta);
+    bool terrainContacts = state->staticWorld && !state->staticWorld->isFlat;
+    if (!terrainContacts) Locomotion_TurnFrame(&a->locomotion, yawDelta);
     a->angularVelocity = fmaxf(-5.0f, fminf(5.0f, yawDelta / deltaSeconds));
     a->desiredVelocity = velocity;
     slot->previousPosition = slot->position;
@@ -1363,15 +1368,30 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
     a->mouthOpen += (jaw - a->mouthOpen) * (1.0f - expf(-12.0f * deltaSeconds));
     if (slot->previousPose) *slot->previousPose = animation->pose;
 
-    /* Vincular adaptador de terreno local <-> mundial para IK de patas en relieve 3D. */
+    /* Los puntos de apoyo se conservan al transformar el marco completo.
+     * El cuerpo ya se ha desplazado en la simulación. La locomoción visual
+     * sigue usando velocidad y fase para el paso, sin integrar otro traslado. */
     TerrainAnimationAdapter terrainAdapter;
     World* prevWorld = monster->world;
-    if (state->staticWorld && !state->staticWorld->isFlat) {
+    if (terrainContacts) {
         TerrainAnimationAdapter_Init(&terrainAdapter, state->staticWorld,
                                      slot->position, orient, SlotCenter(slot), scale);
         monster->world = TerrainAnimationAdapter_AsWorld(&terrainAdapter);
+        float displacementWorld = Vec3_Distance(slot->lastContactOrigin, slot->position);
+        if (slot->lastContactScale <= 0.0f || displacementWorld > fmaxf(.45f, a->gait.strideLength * scale)) {
+            Locomotion_Init(&a->locomotion, rig, &a->gait, monster->world, a->locomotion.bodyPosition);
+        } else {
+            TerrainAnimationAdapter previous;
+            TerrainAnimationAdapter_Init(&previous, state->staticWorld, slot->lastContactOrigin,
+                                         slot->lastContactOrientation, slot->lastContactCenter, slot->lastContactScale);
+            TerrainAnimationAdapter_RebaseFeet(&a->locomotion, rig, &previous, &terrainAdapter);
+        }
+        a->locomotion.externalBodyFrame = true;
+        slot->lastContactOrigin = terrainAdapter.worldOrigin;
+        slot->lastContactCenter = terrainAdapter.modelCenter;
+        slot->lastContactScale = terrainAdapter.scale;
+        slot->lastContactOrientation = terrainAdapter.bodyOrientation;
     }
-
     /* Acotar subpasos de animación de presentación (máx 2 subpasos por frame incluso a 64x). */
     float remaining = fminf(deltaSeconds, 1.0f / 30.0f);
     while (remaining > 1e-6f) {
@@ -1397,9 +1417,10 @@ static void AnimateSlotDetailed(VisualState* state, VisualSlot* slot, float delt
 
     float breath = .003f * monster->phenotype.axial.totalScale * sinf(slot->actionClock * 2.2f);
     float lower = slot->hasAnatomicalBody ? 0.0f : slot->restBlend * a->reachProfile.maximumCrouch * .45f;
-    for (size_t j = 0; j < rig->skeleton.jointCount; ++j)
-        if (rig->skeleton.joints[j].parentIndex < 0)
-            animation->pose.joints[j].localPosition.y += breath - lower;
+    if (!terrainContacts)
+        for (size_t j = 0; j < rig->skeleton.jointCount; ++j)
+            if (rig->skeleton.joints[j].parentIndex < 0)
+                animation->pose.joints[j].localPosition.y += breath - lower;
 
     if (agile) {
         if (slot->action == ACTION_ATTACK) {
@@ -1810,14 +1831,22 @@ size_t EcosystemVisual_GetDrawPackets(const EcosystemVisual* visual, EcosystemVi
                 packet->renderedMouth = Vec3_Add(packet->position, Quat_RotateVector(qOrient, Vec3_Scale(oral, packet->scale)));
                 packet->mouthError = Vec3_Distance(packet->renderedMouth, slot->mouthTarget);
             }
-            if (hasDetailedMonster) {
+            if (hasDetailedMonster && packet->pose) {
                 const MonsterAnimation* animation = slot->monster->animation;
                 for (size_t leg = 0; leg < animation->rig.limbCount; ++leg) {
-                    Vector3 actual = packet->pose->joints[animation->rig.limbs[leg].endEffectorJoint].worldPosition;
+                    const LimbRig *limb = &animation->rig.limbs[leg];
+                    Vector3 actual = packet->pose->joints[limb->endEffectorJoint].worldPosition;
                     const FootState* foot = &animation->animator.locomotion.feet[leg];
                     float error = Vec3_Distance(actual, foot->targetPosition) * packet->scale;
                     packet->footError = fmaxf(packet->footError, error);
                     if (foot->phase == FOOT_STANCE) packet->stanceFootError = fmaxf(packet->stanceFootError, error);
+                    if (!limb->walking || !animation->animator.locomotion.initialized) continue;
+                    Vector3 normal = Vec3_LengthSq(foot->normal) > .25f ? foot->normal : Vec3_Create(0, 1, 0);
+                    Vector3 sole = Vec3_Sub(actual, Vec3_Scale(normal, limb->soleHeight));
+                    unsigned contact = packet->supportCount++;
+                    packet->supportPoints[contact] = Vec3_Add(packet->position,
+                        Quat_RotateVector(qOrient, Vec3_Scale(sole, packet->scale)));
+                    if (foot->phase == FOOT_STANCE) packet->stanceMask |= 1u << contact;
                 }
             }
         } else {
@@ -1833,6 +1862,7 @@ size_t EcosystemVisual_GetDrawPackets(const EcosystemVisual* visual, EcosystemVi
             packet->axialTotalScale = slot->axialTotalScale;
             packet->calibrationFactor = slot->calibrationLength > 1e-4f ? 2.05f / slot->calibrationLength : 1.0f;
         }
+        packet->presentedCenter = slot->position;
         packet->poseAlpha = slot->poseAlpha;
         packet->yaw = slot->yaw;
         packet->gaitCadence = slot->profile.gaitCadence;

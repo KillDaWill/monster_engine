@@ -1,5 +1,7 @@
 #define GL_GLEXT_PROTOTYPES
 #include "OpenGLRenderer.h"
+#include "SceneLighting.h"
+#include "environment_glsl.inc"
 #include "MonsterSDF.h"
 #include "MonsterVisual.h"
 #include "Monster.h"
@@ -65,6 +67,7 @@ typedef struct GpuMesh {
     const AnatomyDeformer* skinOwner;
     uint64_t skinBindingGeneration,skinGeometryGeneration;
     bool gpuPosed;
+    unsigned scenePoseToken;
 } GpuMesh;
 typedef struct EyeTextureCache { GLuint texture; uint64_t fingerprint,lastUse; } EyeTextureCache;
 static void OpenGL_RenderEyeCallback(Renderer3D*,const struct MonsterVisualEye*);
@@ -82,7 +85,38 @@ typedef struct SDFUniformLocations {
         GLint surfaceRecipe,pigmentSeed,scaleSeed,furSeed,sdfHasSurface,sdfFurEnabled;
 } SDFUniformLocations;
 
+typedef struct SceneSkin {
+    const AnatomyDeformer *binding;
+    uint64_t generation;
+    AnatomyPosePalette palette;
+} SceneSkin;
+
+typedef struct SceneDraw {
+    const Mesh *mesh;
+    const MonsterVisualEye *eye;
+    size_t firstInstance, instanceCount, skin, surface;
+    bool tint, castShadow, shells, guards;
+    int forcedShells;
+    float modelView[16];
+} SceneDraw;
+
+typedef struct SceneDrawList {
+    SceneDraw *draws;
+    OpenGLMeshInstance *instances;
+    SurfaceRecipe *surfaces;
+    SceneSkin *skins;
+    size_t count, capacity, instanceCount, instanceCapacity, decorationStart;
+    size_t surfaceCount, surfaceCapacity, skinCount, skinCapacity, currentSurface;
+    unsigned poseToken, poseTokenBase;
+    GLuint instanceVbo;
+    float (*packedInstances)[16];
+    size_t packedCapacity, replayInstance;
+    bool recording, castShadow, failed, depth, lighting;
+} SceneDrawList;
+
 typedef struct OpenGLRendererData {
+    SceneDrawList sceneList;
+    GLuint studioLighting, plainSceneProgram, meshDepthProgram, instanceDepthProgram;
     struct {
         GLuint sampleProgram,classifyProgram,emitProgram,finalizeProgram,resetProgram,prepareProgram,validateProgram,intervalProgram,renderProgram;
         GLuint samples,cases,tables,command,vertices,validation,intervalValidation,vao;
@@ -472,6 +506,7 @@ void OpenGLRenderer_SetFrameTarget(Renderer3D* renderer,unsigned framebuffer) {
 
 static void OpenGL_BeginFrame(Renderer3D* self) {
     OpenGLRendererData* d=self?self->user_data:NULL;
+    if (d) SceneLighting_BindStudio(d->studioLighting);
     if(demoFramebuffer||(d&&d->frameTargetExplicit))glBindFramebuffer(GL_FRAMEBUFFER,FrameTarget(d));
     if(d) {
         if(!d->meshQueries[0])glGenQueries(4,d->meshQueries);
@@ -574,12 +609,20 @@ void OpenGLRenderer_RenderMesh(const Mesh* mesh) {
 }
 
 static bool RenderSurfaceMesh(OpenGLRendererData* data,const Mesh* mesh);
+static bool RenderPlainSceneMesh(OpenGLRendererData *data, const Mesh *mesh);
+static SceneDraw *RecordSceneDraw(OpenGLRendererData *data, const Mesh *mesh);
 
 static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
+    OpenGLRendererData *backend = self ? self->user_data : NULL;
+    if (backend && backend->sceneList.recording) {
+        if (mesh && mesh->vertexCount && mesh->indexCount) RecordSceneDraw(backend, mesh);
+        return;
+    }
+    if (backend && backend->sceneList.depth && mesh && mesh->translucent) return;
     bool wireframe = false;
     if (self && self->user_data) {
         OpenGLRendererData* data = (OpenGLRendererData*)self->user_data;
-        wireframe = data->wireframe;
+        wireframe = data->wireframe && !data->sceneList.depth;
     }
 
     GLint previousPolygonMode[2] = {GL_FILL, GL_FILL};
@@ -597,7 +640,9 @@ static void OpenGL_RenderMeshCallback(Renderer3D* self, const Mesh* mesh) {
         }
     } else if(data&&mesh&&data->skin.mesh==mesh) {
         if(!RenderSurfaceMesh(data,mesh)){data->skin.failed=true;fprintf(stderr,"[ERROR] Skinning GPU incompleto\n");}
-    } else if(!data || !mesh || (!mesh->hasSurface && data->surfaceDebug!=10) || !RenderSurfaceMesh(data,mesh))OpenGLRenderer_RenderMesh(mesh);
+    } else if(!data || !mesh || (!mesh->hasSurface && data->surfaceDebug!=10) || !RenderSurfaceMesh(data,mesh)) {
+        if (!data || !data->sceneList.lighting || !RenderPlainSceneMesh(data, mesh)) OpenGLRenderer_RenderMesh(mesh);
+    }
 
     if (wireframe) {
         glPolygonMode(GL_FRONT, previousPolygonMode[0]);
@@ -610,6 +655,16 @@ void OpenGLRenderer_Destroy(Renderer3D* renderer) {
 
     if (renderer->user_data) {
         OpenGLRendererData* data=renderer->user_data;
+        free(data->sceneList.draws);
+        free(data->sceneList.instances);
+        free(data->sceneList.packedInstances);
+        glDeleteBuffers(1, &data->sceneList.instanceVbo);
+        free(data->sceneList.skins);
+        free(data->sceneList.surfaces);
+        glDeleteBuffers(1, &data->studioLighting);
+        glDeleteProgram(data->plainSceneProgram);
+        glDeleteProgram(data->meshDepthProgram);
+        glDeleteProgram(data->instanceDepthProgram);
         GLuint programs[]={data->compute.sampleProgram,data->compute.classifyProgram,
             data->compute.emitProgram,data->compute.finalizeProgram,data->compute.resetProgram,data->compute.prepareProgram,data->compute.validateProgram,data->compute.intervalProgram,data->compute.renderProgram};
         for(size_t i=0;i<sizeof(programs)/sizeof(*programs);++i)if(programs[i])glDeleteProgram(programs[i]);
@@ -799,7 +854,7 @@ Renderer3D OpenGLRenderer_Create(ICamera* camera) {
     renderer.renderMesh = OpenGL_RenderMeshCallback;
     renderer.renderEye = OpenGL_RenderEyeCallback;
     renderer.renderLongHair = OpenGL_RenderLongHair;
-    if(data){data->longHair.quality=3;data->handoffPass=-1;}
+    if(data){data->longHair.quality=3;data->handoffPass=-1;data->studioLighting=SceneLighting_CreateStudio();}
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -848,9 +903,208 @@ static GLuint CompileShader(GLenum type,const char* const* source,size_t count) 
     if(!ok){char log[4096];glGetShaderInfoLog(shader,sizeof(log),NULL,log);fprintf(stderr,"[GLSL] %s\n",log);glDeleteShader(shader);return 0;}
     return shader;
 }
+static void PackMeshInstances(float (*packed)[16], const OpenGLMeshInstance *instances, size_t count) {
+    for(size_t i=0;i<count;++i) {
+        float *row = packed[i];
+        row[0]=instances[i].position.x;row[1]=instances[i].position.y;row[2]=instances[i].position.z;row[3]=instances[i].scale;
+        row[4]=instances[i].yaw;row[5]=instances[i].bobY;row[6]=instances[i].leanPitch;row[7]=instances[i].scaleY;
+        row[8]=instances[i].tint.r/255.0f;row[9]=instances[i].tint.g/255.0f;row[10]=instances[i].tint.b/255.0f;row[11]=instances[i].tint.a/255.0f;
+        if(instances[i].useOrientation) {
+            row[4]=instances[i].scaleZ;
+            Quaternion q=Quat_Normalize(instances[i].orientation);
+            row[12]=q.x;row[13]=q.y;row[14]=q.z;row[15]=q.w;
+        } else {
+            row[12]=0.0f;row[13]=0.0f;row[14]=0.0f;
+            row[15]=instances[i].scaleZ > 0 ? -2.0f - instances[i].scaleZ : 0.0f;
+        }
+    }
+}
+
+static bool ReserveSceneList(void **data, size_t *capacity, size_t count, size_t stride) {
+    if (count <= *capacity) return true;
+    size_t size = count > *capacity * 2 ? count : *capacity * 2;
+    if (size < 16) size = 16;
+    if (size > SIZE_MAX / stride) return false;
+    void *allocation = realloc(*data, size * stride);
+    if (!allocation) return false;
+    *data = allocation;
+    *capacity = size;
+    return true;
+}
+
+static SceneDraw *RecordSceneDraw(OpenGLRendererData *d, const Mesh *mesh) {
+    SceneDrawList *list = &d->sceneList;
+    if (!ReserveSceneList((void **)&list->draws, &list->capacity, list->count + 1, sizeof(*list->draws))) goto failed;
+    if (d->meshSurfaceOverrideSet && !list->currentSurface) {
+        if (!ReserveSceneList((void **)&list->surfaces, &list->surfaceCapacity,
+                              list->surfaceCount + 1, sizeof(*list->surfaces))) goto failed;
+        list->surfaces[list->surfaceCount++] = d->meshSurfaceOverride;
+        list->currentSurface = list->surfaceCount;
+    }
+    SceneDraw draw = {
+        .mesh = mesh, .surface = d->meshSurfaceOverrideSet ? list->currentSurface : 0,
+        .castShadow = list->castShadow, .shells = !d->disableShells,
+        .guards = !d->disableGuards, .forcedShells = d->forcedShells
+    };
+    if (mesh && d->skin.mesh == mesh) {
+        if (!ReserveSceneList((void **)&list->skins, &list->skinCapacity,
+                              list->skinCount + 1, sizeof(*list->skins))) goto failed;
+        list->skins[list->skinCount++] = (SceneSkin){d->skin.binding, d->skin.generation, d->skin.palette};
+        draw.skin = list->skinCount;
+    }
+    glGetFloatv(GL_MODELVIEW_MATRIX, draw.modelView);
+    list->draws[list->count] = draw;
+    return &list->draws[list->count++];
+failed:
+    list->failed = true;
+    return NULL;
+}
+
+static bool InitPlainScene(OpenGLRendererData *d) {
+    if (d->plainSceneProgram) return true;
+    const char *vertex =
+        "#version 330 compatibility\n"
+        "out vec3 viewPos, viewNormal; out vec4 color;\n"
+        "void main(){viewPos=(gl_ModelViewMatrix*gl_Vertex).xyz;"
+        "viewNormal=gl_NormalMatrix*gl_Normal;color=gl_Color;gl_Position=ftransform();}\n";
+    const char *fragment = "#version 330 compatibility\n" ENV_SCENE_LIGHTING
+        "in vec3 viewPos,viewNormal;in vec4 color;out vec4 frag;\n"
+        "void main(){vec3 p=sceneWorldPosition(viewPos);"
+        "vec3 n=normalize(mat3(sceneViewToWorld)*viewNormal);"
+        "float direct=max(dot(n,sceneSunWorld.xyz),0)*sceneVisibility(p,n);"
+        "frag=vec4(sceneObjectOutput(sceneDecode(color.rgb)*(sceneAmbient(n.y)+sceneSunRadiance.rgb*direct),p),color.a);}\n";
+    GLuint vs = CompileShader(GL_VERTEX_SHADER, &vertex, 1);
+    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, &fragment, 1);
+    GLuint program = 0;
+    if (vs && fs) {
+        program = glCreateProgram();
+        glAttachShader(program, vs);
+        glAttachShader(program, fs);
+        glLinkProgram(program);
+        GLint ok;
+        glGetProgramiv(program, GL_LINK_STATUS, &ok);
+        if (!ok) {
+            glDeleteProgram(program);
+            program = 0;
+        }
+        d->meshDepthProgram = SceneLighting_LinkDepth(vs);
+    }
+    if (vs) glDeleteShader(vs);
+    if (fs) glDeleteShader(fs);
+    d->plainSceneProgram = program;
+    if (program) SceneLighting_LinkProgram(program);
+    return program != 0;
+}
+
+static bool RenderPlainSceneMesh(OpenGLRendererData *d, const Mesh *mesh) {
+    if (!mesh || !InitPlainScene(d)) return false;
+    GLint previous;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &previous);
+    glUseProgram(d->sceneList.depth ? d->meshDepthProgram : d->plainSceneProgram);
+    OpenGLRenderer_RenderMesh(mesh);
+    glUseProgram((GLuint)previous);
+    return true;
+}
+
+void OpenGLRenderer_BeginSceneList(Renderer3D *renderer) {
+    OpenGLRendererData *d = renderer->user_data;
+    SceneDrawList *list = &d->sceneList;
+    list->count = list->instanceCount = list->skinCount = list->surfaceCount = list->currentSurface = 0;
+    list->castShadow = true;
+    list->decorationStart = SIZE_MAX;
+    list->failed = false;
+    list->replayInstance = SIZE_MAX;
+    list->recording = true;
+}
+
+void OpenGLRenderer_SceneCastShadow(Renderer3D *renderer, bool castShadow) {
+    ((OpenGLRendererData *)renderer->user_data)->sceneList.castShadow = castShadow;
+}
+
+void OpenGLRenderer_MarkSceneDecoration(Renderer3D *renderer) {
+    SceneDrawList *list = &((OpenGLRendererData *)renderer->user_data)->sceneList;
+    list->decorationStart = list->count;
+}
+
+void OpenGLRenderer_EndSceneList(Renderer3D *renderer) {
+    SceneDrawList *list = &((OpenGLRendererData *)renderer->user_data)->sceneList;
+    list->recording = false;
+    if (!list->instanceCount ||
+        !ReserveSceneList((void **)&list->packedInstances, &list->packedCapacity,
+                          list->instanceCount, sizeof(*list->packedInstances))) return;
+    PackMeshInstances(list->packedInstances, list->instances, list->instanceCount);
+    GLint previous;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previous);
+    if (!list->instanceVbo) glGenBuffers(1, &list->instanceVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, list->instanceVbo);
+    glBufferData(GL_ARRAY_BUFFER, list->instanceCount * sizeof(*list->packedInstances),
+                 list->packedInstances, GL_STREAM_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, (GLuint)previous);
+}
+
+void OpenGLRenderer_DrawSceneList(Renderer3D *renderer, const float *viewToWorld, bool decoration,
+                                 size_t *drawCount, size_t *triangleCount) {
+    OpenGLRendererData *d = renderer->user_data;
+    SceneDrawList *list = &d->sceneList;
+    if (list->failed) fprintf(stderr, "[SceneLighting] Lista de dibujo incompleta por falta de memoria.\n");
+    list->depth = viewToWorld != NULL;
+    if (list->depth && (!InitPlainScene(d) || !d->meshDepthProgram)) {
+        list->depth = false;
+        return;
+    }
+    list->lighting = true;
+    bool shells = !d->disableShells, guards = !d->disableGuards;
+    int forcedShells = d->forcedShells;
+    glMatrixMode(GL_MODELVIEW);
+    size_t split = list->decorationStart < list->count ? list->decorationStart : list->count;
+    size_t first = !list->depth && decoration ? split : 0;
+    size_t end = list->depth || decoration ? list->count : split;
+    for (size_t i = first; i < end; ++i) {
+        const SceneDraw *draw = list->draws + i;
+        if (list->depth && (!draw->castShadow || !draw->mesh || draw->mesh->translucent)) continue;
+        glPushMatrix();
+        if (list->depth) {
+            glMultMatrixf(viewToWorld);
+            glMultMatrixf(draw->modelView);
+        } else glLoadMatrixf(draw->modelView);
+        if (draw->mesh) {
+            if (drawCount) ++*drawCount;
+            if (triangleCount)
+                *triangleCount += (draw->mesh->indexCount / 3) * (draw->instanceCount ? draw->instanceCount : 1);
+        }
+        OpenGLRenderer_SetFurQuality(renderer, draw->shells, draw->guards, draw->forcedShells);
+        OpenGLRenderer_SetMeshSurfaceOverride(renderer, draw->surface ? list->surfaces + draw->surface - 1 : NULL);
+        d->skin.mesh = NULL;
+        if (draw->skin) {
+            const SceneSkin *skin = list->skins + draw->skin - 1;
+            d->skin.mesh = draw->mesh;
+            d->skin.binding = skin->binding;
+            d->skin.generation = skin->generation;
+            d->skin.palette = skin->palette;
+            // La misma orden tiene el mismo identificador en ambas pasadas.
+            list->poseToken = list->poseTokenBase + (unsigned)i + 1;
+        }
+        if (draw->eye) renderer->renderEye(renderer, draw->eye);
+        else if (draw->instanceCount) {
+            if (list->instanceVbo && list->packedCapacity >= list->instanceCount)
+                list->replayInstance = draw->firstInstance;
+            OpenGLRenderer_RenderMeshInstanced(renderer, draw->mesh, list->instances + draw->firstInstance,
+                                               draw->instanceCount, draw->tint);
+            list->replayInstance = SIZE_MAX;
+        } else renderer->renderMesh(renderer, draw->mesh);
+        list->poseToken = 0;
+        glPopMatrix();
+    }
+    if (!list->depth && decoration) list->poseTokenBase += (unsigned)list->count;
+    d->skin.mesh = NULL;
+    OpenGLRenderer_SetMeshSurfaceOverride(renderer, NULL);
+    OpenGLRenderer_SetFurQuality(renderer, shells, guards, forcedShells);
+    list->depth = list->lighting = false;
+}
+
 static bool InitEyeProgram(OpenGLRendererData* d) {
     if(d->eyeProgram)return true;
-    const char* vs="#version 120\n"
+    const char* vs="#version 330 compatibility\n"
         "uniform vec3 eyeCenter,eyeForward,eyeRight,eyeUp,eyeScale,eyeAxisZ;uniform bool eyeLocalGlobe;\n"
         "varying vec3 vLocal,vNormal,vEyePos;\n"
         "void main(){vec3 world=gl_Vertex.xyz,n=gl_Normal;"
@@ -858,17 +1112,22 @@ static bool InitEyeProgram(OpenGLRendererData* d) {
         "world=eyeCenter+basis*(world*eyeScale);n=basis*(n/eyeScale);}"
         "vec3 q=world-eyeCenter;vLocal=vec3(dot(q,eyeRight)/eyeScale.x,dot(q,eyeUp)/eyeScale.y,dot(q,eyeForward)/eyeScale.z);"
         "vec4 p=gl_ModelViewMatrix*vec4(world,1.0);vEyePos=p.xyz;vNormal=normalize(gl_NormalMatrix*n);gl_Position=gl_ProjectionMatrix*p;}\n";
-    const char* fs="#version 120\n"
+    const char* fs[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING,
         "uniform sampler2D eyeTexture;uniform float eyeGloss;varying vec3 vLocal,vNormal,vEyePos;\n"
         "void main(){const float pi=3.14159265359;vec3 q=normalize(vLocal);vec2 uv=vec2(atan(q.x,q.z)/(2.0*pi)+0.5,asin(clamp(q.y,-1.0,1.0))/pi+0.5);"
-        "vec3 base=texture2D(eyeTexture,uv).rgb;vec3 n=normalize(vNormal);vec3 v=normalize(-vEyePos);"
-        "vec3 l=normalize(gl_LightSource[0].position.xyz-vEyePos*gl_LightSource[0].position.w);vec3 h=normalize(l+v);"
+        "vec3 base=texture2D(eyeTexture,uv).rgb;vec3 n=normalize(vNormal);vec3 v=sceneEyeDirection(vEyePos);"
+        "vec3 l=normalize(gl_LightSource[0].position.xyz-vEyePos*gl_LightSource[0].position.w);if(sceneNatural()) l=sceneSunView.xyz; vec3 h=normalize(l+v);"
         "float diff=max(dot(n,l),0.0);float spec=pow(max(dot(n,h),0.0),96.0)*eyeGloss;float fres=pow(1.0-max(dot(n,v),0.0),5.0);"
-        "vec3 col=base*(0.34+0.72*diff)+vec3(spec*0.9+fres*0.13);gl_FragColor=vec4(col,1.0);}\n";
-    GLuint v=CompileShader(GL_VERTEX_SHADER,&vs,1),f=CompileShader(GL_FRAGMENT_SHADER,&fs,1);
+        "vec3 col=base*(0.34+0.72*diff)+vec3(spec*0.9+fres*0.13);"
+        "if(sceneNatural()){vec3 wp=sceneWorldPosition(vEyePos);vec3 wn=mat3(sceneViewToWorld)*n;"
+        "float visible=sceneVisibility(wp,wn);"
+        "col=sceneObjectOutput(sceneDecode(base)*(sceneAmbient(wn.y)+sceneSunRadiance.rgb*diff*visible)"
+        " + sceneSunRadiance.rgb*spec*diff*visible*.65+sceneSkyFill.rgb*fres*.06,wp);}gl_FragColor=vec4(col,1.0);}\n"};
+    GLuint v=CompileShader(GL_VERTEX_SHADER,&vs,1),f=CompileShader(GL_FRAGMENT_SHADER,fs,sizeof(fs)/sizeof(*fs));
     if(!v||!f){if(v)glDeleteShader(v);if(f)glDeleteShader(f);return false;}
     GLuint p=glCreateProgram();glAttachShader(p,v);glAttachShader(p,f);glLinkProgram(p);glDeleteShader(v);glDeleteShader(f);
     GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);if(!ok){char log[2048];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[Eye GLSL] %s\n",log);glDeleteProgram(p);return false;}
+    SceneLighting_LinkProgram(p);
     d->eyeProgram=p;d->eye.texture=glGetUniformLocation(p,"eyeTexture");d->eye.center=glGetUniformLocation(p,"eyeCenter");
     d->eye.forward=glGetUniformLocation(p,"eyeForward");d->eye.right=glGetUniformLocation(p,"eyeRight");d->eye.up=glGetUniformLocation(p,"eyeUp");
     d->eye.scale=glGetUniformLocation(p,"eyeScale");d->eye.gloss=glGetUniformLocation(p,"eyeGloss");
@@ -907,6 +1166,13 @@ OpenGLEyeStats OpenGLRenderer_GetEyeStats(const Renderer3D* renderer) {
 }
 static void OpenGL_RenderEyeCallback(Renderer3D* self,const struct MonsterVisualEye* visualEye) {
     OpenGLRendererData* d=self?self->user_data:NULL;const MonsterVisualEye* e=(const MonsterVisualEye*)visualEye;
+    if (d && d->sceneList.recording) {
+        if (e) {
+            SceneDraw *draw = RecordSceneDraw(d, NULL);
+            if (draw) draw->eye = e;
+        }
+        return;
+    }
     if(!d||!e||!e->globe.vertices||!e->globe.indexCount||!InitEyeProgram(d))return;
     GLuint texture=EyeTextureFor(d,e);if(!texture)return;GLint oldProgram=0;glGetIntegerv(GL_CURRENT_PROGRAM,&oldProgram);
     glUseProgram(d->eyeProgram);glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,texture);glUniform1i(d->eye.texture,0);
@@ -2746,7 +3012,7 @@ static void ResetAutomaticGPU(void) {
     unsetenv("__NV_PRIME_RENDER_OFFLOAD");unsetenv("__GLX_VENDOR_LIBRARY_NAME");unsetenv("DRI_PRIME");
 #endif
 }
-OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int height,int samples) {
+static OpenGLDemoWindow* CreateDemoWindow(const char* title,int width,int height,int samples,bool sceneSRGB) {
     bool automatic=SelectPlatformGPU();
     if(SDL_Init(SDL_INIT_VIDEO)<0) {
         if(!automatic)return NULL;
@@ -2758,6 +3024,7 @@ OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int he
     OpenGLDemoWindow* w=calloc(1,sizeof(*w));
     if(!w) { SDL_Quit(); return NULL; }
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1); SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);
+    SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, sceneSRGB ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,samples>0?1:0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,samples>0?samples:0);
     w->window=SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,width,height,SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
@@ -2769,13 +3036,19 @@ OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int he
         w->window=SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,width,height,SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
         if(w->window)w->context=SDL_GL_CreateContext(w->window);
     }
+    if (!w->context && sceneSRGB) {
+        if (w->window) SDL_DestroyWindow(w->window);
+        free(w);
+        SDL_Quit();
+        return CreateDemoWindow(title, width, height, samples, false);
+    }
     if(!w->context&&automatic) {
         /* El fallback es de contexto, previo a cargar recursos; nunca migra
          * geometría ni repite pruebas de adaptadores durante la simulación. */
         if(w->window)SDL_DestroyWindow(w->window);
         free(w);SDL_Quit();ResetAutomaticGPU();automaticGPUFailed=true;
         fprintf(stderr,"[GPU selección] Falló el contexto dedicado; usando adaptador predeterminado.\n");
-        return OpenGLDemoWindow_CreateMSAA(title,width,height,samples);
+        return CreateDemoWindow(title,width,height,samples,sceneSRGB);
     }
     if(!w->context) { OpenGLDemoWindow_Free(w); return NULL; }
     if(!OpenGLRenderer_VerifyCurrentGPU()) { OpenGLDemoWindow_Free(w); return NULL; }
@@ -2785,7 +3058,7 @@ OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int he
         if(samples<=maximum) {
             glGenFramebuffers(1,&w->framebuffer);glBindFramebuffer(GL_FRAMEBUFFER,w->framebuffer);
             glGenRenderbuffers(1,&w->color);glBindRenderbuffer(GL_RENDERBUFFER,w->color);
-            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples,GL_RGBA8,width,height);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples,sceneSRGB ? GL_SRGB8_ALPHA8 : GL_RGBA8,width,height);
             glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,w->color);
             glGenRenderbuffers(1,&w->depth);glBindRenderbuffer(GL_RENDERBUFFER,w->depth);
             glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples,GL_DEPTH_COMPONENT24,width,height);
@@ -2797,6 +3070,13 @@ OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int he
     }
     printf("[GPU] %s | %s | MSAA=%d\n",glGetString(GL_RENDERER),glGetString(GL_VERSION),actual);
     SDL_GL_SetSwapInterval(0); return w;
+}
+OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char *title, int width, int height, int samples) {
+    return CreateDemoWindow(title, width, height, samples, false);
+}
+
+OpenGLDemoWindow* OpenGLDemoWindow_CreateScene(const char *title, int width, int height, int samples) {
+    return CreateDemoWindow(title, width, height, samples, true);
 }
 OpenGLDemoInput OpenGLDemoWindow_Poll(OpenGLDemoWindow* w) {
     (void)w; OpenGLDemoInput input={.view=-1, .digitKey=-1}; SDL_Event e;
@@ -3218,6 +3498,7 @@ bool OpenGLRenderer_SetMeshSkinning(Renderer3D* renderer,const Mesh* mesh,const 
 bool OpenGLRenderer_SetMeshSurfaceOverride(Renderer3D* renderer,const SurfaceRecipe* recipe) {
     if(!renderer||!renderer->user_data)return false;
     OpenGLRendererData* d=renderer->user_data;
+    d->sceneList.currentSurface = 0;
     if(recipe){d->meshSurfaceOverride=*recipe;d->meshSurfaceOverrideSet=true;}
     else d->meshSurfaceOverrideSet=false;
     return true;
@@ -3226,10 +3507,14 @@ bool OpenGLRenderer_SetMeshMorphSkinning(Renderer3D* renderer,const Mesh* mesh,c
     const Skeleton* skeleton,const SkeletonPose* pose,const AnatomyGraph* graph,int head,Vector3 headScale,uint64_t generation) {
     if(!OpenGLRenderer_SetMeshSkinning(renderer,mesh,binding,skeleton,pose,generation))return false;
     OpenGLRendererData* d=renderer->user_data;
-    return AnatomyDeformer_BuildMorphPosePalette(binding,skeleton,pose,graph,&d->skin.palette)&&
-        (head<0||AnatomyDeformer_ScaleJointPalette(binding,pose,head,headScale,&d->skin.palette));
+    if (AnatomyDeformer_BuildMorphPosePalette(binding,skeleton,pose,graph,&d->skin.palette) &&
+        (head<0||AnatomyDeformer_ScaleJointPalette(binding,pose,head,headScale,&d->skin.palette))) return true;
+    d->skin.mesh = NULL;
+    return false;
 }
 static bool DeformMeshGPU(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh) {
+    if (d->sceneList.poseToken && cache->gpuPosed && cache->scenePoseToken == d->sceneList.poseToken)
+        return true;
     const AnatomyDeformer* binding=d->skin.binding;
     if(cache->skinOwner!=binding||cache->skinBindingGeneration!=d->skin.generation||
        cache->skinGeometryGeneration!=mesh->geometryGeneration) {
@@ -3277,6 +3562,7 @@ static bool DeformMeshGPU(OpenGLRendererData* d,GpuMesh* cache,const Mesh* mesh)
     glDispatchCompute(groups>65535?65535:groups,(groups+65534)/65535,1);
     glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT|GL_TEXTURE_FETCH_BARRIER_BIT|GL_SHADER_STORAGE_BARRIER_BIT);
     cache->gpuPosed=true;
+    cache->scenePoseToken = d->sceneList.poseToken;
     return OpenGLRenderer_CheckErrors();
 }
 bool OpenGLRenderer_ValidateMeshSkinning(Renderer3D* renderer,const Mesh* mesh,const AnatomyDeformer* binding,
@@ -3320,6 +3606,7 @@ static bool InitSurfaceProgram(OpenGLRendererData* d) {
         char log[4096]; glGetProgramInfoLog(p,sizeof(log),NULL,log); fprintf(stderr,"[Superficie GLSL] %s\n",log);
         glDeleteProgram(p); d->surfaceFailed=true; return false;
     }
+    SceneLighting_LinkProgram(p);
     d->surfaceProgram=p;
     d->shellResolutionLocation=glGetUniformLocation(p,"shellResolution");
     d->regionalLODLocation=glGetUniformLocation(p,"regionalShellLOD");
@@ -3353,6 +3640,7 @@ static void OpenGL_RenderLongHair(Renderer3D* renderer,const LongHairSet* hair){
         const char* varying="strandPosition";glTransformFeedbackVaryings(p,1,&varying,GL_INTERLEAVED_ATTRIBS);
         glLinkProgram(p);glDeleteShader(vs);glDeleteShader(fs);
         GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);if(!ok){char log[4096];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[Pelo largo] %s\n",log);glDeleteProgram(p);return;}
+        SceneLighting_LinkProgram(p);
         d->longHair.program=p;glGenBuffers(1,&d->longHair.buffer);glGenTextures(1,&d->longHair.texture);glGenVertexArrays(1,&d->longHair.vao);glGenQueries(2,d->longHair.queries);
         d->longHair.uGuideData=glGetUniformLocation(p,"guideData");
         d->longHair.uChildren=glGetUniformLocation(p,"children");
@@ -3471,6 +3759,7 @@ static bool InitGuardProgram(OpenGLRendererData* d) {
     GLuint p=glCreateProgram();glAttachShader(p,vs);glAttachShader(p,fs);glLinkProgram(p);
     glDeleteShader(vs);glDeleteShader(fs);GLint ok=0;glGetProgramiv(p,GL_LINK_STATUS,&ok);
     if(!ok){char log[4096];glGetProgramInfoLog(p,sizeof(log),NULL,log);fprintf(stderr,"[Pelaje] %s\n",log);glDeleteProgram(p);return false;}
+    SceneLighting_LinkProgram(p);
     d->guardProgram=p;
 #define GUARD_LOCATION(field,name) d->guard.field=glGetUniformLocation(p,name)
     GUARD_LOCATION(recipe,"surfaceRecipe");GUARD_LOCATION(pigmentSeed,"pigmentSeed");GUARD_LOCATION(furSeed,"furSeed");
@@ -3631,6 +3920,23 @@ static bool RenderSurfaceMesh(OpenGLRendererData* d,const Mesh* mesh) {
     else ++d->meshStats.cacheHitCount;
     cached->vertexPointer=mesh->vertices;cached->indexPointer=mesh->indices;cached->vertexCount=mesh->vertexCount;cached->indexCount=mesh->indexCount;
     glBindVertexArray(cached->vao);
+    if (d->sceneList.depth) {
+        glUseProgram(d->meshDepthProgram);
+        glBindBuffer(GL_ARRAY_BUFFER, cached->geometryVbo);
+        glEnableClientState(GL_VERTEX_ARRAY);
+        glVertexPointer(3, GL_FLOAT, sizeof(GeometryGpuVertex), (const void*)offsetof(GeometryGpuVertex,position));
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cached->indexBuffer);
+        bool restoreCull = mesh->doubleSided && glIsEnabled(GL_CULL_FACE);
+        if (restoreCull) glDisable(GL_CULL_FACE);
+        glDrawElements(GL_TRIANGLES, (GLsizei)mesh->indexCount, GL_UNSIGNED_INT, NULL);
+        if (restoreCull) glEnable(GL_CULL_FACE);
+        glDisableClientState(GL_VERTEX_ARRAY);
+        glBindVertexArray((GLuint)vao);
+        glUseProgram((GLuint)previous);
+        glBindBuffer(GL_ARRAY_BUFFER,(GLuint)buffer);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,(GLuint)indexBuffer);
+        return true;
+    }
     glUseProgram(d->surfaceProgram);
     glUniform4fv(d->surfaceRecipeLocation,SURFACE_RECIPE_ROWS,&recipe->data[0][0]);
     if(d->detailMaterialLocation>=0)glUniform4fv(d->detailMaterialLocation,MESH_DETAIL_MATERIAL_ROWS,&mesh->detailMaterial[0][0]);
@@ -3823,6 +4129,7 @@ static bool InitInstancedProgram(OpenGLRendererData* d) {
         "  float qLen2 = dot(iQuat, iQuat);\n"
         "  if (qLen2 > 0.25 && iQuat.w > -1.5) {\n"
         "    vec4 qn = normalize(iQuat);\n"
+        "    if (yaw > 0.0) szScale = yaw;\n"
         "    vec3 ps = vec3(p.x * sxScale, p.y * syScale, p.z * szScale);\n"
         "    pw = qrot(qn, ps) + iPosScale.xyz + vec3(0.0, bob, 0.0);\n"
         "    nw = normalize(qrot(qn, vec3(n.x / max(sxScale, 1e-4), n.y / max(syScale, 1e-4), n.z / max(szScale, 1e-4))));\n"
@@ -3830,7 +4137,7 @@ static bool InitInstancedProgram(OpenGLRendererData* d) {
         "    float cy = cos(yaw), sy = sin(yaw);\n"
         "    vec3 pr = vec3(cy*p.x + sy*p.z, p.y, -sy*p.x + cy*p.z);\n"
         "    pw = vec3(pr.x * sxScale, pr.y * syScale, pr.z * szScale) + iPosScale.xyz + vec3(0.0, bob, 0.0);\n"
-        "    nw = normalize(vec3(cy*n.x + sy*n.z, n.y, -sy*n.x + cy*n.z));\n"
+        "    nw = normalize(vec3(cy*n.x + sy*n.z, n.y, -sy*n.x + cy*n.z) / max(vec3(sxScale,syScale,szScale), vec3(1e-4)));\n"
         "  }\n"
         "  vNormal = normalize(gl_NormalMatrix * nw);\n"
         "  vViewPos = (gl_ModelViewMatrix * vec4(pw, 1.0)).xyz;\n"
@@ -3839,8 +4146,7 @@ static bool InitInstancedProgram(OpenGLRendererData* d) {
         "  vColor = baseCol;\n"
         "  gl_Position = gl_ModelViewProjectionMatrix * vec4(pw, 1.0);\n"
         "}\n";
-    const char* fs=
-        "#version 330 compatibility\n"
+    const char* fs[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING,
         "uniform vec4 uMaterial;\n" /* x=roughness, y=specular, z=specTint, w=hasSurface */
         "in vec3 vNormal;\n"
         "in vec3 vViewPos;\n"
@@ -3850,7 +4156,8 @@ static bool InitInstancedProgram(OpenGLRendererData* d) {
         "void main() {\n"
         "  vec3 n = normalize(vNormal);\n"
         "  vec3 light = normalize(vec3(-0.45, 0.75, 0.8));\n"
-        "  vec3 view = normalize(-vViewPos);\n"
+        "  vec3 view = sceneEyeDirection(vViewPos);\n"
+        "  if (sceneNatural()) light = sceneSunView.xyz;\n"
         "  vec3 halfVector = normalize(light + view);\n"
         "  float diffuse = max(dot(n, light), 0.0);\n"
         "  float fill = max(dot(n, normalize(vec3(0.7, 0.2, -0.3))), 0.0);\n"
@@ -3863,16 +4170,26 @@ static bool InitInstancedProgram(OpenGLRendererData* d) {
         "  float specTerm = pow(max(dot(n, halfVector), 0.0), exponent) * specStrength * diffuse;\n"
         "  vec3 specColor = mix(vec3(1.0), vColor, specTint);\n"
         "  vec3 lit = vColor * (0.26 + 0.70 * diffuse + 0.12 * fill) + specColor * specTerm;\n"
+        "  if (sceneNatural()) {\n"
+        "    vec3 world = sceneWorldPosition(vViewPos);\n"
+        "    vec3 wn = mat3(sceneViewToWorld) * n;\n"
+        "    float visible = sceneVisibility(world, wn);\n"
+        "    vec3 base = sceneDecode(vColor);\n"
+        "    lit = sceneObjectOutput(base * (sceneAmbient(wn.y) + sceneSunRadiance.rgb * diffuse * visible)\n"
+        "        + mix(vec3(1), base, specTint) * sceneSunRadiance.rgb * (specTerm * visible * .55), world);\n"
+        "  }\n"
         "  fragColor = vec4(lit, 1.0);\n"
-        "}\n";
+        "}\n"};
     GLuint v=CompileShader(GL_VERTEX_SHADER,&vs,1);
-    GLuint f=CompileShader(GL_FRAGMENT_SHADER,&fs,1);
+    GLuint f=CompileShader(GL_FRAGMENT_SHADER,fs,sizeof(fs)/sizeof(*fs));
     if(!v||!f){if(v)glDeleteShader(v);if(f)glDeleteShader(f);d->instanced.failed=true;return false;}
     GLuint prog=glCreateProgram();
     glAttachShader(prog,v);glAttachShader(prog,f);glLinkProgram(prog);
+    d->instanceDepthProgram=SceneLighting_LinkDepth(v);
     glDeleteShader(v);glDeleteShader(f);
     GLint ok=0;glGetProgramiv(prog,GL_LINK_STATUS,&ok);
     if(!ok){glDeleteProgram(prog);d->instanced.failed=true;return false;}
+    SceneLighting_LinkProgram(prog);
     d->instanced.program=prog;
     d->instanced.useTintLocation=glGetUniformLocation(prog,"uUseTint");
     d->instanced.materialLocation=glGetUniformLocation(prog,"uMaterial");
@@ -3887,6 +4204,22 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
     if(!renderer||!renderer->user_data||!mesh||!mesh->vertexCount||!mesh->indexCount||!instances||!count)
         return false;
     OpenGLRendererData* d=renderer->user_data;
+    if (d->sceneList.recording) {
+        SceneDrawList *list = &d->sceneList;
+        if (!ReserveSceneList((void **)&list->instances, &list->instanceCapacity,
+                              list->instanceCount + count, sizeof(*list->instances))) {
+            list->failed = true;
+            return false;
+        }
+        SceneDraw *draw = RecordSceneDraw(d, mesh);
+        if (!draw) return false;
+        draw->firstInstance = list->instanceCount;
+        draw->instanceCount = count;
+        draw->tint = useTintColor;
+        memcpy(list->instances + list->instanceCount, instances, count * sizeof(*instances));
+        list->instanceCount += count;
+        return true;
+    }
     if(!InitInstancedProgram(d)) {
         /* Fallback compatible sin instancing. */
         for(size_t i=0;i<count;++i) {
@@ -3899,6 +4232,7 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
         return true;
     }
 
+    if (d->sceneList.depth && !d->instanceDepthProgram) return false;
     GLint prevProg=0,prevBuf=0,prevIdx=0,prevVao=0;
     glGetIntegerv(GL_CURRENT_PROGRAM,&prevProg);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING,&prevBuf);
@@ -3958,28 +4292,19 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
     cached->vertexPointer=mesh->vertices;cached->indexPointer=mesh->indices;
     cached->vertexCount=mesh->vertexCount;cached->indexCount=mesh->indexCount;
 
-    if(count>d->instanced.capacity) {
+    size_t replay = d->sceneList.lighting ? d->sceneList.replayInstance : SIZE_MAX;
+    if(replay == SIZE_MAX && count>d->instanced.capacity) {
         size_t newCap=d->instanced.capacity?d->instanced.capacity*2:256;
         while(newCap<count)newCap*=2;
         float (*p)[16]=realloc(d->instanced.packed,newCap*sizeof(*p));
         if(!p){glBindBuffer(GL_ARRAY_BUFFER,(GLuint)prevBuf);glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,(GLuint)prevIdx);return false;}
         d->instanced.packed=p;d->instanced.capacity=newCap;
     }
-    for(size_t i=0;i<count;++i) {
-        float* row=d->instanced.packed[i];
-        row[0]=instances[i].position.x;row[1]=instances[i].position.y;row[2]=instances[i].position.z;row[3]=instances[i].scale;
-        row[4]=instances[i].yaw;row[5]=instances[i].bobY;row[6]=instances[i].leanPitch;row[7]=instances[i].scaleY;
-        row[8]=instances[i].tint.r/255.0f;row[9]=instances[i].tint.g/255.0f;row[10]=instances[i].tint.b/255.0f;row[11]=instances[i].tint.a/255.0f;
-        if(instances[i].useOrientation) {
-            Quaternion q=Quat_Normalize(instances[i].orientation);
-            row[12]=q.x;row[13]=q.y;row[14]=q.z;row[15]=q.w;
-        } else {
-            row[12]=0.0f;row[13]=0.0f;row[14]=0.0f;row[15]=0.0f;
-        }
-    }
+    if (replay == SIZE_MAX) PackMeshInstances(d->instanced.packed, instances, count);
 
     glBindVertexArray(d->instanced.vao);
-    glUseProgram(d->instanced.program);
+    glUseProgram(d->sceneList.depth ? d->instanceDepthProgram : d->instanced.program);
+    if (!d->sceneList.depth) {
     if(d->instanced.useTintLocation>=0)glUniform1i(d->instanced.useTintLocation,useTintColor?1:0);
     if(d->instanced.materialLocation>=0) {
         /* Derivar rugosidad, especularidad y tinte del reflejo directamente del SurfaceRecipe
@@ -4012,6 +4337,8 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
         glUniform4f(d->instanced.materialLocation, matRough, matSpec, matSpecTint, hasSurf);
     }
 
+    }
+
     glBindBuffer(GL_ARRAY_BUFFER,cached->geometryVbo);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(GeometryGpuVertex),(const void*)offsetof(GeometryGpuVertex,position));
@@ -4023,26 +4350,31 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer,const Mesh* mesh,
     glVertexAttribPointer(2,4,GL_UNSIGNED_BYTE,GL_TRUE,sizeof(GeometryGpuVertex),(const void*)offsetof(GeometryGpuVertex,color));
     glVertexAttribDivisor(2,0);
 
-    glBindBuffer(GL_ARRAY_BUFFER,d->instanced.vbo);
-    glBufferData(GL_ARRAY_BUFFER,count*16*sizeof(float),d->instanced.packed,GL_STREAM_DRAW);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)0);
-    glVertexAttribDivisor(3,1);
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)(4*sizeof(float)));
-    glVertexAttribDivisor(4,1);
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)(8*sizeof(float)));
-    glVertexAttribDivisor(5,1);
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(6,4,GL_FLOAT,GL_FALSE,16*sizeof(float),(const void*)(12*sizeof(float)));
-    glVertexAttribDivisor(6,1);
+    uintptr_t offset = 0;
+    if (replay == SIZE_MAX) {
+        glBindBuffer(GL_ARRAY_BUFFER, d->instanced.vbo);
+        glBufferData(GL_ARRAY_BUFFER, count * 16 * sizeof(float), d->instanced.packed, GL_STREAM_DRAW);
+    } else {
+        glBindBuffer(GL_ARRAY_BUFFER, d->sceneList.instanceVbo);
+        offset = replay * 16 * sizeof(float);
+    }
+    for (unsigned a = 3; a <= 6; ++a) {
+        glEnableVertexAttribArray(a);
+        glVertexAttribPointer(a, 4, GL_FLOAT, GL_FALSE, 16 * sizeof(float),
+                              (const void *)(offset + (a - 3) * 4 * sizeof(float)));
+        glVertexAttribDivisor(a, 1);
+    }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,cached->indexBuffer);
+    bool restoreCull = d->sceneList.depth && mesh->doubleSided && glIsEnabled(GL_CULL_FACE);
+    if (restoreCull) glDisable(GL_CULL_FACE);
     glDrawElementsInstanced(GL_TRIANGLES,(GLsizei)mesh->indexCount,GL_UNSIGNED_INT,0,(GLsizei)count);
-    ++d->meshStats.drawCalls;
-    ++d->meshStats.instancedDrawCalls;
-    d->meshStats.instancedCount+=count;
+    if (restoreCull) glEnable(GL_CULL_FACE);
+    if (!d->sceneList.depth) {
+        ++d->meshStats.drawCalls;
+        ++d->meshStats.instancedDrawCalls;
+        d->meshStats.instancedCount+=count;
+    }
 
     glBindVertexArray((GLuint)prevVao);
     glUseProgram((GLuint)prevProg);

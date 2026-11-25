@@ -59,7 +59,7 @@ bool Locomotion_Update(Locomotion* l,const Rig* rig,const GaitProfile* g,World* 
     l->velocity=Vec3_Lerp(l->velocity,desired,1-expf(-10*dt));
     speed=Vec3_Length(l->velocity);
     if(speed<.0001f)l->velocity=Vec3_Zero();
-    l->bodyPosition=Vec3_Add(l->bodyPosition,Vec3_Scale(l->velocity,dt));
+    if(!l->externalBodyFrame)l->bodyPosition=Vec3_Add(l->bodyPosition,Vec3_Scale(l->velocity,dt));
     SkeletonPose rest; SkeletonPose_Init(&rest,&rig->skeleton);
     /* También se pisa al pivotar: la pata exterior recorre un arco mayor.
      * Usar el radio respecto al centro de apoyos, sin atenuar omega. */

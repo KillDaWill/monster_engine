@@ -26,7 +26,12 @@ typedef enum TerrainDebugMode {
     TERRAIN_DEBUG_BIOME       = 5,
     TERRAIN_DEBUG_NAVIGATION  = 6,
     TERRAIN_DEBUG_COLLISION   = 7,
-    TERRAIN_DEBUG_MODE_COUNT  = 8
+    TERRAIN_DEBUG_ALBEDO = 8,
+    TERRAIN_DEBUG_NORMAL = 9,
+    TERRAIN_DEBUG_ROUGHNESS = 10,
+    TERRAIN_DEBUG_WEIGHTS = 11,
+    TERRAIN_DEBUG_SHADOW = 12,
+    TERRAIN_DEBUG_MODE_COUNT = 13
 } TerrainDebugMode;
 
 typedef struct TerrainRenderStats {
@@ -46,6 +51,7 @@ typedef struct TerrainRenderer {
 
 /** @brief Nombre textual legible del modo de depuración del terreno. */
 const char *TerrainDebugMode_Name(TerrainDebugMode mode);
+bool TerrainDebugMode_Parse(const char *name, TerrainDebugMode *mode);
 
 /** @brief Inicializa estado del renderizador de terreno (requiere contexto OpenGL activo al compilar/subir). */
 bool TerrainRenderer_Init(TerrainRenderer *tr);
@@ -62,6 +68,7 @@ TerrainDebugMode TerrainRenderer_GetDebugMode(const TerrainRenderer *tr);
 
 /** @brief Ajusta factor de calidad/distancia LOD (0.6 = bajo, 1.0 = medio, 1.35 = alto). */
 /** @brief Fuerza la malla física completa para diagnóstico. */
+void TerrainRenderer_SetContacts(TerrainRenderer *tr, unsigned texture, Vector3 mapping);
 void TerrainRenderer_ForceLod0(TerrainRenderer *tr, bool enabled);
 void TerrainRenderer_SetQuality(TerrainRenderer *tr, float lodQualityScale, bool wireframe);
 
@@ -71,6 +78,8 @@ bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
 
 /** @brief Métricas del último frame y memoria GPU estimada. */
 TerrainRenderStats TerrainRenderer_GetStats(const TerrainRenderer *tr);
+
+void TerrainRenderer_RenderShadow(TerrainRenderer *renderer, const ICamera *camera);
 
 #ifdef __cplusplus
 }

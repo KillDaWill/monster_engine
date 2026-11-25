@@ -702,7 +702,7 @@ static bool parseLabTerrainDebug(const char *s, TerrainDebugMode *out) {
     else if (!strcmp(s, "biome") || !strcmp(s, "fertility")) *out = TERRAIN_DEBUG_BIOME;
     else if (!strcmp(s, "nav") || !strcmp(s, "navigation")) *out = TERRAIN_DEBUG_NAVIGATION;
     else if (!strcmp(s, "collision") || !strcmp(s, "rocks")) *out = TERRAIN_DEBUG_COLLISION;
-    else return false;
+    else return TerrainDebugMode_Parse(s, out);
     return true;
 }
 
@@ -846,9 +846,9 @@ static void printHelp(void) {
          "  --replay-ticks=N            Avanzar N ticks el viewport 3D de replay antes de capturar\n"
          "  --replay-speed=1|2|4|8|16|32 Velocidad inicial del viewport 3D de replay (tecla F / [ ])\n"
          "  --replay-seed=N             Semilla exacta de episodio para el replay 3D\n"
-         "  --terrain-debug=MODE        Modo de depuración del terreno (natural|elevation|slope|hydrology|depth|biome|nav|collision)\n"
+         "  --terrain-debug=MODE        Modo de depuración del terreno (natural|elevation|slope|hydrology|depth|biome|nav|collision|albedo|normal|roughness|weights|shadow)\n"
          "  --show-neural               Abrir el visualizador gráfico de la red neuronal V2 (tecla N)\n"
-         "  --width=W  --height=H  --frames=N  --capture=IMG.ppm  --water-time=SECONDS --msaa=0|2|4|8");
+         "  --width=W  --height=H  --frames=N  --capture=IMG.ppm  --water-time=SECONDS --msaa=0|2|4|8 --quality=low|medium|high --shadows=off|low|medium|high --no-hud --check-gl --no-contacts --no-decoration --sun=AZIMUTH,ELEVATION");
 }
 
 int main(int argc, char **argv) {
@@ -864,6 +864,11 @@ int main(int argc, char **argv) {
     const char *resumePath = NULL;
     const char *capturePath = NULL;
     float fixedWaterTime = -1.0f;
+    SceneShadowQuality shadows = SCENE_SHADOW_AUTO;
+    bool contacts = true, decoration = true, showHud = true, checkGL = false;
+    bool periodicMaterials = false;
+    int sceneQuality = 1;
+    float sunAzimuth = 137.5f, sunElevation = 47.0f;
     int msaa = 0;
     const char *actionSaveCkpt = NULL;
     const char *actionLoadCkpt = NULL;
@@ -941,6 +946,25 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--height=", 9)) winH = (int)strtol(a + 9, NULL, 10);
         else if (!strncmp(a, "--frames=", 9)) frames = (unsigned)strtoul(a + 9, NULL, 10);
         else if (!strncmp(a, "--capture=", 10)) capturePath = a + 10;
+        else if (!strcmp(a, "--no-hud")) showHud = false;
+        else if (!strcmp(a, "--check-gl")) checkGL = true;
+        else if (!strcmp(a, "--no-contacts")) contacts = false;
+        else if (!strcmp(a, "--no-decoration")) decoration = false;
+        else if (!strcmp(a, "--periodic-materials")) periodicMaterials = true;
+        else if (!strncmp(a, "--quality=", 10)) {
+            if (!strcmp(a + 10, "low")) sceneQuality = 0;
+            else if (!strcmp(a + 10, "medium")) sceneQuality = 1;
+            else if (!strcmp(a + 10, "high")) sceneQuality = 2;
+            else return 2;
+        }
+        else if (!strncmp(a, "--sun=", 6)) {
+            char extra;
+            if (sscanf(a + 6, "%f,%f%c", &sunAzimuth, &sunElevation, &extra) != 2 ||
+                !isfinite(sunAzimuth) || !isfinite(sunElevation) || sunElevation < 15 || sunElevation > 85) return 2;
+        }
+        else if (!strncmp(a, "--shadows=", 10)) {
+            if (!SceneLighting_ParseShadows(a + 10, &shadows)) return 2;
+        }
         else if (!strncmp(a, "--water-time=", 13)) {
             fixedWaterTime = strtof(a + 13, NULL);
             if (!isfinite(fixedWaterTime) || fixedWaterTime < 0.0f) return 2;
@@ -1035,7 +1059,7 @@ int main(int argc, char **argv) {
         ctrl->threadStarted = true;
     }
 
-    OpenGLDemoWindow *window = OpenGLDemoWindow_CreateMSAA("Monster Engine - Brain Evolution Lab", winW, winH, msaa);
+    OpenGLDemoWindow *window = OpenGLDemoWindow_CreateScene("Monster Engine - Brain Evolution Lab", winW, winH, msaa);
     if (!window) {
         ctrl->quitRequested = true;
         if (ctrl->threadStarted) pthread_join(ctrl->thread, NULL);
@@ -1062,6 +1086,12 @@ int main(int argc, char **argv) {
         free(ctrl);
         return 1;
     }
+    EnvironmentRenderer_SetQuality(&envRenderer, sceneQuality == 0 ? .65f : sceneQuality == 1 ? 1.0f : 1.35f,
+                                   sceneQuality, false);
+    EnvironmentRenderer_SetShadows(&envRenderer, shadows);
+    EnvironmentRenderer_SetDetails(&envRenderer, contacts, decoration);
+    EnvironmentRenderer_SetPeriodicMaterials(&envRenderer, periodicMaterials);
+    EnvironmentRenderer_SetSun(&envRenderer, sunAzimuth, sunElevation);
     EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
 
     Mesh meshes[5];
@@ -1273,14 +1303,16 @@ int main(int argc, char **argv) {
         /* Renderizado 3D del Viewport de Replay                              */
         /* ================================================================== */
         renderer.beginFrame(&renderer);
-        OpenGLRenderer_SetupCameraOrtho(&camera, (float)camZoom, winW, winH);
+        camera.fov = -(float)camZoom;
+        camera.aspectRatio = (float)winW / (float)winH;
+        OpenGLRenderer_SetupCamera(&camera, winW, winH);
 
         if (replay.initialized) {
             bool proceduralWorld = EnvironmentRenderer_IsProcedural(&envRenderer);
             float limit = replay.world.observations.halfSize > 0.1f
                         ? replay.world.observations.halfSize : (curEnv.arenaSize * 0.5f);
             if (proceduralWorld) {
-                EnvironmentRenderer_RenderOpaque(&envRenderer, &renderer, &camera, limit, &meshes[0], 0.65f, 0.72f);
+                OpenGLRenderer_BeginSceneList(&renderer);
             } else {
                 OpenGLRenderer_ModelTransform(Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f, Vec3_Zero());
                 renderer.renderMesh(&renderer, &meshes[0]);
@@ -1311,9 +1343,11 @@ int main(int argc, char **argv) {
                 const Mesh *rm = (res->presentationModel == SUBSTANCE_MODEL_WATER) ? &meshes[1]
                                : (res->presentationModel == SUBSTANCE_MODEL_CARCASS) ? &meshes[3]
                                : &meshes[2];
+                if (proceduralWorld) OpenGLRenderer_SceneCastShadow(&renderer, rm != &meshes[1]);
                 OpenGLRenderer_RenderMeshInstanced(&renderer, rm, &inst, 1u, true);
             }
 
+            if (proceduralWorld) OpenGLRenderer_SceneCastShadow(&renderer, true);
             /* Criaturas con anatomía procedural real y orientación 3D completa sobre relieve */
             size_t pc = EcosystemVisual_GetDrawPackets(&replay.visual, packets, 64u);
             for (size_t i = 0; i < pc; ++i) {
@@ -1353,8 +1387,12 @@ int main(int argc, char **argv) {
             }
 
             if (proceduralWorld) {
+                EnvironmentRenderer_QueueDecoration(&envRenderer, &renderer, &camera);
+                OpenGLRenderer_EndSceneList(&renderer);
+                ok = EnvironmentRenderer_RenderScene(&envRenderer, &renderer, &camera, true, packets, pc) && ok;
                 EnvironmentRenderer_RenderWater(&envRenderer, &camera,
                                                  fixedWaterTime >= 0.0f ? fixedWaterTime : (float)fmod(presentationTime, 80.0));
+                EnvironmentRenderer_EndScene(&envRenderer);
                 EnvironmentRenderer_RenderOverlays(&envRenderer, &camera);
             }
         }
@@ -1362,6 +1400,7 @@ int main(int argc, char **argv) {
         /* ================================================================== */
         /* Interfaz 2D del Brain Evolution Lab (Sección 33)                   */
         /* ================================================================== */
+        if (showHud) {
         OpenGLRenderer_Begin2D(winW, winH);
 
         /* Barra Superior de Controles */
@@ -1580,6 +1619,8 @@ int main(int argc, char **argv) {
                                   snap->statusMessage);
 
         OpenGLRenderer_End2D();
+        }
+        if (checkGL) ok = OpenGLRenderer_CheckErrors() && ok;
 
         if (capturePath && frames && frame + 1u == frames) {
             ensureDirPath(capturePath);

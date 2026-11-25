@@ -5,6 +5,7 @@
 #define GL_GLEXT_PROTOTYPES
 #include "RockVisualCache.h"
 #include "environment_glsl.inc"
+#include "SceneLighting.h"
 #include "Quaternion.h"
 
 #include <GL/gl.h>
@@ -44,7 +45,8 @@ typedef struct RockVariantMesh {
 } RockVariantMesh;
 
 typedef struct RockVisualCacheImpl {
-    GLuint program;
+    GLuint program, depthProgram;
+    bool depthPass;
     GLint uCamPosLoc;
     GLint uDetailLoc;
     TerrainMaterialBindings materialBindings;
@@ -97,13 +99,12 @@ static const char *kRockFragSrc =
     "out vec4 FragColor;\n"
     "void main() {\n"
     "    vec3 n = normalize(vWorldNormal);\n"
-    "    GroundMaterial rock = GroundMaterial(vec3(.174,.151,.124), vec3(0), vec2(.75,.94));\n"
-    "    if (uHasMaterials) rock = rockMaterial(vWorldPos, n, dFdx(vWorldPos), dFdy(vWorldPos), uRockDetail);\n"
-    "    vec3 color = rock.color * mix(vec3(1), vTint * 1.8, .27) * vShade;\n"
-    "    n = materialNormal(n, rock.gradient * .8);\n"
-    "    vec3 lit = illuminateGround(color, n, normalize(uCamPos - vWorldPos), rock.masks.x, rock.masks.y);\n"
-    "    float fog = smoothstep(95.0, 460.0, length(vWorldPos - uCamPos)) * .45;\n"
-    "    FragColor = vec4(environmentOutput(mix(lit, worldHaze, fog)), 1.0);\n"
+    "    GroundMaterial rock = GroundMaterial(materialMean(2), vec3(0), vec2(.75,.94));\n"
+    "    if (uHasMaterials) rock = rockMaterial(vWorldPos, n, dFdx(vWorldPos), dFdy(vWorldPos), uRockDetail, sceneExtras.x > .5);\n"
+    "    vec3 color = rock.color * mix(vec3(.95), vTint * 1.75, .16);\n"
+    "    vec3 mappedNormal = materialNormal(n, rock.gradient * .62);\n"
+    "    vec3 lit = illuminateGround(color, vWorldPos, mappedNormal, n, sceneViewDirection(vWorldPos), rock.masks.x, rock.masks.y * mix(1.0,vShade,.38));\n"
+    "    FragColor = vec4(sceneObjectOutput(lit, vWorldPos), 1.0);\n"
     "}\n";
 
 static GLuint compileShader(GLenum type, const char *const *src, GLsizei count) {
@@ -126,9 +127,9 @@ static GLuint compileShader(GLenum type, const char *const *src, GLsizei count) 
 static bool ensureShader(RockVisualCacheImpl *impl) {
     if (impl->program != 0) return true;
     const char *vsParts[] = {kRockVertSrc};
-    const char *fsParts[] = {"#version 330 compatibility\n", ENV_MATERIALS, kRockFragSrc};
+    const char *fsParts[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_PROJECTION, kRockFragSrc};
     GLuint vs = compileShader(GL_VERTEX_SHADER, vsParts, 1);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsParts, 3);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsParts, 5);
     if (!vs || !fs) {
         if (vs) glDeleteShader(vs);
         if (fs) glDeleteShader(fs);
@@ -138,6 +139,7 @@ static bool ensureShader(RockVisualCacheImpl *impl) {
     glAttachShader(prog, vs);
     glAttachShader(prog, fs);
     glLinkProgram(prog);
+    impl->depthProgram = SceneLighting_LinkDepth(vs);
     glDeleteShader(vs);
     glDeleteShader(fs);
     GLint ok = 0;
@@ -149,6 +151,7 @@ static bool ensureShader(RockVisualCacheImpl *impl) {
         glDeleteProgram(prog);
         return false;
     }
+    SceneLighting_LinkProgram(prog);
     impl->program = prog;
     impl->materialBindings = TerrainMaterials_GetBindings(prog);
     impl->uDetailLoc = glGetUniformLocation(prog, "uRockDetail");
@@ -470,6 +473,7 @@ void RockVisualCache_Destroy(RockVisualCache *cache) {
     RockVisualCacheImpl *impl = (RockVisualCacheImpl *)cache->impl;
     freeVariants(impl);
     if (impl->program) glDeleteProgram(impl->program);
+    if (impl->depthProgram) glDeleteProgram(impl->depthProgram);
     free(impl);
     cache->impl = NULL;
 }
@@ -623,11 +627,14 @@ bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera,
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
-    glUseProgram(impl->program);
-    TerrainMaterialState materialState = TerrainMaterials_Bind(materials, &impl->materialBindings);
-    glUniform1i(impl->uDetailLoc, materialDetail);
-    if (impl->uCamPosLoc >= 0) {
-        glUniform3f(impl->uCamPosLoc, camera->position.x, camera->position.y, camera->position.z);
+    glUseProgram(impl->depthPass ? impl->depthProgram : impl->program);
+    TerrainMaterialState materialState = {0};
+    if (!impl->depthPass) {
+        materialState = TerrainMaterials_Bind(materials, &impl->materialBindings);
+        glUniform1i(impl->uDetailLoc, materialDetail);
+        if (impl->uCamPosLoc >= 0) {
+            glUniform3f(impl->uCamPosLoc, camera->position.x, camera->position.y, camera->position.z);
+        }
     }
 
     for (uint32_t v = 0; v < impl->variantCount; ++v) {
@@ -679,7 +686,7 @@ bool RockVisualCache_Render(RockVisualCache *cache, const ICamera *camera,
     glBindVertexArray((GLuint)prevVao);
     glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevBuf);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevEbo);
-    TerrainMaterials_Restore(&materialState);
+    if (!impl->depthPass) TerrainMaterials_Restore(&materialState);
     glUseProgram((GLuint)prevProg);
     return true;
 }
@@ -745,4 +752,12 @@ void RockVisualCache_RenderCollisionDebug(const RockVisualCache *cache, const Wo
 RockRenderStats RockVisualCache_GetStats(const RockVisualCache *cache) {
     if (!cache || !cache->impl) return (RockRenderStats){0};
     return ((const RockVisualCacheImpl *)cache->impl)->stats;
+}
+
+void RockVisualCache_RenderShadow(RockVisualCache *rocks, const ICamera *camera) {
+    RockVisualCacheImpl *impl = rocks->impl;
+    if (!impl || !impl->depthProgram) return;
+    impl->depthPass = true;
+    RockVisualCache_Render(rocks, camera, NULL, false);
+    impl->depthPass = false;
 }

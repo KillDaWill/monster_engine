@@ -161,7 +161,7 @@ static bool parseTerrainDebugMode(const char *s, TerrainDebugMode *out) {
     else if (!strcmp(s, "biome") || !strcmp(s, "fertility")) *out = TERRAIN_DEBUG_BIOME;
     else if (!strcmp(s, "nav") || !strcmp(s, "navigation")) *out = TERRAIN_DEBUG_NAVIGATION;
     else if (!strcmp(s, "collision") || !strcmp(s, "rocks")) *out = TERRAIN_DEBUG_COLLISION;
-    else return false;
+    else return TerrainDebugMode_Parse(s, out);
     return true;
 }
 
@@ -1030,11 +1030,11 @@ static void printHelp(void) {
          "  --show-neural  --show-digestive  --show-substance  --inspect-resource=ID  --inspect-substance=SUB_ID\n"
          "  --import-brain=PATH  --export-brain=PATH  --swap-brains=A:B\n"
          "  --world=PATH  --world-seed=N  --allow-extra-ponds\n"
-         "  --terrain-debug=natural|elevation|slope|hydrology|depth|biome|nav|collision  --wireframe\n"
+         "  --terrain-debug=natural|elevation|slope|hydrology|depth|biome|nav|collision|albedo|normal|roughness|weights|shadow  --wireframe\n"
          "  --show-shores  --show-rock-collision  --show-terrain-grid  --cam-x=X  --cam-z=Z  --angle=RAD\n"
          "  --camera-position=X,Y,Z --camera-target=X,Y,Z --perspective=DEG --water-time=SECONDS\n"
-         "  --terrain-lod0 --wireframe --msaa=0|2|4|8 --check-gl --orbit-rate=RAD_PER_SEC\n"
-         "  --frames=N  --capture=IMG.ppm  --profile=METRICS.json  --view=side|front|three-quarter|overview\n"
+         "  --terrain-lod0 --wireframe --msaa=0|2|4|8 --check-gl --orbit-rate=RAD_PER_SEC --shadows=off|low|medium|high --no-contacts --no-decoration --sun=AZIMUTH,ELEVATION --periodic-materials --capture-shadow=MAP.pgm\n"
+         "  --frames=N  --capture=IMG.ppm  --step-ticks=N  --profile=METRICS.json  --profile-warmup=N  --view=side|front|three-quarter|overview\n"
          "  --focus=ID  --capture-species=1|2  --capture-state=overview|adult|juvenile|newborn|walking|turning|drinking|feeding|hunting|attacking|fleeing|resting|mating\n"
          "  --zoom=N  --no-hud  --initial-age=S  --inspect=body|head|feet|neck  --validate-mouth=N  --validate-skinning  --cpu-skinning  --focus-lod=near|mid|far  --lod-cycle");
 }
@@ -1053,15 +1053,20 @@ int main(int argc, char **argv) {
     bool showHud = true, showNeural = false, showDigestive = false, showSubstance = false;
     bool showPerf = false, showMinimap = false, minimapExplicit = false;
     bool forceRealtime = false, forceStepLock = false;
+    unsigned exactStepTicks = 0, profileWarmup = 0;
     bool captured = false, validateSkin = false, forceCpu = false;
     int winW = ARENA_DEFAULT_W, winH = ARENA_DEFAULT_H;
     QualityPreset quality = QUALITY_HIGH;
+    SceneShadowQuality shadows = SCENE_SHADOW_AUTO;
+    bool contacts = true, decoration = true;
+    bool periodicMaterials = false;
+    float sunAzimuth = 137.5f, sunElevation = 47.0f;
     ViewMode view = VIEW_THREE_QUARTER;
     CaptureState captureState = CAPTURE_OVERVIEW;
     AIObjectId focusId = 0;
     unsigned captureSpecies = 0;
     bool hasFocus = false;
-    const char *inspect = NULL;
+    const char *inspect = NULL, *captureShadow = NULL;
     VisualTier captureTier = VISUAL_TIER_NEAR;
     bool lodCycle = false;
     TerrainDebugMode terrainDebugMode = TERRAIN_DEBUG_NATURAL;
@@ -1187,7 +1192,25 @@ int main(int argc, char **argv) {
         else if (!strcmp(a, "--minimap")) { showMinimap = true; minimapExplicit = true; }
         else if (!strcmp(a, "--no-minimap")) { showMinimap = false; minimapExplicit = true; }
         else if (!strcmp(a, "--realtime") || !strcmp(a, "--async")) forceRealtime = true;
+        else if (!strcmp(a, "--no-contacts")) contacts = false;
+        else if (!strcmp(a, "--no-decoration")) decoration = false;
+        else if (!strcmp(a, "--periodic-materials")) periodicMaterials = true;
+        else if (!strncmp(a, "--sun=", 6)) {
+            char extra;
+            if (sscanf(a + 6, "%f,%f%c", &sunAzimuth, &sunElevation, &extra) != 2 ||
+                !isfinite(sunAzimuth) || !isfinite(sunElevation) || sunElevation < 15 || sunElevation > 85) return 2;
+        }
+        else if (!strncmp(a, "--shadows=", 10)) {
+            if (!SceneLighting_ParseShadows(a + 10, &shadows)) return 2;
+        }
         else if (!strcmp(a, "--step-lock")) forceStepLock = true;
+        else if (!strncmp(a, "--step-ticks=", 13)) {
+            char *end;
+            unsigned long count = strtoul(a + 13, &end, 10);
+            if (*end || count < 1 || count > 512) return 2;
+            exactStepTicks = (unsigned)count;
+            forceStepLock = true;
+        }
         else if (!strncmp(a, "--controller=", 13)) {
             if (!strcmp(a + 13, "neural")) config.controller = CREATURE_CONTROLLER_NEURAL;
             else if (!strcmp(a + 13, "utility")) config.controller = CREATURE_CONTROLLER_UTILITY;
@@ -1240,7 +1263,14 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--initial-age=", 14)) initialAge = strtod(a + 14, NULL);
         else if (!strncmp(a, "--zoom=", 7)) { initialZoom = strtod(a + 7, NULL); zoomExplicit = true; }
         else if (!strncmp(a, "--capture=", 10)) capture = a + 10;
+        else if (!strncmp(a, "--capture-shadow=", 17)) captureShadow = a + 17;
         else if (!strncmp(a, "--profile=", 10)) profile = a + 10;
+        else if (!strncmp(a, "--profile-warmup=", 17)) {
+            char *end;
+            unsigned long count = strtoul(a + 17, &end, 10);
+            if (*end || count > 10000) return 2;
+            profileWarmup = (unsigned)count;
+        }
         else if (!strncmp(a, "--view=", 7)) { if (!parseView(a + 7, &view)) return 2; }
         else if (!strncmp(a, "--focus=", 8)) { focusId = (AIObjectId)strtoul(a + 8, NULL, 10); hasFocus = true; }
         else if (!strncmp(a, "--capture-species=", 18)) captureSpecies = (unsigned)strtoul(a + 18, NULL, 10);
@@ -1254,6 +1284,7 @@ int main(int argc, char **argv) {
         char werr[160] = {0};
         if (WorldRecipe_LoadFile(config.worldRecipePath, &previewRec, werr, sizeof(werr))) {
             if (!config.hasExplicitArenaSize) config.arenaSize = previewRec.size;
+            if (!previewRec.flat && !qualityExplicit && quality == QUALITY_HIGH) quality = QUALITY_MEDIUM;
             if (!minimapExplicit && !previewRec.flat && previewRec.size >= 120.0f) showMinimap = true;
         }
     }
@@ -1261,7 +1292,7 @@ int main(int argc, char **argv) {
     if (!zoomExplicit && config.arenaSize > 80.0f && initialZoom < 30.0) {
         initialZoom = fmin(maxZoom, (double)config.arenaSize * 0.58);
     }
-    if (!qualityExplicit && (config.brumacernos + config.velkares) >= 200u) {
+    if (!qualityExplicit && (worldPresetIdx != 0u || (config.brumacernos + config.velkares) >= 200u)) {
         quality = QUALITY_MEDIUM;
     }
     if (!minimapExplicit && !showHud) showMinimap = false;
@@ -1285,7 +1316,9 @@ int main(int argc, char **argv) {
                        (capture != NULL || validateMouthFrames > 0 || validateSkin ||
                         inspect != NULL || captureState != CAPTURE_OVERVIEW));
 
-    EvolutionSimulationRunner *runner = EvolutionSimulationRunner_Create(&config, stepLocked, errBuf, sizeof(errBuf));
+    bool pausedForWarmup = !stepLocked && profile && profileWarmup > 0;
+    EvolutionSimulationRunner *runner = EvolutionSimulationRunner_Create(&config, stepLocked || pausedForWarmup,
+                                                                          errBuf, sizeof(errBuf));
     if (!runner) {
         fprintf(stderr, "Error al iniciar EvolutionSimulationRunner: %s\n", errBuf);
         return 1;
@@ -1361,7 +1394,7 @@ int main(int argc, char **argv) {
         EvolutionSimulationRunner_WaitCommand(runner, cid, 5.0, &ack);
     }
 
-    OpenGLDemoWindow *window = OpenGLDemoWindow_CreateMSAA("Monster Engine - Evolution Arena", winW, winH, msaa);
+    OpenGLDemoWindow *window = OpenGLDemoWindow_CreateScene("Monster Engine - Evolution Arena", winW, winH, msaa);
     if (!window) { EvolutionSimulationRunner_Destroy(runner); return 1; }
 
     EvolutionProfiler visualProfiler;
@@ -1387,9 +1420,13 @@ int main(int argc, char **argv) {
         EcosystemVisual_Shutdown(&visual); OpenGLRenderer_Destroy(&renderer);
         OpenGLDemoWindow_Free(window); EvolutionSimulationRunner_Destroy(runner); return 1;
     }
+    EnvironmentRenderer_SetShadows(&envRenderer, shadows);
+    EnvironmentRenderer_SetDetails(&envRenderer, contacts, decoration);
+    EnvironmentRenderer_SetPeriodicMaterials(&envRenderer, periodicMaterials);
+    EnvironmentRenderer_SetSun(&envRenderer, sunAzimuth, sunElevation);
     EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
     EnvironmentRenderer_ForceTerrainLod0(&envRenderer, terrainLod0);
-    EnvironmentRenderer_SetProfiling(&envRenderer, profile != NULL);
+    EnvironmentRenderer_SetProfiling(&envRenderer, profile != NULL && profileWarmup == 0);
     EnvironmentRenderer_SetQuality(&envRenderer,
                                    quality == QUALITY_LOW ? 0.65f : (quality == QUALITY_MEDIUM ? 1.0f : 1.35f),
                                    (int)quality, terrainWireframe);
@@ -1509,7 +1546,7 @@ int main(int argc, char **argv) {
     float outPos[NEURAL_RNN_OUTPUTS][2] = {{0}};
 
     /* Campos finales para el reporte --profile. */
-    unsigned finalPopulation = initialPopulation;
+    unsigned finalPopulation = initialPopulation, profilePopulation = initialPopulation, minPopulation = UINT32_MAX;
     uint64_t finalTick = 0;
     CreatureControllerType finalController = config.controller;
     char finalFounderMode[32] = "random";
@@ -1617,10 +1654,16 @@ int main(int argc, char **argv) {
 
         if (input.quit) break;
 
+        if (pausedForWarmup && frame == profileWarmup) {
+            uint64_t command = EvolutionSimulationRunner_PostSimple(runner, EVO_CMD_RESUME);
+            EvolutionCommandAck ack;
+            EvolutionSimulationRunner_WaitCommand(runner, command, 5.0, &ack);
+        }
+
         /* En modo determinista paso-a-paso (--capture/--validate), avanzar ticks exactos antes de leer snapshot. */
         double simStepMs = 0.0;
         if (stepLocked) {
-            unsigned stepTicks = (unsigned)fmax(1.0, round(initialSpeed));
+            unsigned stepTicks = exactStepTicks ? exactStepTicks : (unsigned)fmax(1.0, round(initialSpeed));
             double s0 = OpenGLDemoWindow_Time();
             uint64_t scid = EvolutionSimulationRunner_PostStepExact(runner, stepTicks);
             EvolutionCommandAck sack;
@@ -2118,6 +2161,10 @@ int main(int argc, char **argv) {
         /* ================================================================== */
         /* Renderizado 3D: Terreno, Entorno Instanciado y Criaturas LOD/GPU   */
         /* ================================================================== */
+        if (profile && frame == profileWarmup && profileWarmup)
+            EnvironmentRenderer_SetProfiling(&envRenderer, true);
+        if (frame == profileWarmup) profilePopulation = snap->entityCount;
+        if (frame >= profileWarmup && snap->entityCount < minPopulation) minPopulation = snap->entityCount;
         double renderStart = OpenGLDemoWindow_Time();
         OpenGLRenderer_ResetFrameDrawStats(&renderer);
         renderer.beginFrame(&renderer);
@@ -2125,7 +2172,11 @@ int main(int argc, char **argv) {
 
         float limit = snap->arenaHalfSize;
         if (proceduralWorld) {
-            EnvironmentRenderer_RenderOpaque(&envRenderer, &renderer, &camera, limit, &meshes[0], 0.65f, 0.72f);
+            if (validateSkin) {
+                OpenGLRenderer_BeginSceneList(&renderer);
+                OpenGLRenderer_EndSceneList(&renderer);
+                ok = EnvironmentRenderer_RenderScene(&envRenderer, &renderer, &camera, false, NULL, 0) && ok;
+            } else OpenGLRenderer_BeginSceneList(&renderer);
         } else {
             drawMesh(&renderer, &meshes[0], Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f);
 
@@ -2162,7 +2213,7 @@ int main(int argc, char **argv) {
                 .position = ob->position, .yaw = 0.0f, .scale = ob->radius, .scaleY = ob->radius,
                 .bobY = 0.0f, .leanPitch = 0.0f, .tint = decorColors[4]
             });
-            lineBatchPushRing(&dynamicLines, ob->position, ob->radius, 0.04f, 18u, Color_FromRGB(96, 122, 134));
+            if (showHud) lineBatchPushRing(&dynamicLines, ob->position, ob->radius, 0.04f, 18u, Color_FromRGB(96, 122, 134));
         }
         if (envInstances.count > 0) {
             OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[4], envInstances.items, envInstances.count, false);
@@ -2205,10 +2256,12 @@ int main(int argc, char **argv) {
                                (unsigned char)fminf(255.0f, tint.g + 46.0f),
                                (unsigned char)fminf(255.0f, tint.b + 46.0f), 255)
                 : Color_FromRGB(74, 188, 224);
-            lineBatchPushTerrainRing(&dynamicLines, &envRenderer, res->position, res->radius, 0.03f, 20u, ringCol);
+            if (showHud) lineBatchPushTerrainRing(&dynamicLines, &envRenderer, res->position, res->radius, 0.03f, 20u, ringCol);
         }
         if (envInstances.count > 0) {
+            if (proceduralWorld && !validateSkin) OpenGLRenderer_SceneCastShadow(&renderer, false);
             OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[1], envInstances.items, envInstances.count, anyMolecularPool);
+            if (proceduralWorld && !validateSkin) OpenGLRenderer_SceneCastShadow(&renderer, true);
         }
 
         /* Plantas / frutos (1 llamada instanciada). */
@@ -2450,8 +2503,14 @@ int main(int argc, char **argv) {
 
         /* Pasada translúcida de agua natural y overlays conformes al relieve. */
         if (proceduralWorld) {
+            if (!validateSkin) {
+                EnvironmentRenderer_QueueDecoration(&envRenderer, &renderer, &camera);
+                OpenGLRenderer_EndSceneList(&renderer);
+                ok = EnvironmentRenderer_RenderScene(&envRenderer, &renderer, &camera, true, packets, packetCount) && ok;
+            }
             EnvironmentRenderer_RenderWater(&envRenderer, &camera,
                                              fixedWaterTime >= 0.0f ? fixedWaterTime : (float)fmod(presentationTime, 80.0));
+            EnvironmentRenderer_EndScene(&envRenderer);
             EnvironmentRenderer_RenderOverlays(&envRenderer, &camera);
         }
 
@@ -2874,12 +2933,36 @@ int main(int argc, char **argv) {
                     if (EcosystemVisual_DeformBody(&packets[i], &posed)) {
                         AABB3D bounds = AABB_Empty();
                         float sn = sinf(packets[i].yaw), cs = cosf(packets[i].yaw);
+                        float surfaceY[RIG_MAX_LIMBS] = {0};
+                        unsigned surfaceVertices[RIG_MAX_LIMBS] = {0};
                         for (size_t v = 0; v < posed.vertexCount; ++v) {
                             Vector3 p = Vec3_Scale(posed.vertices[v].position, packets[i].scale);
-                            AABB_ExpandPoint(&bounds, Vec3_Add(packets[i].position, Vec3_Create(p.x * cs + p.z * sn, p.y, -p.x * sn + p.z * cs)));
+                            Vector3 worldPoint = proceduralWorld ? Quat_RotateVector(packets[i].orientation, p) :
+                                Vec3_Create(p.x * cs + p.z * sn, p.y, -p.x * sn + p.z * cs);
+                            worldPoint = Vec3_Add(packets[i].position, worldPoint);
+                            AABB_ExpandPoint(&bounds, worldPoint);
+                            for (unsigned foot = 0; proceduralWorld && foot < packets[i].supportCount; ++foot) {
+                                Vector3 sole = packets[i].supportPoints[foot];
+                                if (hypotf(worldPoint.x - sole.x, worldPoint.z - sole.z) >
+                                    fmaxf(.055f, packets[i].scale * .42f)) continue;
+                                float h;
+                                if (!Terrain_SampleHeight(&snap->staticWorld->terrain, worldPoint.x, worldPoint.z, &h)) continue;
+                                float gap = worldPoint.y - h;
+                                surfaceY[foot] = surfaceVertices[foot]++ ? fminf(gap, surfaceY[foot]) : gap;
+                            }
                         }
                         printf("capture_world_body_bounds min=%g,%g,%g max=%g,%g,%g\n",
                                bounds.start.x, bounds.start.y, bounds.start.z, bounds.end.x, bounds.end.y, bounds.end.z);
+                        for (unsigned foot = 0; proceduralWorld && foot < packets[i].supportCount; ++foot) {
+                            Vector3 sole = packets[i].supportPoints[foot];
+                            float h;
+                            if (!Terrain_SampleHeight(&snap->staticWorld->terrain, sole.x, sole.z, &h)) continue;
+                            printf("capture_support tick=%llu foot=%u phase=%s sole=%.4f,%.4f,%.4f "
+                                   "terrain_y=%.4f signed_sole_gap=%.4f signed_mesh_min=%.4f vertex_count=%u\n",
+                                   (unsigned long long)snap->tick, foot,
+                                   packets[i].stanceMask & (1u << foot) ? "stance" : "swing",
+                                   sole.x, sole.y, sole.z, h, sole.y - h, surfaceY[foot], surfaceVertices[foot]);
+                        }
                     }
                     Mesh_Free(&posed);
                     if (packets[i].jawJoint >= 0 && packets[i].restPose && packets[i].pose) {
@@ -2900,13 +2983,17 @@ int main(int argc, char **argv) {
             ensureParentDir(capture);
             captured = ok && OpenGLRenderer_SavePPM(capture, winW, winH);
             ok = captured && ok;
+            if (captureShadow) {
+                ensureParentDir(captureShadow);
+                ok = EnvironmentRenderer_SaveShadowDepth(&envRenderer, captureShadow) && ok;
+            }
             const EvolutionEntitySnapshot *subject = findSnapEntity(snap, captureTargetId ? captureTargetId : focusId);
             if (subject) {
                 printf("capture_entity=%u species=%u recipe=%u action=%s stage=%u\n",
                        subject->id, subject->speciesId, subject->recipeId,
                        CreatureAction_Name(subject->action), subject->lifeStage);
             }
-            if (subject && snap->staticWorld && captureState == CAPTURE_DRINKING) {
+            if (subject && snap->staticWorld && subject->action == ACTION_DRINK) {
                 const WorldStaticData *world = snap->staticWorld;
                 WaterSample mouthWater = {0}, targetWater = {0};
                 WorldHydrology_SampleWater(&world->hydrology, &world->terrain,
@@ -2919,6 +3006,15 @@ int main(int argc, char **argv) {
                        (unsigned long long)snap->tick, subject->mouth.x, subject->mouth.y, subject->mouth.z,
                        (unsigned)mouthWater.waterBodyId, mouthWater.surfaceY,
                        (unsigned)targetWater.waterBodyId, targetWater.surfaceY, stanceFootErrorMax);
+                WaterSample contactWater = {0};
+                Vector3 point = subject->oralContactTarget;
+                WorldHydrology_SampleWater(&world->hydrology, &world->terrain, point.x, point.z, &contactWater);
+                printf("capture_ingestion mouth_to_contact=%.5f contact_tolerance=%.5f "
+                       "contact_body=%u stable_contact_s=%.5f last_accepted_mass=%.6f "
+                       "last_ingestion_s=%.6f world_water_consumed=%.7f\n",
+                       Vec3_Distance(subject->mouth, point), subject->oralContactTolerance,
+                       contactWater.waterBodyId, subject->oralContactTime, subject->lastIngestedMass,
+                       subject->lastIngestionTime, snap->statistics.waterConsumed);
             }
             if (subject && subject->id == turningEntity) printf("capture_yaw_rate_rad_s=%g\n", observedTurnRate);
         }
@@ -2949,9 +3045,11 @@ int main(int argc, char **argv) {
         finalGpu = OpenGLRenderer_GetMeshPerformanceStats(&renderer);
         if (finalGpu.gpuTimingGeneration != gpuTimingGeneration) {
             gpuTimingGeneration = (unsigned)finalGpu.gpuTimingGeneration;
-            gpuSum += finalGpu.gpuRenderMs;
-            if (gpuTimes) gpuTimes[gpuSamples] = finalGpu.gpuRenderMs;
-            ++gpuSamples;
+            if (gpuTimingGeneration > profileWarmup + 1u) {
+                gpuSum += finalGpu.gpuRenderMs;
+                if (gpuTimes) gpuTimes[gpuSamples] = finalGpu.gpuRenderMs;
+                ++gpuSamples;
+            }
         }
         OpenGLDemoWindow_Swap(window);
         double frameTotalMs = (OpenGLDemoWindow_Time() - start) * 1000.0;
@@ -2971,11 +3069,13 @@ int main(int argc, char **argv) {
     }
 
     if (checkGl && glErrorCount) ok = false;
-    if (profileTimes && frame) {
+    if (profileTimes && frame > profileWarmup) {
+        unsigned measured = frame - profileWarmup;
+        const double *frameSample = times + profileWarmup, *renderSample = renderTimes + profileWarmup;
         double sum = 0.0, simSum = 0.0;
-        for (unsigned i = 0; i < frame; ++i) { sum += times[i]; simSum += simulationTimes[i]; }
-        qsort(times, frame, sizeof(double), compareDouble);
-        qsort(renderTimes, frame, sizeof(double), compareDouble);
+        for (unsigned i = profileWarmup; i < frame; ++i) { sum += times[i]; simSum += simulationTimes[i]; }
+        qsort(times + profileWarmup, measured, sizeof(double), compareDouble);
+        qsort(renderTimes + profileWarmup, measured, sizeof(double), compareDouble);
         if (gpuSamples) qsort(gpuTimes, gpuSamples, sizeof(double), compareDouble);
         unsigned gpuLast = gpuSamples ? gpuSamples - 1u : 0u;
         double mouthMax = 0.0;
@@ -2984,11 +3084,11 @@ int main(int argc, char **argv) {
         ensureParentDir(profile);
         FILE *f = fopen(profile, "w");
         if (f) {
-            EnvironmentRenderStats env = EnvironmentRenderer_GetStats(&envRenderer);
+            EnvironmentRenderStats env = EnvironmentRenderer_GetProfile(&envRenderer);
             const WorldStaticData *world = EnvironmentRenderer_GetWorld(&envRenderer);
             fprintf(f,
                 "{\"frames\":%u,\"width\":%d,\"height\":%d,\"quality\":\"%s\",\"workers\":%u,"
-                "\"initial_population\":%u,\"final_population\":%u,\"controller\":\"%s\",\"founder_mode\":\"%s\","
+                "\"warmup_frames\":%u,\"initial_population\":%u,\"min_population\":%u,\"final_population\":%u,\"controller\":\"%s\",\"founder_mode\":\"%s\","
                 "\"mean_ms\":%.6f,\"p50_ms\":%.6f,\"p95_ms\":%.6f,\"p99_ms\":%.6f,\"max_ms\":%.6f,"
                 "\"sim_mean_ms\":%.6f,\"sim_tick_mean_ms\":%.6f,\"sim_tick_p95_ms\":%.6f,"
                 "\"requested_speed\":%.3f,\"achieved_speed\":%.3f,\"ticks_per_second\":%.3f,"
@@ -3007,16 +3107,20 @@ int main(int argc, char **argv) {
                 "\"env_triangles\":%llu,\"env_draws\":%llu,\"terrain_lods\":[%u,%u,%u,%u],"
                 "\"terrain_cpu_ms\":%.5f,\"water_cpu_ms\":%.5f,\"rocks_cpu_ms\":%.5f,"
                 "\"terrain_gpu_ms\":%.5f,\"water_gpu_ms\":%.5f,\"rocks_gpu_ms\":%.5f,"
+                "\"shadow_gpu_ms\":%.5f,\"shadow_cpu_ms\":%.5f,\"shadow_draws\":%zu,\"shadow_triangles\":%zu,\"shadow_vram_bytes\":%zu,\"shadow_cache_misses\":%zu,\"contact_gpu_ms\":%.5f,\"contact_cpu_ms\":%.5f,"
+                "\"object_gpu_ms\":%.5f,\"object_gpu_p95_ms\":%.5f,\"decoration_gpu_ms\":%.5f,\"decoration_gpu_p95_ms\":%.5f,"
+                "\"object_draws\":%zu,\"object_triangles\":%zu,\"decoration_draws\":%zu,\"decoration_triangles\":%zu,\"composition_vram_bytes\":%zu,"
+                "\"terrain_gpu_p95_ms\":%.5f,\"rock_gpu_p95_ms\":%.5f,\"water_gpu_p95_ms\":%.5f,\"shadow_gpu_p95_ms\":%.5f,"
                 "\"env_gpu_samples\":%zu,\"tick\":%llu,\"event_hash\":\"%016llx\","
                 "\"render_p50_ms\":%.5f,\"render_p95_ms\":%.5f,\"render_p99_ms\":%.5f,"
                 "\"gpu_p50_ms\":%.5f,\"gpu_p95_ms\":%.5f,\"gpu_p99_ms\":%.5f}\n",
                 frame, winW, winH, qualityName(quality), finalWorkers,
-                initialPopulation, finalPopulation,
+                profileWarmup, profilePopulation, minPopulation, finalPopulation,
                 finalController == CREATURE_CONTROLLER_NEURAL ? "neural" : "utility",
                 finalFounderMode,
-                sum / frame, times[frame / 2], times[(frame - 1) * 95 / 100],
-                times[(frame - 1) * 99 / 100], times[frame - 1],
-                simSum / frame, finalSimMeanMs, finalSimP95Ms,
+                sum / measured, frameSample[measured / 2], frameSample[(measured - 1) * 95 / 100],
+                frameSample[(measured - 1) * 99 / 100], frameSample[measured - 1],
+                simSum / measured, finalSimMeanMs, finalSimP95Ms,
                 finalRequestedSpeed, finalAchievedSpeed, finalTps,
                 adapterSum / frame, renderSum / frame,
                 geometryWarmSeconds, gpuSamples ? gpuSum / gpuSamples : 0.0,
@@ -3038,10 +3142,15 @@ int main(int argc, char **argv) {
                 env.terrain.lodCounts[0], env.terrain.lodCounts[1], env.terrain.lodCounts[2], env.terrain.lodCounts[3],
                 env.terrainPass.cpuMeanMs, env.waterPass.cpuMeanMs, env.rockPass.cpuMeanMs,
                 env.terrainPass.gpuMeanMs, env.waterPass.gpuMeanMs, env.rockPass.gpuMeanMs,
+                env.shadowPass.gpuMeanMs, env.shadowPass.cpuMeanMs, env.shadowDraws, env.shadowTriangles, env.shadowVramBytes,
+                env.shadowCacheMisses, env.contactPass.gpuMeanMs, env.contactPass.cpuMeanMs,
+                env.objectPass.gpuMeanMs, env.objectPass.gpuP95Ms, env.decorationPass.gpuMeanMs, env.decorationPass.gpuP95Ms,
+                env.objectDraws, env.objectTriangles, env.decorationDraws, env.decorationTriangles, env.compositionVramBytes,
+                env.terrainPass.gpuP95Ms, env.rockPass.gpuP95Ms, env.waterPass.gpuP95Ms, env.shadowPass.gpuP95Ms,
                 env.terrainPass.gpuSamples, (unsigned long long)finalTick,
                 (unsigned long long)finalStats.eventHash,
-                renderTimes[frame / 2], renderTimes[(frame - 1) * 95 / 100],
-                renderTimes[(frame - 1) * 99 / 100], gpuTimes[gpuLast / 2],
+                renderSample[measured / 2], renderSample[(measured - 1) * 95 / 100],
+                renderSample[(measured - 1) * 99 / 100], gpuTimes[gpuLast / 2],
                 gpuTimes[gpuLast * 95 / 100], gpuTimes[gpuLast * 99 / 100]);
             fclose(f);
         } else {

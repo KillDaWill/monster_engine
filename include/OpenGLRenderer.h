@@ -316,6 +316,14 @@ typedef struct OpenGLMeshInstance {
 bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer, const Mesh* mesh,
                                         const OpenGLMeshInstance* instances, size_t count,
                                         bool useTintColor);
+/** @brief Graba las órdenes opacas del fotograma, retenidas hasta completar las dos pasadas. */
+void OpenGLRenderer_BeginSceneList(Renderer3D *renderer);
+void OpenGLRenderer_MarkSceneDecoration(Renderer3D *renderer);
+void OpenGLRenderer_EndSceneList(Renderer3D *renderer);
+void OpenGLRenderer_SceneCastShadow(Renderer3D *renderer, bool castShadow);
+void OpenGLRenderer_DrawSceneList(Renderer3D *renderer, const float *viewToWorld, bool decoration,
+                                 size_t *drawCount, size_t *triangleCount);
+
 /** @brief Reinicia los contadores de draw calls acumulados del fotograma actual. */
 void OpenGLRenderer_ResetFrameDrawStats(Renderer3D* renderer);
 /** @brief Dibuja un lote de segmentos 3D con un único cambio de estado OpenGL. */
@@ -349,6 +357,8 @@ typedef struct OpenGLDemoInput {
 } OpenGLDemoInput;
 /** @brief Crea contexto para demos; NULL si falla. */
 /** @brief Crea una ventana con MSAA solicitado y fallback sin MSAA. */
+/** @brief Ventana con destino sRGB para composición de la escena natural. */
+OpenGLDemoWindow* OpenGLDemoWindow_CreateScene(const char *title, int width, int height, int samples);
 OpenGLDemoWindow* OpenGLDemoWindow_CreateMSAA(const char* title,int width,int height,int samples);
 OpenGLDemoWindow* OpenGLDemoWindow_Create(const char* title,int width,int height);
 /** @brief Consulta entrada: Escape, espacio, D y teclas 1..4. */

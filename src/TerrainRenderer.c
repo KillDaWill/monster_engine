@@ -7,6 +7,8 @@
 #include "TerrainRenderer.h"
 #include "TerrainLodIndices.h"
 #include "environment_glsl.inc"
+#include "SceneLighting.h"
+#include "TerrainGenerator.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <float.h>
@@ -38,7 +40,7 @@ typedef struct TerrainChunk {
     uint8_t wetEdges, dryEdges;
     bool shoreline;
     bool pinned;
-    uint32_t currentLod;
+    uint32_t currentLod, colorLod;
     GLuint vao;
     GLuint vbo;
     uint32_t vertexCount;
@@ -55,7 +57,8 @@ typedef struct SharedLodIndices {
 } SharedLodIndices;
 
 typedef struct TerrainRendererImpl {
-    GLuint program;
+    GLuint program, depthProgram;
+    bool depthPass;
     bool programFailed;
     GLint uDebugModeLoc;
     GLint uCamPosLoc;
@@ -63,6 +66,11 @@ typedef struct TerrainRendererImpl {
     GLint uHeightRangeLoc;
     GLint materialTierLoc;
     TerrainMaterialBindings materialBindings;
+    GLuint landscape, contacts;
+    GLint contactsLoc, contactsMappingLoc;
+    Vector3 contactsMapping;
+    GLint landscapeLoc, landscapeMappingLoc;
+    Vector3 landscapeMapping;
 
     uint64_t worldEpoch;
     uint64_t worldFingerprint;
@@ -92,8 +100,25 @@ const char *TerrainDebugMode_Name(TerrainDebugMode mode) {
     case TERRAIN_DEBUG_BIOME:       return "BIOME_FERTILITY";
     case TERRAIN_DEBUG_NAVIGATION:  return "NAVIGATION";
     case TERRAIN_DEBUG_COLLISION:   return "COLLISION_LOD";
-    default:                        return "NATURAL";
+    case TERRAIN_DEBUG_ALBEDO:     return "ALBEDO";
+    case TERRAIN_DEBUG_NORMAL:     return "NORMAL";
+    case TERRAIN_DEBUG_ROUGHNESS:  return "ROUGHNESS";
+    case TERRAIN_DEBUG_WEIGHTS:    return "MATERIAL_WEIGHTS";
+    case TERRAIN_DEBUG_SHADOW:     return "DIRECT_VISIBILITY";
+    default:                       return "NATURAL";
     }
+}
+
+bool TerrainDebugMode_Parse(const char *name, TerrainDebugMode *mode) {
+    const char *names[] = {"natural", "elevation", "slope", "hydrology", "depth", "biome",
+                           "navigation", "collision", "albedo", "normal", "roughness", "weights", "shadow"};
+    for (int i = 0; i < TERRAIN_DEBUG_MODE_COUNT; ++i) {
+        if (strcmp(name, names[i]) == 0) {
+            *mode = (TerrainDebugMode)i;
+            return true;
+        }
+    }
+    return false;
 }
 
 static GLuint compileGlShaderParts(GLenum type, const char *const *parts, GLsizei count) {
@@ -153,71 +178,57 @@ static bool initTerrainShader(TerrainRendererImpl *impl) {
         "in vec2 vFlow;\n"
         "flat in vec4 vParallelView;\n"
         "out vec4 fragColor;\n"
-        "float hash21(vec2 p) {\n"
-        "  p = fract(p * vec2(123.34, 456.21));\n"
-        "  p += dot(p, p + 45.32);\n"
-        "  return fract(p.x * p.y);\n"
-        "}\n"
-        "float vnoise(vec2 p) {\n"
-        "  vec2 i = floor(p); vec2 f = fract(p);\n"
-        "  vec2 u = f * f * (3.0 - 2.0 * f);\n"
-        "  return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x),\n"
-        "             mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);\n"
-        "}\n"
         ;
     const char *mainPart1 =
         "void main() {\n"
         "  vec3 n = normalize(vWorldNormal);\n"
         "  vec3 sunDir = normalize(vec3(-0.48, 0.76, 0.44));\n"
         "  float ndl = max(dot(n, sunDir), 0.0);\n"
-        "  float hemi = 0.5 + 0.5 * n.y;\n"
         "  float altNorm = vAux.x;\n"
         "  float slopeRad = vAux.y;\n"
         "  float wDepth = vAux.z;\n"
         "  float fert = vAux.w;\n"
-        "  float dist = length(uCamPos - vWorldPos);\n"
         "  if (uDebugMode == 1) {\n"
         "    vec3 lo = vec3(0.14, 0.36, 0.24), mid = vec3(0.68, 0.66, 0.32), hi = vec3(0.86, 0.84, 0.82);\n"
         "    vec3 col = altNorm < 0.5 ? mix(lo, mid, altNorm * 2.0) : mix(mid, hi, (altNorm - 0.5) * 2.0);\n"
         "    float contour = abs(fract(vWorldPos.y * 0.5) - 0.5);\n"
         "    col *= mix(0.65, 1.0, smoothstep(0.02, 0.08, contour));\n"
-        "    fragColor = vec4(col * (0.45 + 0.55 * ndl), 1.0); return;\n"
+        "    fragColor = vec4(sceneDiagnostic(col * (0.45 + 0.55 * ndl)), 1.0); return;\n"
         "  } else if (uDebugMode == 2) {\n"
         "    float t = clamp(slopeRad / 0.85, 0.0, 1.0);\n"
         "    vec3 col = t < 0.5 ? mix(vec3(0.18, 0.72, 0.30), vec3(0.92, 0.80, 0.20), t * 2.0)\n"
         "                       : mix(vec3(0.92, 0.80, 0.20), vec3(0.90, 0.16, 0.14), (t - 0.5) * 2.0);\n"
-        "    fragColor = vec4(col * (0.45 + 0.55 * ndl), 1.0); return;\n"
+        "    fragColor = vec4(sceneDiagnostic(col * (0.45 + 0.55 * ndl)), 1.0); return;\n"
         "  } else if (uDebugMode == 3) {\n"
         "    float fl = length(vFlow);\n"
         "    vec3 col = wDepth > 0.01 ? mix(vec3(0.10, 0.45, 0.85), vec3(0.15, 0.92, 0.96), clamp(fl, 0.0, 1.0))\n"
         "                             : vec3(0.22 + 0.12 * ndl, 0.26 + 0.14 * ndl, 0.24 + 0.12 * ndl);\n"
-        "    fragColor = vec4(col, 1.0); return;\n"
+        "    fragColor = vec4(sceneDiagnostic(col), 1.0); return;\n"
         "  } else if (uDebugMode == 4) {\n"
         "    vec3 col = wDepth > 0.01 ? mix(vec3(0.28, 0.82, 0.88), vec3(0.04, 0.14, 0.48), clamp(wDepth * 0.5, 0.0, 1.0))\n"
         "                             : vec3(0.32, 0.36, 0.32) * (0.45 + 0.55 * ndl);\n"
-        "    fragColor = vec4(col, 1.0); return;\n"
+        "    fragColor = vec4(sceneDiagnostic(col), 1.0); return;\n"
         "  } else if (uDebugMode == 5) {\n"
         "    vec3 col = mix(vec3(0.56, 0.46, 0.32), vec3(0.16, 0.68, 0.24), fert);\n"
         "    if (wDepth > 0.01) col = vec3(0.14, 0.38, 0.56);\n"
-        "    fragColor = vec4(col * (0.45 + 0.55 * ndl), 1.0); return;\n"
+        "    fragColor = vec4(sceneDiagnostic(col * (0.45 + 0.55 * ndl)), 1.0); return;\n"
         "  } else if (uDebugMode == 6) {\n"
         "    bool steep = slopeRad > uNavLimits.x;\n"
         "    bool deep = wDepth > uNavLimits.y;\n"
         "    vec3 col = deep ? vec3(0.12, 0.22, 0.72) : (steep ? vec3(0.84, 0.18, 0.16) :\n"
         "               (wDepth > 0.04 ? vec3(0.22, 0.74, 0.80) : vec3(0.22, 0.66, 0.30)));\n"
-        "    fragColor = vec4(col * (0.45 + 0.55 * ndl), 1.0); return;\n"
+        "    fragColor = vec4(sceneDiagnostic(col * (0.45 + 0.55 * ndl)), 1.0); return;\n"
         "  }\n";
     const char *mainPart2 =
         "  vec3 viewDir = normalize(vParallelView.w > 0.5 ? vParallelView.xyz : uCamPos - vWorldPos);\n"
-        "  vec3 lit = naturalTerrain(vWorldPos, n, viewDir, vMatWeights, wDepth, fert,\n"
-        "                            dFdx(vWorldPos), dFdy(vWorldPos));\n"
-        "  float fog = smoothstep(95.0, 460.0, dist) * 0.45;\n"
-        "  fragColor = vec4(environmentOutput(mix(lit, worldHaze, fog)), 1.0);\n"
+        "  vec3 lit = terrainPalette(vWorldPos, n, viewDir, vMatWeights, wDepth,\n"
+        "                            dFdx(vWorldPos), dFdy(vWorldPos), uDebugMode);\n"
+        "  fragColor = vec4(lit, 1.0);\n"
         "}\n";
 
     const char *vsParts[] = {vs};
-    const char *fsParts[] = {"#version 330 compatibility\n", fsPart1, ENV_MATERIALS,
-                             ENV_TERRAIN_NATURAL, mainPart1, mainPart2};
+    const char *fsParts[] = {"#version 330 compatibility\n", fsPart1, ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_PROJECTION,
+                             ENV_TERRAIN_FINISH, ENV_TERRAIN_NATURAL, mainPart1, mainPart2};
     GLuint v = compileGlShaderParts(GL_VERTEX_SHADER, vsParts, 1);
     GLuint f = compileGlShaderParts(GL_FRAGMENT_SHADER, fsParts, (GLsizei)(sizeof(fsParts) / sizeof(fsParts[0])));
     if (!v || !f) {
@@ -230,6 +241,7 @@ static bool initTerrainShader(TerrainRendererImpl *impl) {
     glAttachShader(p, v);
     glAttachShader(p, f);
     glLinkProgram(p);
+    impl->depthProgram = SceneLighting_LinkDepth(v);
     glDeleteShader(v);
     glDeleteShader(f);
     GLint ok = 0;
@@ -239,8 +251,13 @@ static bool initTerrainShader(TerrainRendererImpl *impl) {
         impl->programFailed = true;
         return false;
     }
+    SceneLighting_LinkProgram(p);
     impl->program = p;
     impl->materialBindings = TerrainMaterials_GetBindings(p);
+    impl->contactsLoc = glGetUniformLocation(p, "uContactMap");
+    impl->contactsMappingLoc = glGetUniformLocation(p, "uContactMapping");
+    impl->landscapeLoc = glGetUniformLocation(p, "uLandscape");
+    impl->landscapeMappingLoc = glGetUniformLocation(p, "uLandscapeMapping");
     impl->materialTierLoc = glGetUniformLocation(p, "uMaterialTier");
     impl->uDebugModeLoc = glGetUniformLocation(p, "uDebugMode");
     impl->uCamPosLoc = glGetUniformLocation(p, "uCamPos");
@@ -284,7 +301,10 @@ static bool initSharedEbos(TerrainRendererImpl *impl) {
 }
 
 static void freeChunks(TerrainRendererImpl *impl) {
-    if (!impl || !impl->chunks) return;
+    if (!impl) return;
+    glDeleteTextures(1, &impl->landscape);
+    impl->landscape = 0;
+    if (!impl->chunks) return;
     for (uint32_t i = 0; i < impl->chunkCount; ++i) {
         if (impl->chunks[i].vao) glDeleteVertexArrays(1, &impl->chunks[i].vao);
         if (impl->chunks[i].vbo) glDeleteBuffers(1, &impl->chunks[i].vbo);
@@ -323,6 +343,7 @@ void TerrainRenderer_Destroy(TerrainRenderer *tr) {
         impl->sharedEboReady = false;
     }
     if (impl->program) glDeleteProgram(impl->program);
+    if (impl->depthProgram) glDeleteProgram(impl->depthProgram);
     free(impl);
     tr->impl = NULL;
 }
@@ -369,6 +390,63 @@ static void pinShoreNeighbors(TerrainRendererImpl *impl) {
     }
 }
 
+enum { LANDSCAPE_SIZE = 128, LANDSCAPE_UNIT = 3, CONTACT_UNIT = 4 };
+
+static size_t buildLandscape(TerrainRendererImpl *impl, const WorldStaticData *world) {
+    const TerrainHeightfield *tf = &world->terrain;
+    const WorldBiomeField *biome = &world->biome;
+    uint8_t *pixels = malloc(LANDSCAPE_SIZE * LANDSCAPE_SIZE * 4);
+    if (!pixels) return 0;
+    for (int j = 0; j < LANDSCAPE_SIZE; ++j) {
+        for (int i = 0; i < LANDSCAPE_SIZE; ++i) {
+            float fx = ((float)i + .5f) / LANDSCAPE_SIZE, fz = ((float)j + .5f) / LANDSCAPE_SIZE;
+            int ix = (int)roundf(fx * (tf->resolution - 1)), iz = (int)roundf(fz * (tf->resolution - 1));
+            float grass = 0, moisture = 0, shore = 0;
+            for (int z = -2; z <= 2; ++z) {
+                int zz = (int)fminf(tf->resolution - 1, fmaxf(0, iz + z));
+                for (int x = -2; x <= 2; ++x) {
+                    int xx = (int)fminf(tf->resolution - 1, fmaxf(0, ix + x));
+                    size_t k = (size_t)zz * tf->resolution + xx;
+                    grass += biome->fertility[k] * .56f + biome->moisture[k] * .44f;
+                    moisture += biome->moisture[k];
+                    shore += fmaxf(0.0f, 1.0f - biome->waterDistance[k] / 4.6f);
+                }
+            }
+            float wx = tf->originX + tf->span * fx, wz = tf->originZ + tf->span * fz;
+            float patch = TerrainNoise_Fbm2D(wx * .047f, wz * .047f,
+                                             world->masterSeed ^ 0x168d49b3u, 2, .32f, 2.07f);
+            size_t out = ((size_t)j * LANDSCAPE_SIZE + i) * 4;
+            pixels[out] = (uint8_t)roundf(fminf(1, grass / 25) * 255);
+            pixels[out + 1] = (uint8_t)roundf(fmaxf(0, 1.0f - moisture / 25) * 255);
+            pixels[out + 2] = (uint8_t)roundf(shore * (255.0f / 25));
+            pixels[out + 3] = (uint8_t)roundf(fminf(1, fmaxf(0, .50f + patch * .94f)) * 255);
+        }
+    }
+    GLint binding, unpack;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &binding);
+    glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    glGenTextures(1, &impl->landscape);
+    glBindTexture(GL_TEXTURE_2D, impl->landscape);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, LANDSCAPE_SIZE, LANDSCAPE_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, (GLuint)binding);
+    glPopClientAttrib();
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, (GLuint)unpack);
+    free(pixels);
+    impl->landscapeMapping = Vec3_Create(tf->originX, tf->originZ, 1.0f / tf->span);
+    return (LANDSCAPE_SIZE * LANDSCAPE_SIZE * 4 - 1) * 4 / 3;
+}
+
 bool TerrainRenderer_SyncWorld(TerrainRenderer *tr, const WorldStaticData *world) {
     if (!tr || !tr->impl) return false;
     TerrainRendererImpl *impl = (TerrainRendererImpl *)tr->impl;
@@ -385,6 +463,7 @@ bool TerrainRenderer_SyncWorld(TerrainRenderer *tr, const WorldStaticData *world
     TerrainRendererImpl *published = impl;
     TerrainRendererImpl staged = *published;
     staged.chunks = NULL;
+    staged.landscape = 0;
     staged.chunkCount = 0;
     impl = &staged;
 
@@ -548,10 +627,17 @@ bool TerrainRenderer_SyncWorld(TerrainRenderer *tr, const WorldStaticData *world
 
     impl->stats.totalChunks = totalChunks;
     impl->stats.gpuUploads += uploads;
-    impl->stats.vramBytes = vramBytes;
+    impl->stats.vramBytes = vramBytes + buildLandscape(impl, world);
     freeChunks(published);
     *published = staged;
     return true;
+}
+
+void TerrainRenderer_SetContacts(TerrainRenderer *tr, unsigned texture, Vector3 mapping) {
+    if (!tr || !tr->impl) return;
+    TerrainRendererImpl *impl = tr->impl;
+    impl->contacts = texture;
+    impl->contactsMapping = mapping;
 }
 
 void TerrainRenderer_SetDebugMode(TerrainRenderer *tr, TerrainDebugMode mode) {
@@ -638,11 +724,20 @@ bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
     Vector3 cameraForward = Vec3_Normalize(Vec3_Sub(camera->target, camera->position));
     for (uint32_t i = 0; i < impl->chunkCount; ++i) {
         TerrainChunk *ch = &impl->chunks[i];
-        uint32_t prev = ch->currentLod;
+        uint32_t prev = ch->colorLod;
         ch->currentLod = 0u;
         if (impl->forceLod0 || !ch->standardSize) continue;
         float zNear = Vec3_Dot(Vec3_Sub(ch->center, camera->position), cameraForward) - ch->radius;
         float pixelsPerUnit = perspective ? projectionScale / fmaxf(camera->nearPlane, zNear) : projectionScale;
+        if (impl->depthPass) {
+            for (uint32_t lod = TERRAIN_LOD_LEVELS - 1u; lod > 0u; --lod) {
+                if (ch->error[lod] * pixelsPerUnit < 1.25f) {
+                    ch->currentLod = lod;
+                    break;
+                }
+            }
+            continue;
+        }
         bool protectWater = impl->continuousWater || pixelsPerUnit > 12.0f;
         if (ch->pinned && protectWater) continue;
         bool closeToContact = pixelsPerUnit > 24.0f &&
@@ -680,6 +775,10 @@ bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
         }
     }
 
+    if (!impl->depthPass)
+        for (uint32_t i = 0; i < impl->chunkCount; ++i)
+            impl->chunks[i].colorLod = impl->chunks[i].currentLod;
+
     /* 3) Guardar estado OpenGL y dibujar chunks visibles dentro del frustum. */
     GLint prevProg = 0, prevVao = 0, prevEbo = 0;
     GLint prevPoly[2] = {GL_FILL, GL_FILL};
@@ -697,17 +796,33 @@ bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
-    if (impl->wireframe || impl->debugMode == TERRAIN_DEBUG_COLLISION) {
+    if (!impl->depthPass && (impl->wireframe || impl->debugMode == TERRAIN_DEBUG_COLLISION)) {
         glPolygonMode(GL_FRONT_AND_BACK, impl->wireframe ? GL_LINE : GL_FILL);
     }
 
-    glUseProgram(impl->program);
-    TerrainMaterialState materialState = TerrainMaterials_Bind(materials, &impl->materialBindings);
-    glUniform1i(impl->materialTierLoc, qScale < 0.85f ? 0 : (qScale < 1.2f ? 1 : 2));
-    if (impl->uDebugModeLoc >= 0) glUniform1i(impl->uDebugModeLoc, (GLint)impl->debugMode);
-    if (impl->uCamPosLoc >= 0) glUniform3f(impl->uCamPosLoc, camera->position.x, camera->position.y, camera->position.z);
-    if (impl->uNavLimitsLoc >= 0) glUniform2f(impl->uNavLimitsLoc, maxSlopeNavRadians, maxWadeNavDepth);
-    if (impl->uHeightRangeLoc >= 0) glUniform2f(impl->uHeightRangeLoc, impl->minH, impl->maxH);
+    glUseProgram(impl->depthPass ? impl->depthProgram : impl->program);
+    TerrainMaterialState materialState = {0};
+    GLint previousLandscape = 0, previousContacts = 0;
+    if (!impl->depthPass) {
+        materialState = TerrainMaterials_Bind(materials, &impl->materialBindings);
+        glActiveTexture(GL_TEXTURE0 + LANDSCAPE_UNIT);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousLandscape);
+        glBindTexture(GL_TEXTURE_2D, impl->landscape);
+        glUniform1i(impl->landscapeLoc, LANDSCAPE_UNIT);
+        Vector3 mapping = impl->landscapeMapping;
+        glUniform3f(impl->landscapeMappingLoc, mapping.x, mapping.y, mapping.z);
+        glActiveTexture(GL_TEXTURE0 + CONTACT_UNIT);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousContacts);
+        glBindTexture(GL_TEXTURE_2D, impl->contacts);
+        glUniform1i(impl->contactsLoc, CONTACT_UNIT);
+        mapping = impl->contactsMapping;
+        glUniform3f(impl->contactsMappingLoc, mapping.x, mapping.y, impl->contacts ? mapping.z : 0);
+        glUniform1i(impl->materialTierLoc, qScale < 0.85f ? 0 : (qScale < 1.2f ? 1 : 2));
+        if (impl->uDebugModeLoc >= 0) glUniform1i(impl->uDebugModeLoc, (GLint)impl->debugMode);
+        if (impl->uCamPosLoc >= 0) glUniform3f(impl->uCamPosLoc, camera->position.x, camera->position.y, camera->position.z);
+        if (impl->uNavLimitsLoc >= 0) glUniform2f(impl->uNavLimitsLoc, maxSlopeNavRadians, maxWadeNavDepth);
+        if (impl->uHeightRangeLoc >= 0) glUniform2f(impl->uHeightRangeLoc, impl->minH, impl->maxH);
+    }
 
     impl->stats.renderedChunks = 0u;
     impl->stats.culledChunks = 0u;
@@ -762,7 +877,13 @@ bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
     glFrontFace((GLenum)frontFace);
     glBindVertexArray((GLuint)prevVao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)prevEbo);
-    TerrainMaterials_Restore(&materialState);
+    if (!impl->depthPass) {
+        glActiveTexture(GL_TEXTURE0 + LANDSCAPE_UNIT);
+        glBindTexture(GL_TEXTURE_2D, (GLuint)previousLandscape);
+        glActiveTexture(GL_TEXTURE0 + CONTACT_UNIT);
+        glBindTexture(GL_TEXTURE_2D, (GLuint)previousContacts);
+        TerrainMaterials_Restore(&materialState);
+    }
     glUseProgram((GLuint)prevProg);
     return true;
 }
@@ -770,4 +891,12 @@ bool TerrainRenderer_Render(TerrainRenderer *tr, const ICamera *camera,
 TerrainRenderStats TerrainRenderer_GetStats(const TerrainRenderer *tr) {
     if (!tr || !tr->impl) return (TerrainRenderStats){0};
     return ((const TerrainRendererImpl *)tr->impl)->stats;
+}
+
+void TerrainRenderer_RenderShadow(TerrainRenderer *renderer, const ICamera *camera) {
+    TerrainRendererImpl *impl = renderer->impl;
+    if (!impl || !impl->depthProgram) return;
+    impl->depthPass = true;
+    TerrainRenderer_Render(renderer, camera, NULL, 0, 0);
+    impl->depthPass = false;
 }

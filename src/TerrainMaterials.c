@@ -8,14 +8,12 @@
 
 enum { MATERIAL_SIZE = 512, FIRST_TEXTURE_UNIT = 0 };
 
-void TerrainMaterials_Load(TerrainMaterials *materials) {
-    if (materials->attempted) return;
-    materials->attempted = true;
-
-    const char *paths[] = {"assets/terrain/albedo.raw", "assets/terrain/normal.raw", "assets/terrain/masks.raw"};
+static bool loadPack(TerrainMaterials *materials, int version) {
+    const char *root = version == 2 ? "assets/terrain/natural-v2" : "assets/terrain";
+    const char *names[] = {"albedo", "normal", "masks"};
     const GLint internalFormat[] = {GL_SRGB8_ALPHA8, GL_RG8, GL_RG8};
     const GLenum format[] = {GL_RGBA, GL_RG, GL_RG};
-    const int layers[] = {4, 5, 4};
+    const int layers[] = {version == 2 ? 6 : 4, version == 2 ? 8 : 5, version == 2 ? 6 : 4};
     const int channels[] = {4, 2, 2};
     GLint previous = 0, unpackBuffer = 0;
     glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &previous);
@@ -46,7 +44,9 @@ void TerrainMaterials_Load(TerrainMaterials *materials) {
     glGenTextures(3, materials->textures);
     for (int i = 0; i < 3 && ok; ++i) {
         size_t bytes = (size_t)MATERIAL_SIZE * MATERIAL_SIZE * layers[i] * channels[i];
-        FILE *file = fopen(paths[i], "rb");
+        char path[128];
+        snprintf(path, sizeof(path), "%s/%s.raw", root, names[i]);
+        FILE *file = fopen(path, "rb");
         unsigned char *data = file ? malloc(bytes) : NULL;
         ok = data && fread(data, 1, bytes, file) == bytes && fgetc(file) == EOF;
         if (file) fclose(file);
@@ -66,17 +66,26 @@ void TerrainMaterials_Load(TerrainMaterials *materials) {
             for (int side = MATERIAL_SIZE; side > 0; side /= 2)
                 materials->vramBytes += (size_t)side * side * layers[i] * channels[i];
         }
-        if (!ok) fprintf(stderr, "[TerrainMaterials] %s: textura no disponible, usando material simplificado.\n", paths[i]);
+        if (!ok) fprintf(stderr, "[TerrainMaterials] %s: textura ausente o incompatible.\n", path);
         free(data);
     }
 
     glBindTexture(GL_TEXTURE_2D_ARRAY, (GLuint)previous);
     glPopClientAttrib();
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, (GLuint)unpackBuffer);
-    if (!ok) {
-        TerrainMaterials_Free(materials);
-        materials->attempted = true;
+    if (!ok) TerrainMaterials_Free(materials);
+    else materials->packVersion = version;
+    return ok;
+}
+
+void TerrainMaterials_Load(TerrainMaterials *materials) {
+    if (materials->attempted) return;
+    if (!loadPack(materials, 2)) {
+        if (loadPack(materials, 1))
+            fprintf(stderr, "[TerrainMaterials] Usando pack procedural v1.\n");
+        else fprintf(stderr, "[TerrainMaterials] Usando colores de respaldo.\n");
     }
+    materials->attempted = true;
 }
 
 void TerrainMaterials_Free(TerrainMaterials *materials) {
@@ -92,7 +101,7 @@ TerrainMaterialBindings TerrainMaterials_GetBindings(unsigned int program) {
             glGetUniformLocation(program, "uMaterialNormal"),
             glGetUniformLocation(program, "uMaterialMasks"),
         },
-        .encodeSRGB = glGetUniformLocation(program, "uEncodeSRGB"),
+        .packVersion = glGetUniformLocation(program, "uMaterialPack"),
     };
 }
 
@@ -101,21 +110,7 @@ TerrainMaterialState TerrainMaterials_Bind(const TerrainMaterials *materials,
     TerrainMaterialState state = {0};
     glGetIntegerv(GL_ACTIVE_TEXTURE, &state.activeUnit);
     glUniform1i(bindings->enabled, materials && materials->textures[0]);
-    bool encode = true;
-    if (glIsEnabled(GL_FRAMEBUFFER_SRGB)) {
-        GLint fbo = 0, buffer = GL_NONE, encoding = GL_LINEAR;
-        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
-        glGetIntegerv(GL_DRAW_BUFFER0, &buffer);
-        if (!fbo) {
-            if (buffer == GL_BACK || buffer == GL_LEFT) buffer = GL_BACK_LEFT;
-            if (buffer == GL_FRONT) buffer = GL_FRONT_LEFT;
-        }
-        if (buffer != GL_NONE)
-            glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, (GLenum)buffer,
-                                                    GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &encoding);
-        encode = encoding != GL_SRGB;
-    }
-    glUniform1i(bindings->encodeSRGB, encode);
+    glUniform1i(bindings->packVersion, materials ? materials->packVersion : 0);
     for (int i = 0; i < 3; ++i) {
         if (bindings->sampler[i] < 0) continue;
         state.touched |= 1u << i;

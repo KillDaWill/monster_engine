@@ -54,6 +54,8 @@ void RockVisualCache_RenderCollisionDebug(const RockVisualCache *cache, const Wo
 /** @brief Métricas del último frame y memoria VRAM estimada. */
 RockRenderStats RockVisualCache_GetStats(const RockVisualCache *cache);
 
+void RockVisualCache_RenderShadow(RockVisualCache *renderer, const ICamera *camera);
+
 #ifdef __cplusplus
 }
 #endif

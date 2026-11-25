@@ -403,3 +403,10 @@ El directorio `docs/` incluye informes exhaustivos de diseño, optimización y v
   - [Hidrología y Acceso en Orilla](docs/WORLD_HYDROLOGY.md): Priority-Flood, lagos, ríos, `WorldShoreSite` y cuerpos de agua moleculares.
   - [Locomoción, Navegación y Animación en Terreno](docs/TERRAIN_LOCOMOTION_AND_NAVIGATION.md): `TraversalProfile`, A* en relieve, línea de visión 3D y `TerrainAnimationAdapter`.
   - [Renderizado de Mundo y Rendimiento](docs/WORLD_RENDERING_AND_PERFORMANCE.md): Chunks LOD, agua, rocas instanciadas, métricas 1080p con 500 criaturas y evidencia visual.
+
+
+### Entorno natural y luz de escena
+
+Evolution Arena y Brain Evolution Lab comparten iluminación diurna, sombras y materiales
+de presentación en mundos procedurales. Los controles, presupuestos y comandos de captura
+están en [Iluminación de escena](docs/SCENE_LIGHTING.md) y [Entorno natural](docs/NATURAL_ENVIRONMENT_VISUALS.md).

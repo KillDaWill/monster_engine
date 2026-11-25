@@ -7,7 +7,7 @@ uniform float viewportHeight;
 out vec4 hairColor;
 out float ribbonSide, hairParameter;
 out float strandCoverage;
-out vec3 hairTangent;
+out vec3 hairTangent, hairViewPosition;
 out vec3 strandPosition;
 uint Hash(uint x){x^=x>>16u;x*=0x7feb352du;x^=x>>15u;x*=0x846ca68bu;return x^(x>>16u);}
 float Random(uint x){return float(Hash(x)&0xffffffu)/16777216.0;}
@@ -93,4 +93,5 @@ void main(){
         hairColor=vec4(t<.025?vec3(.1,.8,1):mix(vec3(.05,.9,.25),vec3(1,.12,.02),smoothstep(.002,.08,correction)),1);}
     hairParameter=t;
     hairTangent=tangent;
+    hairViewPosition=viewPos;
 }

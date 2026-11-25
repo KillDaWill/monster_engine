@@ -36,6 +36,11 @@ typedef struct EvolutionEntitySnapshot {
     CreatureAction action;
     CreatureGoal goal;
     ReachStatus reachStatus;
+    Vector3 oralContactTarget;
+    float oralContactTolerance;
+    float oralContactTime;
+    double lastIngestionTime;
+    float lastIngestedMass;
     Vector3 position;
     Vector3 velocity;
     Vector3 eyePos;

@@ -81,6 +81,10 @@ typedef struct EcosystemVisualDrawPacket {
     float mouthError;
     float footError; /**< Máximo residuo de IK de apoyo en unidades mundiales. */
     float stanceFootError; /**< Residuo real de los pies que permanecen plantados. */
+    Vector3 presentedCenter;
+    Vector3 supportPoints[RIG_MAX_LIMBS]; /**< Centro de suela aproximado en el marco mundial de presentación. */
+    unsigned supportCount;
+    unsigned stanceMask;
     float poseAlpha;
     Vector3 position;
     Vector3 groundNormal;

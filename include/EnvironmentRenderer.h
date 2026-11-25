@@ -15,6 +15,8 @@
 #include "WorldStaticData.h"
 #include "RenderInterfaces.h"
 #include "Mesh.h"
+#include "SceneLighting.h"
+#include "EcosystemVisual.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,7 +26,7 @@ extern "C" {
 #endif
 
 typedef struct EnvironmentPassStats {
-    double cpuMeanMs, gpuMeanMs;
+    double cpuMeanMs, gpuMeanMs, gpuP95Ms;
     size_t gpuSamples;
 } EnvironmentPassStats;
 
@@ -38,7 +40,9 @@ typedef struct EnvironmentRenderStats {
     size_t totalVramBytes;
     size_t materialVramBytes;
     double lastUploadMs;
-    EnvironmentPassStats terrainPass, waterPass, rockPass;
+    EnvironmentPassStats terrainPass, waterPass, rockPass, shadowPass, contactPass, objectPass, decorationPass;
+    size_t shadowVramBytes, shadowDraws, shadowTriangles, shadowCacheMisses;
+    size_t objectDraws, objectTriangles, decorationDraws, decorationTriangles, compositionVramBytes;
 } EnvironmentRenderStats;
 
 typedef struct EnvironmentRenderer {
@@ -68,6 +72,21 @@ void EnvironmentRenderer_SetOverlays(EnvironmentRenderer *er, bool showShoreSite
 
 /** @brief Activa consultas de GPU diferidas para cada pasada de entorno. */
 void EnvironmentRenderer_SetProfiling(EnvironmentRenderer *er, bool enabled);
+
+/** @brief Configura sombras independientemente del LOD y los materiales. */
+void EnvironmentRenderer_SetShadows(EnvironmentRenderer *er, SceneShadowQuality quality);
+bool EnvironmentRenderer_SetSun(EnvironmentRenderer *er, float azimuth, float elevation);
+void EnvironmentRenderer_SetPeriodicMaterials(EnvironmentRenderer *er, bool periodic);
+void EnvironmentRenderer_SetDetails(EnvironmentRenderer *er, bool contacts, bool decoration);
+void EnvironmentRenderer_QueueDecoration(EnvironmentRenderer *er, Renderer3D *renderer, const ICamera *camera);
+
+/** @brief Ejecuta la lista de dibujo en profundidad y color. Mantiene iluminación hasta EndScene. */
+bool EnvironmentRenderer_RenderScene(EnvironmentRenderer *er, Renderer3D *renderer,
+                                    const ICamera *camera, bool drawRecorded,
+                                    const EcosystemVisualDrawPacket *packets, size_t count);
+void EnvironmentRenderer_EndScene(EnvironmentRenderer *er);
+/** @brief Exporta el depth map utilizado en el último frame para diagnóstico. */
+bool EnvironmentRenderer_SaveShadowDepth(const EnvironmentRenderer *er, const char *path);
 
 /** @brief Dibuja geometría opaca del entorno (terreno + rocas en procedural; suelo plano + rejilla en plano). */
 bool EnvironmentRenderer_RenderOpaque(EnvironmentRenderer *er, Renderer3D *renderer,
@@ -100,6 +119,7 @@ void EnvironmentRenderer_DrawTerrainPath(const EnvironmentRenderer *er, const Ve
                                          uint32_t count, float liftY);
 
 EnvironmentRenderStats EnvironmentRenderer_GetStats(const EnvironmentRenderer *er);
+EnvironmentRenderStats EnvironmentRenderer_GetProfile(const EnvironmentRenderer *er);
 
 #ifdef __cplusplus
 }
