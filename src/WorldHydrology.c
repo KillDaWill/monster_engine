@@ -234,17 +234,116 @@ static float smoothUnit(float t) {
     return t * t * (3.0f - 2.0f * t);
 }
 
+typedef struct RiverBlend {
+    float weight, ground, surface, flowX, flowZ;
+} RiverBlend;
+
+static bool usesGradedBanks(const WorldRecipe *recipe) {
+    return recipe->generatorVersion == WORLD_GENERATOR_VERSION_MORPHOLOGY ||
+           recipe->generatorVersion == WORLD_GENERATOR_VERSION_SHORELINE;
+}
+
+/* Suavizado espacial en unidades físicas. Se conserva el borde como salida. */
+static void conditionRouting(const TerrainHeightfield *tf, float *dem) {
+    uint32_t n = tf->resolution;
+    unsigned step = (unsigned)fminf(8.0f, fmaxf(1.0f, roundf(1.25f * tf->invSpacing)));
+    memcpy(dem, tf->heights, (size_t)n * n * sizeof(*dem));
+    for (uint32_t z = step; z + step < n; ++z) {
+        for (uint32_t x = step; x + step < n; ++x) {
+            uint32_t i = z * n + x;
+            const float *h = tf->heights;
+            uint32_t dz = step * n;
+            float mean = .25f * (h[i - step] + h[i + step] + h[i - dz] + h[i + dz]);
+            dem[i] = h[i] + .58f * (mean - h[i]);
+        }
+    }
+}
+
+static void fitRiverProfile(const TerrainHeightfield *tf, RiverNode *nodes,
+                           const int32_t *parent, const uint32_t *order,
+                           float *surface, float *target, float typicalGrade, bool limitIncision) {
+    uint32_t count = tf->resolution * tf->resolution;
+    /* Difusión en longitud de arco sin mover las salidas y confluencias. */
+    for (unsigned pass = 0; pass < 20u; ++pass) {
+        for (uint32_t k = 0; k < count; ++k) {
+            uint32_t i = order[k];
+            const RiverNode *n = &nodes[i];
+            if (!n->body) continue;
+            target[i] = surface[i];
+            int32_t p = parent[i];
+            if (n->indegree != 1u || p < 0 || !nodes[p].body) continue;
+            const RiverNode *up = &nodes[n->incoming], *down = &nodes[p];
+            float du = hypotf(up->x - n->x, up->z - n->z);
+            float dd = hypotf(down->x - n->x, down->z - n->z);
+            float mean = (surface[n->incoming] * dd + surface[p] * du) / fmaxf(.01f, du + dd);
+            target[i] += .52f * (mean - surface[i]);
+        }
+        for (uint32_t k = 0; k < count; ++k) {
+            uint32_t i = order[k];
+            if (!nodes[i].body) continue;
+            int32_t p = parent[i];
+            surface[i] = p >= 0 && nodes[p].body ? fmaxf(target[i], surface[p]) : target[i];
+        }
+    }
+    /* Rebajar roturas de rasante hasta el presupuesto de corte. El tramo
+     * conserva una rápida si suavizarlo excede el corte permitido. */
+    for (uint32_t k = 0; k < count; ++k) {
+        uint32_t i = order[k];
+        const RiverNode *n = &nodes[i];
+        int32_t p = parent[i];
+        if (!n->body) continue;
+        float floor = tf->heights[i] - (limitIncision ? .55f : 1.45f);
+        /* Aplicar el límite también a la cota producida por la difusión. */
+        if (limitIncision) surface[i] = fmaxf(floor, surface[i]);
+        if (p < 0 || !nodes[p].body) continue;
+        float ds = tf->spacing * hypotf(n->x - nodes[p].x, n->z - nodes[p].z);
+        float limit = fmaxf(floor, surface[p] + typicalGrade * ds);
+        surface[i] = fmaxf(surface[p], fminf(surface[i], limit));
+    }
+}
+
+/* Un río que pasa por debajo de un lago vecino no debe romper el dique
+ * natural de esa cuenca. La transición vuelve a admitir corte al alejarse. */
+static float preserveLakeDivide(const WorldHydrology *h, const TerrainHeightfield *tf,
+                                uint32_t i, float bed) {
+    float base = tf->heights[i];
+    float cut = base - bed;
+    if (cut <= 0.0f || !h->lakeCount) return bed;
+
+    int n = (int)tf->resolution, x = (int)(i % tf->resolution), z = (int)(i / tf->resolution);
+    int radius = (int)fminf(12.0f, ceilf(fminf(3.0f, cut / .40f) * tf->invSpacing) + 1.0f);
+    float level = h->waterSurfaceY[i];
+    for (int dz = -radius; dz <= radius; ++dz) {
+        if (z + dz < 0 || z + dz >= n) continue;
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (x + dx < 0 || x + dx >= n) continue;
+            uint16_t lake = h->waterBodyId[(z + dz) * n + x + dx];
+            if (!lake || lake > h->lakeCount || h->bodies[lake - 1u].surfaceY <= level + .20f)
+                continue;
+            float run = (sqrtf((float)(dx * dx + dz * dz)) - 1.42f) * tf->spacing;
+            cut = fminf(cut, fmaxf(0.0f, .40f * run));
+            if (cut == 0.0f) return base;
+        }
+    }
+    return base - cut;
+}
+
 static bool carveContinuousRivers(WorldHydrology *hydro, TerrainHeightfield *tf,
                                   const WorldRecipe *recipe, const int32_t *parent,
                                   const uint32_t *order, const uint8_t *channel,
-                                  float *surface, float threshold, float *target) {
+                                  float *surface, float threshold, float *target,
+                                  WorldHydrologyTraceFn trace, void *context) {
     uint32_t res = tf->resolution;
     uint32_t count = res * res;
     RiverNode *nodes = calloc(count, sizeof(*nodes));
     float *best = malloc((size_t)count * sizeof(*best));
+    const bool morphology = usesGradedBanks(recipe);
+    const bool shoreline = recipe->generatorVersion == WORLD_GENERATOR_VERSION_SHORELINE;
+    RiverBlend *blend = morphology ? calloc(count, sizeof(*blend)) : NULL;
+    uint32_t *winner = trace ? calloc(count, sizeof(*winner)) : NULL;
     uint16_t lakeNetwork[WORLD_MAX_WATER_BODIES + 1u] = {0};
-    if (!nodes || !best) {
-        free(nodes); free(best);
+    if (!nodes || !best || (morphology && !blend) || (trace && !winner)) {
+        free(nodes); free(best); free(blend); free(winner);
         return false;
     }
 
@@ -288,9 +387,33 @@ static bool carveContinuousRivers(WorldHydrology *hydro, TerrainHeightfield *tf,
         }
     }
 
+    if (morphology) {
+        /* Mantener el polígono dentro de la franja de su celda D8. */
+        for (unsigned pass = 0; pass < 4u; ++pass) {
+            for (uint32_t i = 0; i < count; ++i) {
+                RiverNode *n = &nodes[i];
+                if (!n->body) continue;
+                n->directionX = n->x;
+                n->directionZ = n->z;
+                int32_t p = parent[i];
+                if (n->indegree != 1u || p < 0 || !nodes[p].body) continue;
+                RiverNode *u = &nodes[n->incoming];
+                float x = (float)(i % res), z = (float)(i / res);
+                n->directionX = x + fminf(.36f, fmaxf(-.36f, .25f * (u->x + nodes[p].x - 2.0f * x)));
+                n->directionZ = z + fminf(.36f, fmaxf(-.36f, .25f * (u->z + nodes[p].z - 2.0f * z)));
+            }
+            for (uint32_t i = 0; i < count; ++i) {
+                nodes[i].x = nodes[i].directionX;
+                nodes[i].z = nodes[i].directionZ;
+            }
+        }
+        fitRiverProfile(tf, nodes, parent, order, surface, target,
+                        .055f + .15f * recipe->terrain.ridgeWeight, shoreline);
+    }
+
     /* Suavizar la cota longitudinal dentro del corredor. El filtro convexo
      * respeta la posición de las juntas, lagos y salidas, y limita el cambio. */
-    for (unsigned pass = 0; pass < 2; ++pass) {
+    for (unsigned pass = 0; !morphology && pass < 2; ++pass) {
         for (uint32_t i = 0; i < count; ++i) {
             const RiverNode *n = &nodes[i];
             if (!n->body) continue;
@@ -344,108 +467,357 @@ static bool carveContinuousRivers(WorldHydrology *hydro, TerrainHeightfield *tf,
         }
     }
 
-    float junctionAccumulation = -1.0f;
-    for (uint32_t i = 0; i < count; ++i) {
-        const RiverNode *a = &nodes[i];
-        if (!a->body) continue;
-        if (a->indegree > 1u) {
-            ++hydro->riverJunctionCount;
-            if (hydro->drainageAccum[i] > junctionAccumulation) {
-                junctionAccumulation = hydro->drainageAccum[i];
-                hydro->majorJunction = Vec3_Create(tf->originX + a->x * tf->spacing, surface[i],
-                                                  tf->originZ + a->z * tf->spacing);
-            }
-        }
-        int32_t p = parent[i];
-        if (p < 0 && a->indegree) continue; /* La arista entrante ya cubre la salida. */
-        RiverNode end = *a;
-        float endY = surface[i];
-        if (p >= 0 && channel[p]) {
-            end = nodes[p];
-            endY = surface[p];
-        } else if (p >= 0 && hydro->waterBodyId[p]) {
-            end.x = (float)((uint32_t)p % res);
-            end.z = (float)((uint32_t)p / res);
-            endY = hydro->waterSurfaceY[p];
-        }
-        if (p >= 0) ++hydro->riverSegmentCount;
-        float dx = end.x - a->x, dz = end.z - a->z;
-        float invLen2 = 1.0f / fmaxf(0.001f, dx * dx + dz * dz);
-        float maxRadius = fmaxf(a->radius, end.radius);
-        /* Trabajo local al AABB, con anchura en unidades físicas (sin truncar en celdas). */
-        float extent = (maxRadius + fmaxf(1.5f, 0.85f * maxRadius)) * tf->invSpacing;
-        int minX = (int)fmaxf(0, floorf(fminf(a->x, end.x) - extent));
-        int minZ = (int)fmaxf(0, floorf(fminf(a->z, end.z) - extent));
-        int maxX = (int)fminf((float)res - 1.0f, ceilf(fmaxf(a->x, end.x) + extent));
-        int maxZ = (int)fminf((float)res - 1.0f, ceilf(fmaxf(a->z, end.z) + extent));
-
-        for (int z = minZ; z <= maxZ; ++z) {
-            for (int x = minX; x <= maxX; ++x) {
-                uint32_t j = (uint32_t)z * res + (uint32_t)x;
-                if (hydro->waterBodyId[j]) continue; /* Conservar plano y lecho lacustre. */
-                float rx = (float)x - a->x, rz = (float)z - a->z;
-                float t = fminf(1.0f, fmaxf(0.0f, (rx * dx + rz * dz) * invLen2));
-                float ex = rx - t * dx, ez = rz - t * dz;
-                float radius = a->radius + t * (end.radius - a->radius);
-                float bankWidth = fmaxf(1.5f, radius * 0.85f);
-                float dist2 = (ex * ex + ez * ez) * tf->spacing * tf->spacing;
-                if (dist2 >= (radius + bankWidth) * (radius + bankWidth)) continue;
-                float dist = sqrtf(dist2);
-                float score = dist / radius;
-                if (score >= best[j]) continue;
-
-                float y = surface[i] + t * (endY - surface[i]);
-                float depth = a->depth + t * (end.depth - a->depth);
-                float base = tf->heights[j];
-                float bed;
-                if (dist < radius) {
-                    float interior = 1.0f - smoothUnit(score);
-                    bed = y - depth * interior;
-                    /* Relleno local que llega a cero en el borde, con corte libre. */
-                    bed = fminf(base + 0.22f * interior, bed);
-                } else {
-                    float bank = smoothUnit((dist - radius) / bankWidth);
-                    /* Ribera de corte; un bajo existente fuera del cauce no es agua. */
-                    bed = fminf(base, y + (base - y) * bank);
+    for (unsigned pass = 0; pass < (morphology ? 2u : 1u); ++pass) {
+        float junctionAccumulation = -1.0f;
+        for (uint32_t i = 0; i < count; ++i) {
+            const RiverNode *a = &nodes[i];
+            if (!a->body) continue;
+            if (pass == 0 && a->indegree > 1u) {
+                ++hydro->riverJunctionCount;
+                if (hydro->drainageAccum[i] > junctionAccumulation) {
+                    junctionAccumulation = hydro->drainageAccum[i];
+                    hydro->majorJunction = Vec3_Create(tf->originX + a->x * tf->spacing, surface[i],
+                                                      tf->originZ + a->z * tf->spacing);
                 }
-                best[j] = score;
-                target[j] = fmaxf(0.05f, bed);
-                hydro->surfaceBodyId[j] = a->body;
-                hydro->waterSurfaceY[j] = dist < radius ? y : fminf(y, target[j]);
-                float speed = a->speed + t * (end.speed - a->speed);
-                hydro->flowX[j] = speed * (a->directionX + t * (end.directionX - a->directionX));
-                hydro->flowZ[j] = speed * (a->directionZ + t * (end.directionZ - a->directionZ));
+            }
+            int32_t p = parent[i];
+            if (p < 0 && a->indegree) continue; /* La arista entrante ya cubre la salida. */
+            RiverNode end = *a;
+            float endY = surface[i];
+            if (p >= 0 && channel[p]) {
+                end = nodes[p];
+                endY = surface[p];
+            } else if (p >= 0 && hydro->waterBodyId[p]) {
+                end.x = (float)((uint32_t)p % res);
+                end.z = (float)((uint32_t)p / res);
+                endY = hydro->waterSurfaceY[p];
+            }
+            if (pass == 0 && p >= 0) ++hydro->riverSegmentCount;
+            float dx = end.x - a->x, dz = end.z - a->z;
+            float invLen2 = 1.0f / fmaxf(0.001f, dx * dx + dz * dz);
+            float maxRadius = fmaxf(a->radius, end.radius);
+            /* Trabajo local al AABB, con anchura en unidades físicas (sin truncar en celdas). */
+            float reachBank = fmaxf(1.5f, 0.85f * maxRadius);
+            if (morphology) {
+                float cut = fmaxf(0.0f, tf->heights[i] - surface[i]);
+                reachBank = fminf(fminf(10.0f, tf->span * .09f),
+                                  2.8f + 1.2f * maxRadius + cut / .31f);
+            }
+            float extent = (maxRadius + reachBank) * tf->invSpacing;
+            int minX = (int)fmaxf(0, floorf(fminf(a->x, end.x) - extent));
+            int minZ = (int)fmaxf(0, floorf(fminf(a->z, end.z) - extent));
+            int maxX = (int)fminf((float)res - 1.0f, ceilf(fmaxf(a->x, end.x) + extent));
+            int maxZ = (int)fminf((float)res - 1.0f, ceilf(fmaxf(a->z, end.z) + extent));
+
+            for (int z = minZ; z <= maxZ; ++z) {
+                for (int x = minX; x <= maxX; ++x) {
+                    uint32_t j = (uint32_t)z * res + (uint32_t)x;
+                    if (hydro->waterBodyId[j]) continue; /* Conservar plano y lecho lacustre. */
+                    float rx = (float)x - a->x, rz = (float)z - a->z;
+                    float t = fminf(1.0f, fmaxf(0.0f, (rx * dx + rz * dz) * invLen2));
+                    float ex = rx - t * dx, ez = rz - t * dz;
+                    float radius = a->radius + t * (end.radius - a->radius);
+                    float bankWidth = morphology ? reachBank : fmaxf(1.5f, radius * 0.85f);
+                    float dist2 = (ex * ex + ez * ez) * tf->spacing * tf->spacing;
+                    if (dist2 >= (radius + bankWidth) * (radius + bankWidth)) continue;
+                    float dist = sqrtf(dist2);
+                    float score = dist / radius;
+                    if (pass == 0 && score >= best[j]) continue;
+
+                    float y = surface[i] + t * (endY - surface[i]);
+                    float depth = a->depth + t * (end.depth - a->depth);
+                    float base = tf->heights[j];
+                    float bed;
+                    if (morphology) {
+                        float across = dist - radius;
+                        if (across < 0.0f) {
+                            bed = y - depth * (1.0f - score * score);
+                        } else {
+                            float u = across / bankWidth;
+                            /* Transición hacia la cota existente sin crear una berma
+                             * si el terreno ya está cerca de la lámina. */
+                            float bank = fminf(fmaxf(base, y),
+                                               y + fminf(.30f, 2.0f * depth / radius) * across);
+                            bed = bank + (base - bank) * smoothUnit(u);
+                        }
+                        if (pass == 1u) {
+                            if (hydro->surfaceBodyId[j] != a->body || fabsf(y - hydro->waterSurfaceY[j]) > .38f)
+                                continue;
+                            float w = (1.0f - smoothUnit((score - best[j]) / .48f))
+                                    * (1.0f - smoothUnit(fabsf(y - hydro->waterSurfaceY[j]) / .38f));
+                            float speed = a->speed + t * (end.speed - a->speed);
+                            blend[j].weight += w;
+                            blend[j].ground += w * bed;
+                            blend[j].surface += w * y;
+                            blend[j].flowX += w * speed * (a->directionX + t * (end.directionX - a->directionX));
+                            blend[j].flowZ += w * speed * (a->directionZ + t * (end.directionZ - a->directionZ));
+                            continue;
+                        }
+                    } else if (dist < radius) {
+                        float interior = 1.0f - smoothUnit(score);
+                        bed = y - depth * interior;
+                        /* Relleno local que llega a cero en el borde, con corte libre. */
+                        bed = fminf(base + 0.22f * interior, bed);
+                    } else {
+                        float bank = smoothUnit((dist - radius) / bankWidth);
+                        /* Ribera de corte; un bajo existente fuera del cauce no es agua. */
+                        bed = fminf(base, y + (base - y) * bank);
+                    }
+                    best[j] = score;
+                    if (winner) winner[j] = i + 1u;
+                    target[j] = fmaxf(0.05f, bed);
+                    hydro->surfaceBodyId[j] = a->body;
+                    hydro->waterSurfaceY[j] = morphology || dist < radius ? y : fminf(y, target[j]);
+                    float speed = a->speed + t * (end.speed - a->speed);
+                    hydro->flowX[j] = speed * (a->directionX + t * (end.directionX - a->directionX));
+                    hydro->flowZ[j] = speed * (a->directionZ + t * (end.directionZ - a->directionZ));
+                }
             }
         }
-    }
 
+    }
+    if (trace) {
+        trace(context, "segment_winner_u32", winner, count, sizeof(*winner));
+        trace(context, "channel_surface_f32", surface, count, sizeof(*surface));
+    }
     for (uint32_t i = 0; i < count; ++i) {
         if (best[i] == FLT_MAX) continue;
+        if (blend && blend[i].weight > 0.0f) {
+            float inv = 1.0f / blend[i].weight;
+            target[i] = fmaxf(.05f, blend[i].ground * inv);
+            hydro->waterSurfaceY[i] = blend[i].surface * inv;
+            hydro->flowX[i] = blend[i].flowX * inv;
+            hydro->flowZ[i] = blend[i].flowZ * inv;
+        }
+        if (shoreline) {
+            /* Acotar el relleno bajo la lámina y dejar las riberas secas a
+             * su cota original cuando el perfil pasa sobre un bajo lateral. */
+            float depth = hydro->waterSurfaceY[i] - target[i];
+            float limit = tf->heights[i] + fminf(.22f, .25f * fmaxf(0.0f, depth));
+            if (target[i] > limit) {
+                float fade = 1.0f - smoothUnit((target[i] - limit) / .28f);
+                target[i] = limit;
+                hydro->waterSurfaceY[i] = limit + depth * fade;
+            }
+            target[i] = preserveLakeDivide(hydro, tf, i, target[i]);
+        }
+        if (morphology && best[i] >= 1.0f) {
+            /* El bajo exterior conserva su altura física, pero no pertenece al cauce mojado. */
+            hydro->waterSurfaceY[i] = fminf(hydro->waterSurfaceY[i], target[i]);
+        }
         tf->heights[i] = target[i];
         hydro->waterBodyId[i] = hydro->surfaceBodyId[i];
     }
-    free(nodes); free(best);
+    if (trace) {
+        for (uint32_t i = 0; i < count; ++i) best[i] = nodes[i].body ? nodes[i].x : 0.0f;
+        trace(context, "channel_x_f32", best, count, sizeof(*best));
+        for (uint32_t i = 0; i < count; ++i) best[i] = nodes[i].body ? nodes[i].z : 0.0f;
+        trace(context, "channel_z_f32", best, count, sizeof(*best));
+    }
+    free(nodes); free(best); free(blend); free(winner);
     return true;
 }
 
-bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
-                             const WorldRecipe *recipe, uint32_t hydroSeed) {
+static bool isWetDomain(const WorldHydrology *h, const float *ground, uint32_t i) {
+    return h->surfaceBodyId[i] && h->waterSurfaceY[i] - ground[i] > WORLD_WATER_DEPTH_EPSILON;
+}
+
+static float seamRiseLimit(const float *base, uint32_t a, uint32_t b, float run) {
+    /* Los taludes originales pronunciados conservan su desnivel. El tallado
+     * admite un talud moderado incluso en una llanura originalmente plana. */
+    return fmaxf(.36f * run, fabsf(base[a] - base[b]) + .04f * run);
+}
+
+/* Repartir sólo el desnivel añadido por la excavación fluvial.
+ * La pertenencia al agua y la rasante se conservan en ambos lados. */
+static void repairRiverShoreSeams(const WorldHydrology *h, TerrainHeightfield *tf,
+                                  const float *base, float *scratch, uint32_t *active,
+                                  uint8_t *ring, bool wholeCorridor) {
+    uint32_t n = tf->resolution, count = n * n;
+    uint32_t tail = 0;
+    memset(ring, 0, count * sizeof(*ring));
+    uint32_t first = wholeCorridor ? 0u : 1u;
+    uint32_t end = n - first;
+    uint32_t seedEnd = wholeCorridor ? end : end - 1u;
+    for (uint32_t z = first; z < seedEnd; ++z) {
+        for (uint32_t x = first; x < seedEnd; ++x) {
+            uint32_t i = z * n + x;
+            const uint32_t neighbor[] = {i + 1u, i + n};
+            const bool valid[] = {x + 1u < end, z + 1u < end};
+            for (unsigned k = 0; k < 2; ++k) {
+                if (!valid[k]) continue;
+                uint32_t j = neighbor[k];
+                if (fabsf(tf->heights[i] - tf->heights[j]) <= seamRiseLimit(base, i, j, tf->spacing))
+                    continue;
+                if (!wholeCorridor) {
+                    bool wetI = isWetDomain(h, tf->heights, i), wetJ = isWetDomain(h, tf->heights, j);
+                    if ((!wetI && !wetJ) ||
+                        (wetI && wetJ && h->surfaceBodyId[i] == h->surfaceBodyId[j])) continue;
+                } else if (h->surfaceBodyId[i] <= h->lakeCount && h->surfaceBodyId[j] <= h->lakeCount) {
+                    continue;
+                }
+                if (!ring[i]) { ring[i] = 1; active[tail++] = i; }
+                if (!ring[j]) { ring[j] = 1; active[tail++] = j; }
+            }
+        }
+    }
+    unsigned maxRing = (unsigned)fminf(12.0f, 1.0f + ceilf(2.2f * tf->invSpacing));
+    for (uint32_t k = 0; k < tail; ++k) {
+        uint32_t i = active[k], x = i % n, z = i / n;
+        if (ring[i] >= maxRing) continue;
+        const uint32_t neighbor[] = {i - 1u, i + 1u, i - n, i + n};
+        const bool interior[] = {x > first, x + 1u < end, z > first, z + 1u < end};
+        for (unsigned d = 0; d < 4; ++d) {
+            uint32_t j = neighbor[d];
+            if (!interior[d] || ring[j]) continue;
+            ring[j] = ring[i] + 1u;
+            active[tail++] = j;
+        }
+    }
+
+    for (unsigned pass = 0; pass < 20u; ++pass) {
+        for (uint32_t k = 0; k < tail; ++k) {
+            uint32_t i = active[k];
+            uint32_t x = i % n, z = i / n;
+            float y = tf->heights[i];
+            const uint32_t neighbor[] = {i - 1u, i + 1u, i - n, i + n};
+            const bool valid[] = {x > 0u, x + 1u < n, z > 0u, z + 1u < n};
+            float correction = 0.0f;
+            for (unsigned d = 0; d < 4; ++d) {
+                if (!valid[d]) continue;
+                uint32_t j = neighbor[d];
+                float delta = tf->heights[j] - y;
+                float rise = seamRiseLimit(base, i, j, tf->spacing);
+                correction += delta - fminf(rise, fmaxf(-rise, delta));
+            }
+            float changed = y + .22f * correction;
+            if (h->surfaceBodyId[i]) {
+                float limit = h->waterSurfaceY[i] - WORLD_WATER_DEPTH_EPSILON;
+                if (isWetDomain(h, tf->heights, i)) {
+                    /* No adelgazar por debajo de un tirante útil, salvo si la
+                     * propia muestra ya pertenecía al borde muy somero. */
+                    float minDepth = fmaxf(WORLD_WATER_DEPTH_EPSILON + 1e-5f,
+                                           fminf(.035f, .25f * (h->waterSurfaceY[i] - y)));
+                    changed = fminf(changed, fmaxf(y, h->waterSurfaceY[i] - minDepth));
+                } else {
+                    changed = fmaxf(changed, limit + 1e-5f);
+                }
+            }
+            scratch[k] = fmaxf(fminf(.05f, y), changed);
+        }
+        for (uint32_t k = 0; k < tail; ++k) tf->heights[active[k]] = scratch[k];
+    }
+}
+
+static void propagateShore(const WorldHydrology *h, const TerrainHeightfield *tf,
+                           uint32_t *distance, uint32_t i, uint32_t other, unsigned band) {
+    uint32_t next = distance[other];
+    if ((next & 0xffffu) >= band || (next & 0xffffu) + 1u >= (distance[i] & 0xffffu)) return;
+    uint16_t owner = (uint16_t)(next >> 16);
+    uint16_t current = h->surfaceBodyId[i];
+    if (current != owner && (current || owner > h->lakeCount ||
+                             tf->heights[i] <= h->bodies[owner - 1u].surfaceY)) return;
+    distance[i] = next + 1u;
+}
+
+/* Relajación local de ambas caras del contorno. La distancia y la identidad
+ * extendida en tierra seca sólo existen en el búfer de generación. */
+static void relaxShoreV3(WorldHydrology *h, TerrainHeightfield *tf,
+                         float *scratch, uint32_t *distance) {
+    uint32_t n = tf->resolution, count = n * n;
+    unsigned band = (unsigned)fminf(12.0f, fmaxf(2.0f, ceilf(2.4f * tf->invSpacing)));
+    const float epsilon = WORLD_WATER_DEPTH_EPSILON;
+    for (uint32_t i = 0; i < count; ++i) distance[i] = UINT32_MAX;
+    for (uint32_t z = 1; z + 1u < n; ++z) {
+        for (uint32_t x = 1; x + 1u < n; ++x) {
+            uint32_t i = z * n + x;
+            uint16_t owner = h->surfaceBodyId[i];
+            if (!owner) continue;
+            float depth = h->waterSurfaceY[i] - tf->heights[i];
+            if (fabsf(depth) <= .55f * tf->spacing) distance[i] = (uint32_t)owner << 16;
+        }
+    }
+    for (uint32_t z = 1; z + 1u < n; ++z) {
+        for (uint32_t x = 1; x + 1u < n; ++x) {
+            uint32_t i = z * n + x;
+            propagateShore(h, tf, distance, i, i - 1u, band);
+            propagateShore(h, tf, distance, i, i - n, band);
+        }
+    }
+    for (uint32_t z = n - 2u; z; --z) {
+        for (uint32_t x = n - 2u; x; --x) {
+            uint32_t i = z * n + x;
+            propagateShore(h, tf, distance, i, i + 1u, band);
+            propagateShore(h, tf, distance, i, i + n, band);
+        }
+    }
+
+    for (unsigned pass = 0; pass < 4; ++pass) {
+        memcpy(scratch, tf->heights, count * sizeof(*scratch));
+        for (uint32_t z = 1; z + 1u < n; ++z) {
+            for (uint32_t x = 1; x + 1u < n; ++x) {
+                uint32_t i = z * n + x;
+                unsigned steps = distance[i] & 0xffffu;
+                if (steps >= band) continue;
+                uint16_t body = (uint16_t)(distance[i] >> 16);
+                bool lake = body <= h->lakeCount;
+                float y = tf->heights[i];
+                float water = lake ? h->bodies[body - 1u].surfaceY : h->waterSurfaceY[i];
+                if (lake && fabsf(y - water) < .045f) continue; /* Cresta de vertido. */
+                if (water - y > .58f) continue; /* Lecho central. */
+                uint32_t p[] = {i - 1u, i + 1u, i - n, i + n};
+                float sum = 0.0f;
+                bool protect = false;
+                for (unsigned k = 0; k < 4; ++k) {
+                    uint16_t neighbor = h->surfaceBodyId[p[k]];
+                    float delta = tf->heights[p[k]] - y;
+                    protect |= (neighbor && neighbor != body) || fabsf(delta) > .90f * tf->spacing;
+                    sum += delta;
+                }
+                if (protect) continue;
+                float strength = 1.0f - (float)steps / (float)band;
+                float limit = .12f * tf->spacing;
+                float correction = .115f * sum;
+                if (lake) {
+                    float run = (steps + .55f) * tf->spacing;
+                    float shelf = water + copysignf(.20f * run, y - water);
+                    correction += .14f * (shelf - y);
+                }
+                float changed = y + fminf(limit, fmaxf(-limit, correction * strength));
+                if (water - y > epsilon) changed = fminf(water - 1.01f * epsilon, changed);
+                else changed = fmaxf(water - .99f * epsilon, changed);
+                scratch[i] = changed;
+            }
+        }
+        memcpy(tf->heights, scratch, count * sizeof(*scratch));
+    }
+}
+
+bool WorldHydrology_GenerateTraced(WorldHydrology *hydro, TerrainHeightfield *tf,
+                                  const WorldRecipe *recipe, uint32_t hydroSeed,
+                                  WorldHydrologyTraceFn trace, void *context) {
     (void)hydroSeed;
     if (!hydro || !tf || !tf->heights || !recipe) return false;
     memset(hydro, 0, sizeof(*hydro));
 
     uint32_t res = tf->resolution;
     if (!allocHydroBuffers(hydro, res)) return false;
+    const bool morphology = usesGradedBanks(recipe);
 
     if (recipe->flat || !recipe->hydrology.enabled ||
         (recipe->hydrology.riverDensity <= 1e-4f && recipe->hydrology.lakeDensity <= 1e-4f)) {
         hydro->enabled = false;
         hydro->drainageAcyclic = true;
-        return true;
+        if (!morphology || TerrainHeightfield_RebuildDerived(tf))
+            return true;
+        WorldHydrology_Free(hydro);
+        return false;
     }
 
     hydro->enabled = true;
-    const bool continuous = recipe->generatorVersion == WORLD_GENERATOR_VERSION;
+    const bool shoreline = recipe->generatorVersion == WORLD_GENERATOR_VERSION_SHORELINE;
+    const bool v3 = recipe->generatorVersion == WORLD_GENERATOR_VERSION_MORPHOLOGY;
+    const bool continuous = morphology || recipe->generatorVersion == WORLD_GENERATOR_VERSION_CONTINUOUS;
     size_t count = (size_t)res * (size_t)res;
     if (continuous) {
         hydro->surfaceBodyId = calloc(count, sizeof(*hydro->surfaceBodyId));
@@ -467,12 +839,22 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
     }
 
     /* 1) Priority-Flood para elevaciones rellenadas y árbol de drenaje acíclico. */
-    if (!runPriorityFlood(tf->heights, res, filled, parent, drainOrder)) {
+    float *routing = v3 ? malloc(count * sizeof(*routing)) : NULL;
+    if (routing) conditionRouting(tf, routing);
+    if (trace) trace(context, "routing_dem_f32", routing ? routing : tf->heights, count, sizeof(float));
+    bool routed = (!v3 || routing) &&
+                  runPriorityFlood(routing ? routing : tf->heights, res, filled, parent, drainOrder);
+    free(routing);
+    if (!routed) {
         free(filled); free(parent); free(drainOrder); free(bfsQ); free(compVis);
         WorldHydrology_Free(hydro);
         return false;
     }
     hydro->drainageAcyclic = verifyAcyclicRouting(parent, (uint32_t)count);
+    if (trace) {
+        trace(context, "filled_dem_f32", filled, count, sizeof(*filled));
+        trace(context, "drainage_parent_i32", parent, count, sizeof(*parent));
+    }
 
     /* 2) Acumulación de drenaje en orden topológico aguas arriba -> aguas abajo. */
     float cellArea = tf->spacing * tf->spacing;
@@ -490,6 +872,7 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
     if (lakeDensity > 1e-4f) {
         /* Umbral de área y profundidad mínima escalados según lakeDensity y tamaño del mapa. */
         float minLakeArea = fmaxf(10.0f, (1.15f - lakeDensity) * (tf->span * tf->span * 0.0022f));
+        if (v3) minLakeArea *= lakeDensity >= .6f ? .95f : 1.65f;
         uint32_t minLakeCells = (uint32_t)fmaxf(12.0f, minLakeArea / fmaxf(0.01f, cellArea));
         float minLakePeakDepth = fmaxf(0.28f, 0.70f - 0.40f * lakeDensity);
         float maxWetFractionForLakes = 0.24f + 0.14f * lakeDensity;
@@ -549,7 +932,7 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
                         hydro->waterDepth[c] = depth;
                     }
                 }
-            } else {
+            } else if (!morphology) {
                 /* Rellenar micro-hoyos descartados para evitar pozos residuales sin salida. */
                 for (uint32_t k = 0; k < qt; ++k) {
                     uint32_t c = bfsQ[k];
@@ -561,12 +944,15 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
         }
     }
 
+    if (trace) trace(context, "lake_owner_u16", hydro->waterBodyId, count, sizeof(*hydro->waterBodyId));
+
     /* 4) Extracción y excavación de red fluvial dirigida desde acumulación de drenaje. */
     float riverDensity = recipe->hydrology.riverDensity;
     if (riverDensity > 1e-4f && hydro->bodyCount < WORLD_MAX_WATER_BODIES) {
         float totalArea = tf->span * tf->span;
         /* Umbral de cuenca para iniciar un cauce permanente. */
         float accumThresh = totalArea * (0.048f - 0.036f * riverDensity);
+        if (v3 && lakeDensity < .6f) accumThresh *= 1.23f;
         if (accumThresh < cellArea * 28.0f) accumThresh = cellArea * 28.0f;
 
         uint8_t *isChannel = calloc(count, 1u);
@@ -643,6 +1029,7 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
             }
         }
 
+        if (trace) trace(context, "channel_u8", isChannel, count, sizeof(*isChannel));
         if (continuous) {
             /* Propagar desde las salidas hacia las fuentes. La cota del lago
              * se conserva en la desembocadura y cada enlace desciende hacia su padre. */
@@ -654,12 +1041,19 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
                 if (p >= 0) downstream = isChannel[p] ? riverSurface[p] : hydro->waterSurfaceY[p];
                 riverSurface[i] = fmaxf(filled[i], downstream);
             }
+            /* Priority-Flood ya ha entregado las cotas del grafo. Retener el
+             * relieve físico original para reconocer los saltos excavados. */
+            if (morphology) memcpy(filled, tf->heights, count * sizeof(*filled));
             if (!carveContinuousRivers(hydro, tf, recipe, parent, drainOrder, isChannel,
-                                        riverSurface, accumThresh, carveDelta)) {
+                                        riverSurface, accumThresh, carveDelta, trace, context)) {
                 free(isChannel); free(riverSurface); free(carveDelta);
                 free(filled); free(parent); free(drainOrder); free(bfsQ); free(compVis);
                 WorldHydrology_Free(hydro);
                 return false;
+            }
+            if (morphology) {
+                if (trace) trace(context, "river_ground_f32", tf->heights, count, sizeof(*tf->heights));
+                repairRiverShoreSeams(hydro, tf, filled, carveDelta, bfsQ, compVis, shoreline);
             }
         } else {
             /* Asignar elevación de lámina de río no-creciente aguas abajo (orden topológico)
@@ -805,7 +1199,10 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
         }
     }
 
-    if (continuous && hydro->lakeCount) {
+    if (trace) trace(context, "carved_ground_f32", tf->heights, count, sizeof(*tf->heights));
+    if (morphology) relaxShoreV3(hydro, tf, filled, bfsQ);
+
+    if (continuous && !morphology && hydro->lakeCount) {
         /* Filtrar el lecho somero cerca del talud con un ajuste simétrico y
          * acotado. Mantener el lado de la cota, islas, vertederos y acantilados. */
         memcpy(filled, tf->heights, count * sizeof(*filled));
@@ -839,6 +1236,8 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
             }
         }
     }
+
+    if (trace) trace(context, "relaxed_ground_f32", tf->heights, count, sizeof(*tf->heights));
 
     /* 5) Recalcular normales/pendientes finales del terreno y validar coherencia física de agua. */
     if (!TerrainHeightfield_RebuildDerived(tf)) {
@@ -929,20 +1328,26 @@ bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
     return WorldHydrology_RebuildShoreSites(hydro, tf, recipe, NULL, NULL);
 }
 
+bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
+                             const WorldRecipe *recipe, uint32_t hydroSeed) {
+    return WorldHydrology_GenerateTraced(hydro, tf, recipe, hydroSeed, NULL, NULL);
+}
+
 static void addShoreSite(WorldHydrology *hydro, const TerrainHeightfield *tf,
                          uint16_t bid, Vector3 wetContact, float outX, float outZ,
-                         float minSpacingSq,
+                         float minSpacingSq, float approachOffset, bool morphology,
                          bool (*extraBlockedFn)(const void *ctx, Vector3 pos, float radius),
                          const void *extraBlockedCtx) {
     float wx = wetContact.x, wz = wetContact.z, surfY = wetContact.y;
     const float maxSlopeRad = 0.60f;
-    const float approachOffset = 1.15f;
     /* Espaciado mínimo contra estaciones ya aceptadas del mismo entorno. */
     bool tooClose = false;
     for (uint32_t s = 0; s < hydro->shoreSiteCount; ++s) {
         float dx = hydro->shoreSites[s].wetContactPoint.x - wetContact.x;
         float dz = hydro->shoreSites[s].wetContactPoint.z - wetContact.z;
-        if (dx * dx + dz * dz < minSpacingSq) {
+        const WorldShoreSite *site = &hydro->shoreSites[s];
+        bool facing = outX * site->bankNormal.x + outZ * site->bankNormal.z > -.25f;
+        if (dx * dx + dz * dz < (morphology && !facing ? 3.24f : minSpacingSq)) {
             tooClose = true;
             break;
         }
@@ -961,6 +1366,20 @@ static void addShoreSite(WorldHydrology *hydro, const TerrainHeightfield *tf,
     if (!Terrain_SampleGround(tf, ax, az, &bankHit)) return;
     float bankSlope = acosf(fmaxf(0.0f, fminf(1.0f, bankHit.normal.y)));
     if (bankSlope > maxSlopeRad) return;
+    if (morphology) {
+        float previous = bankHit.position.y;
+        for (unsigned k = 1; k <= 3; ++k) {
+            float distance = approachOffset * (1.0f - .225f * (float)k);
+            float px = wx + outX * distance, pz = wz + outZ * distance;
+            SurfaceHit traversed;
+            WaterSample water;
+            if (!Terrain_SampleGround(tf, px, pz, &traversed) ||
+                traversed.normal.y < .79f || fabsf(previous - traversed.position.y) > .28f ||
+                (WorldHydrology_SampleWater(hydro, tf, px, pz, &water) && water.depth > .3f))
+                return;
+            previous = traversed.position.y;
+        }
+    }
 
     WaterSample bankWater;
     if (WorldHydrology_SampleWater(hydro, tf, ax, az, &bankWater) && bankWater.wet &&
@@ -994,7 +1413,7 @@ static void addShoreSite(WorldHydrology *hydro, const TerrainHeightfield *tf,
 }
 
 static void rebuildContinuousShores(WorldHydrology *hydro, const TerrainHeightfield *tf,
-                                    float minSpacingSq,
+                                    float minSpacingSq, bool morphology,
                                     bool (*blocked)(const void *, Vector3, float), const void *ctx) {
     double area = 0.0, totalLength = 0.0;
     float minLength = tf->spacing * 0.03f;
@@ -1030,8 +1449,11 @@ static void rebuildContinuousShores(WorldHydrology *hydro, const TerrainHeightfi
                         if (!WorldHydrology_SampleWater(hydro, tf, contact.x, contact.z, &water) ||
                             water.waterBodyId != patches[k].bodyId) continue;
                         contact.y = water.surfaceY;
-                        addShoreSite(hydro, tf, water.waterBodyId, contact, -dz / length, dx / length,
-                                     minSpacingSq, blocked, ctx);
+                        const float offsets[] = {1.15f, .82f, 1.50f};
+                        unsigned previous = hydro->shoreSiteCount;
+                        for (unsigned j = 0; j < (morphology ? 3u : 1u) && hydro->shoreSiteCount == previous; ++j)
+                            addShoreSite(hydro, tf, water.waterBodyId, contact, -dz / length, dx / length,
+                                         minSpacingSq, offsets[j], morphology, blocked, ctx);
                     }
                 }
             }
@@ -1045,7 +1467,7 @@ bool WorldHydrology_RebuildShoreSites(WorldHydrology *hydro, const TerrainHeight
                                       const WorldRecipe *recipe,
                                       bool (*extraBlockedFn)(const void *ctx, Vector3 pos, float radius),
                                       const void *extraBlockedCtx) {
-    (void)recipe;
+    bool morphology = recipe && usesGradedBanks(recipe);
     if (!hydro || !tf || !hydro->shoreSites) return false;
     hydro->shoreSiteCount = 0u;
     if (!hydro->enabled || hydro->bodyCount == 0u || hydro->totalWetCells == 0u) return true;
@@ -1056,7 +1478,7 @@ bool WorldHydrology_RebuildShoreSites(WorldHydrology *hydro, const TerrainHeight
     float minSpacing = fmaxf(4.5f, fminf(11.0f, tf->span * 0.032f));
     float minSpacingSq = minSpacing * minSpacing;
     if (hydro->surfaceBodyId) {
-        rebuildContinuousShores(hydro, tf, minSpacingSq, extraBlockedFn, extraBlockedCtx);
+        rebuildContinuousShores(hydro, tf, minSpacingSq, morphology, extraBlockedFn, extraBlockedCtx);
         return true;
     }
 
@@ -1088,7 +1510,7 @@ bool WorldHydrology_RebuildShoreSites(WorldHydrology *hydro, const TerrainHeight
             float surfY = hydro->waterSurfaceY[idx];
             Vector3 wetContact = Vec3_Create(wx, surfY, wz);
 
-            addShoreSite(hydro, tf, bid, wetContact, outX, outZ, minSpacingSq,
+            addShoreSite(hydro, tf, bid, wetContact, outX, outZ, minSpacingSq, 1.15f, false,
                          extraBlockedFn, extraBlockedCtx);
         }
     }

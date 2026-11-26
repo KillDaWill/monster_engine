@@ -6,6 +6,9 @@ layout(location=11) in float anatomicalMaterial;
 layout(location=12) in vec3 restFlowDirection;
 layout(location=13) in float vertexIntegumentMask;
 
+layout(location=14) in float vertexMacroOcclusion;
+out float macroOcclusion;
+
 uniform vec4 surfaceRecipe[154];
 uniform float shellFraction;
 uniform int furPass;
@@ -13,6 +16,7 @@ uniform int shellCount;
 uniform float shellResolution;
 uniform bool regionalShellLOD;
 uniform vec2 shellSamples[32];
+#include "environment/scene_lighting.glsl"
 #include "surface/hash.glsl"
 #include "surface/pigment_regions.glsl"
 #include "surface/fur_curve.glsl"
@@ -37,6 +41,7 @@ vec3 RotateFromTo(vec3 fromDir, vec3 toDir, vec3 v) {
 }
 
 void main() {
+    macroOcclusion = vertexMacroOcclusion;
     PigmentSetRegions(surfaceRegion);
     wrinkleCoverageOut=wrinkleCoverage;
     regionalPigmentOut=regionalPigment;
@@ -83,7 +88,7 @@ void main() {
     posedFlow -= nGeom * dot(posedFlow, nGeom);
     float flen = length(posedFlow);
     posedFlow = flen > 1e-4 ? posedFlow / flen : vec3(0.0, 0.0, -1.0);
-    posedFlowOut = normalize(gl_NormalMatrix * posedFlow);
+    posedFlowOut = normalize((sceneNatural() ? mat3(gl_ModelViewMatrix) : gl_NormalMatrix) * posedFlow);
 
     if (furPass == 1 && height > 0.0) {
         float furLen = surfaceRecipe[8].x * profileA.x * surfaceRecipe[11].z;

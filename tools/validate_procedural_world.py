@@ -50,6 +50,12 @@ def validate_headless():
         j2.get("world", {}).pop("generation_ms", 0.0)
         assert j1 == j2, f"Salida no determinista para {rel}"
         w = j1.get("world", {})
+        name = wpath.name.removesuffix(".world.json")
+        assert w["id"] == name and w["generator_version"] == 4, f"Receta canónica inválida: {rel}"
+        preset = json.loads(run_cmd([str(headless), f"--world={name}", "--validate-world-only"],
+                                    f"validate preset {name}"))
+        preset["world"].pop("generation_ms", None)
+        assert preset == j1, f"El preset {name} difiere de {rel}"
         print(f"  [OK] {rel}: fp={w.get('fingerprint')} gen={gen_ms:.1f}ms "
               f"lakes={w.get('lakes')} riv={w.get('rivers')} sh={w.get('shore_sites')} rk={w.get('rocks')}")
 
@@ -223,44 +229,42 @@ def capture_surface_suite(out: Path, baseline):
     for name, world, seed, view in matched:
         args = arena_shot(world, seed, view)
         if baseline is not None:
-            capture("baseline-v1", name, baseline, args)
-        capture("render-v1", name, arena, [*args, "--water-time=0.0166667", "--check-gl"])
-        args = arena_shot(f"{world}_v2", seed, view)
-        capture("physical-v2", name, arena, [*args, "--water-time=0.0166667", "--check-gl"])
+            capture("baseline", name, baseline, [*args, "--water-time=0.0166667", "--check-gl"])
+        capture("current", name, arena, [*args, "--water-time=0.0166667", "--check-gl"])
 
     perspective = [
         "--perspective=47", "--camera-position=8,10.8,72", "--camera-target=-1.5,7.2,89", "--zoom=10",
     ]
-    common = arena_shot("river_valley_v2", 42, perspective)
-    capture("physical-v2", "grazing_msaa4", arena,
+    common = arena_shot("river_valley", 42, perspective)
+    capture("current", "grazing_msaa4", arena,
             [*common, "--msaa=4", "--water-time=.75", "--check-gl"])
-    capture("physical-v2", "mountain_lake_bank", arena, [
-        *arena_shot("mountain_lakes_v2", 108, [
+    capture("current", "mountain_lake_bank", arena, [
+        *arena_shot("mountain_lakes", 108, [
             "--perspective=47", "--camera-position=-16,17.4,63", "--camera-target=-34,12.8,45", "--zoom=12",
         ]), "--water-time=.75", "--check-gl",
     ])
-    capture("physical-v2", "lod0_wireframe", arena,
-            [*arena_shot("river_valley_v2", 42, ["--view=three-quarter", "--zoom=150"]),
+    capture("current", "lod0_wireframe", arena,
+            [*arena_shot("river_valley", 42, ["--view=three-quarter", "--zoom=150"]),
              "--show-shores", "--terrain-lod0", "--wireframe", "--water-time=.75", "--check-gl"])
-    capture("physical-v2", "lod_auto_wireframe", arena,
-            [*arena_shot("river_valley_v2", 42, ["--view=three-quarter", "--zoom=150"]),
+    capture("current", "lod_auto_wireframe", arena,
+            [*arena_shot("river_valley", 42, ["--view=three-quarter", "--zoom=150"]),
              "--show-shores", "--wireframe", "--water-time=.75", "--check-gl"])
-    capture("physical-v2", "confluence_wetlands", arena,
-            [*arena_shot("wetlands_v2", 707, ["--view=overview", "--cam-x=-7.5", "--cam-z=53", "--zoom=15"]),
+    capture("current", "confluence_wetlands", arena,
+            [*arena_shot("wetlands", 707, ["--view=overview", "--cam-x=-7.5", "--cam-z=53", "--zoom=15"]),
              "--show-shores", "--water-time=.75", "--check-gl"])
 
     for i, time in enumerate([0.0, 0.33, 0.66, 1.0, 3.99, 4.01, 79.99, 80.01]):
         capture("flow", f"{i:02d}_{time:05.2f}", arena, [*common, f"--water-time={time}"])
 
-    capture("physical-v2", "arena_500", arena, [
-        "--world=worlds/river_valley_v2.world.json", "--world-seed=42", "--seed=42",
+    capture("current", "arena_500", arena, [
+        "--world=worlds/river_valley.world.json", "--world-seed=42", "--seed=42",
         "--brumacernos=400", "--velkares=100", "--plants=700", "--capacity=640", "--workers=6",
         "--speed=1", "--quality=medium", "--frames=60", "--step-lock", "--view=three-quarter", "--zoom=160",
         "--show-perf", "--minimap", "--width=1920", "--height=1080",
     ])
-    capture("physical-v2", "lab_champion", lab, [
+    capture("current", "lab_champion", lab, [
         "--species=species/brumacerno.species.json",
-        "--environment=environments/brumacerno_river_valley_v2.environment.json",
+        "--environment=environments/brumacerno_river_valley.environment.json",
         "--population=12", "--generations=2", "--train-seeds=2", "--val-seeds=2",
         "--workers=4", "--episode-seconds=60", "--pretrain-gens=2",
         "--replay-ticks=30", "--frames=12", "--width=1440", "--height=860", "--water-time=.5",
@@ -272,8 +276,8 @@ def main():
     ap.add_argument("--visual", action="store_true", help="Capturar evidencia visual OpenGL en PNG")
     ap.add_argument("--out", default="docs/validation/procedural-world", help="Directorio de salida visual")
     ap.add_argument("--visual-only", action="store_true", help="Omitir las simulaciones headless")
-    ap.add_argument("--surface-suite", action="store_true", help="Capturas comparables v1 y v2, cámaras fijas y flujo")
-    ap.add_argument("--baseline-arena", type=Path, help="Ejecutable Arena guardado de b464d2b")
+    ap.add_argument("--surface-suite", action="store_true", help="Capturas de terreno y agua con cámaras fijas")
+    ap.add_argument("--baseline-arena", type=Path, help="Ejecutable Arena de referencia compatible con las recetas actuales")
     args = ap.parse_args()
 
     if not args.visual_only:

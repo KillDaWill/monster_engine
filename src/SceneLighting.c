@@ -5,13 +5,13 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { SCENE_BINDING = 3, SHADOW_UNIT = 12 };
+enum { SCENE_BINDING = 3, SHADOW_UNIT = 12, IRRADIANCE_UNIT = 14 };
 static const Vector3 defaultSun = {-.465f, .736f, .426f};
 
 typedef struct SceneFrameUniforms {
     float viewToWorld[16], worldToShadow[16];
     float sunWorld[4], sunView[4], sunRadiance[4], skyFill[4], groundFill[4], haze[4];
-    float camera[4], viewAxis[4], extras[4], settings[4];
+    float camera[4], viewAxis[4], extras[4], settings[4], irradianceMapping[4];
 } SceneFrameUniforms;
 
 static void unpackVector(float out[4], Vector3 v, float w) {
@@ -49,11 +49,13 @@ void SceneLighting_LinkProgram(unsigned program) {
     if (block == GL_INVALID_INDEX) return;
     glUniformBlockBinding(program, block, SCENE_BINDING);
     GLint shadow = glGetUniformLocation(program, "uSceneShadow");
-    if (shadow < 0) return;
+    GLint irradiance = glGetUniformLocation(program, "uSceneIrradiance");
+    if (shadow < 0 && irradiance < 0) return;
     GLint previous;
     glGetIntegerv(GL_CURRENT_PROGRAM, &previous);
     glUseProgram(program);
     glUniform1i(shadow, SHADOW_UNIT);
+    glUniform1i(irradiance, IRRADIANCE_UNIT);
     glUseProgram((GLuint)previous);
 }
 
@@ -83,6 +85,7 @@ void SceneLighting_Destroy(SceneLighting *scene) {
     glDeleteRenderbuffers(1, &scene->compositionColor);
     glDeleteRenderbuffers(1, &scene->compositionDepth);
     glDeleteBuffers(1, &scene->frameBuffer);
+    glDeleteTextures(1, &scene->irradiance);
     glDeleteFramebuffers(1, &scene->shadowFbo);
     glDeleteTextures(1, &scene->shadowDepth);
     glDeleteFramebuffers(1, &scene->staticFbo);
@@ -118,7 +121,7 @@ static bool configureComposition(SceneLighting *scene, int width, int height, in
     return complete;
 }
 
-static void setupOutput(SceneLighting *scene) {
+static bool setupOutput(SceneLighting *scene) {
     GLint buffer;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &scene->outputDrawFbo);
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &scene->outputReadFbo);
@@ -130,7 +133,7 @@ static void setupOutput(SceneLighting *scene) {
         glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, (GLenum)buffer,
                                                GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &scene->outputEncoding);
     scene->composite = false;
-    if (scene->outputEncoding == GL_SRGB) return;
+    if (scene->outputEncoding == GL_SRGB) return true;
 
     GLint samples, depthBits, stencilBits;
     glGetIntegerv(GL_SAMPLES, &samples);
@@ -143,7 +146,7 @@ static void setupOutput(SceneLighting *scene) {
         fprintf(stderr, "[SceneLighting] No se pudo crear un destino sRGB de composición.\n");
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)scene->outputDrawFbo);
         glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)scene->outputReadFbo);
-        return;
+        return false;
     }
     scene->composite = true;
     scene->outputEncoding = GL_SRGB;
@@ -155,6 +158,7 @@ static void setupOutput(SceneLighting *scene) {
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glPopAttrib();
+    return true;
 }
 
 bool SceneLighting_Begin(SceneLighting *scene, const ICamera *camera) {
@@ -178,10 +182,15 @@ bool SceneLighting_Begin(SceneLighting *scene, const ICamera *camera) {
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &scene->previousTexture);
     glGetIntegeri_v(GL_SAMPLER_BINDING, SHADOW_UNIT, &scene->previousSampler);
     glBindSampler(SHADOW_UNIT, 0);
+    glActiveTexture(GL_TEXTURE0 + IRRADIANCE_UNIT);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &scene->previousIrradiance);
+    glGetIntegeri_v(GL_SAMPLER_BINDING, IRRADIANCE_UNIT, &scene->previousIrradianceSampler);
+    glBindSampler(IRRADIANCE_UNIT, 0);
     glActiveTexture((GLenum)active);
     scene->active = true;
-    setupOutput(scene);
-    return true;
+    if (setupOutput(scene)) return true;
+    SceneLighting_End(scene);
+    return false;
 }
 
 void SceneLighting_Apply(SceneLighting *scene, const ICamera *camera, bool useShadow) {
@@ -191,11 +200,11 @@ void SceneLighting_Apply(SceneLighting *scene, const ICamera *camera, bool useSh
     else glDisable(GL_FRAMEBUFFER_SRGB);
 
     SceneFrameUniforms data = {
-        .sunRadiance = {.67f, .61f, .51f, 0},
-        .skyFill = {.46f, .52f, .60f, 0},
-        .groundFill = {.24f, .23f, .22f, 0},
+        .sunRadiance = {.73f, .67f, .56f, 0},
+        .skyFill = {.54f, .59f, .67f, 0},
+        .groundFill = {.27f, .26f, .25f, 0},
         .haze = {.28f, .37f, .46f, .27f},
-        .extras = {!scene->periodicMaterials, !scene->cheapShadows, scene->shadowTexel, 0},
+        .extras = {!scene->periodicMaterials, !scene->cheapShadows, scene->shadowTexel, (float)scene->debug},
         .settings = {1.0f, encoding != GL_SRGB ? 1.0f : 0.0f,
                      useShadow ? 1.0f / (float)scene->shadowSize : 0.0f, scene->depthBias}
     };
@@ -210,11 +219,15 @@ void SceneLighting_Apply(SceneLighting *scene, const ICamera *camera, bool useSh
                                           Vec3_Dot(direction, back)), 0);
     unpackVector(data.camera, camera->position, camera->fov <= 0);
     unpackVector(data.viewAxis, back, 1.0f);
+    unpackVector(data.irradianceMapping, scene->irradianceMapping,
+                 scene->irradiance && !scene->globalFill ? 1.0f : 0.0f);
     scene->frameBuffer = uploadFrame(scene->frameBuffer, &data);
     GLint active;
     glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
     glActiveTexture(GL_TEXTURE0 + SHADOW_UNIT);
     glBindTexture(GL_TEXTURE_2D, useShadow ? scene->shadowDepth : 0);
+    glActiveTexture(GL_TEXTURE0 + IRRADIANCE_UNIT);
+    glBindTexture(GL_TEXTURE_2D, scene->irradiance);
     glActiveTexture((GLenum)active);
 }
 
@@ -240,6 +253,9 @@ void SceneLighting_End(SceneLighting *scene) {
     glActiveTexture(GL_TEXTURE0 + SHADOW_UNIT);
     glBindTexture(GL_TEXTURE_2D, (GLuint)scene->previousTexture);
     glBindSampler(SHADOW_UNIT, (GLuint)scene->previousSampler);
+    glActiveTexture(GL_TEXTURE0 + IRRADIANCE_UNIT);
+    glBindTexture(GL_TEXTURE_2D, (GLuint)scene->previousIrradiance);
+    glBindSampler(IRRADIANCE_UNIT, (GLuint)scene->previousIrradianceSampler);
     glActiveTexture((GLenum)active);
     SceneLighting_BindStudio((unsigned)scene->previousBlock);
     if (scene->previousSRGB) glEnable(GL_FRAMEBUFFER_SRGB);
@@ -418,6 +434,16 @@ bool SceneLighting_ParseShadows(const char *name, SceneShadowQuality *quality) {
             *quality = (SceneShadowQuality)i;
             return true;
         }
+    }
+    return false;
+}
+
+bool SceneLighting_ParseDebug(const char *name, unsigned *debug) {
+    static const char *modes[] = {"final", "authored", "albedo", "radiance", "geometry",
+        "normal", "direct", "indirect", "visibility", "ao", "specular", "roughness", "material", "exposure"};
+    if (!name || !debug) return false;
+    for (unsigned i = 0; i < sizeof(modes) / sizeof(modes[0]); ++i) {
+        if (strcmp(name, modes[i]) == 0) { *debug = i; return true; }
     }
     return false;
 }

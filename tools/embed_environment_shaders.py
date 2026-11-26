@@ -8,7 +8,8 @@ output, *sources = map(Path, sys.argv[1:])
 with output.open("w") as out:
     out.write("/* Generado por tools/embed_environment_shaders.py. */\n")
     for source in sources:
-        lines = source.read_text().splitlines(keepends=True)
+        lines = [line for line in source.read_text().splitlines(keepends=True)
+                 if not line.lstrip().startswith("//")]
         out.write(f"#define ENV_{source.stem.upper()} \\\n")
         out.write(" \\\n".join(json.dumps(line) for line in lines))
         out.write("\n")

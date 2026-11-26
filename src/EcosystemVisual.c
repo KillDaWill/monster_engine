@@ -522,6 +522,24 @@ static size_t TailDetailRegions(const MonsterSDF* sdf, const AnatomyGraph* graph
     return count;
 }
 
+/* Tres muestras de separación normal detectan cavidades grandes de la
+ * geometría de reposo. Este valor afecta sólo al transporte indirecto. */
+static void BakeBodyOcclusion(Mesh *mesh, const MonsterSDF *sdf, float unit) {
+    const float radii[] = {.14f, .36f, .68f};
+    for (size_t i = 0; i < mesh->vertexCount; ++i) {
+        MeshVertex *v = &mesh->vertices[i];
+        float occlusion = 0.0f;
+        for (unsigned k = 0; k < 3; ++k) {
+            float radius = radii[k] * unit;
+            Vector3 p = Vec3_Add(v->position, Vec3_Scale(v->normal, radius));
+            float distance = MonsterSDF_EvaluateDistance(sdf, p);
+            float deficit = (radius - distance) / radius;
+            occlusion += fminf(1.0f, fmaxf(0.0f, (deficit - .23f) * 1.25f));
+        }
+        v->macroOcclusion = occlusion * (.37f / 3.0f);
+    }
+}
+
 static bool BuildMainMeshes(CacheEntry* entry, const EcosystemVisualCacheKey key, Monster* monster, MonsterSDF* sdf) {
     SDFMesherConfig config = MeshConfig(key.tier);
     SDFMesher mesher = SDFMesher_Create(config);
@@ -571,6 +589,7 @@ static bool BuildMainMeshes(CacheEntry* entry, const EcosystemVisualCacheKey key
     if (!ok) return false;
     SurfaceMapper_MapMesh(&entry->body, &monster->anatomyGraph, &monster->surfaceMapping);
     ApplySurface(&entry->body, &monster->surface, monster->surfaceMapping.unitScale);
+    BakeBodyOcclusion(&entry->body, sdf, fmaxf(.05f, monster->surfaceMapping.unitScale));
     if (key.tier == VISUAL_TIER_FAR) {
         const CreatureRecipe* base = CreatureRecipes_Find(key.recipeId);
         const CreaturePhenotype* stage = base ? CreatureRecipe_GetStage(base, (CreatureStage)key.stage) : NULL;

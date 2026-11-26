@@ -35,10 +35,6 @@ vec3 materialNormal(vec3 n, vec3 gradient) {
 
 vec3 illuminateGround(vec3 color, vec3 p, vec3 n, vec3 geometricNormal,
                       vec3 viewDir, float roughness, float ao) {
-    vec3 sun = sceneSunWorld.xyz;
-    float direct = max(dot(n, sun), 0.0) * sceneVisibility(p, geometricNormal);
-    vec3 halfVector = normalize(sun + viewDir);
-    float glint = pow(max(dot(n, halfVector), 0.0), mix(76.0, 6.0, roughness));
-    return color * (sceneAmbient(n.y) * ao + sceneSunRadiance.rgb * direct)
-         + sceneSunRadiance.rgb * (glint * direct * (1.0 - roughness) * 0.045);
+    SceneLightResponse light = sceneDielectric(p, n, geometricNormal, viewDir, roughness, .022, ao);
+    return color * (light.sun + light.ambient) + light.specular;
 }

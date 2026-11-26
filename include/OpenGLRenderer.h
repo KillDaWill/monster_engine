@@ -318,6 +318,10 @@ bool OpenGLRenderer_RenderMeshInstanced(Renderer3D* renderer, const Mesh* mesh,
                                         bool useTintColor);
 /** @brief Graba las órdenes opacas del fotograma, retenidas hasta completar las dos pasadas. */
 void OpenGLRenderer_BeginSceneList(Renderer3D *renderer);
+/** @brief Marca una sola orden corporal para un diagnóstico de visibilidad GL. */
+void OpenGLRenderer_SceneInspectNextBody(Renderer3D *renderer, bool enabled);
+/** @brief Obtiene las muestras con test de profundidad del cuerpo marcado. Sólo para capturas. */
+unsigned OpenGLRenderer_SceneBodySamples(Renderer3D *renderer);
 void OpenGLRenderer_MarkSceneDecoration(Renderer3D *renderer);
 void OpenGLRenderer_EndSceneList(Renderer3D *renderer);
 void OpenGLRenderer_SceneCastShadow(Renderer3D *renderer, bool castShadow);

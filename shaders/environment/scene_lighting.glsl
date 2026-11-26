@@ -14,8 +14,10 @@ layout(std140) uniform SceneLightingFrame {
     vec4 sceneViewAxis; // xyz eje +Z de vista, w exposición
     vec4 sceneExtras; // anti-tiling, PCF ampliado, tamaño de texel mundial
     vec4 sceneSettings; // natural, codificación manual, 1/resolución, sesgo en profundidad
+    vec4 sceneIrradianceMapping; // origen XZ, inversa del ancho, activo
 };
 uniform sampler2DShadow uSceneShadow;
+uniform sampler2D uSceneIrradiance;
 
 bool sceneNatural() { return sceneSettings.x > 0.5; }
 vec3 sceneViewDirection(vec3 p) {

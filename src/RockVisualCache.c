@@ -127,9 +127,9 @@ static GLuint compileShader(GLenum type, const char *const *src, GLsizei count) 
 static bool ensureShader(RockVisualCacheImpl *impl) {
     if (impl->program != 0) return true;
     const char *vsParts[] = {kRockVertSrc};
-    const char *fsParts[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_PROJECTION, kRockFragSrc};
+    const char *fsParts[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_SCENE_MATERIAL_LIGHTING, ENV_MATERIALS, ENV_PROJECTION, kRockFragSrc};
     GLuint vs = compileShader(GL_VERTEX_SHADER, vsParts, 1);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsParts, 5);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsParts, (GLsizei)(sizeof(fsParts) / sizeof(fsParts[0])));
     if (!vs || !fs) {
         if (vs) glDeleteShader(vs);
         if (fs) glDeleteShader(fs);

@@ -125,6 +125,17 @@ unsigned WorldHydrology_ClipWaterPatch(const TerrainHeightfield *tf, const World
 bool WorldHydrology_Generate(WorldHydrology *hydro, TerrainHeightfield *tf,
                              const WorldRecipe *recipe, uint32_t hydroSeed);
 
+/** @brief Observador opcional para datos temporales de generación.
+ * Cada campo es prestado durante la llamada y contiene resolution² muestras.
+ * No se retiene almacenamiento diagnóstico en WorldStaticData. */
+typedef void (*WorldHydrologyTraceFn)(void *context, const char *name, const void *samples,
+                                      size_t count, size_t sampleBytes);
+
+/** @brief Generación idéntica a WorldHydrology_Generate con observador síncrono. */
+bool WorldHydrology_GenerateTraced(WorldHydrology *hydro, TerrainHeightfield *tf,
+                                  const WorldRecipe *recipe, uint32_t hydroSeed,
+                                  WorldHydrologyTraceFn trace, void *context);
+
 /** @brief Libera todos los buffers propiedad de la hidrología. */
 void WorldHydrology_Free(WorldHydrology *hydro);
 

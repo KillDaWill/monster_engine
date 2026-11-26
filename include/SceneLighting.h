@@ -22,7 +22,11 @@ typedef struct SceneLighting {
     bool composite;
     float viewToWorld[16], worldToShadow[16];
     float depthBias, shadowTexel;
-    unsigned presentationSeed;
+    unsigned presentationSeed, irradiance;
+    Vector3 irradianceMapping;
+    int previousIrradiance, previousIrradianceSampler;
+    unsigned debug;
+    bool globalFill;
     bool periodicMaterials, cheapShadows;
     Vector3 sun;
 } SceneLighting;
@@ -53,6 +57,7 @@ void SceneLighting_EndShadow(SceneLighting *scene);
 bool SceneLighting_BeginStatic(SceneLighting *scene, unsigned epoch);
 void SceneLighting_EndStatic(SceneLighting *scene, unsigned epoch, bool updated);
 bool SceneLighting_SetSun(SceneLighting *scene, float azimuthDegrees, float elevationDegrees);
+bool SceneLighting_ParseDebug(const char *name, unsigned *debug);
 bool SceneLighting_ParseShadows(const char *name, SceneShadowQuality *quality);
 
 #endif

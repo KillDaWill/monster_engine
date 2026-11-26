@@ -848,7 +848,7 @@ static void printHelp(void) {
          "  --replay-seed=N             Semilla exacta de episodio para el replay 3D\n"
          "  --terrain-debug=MODE        Modo de depuración del terreno (natural|elevation|slope|hydrology|depth|biome|nav|collision|albedo|normal|roughness|weights|shadow)\n"
          "  --show-neural               Abrir el visualizador gráfico de la red neuronal V2 (tecla N)\n"
-         "  --width=W  --height=H  --frames=N  --capture=IMG.ppm  --water-time=SECONDS --msaa=0|2|4|8 --quality=low|medium|high --shadows=off|low|medium|high --no-hud --check-gl --no-contacts --no-decoration --sun=AZIMUTH,ELEVATION");
+         "  --width=W  --height=H  --frames=N  --capture=IMG.ppm  --water-time=SECONDS --msaa=0|2|4|8 --quality=low|medium|high --shadows=off|low|medium|high --global-fill --creature-lighting=MODE --no-hud --check-gl --no-contacts --no-decoration --sun=AZIMUTH,ELEVATION");
 }
 
 int main(int argc, char **argv) {
@@ -867,6 +867,8 @@ int main(int argc, char **argv) {
     SceneShadowQuality shadows = SCENE_SHADOW_AUTO;
     bool contacts = true, decoration = true, showHud = true, checkGL = false;
     bool periodicMaterials = false;
+    bool globalFill = false;
+    unsigned creatureLightingDebug = 0;
     int sceneQuality = 1;
     float sunAzimuth = 137.5f, sunElevation = 47.0f;
     int msaa = 0;
@@ -964,6 +966,10 @@ int main(int argc, char **argv) {
         }
         else if (!strncmp(a, "--shadows=", 10)) {
             if (!SceneLighting_ParseShadows(a + 10, &shadows)) return 2;
+        } else if (!strcmp(a, "--global-fill")) {
+            globalFill = true;
+        } else if (!strncmp(a, "--creature-lighting=", 20)) {
+            if (!SceneLighting_ParseDebug(a + 20, &creatureLightingDebug)) return 2;
         }
         else if (!strncmp(a, "--water-time=", 13)) {
             fixedWaterTime = strtof(a + 13, NULL);
@@ -1090,6 +1096,7 @@ int main(int argc, char **argv) {
                                    sceneQuality, false);
     EnvironmentRenderer_SetShadows(&envRenderer, shadows);
     EnvironmentRenderer_SetDetails(&envRenderer, contacts, decoration);
+    EnvironmentRenderer_SetCreatureLighting(&envRenderer, globalFill, creatureLightingDebug);
     EnvironmentRenderer_SetPeriodicMaterials(&envRenderer, periodicMaterials);
     EnvironmentRenderer_SetSun(&envRenderer, sunAzimuth, sunElevation);
     EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
@@ -1623,6 +1630,11 @@ int main(int argc, char **argv) {
         if (checkGL) ok = OpenGLRenderer_CheckErrors() && ok;
 
         if (capturePath && frames && frame + 1u == frames) {
+            const WorldStaticData *world = replay.initialized ? replay.world.staticWorld : NULL;
+            if (world) printf("capture_replay tick=%llu entity=%u world_seed=%u generator=%u fingerprint=%016llx\n",
+                              (unsigned long long)replay.world.clock.tick, replay.focalId,
+                              world->masterSeed, world->generatorVersion,
+                              (unsigned long long)world->dataFingerprint);
             ensureDirPath(capturePath);
             captured = OpenGLRenderer_SavePPM(capturePath, winW, winH);
             ok = captured && ok;

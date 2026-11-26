@@ -55,6 +55,11 @@ static uint32_t activeWorldGeneratorVersion(const BrainEvolutionLab *lab) {
     return env->hasWorld ? env->cachedWorldRecipe.generatorVersion : 0u;
 }
 
+static uint64_t fixedWorldDataFingerprint(const BrainEvolutionLab *lab, unsigned stage) {
+    if (stage >= lab->stageCount) return 0;
+    return EvolutionEnvironment_FixedWorldDataFingerprint(&lab->stages[stage].env);
+}
+
 static uint64_t activeEnvironmentFingerprint(const BrainEvolutionLab *lab) {
     if (lab->stageCount == 0u) return 0u;
     unsigned idx = lab->currentStage < lab->stageCount ? lab->currentStage : 0u;
@@ -104,6 +109,8 @@ bool EvolutionCheckpoint_Save(const BrainEvolutionLab *lab, const char *path,
     fprintf(f, "    \"environment\": \"%016llx\",\n", (unsigned long long)fpEnv);
     fprintf(f, "    \"world_recipe\": \"%016llx\",\n", (unsigned long long)fpWorld);
     fprintf(f, "    \"world_generator_version\": %u,\n", worldGenVer);
+    uint64_t physical = fixedWorldDataFingerprint(lab, lab->currentStage);
+    if (physical) fprintf(f, "    \"world_data\": \"%016llx\",\n", (unsigned long long)physical);
     fprintf(f, "    \"architecture\": \"%s\"\n  },\n", NeuralArchitecture_Name(lab->config.architecture));
 
     fprintf(f, "  \"state\": {\n");
@@ -353,8 +360,11 @@ bool EvolutionCheckpoint_Load(BrainEvolutionLab *lab, const char *path, bool all
     bool hasCkWorld = parseHexField(fpObj, fpEnd, "world_recipe", &ckWorld);
     bool hasCkWorldGen = parseDoubleField(fpObj, fpEnd, "world_generator_version", &ckWorldGen);
 
+    uint64_t physicalWorld = 0;
+    bool hasPhysicalWorld = parseHexField(fpObj, fpEnd, "world_data", &physicalWorld);
     if (!allowBranch) {
-        if (ckMol != lab->db.molecules.fingerprint ||
+        if ((hasPhysicalWorld && physicalWorld != fixedWorldDataFingerprint(lab, lab->currentStage)) ||
+            ckMol != lab->db.molecules.fingerprint ||
             ckSub != lab->db.substances.fingerprint ||
             ckProf != activeProfileFingerprint(lab) ||
             ckSp != lab->species.fingerprint ||

@@ -717,6 +717,7 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
     FILE *rep = fopen(path, "w");
     if (!rep) { setErr(error, errorSize, "No se pudo escribir '%s'", path); return false; }
     const EvolutionEnvironmentConfig *curEnv = &lab->stages[lab->currentStage].env;
+    uint64_t physical = EvolutionEnvironment_FixedWorldDataFingerprint(curEnv);
     fprintf(rep,
             "{\n"
             "  \"status\": \"%s\",\n"
@@ -736,8 +737,7 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
             "  \"elapsed_seconds\": %.4f,\n"
             "  \"best_training\": {\"generation\": %u, \"fitness\": %.6f, \"survival\": %.6f, \"ingested_mass\": %.4f, \"energy_absorbed\": %.4f, \"hydration_absorbed\": %.4f},\n"
             "  \"best_validation\": {\"valid\": %s, \"generation\": %u, \"fitness\": %.6f, \"survival\": %.6f, \"health\": %.6f, \"energy\": %.6f, \"hydration\": %.6f, \"toxicity\": %.6f},\n"
-            "  \"blind_test\": {\"valid\": %s, \"episodes\": %u, \"mean_fitness\": %.6f, \"median_fitness\": %.6f, \"std_fitness\": %.6f, \"ci95\": %.6f, \"min_fitness\": %.6f, \"max_fitness\": %.6f, \"survival_rate\": %.6f, \"mean_health\": %.6f, \"mean_energy\": %.6f, \"mean_hydration\": %.6f, \"mean_toxicity\": %.6f, \"mean_ingested_mass\": %.4f, \"mean_energy_absorbed\": %.4f, \"mean_hydration_absorbed\": %.4f, \"total_kills\": %llu, \"total_carcasses_consumed\": %llu}\n"
-            "}\n",
+            "  \"blind_test\": {\"valid\": %s, \"episodes\": %u, \"mean_fitness\": %.6f, \"median_fitness\": %.6f, \"std_fitness\": %.6f, \"ci95\": %.6f, \"min_fitness\": %.6f, \"max_fitness\": %.6f, \"survival_rate\": %.6f, \"mean_health\": %.6f, \"mean_energy\": %.6f, \"mean_hydration\": %.6f, \"mean_toxicity\": %.6f, \"mean_ingested_mass\": %.4f, \"mean_energy_absorbed\": %.4f, \"mean_hydration_absorbed\": %.4f, \"total_kills\": %llu, \"total_carcasses_consumed\": %llu}",
             BrainLabStatus_Name(lab->status), lab->species.id, lab->species.metabolismProfileId,
             curEnv->id, NeuralArchitecture_Name(lab->config.architecture),
             lab->config.seed, lab->workerCount, lab->populationSize,
@@ -765,6 +765,9 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
             lab->testMetrics.meanEnergyAbsorbed, lab->testMetrics.meanHydrationAbsorbed,
             (unsigned long long)lab->testMetrics.totalKills,
             (unsigned long long)lab->testMetrics.totalCarcassesConsumed);
+    if (physical)
+        fprintf(rep, ",\n  \"world_data\": \"%016llx\"", (unsigned long long)physical);
+    fprintf(rep, "\n}\n");
     fclose(rep);
 
     /* 5) validation_results.json (distribución completa de test ciego) */
@@ -778,7 +781,7 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
                     "%s    {\"seed\":%u,\"survived\":%s,\"death_cause\":%d,\"survival_fraction\":%.5f,"
                     "\"fitness\":%.5f,\"health\":%.5f,\"energy\":%.5f,\"hydration\":%.5f,\"toxicity\":%.5f,"
                     "\"ingested_mass\":%.4f,\"energy_absorbed\":%.4f,\"hydration_absorbed\":%.4f,"
-                    "\"attacks\":%llu,\"kills\":%llu,\"carcasses_consumed\":%llu}",
+                    "\"attacks\":%llu,\"kills\":%llu,\"carcasses_consumed\":%llu",
                     i ? ",\n" : "", ep->seed, ep->survived ? "true" : "false", (int)ep->deathCause,
                     (double)ep->survivalFraction, (double)ep->fitness,
                     (double)ep->integratedHealth, (double)ep->integratedEnergy,
@@ -786,6 +789,11 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
                     ep->totalIngestedMass, ep->totalEnergyAbsorbed, ep->totalHydrationAbsorbed,
                     (unsigned long long)ep->attackHits, (unsigned long long)ep->preyKills,
                     (unsigned long long)ep->carcassesConsumed);
+            if (ep->worldDataFingerprint)
+                fprintf(vr, ",\"world_seed\":%u,\"world_generator_version\":%u,\"world_data\":\"%016llx\"",
+                        ep->worldSeed, curEnv->cachedWorldRecipe.generatorVersion,
+                        (unsigned long long)ep->worldDataFingerprint);
+            fputc('}', vr);
         }
         fprintf(vr, "\n  ]\n}\n");
         fclose(vr);
@@ -811,8 +819,7 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
                 "  \"training_seeds\": %u,\n"
                 "  \"validation_seeds\": %u,\n"
                 "  \"test_seeds\": %u,\n"
-                "  \"seed\": %u\n"
-                "}\n",
+                "  \"seed\": %u",
                 lab->config.speciesPath, lab->config.environmentPath, lab->config.metabolismDir,
                 NeuralArchitecture_Name(lab->config.architecture),
                 lab->config.initialBrainPath[0] ? "imported" : "random",
@@ -821,6 +828,9 @@ bool BrainEvolutionLab_ExportOutputs(const BrainEvolutionLab *lab, char *error, 
                 lab->config.mutationOnly ? "true" : "false",
                 lab->config.trainingSeedsPerGen, lab->config.validationSeeds,
                 lab->config.testSeeds, lab->config.seed);
+        if (physical)
+            fprintf(ex, ",\n  \"world_data\": \"%016llx\"", (unsigned long long)physical);
+        fprintf(ex, "\n}\n");
         fclose(ex);
     }
     return true;

@@ -1,6 +1,8 @@
 vec3 terrainPalette(vec3 p, vec3 n, vec3 viewDir, vec4 physical, float depth,
                     vec3 dpdx, vec3 dpdy, int debugMode) {
-    if (debugMode == 12) return sceneDiagnostic(vec3(sceneVisibility(p, n)));
+    float visible = (debugMode == 0 || debugMode == 12)
+        ? sceneTerrainVisibility(p, n, dpdx, dpdy) : 1.0;
+    if (debugMode == 12) return sceneDiagnostic(vec3(visible));
     vec2 fieldUV = (p.xz - uLandscapeMapping.xy) * uLandscapeMapping.z;
     vec4 climate = textureGrad(uLandscape, fieldUV, dpdx.xz * uLandscapeMapping.z, dpdy.xz * uLandscapeMapping.z);
     float patch = climate.a;
@@ -55,5 +57,5 @@ vec3 terrainPalette(vec3 p, vec3 n, vec3 viewDir, vec4 physical, float depth,
             masks += (tile.masks - vec2(.84,.96)) * response;
         }
     }
-    return finishTerrain(p, n, viewDir, color, gradient, masks, depth, patch, damp, debugMode);
+    return finishTerrain(p, n, viewDir, color, gradient, masks, depth, patch, damp, debugMode, visible);
 }

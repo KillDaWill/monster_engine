@@ -116,6 +116,93 @@ typedef struct EnvironmentRendererImpl {
     bool showTerrainGrid;
 } EnvironmentRendererImpl;
 
+enum { IRRADIANCE_SIZE = 128 };
+
+static void buildIrradiance(EnvironmentRendererImpl *impl, const WorldStaticData *world) {
+    SceneLighting *scene = &impl->scene;
+    glDeleteTextures(1, &scene->irradiance);
+    scene->irradiance = 0;
+    if (!world || world->recipe.flat || impl->materials.packVersion != 2 || !world->biome.materialRGBA) return;
+
+    const TerrainHeightfield *tf = &world->terrain;
+    const WorldBiomeField *biome = &world->biome;
+    const WorldHydrology *hydro = &world->hydrology;
+    const unsigned extent = IRRADIANCE_SIZE;
+    uint8_t *pixels = malloc((size_t)extent * extent * 4);
+    if (!pixels) return;
+
+    unsigned r = tf->resolution;
+    int step = (int)fmaxf(1.0f, roundf(1.8f * tf->invSpacing));
+    const int dx[] = {1,-1,0,0,1,1,-1,-1};
+    const int dz[] = {0,0,1,-1,1,-1,1,-1};
+    for (unsigned z = 0; z < extent; ++z) {
+        for (unsigned x = 0; x < extent; ++x) {
+            int cx = (int)((x + .5f) * (r - 1) / extent);
+            int cz = (int)((z + .5f) * (r - 1) / extent);
+            size_t center = (size_t)cz * r + cx;
+            float sum[3] = {0}, total = 0;
+            for (int j = -1; j <= 1; ++j) {
+                for (int i = -1; i <= 1; ++i) {
+                    int sx = cx + i * step, sz = cz + j * step;
+                    if (sx < 0 || sz < 0 || sx >= (int)r || sz >= (int)r) continue;
+                    size_t id = (size_t)sz * r + sx;
+                    const uint8_t *m = &biome->materialRGBA[id * 4];
+                    float dry = 1.0f - biome->moisture[id];
+                    float depth = hydro->waterDepth ? hydro->waterDepth[id] : 0;
+                    float gravel = fminf(.77f, fmaxf(0, (depth - .13f) * 1.4f));
+                    float w[] = {m[0], m[1] * (1.0f - dry), m[2],
+                                 m[3] * (1.0f - gravel), m[1] * dry, m[3] * gravel};
+                    float kernel = (i == 0 ? 2.0f : 1.0f) * (j == 0 ? 2.0f : 1.0f);
+                    for (unsigned layer = 0; layer < 6; ++layer) {
+                        float weight = w[layer] * kernel;
+                        total += weight;
+                        for (unsigned c = 0; c < 3; ++c)
+                            sum[c] += weight * impl->materials.meanAlbedo[layer][c];
+                    }
+                }
+            }
+            float sky = 0.0f;
+            for (unsigned d = 0; d < 8; ++d) {
+                float horizon = 0.0f;
+                for (int distance = step; distance <= step * 8; distance *= 2) {
+                    int tx = cx + dx[d] * distance, tz = cz + dz[d] * distance;
+                    if (tx < 0 || tz < 0 || tx >= (int)r || tz >= (int)r) break;
+                    float ds = distance * tf->spacing * (d < 4 ? 1.0f : 1.41421356f);
+                    horizon = fmaxf(horizon, (tf->heights[(size_t)tz * r + tx] - tf->heights[center]) / ds);
+                }
+                sky += 1.0f / (1.0f + horizon * horizon);
+            }
+            uint8_t *out = pixels + ((size_t)z * extent + x) * 4;
+            for (unsigned c = 0; c < 3; ++c)
+                out[c] = (uint8_t)roundf(255.0f * sum[c] / fmaxf(1.0f, total));
+            out[3] = (uint8_t)roundf(sky * (255.0f / 8.0f));
+        }
+    }
+
+    GLint binding, unpack;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &binding);
+    glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    glGenTextures(1, &scene->irradiance);
+    glBindTexture(GL_TEXTURE_2D, scene->irradiance);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, extent, extent, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, (GLuint)binding);
+    glPopClientAttrib();
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, (GLuint)unpack);
+    free(pixels);
+    scene->irradianceMapping = Vec3_Create(tf->originX, tf->originZ, 1.0f / tf->span);
+}
+
 static void destroyMinimapTexture(EnvironmentRendererImpl *impl) {
     if (impl && impl->minimapTex) {
         glDeleteTextures(1, &impl->minimapTex);
@@ -314,6 +401,7 @@ bool EnvironmentRenderer_SyncWorld(EnvironmentRenderer *er, const WorldStaticDat
         if (previous) WorldStaticData_Release(previous);
         impl->boundWorld = world;
     }
+    buildIrradiance(impl, world);
     impl->scene.staticValid = false;
     impl->scene.presentationSeed = world ? world->masterSeed : 0;
     EnvironmentDetailRenderer_SyncWorld(&impl->details);
@@ -389,6 +477,13 @@ void EnvironmentRenderer_SetPeriodicMaterials(EnvironmentRenderer *er, bool peri
     if (er && er->impl) ((EnvironmentRendererImpl *)er->impl)->scene.periodicMaterials = periodic;
 }
 
+void EnvironmentRenderer_SetCreatureLighting(EnvironmentRenderer *er, bool globalFill, unsigned debug) {
+    if (!er || !er->impl) return;
+    EnvironmentRendererImpl *impl = er->impl;
+    impl->scene.globalFill = globalFill;
+    impl->scene.debug = debug;
+}
+
 void EnvironmentRenderer_SetDetails(EnvironmentRenderer *er, bool contacts, bool decoration) {
     if (!er || !er->impl) return;
     EnvironmentRendererImpl *impl = er->impl;
@@ -457,6 +552,30 @@ bool EnvironmentRenderer_RenderScene(EnvironmentRenderer *er, Renderer3D *render
         if (impl->profiling) endPass(&impl->decorationTime, start);
     }
     return ok;
+}
+
+bool EnvironmentRenderer_RenderFlatScene(EnvironmentRenderer *er, Renderer3D *renderer,
+                                         const ICamera *camera, float halfSize) {
+    if (!er || !er->impl || EnvironmentRenderer_IsProcedural(er)) return false;
+    EnvironmentRendererImpl *impl = er->impl;
+    SceneLighting *scene = &impl->scene;
+    if (!SceneLighting_Begin(scene, camera)) return false;
+    SceneShadowQuality quality = impl->shadows == SCENE_SHADOW_AUTO ? impl->autoShadows : impl->shadows;
+    Vector3 lo = Vec3_Create(-halfSize - 4, -4, -halfSize - 4);
+    Vector3 hi = Vec3_Create(halfSize + 4, 16, halfSize + 4);
+    bool shadow = SceneLighting_BeginShadow(scene, camera, lo, hi, quality);
+    impl->shadowDrawnLastFrame = shadow;
+    impl->shadowDraws = impl->shadowTriangles = impl->objectDraws = impl->objectTriangles = 0;
+    if (shadow) {
+        glClear(GL_DEPTH_BUFFER_BIT);
+        OpenGLRenderer_DrawSceneList(renderer, scene->viewToWorld, false, &impl->shadowDraws, &impl->shadowTriangles);
+        SceneLighting_EndShadow(scene);
+    }
+    SceneLighting_Apply(scene, camera, shadow);
+    OpenGLRenderer_DrawSceneList(renderer, NULL, false, &impl->objectDraws, &impl->objectTriangles);
+    OpenGLRenderer_DrawSceneList(renderer, NULL, true, NULL, NULL);
+    SceneLighting_End(scene);
+    return true;
 }
 
 void EnvironmentRenderer_EndScene(EnvironmentRenderer *er) {
@@ -826,7 +945,8 @@ static EnvironmentRenderStats getStats(const EnvironmentRenderer *er, bool perce
         st.terrainPass = passStats(&impl->terrainTime, percentiles);
         st.rockPass = passStats(&impl->rockTime, percentiles);
         st.waterPass = passStats(&impl->waterTime, percentiles);
-        st.totalVramBytes = st.terrain.vramBytes + st.water.vramBytes + st.rocks.vramBytes + impl->materials.vramBytes + st.shadowVramBytes + st.compositionVramBytes + EnvironmentDetailRenderer_VramBytes(&impl->details);
+        if (impl->scene.irradiance) st.irradianceVramBytes = (IRRADIANCE_SIZE * IRRADIANCE_SIZE * 4u - 1u) * 4u / 3u;
+        st.totalVramBytes = st.irradianceVramBytes + st.terrain.vramBytes + st.water.vramBytes + st.rocks.vramBytes + impl->materials.vramBytes + st.shadowVramBytes + st.compositionVramBytes + EnvironmentDetailRenderer_VramBytes(&impl->details);
         if (impl->minimapTex) {
             st.totalVramBytes += (size_t)impl->minimapRes * impl->minimapRes * 4u;
         }

@@ -86,9 +86,9 @@ static bool initWaterShader(WaterRendererImpl *impl) {
         "}\n";
 
     const char *vertexParts[] = {vs};
-    const char *fragParts[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_WATER};
+    const char *fragParts[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_SCENE_MATERIAL_LIGHTING, ENV_MATERIALS, ENV_WATER};
     GLuint v = compileWaterShader(GL_VERTEX_SHADER, vertexParts, 1);
-    GLuint f = compileWaterShader(GL_FRAGMENT_SHADER, fragParts, 4);
+    GLuint f = compileWaterShader(GL_FRAGMENT_SHADER, fragParts, (GLsizei)(sizeof(fragParts) / sizeof(fragParts[0])));
     if (!v || !f) {
         if (v) glDeleteShader(v);
         if (f) glDeleteShader(f);

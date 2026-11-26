@@ -109,6 +109,11 @@ static bool runEpisodeInternal(const EvolutionEnvironmentConfig *env,
         return false;
     }
 
+    if (w.staticWorld && w.staticWorld->generatorVersion >= WORLD_GENERATOR_VERSION_MORPHOLOGY) {
+        outMetrics->worldDataFingerprint = w.staticWorld->dataFingerprint;
+        outMetrics->worldSeed = w.staticWorld->masterSeed;
+    }
+
     if (useBaseline) {
         EcosystemEntity *fe = EcosystemWorld_Get(&w, focalId);
         if (fe) {

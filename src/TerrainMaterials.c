@@ -3,6 +3,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -50,6 +51,22 @@ static bool loadPack(TerrainMaterials *materials, int version) {
         unsigned char *data = file ? malloc(bytes) : NULL;
         ok = data && fread(data, 1, bytes, file) == bytes && fgetc(file) == EOF;
         if (file) fclose(file);
+        if (ok && i == 0 && version == 2) {
+            float decode[256];
+            for (unsigned j = 0; j < 256; ++j) {
+                float c = (float)j / 255.0f;
+                decode[j] = c <= .04045f ? c / 12.92f : powf((c + .055f) / 1.055f, 2.4f);
+            }
+            const size_t pixels = (size_t)MATERIAL_SIZE * MATERIAL_SIZE;
+            for (unsigned layer = 0; layer < 6; ++layer) {
+                double sum[3] = {0};
+                for (size_t j = 0; j < pixels; ++j)
+                    for (unsigned c = 0; c < 3; ++c)
+                        sum[c] += decode[data[4u * (pixels * layer + j) + c]];
+                for (unsigned c = 0; c < 3; ++c)
+                    materials->meanAlbedo[layer][c] = (float)(sum[c] / (double)pixels);
+            }
+        }
         if (ok) {
             glBindTexture(GL_TEXTURE_2D_ARRAY, materials->textures[i]);
             glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, internalFormat[i], MATERIAL_SIZE, MATERIAL_SIZE,

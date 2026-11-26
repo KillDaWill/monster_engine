@@ -384,7 +384,7 @@ static bool EmitPanels(const Monster* monster, const ResolvedPanel* panels, size
                     Vector3 pos = Vec3_Add(midPts[iu][iv],
                         Vec3_Scale(normals[iu][iv], offsets[iu][iv] + sign * h));
 
-                    MeshVertex mv;
+                    MeshVertex mv = {0};
                     memset(&mv, 0, sizeof(mv));
                     mv.position = pos;
                     mv.normal = n;

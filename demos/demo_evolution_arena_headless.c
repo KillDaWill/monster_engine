@@ -39,7 +39,7 @@ static void ensureParentDir(const char *path) {
 
 static void printHelp(void) {
     puts("Uso: ./demos/demo_evolution_arena_headless [OPCIONES]\n"
-         "  --world=ARCHIVO|PRESET       Receta *.world.json o preset (flat|river_valley|mountain_lakes|rocky_highlands|wetlands)\n"
+         "  --world=ARCHIVO|PRESET       Receta *.world.json o preset (flat|lab_valley_small|river_valley|mountain_lakes|rocky_highlands|wetlands)\n"
          "  --world-seed=N               Sobrescribe la semilla del terreno procedural\n"
          "  --allow-extra-ponds          Permite estanques circulares adicionales en mundos procedurales\n"
          "  --validate-world-only        Genera y valida el mundo procedural e imprime diagnóstico sin simular\n"

@@ -28,17 +28,24 @@ static GLuint shader(GLenum stage, const char *const *source, int count) {
 
 static GLuint fixtureProgram(void) {
     const char *vs[] = {"#version 330 compatibility\nvoid main(){gl_Position=gl_Vertex;}\n"};
-    const char *fs[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING,
+    const char *fs[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_SCENE_MATERIAL_LIGHTING,
         "uniform vec3 shadePoint, clearPoint; uniform int mode;\n"
         "out vec4 color;\n"
         "void main(){if(mode==1){color=vec4(1,1,1,.5);return;}"
+        "if(gl_FragCoord.y<8){vec3 n=vec3(0,1,0);"
+        "SceneLightResponse a=sceneDielectric(clearPoint,n,n,sceneViewDirection(clearPoint),.7,.04,1);"
+        "SceneLightResponse b=sceneDielectric(clearPoint,n,n,sceneViewDirection(clearPoint),.7,.04,.7);"
+        "if(gl_FragCoord.x<8)color=vec4(sceneOutput(sceneDecode(vec3(.461356))),1);"
+        "else if(gl_FragCoord.x<16)color=vec4(sceneOutput(a.ambient),1);"
+        "else if(gl_FragCoord.x<24)color=vec4(sceneOutput(b.ambient),1);"
+        "else color=vec4(vec3(float(length(a.sun-b.sun)<1e-6)),1);return;}"
         "if(gl_FragCoord.x<8)color=vec4(vec3(sceneVisibility(shadePoint,vec3(0,1,0))),1);"
         "else if(gl_FragCoord.x<16)color=vec4(vec3(sceneVisibility(clearPoint,vec3(0,1,0))),1);"
         "else if(gl_FragCoord.x<24){vec3 n=transpose(mat3(sceneViewToWorld))*vec3(0,1,0);"
         "color=vec4(vec3(dot(n,sceneSunView.xyz)),1);}"
         "else color=vec4(vec3(.18),1);}\n"};
     GLuint v = shader(GL_VERTEX_SHADER, vs, 1);
-    GLuint f = shader(GL_FRAGMENT_SHADER, fs, 3);
+    GLuint f = shader(GL_FRAGMENT_SHADER, fs, (int)(sizeof(fs) / sizeof(fs[0])));
     if (!v || !f) return 0;
     GLuint p = glCreateProgram();
     glAttachShader(p, v);
@@ -163,6 +170,10 @@ static bool fixture(GLuint program, SceneLighting *scene, int samples, bool line
     glBlitFramebuffer(0, 0, SIDE, SIDE, 0, 0, SIDE, SIDE, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, resolve.fbo);
     int dark = channel(4), light = channel(12), cosine = channel(20), blend = channel(26), gray = channel(30);
+    unsigned char row[4 * SIDE];
+    glReadPixels(0, 4, SIDE, 1, GL_RGBA, GL_UNSIGNED_BYTE, row);
+    printf("swatches decoded_018=%u sky=%u ao=%u direct_unchanged=%u\n", row[4*4], row[4*12], row[4*20], row[4*30]);
+    ok = ok && abs((int)row[4*4] - 118) <= 2 && row[4*12] > row[4*20] && row[4*30] == 255;
     printf("fixture samples=%d linear_target=%d orbit=%u visibility=%d/%d normal=%d linear_018=%d blend_half_white=%d\n",
            samples, linear, orbit, dark, light, cosine, gray, blend);
     ok = ok && dark < 8 && light >= 248 && abs(cosine - 222) <= 3 &&
@@ -176,7 +187,7 @@ exit:
 
 static bool normalFixture(void) {
     const char *vs[] = {"#version 330 compatibility\nvoid main(){gl_Position=gl_Vertex;}\n"};
-    const char *fs[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_PROJECTION,
+    const char *fs[] = {"#version 330 compatibility\n", ENV_SCENE_LIGHTING, ENV_SCENE_MATERIAL_LIGHTING, ENV_MATERIALS, ENV_PROJECTION,
         "out vec4 color;\n"
         "void main(){"
         "GroundMaterial a=tileSample(vec2(0),vec2(.1,0),vec2(0,.1),mat2(0,1,-1,0),vec2(0),0,true);"
@@ -184,7 +195,7 @@ static bool normalFixture(void) {
         "vec3(1,0,0),0,true,false);"
         "color=vec4(float(a.gradient.y < -.5 && abs(a.gradient.x)<.01),"
         "float(b.gradient.z < -.5 && abs(b.gradient.x)<.01),0,1);}\n"};
-    GLuint v = shader(GL_VERTEX_SHADER, vs, 1), f = shader(GL_FRAGMENT_SHADER, fs, 5);
+    GLuint v = shader(GL_VERTEX_SHADER, vs, 1), f = shader(GL_FRAGMENT_SHADER, fs, (int)(sizeof(fs) / sizeof(fs[0])));
     if (!v || !f) return false;
     GLuint program = glCreateProgram();
     glAttachShader(program, v);

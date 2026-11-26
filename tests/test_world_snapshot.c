@@ -54,10 +54,16 @@ static void test_world_static_cache_parallel_single_flight(void) {
         TEST_ASSERT(args[i].result == first, "all threads share exact same single-flight instance");
     }
     WorldRecipe newer = rec;
-    newer.generatorVersion = WORLD_GENERATOR_VERSION;
+    newer.generatorVersion = WORLD_GENERATOR_VERSION_CONTINUOUS;
     const WorldStaticData *version2 = WorldStaticCache_Acquire(&newer, err, sizeof(err));
     TEST_ASSERT(version2 && version2 != first && version2->dataFingerprint != first->dataFingerprint,
                 "generator version distinguishes cache entries with the same seed and id");
+    newer.generatorVersion = WORLD_GENERATOR_VERSION_MORPHOLOGY;
+    const WorldStaticData *version3 = WorldStaticCache_Acquire(&newer, err, sizeof(err));
+    TEST_ASSERT(version3 && version3 != first && version3 != version2 &&
+                version3->dataFingerprint != version2->dataFingerprint,
+                "v3 does not share physical cache identity with v2");
+    WorldStaticData_Release(version3);
     WorldStaticData_Release(version2);
     for (int i = 0; i < NTHREADS; ++i) {
         WorldStaticData_Release(args[i].result);
@@ -200,6 +206,5 @@ void run_world_snapshot_tests(void) {
     test_world_static_cache_parallel_single_flight();
     test_runner_repeated_world_resets_with_held_snapshots();
     test_lab_determinism_and_checkpoint_world_fingerprint("environments/brumacerno_river_valley.environment.json");
-    test_lab_determinism_and_checkpoint_world_fingerprint("environments/brumacerno_river_valley_v2.environment.json");
     printf("Pruebas de snapshots, concurrencia y checkpoints superadas.\n");
 }

@@ -241,6 +241,7 @@ static void test_contaminated_water_and_v2_brain_compatibility(void) {
 void run_world_water_access_tests(void) {
     printf("=== Pruebas de Orillas Irregulares, Libro Molecular Compartido y Compatibilidad v2 ===\n");
     test_shared_water_ledger_finite_and_infinite(WORLD_GENERATOR_VERSION_LEGACY);
+    test_shared_water_ledger_finite_and_infinite(WORLD_GENERATOR_VERSION_CONTINUOUS);
     test_shared_water_ledger_finite_and_infinite(WORLD_GENERATOR_VERSION);
     test_contaminated_water_and_v2_brain_compatibility();
     printf("Pruebas de hidrología interactiva y compatibilidad superadas.\n");

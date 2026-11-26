@@ -46,7 +46,7 @@ TerrainGenerator  WorldHydrology  WorldBiome
 | Módulo | Cabecera / Fuente | Responsabilidad |
 | --- | --- | --- |
 | `TerrainHeightfield` | `include/TerrainHeightfield.h`, `src/TerrainHeightfield.c` | Malla regular acotada, división diagonal autoritativa CCW `+Y`, altura/normal baricéntrica exacta, jerarquía min/max `8×8`, raycast 2D DDA + Möller–Trumbore, huella FNV-1a. |
-| `WorldIO` | `include/WorldIO.h`, `src/WorldIO.c` | Carga/serialización estricta `*.world.json` (`version: 1`, generadores físicos `1` y `2`), derivación SplitMix64 (`WorldSeed_Derive`), presets incorporados y límites de presupuesto de memoria. |
+| `WorldIO` | `include/WorldIO.h`, `src/WorldIO.c` | Carga/serialización estricta `*.world.json` (`version: 1`, generadores físicos `1`, `2` y `3`), derivación SplitMix64 (`WorldSeed_Derive`), presets incorporados y límites de presupuesto de memoria. |
 | `TerrainGenerator` | `include/TerrainGenerator.h`, `src/TerrainGenerator.c` | Ruido Simplex 2D determinista, fBm, multifractal en cresta (*ridged*), deformación de dominio, moldeado de valles/cuencas y erosión térmica con doble búfer. |
 | `WorldHydrology` | `include/WorldHydrology.h`, `src/WorldHydrology.c` | Priority-Flood con min-heap + cola FIFO acíclica, acumulación de flujo, cuencas de lagos con cota de desbordamiento exacta, ríos monotónicos tallados y extracción de `WorldShoreSite`. |
 | `WorldBiome` | `include/WorldBiome.h`, `src/WorldBiome.c` | Distancia al agua por EDT Chamfer de 2 pasadas, rugosidad, humedad, fertilidad, 4 canales materiales (`grass`, `drySoil`, `rock`, `wetMud`) y clasificación de bioma. |
@@ -78,7 +78,7 @@ Opciones CLI nuevas (soportadas por ambos ejecutables):
 - `--terrain-lod0`, `--wireframe`, `--camera-position=X,Y,Z`, `--camera-target=X,Y,Z`, `--perspective=GRADOS`, `--water-time=SEGUNDOS` y `--msaa=N` permiten repetir capturas y comprobar costuras.
 
 Controles interactivos adicionales en la versión visual:
-- `A`: cicla entre los presets de mundo (`flat`, `river_valley_v2`, `mountain_lakes_v2`, `rocky_highlands_v2`, `wetlands_v2`) realizando un reinicio atómico del hilo de simulación.
+- `A` cambia al siguiente preset de mundo (`flat`, `river_valley`, `mountain_lakes`, `rocky_highlands`, `wetlands`) y reinicia el hilo de simulación de forma atómica.
 - `Shift+D`: cicla los 8 modos de depuración del terreno (el modo `collision` activa también los wireframes de lóbulos de roca).
 - `Shift+Q`: alterna el modo wireframe de la malla de terreno.
 - `R` / `Shift+R`: reinicia el experimento / reinicia generando una nueva semilla de mundo.
@@ -91,11 +91,9 @@ Controles interactivos adicionales en la versión visual:
 - `EvolutionCheckpointIO` valida la huella del mundo (`world_fingerprint`) y la versión del generador (`generator_version`) al reanudar checkpoints.
 - El viewport 3D de replay en `demo_brain_evolution_lab` usa el mismo `EnvironmentRenderer` y paso fijo real (`replay.world.clock.fixedStep`).
 
-## Generadores físicos v1 y v2
+## Generador físico actual
 
-Las recetas originales y los entornos de Brain Evolution Lab conservan `generator_version: 1`. Los archivos con sufijo `_v2` seleccionan el cauce continuo, el dominio por cuerpo y la profundidad firmada sobre el mismo triángulo que usa el terreno. El contorno, el picking y los contactos de orilla comparten ese campo. El entorno `brumacerno_river_valley_v2.environment.json` permite entrenar y reproducir en v2. Los checkpoints exigen el entorno, la versión y la huella correspondientes. Los activos de renderizado quedan fuera de la huella física.
-
-La comparación de captura y rendimiento se recoge en [Calidad visual de terreno y agua](TERRAIN_WATER_VISUAL_QUALITY.md).
+Las recetas de `worlds/` usan `generator_version: 4`. El contorno del agua, el picking y los contactos de orilla comparten la profundidad firmada sobre los triángulos del terreno. El entorno `environments/brumacerno_river_valley.environment.json` usa el valle pequeño para entrenar y reproducir. Los checkpoints de Lab requieren la receta y la huella física originales.
 
 ## 5. Limitaciones conocidas y elementos fuera de alcance
 
@@ -121,3 +119,7 @@ Los renderizadores utilizan los campos de mundo, mallas y consultas físicas des
 La presentación natural añade un campo visual macro, detalle ambiental y sombras direccionales
 comunes a Arena y Lab. Véanse [Iluminación de escena](SCENE_LIGHTING.md) y
 [Entorno natural](NATURAL_ENVIRONMENT_VISUALS.md).
+
+## Orillas v4
+
+Arena y Lab consultan el mismo terreno final para apoyos y zonas mojadas. La presentación genera su textura de irradiancia al cargar el mundo en GL. Los ejecutables headless usan los datos físicos. Los cambios del tallado se detallan en [Hidrología](WORLD_HYDROLOGY.md#orillas-v4).

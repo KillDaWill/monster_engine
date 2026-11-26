@@ -121,3 +121,11 @@ Read documentation **selectively**: `docs/MONSTER_ENGINE_PROCEDURAL_CREATURE_ARC
 
 `opencode.jsonc` configures the local `codegraph serve --mcp` server. When available and indexed, prefer `codegraph_search` (symbol definitions), `codegraph_callers`/`codegraph_callees` (relationships), `codegraph_impact` (affected code), and `codegraph_context` (focused context). Use text search for literals and source inspection for authoritative confirmation. When missing or stale, work normally without it; `make codegraph` can rebuild/sync the optional index if the CLI is installed.
 <!-- CODEGRAPH_END -->
+
+## 9. Morfología física
+
+Las recetas `worlds/*.world.json` usan el generador v4. Usa las constantes explícitas de
+generación al seleccionar algoritmos de física. `make build/audit_world_surface` y
+`python3 tools/validate_world_morphology.py --large` comparan la generación original y la actual y vuelcan el grafo y
+las etapas de generación. Los controles de luz y sombra pertenecen a presentación y se
+verifican con `make test-scene-lighting`.

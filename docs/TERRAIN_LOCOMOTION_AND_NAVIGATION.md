@@ -54,3 +54,9 @@ Cada paso fijo (`1/60 s`):
 - `TerrainAnimationAdapter` implementa el contrato `World` (`World_SampleGround`) traduciendo las consultas locales de cada pie a coordenadas de mundo mediante el marco 3D (`World_LocalToWorld`), muestreando la altura/normal exacta del `TerrainHeightfield` y proyectando el impacto de vuelta al espacio local (`World_WorldToLocal`).
 - Esto mantiene las patas plantadas en pendientes y orillas en nivel `NEAR` y evita que el cuerpo flote o se hunda en cambios de inclinación.
 - El alcance cervical (`EcosystemAnatomy`) transforma las posiciones de la boca y el objetivo a través del marco 3D completo, garantizando que el contacto de alimentación y bebida en orillas inclinadas siga siendo anatómicamente válido.
+
+## Acceso al agua en v3
+
+La extracción v3 puede probar tres distancias de aproximación desde el contorno firmado. Comprueba la pendiente y el desnivel a lo largo de la última aproximación, la profundidad de vadeo y la separación de rocas. La separación de estaciones permite que dos bancos enfrentados tengan candidatos distintos. El sitio es una aproximación geométrica que el motor y el alcance anatómico vuelven a evaluar durante la interacción con cada criatura.
+
+La fracción transitable del grid base es un indicador estático. Los contadores agregados de fallo de navegación y acción incluyen situaciones de control, recursos y congestión. Las simulaciones de comparación no permiten asignar todo el diferencial de fallos al terreno.

@@ -1,15 +1,13 @@
 #include "../environment/scene_lighting.glsl"
+#include "../environment/scene_material_lighting.glsl"
 vec3 SceneSurfaceLighting(SurfaceResponse s,vec3 viewPosition) {
     if (!sceneNatural()) return SurfaceLighting(s, viewPosition);
     vec3 world = sceneWorldPosition(viewPosition);
-    vec3 n = normalize(s.normal);
-    float up = (mat3(sceneViewToWorld) * n).y;
-    vec3 light = sceneSunView.xyz;
-    vec3 view = sceneEyeDirection(viewPosition);
-    float cosine = max(dot(n, light), 0.0);
-    float direct = cosine * sceneVisibility(world, mat3(sceneViewToWorld) * normalize(viewNormal));
-    float gloss = pow(max(dot(n, normalize(light + view)), 0.0), mix(160.0, 5.0, s.roughness * s.roughness));
-    return sceneObjectOutput(sceneDecode(s.albedo) * (sceneAmbient(up) + sceneSunRadiance.rgb * direct)
-                         + sceneSunRadiance.rgb * (gloss * s.specular * direct * .55), world);
+    vec3 n = normalize(mat3(sceneViewToWorld) * s.normal);
+    vec3 g = normalize(mat3(sceneViewToWorld) * (gl_FrontFacing ? viewNormal : -viewNormal));
+    float f0 = mix(.012, .060, clamp(s.specular * 2.0, 0.0, 1.0));
+    return sceneOpaque(s.albedo, world, n, g, sceneViewDirection(world), s.roughness, f0,
+                       1.0-clamp(macroOcclusion,0.0,.4),
+                       vec3(.90, .23 + .05 * float(tissueMaterial), .19));
 }
 #define SurfaceLighting SceneSurfaceLighting

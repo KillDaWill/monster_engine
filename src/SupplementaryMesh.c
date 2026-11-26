@@ -195,7 +195,7 @@ static bool EmitMaterialVertex(BuildTarget* t, Vector3 pos, Vector3 nrm, Color c
         t->hasProceduralMaterial = true;
     }
     if (t->mesh) {
-        MeshVertex v;
+        MeshVertex v = {0};
         memset(&v, 0, sizeof(v));
         v.position = pos;
         v.normal = nrm;

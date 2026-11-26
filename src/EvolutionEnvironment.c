@@ -439,6 +439,15 @@ static float randRange(uint32_t *rng, float lo, float hi) {
     return lo + CreatureGenome_Random(rng) * (hi - lo);
 }
 
+uint64_t EvolutionEnvironment_FixedWorldDataFingerprint(const EvolutionEnvironmentConfig *env) {
+    if (!env || !env->hasWorld || env->worldSeedPolicy != WORLD_SEED_POLICY_FIXED ||
+        env->cachedWorldRecipe.generatorVersion < WORLD_GENERATOR_VERSION_MORPHOLOGY) return 0;
+    const WorldStaticData *world = WorldStaticCache_Acquire(&env->cachedWorldRecipe, NULL, 0);
+    uint64_t result = world ? world->dataFingerprint : 0;
+    WorldStaticData_Release(world);
+    return result;
+}
+
 bool EvolutionEnvironment_BuildEpisodeWorld(EcosystemWorld *w,
                                             const EvolutionEnvironmentConfig *env,
                                             const EvolutionSpeciesConfig *focalSpecies,

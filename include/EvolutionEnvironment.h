@@ -144,6 +144,9 @@ bool EvolutionEnvironment_ValidateAgainstDatabase(EvolutionEnvironmentConfig *cf
 /** @brief Calcula huella canónica FNV-1a del entorno. */
 uint64_t EvolutionEnvironment_Fingerprint(const EvolutionEnvironmentConfig *cfg);
 
+/** @brief Huella física del terreno v3 fijo; cero para otras políticas. */
+uint64_t EvolutionEnvironment_FixedWorldDataFingerprint(const EvolutionEnvironmentConfig *env);
+
 /**
  * @brief Construye un @ref EcosystemWorld autoritativo limpio para evaluar una política
  *        focal con la semilla de episodio indicada.

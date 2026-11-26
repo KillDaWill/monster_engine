@@ -33,6 +33,7 @@ typedef struct MeshVertex {
     Color color;      /**< Color RGBA */
     SDFMaterial material; /**< Material SDF conservado desde el campo implícito */
     SurfaceCoordinate surface; /**< Dominio inmutable de reposo y mezcla regional. */
+    float macroOcclusion; /**< Oclusión geométrica de reposo [0,1], cero por defecto. */
 } MeshVertex;
 
 /** Filas vec4 de parámetros de material procedural para mallas suplementarias (caparazón, plastrón, aletas, placas). */

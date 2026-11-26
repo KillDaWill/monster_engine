@@ -585,7 +585,7 @@ benchmarks/benchmark_animation: $(CORE_OBJS) benchmarks/benchmark_animation.c
 benchmark-animation: benchmarks/benchmark_animation
 	./benchmarks/benchmark_animation
 
-src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py src/Fur.c $(wildcard shaders/surface/*.glsl) shaders/long_hair.vert shaders/long_hair.frag shaders/pigment_domain.comp shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl shaders/environment/scene_lighting.glsl shaders/mesh_skin.comp
+src/MonsterSurfaceShader.generated.h: tools/generate_surface_shader.py src/Fur.c $(wildcard shaders/surface/*.glsl) shaders/long_hair.vert shaders/long_hair.frag shaders/pigment_domain.comp shaders/monster_mesh.vert shaders/monster_surface.frag shaders/fur_guard.vert shaders/fur_guard.frag shaders/morph_handoff.glsl shaders/environment/scene_lighting.glsl shaders/environment/scene_material_lighting.glsl shaders/mesh_skin.comp
 	python3 tools/generate_surface_shader.py
 $(BUILD_DIR)/OpenGLRenderer.o: src/MonsterSurfaceShader.generated.h
 

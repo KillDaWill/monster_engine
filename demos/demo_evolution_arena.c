@@ -288,6 +288,19 @@ static bool projectSnapEntity(const ICamera *camera, float orthoHeight, int widt
     return isfinite(projection->projectedPixels);
 }
 
+static bool captureProject(const ICamera *camera, Vector3 world, int width, int height, Vector3 *pixel) {
+    Vector3 forward = Vec3_Normalize(Vec3_Sub(camera->target, camera->position));
+    Vector3 right = Vec3_Normalize(Vec3_Cross(forward, camera->up));
+    Vector3 up = Vec3_Normalize(Vec3_Cross(right, forward));
+    Vector3 relative = Vec3_Sub(world, camera->position);
+    float depth = Vec3_Dot(relative, forward);
+    if (depth <= camera->nearPlane || depth >= camera->farPlane) return false;
+    float halfHeight = camera->fov > 0 ? depth * tanf(camera->fov * .00872664626f) : -.5f * camera->fov;
+    *pixel = Vec3_Create(.5f * width + .5f * height * Vec3_Dot(relative, right) / halfHeight,
+                        .5f * height - .5f * height * Vec3_Dot(relative, up) / halfHeight, depth);
+    return true;
+}
+
 static void setCameraPose(ICamera *camera, Vector3 target, float zoom, double angle,
                           ViewMode view, bool inspection) {
     float x, z;
@@ -327,6 +340,14 @@ static bool matchesCaptureSnap(const EvolutionEntitySnapshot *entity, CaptureSta
     case CAPTURE_MATING:    return entity->action == ACTION_APPROACH_MATE || entity->gestating;
     default:                return false;
     }
+}
+
+static bool matchesCaptureOptions(const EvolutionEntitySnapshot *entity, CaptureState state,
+                                  int lifeStage, bool freshIngestion, double seconds) {
+    if (!matchesCaptureSnap(entity, state)) return false;
+    if (lifeStage >= 0 && (int)entity->lifeStage != lifeStage) return false;
+    return !freshIngestion || (entity->lastIngestedMass > 0.0f &&
+                              fabs(entity->lastIngestionTime - seconds) < 1e-5);
 }
 
 static double mouthFrameErrorSnap(const EvolutionRenderSnapshot *snap, const EcosystemVisualDrawPacket *packet, bool *hasSample) {
@@ -1034,8 +1055,10 @@ static void printHelp(void) {
          "  --show-shores  --show-rock-collision  --show-terrain-grid  --cam-x=X  --cam-z=Z  --angle=RAD\n"
          "  --camera-position=X,Y,Z --camera-target=X,Y,Z --perspective=DEG --water-time=SECONDS\n"
          "  --terrain-lod0 --wireframe --msaa=0|2|4|8 --check-gl --orbit-rate=RAD_PER_SEC --shadows=off|low|medium|high --no-contacts --no-decoration --sun=AZIMUTH,ELEVATION --periodic-materials --capture-shadow=MAP.pgm\n"
+         "  --global-fill --creature-lighting=MODE --natural-flat --hide-water --subject-angle=RAD\n"
          "  --frames=N  --capture=IMG.ppm  --step-ticks=N  --profile=METRICS.json  --profile-warmup=N  --view=side|front|three-quarter|overview\n"
          "  --focus=ID  --capture-species=1|2  --capture-state=overview|adult|juvenile|newborn|walking|turning|drinking|feeding|hunting|attacking|fleeing|resting|mating\n"
+         "  --capture-life-stage=adult|juvenile --capture-fresh-ingestion\n"
          "  --zoom=N  --no-hud  --initial-age=S  --inspect=body|head|feet|neck  --validate-mouth=N  --validate-skinning  --cpu-skinning  --focus-lod=near|mid|far  --lod-cycle");
 }
 
@@ -1055,14 +1078,19 @@ int main(int argc, char **argv) {
     bool forceRealtime = false, forceStepLock = false;
     unsigned exactStepTicks = 0, profileWarmup = 0;
     bool captured = false, validateSkin = false, forceCpu = false;
+    double subjectAngle = 0.0;
     int winW = ARENA_DEFAULT_W, winH = ARENA_DEFAULT_H;
     QualityPreset quality = QUALITY_HIGH;
     SceneShadowQuality shadows = SCENE_SHADOW_AUTO;
     bool contacts = true, decoration = true;
-    bool periodicMaterials = false;
+    bool periodicMaterials = false, hideWater = false, naturalFlat = false;
+    bool globalFill = false;
+    unsigned creatureLightingDebug = 0;
     float sunAzimuth = 137.5f, sunElevation = 47.0f;
     ViewMode view = VIEW_THREE_QUARTER;
     CaptureState captureState = CAPTURE_OVERVIEW;
+    int captureLifeStage = -1;
+    bool captureFreshIngestion = false;
     AIObjectId focusId = 0;
     unsigned captureSpecies = 0;
     bool hasFocus = false;
@@ -1081,10 +1109,10 @@ int main(int argc, char **argv) {
     double customAngle = 0.65, orbitRate = 0.0;
     static const char *kWorldPresets[] = {
         "worlds/flat.world.json",
-        "worlds/river_valley_v2.world.json",
-        "worlds/mountain_lakes_v2.world.json",
-        "worlds/rocky_highlands_v2.world.json",
-        "worlds/wetlands_v2.world.json"
+        "worlds/river_valley.world.json",
+        "worlds/mountain_lakes.world.json",
+        "worlds/rocky_highlands.world.json",
+        "worlds/wetlands.world.json"
     };
     unsigned worldPresetIdx = 0u;
 
@@ -1168,6 +1196,11 @@ int main(int argc, char **argv) {
             orbitRate = strtod(a + 13, NULL);
             if (!isfinite(orbitRate)) return 2;
         }
+        else if (!strncmp(a, "--subject-angle=", 16)) {
+            char *end = NULL;
+            subjectAngle = strtod(a + 16, &end);
+            if (!end || end == a + 16 || *end || !isfinite(subjectAngle)) return 2;
+        }
         else if (!strncmp(a, "--angle=", 8)) { customAngle = strtod(a + 8, NULL); hasCustomAngle = true; }
         else if (!strncmp(a, "--arena-size=", 13)) { config.arenaSize = strtof(a + 13, NULL); config.hasExplicitArenaSize = true; }
         else if (!strncmp(a, "--brumacernos=", 14)) config.brumacernos = (unsigned)strtoul(a + 14, NULL, 10);
@@ -1202,6 +1235,14 @@ int main(int argc, char **argv) {
         }
         else if (!strncmp(a, "--shadows=", 10)) {
             if (!SceneLighting_ParseShadows(a + 10, &shadows)) return 2;
+        } else if (!strcmp(a, "--natural-flat")) {
+            naturalFlat = true;
+        } else if (!strcmp(a, "--hide-water")) {
+            hideWater = true;
+        } else if (!strcmp(a, "--global-fill")) {
+            globalFill = true;
+        } else if (!strncmp(a, "--creature-lighting=", 20)) {
+            if (!SceneLighting_ParseDebug(a + 20, &creatureLightingDebug)) return 2;
         }
         else if (!strcmp(a, "--step-lock")) forceStepLock = true;
         else if (!strncmp(a, "--step-ticks=", 13)) {
@@ -1274,10 +1315,18 @@ int main(int argc, char **argv) {
         else if (!strncmp(a, "--view=", 7)) { if (!parseView(a + 7, &view)) return 2; }
         else if (!strncmp(a, "--focus=", 8)) { focusId = (AIObjectId)strtoul(a + 8, NULL, 10); hasFocus = true; }
         else if (!strncmp(a, "--capture-species=", 18)) captureSpecies = (unsigned)strtoul(a + 18, NULL, 10);
+        else if (!strncmp(a, "--capture-life-stage=", 21)) {
+            if (!strcmp(a + 21, "adult")) captureLifeStage = LIFE_ADULT;
+            else if (!strcmp(a + 21, "juvenile")) captureLifeStage = LIFE_JUVENILE;
+            else return 2;
+        }
+        else if (!strcmp(a, "--capture-fresh-ingestion")) captureFreshIngestion = true;
         else if (!strncmp(a, "--capture-state=", 16)) { if (!parseCaptureState(a + 16, &captureState)) return 2; }
         else if (!strncmp(a, "--validate-mouth=", 17)) validateMouthFrames = (unsigned)strtoul(a + 17, NULL, 10);
         else return 2;
     }
+
+    if (captureFreshIngestion && captureState != CAPTURE_DRINKING) return 2;
 
     if (config.worldRecipePath[0] != '\0') {
         WorldRecipe previewRec;
@@ -1422,6 +1471,7 @@ int main(int argc, char **argv) {
     }
     EnvironmentRenderer_SetShadows(&envRenderer, shadows);
     EnvironmentRenderer_SetDetails(&envRenderer, contacts, decoration);
+    EnvironmentRenderer_SetCreatureLighting(&envRenderer, globalFill, creatureLightingDebug);
     EnvironmentRenderer_SetPeriodicMaterials(&envRenderer, periodicMaterials);
     EnvironmentRenderer_SetSun(&envRenderer, sunAzimuth, sunElevation);
     EnvironmentRenderer_SetDebugMode(&envRenderer, terrainDebugMode);
@@ -2022,14 +2072,14 @@ int main(int argc, char **argv) {
         }
         if (captureTargetId) {
             const EvolutionEntitySnapshot *current = findSnapEntity(snap, captureTargetId);
-            if (!current || !matchesCaptureSnap(current, captureState)) captureTargetId = 0;
+            if (!current || !matchesCaptureOptions(current, captureState, captureLifeStage, captureFreshIngestion, snap->seconds)) captureTargetId = 0;
         }
         if (captureState != CAPTURE_OVERVIEW && !captureTargetId) {
             for (unsigned i = 0; i < snap->entityCount; ++i) {
                 const EvolutionEntitySnapshot *e = &snap->entities[i];
                 if ((!captureSpecies || e->speciesId == captureSpecies) &&
                     (!hasFocus || e->id == focusId) &&
-                    matchesCaptureSnap(e, captureState)) {
+                    matchesCaptureOptions(e, captureState, captureLifeStage, captureFreshIngestion, snap->seconds)) {
                     captureTargetId = e->id;
                     selectedEntityId = e->id;
                     selected = e;
@@ -2048,6 +2098,7 @@ int main(int argc, char **argv) {
         /* Sincronizar mundo estático con el renderizador de entorno (O(1) si no cambia época/huella). */
         EnvironmentRenderer_SyncWorld(&envRenderer, snap->staticWorld);
         bool proceduralWorld = EnvironmentRenderer_IsProcedural(&envRenderer);
+        bool flatScene = !proceduralWorld && naturalFlat && !validateSkin;
         camera.farPlane = fmaxf(480.0f, snap->arenaHalfSize * 6.0f);
 
         /* Reconciliación incremental primero para garantizar ranuras existentes antes de RequestTier. */
@@ -2073,7 +2124,11 @@ int main(int argc, char **argv) {
         cameraCenter = camTarget;
 
         const EvolutionEntitySnapshot *cameraSubject = focus ? focus : findSnapEntity(snap, captureTargetId);
-        double cameraAngle = cameraSubject ? cameraSubject->yaw + (view == VIEW_THREE_QUARTER ? 0.65 : 0.0) : angle + orbitRate * dt;
+        if (captureState != CAPTURE_OVERVIEW && cameraSubject && !inspect && !hasCameraTarget && !zoomExplicit)
+            camTarget.y += .48f * cameraSubject->standingHeight;
+        if (captureState != CAPTURE_OVERVIEW && cameraSubject && !zoomExplicit && !inspect)
+            zoom = fmaxf(1.0f, 1.35f * fmaxf(cameraSubject->trunkLength, cameraSubject->standingHeight));
+        double cameraAngle = cameraSubject ? cameraSubject->yaw + subjectAngle + (view == VIEW_THREE_QUARTER ? 0.65 : 0.0) : angle + orbitRate * dt;
         angle = cameraAngle;
         if (inspect && cameraSubject && cameraSubject->hasAnatomicalBody) {
             Vector3 local = Vec3_Create(0, cameraSubject->standingHeight * 0.52f, -cameraSubject->trunkLength * 0.42f);
@@ -2178,6 +2233,7 @@ int main(int argc, char **argv) {
                 ok = EnvironmentRenderer_RenderScene(&envRenderer, &renderer, &camera, false, NULL, 0) && ok;
             } else OpenGLRenderer_BeginSceneList(&renderer);
         } else {
+            if (flatScene) OpenGLRenderer_BeginSceneList(&renderer);
             drawMesh(&renderer, &meshes[0], Vec3_Create(0.0f, -0.03f, 0.0f), 0.0f, limit * 1.45f);
 
             /* Caché estática de perímetro y cuadrícula (1 única llamada batch por fotograma). */
@@ -2259,9 +2315,9 @@ int main(int argc, char **argv) {
             if (showHud) lineBatchPushTerrainRing(&dynamicLines, &envRenderer, res->position, res->radius, 0.03f, 20u, ringCol);
         }
         if (envInstances.count > 0) {
-            if (proceduralWorld && !validateSkin) OpenGLRenderer_SceneCastShadow(&renderer, false);
+            if ((proceduralWorld || flatScene) && !validateSkin) OpenGLRenderer_SceneCastShadow(&renderer, false);
             OpenGLRenderer_RenderMeshInstanced(&renderer, &meshes[1], envInstances.items, envInstances.count, anyMolecularPool);
-            if (proceduralWorld && !validateSkin) OpenGLRenderer_SceneCastShadow(&renderer, true);
+            if ((proceduralWorld || flatScene) && !validateSkin) OpenGLRenderer_SceneCastShadow(&renderer, true);
         }
 
         /* Plantas / frutos (1 llamada instanciada). */
@@ -2408,7 +2464,7 @@ int main(int argc, char **argv) {
         /* 2) Renderizar criaturas detalladas (NEAR y MID) con skinning GPU, pelaje (NEAR) y ojos/mandíbula. */
         for (size_t i = 0; i < packetCount; ++i) {
             EcosystemVisualDrawPacket *packet = &packets[i];
-            if (packet->entityId == captureTargetId && packet->ready && packet->tier == VISUAL_TIER_NEAR)
+            if (packet->entityId == captureTargetId && packet->ready && packet->tier == captureTier)
                 captureTargetReady = true;
             const EvolutionEntitySnapshot *packetEntity = findSnapEntity(snap, packet->entityId);
             if (packet->ready && packetEntity) {
@@ -2449,12 +2505,17 @@ int main(int argc, char **argv) {
                                                                     packet->pose, packet->targetGraph, packet->headJoint,
                                                                     packet->headScale, packetGeneration(packet));
                 OpenGLRenderer_SetMeshSurfaceOverride(&renderer, &packet->surfaceRecipe);
+                bool inspectBody = (proceduralWorld || flatScene) && !validateSkin && capture && frame >= 60 &&
+                                   captureState != CAPTURE_OVERVIEW && captureTargetReady &&
+                                   packet->entityId == captureTargetId;
+                OpenGLRenderer_SceneInspectNextBody(&renderer, inspectBody);
                 if (skinning || !packet->ready) {
                     renderer.renderMesh(&renderer, body);
                 } else if (packet->slotIndex < dynCap && EcosystemVisual_DeformBody(packet, &cpuBodies[packet->slotIndex])) {
                     renderer.renderMesh(&renderer, &cpuBodies[packet->slotIndex]);
                     ++visualProfiler.counters.cpuDeformationFallbacks;
                 }
+                OpenGLRenderer_SceneInspectNextBody(&renderer, false);
                 if (validateSkin && skinning && packet->slotIndex < dynCap &&
                     (validatedSkin[packet->slotIndex] != packet->entityId ||
                      validatedSkinMesh[packet->slotIndex] != body->identity)) {
@@ -2508,10 +2569,13 @@ int main(int argc, char **argv) {
                 OpenGLRenderer_EndSceneList(&renderer);
                 ok = EnvironmentRenderer_RenderScene(&envRenderer, &renderer, &camera, true, packets, packetCount) && ok;
             }
-            EnvironmentRenderer_RenderWater(&envRenderer, &camera,
+            if (!hideWater) EnvironmentRenderer_RenderWater(&envRenderer, &camera,
                                              fixedWaterTime >= 0.0f ? fixedWaterTime : (float)fmod(presentationTime, 80.0));
             EnvironmentRenderer_EndScene(&envRenderer);
             EnvironmentRenderer_RenderOverlays(&envRenderer, &camera);
+        } else if (flatScene) {
+            OpenGLRenderer_EndSceneList(&renderer);
+            ok = EnvironmentRenderer_RenderFlatScene(&envRenderer, &renderer, &camera, limit) && ok;
         }
 
         if (validateMouthFrames && frameHasMouth) {
@@ -2918,6 +2982,15 @@ int main(int argc, char **argv) {
                                                     ? frame + 1 == frames
                                                     : frame >= 60 && captureTargetId && captureTargetReady &&
                                                           (!hasFocus || captureTargetId == focusId));
+        if (captureNow && (proceduralWorld || flatScene) && !validateSkin && captureState != CAPTURE_OVERVIEW) {
+            unsigned samples = OpenGLRenderer_SceneBodySamples(&renderer);
+            unsigned pixelEstimate = samples / (msaa > 1 ? (unsigned)msaa : 1u);
+            printf("capture_visibility tick=%llu samples=%u estimated_pixels=%u camera=%.5f,%.5f,%.5f "
+                   "target=%.5f,%.5f,%.5f fov=%.2f\n", (unsigned long long)snap->tick, samples,
+                   pixelEstimate, camera.position.x, camera.position.y, camera.position.z,
+                   camera.target.x, camera.target.y, camera.target.z, camera.fov);
+            captureNow = pixelEstimate >= (unsigned)winW * (unsigned)winH / 125u;
+        }
         if (captureNow) {
             for (size_t i = 0; i < packetCount; ++i) {
                 if (packets[i].entityId == (captureTargetId ? captureTargetId : focusId)) {
@@ -2932,6 +3005,7 @@ int main(int argc, char **argv) {
                     Mesh posed = Mesh_Create();
                     if (EcosystemVisual_DeformBody(&packets[i], &posed)) {
                         AABB3D bounds = AABB_Empty();
+                        AABB3D screen = AABB_Empty();
                         float sn = sinf(packets[i].yaw), cs = cosf(packets[i].yaw);
                         float surfaceY[RIG_MAX_LIMBS] = {0};
                         unsigned surfaceVertices[RIG_MAX_LIMBS] = {0};
@@ -2941,6 +3015,9 @@ int main(int argc, char **argv) {
                                 Vec3_Create(p.x * cs + p.z * sn, p.y, -p.x * sn + p.z * cs);
                             worldPoint = Vec3_Add(packets[i].position, worldPoint);
                             AABB_ExpandPoint(&bounds, worldPoint);
+                            Vector3 pixel;
+                            if (captureProject(&camera, worldPoint, winW, winH, &pixel))
+                                AABB_ExpandPoint(&screen, pixel);
                             for (unsigned foot = 0; proceduralWorld && foot < packets[i].supportCount; ++foot) {
                                 Vector3 sole = packets[i].supportPoints[foot];
                                 if (hypotf(worldPoint.x - sole.x, worldPoint.z - sole.z) >
@@ -2953,6 +3030,19 @@ int main(int argc, char **argv) {
                         }
                         printf("capture_world_body_bounds min=%g,%g,%g max=%g,%g,%g\n",
                                bounds.start.x, bounds.start.y, bounds.start.z, bounds.end.x, bounds.end.y, bounds.end.z);
+                        printf("capture_bbox x0=%.1f y0=%.1f x1=%.1f y1=%.1f\n",
+                               screen.start.x, screen.start.y, screen.end.x, screen.end.y);
+                        if (captureState != CAPTURE_OVERVIEW &&
+                            (fminf(winW, screen.end.x) - fmaxf(0, screen.start.x) < winW * .08f ||
+                             fminf(winH, screen.end.y) - fmaxf(0, screen.start.y) < winH * .065f))
+                            ok = false;
+                        if (captureState != CAPTURE_OVERVIEW && proceduralWorld && !hideWater) {
+                            WaterSample water;
+                            Vector3 center = Vec3_Scale(Vec3_Add(bounds.start, bounds.end), .5f);
+                            if (WorldHydrology_SampleWater(&snap->staticWorld->hydrology, &snap->staticWorld->terrain,
+                                                          center.x, center.z, &water) &&
+                                water.wet && water.surfaceY > bounds.end.y) ok = false;
+                        }
                         for (unsigned foot = 0; proceduralWorld && foot < packets[i].supportCount; ++foot) {
                             Vector3 sole = packets[i].supportPoints[foot];
                             float h;
@@ -2979,6 +3069,11 @@ int main(int argc, char **argv) {
                     }
                     if (!packets[i].ready || packets[i].tier != captureTier) ok = false;
                 }
+            }
+            if (captureState != CAPTURE_OVERVIEW) {
+                const EvolutionEntitySnapshot *required = findSnapEntity(snap, captureTargetId);
+                if (!required || (captureSpecies && required->speciesId != captureSpecies) ||
+                    !matchesCaptureOptions(required, captureState, captureLifeStage, captureFreshIngestion, snap->seconds)) ok = false;
             }
             ensureParentDir(capture);
             captured = ok && OpenGLRenderer_SavePPM(capture, winW, winH);

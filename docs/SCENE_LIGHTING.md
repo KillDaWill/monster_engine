@@ -34,7 +34,7 @@ El sesgo usa `glPolygonOffset` y una pequeña compensación del receptor basada 
 
 ```sh
 make -j8 demos/demo_evolution_arena demos/demo_brain_evolution_lab test-scene-lighting
-demos/demo_evolution_arena --world=worlds/river_valley_v2.world.json \
+demos/demo_evolution_arena --world=worlds/river_valley.world.json \
   --world-seed=42 --seed=42 --quality=medium --shadows=medium --sun=137.5,47 \
   --brumacernos=400 --velkares=100 --plants=700 --capacity=640 --workers=6 \
   --width=1920 --height=1080 --zoom=160 --view=three-quarter \
@@ -51,3 +51,18 @@ demos/demo_evolution_arena --world=worlds/river_valley_v2.world.json \
 
 - [Reglas de codificación y mezcla de framebuffer de Khronos](https://wikis.khronos.org/opengl/Framebuffer)
 - [Estabilidad y filtrado de mapas direccionales](https://learn.microsoft.com/en-us/windows/win32/dxtecharts/cascaded-shadow-maps)
+
+## Transporte de luz en Arena y Lab
+
+La presentación natural usa un bloque `SceneLightingFrame` y dos unidades reservadas para profundidad solar (12) e irradiancia de entorno (14). Piel, queratina, ojos, materiales instanciados, malla plana y suelo comparten Lambert y un lóbulo GGX con visibilidad Smith-Schlick y fresnel dieléctrico. La intensidad solar es relativa y contiene el factor de normalización de Lambert. La rugosidad es perceptual y se eleva al cuadrado dentro del lóbulo. Las conchas, las fibras de guarda y el pelo largo conservan una respuesta direccional propia. La visibilidad solar afecta la contribución solar. La oclusión de anatomía se aplica a la irradiancia difusa y atenúa de forma moderada la reflexión de entorno.
+
+Los RGB de receta, vértice y texturas de iris `RGBA8` se interpretan como valores sRGB de autor. Las evaluaciones heredadas de pigmento, mezcla regional y tinte construyen el albedo en ese dominio antes de `sceneDecode`. Las texturas de albedo del terreno usan decodificación sRGB por hardware. Los demás parámetros de material, la profundidad, las normales, la oclusión y el entorno de irradiancia son lineales. `GL_FRAMEBUFFER_SRGB` codifica la salida y mantiene el mezclado de agua y pelo en lineal. Si la ventana usa una superficie lineal, se compone en el destino sRGB auxiliar. Si ese destino no se puede crear, la escena natural devuelve un error.
+
+`--creature-lighting=authored|albedo|radiance|geometry|normal|direct|indirect|visibility|ao|specular|roughness|material|exposure|final` permite inspeccionar el material de criatura. `authored`, `albedo` y `radiance` muestran valores numéricos con salida de diagnóstico. `--global-fill` desactiva el muestreo del entorno local. Arena permite activar la luz natural en física plana con `--natural-flat`. El perfil plano de estudio sigue siendo el predeterminado.
+
+El atlas de 128² se construye en el hilo GL al sincronizar el mundo. RGB reúne muestras ponderadas de las medias lineales de los materiales cargados. A estima cielo visible en ocho direcciones con cuatro radios de hasta aproximadamente 14 m. Sirve para aproximar rebote difuso de baja frecuencia. La iluminación indirecta no simula visibilidad dinámica ni radiancia del sol direccional en cada punto del suelo. La oclusión de criatura se hornea en la geometría compartida con tres sondas normales del SDF de reposo. Se conserva con el skinning y se interpola a la raíz de las fibras de guarda.
+
+Las instancias lejanas usan índices de profundidad simplificados y cacheados. El mismo VBO y las mismas transformaciones por instancia sirven para ambos pases. `MONSTER_FULL_SHADOW_MESHES=1` recupera los índices completos para comparar. Para el terreno, el plano receptor reconstruye la profundidad en cada uno de los cuatro centros de texel que intervienen en el filtrado bilineal. Esto evita que la pendiente local se convierta en bandas de auto-sombreado. Los cuerpos posados individuales conservan la malla animada de profundidad. La cobertura de emisores sigue limitada a las órdenes visibles que entrega el demo.
+
+- [Modelo dieléctrico y convenciones de Filament](https://google.github.io/filament/main/filament.html)
+- [Mediciones y capturas pareadas](WORLD_MORPHOLOGY_LIGHT_TRANSPORT_V3.md)

@@ -410,3 +410,16 @@ El directorio `docs/` incluye informes exhaustivos de diseño, optimización y v
 Evolution Arena y Brain Evolution Lab comparten iluminación diurna, sombras y materiales
 de presentación en mundos procedurales. Los controles, presupuestos y comandos de captura
 están en [Iluminación de escena](docs/SCENE_LIGHTING.md) y [Entorno natural](docs/NATURAL_ENVIRONMENT_VISUALS.md).
+
+### Terreno procedural
+
+```sh
+make demos/demo_evolution_arena demos/demo_evolution_arena_headless build/audit_world_surface
+./demos/demo_evolution_arena --world=worlds/river_valley.world.json \
+  --world-seed=42 --seed=42 --quality=medium --shadows=medium \
+  --brumacernos=400 --velkares=100 --plants=700 --capacity=640 \
+  --workers=6 --width=1920 --height=1080 --speed=4
+python3 tools/validate_world_morphology.py --large
+```
+
+Las recetas incluidas usan el generador v4. Brain Evolution Lab usa el valle pequeño en el entorno `environments/brumacerno_river_valley.environment.json`. Consulta la [guía de mundos procedurales](docs/PROCEDURAL_WORLD.md).

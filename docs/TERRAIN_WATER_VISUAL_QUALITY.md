@@ -1,5 +1,7 @@
 # Calidad visual de terreno y agua
 
+Este informe documenta una revisión anterior. Los comandos y las recetas con sufijo corresponden a esa revisión. Las recetas actuales se describen en la [guía de mundos procedurales](PROCEDURAL_WORLD.md).
+
 La línea base es `b464d2bd93f6e7318a1473ed2afae9d5c980dc6d`. Se verificó que coincidía con la punta de `main` en GitHub. Los cambios se encuentran en el árbol de trabajo sobre esa revisión.
 
 ## Causas reproducidas

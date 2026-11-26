@@ -5,6 +5,7 @@ in float ribbonSide,hairParameter;
 in float strandCoverage;
 in vec3 hairTangent, hairViewPosition;
 #include "environment/scene_lighting.glsl"
+#include "environment/scene_material_lighting.glsl"
 uniform int coveragePass;
 void main(){
     float aa=max(fwidth(ribbonSide),.06);
@@ -19,8 +20,11 @@ void main(){
     if (sceneNatural()) {
         vec3 world = sceneWorldPosition(hairViewPosition);
         float direct = sceneVisibility(world, vec3(0,1,0));
-        color = sceneObjectOutput(sceneDecode(hairColor.rgb) *
-            (sceneAmbient(.25) + sceneSunRadiance.rgb * (.65 * direct * longitudinal)), world);
+        vec3 n = vec3(0,1,0);
+        SceneLightResponse response = SceneLightResponse(sceneSunRadiance.rgb * (.65 * direct * longitudinal),
+            sceneDiffuseEnvironment(world, .25), vec3(0), direct);
+        color = sceneMaterialOutput(hairColor.rgb, sceneDecode(hairColor.rgb), response, world,
+                                    n, n, 1.0, .84, vec3(.32,.65,.32));
     }
     gl_FragColor=vec4(color,coveragePass==0?1.0:alpha);
 }

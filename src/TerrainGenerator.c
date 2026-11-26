@@ -214,6 +214,9 @@ bool TerrainGenerator_BuildBaseRelief(TerrainHeightfield *tf, const WorldRecipe 
     float valleyW = recipe->terrain.valleyShaping;
     float invHalf = 1.0f / fmaxf(1.0f, tf->halfSize);
 
+    const bool morphology = recipe->generatorVersion == WORLD_GENERATOR_VERSION_MORPHOLOGY;
+    uint32_t macroOctaves = recipe->terrain.octaves > 2u ? 2u : recipe->terrain.octaves;
+
     /* 1) Evaluar relieve macro + fBm + crestas + perfilado de valle/cuenca. */
     float minVal = 1e30f;
     for (uint32_t iz = 0; iz < res; ++iz) {
@@ -250,7 +253,7 @@ bool TerrainGenerator_BuildBaseRelief(TerrainHeightfield *tf, const WorldRecipe 
 
             /* Perfilado de valle/cuenca natural: crea tierras bajas transitables y colinas/bordes
              * con pendiente regional suave hacia una salida de drenaje abierta. */
-            if (valleyW > 1e-4f) {
+            if (!morphology && valleyW > 1e-4f) {
                 /* Eje transversal al drenaje principal para esculpir un valle con laderas suaves. */
                 float across = (-tiltDirZ * nx + tiltDirX * nz);
                 float along = (tiltDirX * nx + tiltDirZ * nz);
@@ -265,6 +268,33 @@ bool TerrainGenerator_BuildBaseRelief(TerrainHeightfield *tf, const WorldRecipe 
                 float shaped = combined * (0.45f + 0.55f * valleyProfile) + 0.22f * valleyProfile + regionalSlope
                                - 0.16f * (1.0f - basinWave) * (1.0f - valleyProfile);
                 combined = combined * (1.0f - valleyW) + shaped * valleyW;
+            }
+
+            if (morphology) {
+                float along = tiltDirX * nx + tiltDirZ * nz;
+                float across = -tiltDirZ * nx + tiltDirX * nz;
+                float meander = .21f * TerrainNoise_Simplex2D(along * 1.15f, 2.7f, basinSeed);
+                float floorHalfWidth = fminf(16.0f, .16f * tf->halfSize);
+                float crossDistance = fabsf(across - meander) * tf->halfSize;
+                float shoulder = fminf(1.0f, fmaxf(0.0f,
+                    (crossDistance - floorHalfWidth) / (.52f * tf->halfSize)));
+                shoulder *= shoulder * (3.0f - 2.0f * shoulder);
+                float broad = TerrainNoise_Fbm2D(sx * freq * .66f, sz * freq * .66f,
+                                                 terrainSeed, macroOctaves, .36f, 2.0f);
+                float mid = TerrainNoise_Fbm2D(sx * freq, sz * freq, terrainSeed,
+                                                macroOctaves, recipe->terrain.persistence,
+                                                recipe->terrain.lacunarity);
+                float detail = fbm - mid;
+                float marsh = fminf(1.0f, fmaxf(0.0f, (.15f - ridgeW) * 15.0f));
+                float upland = 1.0f - valleyW * (1.0f - shoulder) * 1.35f;
+                upland = fmaxf(.12f, upland);
+                float smallDetail = .05f + (.22f + .12f * ridgeW) * upland;
+                float basin = TerrainNoise_Simplex2D(nx * 1.7f + 4.1f, nz * 1.7f - 2.3f, basinSeed);
+                float low = .28f + .09f * broad + .045f * basin - (.061f - .025f * marsh) * along;
+                float hills = .49f + .15f * broad + .18f * mid;
+                hills += ridgeW * (.72f * ridged - .19f);
+                combined = low + (hills - low) * upland
+                         + smallDetail * detail + .09f * valleyW * shoulder;
             }
 
             /* Curva suave para mantener llanuras y valles caminables sin destruir picos altos. */
@@ -285,5 +315,5 @@ bool TerrainGenerator_BuildBaseRelief(TerrainHeightfield *tf, const WorldRecipe 
         return false;
     }
 
-    return TerrainHeightfield_RebuildDerived(tf);
+    return morphology || TerrainHeightfield_RebuildDerived(tf);
 }

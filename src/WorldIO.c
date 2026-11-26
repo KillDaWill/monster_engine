@@ -117,24 +117,33 @@ WorldRecipe WorldRecipe_Flat(float size) {
 
 bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
     if (!presetName || !out) return false;
-    if (strcmp(presetName, "flat") == 0) {
-        *out = WorldRecipe_Flat(64.0f);
-        return true;
-    }
-    char legacyName[48];
-    size_t len = strlen(presetName);
-    bool continuous = len > 3u && len < sizeof(legacyName) &&
-                      strcmp(presetName + len - 3u, "_v2") == 0;
-    const char *requestedName = presetName;
-    if (continuous) {
-        memcpy(legacyName, presetName, len - 3u);
-        legacyName[len - 3u] = '\0';
-        presetName = legacyName;
-    }
     WorldRecipe r = WorldRecipe_Default();
-    if (strcmp(presetName, "river_valley") == 0) {
+    if (strcmp(presetName, "flat") == 0) {
+        r = WorldRecipe_Flat(64.0f);
+        r.terrain = (WorldTerrainParams){.resolution = 17u, .baseFrequency = .012f,
+            .octaves = 1u, .persistence = .5f, .lacunarity = 2.0f};
+        r.hydrology.finiteVolume = 0.0f;
+        r.geology = (WorldGeologyParams){.rockVariants = 1u, .minRockScale = .7f, .maxRockScale = 1.5f};
+        r.vegetation = (WorldVegetationParams){.density = .7f};
+    } else if (strcmp(presetName, "river_valley") == 0) {
         r.terrain.resolution = 513u;
-        r.size = 256.0f;
+        r.terrain.valleyShaping = .38f;
+        r.erosion.thermalIterations = 26u;
+        r.hydrology.lakeDensity = .30f;
+        r.vegetation.density = .72f;
+    } else if (strcmp(presetName, "lab_valley_small") == 0) {
+        snprintf(r.name, sizeof(r.name), "Lab River Valley (Small 64x64)");
+        r.size = 64.0f;
+        r.terrain = (WorldTerrainParams){.resolution = 129u, .heightScale = 9.5f,
+            .baseFrequency = .032f, .octaves = 5u, .persistence = .48f, .lacunarity = 2.05f,
+            .ridgeWeight = .25f, .domainWarpStrength = .35f, .valleyShaping = .65f};
+        r.erosion = (WorldErosionParams){.thermalIterations = 20u, .talusAngleDegrees = 36.0f, .thermalRate = .28f};
+        r.hydrology.riverDensity = .65f;
+        r.hydrology.lakeDensity = .55f;
+        r.hydrology.riverDepthScale = .85f;
+        r.geology = (WorldGeologyParams){.rockDensity = .28f, .rockVariants = 6u,
+            .minRockScale = .65f, .maxRockScale = 1.55f};
+        r.vegetation = (WorldVegetationParams){.density = .65f, .fertilityBias = .12f, .moistureBias = .08f};
     } else if (strcmp(presetName, "mountain_lakes") == 0) {
         snprintf(r.id, sizeof(r.id), "mountain_lakes");
         snprintf(r.name, sizeof(r.name), "Mountain Lakes");
@@ -143,6 +152,8 @@ bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
         r.terrain.resolution = 513u;
         r.terrain.heightScale = 38.0f;
         r.terrain.baseFrequency = 0.013f;
+        r.terrain.persistence = .52f;
+        r.terrain.lacunarity = 2.05f;
         r.terrain.ridgeWeight = 0.42f;
         r.terrain.domainWarpStrength = 0.30f;
         r.terrain.valleyShaping = 0.45f;
@@ -150,8 +161,11 @@ bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
         r.erosion.talusAngleDegrees = 35.0f;
         r.hydrology.riverDensity = 0.38f;
         r.hydrology.lakeDensity = 0.45f;
-        r.geology.rockDensity = 0.50f;
-        r.vegetation.density = 0.55f;
+        r.hydrology.riverWidthScale = .95f;
+        r.hydrology.riverDepthScale = 1.05f;
+        r.geology = (WorldGeologyParams){.rockDensity = .50f, .rockVariants = 16u,
+            .minRockScale = .8f, .maxRockScale = 3.5f};
+        r.vegetation = (WorldVegetationParams){.density = .55f, .moistureBias = .02f};
     } else if (strcmp(presetName, "rocky_highlands") == 0) {
         snprintf(r.id, sizeof(r.id), "rocky_highlands");
         snprintf(r.name, sizeof(r.name), "Rocky Highlands");
@@ -160,17 +174,20 @@ bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
         r.terrain.resolution = 513u;
         r.terrain.heightScale = 34.0f;
         r.terrain.baseFrequency = 0.015f;
+        r.terrain.persistence = .53f;
+        r.terrain.lacunarity = 2.1f;
         r.terrain.ridgeWeight = 0.48f;
         r.terrain.domainWarpStrength = 0.35f;
-        r.terrain.valleyShaping = 0.20f;
+        r.terrain.valleyShaping = .22f;
         r.erosion.thermalIterations = 28u;
         r.erosion.talusAngleDegrees = 38.0f;
-        r.hydrology.riverDensity = 0.25f;
-        r.hydrology.lakeDensity = 0.15f;
-        r.geology.rockDensity = 0.68f;
-        r.geology.maxRockScale = 3.8f;
-        r.vegetation.density = 0.45f;
-        r.vegetation.moistureBias = -0.10f;
+        r.hydrology.riverDensity = .28f;
+        r.hydrology.lakeDensity = .18f;
+        r.hydrology.riverWidthScale = .85f;
+        r.hydrology.riverDepthScale = .95f;
+        r.geology = (WorldGeologyParams){.rockDensity = .68f, .rockVariants = 16u,
+            .minRockScale = .9f, .maxRockScale = 3.8f};
+        r.vegetation = (WorldVegetationParams){.density = .46f, .fertilityBias = -.05f, .moistureBias = -.10f};
     } else if (strcmp(presetName, "wetlands") == 0) {
         snprintf(r.id, sizeof(r.id), "wetlands");
         snprintf(r.name, sizeof(r.name), "Wetlands");
@@ -179,25 +196,25 @@ bool WorldRecipe_Preset(const char *presetName, WorldRecipe *out) {
         r.terrain.resolution = 385u;
         r.terrain.heightScale = 11.0f;
         r.terrain.baseFrequency = 0.014f;
+        r.terrain.octaves = 4u;
+        r.terrain.persistence = .48f;
         r.terrain.ridgeWeight = 0.08f;
         r.terrain.domainWarpStrength = 0.22f;
-        r.terrain.valleyShaping = 0.50f;
+        r.terrain.valleyShaping = .52f;
         r.erosion.thermalIterations = 16u;
         r.erosion.talusAngleDegrees = 28.0f;
-        r.hydrology.riverDensity = 0.60f;
+        r.hydrology.riverDensity = .62f;
         r.hydrology.lakeDensity = 0.55f;
-        r.hydrology.riverWidthScale = 1.35f;
-        r.geology.rockDensity = 0.18f;
-        r.vegetation.density = 0.85f;
-        r.vegetation.moistureBias = 0.20f;
-        r.vegetation.fertilityBias = 0.15f;
+        r.hydrology.riverWidthScale = 1.30f;
+        r.hydrology.riverDepthScale = .85f;
+        r.geology = (WorldGeologyParams){.rockDensity = .18f, .rockVariants = 12u,
+            .minRockScale = .6f, .maxRockScale = 2.2f};
+        r.vegetation = (WorldVegetationParams){.density = .85f, .fertilityBias = .14f, .moistureBias = .20f};
     } else {
         return false;
     }
-    if (continuous) {
-        r.generatorVersion = WORLD_GENERATOR_VERSION;
-        snprintf(r.id, sizeof(r.id), "%s", requestedName);
-    }
+    r.generatorVersion = WORLD_GENERATOR_VERSION;
+    snprintf(r.id, sizeof(r.id), "%s", presetName);
     r.recipeHash = WorldRecipe_Fingerprint(&r);
     r.valid = true;
     *out = r;
@@ -260,7 +277,9 @@ bool WorldRecipe_Validate(const WorldRecipe *r, char *error, size_t errorSize) {
         return false;
     }
     if (r->generatorVersion != WORLD_GENERATOR_VERSION_LEGACY &&
-        r->generatorVersion != WORLD_GENERATOR_VERSION) {
+        r->generatorVersion != WORLD_GENERATOR_VERSION_CONTINUOUS &&
+        r->generatorVersion != WORLD_GENERATOR_VERSION_MORPHOLOGY &&
+        r->generatorVersion != WORLD_GENERATOR_VERSION_SHORELINE) {
         setErr(error, errorSize, "Versión de generador de mundo no soportada: %u", r->generatorVersion);
         return false;
     }

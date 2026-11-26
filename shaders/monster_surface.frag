@@ -28,6 +28,7 @@ out vec4 fragColor;
 #include "surface/scales.glsl"
 #include "surface/pigment.glsl"
 #include "surface/fur.glsl"
+in float macroOcclusion;
 #include "surface/scene_fur.glsl"
 #include "surface/bump.glsl"
 #include "surface/lighting.glsl"
@@ -237,8 +238,10 @@ void main() {
     if ((integumentType == 6 || translucency > 0.01) && surfaceDebug == 0) {
         float tAmt = integumentType == 6 ? max(translucency, 0.58) : translucency;
         float glow = integumentType == 6 ? max(subsurface, 0.45) : subsurface;
-        vec3 warmGlow = response.albedo * vec3(1.18, 0.94, 0.72) * (0.28 + 0.55 * (1.0 - fresnel)) * glow;
-        vec3 rimTint = mix(response.albedo * 1.25, vec3(1.0, 0.86, 0.64), 0.32);
+        vec3 tint = sceneNatural() ? sceneDecode(response.albedo) : response.albedo;
+        vec3 warmGlow = tint * vec3(1.18, 0.94, 0.72) * (0.28 + 0.55 * (1.0 - fresnel)) * glow;
+        vec3 rim = sceneNatural() ? sceneDecode(vec3(1.0, 0.86, 0.64)) : vec3(1.0, 0.86, 0.64);
+        vec3 rimTint = mix(tint * 1.25, rim, 0.32);
         color = color * (0.72 + 0.28 * fresnel) + warmGlow + rimTint * fresnel * 0.38;
         outAlpha *= clamp(mix(1.0 - tAmt * 0.72, 0.92, fresnel), 0.16, 0.96);
     }

@@ -15,6 +15,7 @@ out vec4 fragColor;
 #include "surface/hash.glsl"
 #include "surface/pigment.glsl"
 #include "surface/fur.glsl"
+in float macroOcclusion;
 #include "surface/scene_fur.glsl"
 void main() {
     pigmentCoverage[0]=clamp(pigmentMaskLegacy,0.0,1.0);

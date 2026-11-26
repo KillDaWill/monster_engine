@@ -387,7 +387,7 @@ static void EmitScaleSolid(const ScalePlacement* sp, Color baseCol, Color tipCol
 
     MeshIndex baseV = (MeshIndex)out->vertexCount;
     for (int i = 0; i < ARMOR_VERTS_PER_SCALE; ++i) {
-        MeshVertex mv;
+        MeshVertex mv = {0};
         memset(&mv, 0, sizeof(mv));
         mv.position = p[i];
         mv.normal = vnorms[i];

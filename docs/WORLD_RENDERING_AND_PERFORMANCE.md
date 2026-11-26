@@ -83,3 +83,9 @@ El validador `make validate-procedural-world` verifica determinismo headless bit
 - Capas de depuración del terreno: `05_debug_elevation.png`, `06_debug_slope.png`, `07_debug_hydrology.png`, `08_debug_navigation.png`.
 - Contacto anatómico, vadeo y orillas: `09_near_brumacerno_slope.png`, `10_near_velkar_slope.png`, `11_shore_closeup.png`.
 - Escala, compatibilidad plana y Lab: `12_500_creatures_valley.png`, `13_flat_compat_comparison.png`, `14_lab_replay_terrain.png`.
+
+## Transporte y morfología v3
+
+La textura local añade 87.380 bytes de VRAM con mipmaps. La pasada de sombra reutiliza transformaciones e índices simplificados de las instancias lejanas. La geometría física y la memoria estática se miden aparte de la presentación. El protocolo v3 incluye comparaciones de física v2 idéntica, una serie independiente en v3, y ejecuciones con ticks exactos para comparar hashes y descartar diferencias de población en la medición.
+
+- [Resultados en RTX 3050 Laptop y matrices de terreno](WORLD_MORPHOLOGY_LIGHT_TRANSPORT_V3.md)

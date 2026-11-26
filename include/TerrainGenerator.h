@@ -30,6 +30,7 @@ float TerrainNoise_Ridged2D(float x, float z, uint32_t seed, uint32_t octaves,
  * @brief Genera el relieve base y aplica erosión térmica determinista sobre @p tf.
  *
  * Para recetas con `recipe->flat == true`, inicializa el campo plano exacto Y=0.
+ * Para relieve v3, se derivan normales, pendientes y huella durante la finalización del mundo.
  * @param outErosionMoved Opcional: suma total de material vertical transferido durante la erosión.
  */
 bool TerrainGenerator_BuildBaseRelief(TerrainHeightfield *tf, const WorldRecipe *recipe,

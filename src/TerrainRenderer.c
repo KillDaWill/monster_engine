@@ -227,7 +227,7 @@ static bool initTerrainShader(TerrainRendererImpl *impl) {
         "}\n";
 
     const char *vsParts[] = {vs};
-    const char *fsParts[] = {"#version 330 compatibility\n", fsPart1, ENV_SCENE_LIGHTING, ENV_MATERIALS, ENV_PROJECTION,
+    const char *fsParts[] = {"#version 330 compatibility\n", fsPart1, ENV_SCENE_LIGHTING, ENV_SCENE_MATERIAL_LIGHTING, ENV_TERRAIN_SHADOW, ENV_MATERIALS, ENV_PROJECTION,
                              ENV_TERRAIN_FINISH, ENV_TERRAIN_NATURAL, mainPart1, mainPart2};
     GLuint v = compileGlShaderParts(GL_VERTEX_SHADER, vsParts, 1);
     GLuint f = compileGlShaderParts(GL_FRAGMENT_SHADER, fsParts, (GLsizei)(sizeof(fsParts) / sizeof(fsParts[0])));

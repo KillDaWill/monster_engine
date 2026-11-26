@@ -33,6 +33,8 @@ typedef struct EvolutionEpisodeMetrics {
     double horizonSeconds;
     double survivalSeconds;
     uint64_t ticksSimulated;
+    uint64_t worldDataFingerprint; /**< Identidad física del mundo v3 de este episodio. */
+    uint32_t worldSeed;
     float survivalFraction;
     float integratedHealth;
     float integratedEnergy;

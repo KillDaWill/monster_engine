@@ -78,3 +78,13 @@ python3 tools/validate_scene_lighting.py --mode contacts \
 `make test`, `make editor-test`, `make validate-procedural-world`, `make validate-ecosystem`, `make world-sanitize`, `make world-tsan` y `make test-scene-lighting` pasaron. También se completaron los benchmarks de mundo, escalabilidad y metabolismo molecular. A 500 criaturas sostenidas, el benchmark de mundo v2 midió 1,540/2,266 ms (media/P95) en la base y 1,546/2,280 ms en la revisión. Las seis ejecuciones alternadas de 1200 ticks en configuración molecular con 500 fundadores terminaron con 498 criaturas y hash `d1358e8278a77dd2`. Los tiempos medios de proceso por tick estuvieron en 3,821–3,843 ms en la base y 3,788–3,808 ms en la revisión.
 
 Se capturaron Arena y Lab, respaldo procedural v1 del pack, respaldo sin texturas, un morph de estudio y ambos perfiles de agua. La revisión valida una selección acotada de poses y cámaras. Quedan pendientes el contacto en posturas extremas a través de todos los estadios, reducir el coste de profundidad en panorámicas y una prueba prolongada de cambios de mundo y tamaño de viewport en los demos interactivos.
+
+## Revisión de transporte y relieve v3
+
+La luz natural actual usa el mismo modelo solar dieléctrico para criaturas y suelo, con lóbulos direccionales para el manto, oclusión de reposo y rebote de baja frecuencia derivado del material próximo. Las recetas incluidas usan el generador v4 y comparten el terreno físico entre Arena y Lab. `--hide-water --terrain-lod0 --terrain-debug=slope` permite revisar el talud y su geometría sin composición de agua.
+
+`--capture-state` y `--capture-species` verifican la identidad solicitada. La captura en luz natural audita la profundidad del cuerpo resuelto, la caja proyectada, la ruta de piel y los apoyos disponibles. El validador compara huella de mundo, hash de eventos y tick entre tomas pareadas de criatura. El informe documenta qué capturas faltan y las limitaciones de la prueba de profundidad.
+
+- [Registros, pruebas y ejemplos](WORLD_MORPHOLOGY_LIGHT_TRANSPORT_V3.md)
+
+En la captura LOD0 de orilla v3 se aisló el patrón de bandas con la visualización de visibilidad y con el sol sin sombras. El sesgo de plano receptor resolvió la banda reproducida en esa cámara, manteniendo las sombras reales.

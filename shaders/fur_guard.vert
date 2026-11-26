@@ -14,10 +14,12 @@ uniform uint furSeed;
 out vec3 restCoord,restNormal,viewPosition,viewNormal,posedFlowOut,restFlowOut;
 out vec4 vertexColor,profileA,profileB;
 out vec4 pigmentMaskLegacy,pigmentMaskFrom,pigmentMaskTo;
+out float macroOcclusion;
 out float ventral,skinMask,fragShellFraction,fragIntegumentMask,shellDelta;
 flat out int tissueMaterial;
 out float ribbonSide,ribbonFade;
 out vec3 worldPosition,ownershipRoot,ownershipNormal;
+#include "environment/scene_lighting.glsl"
 #include "surface/hash.glsl"
 #include "surface/pigment_regions.glsl"
 #include "surface/fur_curve.glsl"
@@ -32,6 +34,8 @@ void main() {
     vec4 ga=texelFetch(geometryData,ia*2),gb=texelFetch(geometryData,ib*2),gc=texelFetch(geometryData,ic*2);
     vec3 pa=ga.xyz,pb=gb.xyz,pc=gc.xyz;
     vec3 na=vec3(ga.w,texelFetch(geometryData,ia*2+1).xy),nb=vec3(gb.w,texelFetch(geometryData,ib*2+1).xy),nc=vec3(gc.w,texelFetch(geometryData,ic*2+1).xy);
+    macroOcclusion = dot(rootBarycentric, vec3(texelFetch(geometryData,ia*2+1).w,
+                          texelFetch(geometryData,ib*2+1).w, texelFetch(geometryData,ic*2+1).w));
     vec3 pos=pa*rootBarycentric.x+pb*rootBarycentric.y+pc*rootBarycentric.z;
     ownershipRoot=pos;
     vec3 n=normalize(na*rootBarycentric.x+nb*rootBarycentric.y+nc*rootBarycentric.z);
@@ -76,7 +80,7 @@ void main() {
         break;
     }
     vec3 vp=(gl_ModelViewMatrix*vec4(pos+offset,1)).xyz;
-    vec3 tv=normalize(gl_NormalMatrix*tangent);
+    vec3 tv=normalize((sceneNatural() ? mat3(gl_ModelViewMatrix) : gl_NormalMatrix) * tangent);
     vec3 side=normalize(cross(tv,normalize(-vp))+vec3(1e-8));
     ribbonSide=float(gl_VertexID%2)*2.0-1.0;
     float width=.0015*p0.z*surfaceRecipe[11].z*(1.0-h)*(1.0-h);

@@ -12,6 +12,7 @@ typedef struct TerrainMaterials {
     size_t vramBytes;
     bool attempted;
     int packVersion;
+    float meanAlbedo[6][3]; /**< Medias lineales de las capas del pack natural. */
 } TerrainMaterials;
 
 typedef struct TerrainMaterialBindings {

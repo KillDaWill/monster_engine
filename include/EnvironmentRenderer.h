@@ -37,7 +37,7 @@ typedef struct EnvironmentRenderStats {
     RockRenderStats rocks;
     uint64_t totalTriangles;
     uint64_t totalDrawCalls;
-    size_t totalVramBytes;
+    size_t totalVramBytes, irradianceVramBytes;
     size_t materialVramBytes;
     double lastUploadMs;
     EnvironmentPassStats terrainPass, waterPass, rockPass, shadowPass, contactPass, objectPass, decorationPass;
@@ -77,6 +77,8 @@ void EnvironmentRenderer_SetProfiling(EnvironmentRenderer *er, bool enabled);
 void EnvironmentRenderer_SetShadows(EnvironmentRenderer *er, SceneShadowQuality quality);
 bool EnvironmentRenderer_SetSun(EnvironmentRenderer *er, float azimuth, float elevation);
 void EnvironmentRenderer_SetPeriodicMaterials(EnvironmentRenderer *er, bool periodic);
+/** @brief Selecciona el relleno global o local y el diagnóstico de materiales de criatura. */
+void EnvironmentRenderer_SetCreatureLighting(EnvironmentRenderer *er, bool globalFill, unsigned debug);
 void EnvironmentRenderer_SetDetails(EnvironmentRenderer *er, bool contacts, bool decoration);
 void EnvironmentRenderer_QueueDecoration(EnvironmentRenderer *er, Renderer3D *renderer, const ICamera *camera);
 
@@ -84,6 +86,9 @@ void EnvironmentRenderer_QueueDecoration(EnvironmentRenderer *er, Renderer3D *re
 bool EnvironmentRenderer_RenderScene(EnvironmentRenderer *er, Renderer3D *renderer,
                                     const ICamera *camera, bool drawRecorded,
                                     const EcosystemVisualDrawPacket *packets, size_t count);
+/** @brief Iluminación natural de la lista grabada de una arena plana. */
+bool EnvironmentRenderer_RenderFlatScene(EnvironmentRenderer *er, Renderer3D *renderer,
+                                         const ICamera *camera, float halfSize);
 void EnvironmentRenderer_EndScene(EnvironmentRenderer *er);
 /** @brief Exporta el depth map utilizado en el último frame para diagnóstico. */
 bool EnvironmentRenderer_SaveShadowDepth(const EnvironmentRenderer *er, const char *path);

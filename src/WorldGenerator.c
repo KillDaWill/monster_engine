@@ -121,7 +121,10 @@ bool WorldGenerator_FinalizeFromHeightfield(WorldStaticData *w, bool runHydrolog
         return false;
     }
     double t0 = nowMs();
-    if (!TerrainHeightfield_RebuildDerived(&w->terrain)) {
+    bool rebuildInHydrology = w->recipe.generatorVersion == WORLD_GENERATOR_VERSION_MORPHOLOGY ||
+                              w->recipe.generatorVersion == WORLD_GENERATOR_VERSION_SHORELINE;
+    if ((!runHydrology || !rebuildInHydrology) &&
+        !TerrainHeightfield_RebuildDerived(&w->terrain)) {
         setErr(error, errorSize, "Fallo al calcular normales/cotas del terreno");
         return false;
     }
